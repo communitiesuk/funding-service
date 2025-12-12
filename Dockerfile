@@ -27,6 +27,8 @@ RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=bind,source=package-lock.json,target=package-lock.json \
     npm ci
 
+RUN uv run playwright install chromium-headless-shell --with-deps --only-shell
+
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8080

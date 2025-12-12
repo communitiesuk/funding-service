@@ -307,6 +307,8 @@ class _SharedConfig(_BaseConfig):
     # Google Analytics
     GOOGLE_TAG_MANAGER_ID: str = "GTM-T8XPM3NL"
 
+    PLAYWRIGHT_BROWSERS_PATH: str | None = None
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD
@@ -380,6 +382,8 @@ class DevConfig(_SharedConfig):
     FLASK_ENV: Environment = Environment.DEV
     DEBUG_TB_ENABLED: bool = False
 
+    PLAYWRIGHT_BROWSERS_PATH: str | None = "ms-playwright-pdf"
+
 
 class PullPreviewConfig(_SharedConfig):
     """
@@ -412,6 +416,8 @@ class TestConfig(_SharedConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.TEST
 
+    PLAYWRIGHT_BROWSERS_PATH: str | None = "ms-playwright-pdf"
+
 
 class ProdConfig(_SharedConfig):
     """
@@ -423,6 +429,8 @@ class ProdConfig(_SharedConfig):
 
     # Flask app
     FLASK_ENV: Environment = Environment.PROD
+
+    PLAYWRIGHT_BROWSERS_PATH: str | None = "ms-playwright-pdf"
 
 
 def get_settings() -> _SharedConfig:

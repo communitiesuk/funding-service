@@ -393,3 +393,32 @@ $inset-nested-rows: 30px;
         padding-bottom: 0;
     }
 }
+
+.app-print-header {
+    margin-left: govuk-spacing(6);
+    margin-right: govuk-spacing(6);
+    padding-top: govuk-spacing(4);
+    padding-bottom: govuk-spacing(4);
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+}
+
+.app-print-header-logo {
+    border-left: 3px solid black;
+    padding-left: 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    svg {
+        margin-right: 5px;
+        margin-bottom: 3px;
+    }
+}
+
+.app-dont-page-break {
+    padding-top: govuk-spacing(1);
+    @media print {
+        break-inside: avoid;
+    }
+}
