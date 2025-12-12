@@ -201,6 +201,66 @@ class TestViewLockedReport:
         assert helper.events.submission_state.is_submitted
         assert len(mock_notification_service_calls) == 2
 
+    def test_post_view_locked_report_certify_failure_should_not_submit(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        submission_awaiting_sign_off,
+        factories,
+        mocker,
+        app,
+    ):
+        organisation = authenticated_grant_recipient_certifier_client.organisation
+        grant = authenticated_grant_recipient_certifier_client.grant
+
+        submitted_by_user = factories.user.create()
+        certification_event = next(
+            event
+            for event in submission_awaiting_sign_off.events
+            if event.event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        )
+        certification_event.created_by = submitted_by_user
+
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+        assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+        form = GenericSubmitForm()
+
+        def side_effect(*args, **kwargs):
+            raise Exception("Failed email")
+
+        mocker.patch(
+            "app.services.notify.NotificationService._send_email",
+            side_effect=side_effect,
+        )
+
+        # for this test we don't want the test to raise the actual exception to end the test
+        # as we want to assert on what the app did after the response
+        original_testing_value = app.config["TESTING"]
+        app.config["TESTING"] = False
+        try:
+            response = authenticated_grant_recipient_certifier_client.post(
+                url_for(
+                    "access_grant_funding.view_locked_report",
+                    organisation_id=organisation.id,
+                    grant_id=grant.id,
+                    submission_id=submission_awaiting_sign_off.id,
+                ),
+                data=form.data,
+                follow_redirects=False,
+            )
+            assert response.status_code == 500
+
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Sorry, there is a problem with the service"
+        finally:
+            app.config["TESTING"] = original_testing_value
+
+        # even though we received a managed error response the submission should not have been
+        # updated
+        assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+        assert helper.events.submission_state.is_approved is False
+        assert helper.events.submission_state.is_submitted is False
+
     def test_post_view_locked_report_403_with_incorrect_permissions(
         self, authenticated_grant_recipient_data_provider_client, submission_awaiting_sign_off, caplog
     ):
