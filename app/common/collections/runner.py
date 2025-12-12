@@ -227,14 +227,20 @@ class FormRunner:
             )
             return False
 
-    def complete_submission(self, user: "User", requires_certification: bool = False) -> bool:
+    def complete_submission(self, user: "User") -> bool:
         try:
-            if requires_certification:
+            if self.submission.collection.requires_certification:
                 self.submission.mark_as_sent_for_certification(user)
+
             else:
                 self.submission.submit(user)
             return True
-        except ValueError:
+        except ValueError as e:
+            current_app.logger.warning(
+                "ValueError when submitting id %(submission_id)s",
+                exc_info=e,
+                extra={"submission_id": str(self.submission.id)},
+            )
             self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # type:ignore[attr-defined]
             return False
 

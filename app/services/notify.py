@@ -273,22 +273,28 @@ class NotificationService:
             personalisation=personalisation,
         )
 
-    def send_access_submission_certified_and_submitted(
+    def send_access_submission_submitted(
         self, email_address: str, *, submission_helper: "SubmissionHelper"
     ) -> Notification:
         if not (
-            submission_helper.sent_for_certification_by
-            and submission_helper.certified_by
-            and submission_helper.collection.reporting_period_start_date
+            submission_helper.collection.reporting_period_start_date
             and submission_helper.collection.reporting_period_end_date
             and submission_helper.submitted_at_utc
+        ) or (
+            submission_helper.collection.requires_certification
+            and not (submission_helper.sent_for_certification_by and submission_helper.certified_by)
         ):
             raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
 
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "submitter_name": submission_helper.sent_for_certification_by.name,
-            "certifier_name": submission_helper.certified_by.name,
+            "submitter_name": submission_helper.sent_for_certification_by.name  # type:ignore[union-attr]
+            if submission_helper.collection.requires_certification
+            else submission_helper.submitted_by.name,  # type:ignore[union-attr]
+            "certifier_name": submission_helper.certified_by.name  # type:ignore[union-attr]
+            if submission_helper.collection.requires_certification
+            else "",
+            "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
             "reporting_period": f"{format_date(submission_helper.collection.reporting_period_start_date)} to "
             + f"{format_date(submission_helper.collection.reporting_period_end_date)}",
             "date_submitted": format_datetime(submission_helper.submitted_at_utc),
