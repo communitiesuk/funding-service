@@ -38,6 +38,8 @@ def upgrade() -> None:
         enum_values_to_rename=[],
     )
 
+    op.execute("UPDATE submission SET mode = 'PREVIEW' WHERE mode = 'TEST'")
+
     op.create_check_constraint(
         "ck_grant_recipient_if_live", "submission", "mode = 'PREVIEW' OR grant_recipient_id IS NOT NULL"
     )
@@ -51,6 +53,9 @@ def downgrade() -> None:
         affected_columns=[TableReference(table_schema="public", table_name="submission", column_name="mode")],
         enum_values_to_rename=[],
     )
+
+    op.execute("DELETE FROM submission WHERE mode = 'PREVIEW' OR mode = 'TEST'")
+
     with op.batch_alter_table("organisation", schema=None) as batch_op:
         batch_op.drop_column("mode")
 
