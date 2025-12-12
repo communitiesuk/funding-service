@@ -156,9 +156,10 @@ class NotificationService:
             else "(Draft monitoring report has no deadline set)",
             "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
             "grant_report_url": url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.route_to_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
                 _external=True,
             ),
         }

@@ -112,7 +112,7 @@
         <form method="post" novalidate>
           {{ form.csrf_token }}
           <div class="govuk-button-group">
-            {{ form.submit(params={"text": "Preview form", "classes": "govuk-button--secondary"}) }}
+            {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
             {% if user_can_test_grant_recipient_journey %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, report_id=report.id) }}">Test grant recipient journey</a>
             {% endif %}

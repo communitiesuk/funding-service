@@ -9,7 +9,7 @@ from playwright.sync_api import sync_playwright
 from app.access_grant_funding.forms import DeclineSignOffForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.decorators import has_access_grant_role
-from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection_with_full_schema
+from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum
@@ -35,7 +35,7 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
         submissions.extend(
             [
                 SubmissionHelper(submission=submission)
-                for submission in get_all_submissions_with_mode_for_collection_with_full_schema(
+                for submission in get_all_submissions_with_mode_for_collection(
                     collection_id=report.id,
                     submission_mode=submission_mode,
                     grant_recipient_ids=[grant_recipient.id],

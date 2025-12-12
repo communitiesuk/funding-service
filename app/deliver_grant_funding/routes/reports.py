@@ -26,6 +26,7 @@ from app.common.data.interfaces.collections import (
     delete_collection,
     delete_form,
     delete_question,
+    get_all_submissions_with_mode_for_collection,
     get_collection,
     get_component_by_id,
     get_expression_by_id,
@@ -153,6 +154,18 @@ def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> Respo
         for grant_recipient in user.get_grant_recipients(limit_to_grant_id=grant_id)
         if grant_recipient.mode == GrantRecipientModeEnum.TEST
     ]
+    test_grant_organisations = [gr.organisation for gr in test_grant_recipients]
+
+    # todo: currently checks for the existence of test submissions but could
+    #       set nice submission events when inviting data provider users initially and be specific here
+    existing_submissions = [
+        submission
+        for submission in get_all_submissions_with_mode_for_collection(
+            collection_id=report.id, submission_mode=SubmissionModeEnum.TEST, with_full_schema=False
+        )
+        if submission.grant_recipient and submission.grant_recipient.organisation in test_grant_organisations
+    ]
+
     form = TestGrantRecipientJourneyForm(users_test_grant_recipients=test_grant_recipients)
 
     if form.validate_on_submit():
@@ -174,6 +187,7 @@ def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> Respo
         report=report,
         form=form,
         test_grant_recipients=test_grant_recipients,
+        existing_submissions=existing_submissions,
     )
 
 

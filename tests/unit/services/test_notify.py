@@ -190,7 +190,7 @@ class TestNotificationService:
                             "reporting_period": "Test collection",
                             "report_deadline": "Wednesday 31 December 2025",
                             "is_test_data": "no",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/reports",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/collection/{collection.id}",
                         },
                     }
                 )

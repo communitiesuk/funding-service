@@ -31,7 +31,7 @@ from app.common.collections.types import (
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
-    get_all_submissions_with_mode_for_collection_with_full_schema,
+    get_all_submissions_with_mode_for_collection,
     get_submission,
 )
 from app.common.data.models_user import User
@@ -721,9 +721,7 @@ class CollectionHelper:
 
         self.collection = collection
         self.submission_mode = submission_mode
-        self.submissions = [
-            s for s in (get_all_submissions_with_mode_for_collection_with_full_schema(collection.id, submission_mode))
-        ]
+        self.submissions = [s for s in (get_all_submissions_with_mode_for_collection(collection.id, submission_mode))]
         self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
 
         grant_recipient_mode = (
