@@ -1,0 +1,66 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Test the grant recipient journey" %}
+{% set active_item_identifier = "reports" %}
+{% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "href": url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id),
+      "text": "Back"
+    })
+  }}
+{% endblock %}
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Test the {{ report.name }} report</h1>
+
+      <p class="govuk-body">Test the report as grant recipients will see it in Access grant funding.</p>
+
+      {# todo: having this handy check and link (or button) might be nice to have on pages in deliver in general for power users #}
+      {#       to move between the two systems #}
+      {% if existing_submissions %}
+        <div class="govuk-inset-text">
+          <p class="govuk-body">Your team has previously started a test submission for this report.</p>
+          <p class="govuk-body">
+            You can <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.index') }}">return to the submission in Access grant funding</a> or continue to receive the initial grant recipient email again.
+          </p>
+        </div>
+      {% endif %}
+
+      <p class="govuk-body">You'll be able to:</p>
+      <ul class="govuk-list govuk-list--bullet">
+        <li>create a test submission</li>
+        <li>view all the emails grant recipients receive</li>
+        <li>complete the report questions</li>
+        <li>sign off the report as a certifier</li>
+        <li>view your submission in Deliver grant funding</li>
+      </ul>
+
+      <div class="govuk-form-group govuk-!-margin-top-6">
+        {% if test_grant_recipients %}
+          <form method="post" novalidate>
+            {{ form.csrf_token }}
+            {{
+              form.organisation(params={
+                "fieldset": {
+                    "legend": {
+                      "text": "Select a test organisation:",
+                      "classes": "govuk-fieldset__legend--s"
+                    }
+                  }
+              })
+            }}
+
+            <div class="govuk-form-group">{{ form.submit }}</div>
+          </form>
+        {% else %}
+          <p class="govuk-body">You don't have access to any test organisations for this grant.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock content %}

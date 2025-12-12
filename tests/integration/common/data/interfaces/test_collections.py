@@ -28,7 +28,7 @@ from app.common.data.interfaces.collections import (
     delete_collection_preview_submissions_created_by_user,
     delete_form,
     delete_question,
-    get_all_submissions_with_mode_for_collection_with_full_schema,
+    get_all_submissions_with_mode_for_collection,
     get_collection,
     get_expression,
     get_expression_by_id,
@@ -3716,7 +3716,7 @@ class TestGetSubmissions:
         collection = factories.collection.create(create_submissions__live=3, create_submissions__test=1)
 
         submission_results = list(
-            get_all_submissions_with_mode_for_collection_with_full_schema(
+            get_all_submissions_with_mode_for_collection(
                 collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
@@ -3730,7 +3730,7 @@ class TestGetSubmissions:
         live_submissions[1].grant_recipient_id = gr_id
 
         submission_results = list(
-            get_all_submissions_with_mode_for_collection_with_full_schema(
+            get_all_submissions_with_mode_for_collection(
                 collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, grant_recipient_ids=[gr_id]
             )
         )
@@ -3745,7 +3745,7 @@ class TestGetSubmissions:
         gr_id2 = live_submissions[1].grant_recipient.id
 
         submission_results = list(
-            get_all_submissions_with_mode_for_collection_with_full_schema(
+            get_all_submissions_with_mode_for_collection(
                 collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 grant_recipient_ids=[gr_id1, gr_id2],
@@ -3761,7 +3761,7 @@ class TestGetSubmissions:
         assert live_submissions[1].grant_recipient_id != gr_id
 
         submission_results = list(
-            get_all_submissions_with_mode_for_collection_with_full_schema(
+            get_all_submissions_with_mode_for_collection(
                 collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, grant_recipient_ids=[gr_id]
             )
         )

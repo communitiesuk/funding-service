@@ -26,6 +26,7 @@ from app.common.data.interfaces.collections import (
     delete_collection,
     delete_form,
     delete_question,
+    get_all_submissions_with_mode_for_collection,
     get_collection,
     get_component_by_id,
     get_expression_by_id,
@@ -55,6 +56,7 @@ from app.common.data.types import (
     ComponentType,
     ConditionsOperator,
     ExpressionType,
+    GrantRecipientModeEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -81,6 +83,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SelectDataSourceQuestionForm,
     SetUpReportForm,
+    TestGrantRecipientJourneyForm,
 )
 from app.deliver_grant_funding.helpers import start_previewing_collection
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
@@ -89,7 +92,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
 )
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
@@ -133,6 +136,58 @@ def list_reports(grant_id: UUID) -> ResponseReturnValue:
         grant=grant,
         delete_form=delete_wtform,
         delete_report=delete_report,
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports/<uuid:report_id>", methods=["GET", "POST"])
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    grant = get_grant(grant_id, with_all_collections=True)
+    report = get_collection(
+        report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=False
+    )
+
+    user = get_current_user()
+    test_grant_recipients = [
+        grant_recipient
+        for grant_recipient in user.get_grant_recipients(limit_to_grant_id=grant_id)
+        if grant_recipient.mode == GrantRecipientModeEnum.TEST
+    ]
+    test_grant_organisations = [gr.organisation for gr in test_grant_recipients]
+
+    # todo: currently checks for the existence of test submissions but could
+    #       set nice submission events when inviting data provider users initially and be specific here
+    existing_submissions = [
+        submission
+        for submission in get_all_submissions_with_mode_for_collection(
+            collection_id=report.id, submission_mode=SubmissionModeEnum.TEST, with_full_schema=False
+        )
+        if submission.grant_recipient and submission.grant_recipient.organisation in test_grant_organisations
+    ]
+
+    form = TestGrantRecipientJourneyForm(users_test_grant_recipients=test_grant_recipients)
+
+    if form.validate_on_submit():
+        grant_recipient = next(gr for gr in test_grant_recipients if str(gr.id) == form.organisation.data)
+        notification_service.send_access_report_opened(
+            email_address=user.email,
+            collection=report,
+            grant_recipient=grant_recipient,
+        )
+        flash(
+            "We emailed you a link to test the grant recipient journey.",
+            FlashMessageType.TESTING_GRANT_RECIPIENT_JOURNEY_STARTED.value,
+        )
+        return redirect(url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id))
+
+    return render_template(
+        "deliver_grant_funding/reports/start_test_grant_recipient_journey.html",
+        grant=grant,
+        report=report,
+        form=form,
+        test_grant_recipients=test_grant_recipients,
+        existing_submissions=existing_submissions,
     )
 
 

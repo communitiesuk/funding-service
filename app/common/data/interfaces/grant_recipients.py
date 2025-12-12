@@ -40,13 +40,13 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
     - They do not have a submission for this collection
 
     """
-    from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection_with_full_schema
+    from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
     from app.common.helpers.collections import SubmissionHelper
 
     all_grant_recipients = get_grant_recipients(
         grant, with_data_providers=with_data_providers, with_certifiers=with_certifiers
     )
-    submissions = get_all_submissions_with_mode_for_collection_with_full_schema(
+    submissions = get_all_submissions_with_mode_for_collection(
         grant_recipient_ids=[gr.id for gr in all_grant_recipients],
         collection_id=collection_id,
         submission_mode=SubmissionModeEnum.LIVE,

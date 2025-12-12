@@ -39,7 +39,7 @@ from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Form, Group, Question
+    from app.common.data.models import Component, Form, GrantRecipient, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -671,3 +671,23 @@ class AddGuidanceForm(FlaskForm):
 
 class PreviewGuidanceForm(FlaskForm):
     guidance = StringField()
+
+
+class TestGrantRecipientJourneyForm(FlaskForm):
+    organisation = RadioField(
+        "Select a test organisation:",
+        choices=[],
+        validators=[DataRequired("Select a test organisation")],
+        widget=GovRadioInput(),
+    )
+
+    def __init__(self, *args: Any, users_test_grant_recipients: list["GrantRecipient"], **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.organisation.choices = [
+            (str(grant_recipient.id), grant_recipient.organisation.name)
+            for grant_recipient in users_test_grant_recipients
+        ]
+        if len(users_test_grant_recipients) == 1:
+            self.organisation.default = str(users_test_grant_recipients[0].id)
+
+    submit = SubmitField("Start test submission journey", widget=GovSubmitInput())

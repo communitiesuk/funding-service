@@ -288,10 +288,12 @@ def update_submission_data(
     return submission
 
 
-def get_all_submissions_with_mode_for_collection_with_full_schema(
+def get_all_submissions_with_mode_for_collection(
     collection_id: UUID,
     submission_mode: SubmissionModeEnum,
     grant_recipient_ids: Sequence[UUID] | TNotProvided = NOT_PROVIDED,
+    *,
+    with_full_schema: bool = True,
 ) -> ScalarResult[Submission]:
     """
     Use this function to get all submission data for a collection - it
@@ -302,11 +304,9 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
 
     # todo: this feels redundant because this interface should probably be limited to a single collection and fetch
     #       that through a specific interface which already exists - this can then focus on submissions
-    stmt = (
-        select(Submission)
-        .where(Submission.collection_id == collection_id)
-        .where(Submission.mode == submission_mode)
-        .options(
+    stmt = select(Submission).where(Submission.collection_id == collection_id).where(Submission.mode == submission_mode)
+    if with_full_schema:
+        stmt = stmt.options(
             # get all flat components to drive single batches of selectin
             # joinedload lets us avoid an exponentially increasing number of queries
             joinedload(Submission.collection)
@@ -328,7 +328,6 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
             selectinload(Submission.events),
             joinedload(Submission.created_by),
         )
-    )
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))
     return db.session.scalars(stmt).unique()
