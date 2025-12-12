@@ -120,11 +120,20 @@ class PlatformAdminOrganisationView(PlatformAdminModelView):
     can_edit = True
     can_delete = True
 
-    column_list = ["external_id", "name", "type", "status", "can_manage_grants"]
+    column_list = ["external_id", "name", "type", "mode", "status", "can_manage_grants"]
     column_searchable_list = ["external_id", "name"]
-    column_filters = ["external_id", "name", "type", "status", "can_manage_grants"]
+    column_filters = ["external_id", "name", "type", "mode", "status", "can_manage_grants"]
 
-    form_columns = ["external_id", "name", "type", "status", "can_manage_grants", "active_date", "retirement_date"]
+    form_columns = [
+        "external_id",
+        "name",
+        "type",
+        "mode",
+        "status",
+        "can_manage_grants",
+        "active_date",
+        "retirement_date",
+    ]
     column_descriptions = {"external_id": "IATI or LAD24 identifier"}
 
 
@@ -174,12 +183,12 @@ class PlatformAdminGrantView(PlatformAdminModelView):
     can_edit = True
     can_delete = True
 
-    column_list = ["name", "status", "ggis_number", "organisation.name"]
-    column_filters = ["name", "status", "ggis_number", "organisation.name"]
-    column_searchable_list = ["name", "ggis_number"]
+    column_list = ["name", "code", "status", "ggis_number", "organisation.name"]
+    column_filters = ["name", "code", "status", "ggis_number", "organisation.name"]
+    column_searchable_list = ["name", "code", "ggis_number"]
     column_labels = {"ggis_number": "GGIS number", "organisation.name": "Organisation name"}
 
-    form_columns = ["name", "organisation", "ggis_number", "status"]
+    form_columns = ["name", "code", "organisation", "ggis_number", "status"]
 
     form_args = {
         "organisation": {
@@ -327,8 +336,8 @@ class PlatformAdminGrantRecipientView(PlatformAdminModelView):
     can_edit = False
     can_delete = True
 
-    column_list = ["grant.name", "organisation.name"]
-    column_filters = ["grant.name", "organisation.name"]
+    column_list = ["grant.name", "organisation.name", "mode"]
+    column_filters = ["grant.name", "organisation.name", "mode"]
     column_searchable_list = ["grant.name", "organisation.name"]
     column_labels = {"grant.name": "Grant name", "organisation.name": "Organisation name"}
 
@@ -337,7 +346,7 @@ class PlatformAdminGrantRecipientView(PlatformAdminModelView):
         "organisation": lambda v, c, m, n: m.organisation.name,
     }
 
-    form_columns = ["grant", "organisation"]
+    form_columns = ["grant", "organisation", "mode"]
 
     form_args = {
         "grant": {
