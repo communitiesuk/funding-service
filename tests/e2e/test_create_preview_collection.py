@@ -444,15 +444,18 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
 }
 
 
-def create_grant(new_grant_name: str, all_grants_page: AllGrantsPage) -> GrantDashboardPage:
+def create_grant(new_grant_name: str, grant_name_uuid: str, all_grants_page: AllGrantsPage) -> GrantDashboardPage:
     grant_intro_page = all_grants_page.click_set_up_a_grant()
     grant_ggis_page = grant_intro_page.click_continue()
     grant_ggis_page.select_yes()
     grant_ggis_page.fill_ggis_number()
     grant_name_page = grant_ggis_page.click_save_and_continue()
     grant_name_page.fill_name(new_grant_name)
-    grant_description_page = grant_name_page.click_save_and_continue()
-    grant_description_page.fill_description()
+    grant_code_page = grant_name_page.click_save_and_continue()
+    grant_code_page.fill_code(f"E2E-{grant_name_uuid[:8].upper()}")
+    grant_description_page = grant_code_page.click_save_and_continue()
+    new_grant_description = f"Description for {new_grant_name}"
+    grant_description_page.fill_description(new_grant_description)
     grant_contact_page = grant_description_page.click_save_and_continue()
     grant_contact_page.fill_contact_name()
     grant_contact_page.fill_contact_email()
@@ -857,7 +860,7 @@ def test_create_and_preview_report(
         all_grants_page.navigate()
 
         # Set up new grant
-        grant_dashboard_page = create_grant(new_grant_name, all_grants_page)
+        grant_dashboard_page = create_grant(new_grant_name, grant_name_uuid, all_grants_page)
 
         # Go to Reports tab
         grant_reports_page = grant_dashboard_page.click_reports(new_grant_name)

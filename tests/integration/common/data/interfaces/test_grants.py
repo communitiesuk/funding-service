@@ -77,6 +77,7 @@ def test_create_grant(app, db_session) -> None:
     result = create_grant(
         ggis_number="GGIS-12345",
         name="Test Grant",
+        code="TG",
         description="This is a test grant.",
         primary_contact_name="John Doe",
         primary_contact_email="johndoe@example.com",
@@ -87,6 +88,7 @@ def test_create_grant(app, db_session) -> None:
     from_db = db_session.get(Grant, result.id)
     assert from_db is not None
     assert from_db.organisation.name == app.config["PLATFORM_DEPARTMENT_ORGANISATION_CONFIG"]["name"]
+    assert from_db.code == "TG"
 
 
 def test_create_duplicate_grant(factories) -> None:
@@ -95,6 +97,7 @@ def test_create_duplicate_grant(factories) -> None:
         create_grant(
             ggis_number="GGIS-12345",
             name="Duplicate Grant",
+            code="DG",
             description="This is a duplicate grant.",
             primary_contact_name="Jane Doe",
             primary_contact_email="janedoe@example.com",

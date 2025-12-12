@@ -1,0 +1,55 @@
+{% if grant %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+  {% set active_item_identifier = "details" %}
+{% else %}
+  {% extends "deliver_grant_funding/base.html" %}
+  {% set active_item_identifier = "grants" %}
+{% endif %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = grant.name %}
+
+{% block beforeContent %}
+  {% if not grant.id %}
+    {{
+      govukBackLink({
+          "text": "Back",
+          "href": back_link_href
+      })
+    }}
+  {% endif %}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{% if grant.id %}{{ grant.name }}{% else %}Set up the grant{% endif %}</span>
+      <h1 class="govuk-heading-l">What is the unique code for this grant?</h1>
+
+      <p class="govuk-body">This should clearly identify the grant and will usually be an initialism of the grant name. The code must be unique for every grant in Deliver grant funding.</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{
+          form.code(params={
+            "label": {
+              "isPageHeading": false,
+              "classes": "govuk-visually-hidden"
+            },
+            "classes": "govuk-!-width-two-thirds",
+          })
+        }}
+
+        <div class="govuk-button-group">
+          {% set submit_label = 'Update grant code' if grant.id else 'Save and continue' %}
+          {{ form.submit(params={"text": submit_label}) }}
+
+          {% if grant %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link_href }}">Cancel</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

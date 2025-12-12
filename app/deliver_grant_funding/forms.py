@@ -17,13 +17,13 @@ from govuk_frontend_wtf.wtforms_widgets import (
 from wtforms import Field, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, Optional, Regexp, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import (
     group_name_exists,
 )
-from app.common.data.interfaces.grants import grant_name_exists
+from app.common.data.interfaces.grants import grant_code_exists, grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
@@ -150,6 +150,28 @@ class GrantNameForm(GrantSetupForm):
     def validate_name(self, field: StringField) -> None:
         if field.data and grant_name_exists(field.data, exclude_grant_id=self.existing_grant_id):
             raise ValidationError("Grant name already in use")
+
+
+class GrantCodeForm(GrantSetupForm):
+    code = StringField(
+        "Enter the grant code",
+        validators=[
+            DataRequired("Enter a unique grant code"),
+            Regexp(
+                r"^[A-Z0-9-]+$", message="The grant code should only contain uppercase letters, numbers, and dashes"
+            ),
+        ],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
+
+    def __init__(self, *args: Any, existing_grant_id: UUID | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.existing_grant_id = existing_grant_id
+
+    def validate_code(self, field: StringField) -> None:
+        if field.data and (grant := grant_code_exists(field.data, exclude_grant_id=self.existing_grant_id)):
+            raise ValidationError(f"Grant code already in use by {grant.name}")
 
 
 class GrantDescriptionForm(GrantSetupForm):
