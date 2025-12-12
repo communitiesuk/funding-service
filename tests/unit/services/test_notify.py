@@ -5,7 +5,7 @@ import responses
 from responses import matchers
 
 from app import notification_service
-from app.common.data.types import SubmissionEventType
+from app.common.data.types import GrantRecipientModeEnum, SubmissionEventType
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.services.notify import Notification
@@ -161,6 +161,46 @@ class TestNotificationService:
         )
         resp = notification_service.send_deliver_org_member_invitation(
             organisation=organisation, email_address="test@communities.gov.uk"
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_access_report_opened(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            grant__name="Test grant",
+            mode=GrantRecipientModeEnum.LIVE,
+        )
+        collection = factories.collection.build(
+            name="Test collection",
+            grant=grant_recipient.grant,
+            submission_period_end_date=datetime.date(2025, 12, 31),
+        )
+        email_address = "test@communities.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "4fc8d831-e241-4648-a8d3-04fb1bd9193e",
+                        "personalisation": {
+                            "grant_name": "Test grant",
+                            "reporting_period": "Test collection",
+                            "report_deadline": "Wednesday 31 December 2025",
+                            "is_test_data": "no",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/reports",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_access_report_opened(
+            email_address=email_address,
+            collection=collection,
+            grant_recipient=grant_recipient,
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1

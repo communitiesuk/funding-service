@@ -8,10 +8,11 @@ from flask import Flask, current_app, url_for
 from notifications_python_client import NotificationsAPIClient  # type: ignore[attr-defined]
 from notifications_python_client.errors import APIError, TokenError
 
+from app.common.data.types import GrantRecipientModeEnum
 from app.common.filters import format_date, format_datetime
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant, Organisation, Submission
+    from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission
     from app.common.data.models_user import User
     from app.common.helpers.collections import SubmissionHelper
 
@@ -142,6 +143,29 @@ class NotificationService:
                 "organisation_name": organisation.name,
                 "sign_in_url": url_for("deliver_grant_funding.list_grants", _external=True),
             },
+        )
+
+    def send_access_report_opened(
+        self, email_address: str, *, collection: "Collection", grant_recipient: "GrantRecipient"
+    ) -> Notification:
+        personalisation = {
+            "grant_name": grant_recipient.grant.name,
+            "reporting_period": collection.name,
+            "report_deadline": format_date(collection.submission_period_end_date)
+            if collection.submission_period_end_date
+            else "(Draft monitoring report has no deadline set)",
+            "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+            "grant_report_url": url_for(
+                "access_grant_funding.list_reports",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                _external=True,
+            ),
+        }
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"],
+            personalisation=personalisation,
         )
 
     def send_access_submission_sent_for_certification_confirmation(

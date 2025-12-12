@@ -1,12 +1,5 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
-{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
-{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
-{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
-{% from "common/macros/status.html" import reportStatusTag with context %}
-{% from "common/macros/status.html" import grantStatusTag with context %}
-{% from "common/macros/status.html" import grantStatusDescription with context %}
 
 {% set page_title = "Test the grant recipient journey" %}
 {% set active_item_identifier = "reports" %}
@@ -30,11 +23,8 @@
 
       <p class="govuk-body">Test the report as grant recipients will see it in Access grant funding.</p>
 
-      {# presumably only if there is a report AND if the user has access to the grant recipient with that report #}
-      {# should it only show if your user created the test submission? or if this user hasn't started the journey before (submission events?) #}
-      {# the goal would be for every user to start the journey and get an email once and then be able to use the link #}
-      {# this is probably one of the few things that qualifies for something like inset text #}
-      <div class="govuk-inset-text">You have previously started a test submission for this report, you can <a class="govuk-link govuk-link--no-visited-state" href="#">return to the submission in Access grant funding</a>.</div>
+      {# todo: if there's already a test submission started on an org this user has access to provide them #}
+      {#       a link to Access grant funding #}
 
       <p class="govuk-body">You'll be able to:</p>
       <ul class="govuk-list govuk-list--bullet">
@@ -49,34 +39,18 @@
         {% if test_grant_recipients %}
           <form method="post" novalidate>
             {{ form.csrf_token }}
-            {{ form.organisation }}
-            {{ form.submit }}
             {{
-              govukRadios({
+              form.organisation(params={
                 "fieldset": {
-                  "legend": {
-                    "text": "Select a test organisation:",
-                    "classes": "govuk-fieldset__legend--s"
+                    "legend": {
+                      "text": "Select a test organisation:",
+                      "classes": "govuk-fieldset__legend--s"
+                    }
                   }
-                },
-                "items": [{
-                  "value": "first",
-                  "text": "Rivendell Council"
-                }, {
-                  "value": "first",
-                  "text": "Shireshire"
-                }]
               })
             }}
-            <div class="govuk-form-group">
-              <div class="govuk-button-group">
-                {{
-                  govukButton({
-                    "text": "Start test submission (?) journey",
-                  })
-                }}
-              </div>
-            </div>
+
+            <div class="govuk-form-group">{{ form.submit }}</div>
           </form>
         {% else %}
           <p class="govuk-body">You don't have access to any test organisations for this grant.</p>

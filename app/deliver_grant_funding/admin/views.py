@@ -785,7 +785,14 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         csv_output = StringIO()
         csv_writer = csv.DictWriter(
             csv_output,
-            fieldnames=["email_address", "grant_name", "reporting_period", "report_deadline", "grant_report_url"],
+            fieldnames=[
+                "email_address",
+                "grant_name",
+                "reporting_period",
+                "report_deadline",
+                "grant_report_url",
+                "is_test_data",
+            ],
         )
         csv_writer.writeheader()
         email_recipients = set()
@@ -829,6 +836,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                     "reporting_period": reporting_period,
                     "report_deadline": report_deadline,
                     "grant_report_url": grant_report_url,
+                    "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
                 }
             )
 

@@ -55,6 +55,7 @@ from app.common.data.types import (
     ComponentType,
     ConditionsOperator,
     ExpressionType,
+    GrantRecipientModeEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -90,7 +91,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
 )
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
@@ -147,13 +148,32 @@ def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> Respo
     )
 
     user = get_current_user()
-    users_test_organisations = [
-        grant_recipient.organisation for grant_recipient in user.get_grant_recipients(limit_to_grant_id=grant_id)
+    test_grant_recipients = [
+        grant_recipient
+        for grant_recipient in user.get_grant_recipients(limit_to_grant_id=grant_id)
+        if grant_recipient.mode == GrantRecipientModeEnum.TEST
     ]
-    form = TestGrantRecipientJourneyForm(users_test_organisations=users_test_organisations)
+    form = TestGrantRecipientJourneyForm(users_test_grant_recipients=test_grant_recipients)
+
+    if form.validate_on_submit():
+        grant_recipient = next(gr for gr in test_grant_recipients if str(gr.id) == form.organisation.data)
+        notification_service.send_access_report_opened(
+            email_address=user.email,
+            collection=report,
+            grant_recipient=grant_recipient,
+        )
+        flash(
+            "We emailed you a link to test the grant recipient journey.",
+            FlashMessageType.TESTING_GRANT_RECIPIENT_JOURNEY_STARTED.value,
+        )
+        return redirect(url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id))
 
     return render_template(
-        "deliver_grant_funding/reports/start_test_grant_recipient_journey.html", grant=grant, report=report, form=form
+        "deliver_grant_funding/reports/start_test_grant_recipient_journey.html",
+        grant=grant,
+        report=report,
+        form=form,
+        test_grant_recipients=test_grant_recipients,
     )
 
 
