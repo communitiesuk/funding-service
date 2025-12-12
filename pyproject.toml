@@ -35,7 +35,7 @@ dependencies = [
     "faker==38.2.0",
     "xgovuk-flask-admin==0.1.5",
     "flask-admin==2.0.2",
-    "pytest-playwright==0.7.2",
+    "playwright>=1.56.0",
 ]
 
 [dependency-groups]
@@ -66,6 +66,7 @@ dev = [
     "import-linter==2.8",
     "ty==0.0.1a32",
     "pytest==9.0.2",
+    "pytest-playwright>=0.7.2",
 ]
 
 [tool.uv]
