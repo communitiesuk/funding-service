@@ -1,5 +1,5 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
-{% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% extends "deliver_grant_funding/grant_base.html" %}
@@ -9,7 +9,7 @@
 
 {% block beforeContent %}
   {% if helper.is_test %}
-    {{ mhclgTestBanner("Test submission") }}
+    {{ mhclgInlinePageTestDataBanner("Test submission") }}
   {% endif %}
 
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, report_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }) }}

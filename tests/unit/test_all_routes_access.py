@@ -241,6 +241,9 @@ routes_with_access_controlled_by_flask_admin = [
     "reporting_lifecycle.make_report_live",
     "reporting_lifecycle.send_emails_to_recipients",
     "reporting_lifecycle.download_data_providers_csv",
+    "reporting_lifecycle.set_up_test_grant_recipient_users",
+    "reporting_lifecycle.set_up_test_organisations",
+    "reporting_lifecycle.set_up_test_grant_recipients",
 ]
 
 

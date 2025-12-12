@@ -1227,11 +1227,13 @@
         {
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "35cf31fc-3b1a-4aa1-b32f-15305b411363",
+          "mode": "live",
           "organisation_id": "3ca29557-e6b9-4e6d-8290-5fb1c9535d1e"
         },
         {
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "cae51cb9-d311-4769-8d04-4f24f2a4a58e",
+          "mode": "live",
           "organisation_id": "41773840-55b6-4d5e-8b83-a6163e0c834d"
         }
       ],
@@ -3800,6 +3802,7 @@
       "can_manage_grants": true,
       "external_id": "GB-GOV-27",
       "id": "<UUID:GB-GOV-27>",
+      "mode": "live",
       "name": "Ministry of Housing, Communities and Local Government",
       "status": "active",
       "type": "Central Government"
@@ -3808,6 +3811,7 @@
       "can_manage_grants": false,
       "external_id": "E08000001",
       "id": "3ca29557-e6b9-4e6d-8290-5fb1c9535d1e",
+      "mode": "live",
       "name": "Bolton Metropolitan Borough Council",
       "status": "active",
       "type": "Metropolitan District"
@@ -3816,6 +3820,7 @@
       "can_manage_grants": false,
       "external_id": "E06000042",
       "id": "41773840-55b6-4d5e-8b83-a6163e0c834d",
+      "mode": "live",
       "name": "Milton Keynes Council",
       "status": "active",
       "type": "Unitary Authority"

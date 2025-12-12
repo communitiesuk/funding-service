@@ -7,12 +7,14 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Organisation
-from app.common.data.types import OrganisationData, OrganisationStatus
+from app.common.data.types import OrganisationData, OrganisationModeEnum, OrganisationStatus
 from app.extensions import db
 
 
-def get_organisations(can_manage_grants: bool | None = None) -> Sequence[Organisation]:
-    statement = select(Organisation)
+def get_organisations(
+    can_manage_grants: bool | None = None, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+) -> Sequence[Organisation]:
+    statement = select(Organisation).where(Organisation.mode == mode)
 
     if can_manage_grants is not None:
         statement = statement.where(Organisation.can_manage_grants.is_(can_manage_grants))
@@ -24,8 +26,12 @@ def get_organisation(organisation_id: UUID) -> Organisation:
     return db.session.get_one(Organisation, organisation_id)
 
 
-def get_organisation_count() -> int:
-    statement = select(func.count()).select_from(Organisation).where(Organisation.can_manage_grants.is_(False))
+def get_organisation_count(mode: OrganisationModeEnum = OrganisationModeEnum.LIVE) -> int:
+    statement = (
+        select(func.count())
+        .select_from(Organisation)
+        .where(Organisation.can_manage_grants.is_(False), Organisation.mode == mode)
+    )
     return db.session.scalar(statement) or 0
 
 
@@ -44,6 +50,7 @@ def upsert_organisations(organisations: list[OrganisationData]) -> None:
             "status": OrganisationStatus.ACTIVE if not org.retirement_date else OrganisationStatus.RETIRED,
             "active_date": org.active_date,
             "retirement_date": org.retirement_date,
+            "mode": org.mode,
         }
         db.session.execute(
             postgresql_upsert(Organisation)

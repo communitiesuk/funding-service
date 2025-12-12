@@ -19,8 +19,10 @@ from app.common.data.types import (
     ComponentType,
     ConditionsOperator,
     ExpressionType,
+    GrantRecipientModeEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
+    OrganisationModeEnum,
     OrganisationStatus,
     OrganisationType,
     QuestionDataType,
@@ -78,7 +80,32 @@ class Grant(BaseModel):
         return [collection for collection in self.collections if collection.type == CollectionType.MONITORING_REPORT]
 
     @property
-    def access_reports(self) -> list["Collection"]:
+    def test_grant_recipients(self) -> list["GrantRecipient"]:
+        return [
+            grant_recipient
+            for grant_recipient in self.grant_recipients
+            if grant_recipient.mode == GrantRecipientModeEnum.TEST
+        ]
+
+    def get_access_reports_for_user(self, user: "User | None" = None) -> list["Collection"]:
+        """Get reports visible to Access users, with special handling for testing.
+
+        Args:
+            user: Current user. If a Deliver user testing Access, returns all reports.
+                  If None or regular Access user, returns only OPEN/CLOSED reports.
+
+        Returns:
+            List of Collection objects sorted by status and submission end date.
+        """
+        from app.common.auth.authorisation_helper import AuthorisationHelper
+
+        # Deliver users testing Access see all reports
+        if user and AuthorisationHelper.is_deliver_user_testing_access(user):
+            return sorted(
+                self.reports, key=lambda report: (report.status, report.submission_period_end_date or datetime.date.max)
+            )
+
+        # Regular Access users see only OPEN/CLOSED
         access_reports = [
             report
             for report in self.reports
@@ -87,6 +114,11 @@ class Grant(BaseModel):
         return sorted(
             access_reports, key=lambda report: (report.status, report.submission_period_end_date or datetime.date.max)
         )
+
+    @property
+    def access_reports(self) -> list["Collection"]:
+        """Backward compatibility - uses regular Access user filtering."""
+        return self.get_access_reports_for_user(user=None)
 
 
 class Organisation(BaseModel):
@@ -107,6 +139,7 @@ class Organisation(BaseModel):
     active_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     retirement_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     can_manage_grants: Mapped[bool] = mapped_column(default=False)
+    mode: Mapped[OrganisationModeEnum] = mapped_column(default=OrganisationModeEnum.LIVE)
 
     roles: Mapped[list["UserRole"]] = relationship(
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
@@ -190,6 +223,10 @@ class Collection(BaseModel):
             name="ck_monitoring_certification_not_null",
         ),
     )
+
+    @property
+    def preview_submissions(self) -> list["Submission"]:
+        return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.PREVIEW)
 
     @property
     def test_submissions(self) -> list["Submission"]:
@@ -776,6 +813,7 @@ class GrantRecipient(BaseModel):
 
     organisation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organisation.id"))
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
+    mode: Mapped[GrantRecipientModeEnum] = mapped_column(default=GrantRecipientModeEnum.LIVE)
 
     organisation: Mapped[Organisation] = relationship("Organisation")
     grant: Mapped[Grant] = relationship("Grant", back_populates="grant_recipients")

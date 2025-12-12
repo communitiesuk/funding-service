@@ -48,7 +48,9 @@ from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import (
     CollectionType,
     ConditionsOperator,
+    GrantRecipientModeEnum,
     GrantStatusEnum,
+    OrganisationModeEnum,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
@@ -136,6 +138,8 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
     name = factory.Sequence(lambda n: "Organisation %d" % n)
     can_manage_grants = False
 
+    mode = OrganisationModeEnum.LIVE
+
 
 class _GrantRecipientFactory(SQLAlchemyModelFactory):
     class Meta:
@@ -148,6 +152,8 @@ class _GrantRecipientFactory(SQLAlchemyModelFactory):
     grant = factory.SubFactory(_GrantFactory)
     organisation_id = factory.LazyAttribute(lambda o: o.organisation.id)
     organisation = factory.SubFactory(_OrganisationFactory, can_manage_grants=False)
+
+    mode = GrantRecipientModeEnum.LIVE
 
 
 class _UserRoleFactory(SQLAlchemyModelFactory):
@@ -228,11 +234,12 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         obj: Collection,
         create,
         extracted,
+        preview: bool = False,
         test: bool = False,
         live: bool = False,
         **kwargs,
     ) -> None:
-        if not live and not test:
+        if not live and not test and not preview:
             return
 
         form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
@@ -275,6 +282,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 data=response_data,
             )
 
+        if preview:
+            _create_submission(SubmissionModeEnum.PREVIEW, complete_question_2=True)
+            _create_submission(SubmissionModeEnum.PREVIEW, complete_question_2=False)
         if test:
             _create_submission(SubmissionModeEnum.TEST, complete_question_2=True)
             _create_submission(SubmissionModeEnum.TEST, complete_question_2=False)
@@ -287,11 +297,12 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         obj: Collection,
         create,
         extracted,
+        preview: int = 0,
         test: int = 0,
         live: int = 0,
         **kwargs,
     ) -> None:
-        if not live and not test:
+        if not live and not test and not preview:
             return
 
         form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
@@ -395,6 +406,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     data=response_data,
                 )
 
+        _create_submission(SubmissionModeEnum.PREVIEW, preview)
         _create_submission(SubmissionModeEnum.TEST, test)
         _create_submission(SubmissionModeEnum.LIVE, live)
 
@@ -403,12 +415,13 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         obj: Collection,
         create,
         extracted,
+        preview: int = 0,
         test: int = 0,
         live: int = 0,
         use_random_data: bool = True,
         **kwargs,
     ) -> None:
-        if not test and not live:
+        if not test and not live and not preview:
             return
         form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
 
@@ -508,6 +521,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     },
                 )
 
+        _create_submission_of_type(SubmissionModeEnum.PREVIEW, preview)
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
@@ -516,6 +530,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         obj: Collection,
         create,
         extracted,
+        preview: int = 0,
         test: int = 0,
         live: int = 0,
         **kwargs,
@@ -531,6 +546,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         :param kwargs:
         :return:
         """
+        for _ in range(0, preview):
+            _SubmissionFactory.create(collection=obj, mode=SubmissionModeEnum.PREVIEW)
         for _ in range(0, test):
             _SubmissionFactory.create(collection=obj, mode=SubmissionModeEnum.TEST)
         for _ in range(0, live):
@@ -541,13 +558,14 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         obj: Collection,
         create,
         extracted,
+        preview: int = 0,
         test: int = 0,
         live: int = 0,
         use_random_data: bool = True,
         number_of_add_another_answers: int = 5,
         **kwargs,
     ) -> None:
-        if not test and not live:
+        if not test and not live and not preview:
             return
         form = _FormFactory.create(
             collection=obj, title="Add another nested group test form", slug="add-another-nested-group-test-form"
@@ -631,6 +649,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     },
                 )
 
+        _create_submission_of_type(SubmissionModeEnum.PREVIEW, preview)
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
@@ -649,7 +668,7 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
-    mode = SubmissionModeEnum.TEST
+    mode = SubmissionModeEnum.PREVIEW
     data = factory.LazyFunction(dict)
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
@@ -662,7 +681,7 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
 
     grant_recipient = factory.LazyAttribute(
         lambda o: _GrantRecipientFactory.build(grant=o.collection.grant if o.collection else None)
-        if o.mode == SubmissionModeEnum.LIVE
+        if o.mode != SubmissionModeEnum.PREVIEW
         else None
     )
     grant_recipient_id = factory.LazyAttribute(lambda o: o.grant_recipient.id if o.grant_recipient else None)

@@ -337,11 +337,13 @@ def get_all_submissions_with_mode_for_collection_with_full_schema(
 def get_submission_by_grant_recipient_collection(
     grant_recipient: GrantRecipient, collection_id: UUID
 ) -> Submission | None:
+    submission_mode = SubmissionModeEnum(grant_recipient.mode.value)
+
     return db.session.scalars(
         select(Submission).where(
             Submission.grant_recipient_id == grant_recipient.id,
             Submission.collection_id == collection_id,
-            Submission.mode == SubmissionModeEnum.LIVE,
+            Submission.mode == submission_mode,
         )
     ).first()
 
@@ -1448,7 +1450,7 @@ def delete_question(question: Question | Group) -> None:
 
 
 @flush_and_rollback_on_exceptions
-def delete_collection_test_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
+def delete_collection_preview_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
     # We're trying to rely less on ORM relationships and cascades in delete queries so here we explicitly delete all
     # SubmissionEvents related to the `created_by_user`'s test submissions for that collection, and then
     # subsequently delete the submissions.
@@ -1457,7 +1459,7 @@ def delete_collection_test_submissions_created_by_user(collection: Collection, c
         select(Submission.id).where(
             Submission.collection_id == collection.id,
             Submission.created_by_id == created_by_user.id,
-            Submission.mode == SubmissionModeEnum.TEST,
+            Submission.mode == SubmissionModeEnum.PREVIEW,
         )
     ).all()
 

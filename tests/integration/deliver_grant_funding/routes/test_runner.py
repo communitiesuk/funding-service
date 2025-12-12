@@ -47,9 +47,9 @@ class TestSubmissionTasklist:
     @pytest.mark.parametrize(
         "client_fixture, submission_mode, expected_status_code",
         (
-            ("authenticated_no_role_client", SubmissionModeEnum.TEST, 403),
-            ("authenticated_grant_member_client", SubmissionModeEnum.TEST, 302),
-            ("authenticated_grant_admin_client", SubmissionModeEnum.TEST, 302),
+            ("authenticated_no_role_client", SubmissionModeEnum.PREVIEW, 403),
+            ("authenticated_grant_member_client", SubmissionModeEnum.PREVIEW, 302),
+            ("authenticated_grant_admin_client", SubmissionModeEnum.PREVIEW, 302),
         ),
     )
     def test_get_other_users_submission_tasklist_403s(
@@ -267,9 +267,9 @@ class TestAskAQuestion:
     @pytest.mark.parametrize(
         "client_fixture, submission_mode, expected_status_code",
         (
-            ("authenticated_no_role_client", SubmissionModeEnum.TEST, 403),
-            ("authenticated_grant_member_client", SubmissionModeEnum.TEST, 302),
-            ("authenticated_grant_admin_client", SubmissionModeEnum.TEST, 302),
+            ("authenticated_no_role_client", SubmissionModeEnum.PREVIEW, 403),
+            ("authenticated_grant_member_client", SubmissionModeEnum.PREVIEW, 302),
+            ("authenticated_grant_admin_client", SubmissionModeEnum.PREVIEW, 302),
         ),
     )
     def test_get_other_users_ask_a_question_403s(
@@ -724,9 +724,9 @@ class TestCheckYourAnswers:
     @pytest.mark.parametrize(
         "client_fixture, submission_mode, expected_status_code",
         (
-            ("authenticated_no_role_client", SubmissionModeEnum.TEST, 403),
-            ("authenticated_grant_member_client", SubmissionModeEnum.TEST, 302),
-            ("authenticated_grant_admin_client", SubmissionModeEnum.TEST, 302),
+            ("authenticated_no_role_client", SubmissionModeEnum.PREVIEW, 403),
+            ("authenticated_grant_member_client", SubmissionModeEnum.PREVIEW, 302),
+            ("authenticated_grant_admin_client", SubmissionModeEnum.PREVIEW, 302),
         ),
     )
     def test_get_other_users_check_your_answers_403s(

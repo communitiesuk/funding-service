@@ -8,6 +8,7 @@
 {% set form = runner.question_form if not runner.add_another_summary_context else runner.add_another_summary_form %}
 
 {% block beforeContent %}
+  {{ super() }}
   {{ collection_before(runner) }}
 {% endblock beforeContent %}
 

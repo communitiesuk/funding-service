@@ -22,7 +22,7 @@ def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnVa
 
     if runner.tasklist_form.validate_on_submit():
         if runner.complete_submission(interfaces.user.get_current_user()):
-            if runner.submission.is_test:
+            if runner.submission.is_preview:
                 return redirect(
                     url_for(
                         "deliver_grant_funding.return_from_test_submission",

@@ -90,7 +90,18 @@ class QuestionDataType(enum.StrEnum):
 
 class SubmissionModeEnum(enum.StrEnum):
     TEST = "test"
+    PREVIEW = "preview"
     LIVE = "live"
+
+
+class OrganisationModeEnum(enum.StrEnum):
+    LIVE = "live"
+    TEST = "test"
+
+
+class GrantRecipientModeEnum(enum.StrEnum):
+    LIVE = "live"
+    TEST = "test"
 
 
 class SubmissionStatusEnum(enum.StrEnum):
@@ -280,3 +291,4 @@ class OrganisationData(BaseModel):
     type: OrganisationType
     active_date: datetime.date | None
     retirement_date: datetime.date | None
+    mode: OrganisationModeEnum = OrganisationModeEnum.LIVE

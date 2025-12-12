@@ -12,9 +12,10 @@ from app.common.auth.decorators import has_access_grant_role
 from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection_with_full_schema
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.types import CollectionType, RoleEnum, SubmissionModeEnum
+from app.common.data.types import CollectionType, RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.submission_mode import get_submission_mode_for_user
 from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
 
@@ -25,16 +26,18 @@ from app.types import FlashMessageType
 @has_access_grant_role(RoleEnum.MEMBER)
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    user = get_current_user()
+    submission_mode = get_submission_mode_for_user(user)
 
     # TODO refactor when we persist the collection status and/or implement multiple rounds
     submissions = []
-    for report in grant_recipient.grant.access_reports:
+    for report in grant_recipient.grant.get_access_reports_for_user(user):
         submissions.extend(
             [
                 SubmissionHelper(submission=submission)
                 for submission in get_all_submissions_with_mode_for_collection_with_full_schema(
                     collection_id=report.id,
-                    submission_mode=SubmissionModeEnum.LIVE,
+                    submission_mode=submission_mode,
                     grant_recipient_ids=[grant_recipient.id],
                 )
             ]
@@ -42,7 +45,7 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "access_grant_funding/report_list.html",
-        reports=grant_recipient.grant.access_reports,
+        reports=grant_recipient.grant.get_access_reports_for_user(user),
         organisation_id=organisation_id,
         grant=grant_recipient.grant,
         submissions=submissions,

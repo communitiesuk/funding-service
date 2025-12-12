@@ -14,6 +14,7 @@ from app.common.data.models import Collection, Expression, Form, Group, Question
 from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
+    GrantRecipientModeEnum,
     ManagedExpressionsEnum,
     QuestionPresentationOptions,
     SubmissionModeEnum,
@@ -5205,11 +5206,20 @@ class TestListSubmissions:
             name="Test Report",
             create_completed_submissions_each_question_type__test=1,
         )
-        factories.submission.create(
-            collection=report, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
+        test_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            mode=GrantRecipientModeEnum.TEST,
+            organisation__name="Test Organisation Ltd",
         )
         live_grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant, organisation__name="Test Organisation Ltd"
+            grant=authenticated_grant_member_client.grant,
+            organisation__name="Live Organisation Ltd",
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.TEST,
+            grant_recipient=test_grant_recipient,
+            created_by__email="submitter-test@recipient.org",
         )
         factories.submission.create(
             collection=report,
@@ -5239,8 +5249,8 @@ class TestListSubmissions:
         assert test_response.status_code == 200
         assert live_response.status_code == 200
 
-        test_recipient_link = page_has_link(test_soup, "submitter-test@recipient.org")
-        live_recipient_link = page_has_link(live_soup, "Test Organisation Ltd")
+        test_recipient_link = page_has_link(test_soup, "Test Organisation Ltd")
+        live_recipient_link = page_has_link(live_soup, "Live Organisation Ltd")
         assert test_recipient_link.get("href") == AnyStringMatching(
             "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
         )
@@ -5250,7 +5260,7 @@ class TestListSubmissions:
 
         test_submission_tags = test_soup.select(".govuk-tag")
         live_submission_tags = live_soup.select(".govuk-tag")
-        assert {tag.text.strip() for tag in test_submission_tags} == {"In progress", "Not started"}
+        assert {tag.text.strip() for tag in test_submission_tags} == {"Not started"}
         assert {tag.text.strip() for tag in live_submission_tags} == {"Not started"}
 
     def test_live_mode_shows_all_grant_recipients_including_those_without_submissions(

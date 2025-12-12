@@ -1,0 +1,59 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">Set up test organisations</h1>
+
+      <p class="govuk-body">Set up new test organisations for testing the Access grant funding journey. These organisations will have mode=TEST.</p>
+
+      <p class="govuk-body">
+        If you need to check what test organisations already exist, or only need to create a small number of test organisations,
+        <a class="govuk-link--no-underline govuk-link--no-visited-state" href="{{ url_for('organisation.index_view') }}">view and create individual organisations</a>.
+      </p>
+
+      <p class="govuk-body">
+        This form is designed to work with an export of Delta's organisations.
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ delta_service_desk_url }}">Request an export via Delta's service desk</a>. With that export open in Excel or similar, hide everything other than these columns:
+      </p>
+      <ul class="govuk-list govuk-list--bullet">
+        <li>organisation-id</li>
+        <li>organisation-name</li>
+        <li>type</li>
+        <li>active-date</li>
+        <li>retirement-date</li>
+      </ul>
+      <p class="govuk-body">Using filters, select only these organisation types:</p>
+      <ul class="govuk-list govuk-list--bullet">
+        {% for org_type in enum.organisation_type %}
+          <li>{{ org_type.value }}</li>
+        {% endfor %}
+      </ul>
+      <p class="govuk-body">Then copy and paste the entire table into the text area and submit.</p>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.organisations_data }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

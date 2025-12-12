@@ -152,18 +152,39 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 }
 
 .app-test-data-banner {
-    position: relative;
-    text-align: center;
     background-color: govuk-colour("orange");
-    padding: 15px 20px;
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
+
+    &--container {
+        padding: 15px 0;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        @include govuk-media-query($until: tablet) {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+    }
+}
+
+.app-test-data-banner__inverse {
+    // https://github.com/alphagov/govuk-frontend/blob/b5884bcede951779c3e166f9bf3420f0e7f4ee4a/packages/govuk-frontend/src/govuk/settings/_colours-palette.scss#L77
+    box-shadow: 0 2px 0 #7a3c1c;
+
+    // a darker button colour because the background contrast is too high
+    color: #b7592a !important;
 }
 
 .app-test-data-banner__tag {
     color: white;
+    flex-grow: 1;
+}
+
+.app-test-data-banner--standalone {
+    margin-top: govuk-spacing(2);
+    background-color: govuk-colour("orange");
+    padding: 15px 15px;
 }
 
 // Fix for GOV.UK Accessible Autocomplete arrown ot being visible: https://github.com/alphagov/accessible-autocomplete/issues/351
@@ -174,11 +195,6 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 .autocomplete__dropdown-arrow-down {
     z-index: 1 !important;
     pointer-events: none;
-}
-
-.app-test-data-banner__action {
-    position: absolute;
-    right: 20px;
 }
 
 .move-up-down-link-hidden {

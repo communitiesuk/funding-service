@@ -1,23 +1,43 @@
-{% macro mhclgTestBanner(label) %}
+{% macro mhclgTestBanner(label, return_to_deliver=true) %}
   <div class="app-test-data-banner govuk-body govuk-!-margin-bottom-0">
-    <div class="app-test-data-banner__tag">
-      <strong>{{ label }}</strong>
+    <div class="govuk-width-container">
+      <div class="app-test-data-banner--container">
+        <div class="app-test-data-banner__tag">
+          <strong>{{ label }}</strong>
+        </div>
+        {% if return_to_deliver %}
+          <div>
+            <a class="govuk-button govuk-button--inverse app-test-data-banner__inverse govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_grants') }}">Return to Deliver grant funding</a>
+          </div>
+        {% endif %}
+      </div>
     </div>
   </div>
 {% endmacro %}
 
-{% macro mhclgStopTestingBanner(runner) %}
+{% macro mhclgStopPreviewingBanner(runner) %}
   <div class="app-test-data-banner govuk-body govuk-!-margin-bottom-0">
-    <div class="app-test-data-banner__tag">
-      <strong>Preview</strong>
+    <div class="govuk-width-container">
+      <div class="app-test-data-banner--container">
+        <div class="app-test-data-banner__tag">
+          <strong>Form preview</strong>
+        </div>
+        <div>
+          <a
+            class="govuk-button govuk-button--inverse app-test-data-banner__inverse govuk-button--secondary govuk-!-margin-bottom-0"
+            href="{{ url_for('deliver_grant_funding.return_from_test_submission', collection_id=runner.submission.collection.id) }}">
+            Return to form builder
+          </a>
+        </div>
+      </div>
     </div>
-    <div class="app-test-data-banner__action">
-      {% set test_submission_source = 'section' if 'test_submission_form_id' in session else 'form' %}
-      <strong
-        ><a class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.return_from_test_submission', collection_id=runner.submission.collection.id) }}"
-          >Return to {{ test_submission_source }} builder</a
-        ></strong
-      >
+  </div>
+{% endmacro %}
+
+{% macro mhclgInlinePageTestDataBanner(label) %}
+  <div class="app-test-data-banner--standalone govuk-body govuk-!-margin-bottom-0">
+    <div class="app-test-data-banner__tag">
+      <strong>{{ label }}</strong>
     </div>
   </div>
 {% endmacro %}

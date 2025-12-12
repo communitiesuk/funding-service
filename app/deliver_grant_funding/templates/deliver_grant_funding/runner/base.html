@@ -1,0 +1,9 @@
+{% from "common/partials/mhclg-test-banner.html" import mhclgStopPreviewingBanner %}
+{% extends "common/base.html" %}
+
+{% block header %}
+  {{ super() }}
+  {% if runner and runner.submission.is_preview %}
+    {{ mhclgStopPreviewingBanner(runner) }}
+  {% endif %}
+{% endblock %}

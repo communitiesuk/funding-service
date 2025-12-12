@@ -1014,7 +1014,7 @@ class TestCollectionHelper:
         ]
         assert rows[1] == [
             c_helper.submissions[0].reference,
-            "",
+            c_helper.submissions[0].grant_recipient.organisation.name,
             c_helper.submissions[0].created_by.email,
             format_datetime(c_helper.submissions[0].created_at_utc),
             "",
@@ -1069,7 +1069,7 @@ class TestCollectionHelper:
 
         assert list(rows[0].values()) == [
             c_helper.submissions[0].reference,
-            "",
+            c_helper.submissions[0].grant_recipient.organisation.name,
             c_helper.submissions[0].created_by.email,
             format_datetime(c_helper.submissions[0].created_at_utc),
             "",
@@ -1097,6 +1097,7 @@ class TestCollectionHelper:
 
         factories.submission.create(
             collection=group.form.collection,
+            mode=SubmissionModeEnum.TEST,
             data={
                 f"{str(group.id)}": [
                     {str(question.id): "first"},
@@ -1106,7 +1107,9 @@ class TestCollectionHelper:
             },
         )
         factories.submission.create(
-            collection=group.form.collection, data={f"{str(group.id)}": [{str(question.id): "only first"}]}
+            collection=group.form.collection,
+            mode=SubmissionModeEnum.TEST,
+            data={f"{str(group.id)}": [{str(question.id): "only first"}]},
         )
 
         c_helper = CollectionHelper(collection=group.form.collection, submission_mode=SubmissionModeEnum.TEST)
@@ -1139,7 +1142,7 @@ class TestCollectionHelper:
                     "created_by": mock.ANY,
                     "certified_by": None,
                     "certified_at_utc": mock.ANY,
-                    "grant_recipient": None,
+                    "grant_recipient": mock.ANY,
                     "reference": mock.ANY,
                     "status": "In progress",
                     "submitted_at_utc": None,
@@ -1236,7 +1239,7 @@ class TestCollectionHelper:
                     "created_by": mock.ANY,
                     "certified_by": None,
                     "certified_at_utc": mock.ANY,
-                    "grant_recipient": None,
+                    "grant_recipient": mock.ANY,
                     "reference": mock.ANY,
                     "status": "In progress",
                     "submitted_at_utc": None,

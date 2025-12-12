@@ -267,6 +267,70 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         return normalised_users
 
 
+class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
+    grant_recipient = SelectField(
+        "Test grant recipient",
+        choices=[],
+        validators=[DataRequired("Select a test grant recipient")],
+        widget=GovSelectWithSearch(),
+    )
+
+    user = SelectField(
+        "Members of the grant team",
+        choices=[],
+        validators=[Optional()],
+        widget=GovSelectWithSearch(),
+    )
+
+    mhclg_user = SelectField(
+        "MHCLG users",
+        choices=[],
+        validators=[Optional()],
+        widget=GovSelectWithSearch(),
+    )
+
+    submit = SubmitField("Add user", widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        grant_recipients: Sequence["GrantRecipient"],
+        grant_team_users: list["User"],
+        mhclg_users: list["User"],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        # Populate grant recipient choices
+        self.grant_recipient.choices = [("", "")] + [  # type: ignore[assignment]
+            (str(gr.id), gr.organisation.name) for gr in grant_recipients
+        ]
+
+        # Populate user choices (name and email for clarity)
+        self.user.choices = [("", "")] + [  # type: ignore[assignment]
+            (str(user.id), f"{user.name} ({user.email})") for user in grant_team_users
+        ]
+
+        self.mhclg_user.choices = [("", "")] + [  # type: ignore[assignment]
+            (str(user.id), f"{user.name} ({user.email})") for user in mhclg_users
+        ]
+
+    def validate(self, extra_validators: Any = None) -> bool:
+        result: bool = super().validate(extra_validators)
+
+        if not self.user.data and not self.mhclg_user.data:
+            self.user.errors.append("Select either a grant team member or an MHCLG admin user.")  # type: ignore[attr-defined]
+            self.mhclg_user.errors.append("Select either a grant team member or an MHCLG admin user.")  # type: ignore[attr-defined]
+            return False
+
+        if self.user.data and self.mhclg_user.data:
+            self.user.errors.append("Select only one of a grant team member or an MHCLG admin user.")  # type: ignore[attr-defined]
+            self.mhclg_user.errors.append("Select only one of a grant team member or an MHCLG admin user.")  # type: ignore[attr-defined]
+            return False
+
+        return result
+
+
 class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
     grant_recipients_data_providers = SelectMultipleField(
         "Grant recipient data providers to revoke",
