@@ -46,17 +46,6 @@
       <p class="govuk-body"><strong>Grant status</strong>: {{ grantStatusTag(grant.status) }}</p>
       <p class="govuk-body">{{ grantStatusDescription(grant) }}</p>
     </div>
-    <div class="govuk-grid-column-one-third govuk-!-text-align-right">
-      {% if user_can_test_grant_recipient_journey %}
-        {{
-          govukButton({
-            "text": "Test grant recipient journey",
-            "classes": "govuk-button--secondary",
-            "href": url_for('access_grant_funding.index')
-          })
-        }}
-      {% endif %}
-    </div>
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">

@@ -48,7 +48,7 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="govuk-grid-column-three-quarters">
       <h1 class="govuk-heading-l">{{ report.name }}</h1>
 
       <p class="govuk-body">
@@ -106,15 +106,15 @@
         <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add another section</a>
       {% endif %}
     </div>
-    <div class="govuk-grid-column-one-third">
+    <div class="govuk-grid-column-one-quarter">
       <div class="app-actions">
         <h3 class="govuk-heading-s">Actions</h3>
         <form method="post" novalidate>
           {{ form.csrf_token }}
-          <div class="govuk-button-group">
+          <div class="govuk-button-group app-button-group--full-width-on-desktop">
             {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
             {% if user_can_test_grant_recipient_journey %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, report_id=report.id) }}">Test grant recipient journey</a>
+              <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, report_id=report.id) }}">Test grant recipient journey</a>
             {% endif %}
           </div>
         </form>
