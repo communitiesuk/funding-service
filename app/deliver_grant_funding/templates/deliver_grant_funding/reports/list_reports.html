@@ -10,9 +10,6 @@
 {% set active_item_identifier = "reports" %}
 {% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
 
-{# this does kick off one more request to the database - we could revisit making this check more concise #}
-{% set user_can_test_grant_recipient_journey = grant.test_grant_recipients and grant in current_user.access_grants %}
-
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">

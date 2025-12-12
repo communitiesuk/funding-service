@@ -9,6 +9,9 @@
 {% set active_item_identifier = "reports" %}
 {% set can_edit = authorisation_helper.can_edit_collection(current_user, report.id) %}
 
+{# this does kick off one more request to the database - we could revisit making this check more concise #}
+{% set user_can_test_grant_recipient_journey = grant.test_grant_recipients and grant in current_user.access_grants %}
+
 {% block beforeContent %}
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":report.name}) }}
 {% endblock beforeContent %}
@@ -43,16 +46,7 @@
         <strong>Submission period</strong>: {{ format_date_range(report.submission_period_start_date, report.submission_period_end_date) if report.submission_period_start_date and report.submission_period_end_date else "Not set" }}
       </p>
       <p class="govuk-body"><strong>Report status</strong>: {{ reportStatusTag(report.status) }}</p>
-    </div>
-    <div class="govuk-grid-column-one-third govuk-!-text-align-right">
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
-      </form>
-    </div>
-  </div>
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Sections</h2>
       {% if not report.forms %}
         <p class="govuk-body">This monitoring report has no sections.</p>
@@ -82,7 +76,7 @@
           {%
             do rows.append(
             {
-              "key": {"html": taskHtml, "classes": "govuk-!-font-weight-regular govuk-!-width-one-half"},
+              "key": {"html": taskHtml, "classes": "govuk-!-font-weight-regular"},
               "value": {"html": questionsHtml},
               "actions": {
                 "items": actions,
@@ -102,6 +96,20 @@
       {% if can_edit %}
         <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add another section</a>
       {% endif %}
+    </div>
+    <div class="govuk-grid-column-one-third">
+      <div class="app-actions">
+        <h3 class="govuk-heading-s">Actions</h3>
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          <div class="govuk-button-group">
+            {{ form.submit(params={"text": "Preview form", "classes": "govuk-button--secondary"}) }}
+            {% if user_can_test_grant_recipient_journey %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, report_id=report.id) }}">Test grant recipient journey</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 {% endblock content %}

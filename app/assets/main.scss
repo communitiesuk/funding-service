@@ -438,3 +438,8 @@ $inset-nested-rows: 30px;
         break-inside: avoid;
     }
 }
+
+.app-actions {
+    border-top: 1px solid $govuk-brand-colour;
+    padding-top: govuk-spacing(3);
+}

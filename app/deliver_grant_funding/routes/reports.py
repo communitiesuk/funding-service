@@ -81,6 +81,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SelectDataSourceQuestionForm,
     SetUpReportForm,
+    TestGrantRecipientJourneyForm,
 )
 from app.deliver_grant_funding.helpers import start_previewing_collection
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
@@ -133,6 +134,26 @@ def list_reports(grant_id: UUID) -> ResponseReturnValue:
         grant=grant,
         delete_form=delete_wtform,
         delete_report=delete_report,
+    )
+
+
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports/<uuid:report_id>", methods=["GET", "POST"])
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    grant = get_grant(grant_id, with_all_collections=True)
+    report = get_collection(
+        report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=False
+    )
+
+    user = get_current_user()
+    users_test_organisations = [
+        grant_recipient.organisation for grant_recipient in user.get_grant_recipients(limit_to_grant_id=grant_id)
+    ]
+    form = TestGrantRecipientJourneyForm(users_test_organisations=users_test_organisations)
+
+    return render_template(
+        "deliver_grant_funding/reports/start_test_grant_recipient_journey.html", grant=grant, report=report, form=form
     )
 
 
