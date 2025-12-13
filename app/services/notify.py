@@ -178,6 +178,7 @@ class NotificationService:
             personalisation={
                 "grant_name": submission.collection.grant.name,
                 "reporting_period": submission.collection.name,
+                "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
                 "grant_report_url": url_for(
                     "access_grant_funding.view_locked_report",
                     organisation_id=submission.grant_recipient.organisation.id,
@@ -198,6 +199,7 @@ class NotificationService:
             "report_deadline": format_date(submission.collection.submission_period_end_date)
             if submission.collection.submission_period_end_date
             else "(Dates to be confirmed)",
+            "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
             "grant_report_url": url_for(
                 "access_grant_funding.view_locked_report",
                 organisation_id=submission.grant_recipient.organisation.id,
@@ -221,17 +223,27 @@ class NotificationService:
         if not (
             submission_helper.sent_for_certification_by and submission_helper.events.submission_state.declined_at_utc
         ):
-            raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
+            current_app.logger.warning(
+                "Missing value on the submission state for submission id %(submission_id)s",
+                dict(submission_id=submission_helper.id),
+            )
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "submitter_name": submission_helper.sent_for_certification_by.name,
+            "submitter_name": submission_helper.sent_for_certification_by.name
+            if submission_helper.sent_for_certification_by
+            else "(Submitter not known)",
             "certifier_name": certifier_user.name,
             "reporting_period": submission_helper.collection.name,
             "certifier_comments": submission_helper.events.submission_state.declined_reason,
             "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
             if submission_helper.collection.submission_period_end_date
             else "(Dates to be confirmed)",
-            "decline_date": format_datetime(submission_helper.events.submission_state.declined_at_utc),
+            "decline_date": format_datetime(submission_helper.events.submission_state.declined_at_utc)
+            if submission_helper.events.submission_state.declined_at_utc
+            else "(Declined date not known)",
+            "is_test_data": "yes"
+            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
+            else "no",
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
@@ -253,12 +265,17 @@ class NotificationService:
     ) -> Notification:
         submission_state = submission_helper.events.submission_state
         if not submission_helper.sent_for_certification_by:
+            # as this is the user we're sending the email to its a hard requirement
+            # todo: this should probably be part of the interface instead
             raise ValueError(f"Missing values on the submission state for submission id {submission_helper.id}")
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
             "certifier_name": certifier_user.name,
             "reporting_period": submission_helper.collection.name,
             "certifier_comments": submission_state.declined_reason,
+            "is_test_data": "yes"
+            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
+            else "no",
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
@@ -283,7 +300,10 @@ class NotificationService:
         ):
             # note baseline reports are unlikely to have reporting dates and we don't
             # expect them here
-            current_app.logger.warning("Submitted email sent with missing details")
+            current_app.logger.warning(
+                "Submitted email sent with missing details for submission id %(submission_id)s}",
+                dict(submission_id=submission_helper.id),
+            )
 
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
@@ -297,6 +317,9 @@ class NotificationService:
             "date_submitted": format_datetime(submission_helper.submitted_at_utc)
             if submission_helper.submitted_at_utc
             else "(Date submitted not known)",
+            "is_test_data": "yes"
+            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
+            else "no",
             "grant_report_url": url_for(
                 "access_grant_funding.view_locked_report",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
