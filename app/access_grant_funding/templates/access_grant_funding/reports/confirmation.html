@@ -21,9 +21,9 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% set reference_html %}
-        Reporting period
+        Report
         <br />
-        <strong>{{ format_date_short(submission_helper.collection.reporting_period_start_date) }} to {{ format_date_short(submission_helper.collection.reporting_period_end_date) }}</strong>
+        <strong>{{ submission_helper.collection.name }}</strong>
         <br />
         <br />
         Your reference number
@@ -41,7 +41,8 @@
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
-      <p class="govuk-body">{{ grant_recipient.certifier_names }} will need to review and sign off the report by {{ format_date(submission_helper.collection.submission_period_end_date) }}.</p>
+      {% set submission_deadline = format_date(submission_helper.collection.submission_period_end_date) if submission_helper.collection.submission_period_end_date else "(Dates to be confirmed)" %}
+      <p class="govuk-body">{{ grant_recipient.certifier_names }} will need to review and sign off the report by {{ submission_deadline }}.</p>
 
       <p class="govuk-body">You will receive an email to confirm whether your report was signed off and submitted or if you need to make changes.</p>
 
