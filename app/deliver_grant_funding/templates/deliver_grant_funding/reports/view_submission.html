@@ -2,6 +2,7 @@
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submission - " ~ helper.submission.collection.name %}
@@ -16,6 +17,20 @@
 {% endblock beforeContent %}
 
 {% block content %}
+  {% if delete_form %}
+    {% set banner_html %}
+      <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to reset this test submission?</p>
+      <form method="post" novalidate>
+        {{ delete_form.csrf_token }}
+        <div class="govuk-button-group govuk-!-margin-bottom-0">
+          {{ delete_form.confirm_deletion(params={"text": "Yes, reset this test submission", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+          <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
+        </div>
+      </form>
+    {% endset %}
+
+    {{ govukNotificationBanner(params={"role": "alert", "titleText": "Important", "classes": "", "html": banner_html}) }}
+  {% endif %}
   <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
   <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
     <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
@@ -32,4 +47,14 @@
       Back to submissions
     </a>
   </p>
+
+  {% if helper.submission.mode == enum.submission_mode.TEST %}
+    <div>
+      <h2 class="govuk-heading-m govuk-!-margin-top-9">Manage test submission</h2>
+
+      <ul class="govuk-list govuk-list--spaced">
+        <li><a class="govuk-link govuk-link--no-visited-state" href="?delete">Reset this submission</a></li>
+      </ul>
+    </div>
+  {% endif %}
 {% endblock content %}

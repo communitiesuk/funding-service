@@ -1449,6 +1449,15 @@ def delete_question(question: Question | Group) -> None:
 
 
 @flush_and_rollback_on_exceptions
+def reset_test_submission(submission: Submission) -> None:
+    if not submission.mode == SubmissionModeEnum.TEST:
+        raise ValueError("Can only reset submissions in TEST mode")
+
+    db.session.execute(delete(SubmissionEvent).where(SubmissionEvent.submission_id == submission.id))
+    db.session.execute(delete(Submission).where(Submission.id == submission.id))
+
+
+@flush_and_rollback_on_exceptions
 def delete_collection_preview_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
     # We're trying to rely less on ORM relationships and cascades in delete queries so here we explicitly delete all
     # SubmissionEvents related to the `created_by_user`'s test submissions for that collection, and then

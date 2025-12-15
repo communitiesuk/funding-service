@@ -40,6 +40,7 @@ from app.common.data.interfaces.collections import (
     raise_if_nested_group_creation_not_valid_here,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
+    reset_test_submission,
     update_collection,
     update_form,
     update_group,
@@ -2069,13 +2070,34 @@ def export_report_submissions(
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/submission/<uuid:submission_id>")
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>", methods=["GET", "POST"]
+)
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
 def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     helper = SubmissionHelper.load(submission_id)
+    report_id = helper.collection.id
+    submission_mode = helper.submission.mode
+
+    delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
+    if delete_wtform:
+        if delete_wtform.validate_on_submit():
+            reset_test_submission(helper.submission)
+
+            flash("Submission reset", FlashMessageType.TEST_SUBMISSION_RESET)
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_submissions",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                    submission_mode=submission_mode,
+                )
+            )
     return render_template(
         "deliver_grant_funding/reports/view_submission.html",
         grant=helper.grant,
         helper=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
+        delete_form=delete_wtform,
     )

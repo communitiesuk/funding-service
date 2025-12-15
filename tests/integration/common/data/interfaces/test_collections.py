@@ -50,6 +50,7 @@ from app.common.data.interfaces.collections import (
     raise_if_question_has_any_dependencies,
     remove_add_another_answers_at_index,
     remove_question_expression,
+    reset_test_submission,
     update_collection,
     update_group,
     update_question,
@@ -3766,3 +3767,30 @@ class TestGetSubmissions:
             )
         )
         assert len(submission_results) == 1
+
+
+class TestResetTestSubmission:
+    def test_reset_test_submission_only_deletes_specified_submission(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__test=3)
+        test_submissions = collection.test_submissions
+        submission_to_delete = test_submissions[0]
+        submission_to_delete_id = submission_to_delete.id
+
+        for submission in test_submissions:
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+
+        reset_test_submission(submission_to_delete)
+
+        submissions_from_db = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.TEST).all()
+        events_from_db = db_session.query(SubmissionEvent).all()
+
+        assert len(submissions_from_db) == 2
+        assert len(events_from_db) == 2
+        assert submission_to_delete_id not in [s.id for s in submissions_from_db]
+
+    def test_reset_test_submission_raises_error_for_non_test_submission(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__live=1)
+
+        # Attempt to reset a live submission should raise ValueError
+        with pytest.raises(ValueError, match="Can only reset submissions in TEST mode"):
+            reset_test_submission(collection.live_submissions[0])
