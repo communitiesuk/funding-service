@@ -30,19 +30,16 @@ class TestMagicLinkSignInView:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Enter an email address in the correct format")
 
-    def test_post_mhclg_email_redirects_to_sso(self, anonymous_client, mock_notification_service_calls):
-        response = anonymous_client.post(
-            url_for("auth.request_a_link_to_sign_in"),
-            data={"email_address": "test@communities.gov.uk"},
-            follow_redirects=True,
-        )
-        soup = BeautifulSoup(response.data, "html.parser")
-
-        assert response.status_code == 200
-        assert "Deliver grant funding" in get_h1_text(soup)
-        assert "Sign in with your MHCLG account" in get_h2_text(soup)
-        with anonymous_client.session_transaction() as session:
-            assert "magic_link_redirect" not in session
+    def test_post_mhclg_email_redirects_to_sso(self, app, anonymous_client):
+        with patch("app.common.auth.build_auth_code_flow") as mock_build_auth_code_flow:
+            mock_build_auth_code_flow.return_value = {"auth_uri": "http://auth.example.com/auth-uri"}
+            response = anonymous_client.post(
+                url_for("auth.request_a_link_to_sign_in"),
+                data={"email_address": "test@communities.gov.uk"},
+                follow_redirects=False,
+            )
+            assert response.status_code == 302
+            assert response.location == "http://auth.example.com/auth-uri"
 
     def test_post_invalid_non_mhclg_email(self, anonymous_client, factories, mock_notification_service_calls):
         response = anonymous_client.post(

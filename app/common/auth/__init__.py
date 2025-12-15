@@ -34,8 +34,11 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
         if email.endswith(internal_domains):
-            session["magic_link_redirect"] = True
-            return redirect(url_for("auth.sso_sign_in"))
+            # upgrade authorisation requests for internal users to make sure they
+            # still have valid access to their admin account
+            session["next"] = sanitise_redirect_url(session.pop("next", url_for("access_grant_funding.index")))
+            session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
+            return redirect(session["flow"]["auth_uri"]), 302
 
         user = interfaces.user.get_user_by_email(email_address=email)
 
@@ -119,11 +122,10 @@ def signed_in_but_no_permissions() -> ResponseReturnValue:
 @redirect_if_authenticated
 def sso_sign_in() -> ResponseReturnValue:
     form = GenericSubmitForm()
-    magic_link_redirect = session.pop("magic_link_redirect", False)
     if form.validate_on_submit():
         session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
         return redirect(session["flow"]["auth_uri"]), 302
-    return render_template("common/auth/sign_in_sso.html", form=form, magic_link_redirect=magic_link_redirect)
+    return render_template("common/auth/sign_in_sso.html", form=form)
 
 
 @auth_blueprint.route("/sso/get-token", methods=["GET"])
@@ -170,6 +172,8 @@ def sso_get_token() -> ResponseReturnValue:
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
+        # todo: no longer remove non-platform admin roles from admins that sign in with SSO
+        #       as these permissions are used by theA AGF testing
         if AuthorisationHelper.is_platform_admin(user):
             interfaces.user.remove_permissions_from_user(
                 user, permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN], organisation_id=None, grant_id=None
