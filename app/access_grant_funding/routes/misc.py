@@ -99,3 +99,8 @@ def list_grant_team(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValu
 @access_grant_funding_blueprint.route("/accessibility-statement")
 def accessibility_statement() -> ResponseReturnValue:
     return render_template("access_grant_funding/accessibility-statement.html")
+
+
+@access_grant_funding_blueprint.route("/cookies")
+def cookies() -> ResponseReturnValue:
+    return render_template("access_grant_funding/cookies.html")

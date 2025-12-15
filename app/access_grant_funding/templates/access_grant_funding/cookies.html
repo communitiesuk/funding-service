@@ -1,0 +1,47 @@
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% extends "access_grant_funding/base.html" %}
+
+{% set page_title = "Cookies on access grant funding" %}
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ page_title }}</h1>
+      <p class="govuk-body">Cookies are small files saved on your phone, tablet or computer when you visit a website.</p>
+      <p class="govuk-body">We use cookies to make this site work.</p>
+      <h2 class="govuk-heading-m">Essential cookies</h2>
+      <p class="govuk-body">Essential cookies keep your information secure while you use this service. We do not need to ask permission to use them.</p>
+      {{
+        govukTable({
+          "caption": "Essential cookies we use",
+          "captionClasses": "govuk-table__caption--s",
+          "firstCellIsHeader": false,
+          "head": [
+            {
+              "text": "Name"
+            },
+            {
+              "text": "Purpose"
+            },
+            {
+              "text": "Expires"
+            }
+          ],
+          "rows": [
+            [
+              {
+                "text": "session"
+              },
+              {
+                "text": "Used to keep you signed in"
+              },
+              {
+                "text": "Session"
+              }
+            ]
+
+          ]
+        })
+      }}
+    </div>
+  </div>
+{% endblock %}
