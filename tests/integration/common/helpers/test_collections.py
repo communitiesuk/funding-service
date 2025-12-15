@@ -84,22 +84,19 @@ class TestSubmissionHelper:
 
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=0)
 
-        def test_cannot_submit_answer_on_submitted_submission(self, db_session, factories):
-            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.create(collection=question.form.collection)
-            helper = SubmissionHelper(submission)
+        def test_cannot_submit_answer_on_submitted_submission(self, db_session, factories, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
 
-            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
-                q_d696aebc49d24170a92fb6ef42994294="User submitted data"
-            )
-            helper.submit_answer_for_question(question.id, form)
-            helper.toggle_form_completed(question.form, submission.created_by, True)
-            helper.mark_as_sent_for_certification(submission.created_by)
-            helper.certify(submission.created_by)
-            helper.submit(submission.created_by)
+            question = submission_submitted.collection.forms[0].cached_questions[0]
+            form = build_question_form(
+                [question],
+                evaluation_context=EC(),
+                interpolation_context=EC(),
+            )(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
 
             with pytest.raises(ValueError) as e:
-                helper.submit_answer_for_question(question.id, form)
+                helper.submit_answer_for_question(submission_submitted.collection.forms[0].cached_questions[0].id, form)
 
             assert str(e.value) == AnyStringMatching(
                 "Could not submit answer for question_id=[a-z0-9-]+ "
@@ -424,15 +421,28 @@ class TestSubmissionHelper:
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.NOT_STARTED
             assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.NO_QUESTIONS
 
-        def test_submission_status_based_on_forms(self, db_session, factories):
+        def test_submission_status_based_on_forms(self, db_session, factories, mock_notification_service_calls):
+            org = factories.organisation.create()
+            grant = factories.grant.create()
+            gr = factories.grant_recipient.create(organisation=org, grant=grant)
             certifier = factories.user.create()
-            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            form_two = factories.form.create(collection=question.form.collection)
+            factories.user_role.create(
+                user=certifier,
+                organisation=org,
+                permissions=[RoleEnum.CERTIFIER],
+            )
+            collection = factories.collection.create(
+                grant=grant, reporting_period_start_date=date(2025, 1, 1), reporting_period_end_date=date(2025, 3, 31)
+            )
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), form__collection=collection
+            )
+            form_two = factories.form.create(collection=collection)
             question_two = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295")
             )
 
-            submission = factories.submission.create(collection=question.form.collection)
+            submission = factories.submission.create(collection=question.form.collection, grant_recipient=gr)
             helper = SubmissionHelper(submission)
 
             assert helper.status == SubmissionStatusEnum.NOT_STARTED
@@ -505,9 +515,14 @@ class TestSubmissionHelper:
 
         @pytest.mark.freeze_time("2025-01-10 12:00:00")
         @pytest.mark.parametrize("is_overdue", [True, False])
-        def test_submission_status_overdue(self, db_session, factories, is_overdue):
+        def test_submission_status_overdue(self, db_session, factories, is_overdue, mock_notification_service_calls):
+            org = factories.organisation.create()
+            grant = factories.grant.create()
+            gr = factories.grant_recipient.create(organisation=org, grant=grant)
             collection = factories.collection.create(
-                submission_period_end_date=date(2025, 1, 9) if is_overdue else date(2025, 1, 11)
+                grant=grant,
+                reporting_period_start_date=date(2025, 1, 1),
+                submission_period_end_date=date(2025, 1, 9) if is_overdue else date(2025, 1, 11),
             )
             question = factories.question.create(
                 form__collection=collection, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294")
@@ -515,7 +530,7 @@ class TestSubmissionHelper:
             question_two = factories.question.create(
                 form=question.form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295")
             )
-            submission = factories.submission.create(collection=question.form.collection)
+            submission = factories.submission.create(collection=question.form.collection, grant_recipient=gr)
             helper = SubmissionHelper(submission)
 
             # valid overdue scope status
@@ -778,7 +793,9 @@ class TestSubmissionHelper:
             assert error.value.required_permission == RoleEnum.CERTIFIER
             assert "User does not have certifier permission to submit submission" in error.value.message
 
-        def test_submit_submission_auth_check_allows_test_submission(self, submission_awaiting_sign_off, factories):
+        def test_submit_submission_auth_check_allows_test_submission(
+            self, submission_awaiting_sign_off, factories, mock_notification_service_calls
+        ):
             helper = SubmissionHelper(submission_awaiting_sign_off)
             submission_awaiting_sign_off.mode = SubmissionModeEnum.TEST
 
@@ -805,7 +822,7 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
         def test_submit_submission_auth_check_allows_live_submissions_where_certification_not_needed(
-            self, submission_awaiting_sign_off, factories
+            self, submission_awaiting_sign_off, factories, mock_notification_service_calls
         ):
             helper = SubmissionHelper(submission_awaiting_sign_off)
             submission_awaiting_sign_off.collection.requires_certification = False
@@ -831,6 +848,148 @@ class TestSubmissionHelper:
 
             assert len(helper.submission.events) == 4
             assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+    class TestSubmit:
+        def test_submit_when_requires_certification(
+            self,
+            submission_awaiting_sign_off,
+            factories,
+            data_provider_user,
+            mock_notification_service_calls,
+            user,
+            certifier_user,
+        ):
+            collection = submission_awaiting_sign_off.collection
+            assert collection.requires_certification is True
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+            factories.submission_event.create(
+                created_by=certifier_user,
+                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
+                related_entity_id=submission_awaiting_sign_off.id,
+                submission=submission_awaiting_sign_off,
+                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+            )
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+            helper.submit(user=certifier_user)
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+            assert len(mock_notification_service_calls) == 2
+
+        def test_submit_when_sign_off_not_required(
+            self, submission_ready_to_submit, factories, mock_notification_service_calls, data_provider_user
+        ):
+            collection = submission_ready_to_submit.collection
+            collection.requires_certification = False
+
+            helper = SubmissionHelper(submission_ready_to_submit)
+            assert helper.collection.requires_certification is False
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+            helper.submit(user=data_provider_user)
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+            assert len(mock_notification_service_calls) == 1
+
+        @pytest.mark.parametrize("requires_certification", (True, False))
+        def test_submit_forms_not_complete(
+            self, submission_in_progress, mock_notification_service_calls, data_provider_user, requires_certification
+        ):
+            submission_in_progress.collection.requires_certification = requires_certification
+            helper = SubmissionHelper(submission_in_progress)
+            with pytest.raises(ValueError) as e:
+                helper.submit(data_provider_user)
+            assert (
+                str(e.value)
+                == f"Could not submit submission id={submission_in_progress.id} because not all forms are complete."
+            )
+            assert len(mock_notification_service_calls) == 0
+
+        @pytest.mark.parametrize("requires_certification", (True, False))
+        def test_submit_not_ready_to_submit(
+            self,
+            submission_awaiting_sign_off,
+            mock_notification_service_calls,
+            data_provider_user,
+            requires_certification,
+        ):
+            submission_awaiting_sign_off.collection.requires_certification = requires_certification
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            with pytest.raises(ValueError) as e:
+                helper.submit(data_provider_user)
+            assert (
+                str(e.value) == f"Could not submit submission id={submission_awaiting_sign_off.id} "
+                "because it is not ready to submit."
+            )
+            assert len(mock_notification_service_calls) == 0
+
+        def test_submit_user_is_not_certifier(
+            self,
+            submission_awaiting_sign_off,
+            mock_notification_service_calls,
+            data_provider_user,
+            certifier_user,
+            factories,
+        ):
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+
+            factories.submission_event.create(
+                created_by=certifier_user,
+                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
+                related_entity_id=submission_awaiting_sign_off.id,
+                submission=submission_awaiting_sign_off,
+                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+            )
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+            with pytest.raises(SubmissionAuthorisationError) as e:
+                helper.submit(data_provider_user)
+            assert (
+                str(e.value)
+                == f"User does not have certifier permission to submit submission {submission_awaiting_sign_off.id}"
+            )
+            assert len(mock_notification_service_calls) == 0
+
+    class TestSentForCertification:
+        def test_mark_as_sent_for_certification(
+            self, data_provider_user, certifier_user, submission_ready_to_submit, mock_notification_service_calls
+        ) -> None:
+            helper = SubmissionHelper(submission_ready_to_submit)
+            assert helper.collection.requires_certification is True
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+            helper.mark_as_sent_for_certification(user=data_provider_user)
+
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+            assert len(mock_notification_service_calls) == 2
+
+    class TestCertificationApproved:
+        def test_certify(
+            self, data_provider_user, certifier_user, submission_awaiting_sign_off, mock_notification_service_calls
+        ) -> None:
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            assert helper.collection.requires_certification is True
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+            helper.certify(user=certifier_user)
+
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+            assert len(mock_notification_service_calls) == 0
+
+    class TestCertificationDeclined:
+        def test_decline(
+            self, data_provider_user, certifier_user, submission_awaiting_sign_off, mock_notification_service_calls
+        ) -> None:
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            assert helper.collection.requires_certification is True
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+            helper.decline_certification(user=certifier_user, declined_reason="Test reason")
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            # TODO should we change the decline function to send emails for consistency with submit/certify
+            assert len(mock_notification_service_calls) == 0
 
 
 class TestCollectionHelper:

@@ -187,7 +187,8 @@ class TestNotificationService:
                         "template_id": "4fc8d831-e241-4648-a8d3-04fb1bd9193e",
                         "personalisation": {
                             "grant_name": "Test grant",
-                            "reporting_period": "Test collection",
+                            "report_name": "Test collection",
+                            "requires_certification": "yes",
                             "report_deadline": "Wednesday 31 December 2025",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/collection/{collection.id}",
@@ -206,7 +207,7 @@ class TestNotificationService:
         assert request_matcher.call_count == 1
 
     @responses.activate
-    def test_send_access_submission_signed_off_confirmation(self, app, factories):
+    def test_send_access_submission_send_for_sign_off_confirmation(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
             grant__name="Test grant",
         )
@@ -226,7 +227,7 @@ class TestNotificationService:
                         "template_id": "e78b9c68-5d45-40a1-8339-04fe7ffc8caa",
                         "personalisation": {
                             "grant_name": "Test grant",
-                            "reporting_period": "Test collection",
+                            "report_name": "Test collection",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                         },
@@ -265,7 +266,7 @@ class TestNotificationService:
                         "personalisation": {
                             "grant_name": "Test grant",
                             "report_submitter": "Submitter User",
-                            "reporting_period": "Test collection",
+                            "report_name": "Test collection",
                             "report_deadline": "Tuesday 18 November 2025",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
@@ -299,7 +300,7 @@ class TestNotificationService:
             "submitter_name": "Submitter User",
             "certifier_name": "Certifier User",
             "certifier_comments": "Decline reason",
-            "reporting_period": "Test collection",
+            "report_name": "Test collection",
             "report_deadline": "Wednesday 3 December 2025",
             "decline_date": "9:30am on Monday 1 December 2025",
             "is_test_data": "no",
@@ -331,8 +332,9 @@ class TestNotificationService:
         expected_personalisation = {
             "grant_name": "Test grant",
             "certifier_name": "Certifier User",
-            "reporting_period": "Test collection",
+            "report_name": "Test collection",
             "certifier_comments": "Decline reason",
+            "report_deadline": "Wednesday 3 December 2025",
             "is_test_data": "no",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
         }
@@ -347,13 +349,14 @@ class TestNotificationService:
         assert mock_notification_service_calls[0].kwargs["email_address"] == "submitter@test.com"
 
     @responses.activate
-    def test_send_access_submission_certified_and_submitted(self, app, factories):
+    def test_send_access_submission_submitted_requires_certification(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
             grant__name="Test grant",
         )
         submission = factories.submission.build(
             grant_recipient=grant_recipient,
             collection__grant=grant_recipient.grant,
+            collection__requires_certification=True,
             collection__name="Test collection",
             collection__reporting_period_start_date=datetime.date(2025, 10, 13),
             collection__reporting_period_end_date=datetime.date(2025, 10, 27),
@@ -396,7 +399,8 @@ class TestNotificationService:
                             "grant_name": "Test grant",
                             "submitter_name": "Submitter User",
                             "certifier_name": "Certifier User",
-                            "reporting_period": "Test collection",
+                            "requires_certification": "yes",
+                            "report_name": "Test collection",
                             "date_submitted": "10:37am on Tuesday 25 November 2025",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
@@ -407,8 +411,64 @@ class TestNotificationService:
             ],
             json={"id": "00000000-0000-0000-0000-000000000000"},
         )
-        resp = notification_service.send_access_submission_certified_and_submitted(
+        resp = notification_service.send_access_submission_submitted(
             email_address="test@communities.gov.uk",
+            submission_helper=helper,
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_access_submission_submitted_no_certification(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            grant__name="Test grant",
+        )
+        submission = factories.submission.build(
+            grant_recipient=grant_recipient,
+            collection__grant=grant_recipient.grant,
+            collection__requires_certification=False,
+            collection__name="Test collection",
+            collection__reporting_period_start_date=datetime.date(2025, 10, 13),
+            collection__reporting_period_end_date=datetime.date(2025, 10, 27),
+            collection__submission_period_end_date=datetime.date(2025, 12, 30),
+        )
+        submitted_by_user = factories.user.build(name="Submitter User", email="submitter@communities.gov.uk")
+
+        factories.submission_event.build(
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            submission=submission,
+            created_by=submitted_by_user,
+            data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SUBMITTED),
+            created_at_utc=datetime.datetime(2025, 11, 25, 10, 37, 0),
+        )
+        helper = SubmissionHelper(submission)
+
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": "submitter@communities.gov.uk",
+                        "template_id": "a8ffd584-0899-40df-ba56-cba95b2db0de",
+                        "personalisation": {
+                            "grant_name": "Test grant",
+                            "submitter_name": "Submitter User",
+                            "certifier_name": "",
+                            "requires_certification": "no",
+                            "report_name": "Test collection",
+                            "is_test_data": "no",
+                            "date_submitted": "10:37am on Tuesday 25 November 2025",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
+                            "government_department": "the Test Organisation",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_access_submission_submitted(
+            email_address="submitter@communities.gov.uk",
             submission_helper=helper,
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))

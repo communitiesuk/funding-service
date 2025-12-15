@@ -53,6 +53,7 @@ from app.common.expressions import (
 )
 from app.common.filters import format_datetime
 from app.common.helpers.submission_events import SubmissionEventHelper
+from app.extensions import notification_service
 
 if TYPE_CHECKING:
     from app.common.data.models import (
@@ -484,32 +485,41 @@ class SubmissionHelper:
         if not self.all_forms_are_completed:
             raise ValueError(f"Could not submit submission id={self.id} because not all forms are complete.")
 
-        # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do. In order
-        # to get by this now we check the underlying submission_state rather than the status, but we should refactor
-        # this when a decision is made on 'Overdue' behaviour and make the submission status the source of truth.
-        if self.collection.requires_certification and not self.events.submission_state.is_approved and self.is_live:
-            raise ValueError(f"Could not submit submission id={self.id} because it has not been approved.")
+        if self.is_live:
+            if self.status != SubmissionStatusEnum.READY_TO_SUBMIT:
+                raise ValueError(f"Could not submit submission id={self.id} because it is not ready to submit.")
 
-        if self.is_live and self.status != SubmissionStatusEnum.READY_TO_SUBMIT:
-            raise ValueError(f"Could not submit submission id={self.id} because it is not ready to submit.")
+            if self.collection.requires_certification:
+                # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do.
+                #  In order to get by this now we check the underlying submission_state rather than the status, but we
+                #  should refactor this when a decision is made on 'Overdue' behaviour and make the submission status
+                #  the source of truth.
+                if not self.events.submission_state.is_approved:
+                    raise ValueError(f"Could not submit submission id={self.id} because it has not been approved.")
 
-        if (
-            self.is_live
-            and self.collection.requires_certification
-            and not AuthorisationHelper.is_access_grant_certifier(
-                self.grant.id, self.submission.grant_recipient.organisation.id, user
-            )
-        ):
-            raise SubmissionAuthorisationError(
-                f"User does not have certifier permission to submit submission {self.id}",
-                user,
-                self.id,
-                RoleEnum.CERTIFIER,
-            )
+                if not AuthorisationHelper.is_access_grant_certifier(
+                    self.grant.id, self.submission.grant_recipient.organisation.id, user
+                ):
+                    raise SubmissionAuthorisationError(
+                        f"User does not have certifier permission to submit submission {self.id}",
+                        user,
+                        self.id,
+                        RoleEnum.CERTIFIER,
+                    )
 
         interfaces.collections.add_submission_event(
-            self.submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, user=user
+            self.submission,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            user=user,
+            related_entity_id=self.submission.id,
         )
+
+        for unique_user in self.submission.grant_recipient.unique_data_providers_and_certifiers:
+            if unique_user is not None:
+                notification_service.send_access_submission_submitted(
+                    email_address=unique_user.email,
+                    submission_helper=self,
+                )
 
     def mark_as_sent_for_certification(self, user: "User") -> None:
         if self.is_locked_state:
@@ -525,6 +535,19 @@ class SubmissionHelper:
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, user=user
             )
+            # If we are previewing a report, and then submitting, there is no grant recipient so don't send email
+            if not self.is_preview:
+                for data_provider in self.submission.grant_recipient.data_providers:
+                    notification_service.send_access_submission_sent_for_certification_confirmation(
+                        data_provider.email, submission=self.submission
+                    )
+                for certifier in self.submission.grant_recipient.certifiers:
+                    assert self.sent_for_certification_by is not None
+                    notification_service.send_access_submission_ready_to_certify(
+                        certifier.email,
+                        submission=self.submission,
+                        submitted_by=self.sent_for_certification_by,
+                    )
         else:
             raise ValueError(f"Could not send submission id={self.id} for sign off because not all forms are complete.")
 
@@ -584,14 +607,14 @@ class SubmissionHelper:
         # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do. In order
         # to get by this now we check the underlying submission_state rather than the status, but we should refactor
         # this when a decision is made on 'Overdue' behaviour and make the submission status the source of truth.
-        if self.events.submission_state.is_awaiting_sign_off:
-            interfaces.collections.add_submission_event(
-                self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
-            )
-        else:
+        if not self.events.submission_state.is_awaiting_sign_off:
             raise ValueError(
                 f"Could not approve certification for submission id={self.id} because it is not awaiting sign off."
             )
+
+        interfaces.collections.add_submission_event(
+            self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
+        )
 
     def toggle_form_completed(self, form: "Form", user: "User", is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED

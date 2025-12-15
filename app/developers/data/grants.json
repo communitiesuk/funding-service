@@ -3,6 +3,20 @@
     {
       "collections": [
         {
+          "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "0b264b13-eacd-4ccc-b187-9fcdb23c8c7a",
+          "name": "No certify",
+          "reporting_period_end_date": "Sun, 02 Feb 2025 00:00:00 GMT",
+          "reporting_period_start_date": "Wed, 01 Jan 2025 00:00:00 GMT",
+          "requires_certification": false,
+          "slug": "no-certify",
+          "status": "Open",
+          "submission_period_end_date": "Wed, 31 Dec 2025 00:00:00 GMT",
+          "submission_period_start_date": "Mon, 01 Dec 2025 00:00:00 GMT",
+          "type": "monitoring report"
+        },
+        {
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -1192,6 +1206,13 @@
           "title": "Programme progress"
         },
         {
+          "collection_id": "0b264b13-eacd-4ccc-b187-9fcdb23c8c7a",
+          "id": "c98aeb88-e4e6-4ad9-a673-4e8197ce5c8d",
+          "order": 0,
+          "slug": "section-1",
+          "title": "section 1"
+        },
+        {
           "collection_id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
           "id": "cd5fc00f-13d0-4c89-af8c-9f16c5c77afe",
           "order": 1,
@@ -1601,6 +1622,20 @@
           },
           "slug": "how-are-you-managing-the-risk-to-life",
           "text": "How are you managing the risk to life?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Single line of text",
+          "form_id": "c98aeb88-e4e6-4ad9-a673-4e8197ce5c8d",
+          "hint": "",
+          "id": "6be0f44d-d86b-4d3d-b998-e6102fd0a683",
+          "name": "text",
+          "order": 0,
+          "presentation_options": {},
+          "slug": "some-text",
+          "text": "some text",
           "type": "QUESTION"
         },
         {
@@ -3866,7 +3901,7 @@
       "user_id": "a08a325c-645a-4a36-9787-c2acd75dd0f2"
     },
     {
-      "id": "920e3f5d-8801-4663-9f1c-a398e69c3d66",
+      "id": "e42b0f9e-371a-446d-94c3-9fc374d15fa0",
       "permissions": [
         "member",
         "admin"
@@ -3909,13 +3944,13 @@
       "azure_ad_subject_id": "aef0d89750aa6dcb4d10040f6e5766c1",
       "email": "nrose@test.communities.gov.uk",
       "id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
-      "last_logged_in_at_utc": "Tue, 02 Dec 2025 14:01:09 GMT",
+      "last_logged_in_at_utc": "Thu, 11 Dec 2025 10:06:08 GMT",
       "name": "Amber Greene"
     },
     {
       "email": "raymondpearson@test.communities.gov.uk",
       "id": "4f990e2b-690b-4c97-a47b-c9a073e92827",
-      "last_logged_in_at_utc": "Tue, 02 Dec 2025 13:59:36 GMT",
+      "last_logged_in_at_utc": "Thu, 11 Dec 2025 10:54:46 GMT",
       "name": "Timothy Garrett"
     },
     {

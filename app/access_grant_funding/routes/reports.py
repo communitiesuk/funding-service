@@ -76,22 +76,12 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
     if form.validate_on_submit():
         user = get_current_user()
 
-        # Our current flow doesn't have an interstitial step between certifying and submitting a report, but these
-        # actions are still self-contained and separate so that if this flow changes in the future we already have it
-        # modelled.
         submission.certify(user=user)
         submission.submit(user=user)
 
-        for unique_user in grant_recipient.unique_data_providers_and_certifiers:
-            if unique_user is not None:
-                notification_service.send_access_submission_certified_and_submitted(
-                    email_address=unique_user.email,
-                    submission_helper=submission,
-                )
-
         return redirect(
             url_for(
-                "access_grant_funding.confirm_certification",
+                "access_grant_funding.confirm_sign_off_submit",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
                 submission_id=submission.id,
@@ -234,11 +224,11 @@ def decline_report(
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/certification-confirmation",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/sign-off-submit-confirmation",
     methods=["GET"],
 )
 @has_access_grant_role(RoleEnum.CERTIFIER)
-def confirm_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+def confirm_sign_off_submit(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
@@ -250,7 +240,7 @@ def confirm_certification(organisation_id: UUID, grant_id: UUID, submission_id: 
         )
 
     return render_template(
-        "access_grant_funding/reports/submission_confirmation.html",
+        "access_grant_funding/reports/signed_off_submitted_confirmation.html",
         grant_recipient=grant_recipient,
         submission=submission,
     )

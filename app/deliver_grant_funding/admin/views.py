@@ -44,7 +44,7 @@ from app.common.data.types import (
     ReportAdminEmailTypeEnum,
     RoleEnum,
 )
-from app.common.filters import format_date, format_date_range
+from app.common.filters import format_date
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminAddTestGrantRecipientUserForm,
     PlatformAdminBulkCreateGrantRecipientsForm,
@@ -788,10 +788,11 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             fieldnames=[
                 "email_address",
                 "grant_name",
-                "reporting_period",
+                "report_name",
                 "report_deadline",
                 "grant_report_url",
                 "is_test_data",
+                "requires_certification",
             ],
         )
         csv_writer.writeheader()
@@ -817,9 +818,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             case _:
                 return abort(404)
         for email_recipient, grant_recipient in sorted(email_recipients, key=lambda u: u[0].email):
-            reporting_period = format_date_range(
-                collection.reporting_period_start_date, collection.reporting_period_end_date
-            )
+            report_name = collection.name
             report_deadline = format_date(collection.submission_period_end_date)
 
             grant_report_url = url_for(
@@ -833,10 +832,11 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                 {
                     "email_address": email_recipient.email,
                     "grant_name": grant.name,
-                    "reporting_period": reporting_period,
+                    "report_name": report_name,
                     "report_deadline": report_deadline,
                     "grant_report_url": grant_report_url,
                     "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+                    "requires_certification": "yes" if collection.requires_certification else "no",
                 }
             )
 
