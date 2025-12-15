@@ -94,3 +94,8 @@ def list_grant_team(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValu
         grant_recipient=grant_recipient,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
     )
+
+
+@access_grant_funding_blueprint.route("/accessibility-statement")
+def accessibility_statement() -> ResponseReturnValue:
+    return render_template("access_grant_funding/accessibility-statement.html")
