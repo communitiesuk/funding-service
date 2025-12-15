@@ -212,7 +212,7 @@ class TestViewLockedReport:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.confirm_certification",
+            "access_grant_funding.confirm_sign_off_submit",
             organisation_id=organisation.id,
             grant_id=grant.id,
             submission_id=submission_awaiting_sign_off.id,
@@ -570,7 +570,7 @@ class TestViewConfirmCertification:
 
         response = client.get(
             url_for(
-                "access_grant_funding.confirm_certification",
+                "access_grant_funding.confirm_sign_off_submit",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
                 submission_id=submission_submitted.id,
