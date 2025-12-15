@@ -119,6 +119,54 @@ class TestSubmissionTasklist:
             )
             assert response.location == expected_location
 
+    def test_post_submission_tasklist_shows_validation_error_when_answers_invalid(
+        self, authenticated_grant_admin_client, factories
+    ):
+        client = authenticated_grant_admin_client
+        grant = client.grant
+        form = factories.form.create(title="Financial Report", collection__grant=grant)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0, name="threshold")
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1, name="amount")
+
+        factories.expression.create(
+            question=q2,
+            created_by=client.user,
+            type_=ExpressionType.VALIDATION,
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
+            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+        )
+
+        submission = factories.submission.create(
+            collection=form.collection,
+            created_by=client.user,
+            data={str(q1.id): {"value": 150}, str(q2.id): {"value": 100}},
+        )
+        factories.submission_event.create(
+            created_by=client.user,
+            submission=submission,
+            related_entity_id=form.id,
+        )
+
+        with client.session_transaction() as session:
+            session["test_submission_form_id"] = form.id
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.submission_tasklist",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                form_id=form.id,
+            ),
+            data={"submit": True},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Unable to submit as some answers are invalid" in soup.text
+        assert "amount" in soup.text
+
 
 class TestAskAQuestion:
     @pytest.mark.parametrize(

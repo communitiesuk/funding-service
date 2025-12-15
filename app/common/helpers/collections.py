@@ -29,6 +29,7 @@ from app.common.collections.types import (
     UrlAnswer,
     YesNoAnswer,
 )
+from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     get_all_submissions_with_mode_for_collection,
@@ -507,6 +508,8 @@ class SubmissionHelper:
                         RoleEnum.CERTIFIER,
                     )
 
+        SubmissionValidator(self).validate_all_reachable_questions()
+
         interfaces.collections.add_submission_event(
             self.submission,
             event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
@@ -530,6 +533,8 @@ class SubmissionHelper:
                 f"Could not send submission id={self.id} for sign off because this report does not require "
                 f"certification."
             )
+
+        SubmissionValidator(self).validate_all_reachable_questions()
 
         if self.all_forms_are_completed:
             interfaces.collections.add_submission_event(
