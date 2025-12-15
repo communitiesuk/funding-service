@@ -82,8 +82,7 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
         submission.certify(user=user)
         submission.submit(user=user)
 
-        users_needing_confirmation = {submission.certified_by, submission.sent_for_certification_by}
-        for unique_user in users_needing_confirmation:
+        for unique_user in grant_recipient.unique_data_providers_and_certifiers:
             if unique_user is not None:
                 notification_service.send_access_submission_certified_and_submitted(
                     email_address=unique_user.email,
@@ -198,13 +197,19 @@ def decline_report(
         certifier_user = get_current_user()
         submission_helper.decline_certification(certifier_user, declined_reason=declined_reason)
 
-        notification_service.send_access_submitter_submission_declined(
-            certifier_user=certifier_user, submission_helper=submission_helper
-        )
-        notification_service.send_access_certifier_confirm_submission_declined(
-            certifier_user=certifier_user,
-            submission_helper=submission_helper,
-        )
+        # There are two distinct emails for data providers and certifiers in this flow so we want users to receive the
+        # relevant ones, even if they have both permissions.
+        for data_provider in grant_recipient.data_providers:
+            notification_service.send_access_submitter_submission_declined(
+                user=data_provider, submission_helper=submission_helper
+            )
+
+        for certifier in grant_recipient.certifiers:
+            notification_service.send_access_certifier_confirm_submission_declined(
+                user=certifier,
+                submission_helper=submission_helper,
+            )
+
         flash(
             {  # type:ignore [arg-type]
                 "collection_name": submission_helper.collection.name,

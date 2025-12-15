@@ -306,7 +306,7 @@ class TestNotificationService:
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
         }
         notification_service.send_access_certifier_confirm_submission_declined(
-            certifier_user=certifier,
+            user=certifier,
             submission_helper=helper,
         )
         assert len(mock_notification_service_calls) == 1
@@ -339,7 +339,7 @@ class TestNotificationService:
 
         notification_service.send_access_submitter_submission_declined(
             submission_helper=helper,
-            certifier_user=certifier,
+            user=helper.sent_for_certification_by,
         )
         assert len(mock_notification_service_calls) == 1
         assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation

@@ -165,12 +165,34 @@ class TestViewLockedReport:
         grant = authenticated_grant_recipient_certifier_client.grant
 
         submitted_by_user = factories.user.create()
+        # Give the user DATA_PROVIDER and CERTIFIER permissions to ensure they still only get one confirmation email
+        factories.user_role.create(
+            user=submitted_by_user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+        )
         certification_event = next(
             event
             for event in submission_awaiting_sign_off.events
             if event.event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
         )
         certification_event.created_by = submitted_by_user
+
+        # Make a couple more grant recipient users to check they all receive the notification email
+        additional_users = factories.user.create_batch(2)
+        factories.user_role.create(
+            user=additional_users[0],
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.user_role.create(
+            user=additional_users[1],
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
 
         helper = SubmissionHelper(submission_awaiting_sign_off)
         assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
@@ -199,7 +221,7 @@ class TestViewLockedReport:
         assert helper.status == SubmissionStatusEnum.SUBMITTED
         assert helper.events.submission_state.is_approved
         assert helper.events.submission_state.is_submitted
-        assert len(mock_notification_service_calls) == 2
+        assert len(mock_notification_service_calls) == 4
 
     def test_post_view_locked_report_certify_failure_should_not_submit(
         self,
@@ -393,10 +415,29 @@ class TestDeclineSignOff:
         app,
         mock_notification_service_calls,
     ):
+        organisation = authenticated_grant_recipient_certifier_client.organisation
+        grant = authenticated_grant_recipient_certifier_client.grant
+
         helper = SubmissionHelper(submission_awaiting_sign_off)
         assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
         form = submission_awaiting_sign_off.collection.forms[0]
         assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+
+        submitted_by_user = factories.user.create()
+        # Give the user DATA_PROVIDER and CERTIFIER permissions to ensure they get both distinct emails sent as part
+        # of this flow
+        factories.user_role.create(
+            user=submitted_by_user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+        )
+        certification_event = next(
+            event
+            for event in submission_awaiting_sign_off.events
+            if event.event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        )
+        certification_event.created_by = submitted_by_user
 
         decline_form = DeclineSignOffForm()
         decline_form.decline_reason.data = "Reason for declining"
@@ -421,7 +462,7 @@ class TestDeclineSignOff:
         assert helper.status == SubmissionStatusEnum.IN_PROGRESS
         assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
 
-        assert len(mock_notification_service_calls) == 2
+        assert len(mock_notification_service_calls) == 3
 
     def test_decline_certification_post_form_validation_fails(
         self,

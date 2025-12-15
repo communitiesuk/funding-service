@@ -875,6 +875,10 @@ class GrantRecipient(BaseModel):
         return preferred_certifiers or self._all_certifiers
 
     @property
+    def unique_data_providers_and_certifiers(self) -> set[User]:
+        return set(self.data_providers + list(self.certifiers))
+
+    @property
     def certifier_names(self) -> str:
         names = [certifier.name for certifier in self.certifiers]
         if names and len(names) == 1:
