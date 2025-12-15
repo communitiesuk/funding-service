@@ -235,10 +235,10 @@ class FormRunner:
             else:
                 self.submission.submit(user)
             return True
-        except ValueError as e:
+        except ValueError:
             current_app.logger.warning(
                 "ValueError when submitting id %(submission_id)s",
-                exc_info=e,
+                exc_info=True,
                 extra={"submission_id": str(self.submission.id)},
             )
             self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # type:ignore[attr-defined]

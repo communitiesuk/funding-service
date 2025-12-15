@@ -925,31 +925,31 @@ class TestSubmissionHelper:
             )
             assert len(mock_notification_service_calls) == 0
 
-    def test_submit_user_is_not_certifier(
-        self,
-        submission_awaiting_sign_off,
-        mock_notification_service_calls,
-        data_provider_user,
-        certifier_user,
-        factories,
-    ):
-        helper = SubmissionHelper(submission_awaiting_sign_off)
+        def test_submit_user_is_not_certifier(
+            self,
+            submission_awaiting_sign_off,
+            mock_notification_service_calls,
+            data_provider_user,
+            certifier_user,
+            factories,
+        ):
+            helper = SubmissionHelper(submission_awaiting_sign_off)
 
-        factories.submission_event.create(
-            created_by=certifier_user,
-            created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
-            related_entity_id=submission_awaiting_sign_off.id,
-            submission=submission_awaiting_sign_off,
-            event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
-        )
-        assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
-        with pytest.raises(SubmissionAuthorisationError) as e:
-            helper.submit(data_provider_user)
-        assert (
-            str(e.value)
-            == f"User does not have certifier permission to submit submission {submission_awaiting_sign_off.id}"
-        )
-        assert len(mock_notification_service_calls) == 0
+            factories.submission_event.create(
+                created_by=certifier_user,
+                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
+                related_entity_id=submission_awaiting_sign_off.id,
+                submission=submission_awaiting_sign_off,
+                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+            )
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+            with pytest.raises(SubmissionAuthorisationError) as e:
+                helper.submit(data_provider_user)
+            assert (
+                str(e.value)
+                == f"User does not have certifier permission to submit submission {submission_awaiting_sign_off.id}"
+            )
+            assert len(mock_notification_service_calls) == 0
 
     class TestSentForCertification:
         def test_mark_as_sent_for_certification(

@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from flask import abort, redirect, render_template, request, url_for
+from flask import abort, current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
@@ -106,6 +106,12 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
                         submission_id=submission_id,
                     )
                 )
+            else:
+                current_app.logger.warning(
+                    "Submission %(submission_id)s has been completed but is in an unexpected state",
+                    extra={"submission_id": submission_id},
+                )
+                abort(500)
 
     # if complete_submission failed, the runner has appended errors to the form which will show to the user
     return render_template("access_grant_funding/reports/tasklist.html", grant_recipient=grant_recipient, runner=runner)
