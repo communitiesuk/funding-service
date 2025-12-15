@@ -301,7 +301,7 @@ class NotificationService:
             # note baseline reports are unlikely to have reporting dates and we don't
             # expect them here
             current_app.logger.warning(
-                "Submitted email sent with missing details for submission id %(submission_id)s}",
+                "Submitted email sent with missing details for submission id %(submission_id)s",
                 dict(submission_id=submission_helper.id),
             )
 
