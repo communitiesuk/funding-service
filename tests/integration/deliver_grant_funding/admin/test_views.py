@@ -857,9 +857,10 @@ class TestSendEmailsToRecipients:
         header = lines[0]
         assert "email_address" in header
         assert "grant_name" in header
-        assert "reporting_period" in header
+        assert "report_name" in header
         assert "report_deadline" in header
         assert "grant_report_url" in header
+        assert "requires_certification" in header
 
         assert "user1@org1.example.com" in lines[1]
         assert "user2@org1.example.com" in lines[2]
@@ -867,7 +868,7 @@ class TestSendEmailsToRecipients:
         assert "user4@org3.example.com" not in response.text
 
         assert all("Test Grant" in line for line in lines[1:])
-        assert all("Wednesday 1 January 2025 to Monday 31 March 2025" in line for line in lines[1:])
+        assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/reports" in line for line in lines[1:])
 
@@ -980,9 +981,10 @@ class TestSendEmailsToRecipients:
         header = lines[0]
         assert "email_address" in header
         assert "grant_name" in header
-        assert "reporting_period" in header
+        assert "report_name" in header
         assert "report_deadline" in header
         assert "grant_report_url" in header
+        assert "requires_certification" in header
 
         assert "user3@org2.example.com" not in response.text
         assert "user4@org2.example.com" not in response.text
@@ -992,7 +994,7 @@ class TestSendEmailsToRecipients:
         assert "user5@org3.example.com" in lines[3]
 
         assert all("Test Grant" in line for line in lines[1:])
-        assert all("Wednesday 1 January 2025 to Monday 31 March 2025" in line for line in lines[1:])
+        assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/reports" in line for line in lines[1:])
 
