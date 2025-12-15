@@ -10,13 +10,14 @@ from flask import url_for
 from app import CollectionStatusEnum, QuestionDataType
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import add_question_validation
-from app.common.data.models import Collection, Expression, Form, Group, Question
+from app.common.data.models import Collection, Expression, Form, Group, Question, Submission, SubmissionEvent
 from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
     GrantRecipientModeEnum,
     ManagedExpressionsEnum,
     QuestionPresentationOptions,
+    SubmissionEventType,
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
@@ -5487,3 +5488,86 @@ class TestViewSubmission:
             )
             == 5
         )
+
+    def test_post_view_submission_resets_test_submission(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_completed_submissions_each_question_type__test=1,
+        )
+        test_submission = report.test_submissions[0]
+        test_submission_id = test_submission.id
+
+        factories.submission_event.create(
+            related_entity_id=test_submission.collection.forms[0].id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            submission=test_submission,
+            created_by=test_submission.created_by,
+        )
+
+        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_member_client.grant.id,
+                submission_id=test_submission_id,
+                delete=True,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_submissions",
+            grant_id=authenticated_grant_member_client.grant.id,
+            report_id=report.id,
+            submission_mode=SubmissionModeEnum.TEST,
+        )
+
+        submissions_from_db = db_session.query(Submission).where(Submission.id == test_submission_id).all()
+        events_from_db = (
+            db_session.query(SubmissionEvent).where(SubmissionEvent.submission_id == test_submission_id).all()
+        )
+
+        assert len(submissions_from_db) == 0
+        assert len(events_from_db) == 0
+
+    @pytest.mark.parametrize(
+        "submission_mode, should_show_reset_link",
+        [
+            (SubmissionModeEnum.TEST, True),
+            (SubmissionModeEnum.PREVIEW, False),
+            (SubmissionModeEnum.LIVE, False),
+        ],
+    )
+    def test_get_view_submission_only_shows_manage_test_section_for_test(
+        self, authenticated_grant_member_client, factories, submission_mode, should_show_reset_link
+    ):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test report")
+        submission = factories.submission.create(
+            collection=report,
+            mode=submission_mode,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_member_client.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        reset_link = page_has_link(soup, "Reset this submission")
+
+        if should_show_reset_link:
+            assert reset_link is not None, "Reset this submission link should be present for TEST mode"
+        else:
+            assert reset_link is None, (
+                f"Reset this submission link should NOT be present for {submission_mode.value} mode"
+            )
