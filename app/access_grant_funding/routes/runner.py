@@ -125,6 +125,10 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
     methods=["GET", "POST"],
 )
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>/<any('remove'):action>",
+    methods=["GET", "POST"],
+)
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.DATA_PROVIDER)
 def ask_a_question(
@@ -133,6 +137,7 @@ def ask_a_question(
     submission_id: UUID,
     question_id: UUID,
     add_another_index: Optional[int] = None,
+    action: Optional[str] = None,
 ) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
@@ -143,6 +148,7 @@ def ask_a_question(
         source=FormRunnerState(source) if source else None,
         add_another_index=add_another_index,
         grant_recipient_id=grant_recipient.id,
+        is_removing=action == "remove" if action else None,
     )
 
     if not runner.validate_can_show_question_page():
@@ -152,9 +158,12 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
-        # todo: always call save, it should check this itself and no-op
-        if not runner.add_another_summary_context:
+        if runner.is_removing:
+            runner.save_add_another()
+        elif not runner.add_another_summary_context:
+            # todo: always call save, it should check this itself and no-op
             runner.save_question_answer()
+
         return redirect(runner.next_url)
 
     return render_template(

@@ -10,6 +10,8 @@
 {% macro collection_question_with_add_another_summary_page(runner) %}
   {% if runner.add_another_summary_context %}
     {{ collection_add_another_summary(runner) }}
+  {% elif runner.is_removing %}
+    {{ collection_add_another_confirm_remove(runner) }}
   {% else %}
     {{ collection_question(runner) }}
   {% endif %}
@@ -423,7 +425,7 @@
                 "classes": "govuk-link--no-visited-state"
               },
               {
-                "href": "#",
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i, is_removing=True),
                 "text": "Remove",
                 "visuallyHiddenText": entry_hidden_description,
                 "classes": "govuk-link--no-visited-state"
@@ -474,4 +476,33 @@
       }}
     </form>
   {% endif %}
+{% endmacro %}
+
+{% macro collection_add_another_confirm_remove(runner) %}
+  {% set add_another_container = runner.component.add_another_container %}
+  {% set (summary, is_answered) = runner.submission.get_answer_summary_for_add_another(add_another_container, add_another_index=runner.add_another_index) %}
+
+  {# todo: tweak how the summary works so that its only generated if the #}
+  {#       form designer has explicitly select which answers should be included #}
+  {#       otherwise everything should default to "answer" by default #}
+  {% set heading = "Are you sure you want to remove " ~ (summary or ('answer ' ~ (runner.add_another_index + 1))) ~ "?" %}
+  <span class="govuk-caption-l">{{ runner.component.add_another_container.name }}</span>
+
+  <form method="post" novalidate>
+    {{ runner.confirm_remove_form.csrf_token }}
+
+    {{
+      runner.confirm_remove_form.confirm_remove(params={
+        "fieldset": {
+          "legend": {
+            "text": heading,
+            "isPageHeading": true,
+            "classes": "govuk-fieldset__legend--l"
+          }
+        }
+      })
+    }}
+
+    {{ runner.confirm_remove_form.submit }}
+  </form>
 {% endmacro %}

@@ -3,10 +3,10 @@
 {% extends "deliver_grant_funding/runner/base.html" %}
 
 {# set the page title #}
-{% set page_title = runner.interpolate(runner.component.text if not runner.add_another_summary_context else runner.component.add_another_container.text) ~ " - " ~ runner.form.title %}
+{% set page_title = runner.interpolate(runner.component.text if (not runner.add_another_summary_context and not runner.is_removing) else runner.component.add_another_container.text) ~ " - " ~ runner.form.title %}
 
 {# configure the page for the base error summary #}
-{% set form = runner.question_form if not runner.add_another_summary_context else runner.add_another_summary_form %}
+{% set form = runner.question_with_add_another_summary_form %}
 
 {% block beforeContent %}
   {{ collection_before(runner, override_back_link=url_for("deliver_grant_funding.list_section_questions", grant_id=runner.submission.grant.id, form_id=runner.form.id) if (is_first_question_in_section_preview and runner.add_another_index is none) else None) }}
