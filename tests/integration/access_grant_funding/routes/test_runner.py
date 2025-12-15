@@ -313,6 +313,60 @@ class TestTasklist:
             r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+"
         )
 
+    def test_post_tasklist_shows_validation_error_when_answers_invalid(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        grant_recipient = client.grant_recipient
+        form = factories.form.create(title="Financial Report", collection__grant=grant_recipient.grant)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0, name="threshold")
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1, name="amount")
+
+        factories.expression.create(
+            question=q2,
+            created_by=client.user,
+            type_=ExpressionType.VALIDATION,
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
+            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+        )
+
+        submission = factories.submission.create(
+            collection=form.collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(q1.id): {"value": 150}, str(q2.id): {"value": 100}},
+        )
+        factories.submission_event.create(
+            created_by=client.user,
+            submission=submission,
+            related_entity_id=form.id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        )
+
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            ),
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Unable to submit as some answers are invalid" in soup.text
+        assert "amount" in soup.text
+
 
 class TestAskAQuestion:
     @pytest.mark.parametrize(

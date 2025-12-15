@@ -7,7 +7,7 @@ from flask import abort, current_app, url_for
 from app.common.collections.forms import AddAnotherSummaryForm, CheckYourAnswersForm, build_question_form
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, TasklistSectionStatusEnum, TRunnerUrlMap
-from app.common.exceptions import RedirectException
+from app.common.exceptions import RedirectException, SubmissionValidationFailed
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
@@ -235,6 +235,9 @@ class FormRunner:
             else:
                 self.submission.submit(user)
             return True
+        except SubmissionValidationFailed as e:
+            self._tasklist_form.submit.errors.append(e.error_message)  # type:ignore[attr-defined]
+            return False
         except ValueError:
             current_app.logger.warning(
                 "ValueError when submitting id %(submission_id)s",

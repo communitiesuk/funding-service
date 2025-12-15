@@ -20,6 +20,8 @@ from app.common.collections.types import (
 )
 from app.common.data import interfaces
 from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
     QuestionDataType,
     RoleEnum,
     SubmissionEventType,
@@ -1509,3 +1511,100 @@ class TestCollectionHelper:
         print(result_string)
 
         assert len(queries) == 12
+
+
+class TestSubmissionValidation:
+    def test_submit_fails_when_answer_no_longer_valid(self, factories):
+        form = factories.form.create()
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+
+        factories.expression.create(
+            question=q2,
+            created_by=user,
+            type_=ExpressionType.VALIDATION,
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
+            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+        )
+
+        submission = factories.submission.create(collection=form.collection)
+
+        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+
+        helper = SubmissionHelper(submission)
+        helper.toggle_form_completed(form, user, True)
+
+        submission.data[str(q1.id)] = {"value": 150}
+        helper.cached_get_answer_for_question.cache_clear()
+        helper.cached_evaluation_context = ExpressionContext.build_expression_context(
+            collection=submission.collection, submission_helper=helper, mode="evaluation"
+        )
+
+        with pytest.raises(ValueError) as e:
+            helper.submit(user)
+
+        assert "no longer valid" in str(e.value)
+
+    def test_submit_succeeds_when_all_answers_valid(self, factories):
+        form = factories.form.create()
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+
+        factories.expression.create(
+            question=q2,
+            created_by=user,
+            type_=ExpressionType.VALIDATION,
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
+            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+        )
+
+        submission = factories.submission.create(collection=form.collection, mode=SubmissionModeEnum.TEST)
+
+        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+
+        helper = SubmissionHelper(submission)
+        helper.toggle_form_completed(form, user, True)
+
+        helper.submit(user)
+
+        assert helper.is_submitted
+
+    def test_certification_fails_when_answer_no_longer_valid(self, factories):
+        form = factories.form.create()
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+
+        factories.expression.create(
+            question=q2,
+            created_by=user,
+            type_=ExpressionType.VALIDATION,
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
+            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+        )
+
+        collection = form.collection
+        collection.requires_certification = True
+
+        submission = factories.submission.create(collection=collection)
+
+        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+
+        helper = SubmissionHelper(submission)
+        helper.toggle_form_completed(form, user, True)
+
+        submission.data[str(q1.id)] = {"value": 150}
+        helper.cached_get_answer_for_question.cache_clear()
+        helper.cached_evaluation_context = ExpressionContext.build_expression_context(
+            collection=submission.collection, submission_helper=helper, mode="evaluation"
+        )
+
+        with pytest.raises(ValueError) as e:
+            helper.mark_as_sent_for_certification(user)
+
+        assert "no longer valid" in str(e.value)
