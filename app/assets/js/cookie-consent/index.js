@@ -5,7 +5,6 @@ function gtag() {
 var googleTagLoaded = false;
 function loadGoogleTag() {
     if (!googleTagLoaded) {
-        console.log("loading tag manager");
         // Load Tag Manager script.
         var gtmScript = document.createElement("script");
         gtmScript.async = true;

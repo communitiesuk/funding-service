@@ -11,7 +11,7 @@ from app.common.data import interfaces
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import RoleEnum
 from tests.models import _get_grant_managing_organisation
-from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_error
+from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_error, page_has_h2
 
 
 class TestMagicLinkSignInView:
@@ -185,7 +185,7 @@ class TestClaimMagicLinkView:
         )
         soup = BeautifulSoup(response.data, "html.parser")
         assert response.status_code == 200
-        assert "Link expired" in get_h2_text(soup)
+        assert page_has_h2(soup, "Link expired")
 
     def test_redirect_on_expired_magic_link(self, anonymous_client, factories):
         magic_link = factories.magic_link.create(
