@@ -37,19 +37,22 @@
         })
       }}
 
-      <p class="govuk-body">We have sent a confirmation email to you and the {% trans count=(grant_recipient.certifiers | length) %}certifier{% pluralize %}certifiers{% endtrans %}.</p>
+      <p class="govuk-body">We have sent a confirmation email to you and anyone else who has access to this report.</p>
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
       {% set submission_deadline = format_date(submission_helper.collection.submission_period_end_date) if submission_helper.collection.submission_period_end_date else "(Dates to be confirmed)" %}
+
       <p class="govuk-body">{{ grant_recipient.certifier_names }} will need to review and sign off the report by {{ submission_deadline }}.</p>
 
-      <p class="govuk-body">You will receive an email to confirm whether your report was signed off and submitted or if you need to make changes.</p>
+      <p class="govuk-body">You will receive an email when your report is signed off and submitted.</p>
 
-      <p class="govuk-body">You cannot make changes while awaiting sign off or once the report has been signed off and submitted to the {{ grant_recipient.grant.organisation.name }}.</p>
+      <p class="govuk-body">If a certifier needs to decline sign off, you will receive an email with their reason for declining.</p>
+
+      <p class="govuk-body">You cannot make changes while awaiting sign off, or once the report has been signed off and submitted. If you need to make a change before the report is signed off, the certifier should decline sign off.</p>
 
       <p class="govuk-body">
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ config.GRANT_RECIPIENT_GENERAL_FEEDBACK_URL }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service</a> (takes 30 seconds).
+        <a class="govuk-link govuk-link--no-visited-state app-!-no-wrap" href="{{ config.GRANT_RECIPIENT_GENERAL_FEEDBACK_URL }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service (opens in new tab)</a>
       </p>
 
       <p class="govuk-body">
