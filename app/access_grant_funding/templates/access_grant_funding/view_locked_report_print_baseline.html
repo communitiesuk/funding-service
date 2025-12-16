@@ -82,10 +82,16 @@
             <dd class="app-metadata__value">{{ submission.submitted_by.name }}</dd>
           </dl>
         {% endif %}
-        {% if submission.submitted_at_utc or submission.sent_for_certification_at_utc %}
+        {% if submission.sent_for_certification_at_utc and not submission.submitted_at_utc %}
+          <dl class="app-metadata">
+            <dt class="app-metadata__key">Date submitted for sign off:</dt>
+            <dd class="app-metadata__value">{{ format_date(submission.sent_for_certification_at_utc) }}</dd>
+          </dl>
+        {% endif %}
+        {% if submission.submitted_at_utc and not submission.certified_by %}
           <dl class="app-metadata">
             <dt class="app-metadata__key">Date submitted:</dt>
-            <dd class="app-metadata__value">{{ format_date(submission.submitted_at_utc or submission.sent_for_certification_at_utc) }}</dd>
+            <dd class="app-metadata__value">{{ format_date(submission.submitted_at_utc) }}</dd>
           </dl>
         {% endif %}
         {% if submission.certified_by %}
@@ -94,7 +100,7 @@
             <dd class="app-metadata__value">{{ submission.certified_by.name }}</dd>
           </dl>
           <dl class="app-metadata">
-            <dt class="app-metadata__key">Date certified:</dt>
+            <dt class="app-metadata__key">Date signed off and submitted:</dt>
             <dd class="app-metadata__value">{{ format_date(submission.certified_at_utc) }}</dd>
           </dl>
         {% endif %}

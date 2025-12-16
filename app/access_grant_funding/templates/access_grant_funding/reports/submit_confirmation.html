@@ -35,7 +35,7 @@
       }}
       {% set download_pdf_href = url_for('access_grant_funding.export_report_pdf', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission_helper.id) %}
 
-      <p class="govuk-body">We have sent a confirmation email to you.</p>
+      <p class="govuk-body">We have sent a confirmation email to you and anyone else who has access to this report.</p>
       <p class="govuk-body">
         You can
         <a class="govuk-link govuk-link--no-visited-state" download href="{{ download_pdf_href }}">download the report as a PDF</a>.
@@ -45,7 +45,7 @@
       <p class="govuk-body">Your {{ submission_helper.collection.name }} report for {{ grant_recipient.grant.name }} has been submitted to the {{ submission_helper.collection.grant.organisation.name }}.</p>
 
       <p class="govuk-body">
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ config.GRANT_RECIPIENT_GENERAL_FEEDBACK_URL }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service</a> (takes 30 seconds).
+        <a class="govuk-link govuk-link--no-visited-state app-!-no-wrap" href="{{ config.GRANT_RECIPIENT_GENERAL_FEEDBACK_URL }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service (opens in new tab)</a>
       </p>
 
       <p class="govuk-body">

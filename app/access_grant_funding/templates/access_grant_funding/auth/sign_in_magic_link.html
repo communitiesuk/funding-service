@@ -14,7 +14,10 @@
       {% endif %}
       <h1 class="govuk-heading-l">Access grant funding</h1>
       <p class="govuk-body">A service for grant recipients of central government funding to view, sign off and submit reports.</p>
-      <p class="govuk-body">If you do not have access, you can <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">request access using the support desk</a>.</p>
+      <p class="govuk-body">
+        If you do not have access, you can
+        <a class="govuk-link govuk-link--no-visited-state app-!-no-wrap" href="{{ service_desk_url }}" target="_blank">request access using the support desk (opens in new tab)</a>.
+      </p>
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{

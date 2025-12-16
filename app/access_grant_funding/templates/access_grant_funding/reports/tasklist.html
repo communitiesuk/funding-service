@@ -44,7 +44,11 @@
   {% if runner.submission.collection.requires_certification %}
     {% set before_submission %}
       <h2 class="govuk-heading-m">Submit your report to your certifier</h2>
-      <p class="govuk-body">You can submit your report to the certifier to sign off.</p>
+      <p class="govuk-body">You can submit the report for sign off once it's complete.</p>
+      <p class="govuk-body">
+        We'll send the report to {{ grant_recipient.certifier_names }}. View who has access to the report and their permissions on the
+        <a class="govuk-link" href="{{ url_for('access_grant_funding.list_grant_team', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}">Team page</a>.
+      </p>
       <p class="govuk-body">You cannot make changes while your report is awaiting sign off.</p>
     {% endset %}
     {% set submit_text="Submit report to certifier" %}
