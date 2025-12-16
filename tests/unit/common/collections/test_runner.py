@@ -126,23 +126,22 @@ class TestFormRunner:
         runner = MappedFormRunner(submission=helper, question=question, source=None)
         url = runner.to_url(FormRunnerState.QUESTION, source=FormRunnerState.TASKLIST)
         assert url == "mock_question_url"
-        question_mock.assert_called_once_with(runner, question, question.form, FormRunnerState.TASKLIST, None)
+        question_mock.assert_called_once_with(runner, question, question.form, FormRunnerState.TASKLIST, None, None)
 
         question_mock.reset_mock()
         runner.to_url(FormRunnerState.QUESTION, question=second_question)
-        question_mock.assert_called_once_with(runner, second_question, question.form, None, None)
+        question_mock.assert_called_once_with(runner, second_question, question.form, None, None, None)
 
         tasklist_url = runner.to_url(FormRunnerState.TASKLIST)
         assert tasklist_url == "mock_tasklist_url"
-        tasklist_mock.assert_called_once_with(runner, question, question.form, None, None)
+        tasklist_mock.assert_called_once_with(runner, question, question.form, None, None, None)
 
         check_answers_url = runner.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
         assert check_answers_url == "mock_check_answers_url"
-        check_answers_mock.assert_called_once_with(runner, question, question.form, None, None)
-
+        check_answers_mock.assert_called_once_with(runner, question, question.form, None, None, None)
         check_answers_mock.reset_mock()
         runner.to_url(FormRunnerState.CHECK_YOUR_ANSWERS, form=second_form)
-        check_answers_mock.assert_called_once_with(runner, question, second_form, None, None)
+        check_answers_mock.assert_called_once_with(runner, question, second_form, None, None, None)
 
     def test_next_url(self, factories, app):
         question = factories.question.build()
@@ -150,7 +149,7 @@ class TestFormRunner:
         submission = factories.submission.build(collection=question.form.collection)
         helper = SubmissionHelper(submission)
 
-        question_mock = Mock(side_effect=lambda r, q, f, s, i: f"mock_question_url_{str(q.id)}")
+        question_mock = Mock(side_effect=lambda r, q, f, s, i, rm: f"mock_question_url_{str(q.id)}")
         check_your_answers_mock = Mock(return_value="mock_check_answers_url")
 
         class MappedFormRunner(FormRunner):
@@ -183,7 +182,7 @@ class TestFormRunner:
         )
         helper = SubmissionHelper(submission)
 
-        question_mock = Mock(side_effect=lambda r, q, f, s, i: f"mock_question_url_{str(q.id)}")
+        question_mock = Mock(side_effect=lambda r, q, f, s, i, rm: f"mock_question_url_{str(q.id)}")
         check_your_answers_mock = Mock(return_value="mock_check_answers_url")
 
         class MappedFormRunner(FormRunner):
@@ -212,7 +211,7 @@ class TestFormRunner:
         submission = factories.submission.build(collection=question.form.collection)
         helper = SubmissionHelper(submission)
 
-        question_mock = Mock(side_effect=lambda r, q, f, s, i: f"mock_question_url_{str(q.id)}")
+        question_mock = Mock(side_effect=lambda r, q, f, s, i, rm: f"mock_question_url_{str(q.id)}")
         tasklist_mock = Mock(return_value="mock_tasklist_url")
 
         class MappedFormRunner(FormRunner):
@@ -238,7 +237,7 @@ class TestFormRunner:
         submission = factories.submission.build(collection=group.form.collection)
         helper = SubmissionHelper(submission)
 
-        question_mock = Mock(side_effect=lambda r, q, f, s, i: f"mock_question_url_{str(q.id)}")
+        question_mock = Mock(side_effect=lambda r, q, f, s, i, rm: f"mock_question_url_{str(q.id)}")
         check_your_answers_mock = Mock(return_value="mock_check_answers_url")
 
         class MappedFormRunner(FormRunner):

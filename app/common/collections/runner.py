@@ -4,7 +4,12 @@ from uuid import UUID
 
 from flask import abort, current_app, url_for
 
-from app.common.collections.forms import AddAnotherSummaryForm, CheckYourAnswersForm, build_question_form
+from app.common.collections.forms import (
+    AddAnotherSummaryForm,
+    CheckYourAnswersForm,
+    ConfirmRemoveAddAnotherForm,
+    build_question_form,
+)
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, TasklistSectionStatusEnum, TRunnerUrlMap
 from app.common.exceptions import RedirectException, SubmissionValidationFailed
@@ -38,6 +43,7 @@ class FormRunner:
         form: Optional["Form"] = None,
         source: Optional["FormRunnerState"] = None,
         add_another_index: Optional[int] = None,
+        is_removing: bool = False,
     ):
         if question and form:
             raise ValueError("Expected only one of question or form")
@@ -46,6 +52,7 @@ class FormRunner:
         self.form = form
         self.source = source
         self.add_another_index = add_another_index
+        self.is_removing = is_removing
 
         self._valid: Optional[bool] = None
 
@@ -53,6 +60,7 @@ class FormRunner:
         self._question_form: Optional[DynamicQuestionForm] = None
         self._check_your_answers_form: Optional[CheckYourAnswersForm] = None
         self._add_another_summary_form: Optional[AddAnotherSummaryForm] = None
+        self._confirm_remove_form: Optional[ConfirmRemoveAddAnotherForm] = None
 
         self.add_another_summary_context = bool(
             (question and question.add_another_container) and self.add_another_index is None
@@ -90,19 +98,24 @@ class FormRunner:
                 )
                 self._add_another_summary_form = _AddAnotherSummaryForm
             else:
-                _QuestionForm = build_question_form(
-                    self.questions,
-                    evaluation_context=self.runner_evaluation_context,
-                    interpolation_context=self.runner_interpolation_context,
-                )
-                self._question_form = _QuestionForm(
-                    data=self.submission.form_data(
-                        add_another_container=self.component.add_another_container
-                        if self.component and self.add_another_index is not None
-                        else None,
-                        add_another_index=self.add_another_index,
+                # todo: cleanup this chain of logic to make this read more straight
+                #       forwardly now that we have all the moving pieces
+                if self.is_removing:
+                    self._confirm_remove_form = ConfirmRemoveAddAnotherForm()
+                else:
+                    _QuestionForm = build_question_form(
+                        self.questions,
+                        evaluation_context=self.runner_evaluation_context,
+                        interpolation_context=self.runner_interpolation_context,
                     )
-                )
+                    self._question_form = _QuestionForm(
+                        data=self.submission.form_data(
+                            add_another_container=self.component.add_another_container
+                            if self.component and self.add_another_index is not None
+                            else None,
+                            add_another_index=self.add_another_index,
+                        )
+                    )
 
         if self.form:
             all_questions_answered = self.submission.cached_get_all_questions_are_answered_for_form(
@@ -127,6 +140,7 @@ class FormRunner:
         source: Optional[FormRunnerState] = None,
         add_another_index: Optional[int] = None,
         grant_recipient_id: Optional[UUID] = None,
+        is_removing: bool = False,
     ) -> "FormRunner":
         if question_id and form_id:
             raise ValueError("Expected only one of question_id or form_id")
@@ -170,6 +184,7 @@ class FormRunner:
             form=form,
             source=source,
             add_another_index=add_another_index,
+            is_removing=is_removing,
         )
 
     @property
@@ -195,7 +210,17 @@ class FormRunner:
         return self._add_another_summary_form
 
     @property
-    def question_with_add_another_summary_form(self) -> "DynamicQuestionForm | AddAnotherSummaryForm":
+    def confirm_remove_form(self) -> "ConfirmRemoveAddAnotherForm":
+        if not self.component or not self._confirm_remove_form:
+            raise RuntimeError("Confirm remove context not set")
+        return self._confirm_remove_form
+
+    @property
+    def question_with_add_another_summary_form(
+        self,
+    ) -> "DynamicQuestionForm | AddAnotherSummaryForm | ConfirmRemoveAddAnotherForm":
+        if self.is_removing:
+            return self.confirm_remove_form
         return self.add_another_summary_form if self.add_another_summary_context else self.question_form
 
     def save_question_answer(self) -> None:
@@ -206,6 +231,19 @@ class FormRunner:
             self.submission.submit_answer_for_question(
                 question.id, self.question_form, add_another_index=self.add_another_index
             )
+
+    def save_add_another(self) -> None:
+        if self.add_another_index is None or not (self.component and self.component.add_another_container):
+            raise RuntimeError("Add another context not set")
+
+        if self.is_removing:
+            if self.confirm_remove_form.validate_on_submit():
+                if self.confirm_remove_form.confirm_remove.data == "yes":
+                    interfaces.collections.remove_add_another_answers_at_index(
+                        submission=self.submission.submission,
+                        add_another_container=self.component.add_another_container,
+                        add_another_index=self.add_another_index,
+                    )
 
     def interpolate(self, text: str, *, context: "ExpressionContext | None" = None) -> str:
         return interpolate(text, context=context or self.runner_interpolation_context)
@@ -255,9 +293,17 @@ class FormRunner:
         form: Optional["Form"] = None,
         source: Optional[FormRunnerState] = None,
         add_another_index: Optional[int] = None,
+        is_removing: Optional[bool] = None,
     ) -> str:
         # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
-        return self.url_map[state](self, question or self.component, form or self.form, source, add_another_index)  # type: ignore[arg-type]
+        return self.url_map[state](
+            self,
+            question or self.component,  # type: ignore[arg-type]
+            form or self.form,
+            source,
+            add_another_index,
+            is_removing,
+        )
 
     @property
     def next_url(self) -> str:
@@ -268,6 +314,9 @@ class FormRunner:
             ):
                 new_index = self.submission.get_count_for_add_another(self.component.add_another_container)
                 return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=new_index)
+
+        if self.is_removing and self.component and self.component.add_another_container:
+            return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=None)
 
         # if we're in the context of a question page, decide if we should go to the next question
         # or back to check your answers based on if the integrity checks pass
@@ -442,21 +491,27 @@ def add_another_suffix(heading: str, add_another_index: int) -> str:
 
 class DGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index: url_for(
+        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index, is_removing: url_for(
             "deliver_grant_funding.ask_a_question",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             question_id=question.id if question else None,
             source=source,
             add_another_index=add_another_index,
+            action="remove" if is_removing else None,
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index: url_for(
+        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index, _is_removing: url_for(
             "deliver_grant_funding.submission_tasklist",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             form_id=runner.form.id if runner.form else None,
         ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index: url_for(
+        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner,
+        _question,
+        form,
+        source,
+        _add_another_index,
+        _is_removing: url_for(
             "deliver_grant_funding.check_your_answers",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
@@ -468,7 +523,7 @@ class DGFFormRunner(FormRunner):
 
 class AGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index: url_for(
+        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index, is_removing: url_for(
             "access_grant_funding.ask_a_question",
             organisation_id=runner.submission.submission.grant_recipient.organisation.id,
             grant_id=runner.submission.submission.grant_recipient.grant.id,
@@ -476,14 +531,20 @@ class AGFFormRunner(FormRunner):
             question_id=question.id if question else None,
             source=source,
             add_another_index=add_another_index,
+            action="remove" if is_removing else None,
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index: url_for(
+        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index, _is_removing: url_for(
             "access_grant_funding.tasklist",
             organisation_id=runner.submission.submission.grant_recipient.organisation.id,
             grant_id=runner.submission.submission.grant_recipient.grant.id,
             submission_id=runner.submission.id,
         ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index: url_for(
+        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner,
+        _question,
+        form,
+        source,
+        _add_another_index,
+        _is_removing: url_for(
             "access_grant_funding.check_your_answers",
             organisation_id=runner.submission.submission.grant_recipient.organisation.id,
             grant_id=runner.submission.submission.grant_recipient.grant.id,

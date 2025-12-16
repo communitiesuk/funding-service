@@ -312,3 +312,13 @@ class AddAnotherSummaryForm(FlaskForm):
         validators=[Optional()],
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class ConfirmRemoveAddAnotherForm(FlaskForm):
+    confirm_remove = RadioField(
+        "Are you sure you want to remove this answer?",
+        choices=[("yes", "Yes"), ("no", "No")],
+        widget=GovRadioInput(),
+        validators=[DataRequired("Select yes if you want to remove this answer")],
+    )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())

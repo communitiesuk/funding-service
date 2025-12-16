@@ -52,10 +52,18 @@ def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnVa
     "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>",
     methods=["GET", "POST"],
 )
-@has_deliver_grant_role(RoleEnum.MEMBER)
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>/<any('remove'):action>",
+    methods=["GET", "POST"],
+)
 @auto_commit_after_request
+@has_deliver_grant_role(RoleEnum.MEMBER)
 def ask_a_question(
-    grant_id: UUID, submission_id: UUID, question_id: UUID, add_another_index: int | None = None
+    grant_id: UUID,
+    submission_id: UUID,
+    question_id: UUID,
+    add_another_index: int | None = None,
+    action: str | None = None,
 ) -> ResponseReturnValue:
     source = request.args.get("source")
     runner = DGFFormRunner.load(
@@ -63,6 +71,7 @@ def ask_a_question(
         question_id=question_id,
         source=FormRunnerState(source) if source else None,
         add_another_index=add_another_index,
+        is_removing=action == "remove",
     )
 
     if not runner.validate_can_show_question_page():
@@ -72,9 +81,11 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
-        # todo: save question answer could aways no-op if theres nothing to save which would make this code
-        #       more straight forward
-        if not runner.add_another_summary_context:
+        if runner.is_removing:
+            runner.save_add_another()
+        elif not runner.add_another_summary_context:
+            # todo: save question answer could aways no-op if theres nothing to save which would make this code
+            #       more straight forward
             runner.save_question_answer()
         return redirect(runner.next_url)
 
