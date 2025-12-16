@@ -42,6 +42,8 @@
 {% endblock header %}
 
 {% block footer %}
+  {% set grant_id = grant.id if grant is defined else request.view_args.grant_id %}
+
   {{
     govukFooter({
       "meta": {
@@ -51,12 +53,16 @@
             "text": "Accessibility statement"
           },
           {
-            "href": config.ACCESS_SERVICE_DESK_URL,
-            "text": "Contact us"
-          },
-          {
             "href": url_for("access_grant_funding.cookies"),
             "text": "Cookies"
+          },
+          {
+            "href": url_for("access_grant_funding.privacy_policy", grant_id=grant_id) if grant_id else url_for("access_grant_funding.privacy_policy"),
+            "text": "Privacy"
+          },
+          {
+            "href": config.ACCESS_SERVICE_DESK_URL,
+            "text": "Contact us"
           },
         ]
       }

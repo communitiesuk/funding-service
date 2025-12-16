@@ -12,6 +12,7 @@ from app.common.auth.decorators import (
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
+from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
 from app.common.data.types import RoleEnum
 
@@ -104,3 +105,10 @@ def accessibility_statement() -> ResponseReturnValue:
 @access_grant_funding_blueprint.route("/cookies")
 def cookies() -> ResponseReturnValue:
     return render_template("access_grant_funding/cookies.html")
+
+
+@access_grant_funding_blueprint.route("/privacy-policy")
+@access_grant_funding_blueprint.route("/privacy-policy/<uuid:grant_id>")
+def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
+    grant = get_grant(grant_id) if grant_id else None
+    return render_template("access_grant_funding/privacy-policy.html", grant=grant)
