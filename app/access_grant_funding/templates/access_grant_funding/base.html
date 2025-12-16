@@ -24,6 +24,7 @@
       wait_for_update: 500,
     });
     dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+    window.googleTagId = "{{ get_google_tag_manager_id() }}";
   </script>
 {% endblock head %}
 {% block header %}
@@ -131,52 +132,11 @@
       ]
     })
   }}
-
-  <script nonce="{{ csp_nonce() }}">
-    function initCookieConsent(window, dataLayer) {
-      window[dataLayer] = window[dataLayer] || [];
-      const cookie_banner = document.getElementById("cookie_banner");
-      const cookie_choice_msg = document.getElementById("cookie_choice_msg");
-      const cookies_rejected_msg = document.getElementById("cookies_rejected_msg");
-      const cookies_accepted_msg = document.getElementById("cookies_accepted_msg");
-      const accept_cookies_button = document.getElementById("btn_accept_analytics_cookies");
-      const reject_cookies_button = document.getElementById("btn_reject_analytics_cookies");
-      cookie_banner.removeAttribute("hidden");
-      cookie_choice_msg.removeAttribute("hidden");
-      function gtag() {
-        window[dataLayer].push(arguments);
-      }
-      accept_cookies_button.addEventListener("click", function () {
-        localStorage.setItem("consentGranted", "true");
-
-        gtag("consent", "update", {
-          ad_user_data: "denied",
-          ad_personalization: "denied",
-          ad_storage: "denied",
-          analytics_storage: "granted",
-        });
-      });
-      reject_cookies_button.addEventListener("click", function () {
-        localStorage.setItem("consentGranted", "false");
-        gtag("consent", "update", {
-          ad_user_data: "denied",
-          ad_personalization: "denied",
-          ad_storage: "denied",
-          analytics_storage: "denied",
-        });
-      });
-    }
-
-    // Load gtag.js script.
-    var gtagScript = document.createElement("script");
-    gtagScript.async = true;
-    gtagScript.src = "https://www.googletagmanager.com/gtag/js?id={{ get_google_tag_manager_id() }}";
-
-    var firstScript = document.getElementsByTagName("script")[0];
-    firstScript.parentNode.insertBefore(gtagScript, firstScript);
-    initCookieConsent(window, "dataLayer");
-  </script>
 {% endblock bodyStart %}
+{% block bodyEnd %}
+  {{ super() }}
+  <script type="module" src="{{ vite_asset('app/assets/js/cookie-consent/index.js') }}"></script>
+{% endblock %}
 {% block footer %}
   {{
     govukFooter({
