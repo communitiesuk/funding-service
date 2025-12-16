@@ -14,7 +14,7 @@
         <a class="govuk-link govuk-link--no-visited-state" href="https://funding.communities.gov.uk/access">Access grant funding</a>.
       </p>
 
-      {% if grant %}
+      {% if grant and grant.privacy_policy_markdown %}
         <h2 class="govuk-heading-l">{{ grant.name }}</h2>
 
         <p class="govuk-body">This privacy policy applies to data collected for {{ grant.name }}.</p>
