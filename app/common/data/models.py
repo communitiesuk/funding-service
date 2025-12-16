@@ -57,6 +57,7 @@ class Grant(BaseModel):
     collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
     organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="grants")
     grant_recipients: Mapped[list["GrantRecipient"]] = relationship("GrantRecipient", back_populates="grant")
+    privacy_policy_markdown: Mapped[str | None]
 
     invitations: Mapped[list["Invitation"]] = relationship(
         "Invitation",

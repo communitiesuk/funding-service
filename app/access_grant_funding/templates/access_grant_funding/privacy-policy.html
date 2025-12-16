@@ -18,6 +18,8 @@
         <h2 class="govuk-heading-l">{{ grant.name }}</h2>
 
         <p class="govuk-body">This privacy policy applies to data collected for {{ grant.name }}.</p>
+
+        {{ privacy_policy_renderer(grant.privacy_policy_markdown) }}
       {% endif %}
     </div>
   </div>
