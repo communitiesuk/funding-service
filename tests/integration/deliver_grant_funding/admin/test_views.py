@@ -1295,7 +1295,7 @@ class TestReportingLifecycleMakeGrantLive:
     def test_post_makes_grant_live_with_enough_team_members(
         self, authenticated_platform_admin_client, factories, db_session
     ):
-        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT, privacy_policy_markdown="hello")
         collection = factories.collection.create(grant=grant)
         factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
         factories.user_role.create(grant=grant, permissions=[RoleEnum.ADMIN])
