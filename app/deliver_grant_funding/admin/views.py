@@ -788,6 +788,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
             fieldnames=[
                 "email_address",
                 "grant_name",
+                "organisation_name",
                 "report_name",
                 "report_deadline",
                 "grant_report_url",
@@ -832,6 +833,7 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                 {
                     "email_address": email_recipient.email,
                     "grant_name": grant.name,
+                    "organisation_name": grant_recipient.organisation.name,
                     "report_name": report_name,
                     "report_deadline": report_deadline,
                     "grant_report_url": grant_report_url,

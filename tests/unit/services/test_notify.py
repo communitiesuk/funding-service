@@ -168,6 +168,7 @@ class TestNotificationService:
     @responses.activate
     def test_send_access_report_opened(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
             grant__name="Test grant",
             mode=GrantRecipientModeEnum.LIVE,
         )
@@ -187,6 +188,7 @@ class TestNotificationService:
                         "template_id": "4fc8d831-e241-4648-a8d3-04fb1bd9193e",
                         "personalisation": {
                             "grant_name": "Test grant",
+                            "organisation_name": "Test organisation",
                             "report_name": "Test collection",
                             "requires_certification": "yes",
                             "report_deadline": "Wednesday 31 December 2025",
@@ -209,10 +211,12 @@ class TestNotificationService:
     @responses.activate
     def test_send_access_submission_send_for_sign_off_confirmation(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
             grant__name="Test grant",
         )
         submission = factories.submission.build(
             grant_recipient=grant_recipient,
+            reference="TG-R123456",
             collection__grant=grant_recipient.grant,
             collection__name="Test collection",
         )
@@ -227,6 +231,8 @@ class TestNotificationService:
                         "template_id": "e78b9c68-5d45-40a1-8339-04fe7ffc8caa",
                         "personalisation": {
                             "grant_name": "Test grant",
+                            "organisation_name": "Test organisation",
+                            "reference": "TG-R123456",
                             "report_name": "Test collection",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
@@ -245,10 +251,12 @@ class TestNotificationService:
     @responses.activate
     def test_send_access_submission_ready_to_certify(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
             grant__name="Test grant",
         )
         submission = factories.submission.build(
             grant_recipient=grant_recipient,
+            reference="TG-R123456",
             collection__grant=grant_recipient.grant,
             collection__name="Test collection",
             collection__submission_period_end_date=datetime.date(2025, 11, 18),
@@ -265,6 +273,8 @@ class TestNotificationService:
                         "template_id": "e511c0d0-2ac8-4ded-80a2-13b79023c5d5",
                         "personalisation": {
                             "grant_name": "Test grant",
+                            "organisation_name": "Test organisation",
+                            "reference": "TG-R123456",
                             "report_submitter": "Submitter User",
                             "report_name": "Test collection",
                             "report_deadline": "Tuesday 18 November 2025",
@@ -297,6 +307,8 @@ class TestNotificationService:
         helper = SubmissionHelper(submission_awaiting_sign_off)
         expected_personalisation = {
             "grant_name": "Test grant",
+            "organisation_name": submission_awaiting_sign_off.grant_recipient.organisation.name,
+            "reference": submission_awaiting_sign_off.reference,
             "submitter_name": "Submitter User",
             "certifier_name": "Certifier User",
             "certifier_comments": "Decline reason",
@@ -331,6 +343,8 @@ class TestNotificationService:
 
         expected_personalisation = {
             "grant_name": "Test grant",
+            "organisation_name": submission_awaiting_sign_off.grant_recipient.organisation.name,
+            "reference": submission_awaiting_sign_off.reference,
             "certifier_name": "Certifier User",
             "report_name": "Test collection",
             "certifier_comments": "Decline reason",
@@ -397,6 +411,8 @@ class TestNotificationService:
                         "template_id": "a8ffd584-0899-40df-ba56-cba95b2db0de",
                         "personalisation": {
                             "grant_name": "Test grant",
+                            "organisation_name": submission.grant_recipient.organisation.name,
+                            "reference": submission.reference,
                             "submitter_name": "Submitter User",
                             "certifier_name": "Certifier User",
                             "requires_certification": "yes",
@@ -453,6 +469,8 @@ class TestNotificationService:
                         "template_id": "a8ffd584-0899-40df-ba56-cba95b2db0de",
                         "personalisation": {
                             "grant_name": "Test grant",
+                            "organisation_name": submission.grant_recipient.organisation.name,
+                            "reference": submission.reference,
                             "submitter_name": "Submitter User",
                             "certifier_name": "",
                             "requires_certification": "no",

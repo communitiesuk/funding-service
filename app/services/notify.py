@@ -96,25 +96,6 @@ class NotificationService:
             govuk_notify_reference=govuk_notify_reference,
         )
 
-    # TODO reinstate this once we finish the certifier flow
-    #
-    # def send_collection_submission(self, submission: "Submission") -> Notification:
-    #     return self._send_email(
-    #         submission.created_by.email,
-    #         current_app.config["GOVUK_NOTIFY_COLLECTION_SUBMISSION_TEMPLATE_ID"],
-    #         personalisation={
-    #             "submission name": submission.collection.name,
-    #             "submission reference": submission.reference,
-    #             "submission url": url_for(
-    #                 "access_grant_funding.route_to_submission",
-    #                 organisation_id=submission.grant_recipient.organisation_id,
-    #                 collection_id=submission.collection.id,
-    #                 grant_id=submission.collection.grant_id,
-    #                 _external=True,
-    #             ),
-    #         },
-    #     )
-
     def send_member_confirmation(self, email_address: str, *, grant: "Grant") -> Notification:
         return self._send_email(
             email_address,
@@ -163,6 +144,7 @@ class NotificationService:
                 collection_id=collection.id,
                 _external=True,
             ),
+            "organisation_name": grant_recipient.organisation.name,
         }
         return self._send_email(
             email_address,
@@ -179,6 +161,8 @@ class NotificationService:
             personalisation={
                 "grant_name": submission.collection.grant.name,
                 "report_name": submission.collection.name,
+                "organisation_name": submission.grant_recipient.organisation.name,
+                "reference": submission.reference,
                 "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
                 "grant_report_url": url_for(
                     "access_grant_funding.view_locked_report",
@@ -208,6 +192,8 @@ class NotificationService:
                 submission_id=submission.id,
                 _external=True,
             ),
+            "organisation_name": submission.grant_recipient.organisation.name,
+            "reference": submission.reference,
             "government_department": submission.collection.grant.organisation.name,
         }
         return self._send_email(
@@ -249,6 +235,8 @@ class NotificationService:
             "is_test_data": "yes"
             if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
             else "no",
+            "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
+            "reference": submission_helper.reference,
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
@@ -290,6 +278,8 @@ class NotificationService:
             "is_test_data": "yes"
             if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
             else "no",
+            "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
+            "reference": submission_helper.reference,
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
@@ -336,6 +326,8 @@ class NotificationService:
             "submitter_name": submitter_name,
             "certifier_name": certifier_name,
             "report_name": submission_helper.collection.name,
+            "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
+            "reference": submission_helper.reference,
             "date_submitted": format_datetime(submission_helper.submitted_at_utc)
             if submission_helper.submitted_at_utc
             else "(Date submitted not known)",
