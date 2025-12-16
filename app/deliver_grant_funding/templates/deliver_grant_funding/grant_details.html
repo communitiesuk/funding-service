@@ -13,6 +13,14 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Grant details
       </h1>
+
+      {% set privacy_policy_link %}
+        {% if grant.privacy_policy_markdown %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.privacy_policy', grant_id=grant.id) }}" target="_blank">Review the grant's privacy policy (opens in a new tab)</a>
+        {% else %}
+          The grant does not have a privacy policy yet.
+        {% endif %}
+      {% endset %}
       {{
         govukSummaryList({
           "rows": [
@@ -71,6 +79,11 @@
                   "visuallyHiddenText": "main contact"
                 }]
               } if authorisation_helper.has_deliver_grant_role(grant.id, roles_enum.ADMIN, current_user) else {}
+            },
+            {
+              "key": {"text": "Privacy policy"},
+              "value": {"html": privacy_policy_link},
+              "actions": { }
             }
           ]
         })

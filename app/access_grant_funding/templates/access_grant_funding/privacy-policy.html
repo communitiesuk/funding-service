@@ -1,0 +1,28 @@
+{% extends "access_grant_funding/base.html" %}
+
+{% block pageTitle %}Privacy policies {{ super() }}{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-xl">Privacy policies</h1>
+
+      <h2 class="govuk-heading-l">Access grant funding</h2>
+
+      <p class="govuk-body">
+        This privacy policy applies to your data when using
+        <a class="govuk-link govuk-link--no-visited-state" href="https://funding.communities.gov.uk/access">Access grant funding</a>.
+      </p>
+
+      <p class="govuk-body">The privacy policy will be uploaded shortly. Contact support if you have any questions.</p>
+
+      {% if grant and grant.privacy_policy_markdown %}
+        <h2 class="govuk-heading-l">{{ grant.name }}</h2>
+
+        <p class="govuk-body">This privacy policy applies to data collected for {{ grant.name }}.</p>
+
+        {{ privacy_policy_renderer(grant.privacy_policy_markdown) }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -20,6 +20,7 @@ from app.common.data.types import (
     SubmissionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
+from tests.models import _get_grant_managing_organisation
 from tests.utils import get_h1_text, get_h2_text, page_has_error, page_has_flash
 
 
@@ -236,12 +237,19 @@ class TestReportingLifecycleTasklist:
         assert response.status_code == expected_code
 
     def test_shows_all_tasklists(self, authenticated_platform_admin_client, factories, db_session):
-        grant = factories.grant.create(name="Test Grant")
+        grant = factories.grant.create(name="Test Grant", privacy_policy_markdown="hello")
         collection = factories.collection.create(grant=grant, name="Q1 Report")
         org_1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
         org_2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
         _ = factories.organisation.create(name="Org 3", can_manage_grants=False)
         _ = factories.organisation.create(name="Org 4", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
+
+        factories.user_role.create(
+            organisation=_get_grant_managing_organisation(), grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+        factories.user_role.create(
+            organisation=_get_grant_managing_organisation(), grant=grant, permissions=[RoleEnum.MEMBER]
+        )
 
         factories.user_role.create(organisation=org_1, permissions=[RoleEnum.CERTIFIER])
         factories.user_role.create(organisation=org_2, permissions=[RoleEnum.CERTIFIER])
@@ -263,7 +271,7 @@ class TestReportingLifecycleTasklist:
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 3
-        assert len(grant_task_items) == 5
+        assert len(grant_task_items) == 6
         assert len(report_task_items) == 6
 
         # TODO: update for testing task list
@@ -317,7 +325,15 @@ class TestReportingLifecycleTasklist:
             "href"
         )
 
-        make_grant_live_task = grant_task_items[1]
+        set_privacy_policy = grant_task_items[1]
+        task_title = set_privacy_policy.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set privacy policy"
+        assert f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-privacy-policy" in task_title.get(
+            "href"
+        )
+
+        make_grant_live_task = grant_task_items[2]
         task_title = make_grant_live_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Make the grant live"
@@ -328,7 +344,7 @@ class TestReportingLifecycleTasklist:
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
 
-        set_up_grant_recipients_task = grant_task_items[2]
+        set_up_grant_recipients_task = grant_task_items[3]
         task_title = set_up_grant_recipients_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up grant recipients"
@@ -342,7 +358,7 @@ class TestReportingLifecycleTasklist:
         assert "0 grant recipients" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        set_up_grant_recipient_data_providers_task = grant_task_items[3]
+        set_up_grant_recipient_data_providers_task = grant_task_items[4]
         task_title = set_up_grant_recipient_data_providers_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up grant recipient data providers"
@@ -356,7 +372,7 @@ class TestReportingLifecycleTasklist:
         assert "0 data providers" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        override_grant_certifiers_task = grant_task_items[4]
+        override_grant_certifiers_task = grant_task_items[5]
         task_title = override_grant_certifiers_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Override certifiers for this grant"
@@ -465,7 +481,9 @@ class TestReportingLifecycleTasklist:
     def test_get_tasklist_with_live_grant_shows_completed_status(
         self, authenticated_platform_admin_client, factories, db_session
     ):
-        grant = factories.grant.create(name="Test Live Grant", status=GrantStatusEnum.LIVE)
+        grant = factories.grant.create(
+            name="Test Live Grant", status=GrantStatusEnum.LIVE, privacy_policy_markdown="something"
+        )
         collection = factories.collection.create(grant=grant, name="Q1 Report")
 
         response = authenticated_platform_admin_client.get(
@@ -477,7 +495,18 @@ class TestReportingLifecycleTasklist:
         grant_task_list = soup.find("ul", {"id": "grant-tasks"})
         task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
         mark_as_onboarding_task = task_items[0]
-        make_grant_live_task = task_items[1]
+        set_privacy_policy = task_items[1]
+        make_grant_live_task = task_items[2]
+
+        task_status = mark_as_onboarding_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Completed" in task_status.get_text(strip=True)
+        assert "govuk-tag--green" in task_status.get("class")
+
+        task_status = set_privacy_policy.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Completed" in task_status.get_text(strip=True)
+        assert "govuk-tag--green" in task_status.get("class")
 
         task_title = make_grant_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
@@ -487,11 +516,6 @@ class TestReportingLifecycleTasklist:
         assert task_link is None
 
         task_status = make_grant_live_task.find("strong", {"class": "govuk-tag"})
-        assert task_status is not None
-        assert "Completed" in task_status.get_text(strip=True)
-        assert "govuk-tag--green" in task_status.get("class")
-
-        task_status = mark_as_onboarding_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "Completed" in task_status.get_text(strip=True)
         assert "govuk-tag--green" in task_status.get("class")
@@ -1271,7 +1295,7 @@ class TestReportingLifecycleMakeGrantLive:
     def test_post_makes_grant_live_with_enough_team_members(
         self, authenticated_platform_admin_client, factories, db_session
     ):
-        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT, privacy_policy_markdown="hello")
         collection = factories.collection.create(grant=grant)
         factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
         factories.user_role.create(grant=grant, permissions=[RoleEnum.ADMIN])
@@ -1306,7 +1330,7 @@ class TestReportingLifecycleMakeGrantLive:
         assert grant.status == GrantStatusEnum.DRAFT
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "You must add at least two grant team users before making the grant live")
+        assert page_has_error(soup, "Unable to make grant live")
 
 
 class TestReportingLifecycleMarkGrantAsOnboarding:

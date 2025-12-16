@@ -57,6 +57,7 @@ class Grant(BaseModel):
     collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
     organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="grants")
     grant_recipients: Mapped[list["GrantRecipient"]] = relationship("GrantRecipient", back_populates="grant")
+    privacy_policy_markdown: Mapped[str | None]
 
     invitations: Mapped[list["Invitation"]] = relationship(
         "Invitation",
@@ -119,6 +120,15 @@ class Grant(BaseModel):
     def access_reports(self) -> list["Collection"]:
         """Backward compatibility - uses regular Access user filtering."""
         return self.get_access_reports_for_user(user=None)
+
+    @property
+    def can_go_live(self) -> bool:
+        return bool(
+            self.privacy_policy_markdown is not None
+            and len(self.grant_team_users) >= 2
+            and self.ggis_number
+            and self.description
+        )
 
 
 class Organisation(BaseModel):

@@ -7,7 +7,6 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
-    NotEnoughGrantTeamUsersError,
     StateTransitionError,
     flush_and_rollback_on_exceptions,
 )
@@ -99,7 +98,7 @@ def create_grant(
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def update_grant(
+def update_grant(  # noqa: C901
     grant: Grant,
     *,
     ggis_number: str | TNotProvided = NOT_PROVIDED,
@@ -108,6 +107,7 @@ def update_grant(
     description: str | TNotProvided = NOT_PROVIDED,
     primary_contact_name: str | TNotProvided = NOT_PROVIDED,
     primary_contact_email: str | TNotProvided = NOT_PROVIDED,
+    privacy_policy_markdown: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Grant:
     if ggis_number is not NOT_PROVIDED:
         grant.ggis_number = ggis_number  # ty: ignore[invalid-assignment]
@@ -120,8 +120,8 @@ def update_grant(
     if status is not NOT_PROVIDED and grant.status != status:
         match grant.status, status:
             case (GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE) | (GrantStatusEnum.ONBOARDING, GrantStatusEnum.LIVE):
-                if len(grant.grant_team_users) < 2:
-                    raise NotEnoughGrantTeamUsersError()
+                if not grant.can_go_live:
+                    raise StateTransitionError(model="grant", from_state=grant.status, to_state=status)
             case GrantStatusEnum.DRAFT, GrantStatusEnum.ONBOARDING:
                 pass
             case GrantStatusEnum.LIVE, GrantStatusEnum.DRAFT:
@@ -145,4 +145,6 @@ def update_grant(
         grant.primary_contact_name = primary_contact_name  # ty: ignore[invalid-assignment]
     if primary_contact_email is not NOT_PROVIDED:
         grant.primary_contact_email = primary_contact_email  # ty: ignore[invalid-assignment]
+    if privacy_policy_markdown is not NOT_PROVIDED:
+        grant.privacy_policy_markdown = privacy_policy_markdown  # ty: ignore[invalid-assignment]
     return grant

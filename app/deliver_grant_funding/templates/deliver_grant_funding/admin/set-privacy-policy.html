@@ -1,0 +1,42 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Set privacy policy
+      </h1>
+
+      <p class="govuk-body">
+        Enter GOV.UK-style markdown for the grant's privacy policy.
+        {% if grant.privacy_policy_markdown %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.privacy_policy', grant_id=grant.id) }}" target="_blank">Preview the current privacy policy (opens in a new tab)</a>.
+        {% endif %}
+      </p>
+
+      <p class="govuk-body">You can only use level 3 and level 4 headings (###, ####). You can add bulleted lists, dashed lists, and links.</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.privacy_policy_markdown }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

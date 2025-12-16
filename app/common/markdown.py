@@ -9,6 +9,20 @@ from mistune.renderers.html import HTMLRenderer
 
 
 class _GOVUKRenderer(HTMLRenderer):
+    def __init__(
+        self,
+        escape: bool = True,
+        allow_harmful_protocols: Optional[bool] = None,
+        heading_level_start: int = 2,
+        heading_level_end: int = 2,
+        heading_level_classes: tuple[str, ...] = ("govuk-heading-m",),
+    ) -> None:
+        super().__init__(escape=escape, allow_harmful_protocols=allow_harmful_protocols)
+
+        self.heading_level_start = heading_level_start
+        self.heading_level_end = heading_level_end
+        self.heading_level_classes = heading_level_classes
+
     # Taken from https://mistune.lepture.com/en/latest/renderers.html#available-methods
 
     # inline level
@@ -39,11 +53,12 @@ class _GOVUKRenderer(HTMLRenderer):
         return f"<p class='govuk-body'>{text}</p>\n"
 
     def heading(self, text: str, level: int, **attrs: Any) -> str:
-        if level == 2:
-            return f'<h2 class="govuk-heading-m">{text}</h2>\n'
-        else:
+        if level < self.heading_level_start or level > self.heading_level_end:
             # Convert other headings to plain text
             return f'<p class="govuk-body">{text}</p>\n'
+
+        heading_class = self.heading_level_classes[level - self.heading_level_start]
+        return f'<h{level} class="{heading_class}">{text}</h{level}>\n'
 
     def blank_line(self) -> str:
         return ""
@@ -77,10 +92,21 @@ class _GOVUKRenderer(HTMLRenderer):
         return f"<li>{text}</li>\n"
 
 
-def convert_text_to_govuk_markup(text: str) -> Markup:
+def convert_text_to_govuk_markup(
+    text: str,
+    heading_level_start: int = 2,
+    heading_level_end: int = 2,
+    heading_level_classes: tuple[str, ...] = ("govuk-heading-m",),
+) -> Markup:
     return Markup(
         mistune.create_markdown(
-            renderer=_GOVUKRenderer(escape=True, allow_harmful_protocols=False),
+            renderer=_GOVUKRenderer(
+                escape=True,
+                allow_harmful_protocols=False,
+                heading_level_start=heading_level_start,
+                heading_level_end=heading_level_end,
+                heading_level_classes=heading_level_classes,
+            ),
             plugins=[],
         )(text)
     )

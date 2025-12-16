@@ -1,3 +1,4 @@
+from functools import partial
 from uuid import UUID
 
 from flask import abort, current_app, redirect, render_template, url_for
@@ -12,8 +13,10 @@ from app.common.auth.decorators import (
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
+from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
 from app.common.data.types import RoleEnum
+from app.common.markdown import convert_text_to_govuk_markup
 
 
 @access_grant_funding_blueprint.route("/", methods=["GET"])
@@ -104,3 +107,18 @@ def accessibility_statement() -> ResponseReturnValue:
 @access_grant_funding_blueprint.route("/cookies")
 def cookies() -> ResponseReturnValue:
     return render_template("access_grant_funding/cookies.html")
+
+
+@access_grant_funding_blueprint.route("/privacy-policy")
+@access_grant_funding_blueprint.route("/privacy-policy/<uuid:grant_id>")
+def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
+    grant = get_grant(grant_id) if grant_id else None
+    privacy_policy_renderer = partial(
+        convert_text_to_govuk_markup,
+        heading_level_start=3,
+        heading_level_end=4,
+        heading_level_classes=("govuk-heading-m", "govuk-heading-s"),
+    )
+    return render_template(
+        "access_grant_funding/privacy-policy.html", grant=grant, privacy_policy_renderer=privacy_policy_renderer
+    )

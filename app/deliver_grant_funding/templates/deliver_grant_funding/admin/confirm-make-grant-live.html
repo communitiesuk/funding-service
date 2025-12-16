@@ -21,7 +21,7 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Make grant live
       </h1>
-      <p class="govuk-body">Make a grant live when it is ready to show in Access grant funding. It must have a GGIS number, a grant description, and at least two grant team members.</p>
+      <p class="govuk-body">Make a grant live when it is ready to show in Access grant funding. It must have a GGIS number, a grant description, a privacy policy, and at least two grant team members.</p>
 
       {% set grant_team_users %}
         <ul class="govuk-list govuk-list--bullet">
@@ -29,6 +29,15 @@
             <li>{{ user.email }}</li>
           {% endfor %}
         </ul>
+      {% endset %}
+
+
+      {% set privacy_policy_link %}
+        {% if grant.privacy_policy_markdown %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.privacy_policy', grant_id=grant.id) }}" target="_blank">Review the grant's privacy policy (opens in a new tab)</a>
+        {% else %}
+          The grant does not have a privacy policy yet.
+        {% endif %}
       {% endset %}
 
       {{
@@ -45,6 +54,9 @@
           }, {
             "key": { "text": "Grant team users" },
             "value": { "html": grant_team_users },
+          }, {
+            "key": { "text": "Privacy policy" },
+            "value": { "html": privacy_policy_link },
           }
           ],
           "classes": "app-!-border-top-line govuk-!-margin-bottom-8"

@@ -137,10 +137,14 @@ class StateTransitionError(Exception):
         self.from_state = from_state
         self.to_state = to_state
         self.model = model
-        super().__init__(f"Unknown state transition for {model} from {from_state} to {to_state}")
+        super().__init__(f"Unsupported state transition for {model} from {from_state} to {to_state}")
 
 
 class NotEnoughGrantTeamUsersError(Exception):
+    pass
+
+
+class GrantPrivacyPolicyRequiredError(Exception):
     pass
 
 

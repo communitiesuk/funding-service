@@ -1,10 +1,12 @@
 import datetime
 from abc import abstractmethod
 
-from flask import current_app, flash
+from flask import current_app, flash, url_for
 from flask_admin.actions import action
 from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
+from govuk_frontend_wtf.wtforms_widgets import GovTextArea
+from markupsafe import Markup
 from sqlalchemy import delete, func, orm, select, update
 from sqlalchemy.exc import IntegrityError
 from wtforms import Form
@@ -188,14 +190,29 @@ class PlatformAdminGrantView(PlatformAdminModelView):
     column_searchable_list = ["name", "code", "ggis_number"]
     column_labels = {"ggis_number": "GGIS number", "organisation.name": "Organisation name"}
 
-    form_columns = ["name", "code", "organisation", "ggis_number", "status"]
+    form_columns = ["name", "code", "organisation", "ggis_number", "status", "privacy_policy_markdown"]
 
     form_args = {
         "organisation": {
             "get_label": "name",
             "query_factory": lambda: db.session.query(Organisation).filter_by(can_manage_grants=True),
         },
+        "privacy_policy_markdown": {
+            "widget": GovTextArea(),
+        },
     }
+
+    def edit_form(self, obj: Grant | None = None) -> Form:
+        form = super().edit_form(obj)
+        if obj:
+            privacy_policy_url = url_for("access_grant_funding.privacy_policy", grant_id=obj.id)
+            form.privacy_policy_markdown.description = Markup(  # ty: ignore[unresolved-attribute]
+                "GOV.UK-style markdown for the grant's privacy policy. Once saved, "
+                f"<a class='govuk-link govuk-link--no-visited-state' href='{privacy_policy_url}' target='_blank'>"
+                "preview the privacy policy (opens in a new tab)"
+                "</a>."
+            )
+        return form  # type: ignore[no-any-return]
 
 
 class PlatformAdminInvitationView(PlatformAdminModelView):

@@ -1,7 +1,7 @@
 import pytest
 from _pytest._code import ExceptionInfo
 
-from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError, StateTransitionError
+from app.common.data.interfaces.exceptions import StateTransitionError
 from app.common.data.interfaces.grants import (
     DuplicateValueError,
     create_grant,
@@ -148,10 +148,10 @@ class TestUpdateGrant:
         assert updated_grant.ggis_number == "GGIS-123456"
 
     def test_update_group_status_not_enough_grant_team_users(self, factories):
-        grant = factories.grant.create(name="test_grant")
+        grant = factories.grant.create(name="test_grant", privacy_policy_markdown="hello")
         factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
 
-        with pytest.raises(NotEnoughGrantTeamUsersError):
+        with pytest.raises(StateTransitionError):
             update_grant(grant=grant, status=GrantStatusEnum.LIVE)
 
         factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
@@ -165,7 +165,7 @@ class TestUpdateGrant:
         with pytest.raises(StateTransitionError) as e:
             update_grant(grant=grant, status="invalid-state")  # type: ignore[arg-type]
 
-        assert str(e.value) == "Unknown state transition for grant from draft to invalid-state"
+        assert str(e.value) == "Unsupported state transition for grant from draft to invalid-state"
 
 
 class TestGrantNameExists:

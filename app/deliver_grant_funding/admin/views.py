@@ -12,7 +12,6 @@ from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     GrantMustBeLiveError,
     GrantRecipientUsersRequiredError,
-    NotEnoughGrantTeamUsersError,
     StateTransitionError,
 )
 from app.common.data.interfaces.grant_recipients import (
@@ -62,6 +61,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSelectGrantForReportingLifecycleForm,
     PlatformAdminSelectReportForm,
     PlatformAdminSetCollectionDatesForm,
+    PlatformAdminSetPrivacyPolicyForm,
 )
 from app.deliver_grant_funding.admin.mixins import FlaskAdminPlatformAdminAccessibleMixin
 from app.extensions import auto_commit_after_request
@@ -148,8 +148,8 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                 update_grant(grant, status=GrantStatusEnum.LIVE)
                 flash(f"{grant.name} is now live.", "success")
                 return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
-            except NotEnoughGrantTeamUsersError:
-                form.form_errors.append("You must add at least two grant team users before making the grant live")
+            except StateTransitionError:
+                form.form_errors.append("Unable to make grant live")
 
         return self.render(
             "deliver_grant_funding/admin/confirm-make-grant-live.html", form=form, grant=grant, collection=collection
@@ -173,6 +173,25 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
 
         return self.render(
             "deliver_grant_funding/admin/confirm-make-grant-active-onboarding.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-privacy-policy", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @auto_commit_after_request
+    def set_privacy_policy(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+
+        form = PlatformAdminSetPrivacyPolicyForm(obj=grant)
+        if form.validate_on_submit():
+            update_grant(grant, privacy_policy_markdown=form.privacy_policy_markdown.data)
+            flash(f"Privacy policy updated for {grant.name}.", "success")
+            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/set-privacy-policy.html",
             form=form,
             grant=grant,
             collection=collection,
