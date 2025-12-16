@@ -1,15 +1,21 @@
 function gtag() {
     window.dataLayer.push(arguments);
 }
-function loadGoogleTag() {
-    // Load Tag Manager script.
-    var gtmScript = document.createElement("script");
-    gtmScript.async = true;
-    gtmScript.src =
-        "https://www.googletagmanager.com/gtm.js?id=" + window.googleTagId;
 
-    var firstScript = document.getElementsByTagName("script")[0];
-    firstScript.parentNode.insertBefore(gtmScript, firstScript);
+var googleTagLoaded = false;
+function loadGoogleTag() {
+    if (!googleTagLoaded) {
+        console.log("loading tag manager");
+        // Load Tag Manager script.
+        var gtmScript = document.createElement("script");
+        gtmScript.async = true;
+        gtmScript.src =
+            "https://www.googletagmanager.com/gtm.js?id=" + window.googleTagId;
+
+        var firstScript = document.getElementsByTagName("script")[0];
+        firstScript.parentNode.insertBefore(gtmScript, firstScript);
+        googleTagLoaded = true;
+    }
 }
 function initCookieConsent() {
     window.dataLayer = window.dataLayer || [];
@@ -39,6 +45,7 @@ function initCookieConsent() {
             ad_storage: "denied",
             analytics_storage: "granted",
         });
+        loadGoogleTag();
     });
     reject_cookies_button.addEventListener("click", function () {
         localStorage.setItem("consentGranted", "false");
@@ -49,6 +56,11 @@ function initCookieConsent() {
             analytics_storage: "denied",
         });
     });
-    loadGoogleTag();
+
+    // only loads the google tag manager if consent has been provided
+    // https://developers.google.com/tag-platform/security/concepts/consent-mode?#basic_consent_mode
+    if (localStorage.getItem("consentGranted") === "true") {
+        loadGoogleTag();
+    }
 }
 initCookieConsent();
