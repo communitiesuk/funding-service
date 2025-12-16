@@ -11,9 +11,7 @@ from app.common.data.interfaces.collections import get_collection, update_collec
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     GrantMustBeLiveError,
-    GrantPrivacyPolicyRequiredError,
     GrantRecipientUsersRequiredError,
-    NotEnoughGrantTeamUsersError,
     StateTransitionError,
 )
 from app.common.data.interfaces.grant_recipients import (
@@ -150,12 +148,8 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
                 update_grant(grant, status=GrantStatusEnum.LIVE)
                 flash(f"{grant.name} is now live.", "success")
                 return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
-            except NotEnoughGrantTeamUsersError:
-                form.form_errors.append("You must add at least two grant team users before making the grant live")
-            except GrantPrivacyPolicyRequiredError:
-                form.form_errors.append("A privacy policy is required before making the grant live")
             except StateTransitionError:
-                form.form_errors.append("Unable to make grant live, unknown reason")
+                form.form_errors.append("Unable to make grant live")
 
         return self.render(
             "deliver_grant_funding/admin/confirm-make-grant-live.html", form=form, grant=grant, collection=collection

@@ -7,8 +7,6 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
-    GrantPrivacyPolicyRequiredError,
-    NotEnoughGrantTeamUsersError,
     StateTransitionError,
     flush_and_rollback_on_exceptions,
 )
@@ -122,13 +120,7 @@ def update_grant(  # noqa: C901
     if status is not NOT_PROVIDED and grant.status != status:
         match grant.status, status:
             case (GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE) | (GrantStatusEnum.ONBOARDING, GrantStatusEnum.LIVE):
-                if len(grant.grant_team_users) < 2:
-                    raise NotEnoughGrantTeamUsersError()
-
-                if not grant.privacy_policy_markdown:
-                    raise GrantPrivacyPolicyRequiredError()
-
-                if status == GrantStatusEnum.LIVE and not grant.can_go_live:
+                if not grant.can_go_live:
                     raise StateTransitionError(model="grant", from_state=grant.status, to_state=status)
             case GrantStatusEnum.DRAFT, GrantStatusEnum.ONBOARDING:
                 pass

@@ -1330,7 +1330,7 @@ class TestReportingLifecycleMakeGrantLive:
         assert grant.status == GrantStatusEnum.DRAFT
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "You must add at least two grant team users before making the grant live")
+        assert page_has_error(soup, "Unable to make grant live")
 
 
 class TestReportingLifecycleMarkGrantAsOnboarding:

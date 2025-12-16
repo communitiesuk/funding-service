@@ -1,7 +1,7 @@
 import pytest
 from _pytest._code import ExceptionInfo
 
-from app.common.data.interfaces.exceptions import NotEnoughGrantTeamUsersError, StateTransitionError
+from app.common.data.interfaces.exceptions import StateTransitionError
 from app.common.data.interfaces.grants import (
     DuplicateValueError,
     create_grant,
@@ -151,7 +151,7 @@ class TestUpdateGrant:
         grant = factories.grant.create(name="test_grant", privacy_policy_markdown="hello")
         factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
 
-        with pytest.raises(NotEnoughGrantTeamUsersError):
+        with pytest.raises(StateTransitionError):
             update_grant(grant=grant, status=GrantStatusEnum.LIVE)
 
         factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
