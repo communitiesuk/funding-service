@@ -67,9 +67,27 @@
         })
       %}
 
+      {% if grant.privacy_policy_markdown %}
+        {% set privacy_policy_status_tag = govukTag({"text": "Completed", "classes": "govuk-tag--green"}) %}
+      {% else %}
+        {% set privacy_policy_status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
+      {% endif %}
+      {%
+        do rows.append({
+          "title": {"text": "Set privacy policy", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": privacy_policy_status_tag},
+          "href": url_for('reporting_lifecycle.set_privacy_policy', grant_id=grant.id, collection_id=collection.id),
+        })
+      %}
+
       {% if grant.status in [ enum.grant_status.DRAFT, enum.grant_status.ONBOARDING ] %}
-        {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
-        {% set link_href = url_for('reporting_lifecycle.make_live', grant_id=grant.id, collection_id=collection.id) %}
+        {% if not grant.can_go_live %}
+          {% set status_tag = govukTag({"text": "Cannot start yet", "classes": "govuk-tag--cannot-start-yet"}) %}
+          {% set link_href = "" %}
+        {% else %}
+          {% set status_tag = govukTag({"text": "To do", "classes": "govuk-tag--grey"}) %}
+          {% set link_href = url_for('reporting_lifecycle.make_live', grant_id=grant.id, collection_id=collection.id) %}
+        {% endif %}
       {% else %}
         {% set status_tag = govukTag({"text": "Completed", "classes": "govuk-tag--green"}) %}
         {% set link_href = "" %}

@@ -121,6 +121,15 @@ class Grant(BaseModel):
         """Backward compatibility - uses regular Access user filtering."""
         return self.get_access_reports_for_user(user=None)
 
+    @property
+    def can_go_live(self) -> bool:
+        return bool(
+            self.privacy_policy_markdown is not None
+            and len(self.grant_team_users) >= 2
+            and self.ggis_number
+            and self.description
+        )
+
 
 class Organisation(BaseModel):
     __tablename__ = "organisation"

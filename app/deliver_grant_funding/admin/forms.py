@@ -503,3 +503,12 @@ class PlatformAdminRevokeGrantOverrideCertifiersForm(FlaskForm):
             ("", ""),
             *[(str(gr.organisation.id), gr.organisation.name) for gr in grant_recipients],
         ]
+
+
+class PlatformAdminSetPrivacyPolicyForm(FlaskForm):
+    privacy_policy_markdown = TextAreaField(
+        "Privacy policy markdown",
+        validators=[Optional()],
+        widget=GovTextArea(),
+    )
+    submit = SubmitField("Save privacy policy", widget=GovSubmitInput())
