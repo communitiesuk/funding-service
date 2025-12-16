@@ -56,8 +56,8 @@ def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnVa
     "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>/<any('remove'):action>",
     methods=["GET", "POST"],
 )
-@has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
+@has_deliver_grant_role(RoleEnum.MEMBER)
 def ask_a_question(
     grant_id: UUID,
     submission_id: UUID,

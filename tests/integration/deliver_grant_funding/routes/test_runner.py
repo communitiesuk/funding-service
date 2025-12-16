@@ -10,7 +10,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionModeEnum,
 )
-from tests.utils import get_h1_text
+from tests.utils import get_h1_text, page_has_button
 
 
 class TestSubmissionTasklist:
@@ -886,3 +886,166 @@ class TestCheckYourAnswers:
                 finished=1,
             )
             assert response.location == expected_location
+
+
+class TestRemoveAddAnotherEntry:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_member_client", True),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_remove_add_another_entry(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories
+    ):
+        client = request.getfixturevalue(client_fixture)
+        grant = getattr(client, "grant", None) or factories.grant.create()
+        group = factories.group.create(
+            add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant
+        )
+        q1 = factories.question.create(form=group.form, parent=group, name="Question 1")
+        q2 = factories.question.create(form=group.form, parent=group, name="Question 2")
+        submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
+
+        group.presentation_options = QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id])
+        submission.data = {
+            str(group.id): [
+                {str(q1.id): "Entry 1", str(q2.id): "Details 1"},
+                {str(q1.id): "Entry 2", str(q2.id): "Details 2"},
+            ]
+        }
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=q1.id,
+                add_another_index=0,
+                action="remove",
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Are you sure you want to remove Entry 1?"
+            assert page_has_button(soup, "Save and continue")
+
+            radios = soup.find_all("input", {"type": "radio", "name": "confirm_remove"})
+            assert len(radios) == 2
+
+    def test_get_remove_add_another_entry_with_no_summary(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(
+            add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant
+        )
+        q1 = factories.question.create(form=group.form, parent=group, name="Question 1", text="Question 1")
+        submission = factories.submission.create(
+            collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        submission.data = {str(group.id): [{}]}
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=q1.id,
+                add_another_index=0,
+                action="remove",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Are you sure you want to remove answer 1?"
+
+    def test_post_remove_add_another_entry_confirms_yes(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(
+            add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant
+        )
+        q1 = factories.question.create(form=group.form, parent=group)
+        q2 = factories.question.create(form=group.form, parent=group)
+        submission = factories.submission.create(
+            collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        submission.data = {
+            str(group.id): [
+                {str(q1.id): "Entry 1", str(q2.id): "Details 1"},
+                {str(q1.id): "Entry 2", str(q2.id): "Details 2"},
+                {str(q1.id): "Entry 3", str(q2.id): "Details 3"},
+            ]
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=q1.id,
+                add_another_index=1,
+                action="remove",
+            ),
+            data={"confirm_remove": "yes"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        # redirect to the add another summary page (add another group with no index)
+        expected_location = url_for(
+            "deliver_grant_funding.ask_a_question",
+            grant_id=grant.id,
+            submission_id=submission.id,
+            question_id=q1.id,
+        )
+        assert response.location == expected_location
+
+        # this is synced by the ORM from the latest session
+        assert len(submission.data[str(group.id)]) == 2
+        assert submission.data[str(group.id)][1][str(q1.id)] == "Entry 3"
+
+    def test_post_remove_add_another_entry_confirms_no(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(
+            add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant
+        )
+        q1 = factories.question.create(form=group.form, parent=group)
+        submission = factories.submission.create(
+            collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        submission.data = {str(group.id): [{str(q1.id): "Entry 1"}, {str(q1.id): "Entry 2"}]}
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=q1.id,
+                add_another_index=0,
+                action="remove",
+            ),
+            data={"confirm_remove": "no"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        # redirect to the add another summary page (add another group with no index)
+        expected_location = url_for(
+            "deliver_grant_funding.ask_a_question",
+            grant_id=grant.id,
+            submission_id=submission.id,
+            question_id=q1.id,
+        )
+        assert response.location == expected_location
+
+        assert len(submission.data[str(group.id)]) == 2
+        assert submission.data[str(group.id)][0][str(q1.id)] == "Entry 1"
