@@ -1,4 +1,6 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "govuk_frontend_jinja/components/radios/macro.html" import govukRadios %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% extends "access_grant_funding/base.html" %}
 
 {% set page_title = "Cookies on access grant funding" %}
@@ -7,13 +9,11 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">{{ page_title }}</h1>
       <p class="govuk-body">Cookies are small files saved on your phone, tablet or computer when you visit a website.</p>
-      <p class="govuk-body">We use cookies to make this site work.</p>
+      <p class="govuk-body">We use cookies to make the Access grant funding service work.</p>
       <h2 class="govuk-heading-m">Essential cookies</h2>
-      <p class="govuk-body">Essential cookies keep your information secure while you use this service. We do not need to ask permission to use them.</p>
+      <p class="govuk-body">Essential cookies keep your information secure while you use Access grant funding. We do not need to ask permission to use them.</p>
       {{
         govukTable({
-          "caption": "Essential cookies we use",
-          "captionClasses": "govuk-table__caption--s",
           "firstCellIsHeader": false,
           "head": [
             {
@@ -40,6 +40,93 @@
             ]
 
           ]
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m">Analytics cookies (optional)</h2>
+      <p class="govuk-body">With your permission, we use Google Analytics to collect data about how you use this service. This information helps us to improve our service.</p>
+      <p class="govuk-body">Google is not allowed to use or share our analytics data with anyone.</p>
+      <p class="govuk-body">Google Analytics stores anonymised information about:</p>
+      <ul class="govuk-list govuk-list--bullet">
+        <li>how you got to Access grant funding</li>
+        <li>the pages you visit on Access grant funding and how long you spend on them</li>
+        <li>any errors you see while using Access grant funding</li>
+      </ul>
+      {{
+        govukTable({
+          "firstCellIsHeader": false,
+          "head": [
+            {
+              "text": "Name"
+            },
+            {
+              "text": "Purpose"
+            },
+            {
+              "text": "Expires"
+            }
+          ],
+          "rows": [
+            [
+              {
+                "text": "_ga"
+              },
+              {
+                "text": "Checks if you have visited Access grant funding before. This helps us count how many people visit our site."
+              },
+              {
+                "text": "2 years"
+              }
+            ],
+            [
+              {
+                "text": "ga_02D9CERFL4"
+              },
+              {
+                "text": "Checks if you have visited Access grant funding before. This helps us to count how many people visit our site and persist a session state."
+              },
+              {
+                "text": "2 years"
+              }
+            ]
+
+          ]
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row" hidden>
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-l">Change your cookie settings</h2>
+      {{
+        govukRadios({
+          "name": "cookies[analytics]",
+          "idPrefix": "cookies-analytics",
+          "fieldset": {
+            "legend": {
+              "text": "Do you want to accept analytics cookies?",
+              "classes": "govuk-fieldset__legend--s"
+            }
+          },
+          "items": [
+            {
+              "value": "yes",
+              "text": "Yes"
+            },
+            {
+              "value": "no",
+              "text": "No"
+            }
+          ]
+        })
+      }}
+
+      {{
+        govukButton({
+          "text": "Save cookie settings"
         })
       }}
     </div>
