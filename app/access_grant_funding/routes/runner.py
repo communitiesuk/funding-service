@@ -91,7 +91,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
             if runner.submission.is_submitted:
                 return redirect(
                     url_for(
-                        "access_grant_funding.confirm_report_submitted",
+                        "access_grant_funding.submitted_confirmation",
                         organisation_id=organisation_id,
                         grant_id=grant_id,
                         submission_id=submission_id,
@@ -205,7 +205,7 @@ def check_your_answers(
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/sent_for_sign_off_confirmation",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/sent-for-sign-off-confirmation",
     methods=["GET"],
 )
 @has_access_grant_role(RoleEnum.MEMBER)
@@ -223,30 +223,6 @@ def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submis
         )
     return render_template(
         "access_grant_funding/reports/sent_for_sign_off_confirmation.html",
-        grant_recipient=grant_recipient,
-        submission_helper=submission_helper,
-    )
-
-
-@access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/submitted_confirmation",
-    methods=["GET"],
-)
-@has_access_grant_role(RoleEnum.MEMBER)
-def confirm_report_submitted(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
-    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
-    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
-    if not submission_helper.is_submitted:
-        return redirect(
-            url_for(
-                "access_grant_funding.tasklist",
-                organisation_id=organisation_id,
-                grant_id=grant_id,
-                submission_id=submission_id,
-            )
-        )
-    return render_template(
-        "access_grant_funding/reports/submit_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
     )

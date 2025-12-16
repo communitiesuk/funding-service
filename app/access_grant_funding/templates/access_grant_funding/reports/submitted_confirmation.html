@@ -27,9 +27,10 @@
         <br />
         <strong data-testid="submission-reference">{{ submission_helper.reference }}</strong>
       {% endset %}
+      {% set title_text = "Report signed off and submitted" if submission_helper.collection.requires_certification else "Report submitted" %}
       {{
         govukPanel({
-          "titleText": "Report submitted",
+          "titleText": title_text,
           "html": reference_html
         })
       }}
@@ -45,7 +46,8 @@
       <p class="govuk-body">Your {{ submission_helper.collection.name }} report for {{ grant_recipient.grant.name }} has been submitted to the {{ submission_helper.collection.grant.organisation.name }}.</p>
 
       <p class="govuk-body">
-        <a class="govuk-link govuk-link--no-visited-state app-!-no-wrap" href="{{ config.GRANT_RECIPIENT_GENERAL_FEEDBACK_URL }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service (opens in new tab)</a>
+        {% set feedback_link = config.GRANT_RECIPIENT_CERTIFIER_FEEDBACK_URL if submission_helper.collection.requires_certification else config.GRANT_RECIPIENT_GENERAL_FEEDBACK_URL %}
+        <a class="govuk-link govuk-link--no-visited-state app-!-no-wrap" href="{{ feedback_link }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service (opens in new tab)</a>
       </p>
 
       <p class="govuk-body">

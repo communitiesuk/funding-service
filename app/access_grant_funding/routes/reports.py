@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright
 
 from app.access_grant_funding.forms import DeclineSignOffForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_access_grant_role
 from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
@@ -81,7 +82,7 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
 
         return redirect(
             url_for(
-                "access_grant_funding.confirm_sign_off_submit",
+                "access_grant_funding.submitted_confirmation",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
                 submission_id=submission.id,
@@ -224,15 +225,26 @@ def decline_report(
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/sign-off-submit-confirmation",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/submitted-confirmation",
     methods=["GET"],
 )
-@has_access_grant_role(RoleEnum.CERTIFIER)
-def confirm_sign_off_submit(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+@has_access_grant_role(RoleEnum.MEMBER)
+def submitted_confirmation(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
-    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    user = get_current_user()
 
-    if not submission.is_submitted:
+    if (
+        not submission_helper.is_submitted
+        or (
+            submission_helper.collection.requires_certification
+            and not AuthorisationHelper.is_access_grant_certifier(grant_id, organisation_id, user)
+        )
+        or (
+            not submission_helper.collection.requires_certification
+            and not AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
+        )
+    ):
         # note we're not redirecting to the route to submission as you might have been directed from
         # there, go somewhere we know will load consistently and the user can step back in
         return redirect(
@@ -240,7 +252,7 @@ def confirm_sign_off_submit(organisation_id: UUID, grant_id: UUID, submission_id
         )
 
     return render_template(
-        "access_grant_funding/reports/signed_off_submitted_confirmation.html",
+        "access_grant_funding/reports/submitted_confirmation.html",
         grant_recipient=grant_recipient,
-        submission=submission,
+        submission_helper=submission_helper,
     )
