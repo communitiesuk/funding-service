@@ -3,12 +3,30 @@
 {% from "common/macros/navigation.html" import accessGrantFundingServiceNavigation %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner %}
+{% from "govuk_frontend_jinja/components/cookie-banner/macro.html" import govukCookieBanner %}
 
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = right_nav_items or [] %}
 
 {% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
-
+{% block head %}
+  {{ super() }}
+  <script nonce="{{ csp_nonce() }}">
+    window.dataLayer = window.dataLayer || [];
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+    gtag("consent", "default", {
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      ad_storage: "denied",
+      analytics_storage: "denied",
+      wait_for_update: 500,
+    });
+    dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+    window.googleTagId = "{{ get_google_tag_manager_id() }}";
+  </script>
+{% endblock head %}
 {% block header %}
   {{
     mhclgHeader(
@@ -18,7 +36,7 @@
         "productName": "MHCLG Access grant funding",
         "isAccess": true
       },
-      currentUser=current_user,
+      currentUser=current_user
     )
   }}
 
@@ -41,6 +59,86 @@
   {% endif %}
 {% endblock header %}
 
+{% block bodyStart %}
+  {% set cookie_banner_html %}
+    <p class="govuk-body">We use some essential cookies to make this service work.</p>
+    <p class="govuk-body">We’d also like to use analytics cookies so we can understand how you use the service and make improvements.</p>
+  {% endset %}
+
+
+  {% set acceptedHtml %}
+    <p class="govuk-body">You’ve accepted additional cookies. You can <a class="govuk-link" href="{{ url_for("access_grant_funding.cookies") }}">change your cookie settings</a> at any time.</p>
+  {% endset %}
+
+
+  {% set rejectedHtml %}
+    <p class="govuk-body">You’ve rejected additional cookies. You can <a class="govuk-link" href="{{ url_for("access_grant_funding.cookies") }}">change your cookie settings</a> at any time.</p>
+  {% endset %}
+
+  {{
+    govukCookieBanner({
+      "ariaLabel": "Cookies on access grant funding",
+      "attributes":{"id":"cookie_banner"},
+      "hidden":true,
+      "messages": [
+        {
+          "headingText": "Cookies on access grant funding",
+          "html": cookie_banner_html,
+          "attributes":{"id":"cookie_choice_msg"},
+          "actions": [
+            {
+              "text": "Accept analytics cookies",
+              "attributes":{"id":"btn_accept_analytics_cookies"},
+              "type": "button"
+            },
+            {
+              "text": "Reject analytics cookies",
+              "attributes":{"id":"btn_reject_analytics_cookies"},
+              "type": "button"
+            },
+            {
+              "text": "View cookies",
+              "href": url_for("access_grant_funding.cookies")
+            }
+          ],
+          "hidden": true
+        },
+        {
+          "html": acceptedHtml,
+          "attributes":{"id":"cookies_accepted_msg"},
+          "actions": [
+            {
+              "text": "Hide cookie message",
+              "type": "submit",
+              "name": "cookies[hide]",
+              "value": "yes",
+              "attributes":{"id":"btn_hide_cookies"},
+            }
+          ],
+          "hidden": true
+        },
+        {
+          "html": rejectedHtml,
+          "attributes":{"id":"cookies_rejected_msg"},
+          "actions": [
+            {
+              "text": "Hide cookie message",
+              "type": "submit",
+              "name": "cookies[hide]",
+              "value": "yes",
+              "attributes":{"id":"btn_hide_cookies"},
+            }
+          ],
+          "hidden": true
+        }
+      ]
+    })
+  }}
+{% endblock bodyStart %}
+{% block bodyEnd %}
+  {{ super() }}
+  <script type="module" src="{{ vite_asset('app/assets/js/cookie-consent/index.js') }}"></script>
+{% endblock %}
 {% block footer %}
   {% set grant_id = grant.id if grant is defined else request.view_args.grant_id %}
 
