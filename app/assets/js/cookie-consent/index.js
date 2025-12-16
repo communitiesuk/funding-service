@@ -17,6 +17,16 @@ function loadGoogleTag() {
         googleTagLoaded = true;
     }
 }
+function updateConsentValue(consentGranted) {
+    localStorage.setItem("consentGranted", consentGranted);
+
+    gtag("consent", "update", {
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+        ad_storage: "denied",
+        analytics_storage: consentGranted ? "granted" : "denied",
+    });
+}
 function initCookieConsent() {
     window.dataLayer = window.dataLayer || [];
     const cookie_banner = document.getElementById("cookie_banner");
@@ -36,26 +46,13 @@ function initCookieConsent() {
     const btn_hide_cookies = document.getElementsByName("cookies[hide]");
 
     accept_cookies_button.addEventListener("click", function () {
-        localStorage.setItem("consentGranted", "true");
-
-        gtag("consent", "update", {
-            ad_user_data: "denied",
-            ad_personalization: "denied",
-            ad_storage: "denied",
-            analytics_storage: "granted",
-        });
+        updateConsentValue(true);
         loadGoogleTag();
         cookie_choice_msg.hidden = true;
         cookies_accepted_msg.removeAttribute("hidden");
     });
     reject_cookies_button.addEventListener("click", function () {
-        localStorage.setItem("consentGranted", "false");
-        gtag("consent", "update", {
-            ad_user_data: "denied",
-            ad_personalization: "denied",
-            ad_storage: "denied",
-            analytics_storage: "denied",
-        });
+        updateConsentValue(false);
         cookie_choice_msg.hidden = true;
         cookies_rejected_msg.removeAttribute("hidden");
     });
@@ -75,4 +72,36 @@ function initCookieConsent() {
         cookie_choice_msg.removeAttribute("hidden");
     }
 }
+
+function initCookiesPageConsentForm() {
+    const cookie_form = document.getElementById("cookies_form");
+    const cookies_no_js = document.getElementById("cookies_no_js");
+    const cookies_yes = document.getElementById("cookie_choice_yes");
+    const cookies_no = document.getElementById("cookie_choice_no");
+    const cookie_success_banner = document.getElementById(
+        "cookie_success_banner",
+    );
+    const btn_submit_cookie_form = document.getElementById(
+        "btn_submit_cookies_form",
+    );
+
+    if (localStorage.getItem("consentGranted") === "true") {
+        cookies_yes.checked = true;
+    } else if (localStorage.getItem("consentGranted") === "false") {
+        cookies_no.checked = true;
+    }
+    btn_submit_cookie_form.addEventListener("click", function () {
+        let consentValue = cookies_yes.checked;
+        updateConsentValue(consentValue);
+        cookie_success_banner.removeAttribute("hidden");
+        cookie_success_banner.scrollIntoView();
+    });
+
+    if (cookie_form) {
+        cookies_no_js.hidden = true;
+        cookie_form.removeAttribute("hidden");
+    }
+}
+
 initCookieConsent();
+initCookiesPageConsentForm();
