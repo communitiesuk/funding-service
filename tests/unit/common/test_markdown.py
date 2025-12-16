@@ -125,6 +125,22 @@ class TestConvertTextToGovukMarkup:
         expected = '<h2 class="govuk-heading-m">Heading Level 2</h2>\n'
         assert str(result) == expected
 
+    def test_override_supported_headings(self):
+        markdown_text = "# H1 unsupported\n\n## H2 unsupported\n\n### H3 supported\n\n#### H4 supported"
+        result = convert_text_to_govuk_markup(
+            markdown_text,
+            heading_level_start=3,
+            heading_level_end=4,
+            heading_level_classes=("govuk-heading-l", "govuk-heading-m"),
+        )
+        expected = (
+            '<p class="govuk-body">H1 unsupported</p>\n'
+            '<p class="govuk-body">H2 unsupported</p>\n'
+            '<h3 class="govuk-heading-l">H3 supported</h3>\n'
+            '<h4 class="govuk-heading-m">H4 supported</h4>\n'
+        )
+        assert str(result) == expected
+
     def test_bullet_lists(self):
         markdown_text = "- Item 1\n- Item 2\n- Item 3"
         result = convert_text_to_govuk_markup(markdown_text)
