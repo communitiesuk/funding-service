@@ -9,11 +9,6 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l">Reports</h1>
-    </div>
-  </div>
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_SIGN_OFF_DECLINED]) %}
         {% if flashes %}
           {% set submission_declined_html %}
@@ -23,18 +18,26 @@
               <a
                 class="govuk-notification-banner__link"
                 href="{{ url_for('access_grant_funding.route_to_submission', grant_id=grant_recipient.grant_id, organisation_id=grant_recipient.organisation_id,collection_id=flashes[0]["collection_id"]) }}">
-                View Report
+                View report
               </a>
             </p>
           {% endset %}
           {{
             govukNotificationBanner({
               "html": submission_declined_html,
-              "type":"success"
+              "type":"success",
+              "titleText": "Confirmed"
             })
           }}
         {% endif %}
       {% endwith %}
+    </div>
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Reports</h1>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
       {% if reports|length == 0 %}
         <p class="govuk-body">There are no reports for this grant.</p>
       {% else %}
