@@ -517,12 +517,13 @@ class SubmissionHelper:
             related_entity_id=self.submission.id,
         )
 
-        for unique_user in self.submission.grant_recipient.unique_data_providers_and_certifiers:
-            if unique_user is not None:
-                notification_service.send_access_submission_submitted(
-                    email_address=unique_user.email,
-                    submission_helper=self,
-                )
+        if not self.is_preview:
+            for unique_user in self.submission.grant_recipient.unique_data_providers_and_certifiers:
+                if unique_user is not None:
+                    notification_service.send_access_submission_submitted(
+                        email_address=unique_user.email,
+                        submission_helper=self,
+                    )
 
     def mark_as_sent_for_certification(self, user: "User") -> None:
         if self.is_locked_state:
