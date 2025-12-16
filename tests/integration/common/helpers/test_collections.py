@@ -953,6 +953,20 @@ class TestSubmissionHelper:
             )
             assert len(mock_notification_service_calls) == 0
 
+        def test_submit_sends_no_emails_and_succeeds_for_preview(
+            self,
+            submission_ready_to_submit,
+            mock_notification_service_calls,
+            data_provider_user,
+        ):
+            submission_ready_to_submit.mode = SubmissionModeEnum.PREVIEW
+            helper = SubmissionHelper(submission_ready_to_submit)
+
+            helper.submit(user=data_provider_user)
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+            assert len(mock_notification_service_calls) == 0
+
     class TestSentForCertification:
         def test_mark_as_sent_for_certification(
             self, data_provider_user, certifier_user, submission_ready_to_submit, mock_notification_service_calls
