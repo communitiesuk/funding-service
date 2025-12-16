@@ -43,7 +43,7 @@ class FormRunner:
         form: Optional["Form"] = None,
         source: Optional["FormRunnerState"] = None,
         add_another_index: Optional[int] = None,
-        is_removing: Optional[bool] = None,
+        is_removing: bool = False,
     ):
         if question and form:
             raise ValueError("Expected only one of question or form")
@@ -140,7 +140,7 @@ class FormRunner:
         source: Optional[FormRunnerState] = None,
         add_another_index: Optional[int] = None,
         grant_recipient_id: Optional[UUID] = None,
-        is_removing: Optional[bool] = None,
+        is_removing: bool = False,
     ) -> "FormRunner":
         if question_id and form_id:
             raise ValueError("Expected only one of question_id or form_id")

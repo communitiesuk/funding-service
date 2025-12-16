@@ -148,7 +148,7 @@ def ask_a_question(
         source=FormRunnerState(source) if source else None,
         add_another_index=add_another_index,
         grant_recipient_id=grant_recipient.id,
-        is_removing=action == "remove" if action else None,
+        is_removing=action == "remove",
     )
 
     if not runner.validate_can_show_question_page():
