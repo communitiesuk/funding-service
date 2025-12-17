@@ -892,6 +892,21 @@ class TestAskAQuestion:
             # each entry in the row respects the summary line configuration even if more answers are available
             assert soup.find_all("dt", {"class": "govuk-summary-list__key"})[2].text.strip() == "E3A1"
 
+            # All rows have remove links
+            rows = soup.find_all("div", {"class": "govuk-summary-list__row"})
+
+            # first data entries are incomplete so have no change but have remove
+            assert page_has_link(rows[0], "Remove") is not None
+            assert page_has_link(rows[0], "Change") is None
+            assert page_has_link(rows[1], "Remove") is not None
+            assert page_has_link(rows[1], "Change") is None
+
+            # subsequent data entires are complete and have both change and remove
+            assert page_has_link(rows[2], "Remove") is not None
+            assert page_has_link(rows[2], "Change") is not None
+            assert page_has_link(rows[3], "Remove") is not None
+            assert page_has_link(rows[3], "Change") is not None
+
             # do you want to add another component is shown and defaults to nothing selected
             assert "govuk-!-display-none" not in soup.find("div", {"class": "govuk-radios"}).get("class")
             assert soup.find("input", {"name": "add_another", "value": "yes"}).get("checked") is None
