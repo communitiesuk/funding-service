@@ -57,7 +57,7 @@
       <h2 class="govuk-heading-m">Submit your report</h2>
       <p class="govuk-body">You can submit your report to the {{ runner.submission.collection.grant.organisation.name }}.</p>
     {% endset %}
-    {% set submit_text="Submit report" %}
+    {% set submit_text="Continue to submit" %}
   {% endif %}
 
   {{ collection_tasklist(runner, submit_text, before_submission=before_submission, has_permission_to_edit=authorisation_helper.is_access_grant_data_provider(runner.submission.grant.id, runner.submission.submission.grant_recipient.organisation_id, current_user)) }}

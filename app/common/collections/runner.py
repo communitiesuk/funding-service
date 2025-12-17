@@ -10,6 +10,7 @@ from app.common.collections.forms import (
     ConfirmRemoveAddAnotherForm,
     build_question_form,
 )
+from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, TasklistSectionStatusEnum, TRunnerUrlMap
 from app.common.exceptions import RedirectException, SubmissionValidationFailed
@@ -263,6 +264,14 @@ class FormRunner:
             self.check_your_answers_form.section_completed.errors.append(  # type:ignore[attr-defined]
                 "You must complete all questions before marking this section as complete"
             )
+            return False
+
+    def validate_submission(self) -> bool:
+        try:
+            SubmissionValidator(self.submission).validate_all_reachable_questions()
+            return True
+        except SubmissionValidationFailed as e:
+            self._tasklist_form.submit.errors.append(e.error_message)  # type:ignore[attr-defined]
             return False
 
     def complete_submission(self, user: "User") -> bool:
