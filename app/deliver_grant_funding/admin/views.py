@@ -69,15 +69,11 @@ from app.deliver_grant_funding.admin.mixins import (
 from app.extensions import auto_commit_after_request
 
 
-class PlatformMemberBaseView(FlaskAdminPlatformMemberAccessibleMixin, BaseView):
-    pass
-
-
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
     pass
 
 
-class PlatformAdminReportingLifecycleView(PlatformMemberBaseView):
+class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixin, BaseView):
     @expose("/", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     def index(self) -> Any:
         form = PlatformAdminSelectGrantForReportingLifecycleForm(grants=get_all_grants())
