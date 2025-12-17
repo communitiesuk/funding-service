@@ -573,13 +573,11 @@ class TestUpdateCollection:
     @pytest.mark.parametrize(
         "missing_date_field",
         (
-            "reporting_period_start_date",
-            "reporting_period_end_date",
             "submission_period_start_date",
             "submission_period_end_date",
         ),
     )
-    def test_draft_to_scheduled_requires_all_dates(self, db_session, factories, missing_date_field):
+    def test_draft_to_scheduled_requires_submission_dates(self, db_session, factories, missing_date_field):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         date_kwargs = {
             "reporting_period_start_date": datetime.date(2024, 1, 1),
@@ -594,7 +592,7 @@ class TestUpdateCollection:
         with pytest.raises(CollectionChronologyError) as exc_info:
             update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
 
-        assert "all reporting and submission period dates must be set" in str(exc_info.value)
+        assert "submission period dates must be set" in str(exc_info.value)
 
 
 def test_get_submission(db_session, factories):

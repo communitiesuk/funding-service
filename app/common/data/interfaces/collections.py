@@ -180,21 +180,29 @@ def update_collection(  # noqa: C901
                     raise GrantMustBeLiveError(f"{collection.grant.name} must be made live before {actioning} a report")
 
                 try:
-                    assert collection.reporting_period_start_date
-                    assert collection.reporting_period_end_date
                     assert collection.submission_period_start_date
                     assert collection.submission_period_end_date
                 except AssertionError as e:
                     raise CollectionChronologyError(
-                        f"Cannot change collection status to {status.value}: "
-                        f"all reporting and submission period dates must be set"
+                        f"Cannot change collection status to {status.value}: submission period dates must be set"
                     ) from e
 
-                if not (
+                if (collection.reporting_period_start_date or collection.reporting_period_end_date) and not (
+                    collection.reporting_period_start_date and collection.reporting_period_end_date
+                ):
+                    raise CollectionChronologyError(
+                        "reporting_period_start_date and reporting_period_end_date must both be unset or both be set"
+                    )
+
+                if (
                     collection.reporting_period_start_date
-                    < collection.reporting_period_end_date
-                    < collection.submission_period_start_date
-                    < collection.submission_period_end_date
+                    and collection.reporting_period_end_date
+                    and not (
+                        collection.reporting_period_start_date
+                        < collection.reporting_period_end_date
+                        < collection.submission_period_start_date
+                        < collection.submission_period_end_date
+                    )
                 ):
                     raise CollectionChronologyError("Reporting dates must be chronological and before submission dates")
 

@@ -394,8 +394,8 @@ class TestReportingLifecycleTasklist:
 
         task_status = set_reporting_dates_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
-        assert "To do" in task_status.get_text(strip=True)
-        assert "govuk-tag--grey" in task_status.get("class")
+        assert "Optional" in task_status.get_text(strip=True)
+        assert "govuk-tag--blue" in task_status.get("class")
 
         set_submission_dates_task = report_task_items[1]
         task_title = set_submission_dates_task.find("a", {"class": "govuk-link"})
@@ -3203,9 +3203,7 @@ class TestMakeReportLive:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(
-            soup, "Cannot change collection status to Open: all reporting and submission period dates must be set"
-        )
+        assert page_has_error(soup, "Cannot change collection status to Open: submission period dates must be set")
 
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
