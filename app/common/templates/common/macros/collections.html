@@ -412,25 +412,31 @@
       {% endset %}
 
       {% set entry_hidden_description = summary if is_answered else to_ordinal(i + 1) ~ " " ~ (add_another_container.name | lower) %}
+      {% set actions = [] %}
+      {% if is_answered %}
+        {%
+          do actions.append({
+            "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i),
+            "text": "Change",
+            "visuallyHiddenText": entry_hidden_description,
+            "classes": "govuk-link--no-visited-state"
+          })
+        %}
+      {% endif %}
+      {%
+        do actions.append({
+          "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i, is_removing=True),
+          "text": "Remove",
+          "visuallyHiddenText": entry_hidden_description,
+          "classes": "govuk-link--no-visited-state"
+        })
+      %}
       {%
         do rows.append({
           "key": { "html": key_html, "classes": "govuk-!-width-two-thirds" },
           "value": { "classes": "govuk-!-display-none"},
           "actions": {
-            "items": [
-              {
-                "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i),
-                "text": "Change",
-                "visuallyHiddenText": entry_hidden_description,
-                "classes": "govuk-link--no-visited-state"
-              },
-              {
-                "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i, is_removing=True),
-                "text": "Remove",
-                "visuallyHiddenText": entry_hidden_description,
-                "classes": "govuk-link--no-visited-state"
-              }
-            ] if is_answered else [],
+            "items": actions,
             "classes": "govuk-!-width-one-third"
           }
         })
