@@ -797,8 +797,6 @@ class PlatformAdminReportingLifecycleView(PlatformAdminBaseView):
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
-        assert collection.reporting_period_start_date
-        assert collection.reporting_period_end_date
         assert collection.submission_period_end_date
 
         csv_output = StringIO()
