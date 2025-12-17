@@ -824,31 +824,15 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
         def test_submit_submission_auth_check_allows_live_submissions_where_certification_not_needed(
-            self, submission_awaiting_sign_off, factories, mock_notification_service_calls
+            self, submission_ready_to_submit, factories, mock_notification_service_calls, data_provider_user
         ):
-            helper = SubmissionHelper(submission_awaiting_sign_off)
-            submission_awaiting_sign_off.collection.requires_certification = False
+            helper = SubmissionHelper(submission_ready_to_submit)
+            submission_ready_to_submit.collection.requires_certification = False
+            assert len(helper.submission.events) == 1
 
-            submitter_user = helper.sent_for_certification_by
-            certifier_user = factories.user.create()
-            factories.user_role.create(
-                user=certifier_user,
-                organisation=submission_awaiting_sign_off.grant_recipient.organisation,
-                grant=helper.grant,
-                permissions=[RoleEnum.CERTIFIER],
-            )
+            helper.submit(data_provider_user)
 
-            factories.submission_event.create(
-                submission=submission_awaiting_sign_off,
-                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
-                created_by=certifier_user,
-                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
-            )
-            assert len(helper.submission.events) == 3
-
-            helper.submit(submitter_user)
-
-            assert len(helper.submission.events) == 4
+            assert len(helper.submission.events) == 2
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
     class TestSubmit:
