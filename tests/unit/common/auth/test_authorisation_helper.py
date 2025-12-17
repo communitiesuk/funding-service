@@ -40,6 +40,29 @@ class TestAuthorisationHelper:
         assert AuthorisationHelper.is_platform_admin(AnonymousUserMixin()) is False
 
     @pytest.mark.parametrize(
+        "role, has_grant_linked_to_role, has_organisation_linked, expected",
+        [
+            (RoleEnum.MEMBER, False, False, True),
+            (RoleEnum.MEMBER, True, False, False),
+            (RoleEnum.MEMBER, False, True, False),
+            (RoleEnum.ADMIN, False, False, True),
+        ],
+    )
+    def test_is_platform_member(self, factories, role, has_grant_linked_to_role, has_organisation_linked, expected):
+        user = factories.user.build()
+        organisation = factories.organisation.build() if has_organisation_linked else None
+        factories.user_role.build(
+            user=user,
+            permissions=[role],
+            has_grant=has_grant_linked_to_role,
+            organisation=organisation,
+        )
+        assert AuthorisationHelper.is_platform_member(user) is expected
+
+    def test_is_platform_member_works_for_anonymous_user(self):
+        assert AuthorisationHelper.is_platform_member(AnonymousUserMixin()) is False
+
+    @pytest.mark.parametrize(
         "role, has_organisation_linked, can_manage_grants, expected",
         [
             (RoleEnum.ADMIN, True, True, True),
