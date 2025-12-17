@@ -76,7 +76,9 @@ class TextSingleLineAnswer(SubmissionAnswerRootModel[str]):
 
 
 class TextMultiLineAnswer(SubmissionAnswerRootModel[str]):
-    pass
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/text_multi_line.html"
 
 
 class EmailAnswer(SubmissionAnswerRootModel[str]):
