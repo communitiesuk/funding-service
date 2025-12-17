@@ -16,9 +16,10 @@ function loadGoogleTag() {
         googleTagLoaded = true;
     }
 }
-function updateConsentValue(consentGranted) {
+function updateConsentValueLocal(consentGranted) {
     localStorage.setItem("consentGranted", consentGranted);
-
+}
+function updateConsentValueGtag(consentGranted) {
     gtag("consent", "update", {
         ad_user_data: "denied",
         ad_personalization: "denied",
@@ -45,13 +46,15 @@ function initCookieConsent() {
     const btn_hide_cookies = document.getElementsByName("cookies[hide]");
 
     accept_cookies_button.addEventListener("click", function () {
-        updateConsentValue(true);
+        updateConsentValueLocal(true);
+        updateConsentValueGtag(true);
         loadGoogleTag();
         cookie_choice_msg.hidden = true;
         cookies_accepted_msg.removeAttribute("hidden");
     });
     reject_cookies_button.addEventListener("click", function () {
-        updateConsentValue(false);
+        updateConsentValueLocal(false);
+        updateConsentValueGtag(false);
         cookie_choice_msg.hidden = true;
         cookies_rejected_msg.removeAttribute("hidden");
     });
@@ -64,6 +67,7 @@ function initCookieConsent() {
     // only loads the google tag manager if consent has been provided
     // https://developers.google.com/tag-platform/security/concepts/consent-mode?#basic_consent_mode
     if (localStorage.getItem("consentGranted") === "true") {
+        updateConsentValueGtag(true);
         loadGoogleTag();
     }
     if (!localStorage.getItem("consentGranted")) {
@@ -91,7 +95,8 @@ function initCookiesPageConsentForm() {
     }
     btn_submit_cookie_form.addEventListener("click", function () {
         let consentValue = cookies_yes.checked;
-        updateConsentValue(consentValue);
+        updateConsentValueLocal(consentValue);
+        updateConsentValueGtag(consentValue);
         cookie_success_banner.removeAttribute("hidden");
         cookie_success_banner.scrollIntoView();
     });

@@ -24,6 +24,10 @@
       wait_for_update: 500,
     });
     dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+
+    gtag("set", "user_properties", {
+      is_deliver_user: "{{'true' if current_user.is_authenticated and current_user.email.endswith(config['INTERNAL_DOMAINS']) else 'false'}}",
+    });
     window.googleTagId = "{{ get_google_tag_manager_id() }}";
   </script>
 {% endblock head %}
