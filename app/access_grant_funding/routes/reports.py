@@ -2,7 +2,7 @@ import io
 import os
 from uuid import UUID
 
-from flask import current_app, flash, redirect, render_template, send_file, url_for
+from flask import abort, current_app, flash, redirect, render_template, send_file, url_for
 from flask.typing import ResponseReturnValue
 from playwright.sync_api import sync_playwright
 
@@ -13,7 +13,7 @@ from app.common.auth.decorators import has_access_grant_role
 from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.types import CollectionType, RoleEnum
+from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_mode import get_submission_mode_for_user
@@ -75,14 +75,11 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
     form = GenericSubmitForm()
 
     if form.validate_on_submit():
-        user = get_current_user()
-
-        submission.certify(user=user)
-        submission.submit(user=user)
-
+        if not AuthorisationHelper.is_access_grant_certifier(grant_id, organisation_id, get_current_user()):
+            return abort(403, description="Access denied")
         return redirect(
             url_for(
-                "access_grant_funding.submitted_confirmation",
+                "access_grant_funding.confirm_report_submission",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
                 submission_id=submission.id,
@@ -220,6 +217,59 @@ def decline_report(
         "access_grant_funding/decline_report.html",
         submission=submission_helper,
         grant_recipient=grant_recipient,
+        form=form,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/confirm-report-submission",
+    methods=["GET", "POST"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def confirm_report_submission(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    user = get_current_user()
+
+    # note we're not redirecting to the route to submission as you might have been directed from
+    # there, go somewhere we know will load consistently and the user can step back in
+    if submission_helper.collection.requires_certification:
+        if not (
+            submission_helper.is_awaiting_sign_off
+            and AuthorisationHelper.is_access_grant_certifier(grant_id, organisation_id, user)
+        ):
+            return redirect(
+                url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            )
+    else:
+        if not (
+            submission_helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+            and AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
+        ):
+            return redirect(
+                url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            )
+
+    form = GenericSubmitForm()
+
+    if form.validate_on_submit():
+        submission_helper.certify(user)
+        submission_helper.submit(user)
+
+        return redirect(
+            url_for(
+                "access_grant_funding.submitted_confirmation",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
+        )
+
+    return render_template(
+        "access_grant_funding/reports/submit_report.html",
+        grant_recipient=grant_recipient,
+        submission_helper=submission_helper,
         form=form,
     )
 
