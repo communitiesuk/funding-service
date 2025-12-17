@@ -319,7 +319,6 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
     invitations = get_invitations_by_email(email=email_address, is_usable=True)
     for invite in invitations:
         claim_invitation(invitation=invite, user=user)
-    remove_all_roles_from_user(user=user)
     add_permissions_to_user(user, permissions=[RoleEnum.ADMIN], organisation_id=None, grant_id=None)
     return user
 

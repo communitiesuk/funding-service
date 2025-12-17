@@ -414,7 +414,7 @@ class TestSSOGetTokenView:
 
         assert response.status_code == 200
 
-    def test_platform_admin_remove_all_other_roles(self, anonymous_client, factories, db_session):
+    def test_platform_admin_does_not_remove_all_other_roles(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
             user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="wer234")
             factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
@@ -435,7 +435,7 @@ class TestSSOGetTokenView:
             response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
             updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "wer234"))
             assert AuthorisationHelper.is_platform_admin(updated_user) is True
-            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 3
 
         assert response.status_code == 200
 
