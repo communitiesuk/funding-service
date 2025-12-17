@@ -212,7 +212,7 @@ class TestViewLockedReport:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.confirm_sign_off_submit",
+            "access_grant_funding.submitted_confirmation",
             organisation_id=organisation.id,
             grant_id=grant.id,
             submission_id=submission_awaiting_sign_off.id,
@@ -547,39 +547,86 @@ class TestDeclineSignOff:
         )
 
 
-class TestViewConfirmCertification:
+class TestViewSubmittedConfirmation:
     @pytest.mark.parametrize(
-        "client_fixture, can_access",
+        "client_fixture, requires_certification, can_access",
         (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_recipient_member_client", False),
-            ("authenticated_grant_recipient_data_provider_client", False),
-            ("authenticated_grant_recipient_certifier_client", True),
+            ("authenticated_no_role_client", False, False),
+            ("authenticated_no_role_client", True, False),
+            ("authenticated_grant_recipient_member_client", False, False),
+            ("authenticated_grant_recipient_member_client", True, False),
+            ("authenticated_grant_recipient_data_provider_client", False, True),
+            ("authenticated_grant_recipient_data_provider_client", True, False),
+            ("authenticated_grant_recipient_certifier_client", False, False),
+            ("authenticated_grant_recipient_certifier_client", True, True),
         ),
     )
-    def test_view_confirm_certification_access(
+    def test_submitted_confirmation_access(
         self,
         request: FixtureRequest,
         client_fixture: str,
+        requires_certification: bool,
         can_access: bool,
         factories,
         submission_submitted,
+        db_session,
     ):
         client = request.getfixturevalue(client_fixture)
         grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
+        submission_submitted.collection.requires_certification = requires_certification
+        db_session.commit()
 
         response = client.get(
             url_for(
-                "access_grant_funding.confirm_sign_off_submit",
+                "access_grant_funding.submitted_confirmation",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
                 submission_id=submission_submitted.id,
             )
         )
 
-        if not can_access:
+        if client_fixture == "authenticated_no_role_client":
             assert response.status_code == 403
-        else:
+        elif can_access:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
-            assert get_h1_text(soup) == "Report signed off and submitted"
+            if requires_certification:
+                assert get_h1_text(soup) == "Report signed off and submitted"
+            else:
+                assert get_h1_text(soup) == "Report submitted"
+        else:
+            assert response.status_code == 302
+            assert response.location == url_for(
+                "access_grant_funding.list_reports",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+            )
+
+    @pytest.mark.parametrize(
+        "submission_fixture",
+        (
+            ("submission_awaiting_sign_off"),
+            ("submission_ready_to_submit"),
+            ("submission_in_progress"),
+        ),
+    )
+    def test_submitted_confirm_redirects_if_not_submitted(
+        self, authenticated_grant_recipient_member_client, submission_fixture, request
+    ):
+        submission = request.getfixturevalue(submission_fixture)
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.submitted_confirmation",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_reports",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+        )

@@ -265,7 +265,7 @@ class TestTasklist:
 
             expected_location = (
                 f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-                f"/reports/{submission.id}/sent_for_sign_off_confirmation"
+                f"/reports/{submission.id}/sent-for-sign-off-confirmation"
             )
             assert response.location == expected_location
 
@@ -302,7 +302,7 @@ class TestTasklist:
 
         expected_location = (
             f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-            f"/reports/{submission_ready_to_submit.id}/submitted_confirmation"
+            f"/reports/{submission_ready_to_submit.id}/submitted-confirmation"
         )
         assert response.location == expected_location
 
