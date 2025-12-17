@@ -87,31 +87,32 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
         ):
             return abort(403, description="Access denied")
 
-        if runner.complete_submission(interfaces.user.get_current_user()):
-            if runner.submission.is_submitted:
-                return redirect(
-                    url_for(
-                        "access_grant_funding.submitted_confirmation",
-                        organisation_id=organisation_id,
-                        grant_id=grant_id,
-                        submission_id=submission_id,
+        if runner.validate_submission():
+            if runner.submission.collection.requires_certification:
+                runner.submission.mark_as_sent_for_certification(interfaces.user.get_current_user())
+                if runner.submission.is_awaiting_sign_off:
+                    return redirect(
+                        url_for(
+                            "access_grant_funding.confirm_sent_for_certification",
+                            organisation_id=organisation_id,
+                            grant_id=grant_id,
+                            submission_id=submission_id,
+                        )
                     )
-                )
-            elif runner.submission.is_awaiting_sign_off:
-                return redirect(
-                    url_for(
-                        "access_grant_funding.confirm_sent_for_certification",
-                        organisation_id=organisation_id,
-                        grant_id=grant_id,
-                        submission_id=submission_id,
+                else:
+                    current_app.logger.warning(
+                        "Submission %(submission_id)s has been sent for certification but is in an unexpected state",
+                        extra={"submission_id": submission_id},
                     )
+                    abort(500)
+            return redirect(
+                url_for(
+                    "access_grant_funding.confirm_report_submission",
+                    organisation_id=organisation_id,
+                    grant_id=grant_id,
+                    submission_id=submission_id,
                 )
-            else:
-                current_app.logger.warning(
-                    "Submission %(submission_id)s has been completed but is in an unexpected state",
-                    extra={"submission_id": submission_id},
-                )
-                abort(500)
+            )
 
     # if complete_submission failed, the runner has appended errors to the form which will show to the user
     return render_template("access_grant_funding/reports/tasklist.html", grant_recipient=grant_recipient, runner=runner)

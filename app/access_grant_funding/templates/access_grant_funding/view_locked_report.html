@@ -102,7 +102,7 @@
         <form method="POST" novalidate>
           <div class="govuk-button-group">
             {{ form.csrf_token }}
-            {{ form.submit(params={"text": "Sign off and submit report" }) }}
+            {{ form.submit(params={"text": "Continue to sign off and submit" }) }}
             <a class="govuk-button--secondary govuk-button" href="{{ url_for("access_grant_funding.decline_report", organisation_id=grant_recipient.organisation_id, grant_id=grant_recipient.grant_id, submission_id=submission.id) }}">
               Decline sign off
             </a>

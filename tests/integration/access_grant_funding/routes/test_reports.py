@@ -88,10 +88,10 @@ class TestViewLockedReport:
         ]
 
         if not can_certify:
-            assert page_has_button(soup, button_text="Sign off and submit report") is None
+            assert page_has_button(soup, button_text="Continue to sign off and submit") is None
             assert page_has_link(soup, link_text="Decline sign off") is None
         else:
-            assert page_has_button(soup, button_text="Sign off and submit report") is not None
+            assert page_has_button(soup, button_text="Continue to sign off and submit") is not None
             assert page_has_link(soup, link_text="Decline sign off") is not None
 
     def test_get_view_locked_report_submitted(
@@ -526,7 +526,7 @@ class TestConfirmReportSubmission:
                 grant_id=grant_recipient.grant.id,
             )
 
-    def test_post_confirm_report_submission(
+    def test_post_confirm_report_submission_when_requires_certification(
         self,
         authenticated_grant_recipient_certifier_client,
         submission_awaiting_sign_off,
@@ -594,6 +594,60 @@ class TestConfirmReportSubmission:
         assert helper.events.submission_state.is_approved
         assert helper.events.submission_state.is_submitted
         assert len(mock_notification_service_calls) == 4
+
+    def test_post_confirm_report_submission_when_no_certification(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        submission_ready_to_submit,
+        factories,
+        mock_notification_service_calls,
+    ):
+        organisation = authenticated_grant_recipient_data_provider_client.organisation
+        grant = authenticated_grant_recipient_data_provider_client.grant
+        submission_ready_to_submit.collection.requires_certification = False
+
+        # Make a couple more grant recipient users to check they all receive the notification email
+        additional_users = factories.user.create_batch(2)
+        factories.user_role.create(
+            user=additional_users[0],
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+        )
+        factories.user_role.create(
+            user=additional_users[1],
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        helper = SubmissionHelper(submission_ready_to_submit)
+        assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+        form = GenericSubmitForm()
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.confirm_report_submission",
+                organisation_id=organisation.id,
+                grant_id=grant.id,
+                submission_id=submission_ready_to_submit.id,
+            ),
+            data=form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.submitted_confirmation",
+            organisation_id=organisation.id,
+            grant_id=grant.id,
+            submission_id=submission_ready_to_submit.id,
+        )
+
+        assert helper.status == SubmissionStatusEnum.SUBMITTED
+        assert helper.events.submission_state.is_submitted
+        assert len(mock_notification_service_calls) == 3
 
     def test_post_confirm_report_submission_certify_failure_should_not_submit(
         self,

@@ -14,7 +14,9 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
+from app.common.helpers.collections import SubmissionHelper
 from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_h2, page_has_link
 
 
@@ -153,7 +155,7 @@ class TestTasklist:
                 submission_action = page_has_button(soup, "Submit report to certifier")
             else:
                 submission_heading = page_has_h2(soup, "Submit your report")
-                submission_action = page_has_button(soup, "Submit report")
+                submission_action = page_has_button(soup, "Continue to submit")
             tasklist_action = page_has_link(soup, "Colour information")
 
             if can_edit:
@@ -279,15 +281,14 @@ class TestTasklist:
             assert certifier_notification_email.kwargs["personalisation"]["report_submitter"] == client.user.name
 
     @pytest.mark.freeze_time("2025-01-02 12:00:00")
-    def test_post_tasklist_complete_submission_submit(
+    def test_post_tasklist_complete_submission_no_certification_redirects(
         self,
         authenticated_grant_recipient_data_provider_client,
-        factories,
         grant_recipient,
-        mock_notification_service_calls,
         submission_ready_to_submit,
-        data_provider_user,
     ):
+        helper = SubmissionHelper(submission_ready_to_submit)
+        assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
         submission_ready_to_submit.collection.requires_certification = False
         response = authenticated_grant_recipient_data_provider_client.post(
             url_for(
@@ -302,9 +303,39 @@ class TestTasklist:
 
         expected_location = (
             f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-            f"/reports/{submission_ready_to_submit.id}/submitted-confirmation"
+            f"/reports/{submission_ready_to_submit.id}/confirm-report-submission"
         )
         assert response.location == expected_location
+        assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+    @pytest.mark.freeze_time("2025-01-02 12:00:00")
+    def test_post_tasklist_complete_submission_sends_for_certification(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        grant_recipient,
+        mock_notification_service_calls,
+        submission_ready_to_submit,
+        data_provider_user,
+    ):
+        helper = SubmissionHelper(submission_ready_to_submit)
+        assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_ready_to_submit.id,
+            ),
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+
+        expected_location = (
+            f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
+            f"/reports/{submission_ready_to_submit.id}/sent-for-sign-off-confirmation"
+        )
+        assert response.location == expected_location
+        assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
         # 1 email for the data provider, plus generic user that exists for the client
         assert len(mock_notification_service_calls) == 2

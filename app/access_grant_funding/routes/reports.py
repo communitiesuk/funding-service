@@ -254,7 +254,10 @@ def confirm_report_submission(organisation_id: UUID, grant_id: UUID, submission_
     form = GenericSubmitForm()
 
     if form.validate_on_submit():
-        submission_helper.certify(user)
+        # The submission_helper methods have auth checks to make sure the user taking these actions has the correct
+        # permissions to do them
+        if submission_helper.collection.requires_certification:
+            submission_helper.certify(user)
         submission_helper.submit(user)
 
         return redirect(
