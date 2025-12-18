@@ -2,6 +2,7 @@ from flask_admin import Admin
 from flask_sqlalchemy_lite import SQLAlchemy
 
 from app.deliver_grant_funding.admin.entities import (
+    PlatformAdminAuditEventView,
     PlatformAdminCollectionView,
     PlatformAdminGrantRecipientView,
     PlatformAdminGrantView,
@@ -56,3 +57,4 @@ def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
     flask_admin.add_view(PlatformAdminGrantRecipientView(ProxySession(db_)))  # type: ignore[arg-type]
     flask_admin.add_view(PlatformAdminCollectionView(ProxySession(db_)))  # type: ignore[arg-type]
     flask_admin.add_view(PlatformAdminInvitationView(ProxySession(db_)))  # type: ignore[arg-type]
+    flask_admin.add_view(PlatformAdminAuditEventView(ProxySession(db_)))  # type: ignore[arg-type]
