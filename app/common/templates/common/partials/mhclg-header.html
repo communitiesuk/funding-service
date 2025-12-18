@@ -9,7 +9,7 @@
     params.navigation
     if params.navigation else
     [
-      {"text": "Admin panel", "href": url_for('platform_admin.index') } if authorisation_helper.is_platform_admin(currentUser) else {},
+      {"text": "Admin panel", "href": url_for('platform_admin.index') } if authorisation_helper.is_platform_member(currentUser) else {},
       { "text": ("Sign out"), "href": url_for('auth.sign_out') }
     ] if currentUser and currentUser.is_authenticated else []
     )

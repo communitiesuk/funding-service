@@ -29,13 +29,14 @@ class TestFlaskAdminAccess:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
             ("anonymous_client", 302),
         ],
     )
-    def test_admin_index_denied_for_non_platform_admin(self, client_fixture, expected_code, request):
+    def test_admin_index_access(self, client_fixture, expected_code, request):
         client = request.getfixturevalue(client_fixture)
         response = client.get("/deliver/admin/")
         assert response.status_code == expected_code
@@ -44,6 +45,7 @@ class TestFlaskAdminAccess:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -59,6 +61,7 @@ class TestFlaskAdminAccess:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -74,12 +77,29 @@ class TestFlaskAdminAccess:
         response = client.get(f"/deliver/admin/user/details/?id={user.id}", follow_redirects=False)
         assert response.status_code == expected_code
 
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_admin_invitation_list_access(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/invitation/")
+        assert response.status_code == expected_code
+
 
 class TestReportingLifecycleSelectGrant:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -164,6 +184,7 @@ class TestReportingLifecycleSelectReport:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -222,6 +243,7 @@ class TestReportingLifecycleTasklist:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -695,6 +717,7 @@ class TestSendEmailsToRecipients:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -790,6 +813,7 @@ class TestSendEmailsToRecipients:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1028,6 +1052,7 @@ class TestSetUpCertifiers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1252,6 +1277,7 @@ class TestReportingLifecycleMakeGrantLive:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1338,6 +1364,7 @@ class TestReportingLifecycleMarkGrantAsOnboarding:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1405,6 +1432,7 @@ class TestManageOrganisations:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1590,6 +1618,7 @@ class TestManageGrantRecipients:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1753,6 +1782,7 @@ class TestSetUpGrantRecipientUsers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2043,6 +2073,7 @@ class TestRevokeGrantRecipientDataProviders:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2175,6 +2206,7 @@ class TestRevokeCertifiers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2291,6 +2323,7 @@ class TestOverrideGrantCertifiers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2525,6 +2558,7 @@ class TestRevokeGrantOverrideCertifiers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2662,6 +2696,7 @@ class TestScheduleReport:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2956,6 +2991,7 @@ class TestMakeReportLive:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -3254,6 +3290,7 @@ class TestSetUpTestOrganisations:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -3421,6 +3458,7 @@ class TestSetUpTestGrantRecipients:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -3589,6 +3627,7 @@ class TestSetUpTestGrantRecipientUsers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),

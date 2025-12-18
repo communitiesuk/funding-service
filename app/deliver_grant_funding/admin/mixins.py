@@ -15,3 +15,12 @@ class FlaskAdminPlatformAdminAccessibleMixin:
     @deliver_grant_funding_login_required
     def inaccessible_callback(self, *args: Any, **kwargs: Any) -> ResponseReturnValue:
         return abort(403)
+
+
+class FlaskAdminPlatformMemberAccessibleMixin:
+    def is_accessible(self) -> bool:
+        return AuthorisationHelper.is_platform_member(get_current_user())
+
+    @deliver_grant_funding_login_required
+    def inaccessible_callback(self, *args: Any, **kwargs: Any) -> ResponseReturnValue:
+        return abort(403)
