@@ -31,6 +31,15 @@ class AuthorisationHelper:
         )
 
     @staticmethod
+    def is_platform_member(user: User | AnonymousUserMixin) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+        return any(
+            RoleEnum.MEMBER in role.permissions and role.organisation_id is None and role.grant_id is None
+            for role in user.roles
+        )
+
+    @staticmethod
     def is_deliver_org_admin(user: User | AnonymousUserMixin) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False

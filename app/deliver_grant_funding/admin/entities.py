@@ -18,11 +18,14 @@ from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
-from app.deliver_grant_funding.admin.mixins import FlaskAdminPlatformAdminAccessibleMixin
+from app.deliver_grant_funding.admin.mixins import (
+    FlaskAdminPlatformAdminAccessibleMixin,
+    FlaskAdminPlatformMemberAccessibleMixin,
+)
 from app.extensions import db, notification_service
 
 
-class PlatformAdminModelView(FlaskAdminPlatformAdminAccessibleMixin, XGovukModelView):
+class PlatformAdminModelView(XGovukModelView):
     page_size = 50
     can_set_page_size = True
 
@@ -63,7 +66,7 @@ class PlatformAdminModelView(FlaskAdminPlatformAdminAccessibleMixin, XGovukModel
         pass
 
 
-class PlatformAdminUserView(PlatformAdminModelView):
+class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = User
 
     column_list = ["email", "name", "last_logged_in_at_utc"]
@@ -115,7 +118,7 @@ class PlatformAdminUserView(PlatformAdminModelView):
             )
 
 
-class PlatformAdminOrganisationView(PlatformAdminModelView):
+class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = Organisation
 
     can_create = True
@@ -139,7 +142,7 @@ class PlatformAdminOrganisationView(PlatformAdminModelView):
     column_descriptions = {"external_id": "IATI or LAD24 identifier"}
 
 
-class PlatformAdminCollectionView(PlatformAdminModelView):
+class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = Collection
 
     can_edit = True
@@ -158,7 +161,7 @@ class PlatformAdminCollectionView(PlatformAdminModelView):
     form_columns = ["name", "slug", "type", "status", "requires_certification"]
 
 
-class PlatformAdminUserRoleView(PlatformAdminModelView):
+class PlatformAdminUserRoleView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = UserRole
 
     can_create = True
@@ -178,7 +181,7 @@ class PlatformAdminUserRoleView(PlatformAdminModelView):
     }
 
 
-class PlatformAdminGrantView(PlatformAdminModelView):
+class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = Grant
 
     can_create = False
@@ -215,7 +218,7 @@ class PlatformAdminGrantView(PlatformAdminModelView):
         return form  # type: ignore[no-any-return]
 
 
-class PlatformAdminInvitationView(PlatformAdminModelView):
+class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, PlatformAdminModelView):
     _model = Invitation
 
     can_create = True
@@ -346,7 +349,7 @@ class PlatformAdminInvitationView(PlatformAdminModelView):
             )
 
 
-class PlatformAdminGrantRecipientView(PlatformAdminModelView):
+class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = GrantRecipient
 
     can_create = True

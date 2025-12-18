@@ -372,6 +372,26 @@ def authenticated_platform_admin_client(
 
 
 @pytest.fixture()
+def authenticated_platform_member_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
+    """Create a client authenticated as a platform member (MEMBER at platform level, no org/grant)"""
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "platformmember@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.MEMBER], organisation=None, grant=None)
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
+    anonymous_client.user = user
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
 def authenticated_org_admin_client(
     anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
 ) -> Generator[FundingServiceTestClient, None, None]:
