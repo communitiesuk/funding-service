@@ -23,7 +23,11 @@
       analytics_storage: "denied",
       wait_for_update: 500,
     });
-    dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+    dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js", env: "{{get_current_env_name()}}" });
+
+    gtag("set", "user_properties", {
+      is_deliver_user: "{{'true' if current_user.is_authenticated and current_user.email.endswith(config['INTERNAL_DOMAINS']) else 'false'}}",
+    });
     window.googleTagId = "{{ get_google_tag_manager_id() }}";
   </script>
 {% endblock head %}
