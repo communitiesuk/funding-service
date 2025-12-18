@@ -67,7 +67,7 @@
     </div>
     <div class="govuk-grid-column-full">
       {% set rows=[] %}
-      {% for grant_recipient in helper.grant_recipients %}
+      {% for grant_recipient in helper.grant_recipients | sort(attribute="organisation.name") %}
         {% set grant_recipient_submission_helper = helper.grant_recipients_submission_helpers[grant_recipient.id] %}
         {% set link_to_submission %}
           {% if grant_recipient_submission_helper %}
