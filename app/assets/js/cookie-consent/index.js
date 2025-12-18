@@ -78,30 +78,31 @@ function initCookieConsent() {
 
 function initCookiesPageConsentForm() {
     const cookie_form = document.getElementById("cookies_form");
-    const cookies_no_js = document.getElementById("cookies_no_js");
-    const cookies_yes = document.getElementById("cookie_choice_yes");
-    const cookies_no = document.getElementById("cookie_choice_no");
-    const cookie_success_banner = document.getElementById(
-        "cookie_success_banner",
-    );
-    const btn_submit_cookie_form = document.getElementById(
-        "btn_submit_cookies_form",
-    );
-
-    if (localStorage.getItem("consentGranted") === "true") {
-        cookies_yes.checked = true;
-    } else if (localStorage.getItem("consentGranted") === "false") {
-        cookies_no.checked = true;
-    }
-    btn_submit_cookie_form.addEventListener("click", function () {
-        let consentValue = cookies_yes.checked;
-        updateConsentValueLocal(consentValue);
-        updateConsentValueGtag(consentValue);
-        cookie_success_banner.removeAttribute("hidden");
-        cookie_success_banner.scrollIntoView();
-    });
 
     if (cookie_form) {
+        const cookies_no_js = document.getElementById("cookies_no_js");
+        const cookies_yes = document.getElementById("cookie_choice_yes");
+        const cookies_no = document.getElementById("cookie_choice_no");
+        const cookie_success_banner = document.getElementById(
+            "cookie_success_banner",
+        );
+        const btn_submit_cookie_form = document.getElementById(
+            "btn_submit_cookies_form",
+        );
+
+        if (localStorage.getItem("consentGranted") === "true") {
+            cookies_yes.checked = true;
+        } else if (localStorage.getItem("consentGranted") === "false") {
+            cookies_no.checked = true;
+        }
+        btn_submit_cookie_form.addEventListener("click", function () {
+            let consentValue = cookies_yes.checked;
+            updateConsentValueLocal(consentValue);
+            updateConsentValueGtag(consentValue);
+            cookie_success_banner.removeAttribute("hidden");
+            cookie_success_banner.scrollIntoView();
+        });
+
         cookies_no_js.hidden = true;
         cookie_form.removeAttribute("hidden");
     }
