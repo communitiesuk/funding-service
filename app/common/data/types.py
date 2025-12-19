@@ -302,3 +302,7 @@ class OrganisationData(BaseModel):
     active_date: datetime.date | None
     retirement_date: datetime.date | None
     mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+
+
+class AuditEventType(enum.Enum):
+    PLATFORM_ADMIN_DB_EVENT = "platform-admin-db-event"

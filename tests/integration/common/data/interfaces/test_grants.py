@@ -67,10 +67,10 @@ class TestGetAllGrants:
         live_grants = factories.grant.create_batch(2, status=GrantStatusEnum.LIVE)
 
         result = get_all_grants(statuses=[GrantStatusEnum.DRAFT])
-        assert result == draft_grants
+        assert set(result) == set(draft_grants)
 
         result = get_all_grants(statuses=[GrantStatusEnum.LIVE])
-        assert result == live_grants
+        assert set(result) == set(live_grants)
 
 
 def test_create_grant(app, db_session) -> None:

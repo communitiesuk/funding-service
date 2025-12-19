@@ -44,8 +44,10 @@ from app.common.data.models import (
     Submission,
     SubmissionEvent,
 )
+from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import (
+    AuditEventType,
     CollectionType,
     ConditionsOperator,
     GrantRecipientModeEnum,
@@ -950,3 +952,16 @@ class _InvitationFactory(SQLAlchemyModelFactory):
         if RoleEnum.MEMBER not in kwargs["permissions"]:
             kwargs["permissions"].append(RoleEnum.MEMBER)
         return kwargs
+
+
+class _AuditEventFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = AuditEvent
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+    event_type = AuditEventType.PLATFORM_ADMIN_DB_EVENT
+    user_id = factory.LazyAttribute(lambda o: o.user.id)
+    user = factory.SubFactory(_UserFactory)
+    data = factory.LazyFunction(lambda: {"model_class": "Grant", "action": "create", "changes": {}})

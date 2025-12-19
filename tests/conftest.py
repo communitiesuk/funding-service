@@ -20,6 +20,7 @@ from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User
 from app.services.notify import Notification
 from tests.models import (
+    _AuditEventFactory,
     _CollectionFactory,
     _DataSourceFactory,
     _DataSourceItemFactory,
@@ -158,6 +159,7 @@ _Factories = namedtuple(
         "invitation",
         "data_source",
         "data_source_item",
+        "audit_event",
     ],
 )
 
@@ -181,6 +183,7 @@ def factories(db_session: Session) -> _Factories:
         invitation=_InvitationFactory,
         data_source=_DataSourceFactory,
         data_source_item=_DataSourceItemFactory,
+        audit_event=_AuditEventFactory,
     )
 
 

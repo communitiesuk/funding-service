@@ -1,21 +1,30 @@
 import datetime
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
-from flask import current_app, flash, url_for
+import markupsafe
+from flask import current_app, flash, g, url_for
 from flask_admin.actions import action
+from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
-from markupsafe import Markup
 from sqlalchemy import delete, func, orm, select, update
 from sqlalchemy.exc import IntegrityError
 from wtforms import Form
 from wtforms.validators import Email
 from xgovuk_flask_admin import XGovukModelView
 
+from app.common.audit import (
+    create_database_model_change_for_create,
+    create_database_model_change_for_delete,
+    create_database_model_change_for_update,
+    track_audit_event,
+)
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
+from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.admin.mixins import (
@@ -23,6 +32,9 @@ from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformMemberAccessibleMixin,
 )
 from app.extensions import db, notification_service
+
+if TYPE_CHECKING:
+    pass
 
 
 class PlatformAdminModelView(XGovukModelView):
@@ -64,6 +76,40 @@ class PlatformAdminModelView(XGovukModelView):
     @abstractmethod
     def _model(self) -> type[BaseModel]:
         pass
+
+    def on_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:
+        if not is_created:
+            g.audit_event = create_database_model_change_for_update(model, get_current_user())
+        return super().on_model_change(form, model, is_created)  # type: ignore[no-any-return]
+
+    def after_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:
+        """This is called after flask-admin has committed the changes; when we track an audit event, that event
+        needs to be responsible for committing itself, as flask-admin won't commit again automatically.
+        """
+        user = get_current_user()
+        if is_created:
+            event = create_database_model_change_for_create(model, user)
+            track_audit_event(self.session, event, user)
+            self.session.commit()
+        elif pending_event := g.pop("audit_event", None):
+            track_audit_event(self.session, pending_event, user)
+            self.session.commit()
+
+        return super().after_model_change(form, model, is_created)  # type: ignore[no-any-return]
+
+    def on_model_delete(self, model: BaseModel) -> None:
+        g.audit_event = create_database_model_change_for_delete(model, get_current_user())
+        return super().on_model_delete(model)  # type: ignore[no-any-return]
+
+    def after_model_delete(self, model: BaseModel) -> None:
+        """This is called after flask-admin has committed the changes; when we track an audit event, that event
+        needs to be responsible for committing itself, as flask-admin won't commit again automatically.
+        """
+        if audit_event := g.pop("audit_event", None):
+            track_audit_event(self.session, audit_event, get_current_user())
+            self.session.commit()
+
+        return super().after_model_delete(model)  # type: ignore[no-any-return]
 
 
 class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
@@ -209,7 +255,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
         form = super().edit_form(obj)
         if obj:
             privacy_policy_url = url_for("access_grant_funding.privacy_policy", grant_id=obj.id)
-            form.privacy_policy_markdown.description = Markup(  # ty: ignore[unresolved-attribute]
+            form.privacy_policy_markdown.description = markupsafe.Markup(  # ty: ignore[unresolved-attribute]
                 "GOV.UK-style markdown for the grant's privacy policy. Once saved, "
                 f"<a class='govuk-link govuk-link--no-visited-state' href='{privacy_policy_url}' target='_blank'>"
                 "preview the privacy policy (opens in a new tab)"
@@ -253,7 +299,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, Platf
         "grant": {"get_label": "name"},
     }
 
-    def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:
+    def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # type: ignore[override]
         if is_created:
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
@@ -261,7 +307,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, Platf
             if user := self.session.scalar(select(User).where(User.email == form.email.data)):  # type: ignore[attr-defined]
                 model.user = user
 
-        return super().on_model_change(form, model, is_created)  # type: ignore[no-any-return]
+        return super().on_model_change(form, model, is_created)
 
     def validate_form(self, form: Form) -> bool:
         result = super().validate_form(form)
@@ -289,7 +335,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, Platf
 
         return result  # type: ignore[no-any-return]
 
-    def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:
+    def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # type: ignore[override]
         if is_created:
             if (not model.organisation or not model.organisation.can_manage_grants) or model.grant:
                 db.session.delete(model)
@@ -303,7 +349,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, Platf
                         model.email, organisation=model.organisation
                     )
 
-        return super().after_model_change(form, model, is_created)  # type: ignore[no-any-return]
+        return super().after_model_change(form, model, is_created)
 
     @action(
         "cancel_invitation",
@@ -377,3 +423,95 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
             "query_factory": lambda: db.session.query(Organisation).filter_by(can_manage_grants=False),
         },
     }
+
+
+def _format_json_data(view, context, model, name):  # type: ignore[no-untyped-def]
+    import json
+
+    return markupsafe.Markup(
+        f"<pre class='govuk-!-margin-top-0'>{markupsafe.escape(json.dumps(model.data, indent=2))}</pre>"
+    )
+
+
+def _format_model_class(view, context, model, name):  # type: ignore[no-untyped-def]
+    return model.data.get("model_class", "")
+
+
+def _format_action(view, context, model, name):  # type: ignore[no-untyped-def]
+    return model.data.get("action", "")
+
+
+class ModelClassFilter(BaseSQLAFilter):
+    def __init__(self, column, name: str):  # type: ignore[no-untyped-def]
+        super().__init__(column, name)
+
+    def apply(self, query, value, alias=None):  # type: ignore[no-untyped-def]
+        return query.filter(self.column["model_class"].astext.ilike(value))
+
+    def operation(self) -> str:
+        return "equals"
+
+
+class ActionFilter(BaseSQLAFilter):
+    def __init__(self, column, name: str):  # type: ignore[no-untyped-def]
+        super().__init__(column, name)
+
+    def apply(self, query, value, alias=None):  # type: ignore[no-untyped-def]
+        return query.filter(self.column["action"].astext.ilike(value))
+
+    def operation(self) -> str:
+        return "equals"
+
+
+class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
+    _model = AuditEvent
+
+    column_default_sort = ("created_at_utc", True)
+
+    column_list = ["created_at_utc", "event_type", "user.email", "model_class", "action"]
+    column_filters = [
+        "event_type",
+        "user.email",
+        "created_at_utc",
+        ModelClassFilter(AuditEvent.data, "Model Class"),
+        ActionFilter(AuditEvent.data, "Action"),
+    ]
+    column_searchable_list = ["user.email", "event_type"]
+    column_labels = {
+        "created_at_utc": "Timestamp",
+        "user.email": "User",
+        "model_class": "Model class",
+        "action": "Action",
+        "updated_at_utc": "Updated at",
+        "event_type": "Event type",
+    }
+
+    column_formatters = {"model_class": _format_model_class, "action": _format_action}
+    column_formatters_detail = {
+        "data": _format_json_data,
+        "user": lambda v, c, m, n: m.user.email,
+    }
+
+    can_edit = False
+    can_delete = False
+
+    def search_placeholder(self) -> str:
+        return "User, Event Type, Model Class, Action"
+
+    def _apply_search(self, query, count_query, joins, count_joins, search):  # type: ignore[no-untyped-def]
+        from app.common.data.models_user import User
+
+        if search:
+            from sqlalchemy import or_
+
+            search_term = f"%{search}%"
+            search_filter = or_(
+                User.email.ilike(search_term),
+                AuditEvent.event_type.ilike(search_term),
+                AuditEvent.data["model_class"].astext.ilike(search_term),
+                AuditEvent.data["action"].astext.ilike(search_term),
+            )
+            query = query.join(AuditEvent.user).filter(search_filter)
+            count_query = count_query.join(AuditEvent.user).filter(search_filter)
+
+        return query, count_query, joins, count_joins
