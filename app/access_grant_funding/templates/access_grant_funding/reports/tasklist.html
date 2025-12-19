@@ -1,6 +1,7 @@
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/collections.html" import collection_tasklist with context %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% extends "access_grant_funding/base.html" %}
 
 {# todo: move the suffix to the base template and call super #}
@@ -22,6 +23,17 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_VALIDATION_ERROR]) %}
+        {% if flashes %}
+          {% set error_list = [{"html": flashes[0], "href": "#submit"}] %}
+          {{
+            govukErrorSummary({
+              "titleText": "There is a problem",
+              "errorList": error_list
+            })
+          }}
+        {% endif %}
+      {% endwith %}
       <h1 class="govuk-heading-l">{{ runner.submission.name }}</h1>
 
       <dl class="app-metadata">

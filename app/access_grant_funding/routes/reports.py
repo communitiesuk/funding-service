@@ -14,6 +14,7 @@ from app.common.data.interfaces.collections import get_all_submissions_with_mode
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
+from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_mode import get_submission_mode_for_user
@@ -256,18 +257,29 @@ def confirm_report_submission(organisation_id: UUID, grant_id: UUID, submission_
     if form.validate_on_submit():
         # The submission_helper methods have auth checks to make sure the user taking these actions has the correct
         # permissions to do them
-        if submission_helper.collection.requires_certification:
-            submission_helper.certify(user)
-        submission_helper.submit(user)
+        try:
+            if submission_helper.collection.requires_certification:
+                submission_helper.certify(user)
+            submission_helper.submit(user)
 
-        return redirect(
-            url_for(
-                "access_grant_funding.submitted_confirmation",
-                organisation_id=organisation_id,
-                grant_id=grant_id,
-                submission_id=submission_id,
+            return redirect(
+                url_for(
+                    "access_grant_funding.submitted_confirmation",
+                    organisation_id=organisation_id,
+                    grant_id=grant_id,
+                    submission_id=submission_id,
+                )
             )
-        )
+        except SubmissionValidationFailed as e:
+            flash(e.error_message, FlashMessageType.SUBMISSION_VALIDATION_ERROR)
+            return redirect(
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=organisation_id,
+                    grant_id=grant_id,
+                    collection_id=submission_helper.collection_id,
+                )
+            )
 
     return render_template(
         "access_grant_funding/reports/submit_report.html",
