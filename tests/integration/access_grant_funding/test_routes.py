@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.types import RoleEnum
-from tests.utils import get_h1_text
+from tests.utils import get_h1_text, get_h2_text
 
 
 class TestIndex:
@@ -153,3 +153,23 @@ class TestListGrantTeam:
         assert get_h1_text(soup) == "Team"
         assert any("Can certify" in td.get_text() for td in soup.find_all("td"))
         assert any("Can edit and submit" in td.get_text() for td in soup.find_all("td"))
+
+
+class TestCookieBanner:
+    def test_access_loads_with_invisible_cookie_banner(
+        self, authenticated_grant_recipient_data_provider_client, grant_recipient
+    ):
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.list_reports",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h2_text(soup) == "Cookies on Access grant funding"
+
+        # as no JS has run, the cookie banner should be hidden
+        assert soup.find_all("div", class_="govuk-cookie-banner")[0].attrs.get("hidden", None) is not None
