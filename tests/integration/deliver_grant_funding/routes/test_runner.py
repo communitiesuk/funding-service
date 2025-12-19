@@ -164,7 +164,7 @@ class TestSubmissionTasklist:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Unable to submit as some answers are invalid" in soup.text
+        assert "You cannot submit because you need to review some answers" in soup.text
         assert "amount" in soup.text
 
 
