@@ -28,7 +28,7 @@ from app.common.expressions.managed import (
 from tests.e2e.dataclasses import GuidanceText
 
 if TYPE_CHECKING:
-    from tests.e2e.pages import GrantTeamPage, SSOSignInPage
+    from tests.e2e.deliver_grant_funding.pages import GrantTeamPage, SSOSignInPage
 
 
 def _reference_data_in_expression(
@@ -163,14 +163,14 @@ class ReportsBasePage:
         date_group.get_by_label("Year").fill(str(date_to_complete.year))
 
     def click_nav_sign_out(self) -> SSOSignInPage:
-        from tests.e2e.pages import SSOSignInPage
+        from tests.e2e.deliver_grant_funding.pages import SSOSignInPage
 
         self.page.get_by_role("link", name="Sign out").click()
         sso_sign_in_page = SSOSignInPage(self.page, self.domain)
         return sso_sign_in_page
 
     def click_nav_grant_team(self) -> GrantTeamPage:
-        from tests.e2e.pages import GrantTeamPage
+        from tests.e2e.deliver_grant_funding.pages import GrantTeamPage
 
         self.page.get_by_role("link", name="Team").click()
         sso_sign_in_page = GrantTeamPage(self.page, self.domain)

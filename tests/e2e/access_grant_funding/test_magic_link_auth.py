@@ -3,9 +3,9 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.helpers import retrieve_magic_link
-from tests.e2e.pages import RequestALinkToSignInPage
 
 
 @pytest.mark.skip_in_environments(["local", "dev", "test", "prod"])

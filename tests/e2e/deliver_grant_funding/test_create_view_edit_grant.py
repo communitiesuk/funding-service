@@ -5,8 +5,8 @@ from playwright.sync_api import Page, expect
 
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser
+from tests.e2e.deliver_grant_funding.pages import AllGrantsPage
 from tests.e2e.helpers import delete_grant_through_admin
-from tests.e2e.pages import AllGrantsPage
 
 
 @pytest.mark.skip_in_environments(["prod"])
