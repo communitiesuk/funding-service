@@ -3,8 +3,8 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.config import EndToEndTestSecrets
-from tests.e2e.deliver_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.helpers import retrieve_magic_link
 
 
