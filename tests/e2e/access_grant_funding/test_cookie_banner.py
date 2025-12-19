@@ -20,7 +20,8 @@ def test_cookie_banner_accepted(page: Page, domain: str):
         "Should not have fetched google tag manager before cookies are accepted"
     )
 
-    request_a_link_page.click_accept_cookies()
+    with page.expect_request("https://www.googletagmanager.com/gtm.js?id=**"):
+        request_a_link_page.click_accept_cookies()
 
     assert len(fetched_google_tag_manager_requests) == 1, (
         "Should have fetched google tag manager when cookies are accepted"
