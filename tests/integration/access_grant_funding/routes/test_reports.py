@@ -7,7 +7,15 @@ from pytest import FixtureRequest
 
 from app import CollectionStatusEnum, GrantStatusEnum, TasklistSectionStatusEnum
 from app.access_grant_funding.forms import DeclineSignOffForm
-from app.common.data.types import RoleEnum, SubmissionEventType, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
+    QuestionDataType,
+    RoleEnum,
+    SubmissionEventType,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from tests.utils import get_h1_text, page_has_button, page_has_error, page_has_link
@@ -526,6 +534,49 @@ class TestConfirmReportSubmission:
                 grant_id=grant_recipient.grant.id,
             )
 
+    def test_get_redirects_if_requires_certification_and_not_awaiting_sign_off(
+        self, authenticated_grant_recipient_certifier_client, submission_ready_to_submit
+    ):
+        grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
+
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.confirm_report_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_ready_to_submit.id,
+            ),
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_reports",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+        )
+
+    def test_get_redirects_if_not_requires_certification_and_not_ready_to_submit(
+        self, authenticated_grant_recipient_data_provider_client, submission_in_progress
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        submission_in_progress.collection.requires_certification = False
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.confirm_report_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_in_progress.id,
+            ),
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_reports",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+        )
+
     def test_post_confirm_report_submission_when_requires_certification(
         self,
         authenticated_grant_recipient_certifier_client,
@@ -705,6 +756,62 @@ class TestConfirmReportSubmission:
         assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
         assert helper.events.submission_state.is_approved is False
         assert helper.events.submission_state.is_submitted is False
+
+    def test_post_confirm_report_submission_with_invalid_data_redirects_and_shows_error(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        grant_recipient = client.grant_recipient
+        form = factories.form.create(title="Financial Report", collection__grant=grant_recipient.grant)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0, name="threshold")
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1, name="amount")
+        form.collection.requires_certification = False
+
+        factories.expression.create(
+            question=q2,
+            created_by=client.user,
+            type_=ExpressionType.VALIDATION,
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
+            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+        )
+
+        submission = factories.submission.create(
+            collection=form.collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(q1.id): {"value": 150}, str(q2.id): {"value": 100}},
+        )
+        factories.submission_event.create(
+            created_by=client.user,
+            submission=submission,
+            related_entity_id=form.id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        )
+
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.confirm_report_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            ),
+            data={"submit": "y"},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You cannot submit because you need to review some answers" in soup.text
+        assert "amount" in soup.text
 
 
 class TestViewSubmittedConfirmation:
