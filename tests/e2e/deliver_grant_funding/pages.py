@@ -4,7 +4,7 @@ from abc import ABC
 
 from playwright.sync_api import Locator, Page, expect
 
-from tests.e2e.reports_pages import GrantReportsPage
+from tests.e2e.deliver_grant_funding.reports_pages import GrantReportsPage
 
 
 class BasePage:

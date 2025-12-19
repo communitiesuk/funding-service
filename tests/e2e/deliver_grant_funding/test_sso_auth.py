@@ -3,7 +3,7 @@ from os import getenv
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.e2e.pages import MicrosoftLoginPageEmail, SSOSignInPage, StubSSOEmailLoginPage
+from tests.e2e.deliver_grant_funding.pages import MicrosoftLoginPageEmail, SSOSignInPage, StubSSOEmailLoginPage
 
 
 @pytest.mark.skip_in_environments(["dev", "test", "prod"])

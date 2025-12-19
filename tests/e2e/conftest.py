@@ -18,8 +18,8 @@ from app.common.data.models_user import User
 from app.common.data.types import AuthMethodEnum
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig
+from tests.e2e.deliver_grant_funding.pages import RequestALinkToSignInPage, SSOSignInPage, StubSSOEmailLoginPage
 from tests.e2e.helpers import retrieve_magic_link
-from tests.e2e.pages import RequestALinkToSignInPage, SSOSignInPage, StubSSOEmailLoginPage
 from tests.utils import build_db_config
 
 

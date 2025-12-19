@@ -35,9 +35,8 @@ from tests.e2e.conftest import (
     login_with_stub_sso,
 )
 from tests.e2e.dataclasses import E2ETestUser, GuidanceText
-from tests.e2e.helpers import delete_grant_through_admin
-from tests.e2e.pages import AllGrantsPage, GrantDashboardPage, GrantDetailsPage
-from tests.e2e.reports_pages import (
+from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage, GrantDetailsPage
+from tests.e2e.deliver_grant_funding.reports_pages import (
     AddQuestionDetailsPage,
     EditQuestionGroupPage,
     EditQuestionPage,
@@ -47,6 +46,7 @@ from tests.e2e.reports_pages import (
     RunnerQuestionPage,
     RunnerTasklistPage,
 )
+from tests.e2e.helpers import delete_grant_through_admin
 
 
 @dataclasses.dataclass
