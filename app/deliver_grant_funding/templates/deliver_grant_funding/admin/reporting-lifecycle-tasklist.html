@@ -110,7 +110,7 @@
         do rows.append({
           "title": {"text": "Set up grant recipient data providers", "classes": "govuk-link--no-visited-state"},
           "status": {"html": govukTag({"text": grant_recipient_users_count ~ (" data provider" if grant_recipient_users_count == 1 else " data providers"), "classes": "govuk-tag--blue"})},
-          "href": url_for('reporting_lifecycle.set_up_grant_recipient_data_providers', grant_id=grant.id, collection_id=collection.id),
+          "href": url_for('reporting_lifecycle.add_individual_data_providers' if collection.is_open else 'reporting_lifecycle.add_bulk_data_providers', grant_id=grant.id, collection_id=collection.id),
         })
       %}
       {%

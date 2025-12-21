@@ -380,16 +380,16 @@ class TestReportingLifecycleTasklist:
         assert "0 grant recipients" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        set_up_grant_recipient_data_providers_task = grant_task_items[4]
-        task_title = set_up_grant_recipient_data_providers_task.find("a", {"class": "govuk-link"})
+        add_bulk_data_providers_task = grant_task_items[4]
+        task_title = add_bulk_data_providers_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set up grant recipient data providers"
         assert (
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers"
             in task_title.get("href")
         )
 
-        task_status = set_up_grant_recipient_data_providers_task.find("strong", {"class": "govuk-tag"})
+        task_status = add_bulk_data_providers_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "0 data providers" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
@@ -1777,7 +1777,7 @@ class TestManageGrantRecipients:
         assert len(options) == 0
 
 
-class TestSetUpGrantRecipientUsers:
+class TestAddIndividualDataProviders:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
         [
@@ -1789,7 +1789,7 @@ class TestSetUpGrantRecipientUsers:
             ("anonymous_client", 302),
         ],
     )
-    def test_set_up_grant_recipient_data_providers_permissions(
+    def test_add_individual_data_providers_permissions(
         self, client_fixture, expected_code, request, factories, db_session
     ):
         grant = factories.grant.create()
@@ -1797,20 +1797,244 @@ class TestSetUpGrantRecipientUsers:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers"
         )
         assert response.status_code == expected_code
 
-    def test_get_set_up_grant_recipient_data_providers_page(
-        self, authenticated_platform_admin_client, factories, db_session
-    ):
+    def test_get_add_individual_data_providers_page(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Add a grant recipient data provider"
+
+        assert soup.find("select", {"id": "grant_recipient"}) is not None
+        assert soup.find("input", {"id": "full_name"}) is not None
+        assert soup.find("input", {"id": "email_address"}) is not None
+        assert soup.find("input", {"id": "send_notification_email"}) is not None
+
+    def test_post_creates_user_and_role(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
+            data={
+                "grant_recipient": str(grant_recipient.id),
+                "full_name": "John Doe",
+                "email_address": "john@example.com",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully added John Doe as a data provider.")
+
+        user = get_user_by_email("john@example.com")
+        assert user is not None
+        assert user.name == "John Doe"
+        assert len(user.roles) == 1
+        assert RoleEnum.DATA_PROVIDER in user.roles[0].permissions
+        assert user.roles[0].organisation_id == org.id
+        assert user.roles[0].grant_id == grant.id
+
+    def test_post_with_existing_user_upserts(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
+        existing_user = factories.user.create(email="existing@example.com", name="Old Name")
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
+            data={
+                "grant_recipient": str(grant_recipient.id),
+                "full_name": "New Name",
+                "email_address": "existing@example.com",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully added New Name as a data provider.")
+
+        user = get_user_by_email("existing@example.com")
+        assert user is not None
+        assert user.id == existing_user.id
+        assert user.name == "New Name"
+        assert any(
+            RoleEnum.DATA_PROVIDER in role.permissions and role.organisation_id == org.id and role.grant_id == grant.id
+            for role in user.roles
+        )
+
+    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
+            data={
+                "grant_recipient": str(grant_recipient.id),
+                "full_name": "John Doe",
+                "email_address": "john@example.com",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+    def test_post_with_invalid_email_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
+            data={
+                "grant_recipient": str(grant_recipient.id),
+                "full_name": "John Doe",
+                "email_address": "invalid-email",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Invalid email address")
+
+        assert get_user_by_email("invalid-email") is None
+
+    def test_post_with_missing_grant_recipient_shows_error(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
+            data={
+                "grant_recipient": "",
+                "full_name": "John Doe",
+                "email_address": "john@example.com",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Select a grant recipient")
+
+        assert get_user_by_email("john@example.com") is None
+
+    def test_post_with_send_notification_email_sends_email(
+        self, authenticated_platform_admin_client, factories, db_session, mocker
+    ):
+        mock_send = mocker.patch("app.deliver_grant_funding.admin.views.notification_service.send_access_report_opened")
+
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
+            data={
+                "grant_recipient": str(grant_recipient.id),
+                "full_name": "John Doe",
+                "email_address": "john@example.com",
+                "send_notification_email": "y",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully added John Doe as a data provider and sent notification email.")
+
+        mock_send.assert_called_once()
+        call_kwargs = mock_send.call_args.kwargs
+        assert call_kwargs["email_address"] == "john@example.com"
+        assert call_kwargs["collection"] == collection
+        assert call_kwargs["grant_recipient"] == grant_recipient
+
+    def test_post_without_send_notification_email_does_not_send_email(
+        self, authenticated_platform_admin_client, factories, db_session, mocker
+    ):
+        mock_send = mocker.patch("app.deliver_grant_funding.admin.views.notification_service.send_access_report_opened")
+
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
+            data={
+                "grant_recipient": str(grant_recipient.id),
+                "full_name": "John Doe",
+                "email_address": "john@example.com",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully added John Doe as a data provider.")
+
+        mock_send.assert_not_called()
+
+
+class TestAddBulkDataProviders:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_member_client", 200),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_add_bulk_data_providers_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers")
+        assert response.status_code == expected_code
+
+    def test_get_add_bulk_data_providers_page(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers"
         )
         assert response.status_code == 200
 
@@ -1826,7 +2050,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com"
@@ -1856,7 +2080,7 @@ class TestSetUpGrantRecipientUsers:
         existing_user = factories.user.create(email="existing@example.com", name="Old Name")
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nTest Organisation\tNew Name\texisting@example.com"
@@ -1886,7 +2110,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com"
@@ -1905,7 +2129,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": "wrong-header\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com",
                 "submit": "y",
@@ -1926,7 +2150,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nNot A Recipient\tJohn Doe\tjohn@example.com"
@@ -1949,7 +2173,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\n"
@@ -1976,7 +2200,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org2)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\n"
@@ -2006,7 +2230,7 @@ class TestSetUpGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=org)
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\n"
@@ -2037,7 +2261,7 @@ class TestSetUpGrantRecipientUsers:
         )
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers",
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\nOrganisation 2\tNew User\tnew@example.com"
@@ -2197,7 +2421,7 @@ class TestRevokeGrantRecipientDataProviders:
         assert response.status_code == 302
         assert (
             response.location
-            == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipient-data-providers"
+            == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers"
         )
 
 

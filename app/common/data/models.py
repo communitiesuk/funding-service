@@ -250,6 +250,10 @@ class Collection(BaseModel):
     def is_editable_for_current_status(self) -> bool:
         return self.status == CollectionStatusEnum.DRAFT
 
+    @property
+    def is_open(self) -> bool:
+        return self.status == CollectionStatusEnum.OPEN
+
 
 class Submission(BaseModel):
     __tablename__ = "submission"

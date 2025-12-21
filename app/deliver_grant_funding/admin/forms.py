@@ -267,6 +267,38 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         return normalised_users
 
 
+class PlatformAdminAddSingleDataProviderForm(FlaskForm):
+    grant_recipient = SelectField(
+        "Grant recipient",
+        choices=[],
+        validators=[DataRequired("Select a grant recipient")],
+        widget=GovSelectWithSearch(),
+    )
+    full_name = StringField(
+        "Full name",
+        validators=[DataRequired("Enter the data provider's full name")],
+        widget=GovTextInput(),
+    )
+    email_address = StringField(
+        "Email address",
+        validators=[DataRequired("Enter the data provider's email address"), Email()],
+        widget=GovTextInput(),
+    )
+    send_notification_email = BooleanField(
+        "Send 'report is ready to complete' email",
+        description="Send an email to notify the data provider that the report is open for submissions.",
+        widget=GovCheckboxInput(),
+    )
+    submit = SubmitField("Add data provider", widget=GovSubmitInput())
+
+    def __init__(self, grant_recipients: Sequence["GrantRecipient"], *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.grant_recipients = grant_recipients
+        self.grant_recipient.choices = [("", "")] + [  # type: ignore[assignment]
+            (str(gr.id), gr.organisation.name) for gr in grant_recipients
+        ]
+
+
 class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
     grant_recipient = SelectField(
         "Test grant recipient",
