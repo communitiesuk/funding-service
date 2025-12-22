@@ -30,7 +30,7 @@ repos:
         exclude: tests/pre_award/keys/rsa256
 
   - repo: https://github.com/seddonym/import-linter
-    rev: v2.8
+    rev: v2.9
     hooks:
       - id: import-linter
         language: python
