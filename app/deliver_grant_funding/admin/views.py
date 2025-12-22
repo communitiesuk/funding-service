@@ -45,6 +45,7 @@ from app.common.data.types import (
 )
 from app.common.filters import format_date
 from app.deliver_grant_funding.admin.forms import (
+    PlatformAdminAddSingleDataProviderForm,
     PlatformAdminAddTestGrantRecipientUserForm,
     PlatformAdminBulkCreateGrantRecipientsForm,
     PlatformAdminBulkCreateOrganisationsForm,
@@ -66,7 +67,7 @@ from app.deliver_grant_funding.admin.forms import (
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformMemberAccessibleMixin,
 )
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 
 
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
@@ -428,29 +429,61 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixi
             form=form,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-grant-recipient-data-providers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/add-individual-data-providers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
-    def set_up_grant_recipient_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def add_individual_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
         grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
-        form = PlatformAdminCreateGrantRecipientDataProvidersForm(grant_recipients=grant_recipients)
-
         data_providers_by_grant_recipient = {gr: gr.data_providers for gr in grant_recipients}
 
+        form = PlatformAdminAddSingleDataProviderForm(grant_recipients=grant_recipients)
+        if form.validate_on_submit():
+            grant_recipient = next(gr for gr in grant_recipients if str(gr.id) == form.grant_recipient.data)
+            user = upsert_user_by_email(email_address=form.email_address.data, name=form.full_name.data)
+            add_permissions_to_user(
+                user,
+                permissions=[RoleEnum.DATA_PROVIDER],
+                organisation_id=grant_recipient.organisation_id,
+                grant_id=grant.id,
+            )
+
+            if form.send_notification_email.data:
+                notification_service.send_access_report_opened(
+                    email_address=user.email,
+                    collection=collection,
+                    grant_recipient=grant_recipient,
+                )
+                flash(f"Successfully added {user.name} as a data provider and sent notification email.", "success")
+            else:
+                flash(f"Successfully added {user.name} as a data provider.", "success")
+
+            return redirect(
+                url_for(
+                    "reporting_lifecycle.tasklist",
+                    grant_id=grant.id,
+                    collection_id=collection.id,
+                )
+            )
+        return self.render(
+            "deliver_grant_funding/admin/add-individual-data-provider.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+            data_providers_by_grant_recipient=data_providers_by_grant_recipient,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/add-bulk-data-providers", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @auto_commit_after_request
+    def add_bulk_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
+        data_providers_by_grant_recipient = {gr: gr.data_providers for gr in grant_recipients}
+        form = PlatformAdminCreateGrantRecipientDataProvidersForm(grant_recipients=grant_recipients)
         if form.validate_on_submit():
             grant_recipient_names_to_ids = {gr.organisation.name: gr.organisation.id for gr in grant_recipients}
             users_data = form.get_normalised_users_data()
-
-            if form.revoke_existing.data:
-                for grant_recipient in grant_recipients:
-                    for data_provider in grant_recipient.data_providers:
-                        remove_permissions_from_user(
-                            user=data_provider,
-                            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-                            organisation_id=grant_recipient.organisation_id,
-                            grant_id=grant_id,
-                        )
 
             for org_name, full_name, email_address in users_data:
                 org_id = grant_recipient_names_to_ids[org_name]
@@ -474,7 +507,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixi
             )
 
         return self.render(
-            "deliver_grant_funding/admin/set-up-grant-recipient-data-providers.html",
+            "deliver_grant_funding/admin/add-bulk-data-providers.html",
             form=form,
             grant=grant,
             collection=collection,
@@ -648,7 +681,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixi
 
             return redirect(
                 url_for(
-                    "reporting_lifecycle.set_up_grant_recipient_data_providers",
+                    "reporting_lifecycle.add_bulk_data_providers",
                     grant_id=grant.id,
                     collection_id=collection.id,
                 )
