@@ -189,14 +189,6 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         validators=[DataRequired()],
         widget=GovTextArea(),
     )
-    revoke_existing = BooleanField(
-        "Revoke all existing data providers",
-        description=(
-            "If you are re-importing the full list of everyone who should have access, and it's possible some people "
-            "have been removed since it was last ingested, consider removing all existing data providers."
-        ),
-        widget=GovCheckboxInput(),
-    )
     submit = SubmitField("Set up data providers", widget=GovSubmitInput())
 
     def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:

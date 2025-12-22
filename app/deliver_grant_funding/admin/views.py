@@ -485,16 +485,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixi
             grant_recipient_names_to_ids = {gr.organisation.name: gr.organisation.id for gr in grant_recipients}
             users_data = form.get_normalised_users_data()
 
-            if form.revoke_existing.data:
-                for grant_recipient in grant_recipients:
-                    for data_provider in grant_recipient.data_providers:
-                        remove_permissions_from_user(
-                            user=data_provider,
-                            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-                            organisation_id=grant_recipient.organisation_id,
-                            grant_id=grant_id,
-                        )
-
             for org_name, full_name, email_address in users_data:
                 org_id = grant_recipient_names_to_ids[org_name]
                 user = upsert_user_by_email(email_address=email_address, name=full_name)
