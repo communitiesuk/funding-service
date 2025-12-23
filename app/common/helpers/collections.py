@@ -327,14 +327,22 @@ class SubmissionHelper:
 
         for question in form.cached_questions:
             if question.add_another_container:
-                for i in range(self.get_count_for_add_another(question.add_another_container)):
-                    context = self.cached_evaluation_context.with_add_another_context(
-                        question, submission_helper=self, add_another_index=i
-                    )
-                    if self.is_component_visible(question, context):
-                        question_answer_status.append(
-                            self.cached_get_answer_for_question(question.id, add_another_index=i) is not None
+                number_of_add_another_entries = self.get_count_for_add_another(question.add_another_container)
+                if number_of_add_another_entries == 0:
+                    # we don't currently support optional questions so anything without answers
+                    # should be considered blocking
+                    if self.is_component_visible(question, self.cached_evaluation_context):
+                        question_answer_status.append(False)
+                else:
+                    # check each of this questions answers for each entry being complete
+                    for i in range(number_of_add_another_entries):
+                        context = self.cached_evaluation_context.with_add_another_context(
+                            question, submission_helper=self, add_another_index=i
                         )
+                        if self.is_component_visible(question, context):
+                            question_answer_status.append(
+                                self.cached_get_answer_for_question(question.id, add_another_index=i) is not None
+                            )
             else:
                 if self.is_component_visible(question, self.cached_evaluation_context):
                     question_answer_status.append(self.cached_get_answer_for_question(question.id) is not None)

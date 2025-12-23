@@ -395,6 +395,42 @@ class TestSubmissionHelper:
             all_answered = helper.cached_get_all_questions_are_answered_for_form(q1.form).all_answered
             assert all_answered is True
 
+        def test_all_questions_answered_with_add_another_empty(self, factories):
+            group = factories.group.build(add_another=True)
+            _q1 = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data = {str(group.id): []}
+            helper = SubmissionHelper(submission)
+
+            all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
+
+            # answers are currently required, no entries means the add another is not answered
+            assert all_answered is False
+
+        def test_all_questions_answered_with_add_another_empty_individual_conditions(self, factories):
+            q1 = factories.question.build(data_type=QuestionDataType.INTEGER)
+            group = factories.group.build(form=q1.form, add_another=True)
+            q2 = factories.question.build(form=q1.form, parent=group)
+            submission = factories.submission.build(collection=group.form.collection)
+
+            # this scenario should rarely happen but if each of the questions in the add another
+            # have independent failing conditions on questions outside the questions will never get asked
+            # and shouldn't block - the preferred way to do this would be to specify the conditions
+            # for the group showing on the group itself
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
+            submission.data = {str(q1.id): {"value": 30}, str(group.id): []}
+
+            assert (
+                SubmissionHelper(submission).cached_get_all_questions_are_answered_for_form(group.form).all_answered
+                is True
+            )
+
+            submission.data = {str(q1.id): {"value": 100}, str(group.id): []}
+            assert (
+                SubmissionHelper(submission).cached_get_all_questions_are_answered_for_form(group.form).all_answered
+                is False
+            )
+
         def test_all_questions_answered_with_add_another(self, factories):
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(form=group.form, parent=group)
