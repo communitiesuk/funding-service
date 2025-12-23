@@ -1,6 +1,6 @@
 import datetime
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import markupsafe
 from flask import current_app, flash, g, url_for
@@ -9,7 +9,7 @@ from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
-from sqlalchemy import delete, func, orm, select, update
+from sqlalchemy import func, orm, select
 from sqlalchemy.exc import IntegrityError
 from wtforms import Form
 from wtforms.validators import Email
@@ -32,9 +32,10 @@ from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformMemberAccessibleMixin,
 )
 from app.extensions import db, notification_service
+from app.metrics import MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
-    pass
+    from app.common.audit import DatabaseModelChange
 
 
 class PlatformAdminModelView(XGovukModelView):
@@ -139,7 +140,12 @@ class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdmi
             return
 
         try:
-            self.session.execute(delete(UserRole).where(UserRole.user_id.in_(ids)))
+            roles_to_delete = self.session.scalars(select(UserRole).where(UserRole.user_id.in_(ids)))
+            for user_role in roles_to_delete:
+                audit_event = create_database_model_change_for_delete(user_role, get_current_user())
+                track_audit_event(self.session, audit_event, get_current_user())
+                db.session.delete(user_role)
+
             self.session.commit()
             current_app.logger.warning(
                 "%(name)s revoked all user permissions for user(s): %(user_ids)s",
@@ -206,6 +212,13 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
 
     form_columns = ["name", "slug", "type", "status", "requires_certification"]
 
+    def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # type: ignore[override]
+        if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
+            if "status" in audit_event.changes:
+                emit_metric_count(MetricEventName.COLLECTION_STATUS_CHANGED, count=1, collection=model)
+
+        super().after_model_change(form, model, is_created)
+
 
 class PlatformAdminUserRoleView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = UserRole
@@ -262,6 +275,13 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
                 "</a>."
             )
         return form  # type: ignore[no-any-return]
+
+    def after_model_change(self, form: Form, model: Grant, is_created: bool) -> None:  # type: ignore[override]
+        if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
+            if "status" in audit_event.changes:
+                emit_metric_count(MetricEventName.GRANT_STATUS_CHANGED, count=1, grant=model)
+
+        super().after_model_change(form, model, is_created)
 
 
 class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, PlatformAdminModelView):
@@ -363,19 +383,18 @@ class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, Platf
 
         try:
             usable_invitations = (
-                self.session.execute(select(Invitation.id).where(Invitation.id.in_(ids), Invitation.is_usable))
+                self.session.execute(select(Invitation).where(Invitation.id.in_(ids), Invitation.is_usable))
                 .scalars()
                 .all()
             )
-            self.session.execute(
-                update(Invitation).where(Invitation.id.in_(usable_invitations)).values(expires_at_utc=func.now())
-            )
+            for invitation in usable_invitations:
+                invitation.expires_at_utc = datetime.datetime.now(datetime.timezone.utc)
+                audit_event = create_database_model_change_for_update(invitation, get_current_user())
+                if not audit_event:
+                    raise RuntimeError("Expected an audit event")
+                track_audit_event(self.session, audit_event, get_current_user())
+
             self.session.commit()
-            if usable_invitations:
-                current_app.logger.warning(
-                    "%(user_id)s cancelled the following invitations: %(invite_ids)s",
-                    dict(user_id=get_current_user().id, invite_ids=", ".join(str(x) for x in usable_invitations)),
-                )
 
             count = len(usable_invitations)
             flash(
