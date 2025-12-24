@@ -1,0 +1,36 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Confirm and submit report: " + submission_helper.name %}
+
+{% set active_item_identifier = "reports" %}
+
+{% set return_link = url_for("access_grant_funding.route_to_submission", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id = submission_helper.collection_id) %}
+
+{% block beforeContent %}
+  {{ super() }}
+  {{
+    govukBackLink({
+      "href": return_link,
+      "text": "Back"
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Confirm and submit report</h1>
+      <p class="govuk-body">You are submitting the {{ submission_helper.name }} report for {{ submission_helper.grant.name }}.</p>
+      <p class="govuk-body">By submitting this report, you confirm that the information provided in the report is correct.</p>
+
+      <form method="POST" novalidate>
+        <div class="govuk-button-group">
+          {{ form.csrf_token }}
+          {{ form.submit(params={"text": "Confirm and submit" }) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ return_link }}"> Cancel </a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

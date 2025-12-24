@@ -515,6 +515,16 @@ class SubmissionHelper:
                         self.id,
                         RoleEnum.CERTIFIER,
                     )
+            else:
+                if not AuthorisationHelper.is_access_grant_data_provider(
+                    self.grant.id, self.submission.grant_recipient.organisation.id, user
+                ):
+                    raise SubmissionAuthorisationError(
+                        f"User does not have data provider permission to submit submission {self.id}",
+                        user,
+                        self.id,
+                        RoleEnum.DATA_PROVIDER,
+                    )
 
         SubmissionValidator(self).validate_all_reachable_questions()
 

@@ -22,6 +22,7 @@ class FlashMessageType(StrEnum):
     SUBMISSION_SIGN_OFF_DECLINED = "submission_sign_off_declined"
     TESTING_GRANT_RECIPIENT_JOURNEY_STARTED = "testing_grant_recipient_journey_started"
     TEST_SUBMISSION_RESET = "test_submission_reset"
+    SUBMISSION_VALIDATION_ERROR = "submission_validation_error"
 
 
 TRadioItem = TypedDict("TRadioItem", {"key": str, "label": str})
