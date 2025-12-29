@@ -36,7 +36,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
         if email.endswith(internal_domains):
             # upgrade authorisation requests for internal users to make sure they
             # still have valid access to their admin account
-            session["next"] = sanitise_redirect_url(session.pop("next", url_for("access_grant_funding.index")))
+            session["next"] = sanitise_redirect_url(session.get("next", url_for("access_grant_funding.index")))
             session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
             return redirect(session["flow"]["auth_uri"]), 302
 
@@ -172,8 +172,8 @@ def sso_get_token() -> ResponseReturnValue:
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
-        # todo: no longer remove non-platform admin roles from admins that sign in with SSO
-        #       as these permissions are used by theA AGF testing
+        # if a user was previously a platform admin and we haven't received "FS_PLATFORM_ADMIN" in their active roles
+        # for this sign-in we should remove the role that gives the platform admin permissions to all grants
         if AuthorisationHelper.is_platform_admin(user):
             interfaces.user.remove_permissions_from_user(
                 user, permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN], organisation_id=None, grant_id=None

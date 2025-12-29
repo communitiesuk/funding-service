@@ -11,7 +11,7 @@ from app.common.data import interfaces
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import RoleEnum
 from tests.models import _get_grant_managing_organisation
-from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_error, page_has_h2
+from tests.utils import AnyStringMatching, get_h1_text, page_has_error, page_has_h2
 
 
 class TestMagicLinkSignInView:
