@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from flask import abort, current_app, redirect, render_template, request, url_for
+from flask import abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
@@ -90,21 +90,14 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
         if runner.validate_submission():
             if runner.submission.collection.requires_certification:
                 runner.submission.mark_as_sent_for_certification(interfaces.user.get_current_user())
-                if runner.submission.is_awaiting_sign_off:
-                    return redirect(
-                        url_for(
-                            "access_grant_funding.confirm_sent_for_certification",
-                            organisation_id=organisation_id,
-                            grant_id=grant_id,
-                            submission_id=submission_id,
-                        )
+                return redirect(
+                    url_for(
+                        "access_grant_funding.confirm_sent_for_certification",
+                        organisation_id=organisation_id,
+                        grant_id=grant_id,
+                        submission_id=submission_id,
                     )
-                else:
-                    current_app.logger.warning(
-                        "Submission %(submission_id)s has been sent for certification but is in an unexpected state",
-                        extra={"submission_id": submission_id},
-                    )
-                    abort(500)
+                )
             return redirect(
                 url_for(
                     "access_grant_funding.confirm_report_submission",

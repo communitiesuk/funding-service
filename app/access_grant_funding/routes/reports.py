@@ -60,7 +60,6 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     methods=["GET", "POST"],
 )
 @has_access_grant_role(RoleEnum.MEMBER)
-@auto_commit_after_request
 def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
 
@@ -240,6 +239,10 @@ def confirm_report_submission(organisation_id: UUID, grant_id: UUID, submission_
             submission_helper.is_awaiting_sign_off
             and AuthorisationHelper.is_access_grant_certifier(grant_id, organisation_id, user)
         ):
+            current_app.logger.warning(
+                "Invalid submission confirm attempt by user %(user_id)s for submission %(submission_id)s",
+                {"user_id": user.id, "submission_id": submission_id},
+            )
             return redirect(
                 url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
             )
@@ -248,6 +251,10 @@ def confirm_report_submission(organisation_id: UUID, grant_id: UUID, submission_
             submission_helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
             and AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
         ):
+            current_app.logger.warning(
+                "Invalid submission confirm attempt by user %(user_id)s for submission %(submission_id)s",
+                {"user_id": user.id, "submission_id": submission_id},
+            )
             return redirect(
                 url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
             )
