@@ -1,6 +1,6 @@
-from dataclasses import asdict, dataclass, fields
+from dataclasses import dataclass, field, fields
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 from uuid import UUID
 
 from app.common.data.types import SubmissionEventType
@@ -39,41 +39,55 @@ class DeclinedMixin(Protocol):
 
 
 @dataclass
-class FormCompletedEvent(CompletedMixin):
+class SubmissionEventBase:
+    """Base class for all submission event dataclasses."""
+
+    event_type: ClassVar[SubmissionEventType]
+
+
+@dataclass
+class FormCompletedEvent(SubmissionEventBase, CompletedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
     is_completed: bool = True
 
 
 @dataclass
-class FormResetToInProgressEvent(CompletedMixin):
+class FormResetToInProgressEvent(SubmissionEventBase, CompletedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
     is_completed: bool = False
 
 
 @dataclass
-class FormResetByCertifierEvent(CompletedMixin):
+class FormResetByCertifierEvent(SubmissionEventBase, CompletedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER
     is_completed: bool = False
 
 
 @dataclass
-class SubmissionSentForCertificationEvent(SignOffMixin):
+class SubmissionSentForCertificationEvent(SubmissionEventBase, SignOffMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
     is_awaiting_sign_off: bool = True
     is_approved: bool = False
 
 
 @dataclass
-class SubmissionDeclinedByCertifierEvent(SignOffMixin, DeclinedMixin):
+class SubmissionDeclinedByCertifierEvent(SubmissionEventBase, SignOffMixin, DeclinedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
-    declined_reason: str | None = None
+    declined_reason: str | None = field(default=None, metadata={"stored": True})
 
 
 @dataclass
-class SubmissionApprovedByCertifierEvent(SignOffMixin):
+class SubmissionApprovedByCertifierEvent(SubmissionEventBase, SignOffMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
     is_awaiting_sign_off: bool = False
     is_approved: bool = True
 
 
 @dataclass
-class SubmissionSubmittedEvent(SubmittedMixin):
+class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_SUBMITTED
     is_submitted: bool = True
 
 
@@ -124,6 +138,24 @@ class FormState(CompletedMixin):
     is_completed: bool = False
 
 
+_SUBMISSION_EVENT_REGISTRY = {event.event_type: event for event in SubmissionEventBase.__subclasses__()}
+if len(_SUBMISSION_EVENT_REGISTRY) != len(SubmissionEventType):
+    raise RuntimeError("Not all SubmissionEventType values have been registered")
+
+
+def _get_event_class(event_type: SubmissionEventType) -> type[SubmissionEventBase]:
+    return _SUBMISSION_EVENT_REGISTRY[event_type]
+
+
+def _get_stored_field_names(event_class: type[SubmissionEventBase]) -> set[str]:
+    return {f.name for f in fields(event_class) if f.metadata.get("stored", False)}
+
+
+def _get_static_data(event_class: type[SubmissionEventBase]) -> dict[str, Any]:
+    stored = _get_stored_field_names(event_class)
+    return {f.name: f.default for f in fields(event_class) if f.name not in stored}
+
+
 class SubmissionEventHelper:
     def __init__(self, submission: "Submission"):
         self.submission = submission
@@ -165,7 +197,8 @@ class SubmissionEventHelper:
         """
         state: dict[str, Any] = {}
         for event in events:
-            state = state | event.data | self._extract_metadata(event)
+            event_class = _get_event_class(event.event_type)
+            state = state | _get_static_data(event_class) | event.data | self._extract_metadata(event)
 
         return state
 
@@ -209,23 +242,9 @@ class SubmissionEventHelper:
 
     @staticmethod
     def event_from(event_type: SubmissionEventType, **kwargs: Any) -> dict[str, Any]:
-        match event_type:
-            case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
-                return asdict(FormCompletedEvent())
-            case SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS:
-                return asdict(FormResetToInProgressEvent())
-            case SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER:
-                return asdict(FormResetByCertifierEvent())
-            case SubmissionEventType.SUBMISSION_SUBMITTED:
-                return asdict(SubmissionSubmittedEvent())
-            case SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION:
-                return asdict(SubmissionSentForCertificationEvent())
-            case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
-                return asdict(SubmissionDeclinedByCertifierEvent(declined_reason=kwargs.get("declined_reason", None)))
-            case SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER:
-                return asdict(SubmissionApprovedByCertifierEvent())
-            case _:
-                raise NotImplementedError(f"No event class defined for event type {event_type}")
+        event_class = _get_event_class(event_type)
+        stored_field_names = _get_stored_field_names(event_class)
+        return {k: v for k, v in kwargs.items() if k in stored_field_names}
 
 
 def shallow_asdict(obj: "DataclassInstance") -> dict[str, Any]:
