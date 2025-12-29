@@ -2,7 +2,7 @@ import io
 import os
 from uuid import UUID
 
-from flask import abort, current_app, flash, redirect, render_template, send_file, url_for
+from flask import current_app, flash, redirect, render_template, send_file, url_for
 from flask.typing import ResponseReturnValue
 from playwright.sync_api import sync_playwright
 
@@ -75,11 +75,9 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
     form = GenericSubmitForm()
 
     if form.validate_on_submit():
-        if not AuthorisationHelper.is_access_grant_certifier(grant_id, organisation_id, get_current_user()):
-            return abort(403, description="Access denied")
         return redirect(
             url_for(
-                "access_grant_funding.confirm_report_submission",
+                "access_grant_funding.confirm_report_submission_certify",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
                 submission_id=submission.id,
@@ -222,51 +220,86 @@ def decline_report(
 
 
 @access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/confirm-report-submission-certify",
+    methods=["GET", "POST"],
+)
+@has_access_grant_role(RoleEnum.CERTIFIER)
+@auto_commit_after_request
+def confirm_report_submission_certify(
+    organisation_id: UUID, grant_id: UUID, submission_id: UUID
+) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    user = get_current_user()
+
+    if not submission_helper.is_awaiting_sign_off:
+        current_app.logger.warning(
+            "Confirm certify and submit loaded incorrectly by %(user_id)s for submission %(submission_id)s",
+            {"user_id": user.id, "submission_id": submission_id},
+        )
+        return redirect(
+            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+        )
+
+    form = GenericSubmitForm()
+
+    if form.validate_on_submit():
+        try:
+            if submission_helper.collection.requires_certification:
+                submission_helper.certify(user)
+            submission_helper.submit(user)
+
+            return redirect(
+                url_for(
+                    "access_grant_funding.submitted_confirmation",
+                    organisation_id=organisation_id,
+                    grant_id=grant_id,
+                    submission_id=submission_id,
+                )
+            )
+        except SubmissionValidationFailed as e:
+            flash(e.error_message, FlashMessageType.SUBMISSION_VALIDATION_ERROR)
+            return redirect(
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=organisation_id,
+                    grant_id=grant_id,
+                    collection_id=submission_helper.collection_id,
+                )
+            )
+
+    return render_template(
+        "access_grant_funding/reports/submit_report.html",
+        grant_recipient=grant_recipient,
+        submission_helper=submission_helper,
+        form=form,
+    )
+
+
+@access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/confirm-report-submission",
     methods=["GET", "POST"],
 )
-@has_access_grant_role(RoleEnum.MEMBER)
+@has_access_grant_role(RoleEnum.DATA_PROVIDER)
 @auto_commit_after_request
 def confirm_report_submission(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     user = get_current_user()
 
-    # note we're not redirecting to the route to submission as you might have been directed from
-    # there, go somewhere we know will load consistently and the user can step back in
-    if submission_helper.collection.requires_certification:
-        if not (
-            submission_helper.is_awaiting_sign_off
-            and AuthorisationHelper.is_access_grant_certifier(grant_id, organisation_id, user)
-        ):
-            current_app.logger.warning(
-                "Invalid submission confirm attempt by user %(user_id)s for submission %(submission_id)s",
-                {"user_id": user.id, "submission_id": submission_id},
-            )
-            return redirect(
-                url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
-            )
-    else:
-        if not (
-            submission_helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
-            and AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
-        ):
-            current_app.logger.warning(
-                "Invalid submission confirm attempt by user %(user_id)s for submission %(submission_id)s",
-                {"user_id": user.id, "submission_id": submission_id},
-            )
-            return redirect(
-                url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
-            )
+    if not submission_helper.status == SubmissionStatusEnum.READY_TO_SUBMIT:
+        current_app.logger.warning(
+            "Confirm submit loaded incorrectly by %(user_id)s for submission %(submission_id)s",
+            {"user_id": user.id, "submission_id": submission_id},
+        )
+        return redirect(
+            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+        )
 
     form = GenericSubmitForm()
 
     if form.validate_on_submit():
-        # The submission_helper methods have auth checks to make sure the user taking these actions has the correct
-        # permissions to do them
         try:
-            if submission_helper.collection.requires_certification:
-                submission_helper.certify(user)
             submission_helper.submit(user)
 
             return redirect(
