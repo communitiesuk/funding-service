@@ -64,9 +64,9 @@ dev = [
     "types-boto3==1.42.14",
     "freezegun==1.5.5",
     "import-linter==2.9",
-    "ty==0.0.5",
     "pytest==9.0.2",
     "pytest-playwright==0.7.2",
+    "ty>=0.0.7",
 ]
 
 [tool.uv]

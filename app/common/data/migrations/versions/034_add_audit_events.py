@@ -37,9 +37,11 @@ def upgrade() -> None:
     )
     with op.batch_alter_table("audit_event", schema=None) as batch_op:
         batch_op.create_index("ix_audit_event_created_at_utc", ["created_at_utc"], unique=False)
-        batch_op.create_index("ix_audit_event_data_action", [sa.literal_column("(data->>'action')")], unique=False)
+        batch_op.create_index("ix_audit_event_data_action", [sa.literal_column("(data->>'action')")], unique=False)  # ty: ignore[invalid-argument-type]
         batch_op.create_index(
-            "ix_audit_event_data_model_class", [sa.literal_column("(data->>'model_class')")], unique=False
+            "ix_audit_event_data_model_class",
+            [sa.literal_column("(data->>'model_class')")],  # ty: ignore[invalid-argument-type]
+            unique=False,
         )
         batch_op.create_index("ix_audit_event_event_type", ["event_type"], unique=False)
         batch_op.create_index("ix_audit_event_user_id", ["user_id"], unique=False)

@@ -331,7 +331,7 @@ def upgrade() -> None:
     with op.batch_alter_table("expression", schema=None) as batch_op:
         batch_op.create_index(
             "uq_type_condition_unique_question",
-            ["type", "question_id", "managed_name", sa.literal_column("(context ->> 'question_id')")],
+            ["type", "question_id", "managed_name", sa.literal_column("(context ->> 'question_id')")],  # ty: ignore[invalid-argument-type]
             unique=True,
             postgresql_where="type = 'CONDITION'::expression_type_enum",
         )
