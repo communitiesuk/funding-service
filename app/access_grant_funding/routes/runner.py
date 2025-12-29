@@ -100,7 +100,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
                 )
             return redirect(
                 url_for(
-                    "access_grant_funding.confirm_report_submission",
+                    "access_grant_funding.confirm_report_submission_direct_submission",
                     organisation_id=organisation_id,
                     grant_id=grant_id,
                     submission_id=submission_id,
