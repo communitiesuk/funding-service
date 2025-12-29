@@ -79,9 +79,12 @@ ExportData = TypedDict(
 
 
 def _sort_export_data_in_place(export_data: ExportData) -> None:
+    # Python 3.14 sets uuid.NIL and uuid.MAX we should use when we upgrade
+    NIL = uuid.UUID(int=0)
+
     export_data["users"].sort(key=lambda u: u["email"])
     export_data["user_roles"].sort(
-        key=lambda ur: (ur["user_id"], ur.get("organisation_id"), ur.get("grant_id"), ur["permissions"])
+        key=lambda ur: (ur["user_id"], ur.get("organisation_id", NIL), ur.get("grant_id", NIL), ur["permissions"])
     )
 
     # Grant-managing orgs first, then by name

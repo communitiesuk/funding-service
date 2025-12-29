@@ -1247,6 +1247,12 @@
       "grant_recipients": [
         {
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "34957a1a-7aa7-47bb-bc3f-b2f07a99e184",
+          "mode": "test",
+          "organisation_id": "d9e644d8-26ed-4287-a2d8-c0c841399ad4"
+        },
+        {
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "35cf31fc-3b1a-4aa1-b32f-15305b411363",
           "mode": "live",
           "organisation_id": "3ca29557-e6b9-4e6d-8290-5fb1c9535d1e"
@@ -3853,6 +3859,15 @@
     },
     {
       "can_manage_grants": false,
+      "external_id": "TA01",
+      "id": "d9e644d8-26ed-4287-a2d8-c0c841399ad4",
+      "mode": "test",
+      "name": "MHCLG Test Organisation",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
+      "can_manage_grants": false,
       "external_id": "E06000042",
       "id": "41773840-55b6-4d5e-8b83-a6163e0c834d",
       "mode": "live",
@@ -3881,6 +3896,17 @@
         "member"
       ],
       "user_id": "62ee98f5-cf10-4848-95a4-5b6280529046"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "43b54bff-39ea-4a06-90ac-5348b8dd269c",
+      "organisation_id": "d9e644d8-26ed-4287-a2d8-c0c841399ad4",
+      "permissions": [
+        "data-provider",
+        "certifier",
+        "member"
+      ],
+      "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },
     {
       "id": "841fd896-87e8-4230-9da3-69c498ddf3fe",
@@ -3964,7 +3990,7 @@
       "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
       "email": "thompsonedwin@test.communities.gov.uk",
       "id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-      "last_logged_in_at_utc": "Wed, 20 Aug 2025 18:34:56 GMT",
+      "last_logged_in_at_utc": "Mon, 29 Dec 2025 17:48:08 GMT",
       "name": "Erik Ramirez"
     },
     {
