@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field, fields
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, TypedDict, Unpack, overload
 from uuid import UUID
 
 from app.common.data.types import SubmissionEventType
@@ -76,6 +76,15 @@ class SubmissionDeclinedByCertifierEvent(SubmissionEventBase, SignOffMixin, Decl
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
     declined_reason: str | None = field(default=None, metadata={"stored": True})
+
+
+class DeclinedByCertifierKwargs(TypedDict, total=False):
+    """
+    TypedDict to help mypy/ty correctly enforce kwargs that should be passed when creating Events that have
+    attributes which can vary for each instance.
+    """
+
+    declined_reason: str | None
 
 
 @dataclass
@@ -239,6 +248,19 @@ class SubmissionEventHelper:
                 )
             case _:
                 return {}
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER],
+        **kwargs: Unpack[DeclinedByCertifierKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: SubmissionEventType,
+    ) -> dict[str, Any]: ...
 
     @staticmethod
     def event_from(event_type: SubmissionEventType, **kwargs: Any) -> dict[str, Any]:
