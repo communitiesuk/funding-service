@@ -6,11 +6,12 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import redirect_if_authenticated
 from app.common.auth.forms import SignInForm
 from app.common.auth.sso import MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED, build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
-from app.common.data.types import AuthMethodEnum
+from app.common.data.types import AuthMethodEnum, RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
@@ -35,7 +36,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
         if email.endswith(internal_domains):
             # upgrade authorisation requests for internal users to make sure they
             # still have valid access to their admin account
-            session["next"] = sanitise_redirect_url(session.get("next", url_for("access_grant_funding.index")))
+            session["next"] = sanitise_redirect_url(session.pop("next", url_for("access_grant_funding.index")))
             session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
             return redirect(session["flow"]["auth_uri"]), 302
 
@@ -171,6 +172,16 @@ def sso_get_token() -> ResponseReturnValue:
             email_address=sso_user["preferred_username"],
             name=sso_user["name"],
         )
+        # todo: no longer remove non-platform admin roles from admins that sign in with SSO
+        #       as these permissions are used by theA AGF testing
+        if AuthorisationHelper.is_platform_admin(user):
+            interfaces.user.remove_permissions_from_user(
+                user, permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN], organisation_id=None, grant_id=None
+            )
+            if not user.roles:
+                return redirect(
+                    url_for("auth.signed_in_but_no_permissions", invite_expired=False),
+                )
 
     # No user and no roles means they should 403 for now
     else:

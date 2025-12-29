@@ -11,7 +11,7 @@ from app.common.data import interfaces
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.types import RoleEnum
 from tests.models import _get_grant_managing_organisation
-from tests.utils import AnyStringMatching, get_h1_text, page_has_error, page_has_h2
+from tests.utils import AnyStringMatching, get_h1_text, get_h2_text, page_has_error, page_has_h2
 
 
 class TestMagicLinkSignInView:
@@ -360,6 +360,56 @@ class TestSSOGetTokenView:
         user = interfaces.user.get_current_user()
         assert response.status_code == 200
         assert AuthorisationHelper.is_platform_admin(user)
+
+    def test_platform_admin_with_fs_platform_admin_role_removed(self, anonymous_client, factories, db_session):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="abc123")
+            factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                    "sub": "abc123",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=False)
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "abc123"))
+
+            assert AuthorisationHelper.is_platform_admin(updated_user) is False
+
+        assert response.status_code == 302
+        assert response.location == url_for("auth.signed_in_but_no_permissions", invite_expired=False)
+
+    def test_platform_admin_with_grant_member_role_fs_platform_admin_role_removed(
+        self, anonymous_client, factories, db_session
+    ):
+        with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
+            user = factories.user.create(email="test.member@communities.gov.uk", azure_ad_subject_id="wer234")
+            grant = factories.grant.create()
+            factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
+            factories.user_role.create(user=user, permissions=[RoleEnum.MEMBER], grant=grant)
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 2
+
+            mock_build_msal_app.return_value.acquire_token_by_auth_code_flow.return_value = {
+                "id_token_claims": {
+                    "preferred_username": "test.member@communities.gov.uk",
+                    "name": "SSO User",
+                    "roles": [],
+                    "sub": "wer234",
+                }
+            }
+
+            response = anonymous_client.get(url_for("auth.sso_get_token"), follow_redirects=True)
+            updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "wer234"))
+
+            assert db_session.scalar(select(func.count()).select_from(UserRole)) == 1
+            assert AuthorisationHelper.is_deliver_grant_member(grant_id=grant.id, user=updated_user) is True
+            assert AuthorisationHelper.is_platform_admin(updated_user) is False
+
+        assert response.status_code == 200
 
     def test_platform_admin_does_not_remove_all_other_roles(self, anonymous_client, factories, db_session):
         with patch("app.common.auth.build_msal_app") as mock_build_msal_app:
