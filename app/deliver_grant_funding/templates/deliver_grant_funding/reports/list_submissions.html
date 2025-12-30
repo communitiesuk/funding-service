@@ -83,7 +83,7 @@
             {
               "html": link_to_submission,
             }, {
-              "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED)
+              "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else report.is_overdue)
             }, {
               "text": format_date_short(grant_recipient_submission_helper.submission.updated_at_utc) if grant_recipient_submission_helper else ''
             }

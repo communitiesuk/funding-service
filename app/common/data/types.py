@@ -120,7 +120,6 @@ class SubmissionStatusEnum(enum.StrEnum):
     READY_TO_SUBMIT = "Ready to submit"
     AWAITING_SIGN_OFF = "Awaiting sign off"
     SUBMITTED = "Submitted"
-    OVERDUE = "Overdue"
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):

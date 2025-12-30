@@ -515,64 +515,6 @@ class TestSubmissionHelper:
             assert helper.events.submission_state.is_approved is True
             assert helper.events.submission_state.is_awaiting_sign_off is False
 
-        @pytest.mark.freeze_time("2025-01-10 12:00:00")
-        @pytest.mark.parametrize("is_overdue", [True, False])
-        def test_submission_status_overdue(self, db_session, factories, is_overdue, mock_notification_service_calls):
-            org = factories.organisation.create()
-            grant = factories.grant.create()
-            gr = factories.grant_recipient.create(organisation=org, grant=grant)
-            collection = factories.collection.create(
-                grant=grant,
-                reporting_period_start_date=date(2025, 1, 1),
-                submission_period_end_date=date(2025, 1, 9) if is_overdue else date(2025, 1, 11),
-            )
-            question = factories.question.create(
-                form__collection=collection, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294")
-            )
-            question_two = factories.question.create(
-                form=question.form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295")
-            )
-            submission = factories.submission.create(collection=question.form.collection, grant_recipient=gr)
-            helper = SubmissionHelper(submission)
-
-            # valid overdue scope status
-            if is_overdue:
-                assert helper.status == SubmissionStatusEnum.OVERDUE
-            else:
-                assert helper.status == SubmissionStatusEnum.NOT_STARTED
-
-            helper.submit_answer_for_question(
-                question.id,
-                build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
-                    q_d696aebc49d24170a92fb6ef42994294="User submitted data"
-                ),
-            )
-
-            if is_overdue:
-                assert helper.status == SubmissionStatusEnum.OVERDUE
-            else:
-                assert helper.status == SubmissionStatusEnum.IN_PROGRESS
-
-            helper.submit_answer_for_question(
-                question_two.id,
-                build_question_form([question_two], evaluation_context=EC(), interpolation_context=EC())(
-                    q_d696aebc49d24170a92fb6ef42994295="User submitted data"
-                ),
-            )
-            helper.toggle_form_completed(question.form, submission.created_by, True)
-            helper.mark_as_sent_for_certification(submission.created_by)
-            helper.certify(submission.created_by)
-
-            if is_overdue:
-                assert helper.status == SubmissionStatusEnum.OVERDUE
-            else:
-                assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
-
-            # outside of overdue scope
-            helper.submit(submission.created_by)
-
-            assert helper.status == SubmissionStatusEnum.SUBMITTED
-
         def test_toggle_form_status(self, db_session, factories):
             question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
             form = question.form

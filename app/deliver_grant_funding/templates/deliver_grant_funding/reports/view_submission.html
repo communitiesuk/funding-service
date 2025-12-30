@@ -34,7 +34,7 @@
   <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
   <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
     <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
-    {{ submissionStatusTag(helper.status) }}
+    {{ submissionStatusTag(helper.status, helper.is_overdue) }}
   </div>
 
   {% for form in helper.get_ordered_visible_forms() %}

@@ -254,6 +254,12 @@ class Collection(BaseModel):
     def is_open(self) -> bool:
         return self.status == CollectionStatusEnum.OPEN
 
+    @property
+    def is_overdue(self) -> bool:
+        if not self.submission_period_end_date:
+            return False
+        return self.submission_period_end_date < datetime.date.today()
+
 
 class Submission(BaseModel):
     __tablename__ = "submission"

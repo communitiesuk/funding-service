@@ -1,7 +1,7 @@
 import csv
 import json
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
@@ -204,19 +204,18 @@ class SubmissionHelper:
         }
 
     @property
-    def status(self) -> SubmissionStatusEnum:
-        submission_state = self.events.submission_state
+    def is_overdue(self) -> bool:
         # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
         #       a batch job decision that is then added as a submission event rather than calculated by the server
-        submission_is_overdue = (
-            self.collection.submission_period_end_date and self.collection.submission_period_end_date < date.today()
-        )
+        return self.collection.is_overdue and not self.is_submitted
+
+    @property
+    def status(self) -> SubmissionStatusEnum:
+        submission_state = self.events.submission_state
 
         form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
         if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_submitted:
             return SubmissionStatusEnum.SUBMITTED
-        elif submission_is_overdue:
-            return SubmissionStatusEnum.OVERDUE
         elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
         elif (
@@ -499,10 +498,6 @@ class SubmissionHelper:
                 raise ValueError(f"Could not submit submission id={self.id} because it is not ready to submit.")
 
             if self.collection.requires_certification:
-                # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do.
-                #  In order to get by this now we check the underlying submission_state rather than the status, but we
-                #  should refactor this when a decision is made on 'Overdue' behaviour and make the submission status
-                #  the source of truth.
                 if not self.events.submission_state.is_approved:
                     raise ValueError(f"Could not submit submission id={self.id} because it has not been approved.")
 
@@ -628,10 +623,7 @@ class SubmissionHelper:
                 RoleEnum.CERTIFIER,
             )
 
-        # TODO: FSPT-1049 - the 'Overdue' status currently blocks anything from progressing but shouldn't do. In order
-        # to get by this now we check the underlying submission_state rather than the status, but we should refactor
-        # this when a decision is made on 'Overdue' behaviour and make the submission status the source of truth.
-        if not self.events.submission_state.is_awaiting_sign_off:
+        if not self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             raise ValueError(
                 f"Could not approve certification for submission id={self.id} because it is not awaiting sign off."
             )

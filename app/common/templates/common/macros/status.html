@@ -48,7 +48,7 @@
   {{ govukTag({"text": status, "classes": classMap[status] }) }}
 {% endmacro %}
 
-{% macro submissionStatusTag(status) %}
+{% macro submissionStatusTag(status, is_overdue) %}
   {% set show_without_tag = [ enum.submission_status.SUBMITTED ] %}
   {%
     set classMap = {
@@ -56,13 +56,13 @@
         enum.submission_status.IN_PROGRESS: "govuk-tag--light-blue",
         enum.submission_status.READY_TO_SUBMIT: "govuk-tag--blue",
         enum.submission_status.AWAITING_SIGN_OFF: "govuk-tag--purple",
-        enum.submission_status.OVERDUE: "govuk-tag--yellow",
     }
   %}
+  {% set status_text = status ~ (" (Overdue)" if is_overdue else "") %}
   {% if status in show_without_tag %}
-    <span class="govuk-body govuk-!-margin-bottom-0">{{ status }}</span>
+    <span class="govuk-body govuk-!-margin-bottom-0">{{ status_text }}</span>
   {% else %}
-    {{ govukTag({"text": status, "classes": "app-status-tag " ~ classMap[status] }) }}
+    {{ govukTag({"text": status_text, "classes": "app-status-tag " ~ (classMap[status] if not is_overdue else "govuk-tag--yellow") }) }}
   {% endif %}
 {% endmacro %}
 

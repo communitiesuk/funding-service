@@ -69,7 +69,7 @@
         </dl>
         <dl class="app-metadata">
           <dt class="app-metadata__key">Status:</dt>
-          <dd class="app-metadata__value">{{ submissionStatusTag(submission.status) }}</dd>
+          <dd class="app-metadata__value">{{ submissionStatusTag(submission.status, submission.is_overdue) }}</dd>
         </dl>
         {% if submission.sent_for_certification_by %}
           <dl class="app-metadata">

@@ -48,7 +48,7 @@
       </dl>
       <dl class="app-metadata govuk-!-margin-bottom-7">
         <dt class="app-metadata__key">Status:</dt>
-        <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(runner.submission.status) }}</dd>
+        <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(runner.submission.status, runner.submission.is_overdue) }}</dd>
       </dl>
     </div>
   </div>

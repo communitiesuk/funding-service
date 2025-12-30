@@ -47,7 +47,7 @@
           {% set submission = submissions | selectattr("collection_id", "equalto", report.id) | first %}
           {% set submission_status = submission.status if submission else enum.submission_status.NOT_STARTED %}
           {% set submission_status_html %}
-            {{ submissionStatusTag(submission_status) }}
+            {{ submissionStatusTag(submission_status, submission.is_overdue if submission else report.is_overdue) }}
           {% endset %}
           {% set report_action_html %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.route_to_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=report.id) }}">
