@@ -520,7 +520,7 @@ class TestConfirmReportSubmission:
         else:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
-            assert get_h1_text(soup) == "Confirm and submit report"
+            assert get_h1_text(soup) == "Confirm sign off and submit report"
 
     def test_get_redirects_if_requires_certification_and_not_awaiting_sign_off(
         self, authenticated_grant_recipient_certifier_client, submission_ready_to_submit
