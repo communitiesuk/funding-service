@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from typing import TYPE_CHECKING, Any, Never, Optional, Protocol, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Never, Optional, Protocol, Sequence, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
@@ -53,7 +53,7 @@ from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.forms.helpers import questions_in_same_add_another_container
-from app.common.helpers.submission_events import SubmissionEventHelper
+from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
@@ -1161,6 +1161,27 @@ def update_question(
     return question
 
 
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
+    event_type: Literal[SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[DeclinedByCertifierKwargs],
+) -> Submission: ...
+
+
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
+    event_type: SubmissionEventType,
+    user: User,
+    related_entity_id: UUID | None = None,
+) -> Submission: ...
+
+
 @flush_and_rollback_on_exceptions
 def add_submission_event(
     submission: Submission,
@@ -1175,7 +1196,6 @@ def add_submission_event(
             event_type=event_type,
             created_by=user,
             related_entity_id=related_entity_id or submission.id,
-            # consider in future whether we want to more strongly type these kwargs and specify what data we need
             data=SubmissionEventHelper.event_from(event_type, **kwargs),
         )
     )
