@@ -34,7 +34,7 @@ class SubmissionValidationFailed(ValueError):
             "common/partials/validation-error-on-submission.html", errors=self.errors
         )
         return Markup(
-            f"Unable to submit as some answers are invalid. Review your answers and try again:"
+            f"You cannot submit because you need to review some answers:"
             f"{failed_questions_markup}<br>"
-            f"Contact support if you need help."
+            f"If you need help, contact our support desk."
         )

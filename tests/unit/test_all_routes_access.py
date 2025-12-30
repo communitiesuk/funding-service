@@ -134,9 +134,13 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
     "access_grant_funding.submitted_confirmation",
 ]
 
-routes_with_expected_access_grant_funding_has_data_provider_role_access = ["access_grant_funding.ask_a_question"]
+routes_with_expected_access_grant_funding_has_data_provider_role_access = [
+    "access_grant_funding.ask_a_question",
+    "access_grant_funding.confirm_report_submission_direct_submission",
+]
 routes_with_expected_access_grant_funding_has_certifier_role_access = [
     "access_grant_funding.decline_report",
+    "access_grant_funding.confirm_report_submission_with_certify",
 ]
 
 routes_with_expected_is_deliver_grant_funding_user_access = [
