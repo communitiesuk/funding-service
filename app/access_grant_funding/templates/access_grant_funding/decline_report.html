@@ -4,11 +4,13 @@
 {% set page_title = "Decline sign off: " + submission.name %}
 
 {% set active_item_identifier = "reports" %}
+
+{% set return_link = url_for("access_grant_funding.route_to_submission", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id = submission.collection_id) %}
 {% block beforeContent %}
   {{ super() }}
   {{
     govukBackLink({
-      "href": url_for("access_grant_funding.route_to_submission", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id = submission.collection_id),
+      "href": return_link,
       "text": "Back"
     })
   }}
@@ -18,6 +20,7 @@
     <div class="govuk-grid-column-two-thirds">
       <form method="POST" novalidate>
         {{ form.csrf_token }}
+
         {{
           form.decline_reason(
             params={
@@ -27,14 +30,17 @@
               "text": "Why are you declining sign off for the " + submission.collection.name + " report?"
             },
             "hint":{
-               "text": "Tell " + (submission.sent_for_certification_by.name if submission.sent_for_certification_by else "the submitter")
-               + " why you are declining sign off so they can update and resubmit the report."
+              "text": "Tell " + (submission.sent_for_certification_by.name if submission.sent_for_certification_by else "the submitter")
+              + " why you are declining sign off so they can update and resubmit the report."
             }
             }
 
           )
         }}
-        {{ form.submit }}
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ return_link }}">Cancel</a>
+        </div>
       </form>
     </div>
   </div>
