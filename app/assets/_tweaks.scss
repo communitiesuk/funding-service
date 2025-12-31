@@ -69,3 +69,15 @@
         }
     }
 }
+
+// Intended for use on GOV.UK Table components only, where a column is meant to contain a Tag component only. Tags are
+// limited to a max-width of 160px, so we give a little bit of extra space around that.
+.app-\!-width-table-cell-tag {
+    width: 180px;
+}
+
+.app-table--no-final-border {
+    tr:last-child td.govuk-table__cell {
+        border-bottom: none;
+    }
+}

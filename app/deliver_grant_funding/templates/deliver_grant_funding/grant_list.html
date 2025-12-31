@@ -1,6 +1,7 @@
 {% extends "deliver_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/govuk/tabs/macro.html" import govukTabs %}
 {% from "common/macros/status.html" import grantStatusTag with context %}
 
 {% set page_title = "Grants" %}
@@ -13,7 +14,10 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Grants</h1>
-      {% if authorisation_helper.is_deliver_org_member(current_user) %}
+    </div>
+
+    {% if authorisation_helper.is_deliver_org_member(current_user) %}
+      <div class="govuk-grid-column-one-third govuk-!-text-align-right">
         {{
           govukButton({
             "text": "Set up a grant",
@@ -21,26 +25,46 @@
             "classes": "govuk-button--secondary" if ((onboarding_grants + draft_grants) | length) else ""
           })
         }}
-      {% endif %}
-    </div>
+      </div>
+    {% endif %}
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full govuk-!-margin-top-4">
-      {% if onboarding_grants %}
-        <div class="govuk-!-margin-bottom-8">
-          <h2 class="govuk-heading-m">Active grants</h2>
-          {{ grant_table(onboarding_grants, id_override="active-grants") }}
-        </div>
-      {% endif %}
-
-      {% if draft_grants %}
-        <div class="govuk-!-margin-bottom-8">
-          <h2 class="govuk-heading-m">Draft grants</h2>
-          {{ grant_table(draft_grants, id_override="draft-grants") }}
-        </div>
-      {% endif %}
-
-      {% if not onboarding_grants and not draft_grants %}
+      {% if onboarding_grants and draft_grants %}
+        {% set active_grants_panel %}
+          <div class="govuk-!-margin-bttom-5">{{ grant_table(onboarding_grants, id_override="active-grants") }}</div>
+        {% endset %}
+        {% set draft_grants_panel %}
+          <div class="govuk-!-margin-bttom-5">{{ grant_table(draft_grants, id_override="draft-grants") }}</div>
+        {% endset %}
+        {{
+          govukTabs({
+            "idPrefix": "grants",
+            "items": [
+              {
+                "label": "Active grants",
+                "id": "active-grants-tab",
+                "panel": {
+                  "html": active_grants_panel
+                }
+              },
+              {
+                "label": "Draft grants",
+                "id": "draft-grants-tab",
+                "panel": {
+                  "html": draft_grants_panel
+                }
+              }
+            ]
+          })
+        }}
+      {% elif onboarding_grants %}
+        <h2 class="govuk-heading-m">Active grants</h2>
+        {{ grant_table(onboarding_grants, id_override="active-grants") }}
+      {% elif draft_grants %}
+        <h2 class="govuk-heading-m">Draft grants</h2>
+        {{ grant_table(draft_grants, id_override="draft-grants") }}
+      {% else %}
         <p class="govuk-body">You have access to no grants.</p>
       {% endif %}
     </div>
@@ -66,7 +90,8 @@
     govukTable({
         "captionClasses": "govuk-table__caption--m",
         "firstCellIsHeader": false,
-        "head": [{"text": "Grant"}, {"text": "GGIS number", "classes": "app-!-cell-width-300"}, {"text": "Status", "classes": "app-!-cell-width-200"}],
+        "classes": "govuk-!-margin-bottom-0 app-table--no-final-border",
+        "head": [{"text": "Grant"}, {"text": "GGIS number", "classes": "govuk-!-width-one-quarter"}, {"text": "Status", "classes": "app-!-width-table-cell-tag"}],
         "rows": table_rows.items,
         "attributes": {"id": id_override},
     })

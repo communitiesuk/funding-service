@@ -1,6 +1,7 @@
 import pytest
 from bs4 import BeautifulSoup
 
+from app import GrantStatusEnum
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import RoleEnum
 from tests.utils import AnyStringMatching, get_h1_text
@@ -90,9 +91,9 @@ class TestListGrants:
             assert button is None, f"'Set up a grant' button should not be visible for {client_fixture}"
 
     def test_get_list_grants_filters_drafts(self, authenticated_platform_admin_client, factories):
-        factories.grant.create_batch(2, status="LIVE")
-        factories.grant.create_batch(2, status="ONBOARDING")
-        factories.grant.create_batch(2, status="DRAFT")
+        factories.grant.create_batch(2, status=GrantStatusEnum.LIVE)
+        factories.grant.create_batch(2, status=GrantStatusEnum.ONBOARDING)
+        factories.grant.create_batch(2, status=GrantStatusEnum.DRAFT)
 
         response = authenticated_platform_admin_client.get("/deliver/grants")
         assert response.status_code == 200
@@ -103,4 +104,48 @@ class TestListGrants:
         assert len(active_grant_rows) == 4  # 2 live and 2 onboarding
 
         draft_grant_rows = soup.select("#draft-grants tbody tr")
-        assert len(draft_grant_rows) == 3  # 3 draft as admin_client creates a grant itself
+        assert len(draft_grant_rows) == 3  # 2 draft as admin_client creates a grant itself
+
+    def test_tabs_shown_when_both_active_and_draft_grants(self, authenticated_platform_admin_client, factories):
+        factories.grant.create_batch(2, status=GrantStatusEnum.LIVE)
+        factories.grant.create_batch(2, status=GrantStatusEnum.DRAFT)
+
+        response = authenticated_platform_admin_client.get("/deliver/grants")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        tabs = soup.find("div", class_="govuk-tabs")
+        assert tabs is not None
+        tab_links = soup.select(".govuk-tabs__list-item a")
+        assert len(tab_links) == 2
+        assert tab_links[0].get_text(strip=True) == "Active grants"
+        assert tab_links[1].get_text(strip=True) == "Draft grants"
+
+    def test_no_tabs_when_only_active_grants(self, authenticated_platform_admin_client, db_session, factories):
+        factories.grant.create_batch(2, status=GrantStatusEnum.LIVE)
+
+        authenticated_platform_admin_client.grant.status = GrantStatusEnum.LIVE
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/grants")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        tabs = soup.find("div", class_="govuk-tabs")
+        assert tabs is None
+        heading = soup.find("h2", class_="govuk-heading-m")
+        assert heading is not None
+        assert heading.get_text(strip=True) == "Active grants"
+
+    def test_no_tabs_when_only_draft_grants(self, authenticated_platform_admin_client, factories):
+        factories.grant.create_batch(2, status="DRAFT")
+
+        response = authenticated_platform_admin_client.get("/deliver/grants")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        tabs = soup.find("div", class_="govuk-tabs")
+        assert tabs is None
+        heading = soup.find("h2", class_="govuk-heading-m")
+        assert heading is not None
+        assert heading.get_text(strip=True) == "Draft grants"
