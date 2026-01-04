@@ -24,6 +24,30 @@ def retrieve_magic_link(notification_id: str, e2e_test_secrets: EndToEndTestSecr
     return extract_email_link(email)
 
 
+def delete_grant_recipient_through_admin(page: Page, domain: str, search: str) -> None:
+    query = urlencode(query=dict(search=search))
+    page.goto(f"{domain}/deliver/admin/grantrecipient/?{query}")
+
+    grant_recipients = page.get_by_role("link", name=re.compile(search)).all()
+    assert len(grant_recipients) == 1
+    page.check("#select-all")
+    page.locator("button:has-text('Actions')").click()
+    page.locator("button:has-text('Delete (1 selected)')").click()
+    page.locator("button:has-text('Confirm delete')").click()
+
+
+def delete_test_org_through_admin(page: Page, domain: str, search: str) -> None:
+    query = urlencode(query=dict(search=search))
+    page.goto(f"{domain}/deliver/admin/organisation/?{query}")
+
+    orgs = page.get_by_role("link", name=re.compile(search)).all()
+    assert len(orgs) == 1
+    page.check("#select-all")
+    page.locator("button:has-text('Actions')").click()
+    page.locator("button:has-text('Delete (1 selected)')").click()
+    page.locator("button:has-text('Confirm delete')").click()
+
+
 def delete_grant_through_admin(page: Page, domain: str, search: str) -> None:
     query = urlencode(query=dict(search=search))
     page.goto(f"{domain}/deliver/admin/grant/?{query}")
