@@ -38,6 +38,10 @@ from app.extensions import db
 
 export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
+# The export process anonymises user data, but if any users need to be consistent
+# across environments (eg SSO test users), their emails can be added here and they will not be anonymised.
+USERS_NOT_TO_ANONYMISE = ["fsd-post-award@levellingup.gov.uk"]
+
 
 def to_dict(instance: BaseModel, exclude: list[str] | None = None) -> dict[str, Any]:
     return {
@@ -230,12 +234,13 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
         user_data = to_dict(user)
 
         # Anonymise the user, but in a consistent way
-        faker = Faker()
-        faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
-        first_name = faker.first_name()
-        last_name = faker.last_name()
-        user_data["email"] = f"{first_name.lower()}.{last_name.lower()}@test.communities.gov.uk"
-        user_data["name"] = f"{first_name} {last_name}"
+        if user.email not in USERS_NOT_TO_ANONYMISE:
+            faker = Faker()
+            faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
+            first_name = faker.first_name()
+            last_name = faker.last_name()
+            user_data["email"] = f"{first_name.lower()}.{last_name.lower()}@test.communities.gov.uk"
+            user_data["name"] = f"{first_name} {last_name}"
 
         export_data["users"].append(user_data)
 
