@@ -1259,6 +1259,12 @@
         },
         {
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "b0acdf4d-8d69-49ba-9cfe-4f07b6185120",
+          "mode": "live",
+          "organisation_id": "93e35891-d202-4391-b45e-631bb2561587"
+        },
+        {
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "cae51cb9-d311-4769-8d04-4f24f2a4a58e",
           "mode": "live",
           "organisation_id": "41773840-55b6-4d5e-8b83-a6163e0c834d"
@@ -3858,6 +3864,16 @@
       "type": "Metropolitan District"
     },
     {
+      "active_date": "Thu, 01 Jan 2026 00:00:00 GMT",
+      "can_manage_grants": false,
+      "external_id": "MHCLG-TEST-ORG",
+      "id": "93e35891-d202-4391-b45e-631bb2561587",
+      "mode": "live",
+      "name": "MHCLG Funding Service Test Organisation",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
       "can_manage_grants": false,
       "external_id": "TA01",
       "id": "d9e644d8-26ed-4287-a2d8-c0c841399ad4",
@@ -3944,6 +3960,16 @@
     },
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "193d1593-522f-4aea-ab56-c0b297098340",
+      "organisation_id": "93e35891-d202-4391-b45e-631bb2561587",
+      "permissions": [
+        "data-provider",
+        "member"
+      ],
+      "user_id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "c194df07-5871-4dc3-94dd-bb56d90e5975",
       "organisation_id": "<UUID:GB-GOV-27>",
       "permissions": [
@@ -3986,6 +4012,12 @@
       "id": "62ee98f5-cf10-4848-95a4-5b6280529046",
       "last_logged_in_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
       "name": "Darin Lewis"
+    },
+    {
+      "email": "fsd-post-award@levellingup.gov.uk",
+      "id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe",
+      "last_logged_in_at_utc": "Wed, 07 Jan 2026 17:19:59 GMT",
+      "name": "FSD Test User"
     },
     {
       "azure_ad_subject_id": "baf97a91d41d4a5690488c56c4c10558",
