@@ -232,8 +232,10 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
         # Anonymise the user, but in a consistent way
         faker = Faker()
         faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
-        user_data["email"] = faker.email(domain="test.communities.gov.uk")
-        user_data["name"] = faker.name()
+        first_name = faker.first_name()
+        last_name = faker.last_name()
+        user_data["email"] = f"{first_name.lower()}.{last_name.lower()}@test.communities.gov.uk"
+        user_data["name"] = f"{first_name} {last_name}"
 
         export_data["users"].append(user_data)
 
