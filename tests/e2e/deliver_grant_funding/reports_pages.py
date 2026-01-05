@@ -177,6 +177,33 @@ class ReportsBasePage:
         return sso_sign_in_page
 
 
+class DeliverTestGrantRecipientJourneyPage(ReportsBasePage):
+    start_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str, collection_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name="",
+            heading=page.get_by_role("heading", name=f"Test the {collection_name} report"),
+        )
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.collection_name = collection_name
+        self.start_button = self.page.get_by_role("button", name="Start test submission journey")
+
+    def navigate(self) -> None:
+        self.page.goto(f"{self.domain}/deliver/grant/{self.grant_id}/reports/{self.collection_id}")
+        expect(self.heading).to_be_visible()
+
+    def select_test_organisation(self, org_name: str) -> None:
+        self.page.get_by_role("radio", name=org_name).check()
+
+    def click_start_test_journey(self) -> None:
+        self.start_button.click()
+        expect(self.page.get_by_text("We emailed you a link to test the grant recipient journey")).to_be_visible()
+
+
 class GrantReportsPage(ReportsBasePage):
     add_report_button: Locator
     summary_row_submissions: Locator
@@ -191,6 +218,10 @@ class GrantReportsPage(ReportsBasePage):
         self.summary_row_submissions = page.locator("div.govuk-summary-list__row").filter(
             has=page.get_by_text("Submissions")
         )
+
+    def navigate(self, grant_id: str) -> None:
+        self.page.goto(f"{self.domain}/deliver/grant/{grant_id}/reports")
+        expect(self.heading).to_be_visible()
 
     def click_add_report(self) -> AddReportPage:
         self.add_report_button.click()
@@ -1039,11 +1070,15 @@ class RunnerTasklistPage(ReportsBasePage):
     def click_on_section(self, section_name: str) -> None:
         self.page.get_by_role("link", name=section_name).click()
 
-    def click_submit(self) -> ReportSectionsPage:
+    def click_submit_for_preview(self) -> ReportSectionsPage:
         self.submit_button.click()
         report_sections_page = ReportSectionsPage(self.page, self.domain, self.grant_name, self.report_name)
         expect(report_sections_page.heading).to_be_visible()
         return report_sections_page
+
+    def click_submit_for_certify(self) -> None:
+        self.submit_button.click()
+        expect(self.page.get_by_text("Report submitted to certifier")).to_be_visible()
 
     def click_back(self) -> ReportSectionsPage:
         self.back_link.click()
@@ -1187,7 +1222,7 @@ class ViewSubmissionPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Submission"),
+            heading=page.get_by_role("heading", name="Submission", exact=True),
         )
         self.report_name = report_name
 
@@ -1196,6 +1231,14 @@ class ViewSubmissionPage(ReportsBasePage):
 
     def click_submissions_breadcrumb(self) -> SubmissionsListPage:
         self.page.locator("a.govuk-breadcrumbs__link").filter(has=self.page.get_by_text("Submissions")).click()
+        submissions_list_page = SubmissionsListPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(submissions_list_page.heading).to_be_visible()
+        return submissions_list_page
+
+    def click_reset_submission(self) -> SubmissionsListPage:
+        self.page.get_by_role("link", name="Reset this submission").click()
+        self.page.get_by_role("button", name="Yes, reset this test submission").click()
+        expect(self.page.get_by_text("Test submission reset")).to_be_visible()
         submissions_list_page = SubmissionsListPage(self.page, self.domain, self.grant_name, self.report_name)
         expect(submissions_list_page.heading).to_be_visible()
         return submissions_list_page
@@ -1453,3 +1496,89 @@ class EditQuestionGroupPage(ReportsBasePage):
         )
         expect(add_guidance_page.heading).to_be_visible()
         return add_guidance_page
+
+
+class AdminReportingLifecycleTasklistPage:
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+
+    def navigate(self) -> None:
+        self.page.goto(f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}")
+
+    def click_task(self, task_name: str) -> None:
+        self.page.get_by_role("link", name=re.compile(task_name)).click()
+
+
+class SetUpTestOrganisationsPage:
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Set up test organisations")
+        self.organisations_textarea = page.locator("textarea[name='organisations_data']")
+        self.set_up_button = page.get_by_role("button", name="Set up organisations")
+
+    def navigate(self) -> None:
+        self.page.goto(
+            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/set-up-test-organisations"
+        )
+        expect(self.heading).to_be_visible()
+
+    def fill_organisations_tsv_data(self, tsv_data: str) -> None:
+        self.organisations_textarea.fill(tsv_data)
+
+    def click_set_up_organisations(self) -> "AdminReportingLifecycleTasklistPage":
+        self.set_up_button.click()
+        expect(self.page.get_by_text("Created or updated 1 test organisation")).to_be_visible()
+        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
+
+
+class SetUpTestGrantRecipientsPage:
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Set up test grant recipients")
+        self.grant_recipients_combobox = page.get_by_role("combobox", name="Grant recipients")
+        self.set_up_button = page.get_by_role("button", name="Set up grant recipients")
+
+    def select_organisation(self, org_name: str) -> None:
+        expect(self.heading).to_be_visible()
+        self.grant_recipients_combobox.click()
+        self.page.get_by_role("option", name=org_name).click()
+        self.page.keyboard.press("Escape")
+
+    def click_set_up_grant_recipients(self) -> "AdminReportingLifecycleTasklistPage":
+        self.set_up_button.click()
+        expect(self.page.get_by_text("Created 1 test grant recipient")).to_be_visible()
+        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
+
+
+class SetUpTestGrantRecipientUsersPage:
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Add users to test Access grant funding")
+        self.test_grant_recipient_combobox = page.get_by_role("combobox", name="Test grant recipient")
+        self.grant_team_members_combobox = page.get_by_role("combobox", name="Members of the grant team")
+        self.add_user_button = page.get_by_role("button", name="Add user")
+
+    def select_test_grant_recipient(self, org_name: str) -> None:
+        expect(self.heading).to_be_visible()
+        self.test_grant_recipient_combobox.click()
+        self.page.get_by_role("option", name=org_name).click()
+
+    def select_grant_team_member(self, email_pattern: str) -> None:
+        self.grant_team_members_combobox.click()
+        self.page.get_by_role("option", name=re.compile(email_pattern)).click()
+
+    def click_add_user(self) -> None:
+        self.add_user_button.click()
+        expect(self.page.get_by_text("Added")).to_be_visible()

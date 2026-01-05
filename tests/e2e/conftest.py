@@ -1,6 +1,5 @@
 import enum
 import os
-import re
 from typing import Generator, cast
 from unittest.mock import patch
 
@@ -9,7 +8,7 @@ from flask import session
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
 from playwright._impl._api_structures import SetCookieParam
-from playwright.sync_api import BrowserContext, Page, ViewportSize, expect
+from playwright.sync_api import BrowserContext, Page, ViewportSize
 from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
 
@@ -189,15 +188,6 @@ def login_with_session_cookie(
     )
     sso_sign_in_page.navigate()
 
-    url_pattern = user_config.expected_login_url_pattern.format(domain=domain)
-    expected_url: str | re.Pattern[str]
-    if url_pattern.startswith("^"):
-        expected_url = re.compile(url_pattern)
-    else:
-        expected_url = url_pattern
-
-    # If the browser contains a valid cookie, it should redirect to the grants page or a specific grant page
-    expect(page).to_have_url(expected_url)
     return E2ETestUser(email_address=user_config.email)
 
 

@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+import re
 import uuid
 from typing import Literal, NotRequired, TypedDict, Union
 
@@ -27,6 +28,7 @@ from app.common.expressions.managed import (
     UKPostcode,
 )
 from app.common.filters import format_thousands
+from tests.e2e.access_grant_funding.pages import AccessHomePage
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.conftest import (
     DeliverGrantFundingUserType,
@@ -38,15 +40,37 @@ from tests.e2e.dataclasses import E2ETestUser, GuidanceText
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage, GrantDetailsPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
     AddQuestionDetailsPage,
+    AdminReportingLifecycleTasklistPage,
+    DeliverTestGrantRecipientJourneyPage,
     EditQuestionGroupPage,
     EditQuestionPage,
+    GrantReportsPage,
     ManageSectionPage,
     ReportSectionsPage,
     RunnerCheckYourAnswersPage,
     RunnerQuestionPage,
     RunnerTasklistPage,
+    SetUpTestGrantRecipientsPage,
+    SetUpTestGrantRecipientUsersPage,
+    SetUpTestOrganisationsPage,
 )
-from tests.e2e.helpers import delete_grant_through_admin
+from tests.e2e.helpers import (
+    delete_grant_recipient_through_admin,
+    delete_grant_through_admin,
+    delete_test_org_through_admin,
+)
+
+
+def extract_uuid_from_url(url: str, pattern: str) -> str:
+    """Extract a UUID from a URL using a regex pattern.
+
+    The pattern should contain a named group 'uuid' for the UUID to extract.
+    Example: r"/grant/(?P<uuid>[a-f0-9-]+)/reports"
+    """
+    match = re.search(pattern, url)
+    if not match:
+        raise ValueError(f"Could not extract UUID from URL {url} using pattern {pattern}")
+    return match.group("uuid")
 
 
 @dataclasses.dataclass
@@ -838,150 +862,251 @@ def switch_user(
         return login_with_session_cookie(page, domain, e2e_test_secrets, user_type)
 
 
-@pytest.mark.skip_in_environments(["prod"])
-def test_create_and_preview_report(
+# Module-level storage for shared test data across dependent tests
+_shared_setup_data: dict | None = None
+
+
+def test_setup_grant_and_collection(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
 ) -> None:
+    """Setup test: creates grant and collection with all question types."""
+    global _shared_setup_data
+
     grant_name_uuid = str(uuid.uuid4())
 
-    try:
-        # Sense check that the test includes all question types
-        new_question_type_error = None
-        try:
-            assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
-                "If you have added a new question type or managed expression, update this test to include the "
-                "new question type or managed expression in `questions_to_test`."
-            )
-        except AssertionError as e:
-            new_question_type_error = e
+    # Sense check that the test includes all question types
+    assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
+        "If you have added a new question type or managed expression, update this test to include the "
+        "new question type or managed expression in `questions_to_test`."
+    )
 
-        new_grant_name = f"E2E developer_grant {grant_name_uuid}"
-        all_grants_page = AllGrantsPage(page, domain)
-        all_grants_page.navigate()
+    new_grant_name = f"E2E developer_grant {grant_name_uuid}"
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
 
-        # Set up new grant
-        grant_dashboard_page = create_grant(new_grant_name, grant_name_uuid, all_grants_page)
+    # Set up new grant
+    grant_dashboard_page = create_grant(new_grant_name, grant_name_uuid, all_grants_page)
 
-        # Go to Reports tab
-        grant_reports_page = grant_dashboard_page.click_reports(new_grant_name)
+    # Extract grant_id from URL (e.g., /deliver/grant/<uuid>/...)
+    grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
 
-        # Add a new report
-        add_report_page = grant_reports_page.click_add_report()
-        new_report_name = f"E2E report {uuid.uuid4()}"
-        add_report_page.fill_in_report_name(new_report_name)
-        grant_reports_page = add_report_page.click_submit(new_grant_name)
-        grant_reports_page.check_report_exists(new_report_name)
+    # Go to Reports tab
+    grant_reports_page = grant_dashboard_page.click_reports(new_grant_name)
 
-        # Add a first task and a questions/question group
-        add_section_page = grant_reports_page.click_add_section(report_name=new_report_name, grant_name=new_grant_name)
-        first_section_name = "E2E first task - grouped questions"
-        add_section_page.fill_in_section_name(first_section_name)
-        report_sections_page = add_section_page.click_add_section()
-        report_sections_page.check_section_exists(first_section_name)
+    # Add a new report
+    add_report_page = grant_reports_page.click_add_report()
+    new_report_name = f"E2E report {uuid.uuid4()}"
+    add_report_page.fill_in_report_name(new_report_name)
+    grant_reports_page = add_report_page.click_submit(new_grant_name)
+    grant_reports_page.check_report_exists(new_report_name)
 
-        manage_section_page = report_sections_page.click_manage_section(section_name=first_section_name)
-        for question_to_test in questions_with_groups_to_test.values():
-            create_question_or_group(question_to_test, manage_section_page)
+    # Add a first task and a questions/question group
+    add_section_page = grant_reports_page.click_add_section(report_name=new_report_name, grant_name=new_grant_name)
 
-        # Add a second task and a question of each type to the task
-        report_sections_page = navigate_to_report_sections_page(page, domain, new_grant_name, new_report_name)
-        add_section_page = report_sections_page.click_add_section()
-        second_section_name = "E2E second task - all question types"
-        add_section_page.fill_in_section_name(second_section_name)
-        report_sections_page = add_section_page.click_add_section()
-        report_sections_page.check_section_exists(second_section_name)
+    # Extract collection_id from URL (e.g., /grant/<uuid>/reports/<uuid>/sections)
+    collection_id = extract_uuid_from_url(page.url, r"/report/(?P<uuid>[a-f0-9-]+)")
 
-        manage_section_page = report_sections_page.click_manage_section(section_name=second_section_name)
-        for question_to_test in questions_to_test.values():
-            create_question_or_group(question_to_test, manage_section_page)
+    first_section_name = "E2E first task - grouped questions"
+    add_section_page.fill_in_section_name(first_section_name)
+    report_sections_page = add_section_page.click_add_section()
+    report_sections_page.check_section_exists(first_section_name)
 
-        # Add grant team member
-        grant_team_page = manage_section_page.click_nav_grant_team()
-        add_grant_team_member_page = grant_team_page.click_add_grant_team_member()
-        grant_team_email = e2e_user_configs[DeliverGrantFundingUserType.GRANT_TEAM_MEMBER].email
-        add_grant_team_member_page.fill_in_user_email(grant_team_email)
-        grant_team_page = add_grant_team_member_page.click_continue()
+    manage_section_page = report_sections_page.click_manage_section(section_name=first_section_name)
+    for question_to_test in questions_with_groups_to_test.values():
+        create_question_or_group(question_to_test, manage_section_page)
 
-        # Sign out and switch to grant team member
-        switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER, grant_team_email)
+    # Add a second task and a question of each type to the task
+    report_sections_page = navigate_to_report_sections_page(page, domain, new_grant_name, new_report_name)
+    add_section_page = report_sections_page.click_add_section()
+    second_section_name = "E2E second task - all question types"
+    add_section_page.fill_in_section_name(second_section_name)
+    report_sections_page = add_section_page.click_add_section()
+    report_sections_page.check_section_exists(second_section_name)
 
-        # Preview the report
-        grant_details_page = GrantDetailsPage(page, domain, new_grant_name)
-        grant_reports_page = grant_details_page.click_reports(new_grant_name)
-        report_sections_page = grant_reports_page.click_manage_sections(
-            grant_name=new_grant_name, report_name=new_report_name
-        )
-        tasklist_page = report_sections_page.click_preview_report()
+    manage_section_page = report_sections_page.click_manage_section(section_name=second_section_name)
+    for question_to_test in questions_to_test.values():
+        create_question_or_group(question_to_test, manage_section_page)
 
-        # Check the tasklist has loaded
-        expect(
-            tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
-        ).to_be_visible()
-        expect(tasklist_page.submit_button).to_be_disabled()
-        expect(tasklist_page.page.get_by_role("link", name=first_section_name)).to_be_visible()
-        expect(tasklist_page.page.get_by_role("link", name=second_section_name)).to_be_visible()
+    # Add grant team member
+    grant_team_page = manage_section_page.click_nav_grant_team()
+    add_grant_team_member_page = grant_team_page.click_add_grant_team_member()
+    grant_team_email = e2e_user_configs[DeliverGrantFundingUserType.GRANT_TEAM_MEMBER].email
+    add_grant_team_member_page.fill_in_user_email(grant_team_email)
+    grant_team_page = add_grant_team_member_page.click_continue()
 
-        # Complete the first task with question groups
-        complete_task(tasklist_page, first_section_name, new_grant_name, questions_with_groups_to_test)
+    # Switch to grant team member (claim invitation/userrole), then switch back to platform admin
+    switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER, grant_team_email)
+    switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
 
-        # Check your answers page
-        task_check_your_answers(tasklist_page, new_grant_name, new_report_name, questions_with_groups_to_test)
+    # Set up test organisation via admin for test grant recipient journey
+    test_org_name = f"E2E Test Org {grant_name_uuid[:8]}"
+    test_org_external_id = f"E2E-TEST-{grant_name_uuid[:8].upper()}"
+    tsv_data = (
+        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+        f"{test_org_external_id}\t{test_org_name}\tCentral Government\t\t\n"
+    )
 
-        # Complete the second task with flat questions list
-        complete_task(tasklist_page, second_section_name, new_grant_name, questions_to_test)
+    reporting_lifecycle_tasklist_page = AdminReportingLifecycleTasklistPage(page, domain, grant_id, collection_id)
+    reporting_lifecycle_tasklist_page.navigate()
+    reporting_lifecycle_tasklist_page.click_task("Set up test organisations")
 
-        # Check your answers page
-        task_check_your_answers(tasklist_page, new_grant_name, new_report_name, questions_to_test)
+    set_up_test_orgs_page = SetUpTestOrganisationsPage(page, domain, grant_id, collection_id)
+    set_up_test_orgs_page.fill_organisations_tsv_data(tsv_data)
+    set_up_test_orgs_page.click_set_up_organisations()
 
-        # Submit the report
-        expect(
-            tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Ready to submit"))
-        ).to_be_visible()
-        expect(tasklist_page.submit_button).to_be_enabled()
+    reporting_lifecycle_tasklist_page.click_task("Set up test grant recipients")
+    set_up_grant_recipients_page = SetUpTestGrantRecipientsPage(page, domain, grant_id, collection_id)
+    set_up_grant_recipients_page.select_organisation(test_org_name)
+    set_up_grant_recipients_page.click_set_up_grant_recipients()
 
-        tasklist_page.click_submit()
+    reporting_lifecycle_tasklist_page.click_task("Set up test grant recipient users")
+    set_up_users_page = SetUpTestGrantRecipientUsersPage(page, domain, grant_id, collection_id)
+    set_up_users_page.select_test_grant_recipient(test_org_name)
+    set_up_users_page.select_grant_team_member(grant_team_email)
+    set_up_users_page.click_add_user()
 
-        # TODO: preview submissions are no longer visible; should we go through 'test grant recipient journey' instead?
-        # grant_reports_page = report_sections_page.click_reports_breadcrumb()
-        # expect(grant_reports_page.summary_row_submissions.get_by_text("1 test submission")).to_be_visible()
-        # submissions_list_page = grant_reports_page.click_view_submissions(new_report_name)
-        #
-        # view_submission_page = submissions_list_page.click_on_first_submission()
-        #
-        # answers_list = view_submission_page.get_questions_list_for_section(first_section_name)
-        # expect(answers_list).to_be_visible()
-        #
-        # assert_check_your_answer_for_all_questions(list(questions_with_groups_to_test.values()), answers_list)
-        #
-        # answers_list = view_submission_page.get_questions_list_for_section(second_section_name)
-        # expect(answers_list).to_be_visible()
-        # assert_check_your_answer_for_all_questions(list(questions_to_test.values()), answers_list)
-        #
-        # submissions_list_page = view_submission_page.click_submissions_breadcrumb()
-        #
-        # # Download CSV
-        # csv_export_filename = submissions_list_page.click_export(filetype="CSV")
-        # assert csv_export_filename.endswith(".csv")
-        # with open(csv_export_filename, "r", encoding="utf-8") as f:
-        #     reader = csv.reader(f)
-        #     rows = list(reader)
-        #     assert len(rows) == 2  # Header + 1 submission
-        #
-        # # Download JSON
-        # json_export_filename = submissions_list_page.click_export(filetype="JSON")
-        # assert json_export_filename.endswith(".json")
-        # with open(json_export_filename, "r", encoding="utf-8") as f:
-        #     export_data = json.load(f)
-        #     assert isinstance(export_data["submissions"], list)
-        #     assert len(export_data["submissions"]) == 1
-        #     assert isinstance(export_data["submissions"][0], dict)
+    # Store data for dependent tests
+    _shared_setup_data = {
+        "grant_name": new_grant_name,
+        "grant_name_uuid": grant_name_uuid,
+        "grant_id": grant_id,
+        "collection_name": new_report_name,
+        "collection_id": collection_id,
+        "grant_team_email": grant_team_email,
+        "first_section_name": first_section_name,
+        "second_section_name": second_section_name,
+        "test_org_name": test_org_name,
+        "test_org_external_id": test_org_external_id,
+    }
 
-    finally:
-        # Sign out and switch to platform admin
-        switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
 
-        # Tidy up by deleting the grant via admin panel, which will cascade to all related entities
-        delete_grant_through_admin(page, domain, grant_name_uuid)
+def test_preview_collection(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
+) -> None:
+    """Grant team member previews and fills the collection."""
+    assert _shared_setup_data is not None, "Setup test must run first"
+    data = _shared_setup_data
 
-        if new_question_type_error:
-            raise new_question_type_error
+    # Switch to grant team member
+    switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER, data["grant_team_email"])
+
+    # Preview the report
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+
+    # This page can auto-redirect to the grant page; if it doesn't we should click the grant name.
+    if all_grants_page.title.is_visible():
+        all_grants_page.click_grant(data["grant_name"])
+
+    grant_details_page = GrantDetailsPage(page, domain, data["grant_name"])
+    grant_reports_page = grant_details_page.click_reports(data["grant_name"])
+    report_sections_page = grant_reports_page.click_manage_sections(
+        grant_name=data["grant_name"], report_name=data["collection_name"]
+    )
+    tasklist_page = report_sections_page.click_preview_report()
+
+    # Check the tasklist has loaded
+    expect(
+        tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
+    ).to_be_visible()
+    expect(tasklist_page.submit_button).to_be_disabled()
+    expect(tasklist_page.page.get_by_role("link", name=data["first_section_name"])).to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
+
+    # Complete the first task with question groups
+    complete_task(tasklist_page, data["first_section_name"], data["grant_name"], questions_with_groups_to_test)
+
+    # Check your answers page
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_with_groups_to_test)
+
+    # Complete the second task with flat questions list
+    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], questions_to_test)
+
+    # Check your answers page
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_to_test)
+
+    # Submit the report
+    expect(
+        tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Ready to submit"))
+    ).to_be_visible()
+    expect(tasklist_page.submit_button).to_be_enabled()
+
+    tasklist_page.click_submit_for_preview()
+
+
+def test_deliver_test_grant_recipient_journey(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
+) -> None:
+    """Grant team member triggers test submission via test organisation."""
+    assert _shared_setup_data is not None, "Setup test must run first"
+    data = _shared_setup_data
+
+    # Switch to grant team member
+    switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER, data["grant_team_email"])
+
+    test_journey_page = DeliverTestGrantRecipientJourneyPage(
+        page, domain, data["grant_id"], data["collection_id"], data["collection_name"]
+    )
+    test_journey_page.navigate()
+    test_journey_page.select_test_organisation(data["test_org_name"])
+    test_journey_page.click_start_test_journey()
+
+    access_home = AccessHomePage(page, domain)
+    access_home.navigate()
+    access_home.click_accept_cookies()
+    access_grant = access_home.select_grant(data["test_org_name"], data["grant_name"])
+    access_grant.click_collection(data["collection_name"])
+
+    # We should now be on the tasklist page for the submission
+    tasklist_page = RunnerTasklistPage(page, domain, data["grant_name"], data["collection_name"])
+
+    # Check the tasklist has loaded
+    expect(
+        tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
+    ).to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["first_section_name"])).to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
+
+    # Complete the first task with question groups
+    complete_task(tasklist_page, data["first_section_name"], data["grant_name"], questions_with_groups_to_test)
+
+    # Check your answers page
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_with_groups_to_test)
+
+    # Complete the second task with flat questions list
+    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], questions_to_test)
+
+    # Check your answers page
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_to_test)
+
+    # Submit the report
+    expect(
+        tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Ready to submit"))
+    ).to_be_visible()
+    expect(tasklist_page.submit_button).to_be_enabled()
+
+    tasklist_page.click_submit_for_certify()
+
+    # TODO - certify it?
+
+    grant_reports_page = GrantReportsPage(page, domain, data["grant_name"])
+    grant_reports_page.navigate(data["grant_id"])
+    submissions_list_page = grant_reports_page.click_view_submissions(data["collection_name"])
+    view_submission_page = submissions_list_page.click_on_submission(data["test_org_name"])
+    view_submission_page.click_reset_submission()
+
+
+def test_zzz_cleanup_grant(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
+) -> None:
+    """Cleanup: delete the grant via admin panel. Named zzz_ to run last alphabetically."""
+    if _shared_setup_data is None:
+        pytest.skip("No setup data to clean up")
+
+    # Switch to platform admin
+    switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
+
+    # Tidy up by deleting the grant via admin panel, which will cascade to all related entities
+    delete_grant_recipient_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
+    delete_test_org_through_admin(page, domain, _shared_setup_data["test_org_external_id"])
+    delete_grant_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
