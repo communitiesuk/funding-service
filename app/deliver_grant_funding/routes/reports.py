@@ -74,7 +74,11 @@ from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
     AddSectionForm,
+    ConditionContextSourceEnum,
+    ConditionSelectContextSourceForm,
+    ConditionSelectPreviousSectionForm,
     ConditionSelectQuestionForm,
+    ConditionSelectQuestionFromPreviousSectionForm,
     ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
@@ -1372,7 +1376,7 @@ def select_previous_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
-def select_question_from_previous_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def select_question_from_previous_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:  # noqa: C901
     db_form = get_form_by_id(form_id)
 
     add_context_data = _extract_add_context_data_from_session()
@@ -1381,9 +1385,16 @@ def select_question_from_previous_section(grant_id: UUID, form_id: UUID) -> Resp
 
     source_form = get_form_by_id(add_context_data.source_section_id)
 
+    # Filter by data type when referencing for expressions (validations)
+    data_type_filter = None
+    if isinstance(add_context_data, AddContextToExpressionsModel) and add_context_data.component_id:
+        current_component = get_component_by_id(add_context_data.component_id)
+        data_type_filter = current_component.data_type
+
     wtform = SelectQuestionFromPreviousSectionForm(
         source_form=source_form,
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
+        data_type_filter=data_type_filter,
     )
 
     if wtform.validate_on_submit():
@@ -1768,7 +1779,109 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition",
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-source",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_condition_select_context_source(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
+    form = ConditionSelectContextSourceForm(form=component.form)
+
+    if form.validate_on_submit():
+        if form.context_source.data == ConditionContextSourceEnum.THIS_SECTION.name:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.add_question_condition_select_question",
+                    grant_id=grant_id,
+                    component_id=component_id,
+                )
+            )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.add_condition_select_previous_section",
+                    grant_id=grant_id,
+                    component_id=component_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_condition_select_context_source.html",
+        component=component,
+        grant=component.form.collection.grant,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-previous-section",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_condition_select_previous_section(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
+    form = ConditionSelectPreviousSectionForm(form=component.form)
+
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_condition_select_question_from_previous_section",
+                grant_id=grant_id,
+                component_id=component_id,
+                source_form_id=form.section.data,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_condition_select_previous_section.html",
+        component=component,
+        grant=component.form.collection.grant,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-question-from-section/<uuid:source_form_id>",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_condition_select_question_from_previous_section(
+    grant_id: UUID, component_id: UUID, source_form_id: UUID
+) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
+    source_form = get_form_by_id(source_form_id)
+
+    form = ConditionSelectQuestionFromPreviousSectionForm(
+        source_form=source_form,
+        current_component=component,
+        interpolate=SubmissionHelper.get_interpolator(collection=component.form.collection),
+    )
+
+    if form.validate_on_submit():
+        depends_on_question = get_question_by_id(UUID(form.question.data))
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=grant_id,
+                component_id=component_id,
+                depends_on_question_id=depends_on_question.id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_condition_select_question_from_previous_section.html",
+        component=component,
+        source_form=source_form,
+        grant=component.form.collection.grant,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-question",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)

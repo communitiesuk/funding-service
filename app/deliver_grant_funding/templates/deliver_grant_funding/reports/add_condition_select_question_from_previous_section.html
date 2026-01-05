@@ -1,0 +1,46 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Select a question from " ~ source_form.title ~ " - " ~ component.name %}
+{% set active_item_identifier = "reports" %}
+{% set back_url = url_for("deliver_grant_funding.add_condition_select_previous_section", grant_id=grant.id, component_id=component.id) %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_url
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if form.question.choices | length > 0 %}
+        <span class="govuk-caption-l">Add a condition</span>
+
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.question(params={"label": {"text": "Select a question from '" ~ source_form.title ~ "'", "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} }) }}
+
+          <span class="govuk-button-group">
+            {{ form.submit(params={"text": "Select question"}) }}
+
+            <a
+              class="govuk-link govuk-link--no-visited-state"
+              href="{{ url_for('deliver_grant_funding.edit_question', grant_id=grant.id, question_id=component.id) if not component.is_group else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=component.id) }}"
+              >Cancel</a
+            >
+          </span>
+        </form>
+      {% else %}
+        <h1 class="govuk-heading-l">
+          <span class="govuk-caption-l">Add a condition</span>
+          Select a question from '{{ source_form.title }}'
+        </h1>
+        <p class="govuk-body">There are no questions available to reference in this section.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

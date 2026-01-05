@@ -1,3 +1,4 @@
+import enum
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, Union, cast
 from typing import Optional as TOptional
 from uuid import UUID
@@ -597,6 +598,7 @@ class SelectQuestionFromPreviousSectionForm(FlaskForm):
         source_form: "Form",
         interpolate: Callable[[str], str],
         *args: Any,
+        data_type_filter: TOptional["QuestionDataType"] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -606,7 +608,9 @@ class SelectQuestionFromPreviousSectionForm(FlaskForm):
 
         if referenceable_questions:
             self.question.choices = [("", "")] + [  # type: ignore[assignment]
-                (str(question.id), interpolate(question.text)) for question in referenceable_questions
+                (str(question.id), interpolate(question.text))
+                for question in referenceable_questions
+                if (data_type_filter is None or question.data_type == data_type_filter)
             ]
 
 
@@ -688,6 +692,85 @@ class ConditionSelectQuestionForm(FlaskForm):
                 (str(question.id), f"{interpolate(question.text)} ({question.name})")
                 for question in get_supported_form_questions(current_component)
             ]  # type: ignore[assignment]
+
+
+class ConditionContextSourceEnum(enum.StrEnum):
+    THIS_SECTION = "A question in this section"
+    PREVIOUS_SECTION = "A question from a previous section"
+
+
+class ConditionSelectContextSourceForm(FlaskForm):
+    context_source = RadioField(
+        "Where is the question you want to check?",
+        choices=[(choice.name, choice.value) for choice in ConditionContextSourceEnum],
+        validators=[DataRequired("Select where the question is")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, form: "Form", *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.form_obj = form
+        earlier_forms = get_earlier_forms(form)
+        if not earlier_forms:
+            self.context_source.choices = [
+                (ConditionContextSourceEnum.THIS_SECTION.name, ConditionContextSourceEnum.THIS_SECTION.value)
+            ]
+
+    def validate_context_source(self, field: Field) -> None:
+        if field.data == ConditionContextSourceEnum.PREVIOUS_SECTION.name:
+            if not get_earlier_forms(self.form_obj):
+                raise ValidationError("There are no previous sections to reference questions from")
+
+
+class ConditionSelectPreviousSectionForm(FlaskForm):
+    section = RadioField(
+        "Select a previous section",
+        choices=[],
+        validators=[DataRequired("Select a section")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, form: "Form", *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        earlier_forms = get_earlier_forms(form)
+        self.section.choices = [(str(f.id), f.title) for f in earlier_forms]
+
+
+class ConditionSelectQuestionFromPreviousSectionForm(FlaskForm):
+    question = SelectField(
+        "Which answer should the condition check?",
+        choices=[],
+        validators=[DataRequired("Select a question")],
+        widget=MHCLGAccessibleAutocomplete(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        source_form: "Form",
+        current_component: "Component",
+        interpolate: Callable[[str], str],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        from app.common.expressions.registry import get_registered_data_types
+        from app.common.forms.helpers import get_referenceable_questions_from_form
+
+        referenceable_questions = get_referenceable_questions_from_form(source_form)
+        supported_data_types = get_registered_data_types()
+
+        compatible_questions = [
+            q for q in referenceable_questions if q.data_type in supported_data_types and q.id != current_component.id
+        ]
+
+        if compatible_questions:
+            self.question.choices = [("", "")] + [  # type: ignore[assignment]
+                (str(question.id), f"{interpolate(question.text)} ({question.name})")
+                for question in compatible_questions
+            ]
 
 
 class AddGuidanceForm(FlaskForm):

@@ -2315,8 +2315,8 @@ class TestSelectContextSource:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Select a data source" in soup.text
 
-    def test_post_redirect_and_updates_session(self, authenticated_grant_admin_client, factories):
-        assert len(ExpressionContext.ContextSources) == 1, "Check all redirects if adding new context source choices"
+    def test_post_redirect_section(self, authenticated_grant_admin_client, factories):
+        assert len(ExpressionContext.ContextSources) == 2, "Check all redirects if adding new context source choices"
 
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
@@ -2345,6 +2345,39 @@ class TestSelectContextSource:
         assert response.location.endswith(
             url_for(
                 "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+    def test_post_redirect_previous_section(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        factories.form.create(collection=report, order=0)
+        form = factories.form.create(collection=report, order=1)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"data_source": "PREVIOUS_SECTION"},
+        )
+        assert response.status_code == 302
+        assert response.location.endswith(
+            url_for(
+                "deliver_grant_funding.select_previous_section",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             )
