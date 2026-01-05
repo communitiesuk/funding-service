@@ -34,6 +34,7 @@ class AddContextToComponentSessionModel(BaseModel):
     component_form_data: dict[str, Any]
 
     data_source: ExpressionContext.ContextSources | None = None
+    source_section_id: UUID | None = None
 
     component_id: UUID | None = None
     parent_id: UUID | None = None
@@ -51,6 +52,7 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
     is_add_another_guidance: bool | None = False
 
     data_source: ExpressionContext.ContextSources | None = None
+    source_section_id: UUID | None = None
 
 
 class AddContextToExpressionsModel(BaseModel):
@@ -65,5 +67,6 @@ class AddContextToExpressionsModel(BaseModel):
     parent_id: UUID | None = None
 
     data_source: ExpressionContext.ContextSources | None = None
+    source_section_id: UUID | None = None
     depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None

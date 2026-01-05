@@ -28,6 +28,19 @@ def questions_in_same_add_another_container(q1: "Component", q2: "Component") ->
     )
 
 
+def get_earlier_forms(form: "Form") -> list["Form"]:
+    """Return a list of forms that come before the given form in the collection, ordered by their order field."""
+    return sorted(
+        [f for f in form.collection.forms if f.order < form.order],
+        key=lambda f: f.order,
+    )
+
+
+def get_referenceable_questions_from_form(source_form: "Form") -> list["Question"]:
+    """Return all questions from a source form that can be referenced (excludes add another questions)."""
+    return [q for q in source_form.cached_questions if not q.add_another_container]
+
+
 def get_referenceable_questions(
     form: "Form", current_component: "Component | None" = None, parent_component: "Group | None" = None
 ) -> list["Question"]:

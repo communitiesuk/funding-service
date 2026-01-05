@@ -35,7 +35,7 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext
 from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
-from app.common.forms.helpers import get_referenceable_questions
+from app.common.forms.helpers import get_earlier_forms, get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
@@ -523,6 +523,10 @@ class AddContextSelectSourceForm(FlaskForm):
             ):
                 raise ValidationError("There are no available questions before this one in the section")
 
+        if choice == ExpressionContext.ContextSources.PREVIOUS_SECTION:
+            if not get_earlier_forms(self.form):
+                raise ValidationError("There are no previous sections to reference questions from")
+
 
 class SelectDataSourceQuestionForm(FlaskForm):
     question = SelectField(
@@ -559,6 +563,50 @@ class SelectDataSourceQuestionForm(FlaskForm):
                 (str(question.id), interpolate(question.text))
                 for question in referenceable_questions
                 if (not expression or question.data_type == current_component.data_type)  # type: ignore[assignment, union-attr]
+            ]
+
+
+class SelectPreviousSectionForm(FlaskForm):
+    section = RadioField(
+        "Select a previous section",
+        choices=[],
+        validators=[DataRequired("Select a section")],
+        widget=GovRadioInput(),
+    )
+
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, form: "Form", *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        earlier_forms = get_earlier_forms(form)
+        self.section.choices = [(str(f.id), f.title) for f in earlier_forms]
+
+
+class SelectQuestionFromPreviousSectionForm(FlaskForm):
+    question = SelectField(
+        "Select which question's answer to use",
+        choices=[],
+        validators=[DataRequired("Select the question")],
+        widget=MHCLGAccessibleAutocomplete(),
+    )
+
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        source_form: "Form",
+        interpolate: Callable[[str], str],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        from app.common.forms.helpers import get_referenceable_questions_from_form
+
+        referenceable_questions = get_referenceable_questions_from_form(source_form)
+
+        if referenceable_questions:
+            self.question.choices = [("", "")] + [  # type: ignore[assignment]
+                (str(question.id), interpolate(question.text)) for question in referenceable_questions
             ]
 
 

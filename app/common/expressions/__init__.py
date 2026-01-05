@@ -57,9 +57,8 @@ class ExpressionContext(ChainMap[str, Any]):
     """
 
     class ContextSources(enum.StrEnum):
-        # We actually expose all questions in the collection, but for now we're limited contextual references to
-        # just questions in the same section.
-        SECTION = "A previous question in this section"
+        SECTION = "A question in this section"
+        PREVIOUS_SECTION = "A question from a previous section"
 
     def __init__(
         self,
@@ -168,7 +167,7 @@ class ExpressionContext(ChainMap[str, Any]):
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
-        assert len(ExpressionContext.ContextSources) == 1, (
+        assert len(ExpressionContext.ContextSources) == 2, (
             "When defining a new source of context for expressions, "
             "update this method and the ContextSourceChoices enum"
         )
@@ -186,12 +185,17 @@ class ExpressionContext(ChainMap[str, Any]):
         if mode == "interpolation":
             for form in collection.forms:
                 for question in form.cached_questions:
-                    if expression_context_end_point and (
-                        expression_context_end_point.form != form
-                        or form.global_component_index(expression_context_end_point)
-                        <= form.global_component_index(question)
-                    ):
-                        continue
+                    if expression_context_end_point:
+                        endpoint_form = expression_context_end_point.form
+                        # Skip questions from later forms (higher order)
+                        if form.order > endpoint_form.order:
+                            continue
+                        # For same form, skip questions that appear at or after the endpoint
+                        if form.order == endpoint_form.order:
+                            if form.global_component_index(expression_context_end_point) <= form.global_component_index(
+                                question
+                            ):
+                                continue
 
                     submission_data.setdefault(question.safe_qid, f"(({question.name}))")
 
@@ -207,11 +211,22 @@ class ExpressionContext(ChainMap[str, Any]):
         if submission_helper:
             for form in submission_helper.collection.forms:
                 for question in form.cached_questions:
-                    if expression_context_end_point is None or (
-                        expression_context_end_point.form == form
-                        and form.global_component_index(expression_context_end_point)
-                        >= form.global_component_index(question)
-                    ):
+                    should_include = False
+                    if expression_context_end_point is None:
+                        should_include = True
+                    else:
+                        endpoint_form = expression_context_end_point.form
+                        # Include questions from earlier forms
+                        if form.order < endpoint_form.order:
+                            should_include = True
+                        # For same form, include questions that appear before the endpoint
+                        elif form.order == endpoint_form.order:
+                            if form.global_component_index(expression_context_end_point) >= form.global_component_index(
+                                question
+                            ):
+                                should_include = True
+
+                    if should_include:
                         # until we do support aggregate methods in expressions we only support add another
                         # question answers through an explicit `with_add_another_context` which sets the context
                         if not question.add_another_container:

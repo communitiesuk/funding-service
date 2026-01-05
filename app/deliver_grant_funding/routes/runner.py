@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from flask import redirect, render_template, request, session, url_for
+from flask import flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.decorators import has_deliver_grant_role
@@ -77,6 +77,18 @@ def ask_a_question(
     if not runner.validate_can_show_question_page():
         return redirect(runner.next_url)
 
+    form = runner.questions[0].form
+    if not runner.submission.can_start_form(form):
+        blocking = runner.submission.get_blocking_section_titles_for_form(form)
+        flash(f"You cannot start this section yet. Complete {', '.join(blocking)} first.", "warning")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.submission_tasklist",
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
+        )
+
     if (
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
@@ -112,6 +124,17 @@ def check_your_answers(grant_id: UUID, submission_id: UUID, form_id: UUID) -> Re
     runner = DGFFormRunner.load(
         submission_id=submission_id, form_id=form_id, source=FormRunnerState(source) if source else None
     )
+
+    if runner.form and not runner.submission.can_start_form(runner.form):
+        blocking = runner.submission.get_blocking_section_titles_for_form(runner.form)
+        flash(f"You cannot start this section yet. Complete {', '.join(blocking)} first.", "warning")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.submission_tasklist",
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
+        )
 
     if runner.check_your_answers_form.validate_on_submit():
         if runner.save_is_form_completed(interfaces.user.get_current_user()):
