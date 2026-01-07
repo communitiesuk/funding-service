@@ -22,7 +22,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import build_managed_expression_form
-from app.common.expressions.managed import GreaterThan, IsAfter, IsNo, IsYes, LessThan
+from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
@@ -2866,12 +2866,174 @@ class TestEditQuestion:
         # test here.
         raise AssertionError()
 
-    @pytest.mark.xfail
-    def test_post_data_source_item_errors(self):
-        # TODO: write me, followup PR, sorry
-        # If you're a dev and you're looking at this please consider doing a kindness and taking 10 mins to write a nice
-        # test here.
-        raise AssertionError()
+    def test_post_data_source_item_errors(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        q1 = factories.question.create(
+            form=db_form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.RADIOS,
+        )
+
+        form = QuestionForm(
+            data={
+                "text": "My question",
+                "hint": "Question name",
+                "name": "Question hint",
+                # duplicates option 1
+                "data_source_items": f"{q1.data_source.items[0].label}\n{q1.data_source.items[1].label}\n"
+                f"{q1.data_source.items[1].label}\n{q1.data_source.items[2].label}",
+            },
+            question_type=QuestionDataType.RADIOS,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=q1.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=True,
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        assert page_has_error(soup, "Remove duplicate options from the list")
+
+    def test_post_with_option_dependency_error(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        q1 = factories.question.create(
+            form=db_form,
+            text="My question",
+            name="Question name",
+            hint="Question hint",
+            data_type=QuestionDataType.RADIOS,
+        )
+        q2 = factories.question.create(
+            form=db_form,
+            text="Dependent question",
+            name="Dependent question name",
+            hint="Dependent question hint",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expressions=[
+                Expression.from_managed(
+                    AnyOf(
+                        question_id=q1.id,
+                        items=[
+                            {"key": q1.data_source.items[0].key, "label": q1.data_source.items[0].label},
+                        ],
+                    ),
+                    factories.user.create(),
+                )
+            ],
+        )
+        form = QuestionForm(
+            data={
+                "text": "My question",
+                "hint": "Question name",
+                "name": "Question hint",
+                # removes option 0
+                "data_source_items": f"{q1.data_source.items[1].label}\n{q1.data_source.items[2].label}",
+            },
+            question_type=QuestionDataType.RADIOS,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=q1.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=True,
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        # Check the dependency error flash/banner is present
+        alert = soup.find(attrs={"role": "alert"})
+        assert alert is not None, "expected an alert notification banner in the page"
+
+        links = alert.select("a.govuk-notification-banner__link")
+        assert len(links) == 2, f"expected 2 links in the dependency banner, found {len(links)}"
+
+        # First link should point to the dependent question (q2)
+        expected_q2_href = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=q2.id)
+        assert links[0]["href"] == expected_q2_href
+        assert links[0].get_text(strip=True) == q2.text
+
+        # Second link should point to the question being edited/deleted (q1)
+        expected_q1_href = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=q1.id)
+        assert links[1]["href"] == expected_q1_href
+        assert links[1].get_text(strip=True) == q1.text
+
+    def test_post_with_integer_dependency_error(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        # Create integer question that will be referenced
+        q1 = factories.question.create(
+            form=db_form,
+            text="Integer question",
+            name="Integer question name",
+            hint="Integer question hint",
+            data_type=QuestionDataType.INTEGER,
+        )
+
+        # Create a dependent question that references q1 via a GreaterThan managed expression
+        q2 = factories.question.create(
+            form=db_form,
+            text="Dependent on integer",
+            name="Dependent question name",
+            hint="Dependent question hint",
+            data_type=QuestionDataType.INTEGER,
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=100),
+                    factories.user.create(),
+                )
+            ],
+        )
+
+        # Attempt to delete q1 via the edit_question endpoint using the delete query param
+        confirm_form = GenericConfirmDeletionForm()
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=q1.id,
+                delete="",
+            ),
+            data=get_form_data(confirm_form, submit=""),
+            follow_redirects=True,
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        # Check the dependency error flash/banner is present
+        alert = soup.find(attrs={"role": "alert"})
+        assert alert is not None, "expected an alert notification banner in the page"
+
+        links = alert.select("a.govuk-notification-banner__link")
+        assert len(links) == 2, f"expected 2 links in the dependency banner, found {len(links)}"
+
+        # First link should point to the dependent question (q2)
+        expected_q2_href = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=q2.id)
+        assert links[0]["href"] == expected_q2_href
+        assert links[0].get_text(strip=True) == q2.text
+
+        # Second link should point to the question being edited/deleted (q1)
+        expected_q1_href = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=q1.id)
+        assert links[1]["href"] == expected_q1_href
+        assert links[1].get_text(strip=True) == q1.text
 
     def test_restore_from_session_when_returning_from_add_session_flow(
         self, authenticated_grant_admin_client, factories
