@@ -769,6 +769,7 @@ class DataSourceItemReferenceDependencyException(Exception, FlashableException):
         for dependent_question, data_source_items in self.data_source_item_dependency_map.items():
             flash_context: dict[str, str | bool] = {
                 "message": self.message,
+                "grant_id": str(self.question_being_edited.form.collection.grant_id),  # Required for URL routing
                 "question_id": str(dependent_question.id),
                 "question_text": dependent_question.text,
                 "question_is_group": dependent_question.is_group,
