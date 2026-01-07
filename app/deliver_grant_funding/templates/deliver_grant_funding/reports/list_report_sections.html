@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "common/macros/status.html" import reportStatusTag with context %}
 
@@ -113,6 +114,22 @@
           {{ form.csrf_token }}
           <div class="govuk-button-group app-button-group--full-width-on-desktop">
             {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
+
+            {% if previewers %}
+              {% set previewer_list_html %}
+                <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+                  {% for previewer in previewers %}
+                    <li>{{ previewer.name }}</li>
+                  {% endfor %}
+                </ul>
+              {% endset %}
+              {{
+                govukDetails({
+                  "summaryText": (previewers | length) ~ " previewers",
+                  "html": previewer_list_html
+                })
+              }}
+            {% endif %}
             {% if user_can_test_grant_recipient_journey %}
               <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, report_id=report.id) }}">Test grant recipient journey</a>
             {% endif %}

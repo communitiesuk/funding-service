@@ -248,6 +248,10 @@ def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def list_report_sections(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
+    previews = get_all_submissions_with_mode_for_collection(
+        collection_id=report.id, submission_mode=SubmissionModeEnum.PREVIEW, with_full_schema=False
+    )
+    previewers = set([preview.created_by for preview in previews if preview])
     form = GenericSubmitForm()
 
     if form.validate_on_submit() and form.submit.data:
@@ -258,6 +262,7 @@ def list_report_sections(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
         grant=report.grant,
         report=report,
         form=form,
+        previewers=previewers,
     )
 
 
