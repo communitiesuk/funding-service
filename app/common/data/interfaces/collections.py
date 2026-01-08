@@ -312,7 +312,7 @@ def get_all_submissions_with_mode_for_collection(
     """
 
     if with_full_schema and with_users:
-        raise ValueError("only one of with_full_schema or with_users should be set")
+        raise ValueError("Only one of with_full_schema or with_users should be set")
 
     # todo: this feels redundant because this interface should probably be limited to a single collection and fetch
     #       that through a specific interface which already exists - this can then focus on submissions

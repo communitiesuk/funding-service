@@ -3820,6 +3820,19 @@ class TestGetSubmissions:
 
         assert queries == []
 
+    def test_get_all_submissions_with_mode_for_collection_with_users_with_full_schema_throws(
+        self, db_session, factories
+    ):
+        collection = factories.collection.create()
+
+        with pytest.raises(ValueError, match="Only one of with_full_schema or with_users should be set"):
+            get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                with_full_schema=True,
+                with_users=True,
+            )
+
 
 class TestResetTestSubmission:
     def test_reset_test_submission_only_deletes_specified_submission(self, db_session, factories):
