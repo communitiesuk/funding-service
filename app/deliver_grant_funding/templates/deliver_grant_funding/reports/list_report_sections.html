@@ -115,7 +115,7 @@
           <div class="govuk-button-group app-button-group--full-width-on-desktop">
             {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
 
-            {% if previewers %}
+            {% if previewers and authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
               {% set previewer_list_html %}
                 <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
                   {% for previewer in previewers %}
@@ -125,6 +125,7 @@
               {% endset %}
               {{
                 govukDetails({
+                  "id": "previewers-details",
                   "summaryText": (previewers | length) ~ " previewers",
                   "html": previewer_list_html
                 })

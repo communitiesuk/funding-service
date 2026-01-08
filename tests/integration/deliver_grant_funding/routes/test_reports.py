@@ -532,6 +532,40 @@ class TestListReportSections:
         assert manage_section_link is not None
         assert (add_another_section_list is not None) is can_edit
 
+        assert soup.find("details", id="previewers-details") is None
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_edit",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_with_previews(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
+        preview_user = factories.user.create()
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        factories.form.create(collection=report, title="Organisation information")
+
+        factories.submission.create(collection=report, mode=SubmissionModeEnum.PREVIEW, created_by=preview_user)
+
+        response = client.get(
+            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Organisation information" in soup.text
+
+        # only people that can edit should see who has previewed, this should always be shown even
+        # after the report is locked
+        if can_edit:
+            assert "1 previewers" in soup.text
+            preview_list = soup.find("details", id="previewers-details")
+            assert preview_user.name in preview_list.text
+        else:
+            assert "1 previewers" not in soup.text
+
     @pytest.mark.parametrize(
         "client_fixture, can_preview",
         (

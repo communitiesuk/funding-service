@@ -251,7 +251,7 @@ def list_report_sections(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
     previews = get_all_submissions_with_mode_for_collection(
         collection_id=report.id, submission_mode=SubmissionModeEnum.PREVIEW, with_full_schema=False
     )
-    previewers = set([preview.created_by for preview in previews if preview])
+    previewers = {preview.created_by for preview in previews}
     form = GenericSubmitForm()
 
     if form.validate_on_submit() and form.submit.data:
