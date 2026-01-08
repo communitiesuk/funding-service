@@ -302,6 +302,7 @@ def get_all_submissions_with_mode_for_collection(
     grant_recipient_ids: Sequence[UUID] | TNotProvided = NOT_PROVIDED,
     *,
     with_full_schema: bool = True,
+    with_users: bool = False,
 ) -> ScalarResult[Submission]:
     """
     Use this function to get all submission data for a collection - it
@@ -309,6 +310,9 @@ def get_all_submissions_with_mode_for_collection(
     performance and reduce the number of queries compared to looping
     through them all individually.
     """
+
+    if with_full_schema and with_users:
+        raise ValueError("Only one of with_full_schema or with_users should be set")
 
     # todo: this feels redundant because this interface should probably be limited to a single collection and fetch
     #       that through a specific interface which already exists - this can then focus on submissions
@@ -334,6 +338,10 @@ def get_all_submissions_with_mode_for_collection(
             .selectinload(Form.components)
             .joinedload(Component.expressions),
             selectinload(Submission.events),
+            joinedload(Submission.created_by),
+        )
+    elif with_users:
+        stmt = stmt.options(
             joinedload(Submission.created_by),
         )
     if grant_recipient_ids is not NOT_PROVIDED:
