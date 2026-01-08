@@ -249,7 +249,7 @@ def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 def list_report_sections(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
     previews = get_all_submissions_with_mode_for_collection(
-        collection_id=report.id, submission_mode=SubmissionModeEnum.PREVIEW, with_full_schema=False
+        collection_id=report.id, submission_mode=SubmissionModeEnum.PREVIEW, with_full_schema=False, with_users=True
     )
     previewers = {preview.created_by for preview in previews}
     form = GenericSubmitForm()

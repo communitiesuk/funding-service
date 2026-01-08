@@ -3776,6 +3776,50 @@ class TestGetSubmissions:
         )
         assert len(submission_results) == 1
 
+    def test_get_all_submissions_with_mode_for_collection_with_users(self, db_session, factories, track_sql_queries):
+        collection = factories.collection.create(create_submissions__live=2, create_submissions__test=1)
+        collection_id = collection.id
+
+        # check when we don't request all users - we should expect additional queries
+        from_db = get_all_submissions_with_mode_for_collection(
+            collection_id=collection_id,
+            submission_mode=SubmissionModeEnum.LIVE,
+            with_full_schema=False,
+            with_users=False,
+        )
+
+        # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
+        count = 0
+        with track_sql_queries() as queries:
+            for submission in from_db:
+                _ = submission.created_by
+                count += 1
+
+        assert len(queries) == count
+
+        # check with requesting all users - no additional queries
+        with track_sql_queries() as queries:
+            from_db = get_all_submissions_with_mode_for_collection(
+                collection_id=collection_id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                with_full_schema=False,
+                with_users=True,
+            )
+        assert from_db is not None
+
+        # Expected queries:
+        # * Fetch the submissions join the users
+        assert len(queries) == 1
+
+        # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
+        count = 0
+        with track_sql_queries() as queries:
+            for submission in from_db:
+                _ = submission.created_by
+                count += 1
+
+        assert queries == []
+
 
 class TestResetTestSubmission:
     def test_reset_test_submission_only_deletes_specified_submission(self, db_session, factories):
