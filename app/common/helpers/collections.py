@@ -124,6 +124,8 @@ class SubmissionHelper:
         self.cached_get_all_questions_are_answered_for_form = lru_cache(maxsize=None)(
             self._get_all_questions_are_answered_for_form
         )
+        # TODO need to inject submission data from any referenced other submissions here otheriwse expressions
+        #   won't have that data available
         self.cached_evaluation_context = ExpressionContext.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,
@@ -134,6 +136,9 @@ class SubmissionHelper:
             submission_helper=self,
             mode="interpolation",
         )
+        # self.cached_previous_dependent_submission_helpers: dict[UUID, "SubmissionHelper | None"] = (
+        #     self._get_previous_dependent_submission_helpers
+        # )
 
     @classmethod
     def load(cls, submission_id: uuid.UUID, *, grant_recipient_id: uuid.UUID | None = None) -> "SubmissionHelper":
@@ -378,6 +383,14 @@ class SubmissionHelper:
         """Returns the visible, ordered forms based upon the current state of this collection."""
         return sorted(self.collection.forms, key=lambda f: f.order)
 
+    def get_dependent_submission_helper(self, collection_id: UUID) -> "SubmissionHelper | None":
+        submission = interfaces.collections.get_submission_by_grant_recipient_collection(
+            self.submission.grant_recipient, collection_id
+        )
+        if submission:
+            return SubmissionHelper(submission)
+        return None
+
     def get_cross_section_dependencies_for_form(self, form: "Form") -> list["Form"]:
         """Returns earlier forms that have unanswered questions referenced by this form."""
         unsatisfied_forms: dict[uuid.UUID, "Form"] = {}
@@ -385,9 +398,20 @@ class SubmissionHelper:
         for component in form.cached_all_components:
             for ref in component.owned_component_references:
                 depends_on = ref.depends_on_component
+
                 if depends_on.form_id != form.id:
                     if depends_on.is_question:
-                        answer = self.cached_get_answer_for_question(depends_on.id)
+                        if depends_on.form.collection_id != self.collection.id:
+                            # TODO probably a more efficient way to get all the dependent submissions at once?
+                            dependent_submission = self.get_dependent_submission_helper(depends_on.form.collection_id)
+                            if not dependent_submission:
+                                # TODO probably a better way of keeping track of these
+                                # TODO should we also check the status of the submission, rather than just whether there is an answer?
+                                unsatisfied_forms[depends_on.form.id] = depends_on.form
+                                continue
+                            answer = dependent_submission.cached_get_answer_for_question(depends_on.id)
+                        else:
+                            answer = self.cached_get_answer_for_question(depends_on.id)
                         if answer is None:
                             unsatisfied_forms[depends_on.form_id] = depends_on.form
 
@@ -776,6 +800,29 @@ class SubmissionHelper:
             answer_status.append(answer is not None)
 
         return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
+
+    def _get_previous_dependent_submission_helpers(self) -> dict[UUID, "SubmissionHelper | None"]:
+        dependent_submission_helpers: dict[UUID, "SubmissionHelper | None"] = {}
+        dependent_collection_ids = set()
+        for form in self.collection.forms:
+            for component in form.cached_all_components:
+                for ref in component.owned_component_references:
+                    depends_on = ref.depends_on_component
+
+                    if (
+                        depends_on.is_question
+                        and depends_on.form_id != form.id
+                        and depends_on.form.collection_id != self.collection.id
+                    ):
+                        dependent_collection_ids.add(depends_on.form.collection_id)
+                        submission_helper = self.get_dependent_submission_helper(depends_on.form.collection_id)
+                        dependent_submission_helpers[component.id] = submission_helper
+
+        # for collection_id in dependent_collection_ids:
+        #     submission_helper = self.get_dependent_submission_helper(collection_id)
+        #     dependent_submission_helpers[collection_id] = submission_helper
+
+        return dependent_submission_helpers
 
 
 class CollectionHelper:
