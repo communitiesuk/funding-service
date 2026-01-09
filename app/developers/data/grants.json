@@ -21,9 +21,13 @@
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "20bb625b-b17a-48bb-9739-e865b7692c9c",
           "name": "Earlier report",
+          "reporting_period_end_date": "Sun, 01 Jun 2025 00:00:00 GMT",
+          "reporting_period_start_date": "Wed, 01 Jan 2025 00:00:00 GMT",
           "requires_certification": true,
           "slug": "earlier-report",
-          "status": "Draft",
+          "status": "Open",
+          "submission_period_end_date": "Mon, 01 Dec 2025 00:00:00 GMT",
+          "submission_period_start_date": "Tue, 01 Jul 2025 00:00:00 GMT",
           "type": "monitoring report"
         },
         {
@@ -31,9 +35,13 @@
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "name": "Q3 2025",
+          "reporting_period_end_date": "Fri, 02 Jan 2026 00:00:00 GMT",
+          "reporting_period_start_date": "Thu, 01 Jan 2026 00:00:00 GMT",
           "requires_certification": true,
           "slug": "q3-2025",
-          "status": "Draft",
+          "status": "Open",
+          "submission_period_end_date": "Sat, 31 Jan 2026 00:00:00 GMT",
+          "submission_period_start_date": "Sat, 03 Jan 2026 00:00:00 GMT",
           "type": "monitoring report"
         },
         {
@@ -1291,6 +1299,7 @@
         "name": "Cheeseboards in parks",
         "primary_contact_email": "john.cheese@test.communities.gov.uk",
         "primary_contact_name": "John Cheese",
+        "privacy_policy_markdown": "asdfasdf",
         "status": "live"
       },
       "grant_recipients": [
@@ -4025,8 +4034,8 @@
     {
       "id": "68e3b145-1ce2-4561-b0fc-0225c39f87ef",
       "permissions": [
-        "admin",
-        "member"
+        "member",
+        "admin"
       ],
       "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },
@@ -4092,13 +4101,13 @@
       "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
       "email": "brandy.santos@test.communities.gov.uk",
       "id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-      "last_logged_in_at_utc": "Mon, 05 Jan 2026 14:57:41 GMT",
+      "last_logged_in_at_utc": "Fri, 09 Jan 2026 12:21:16 GMT",
       "name": "Brandy Santos"
     },
     {
       "email": "christina.sanders@test.communities.gov.uk",
       "id": "4f990e2b-690b-4c97-a47b-c9a073e92827",
-      "last_logged_in_at_utc": "Thu, 11 Dec 2025 10:54:46 GMT",
+      "last_logged_in_at_utc": "Fri, 09 Jan 2026 12:21:53 GMT",
       "name": "Christina Sanders"
     },
     {
