@@ -17,6 +17,16 @@
           "type": "monitoring report"
         },
         {
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "20bb625b-b17a-48bb-9739-e865b7692c9c",
+          "name": "Earlier report",
+          "requires_certification": true,
+          "slug": "earlier-report",
+          "status": "Draft",
+          "type": "monitoring report"
+        },
+        {
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -170,6 +180,17 @@
           "depends_on_component_id": "d99b94c3-66fa-4449-b4c4-ac5a2caeb8c9",
           "expression_id": "fac76323-0d53-427f-ad85-2522a33c77e4",
           "id": "a5df4911-602f-4f69-9d6d-11c5dc9baf74"
+        },
+        {
+          "component_id": "ad8bf4cf-8467-4dcd-abfd-e536d1583890",
+          "depends_on_component_id": "19fc71ff-ec1b-414a-b8b9-52502c0d4617",
+          "id": "b364ec07-c332-49b5-ba9b-8e735995537b"
+        },
+        {
+          "component_id": "d9b09497-862c-4b6a-8675-95463998a2f6",
+          "depends_on_component_id": "8e82d052-1c53-4139-8213-a43ae60d1057",
+          "expression_id": "20053596-beeb-4281-bf39-684544efc038",
+          "id": "b86b4d03-1b5f-499b-a91b-53ed84658a5e"
         },
         {
           "component_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
@@ -951,6 +972,20 @@
         },
         {
           "context": {
+            "inclusive": false,
+            "minimum_expression": null,
+            "minimum_value": 7,
+            "question_id": "8e82d052-1c53-4139-8213-a43ae60d1057"
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "20053596-beeb-4281-bf39-684544efc038",
+          "managed_name": "Greater than",
+          "question_id": "d9b09497-862c-4b6a-8675-95463998a2f6",
+          "statement": "q_8e82d0521c5341398213a43ae60d1057 > 7",
+          "type_": "CONDITION"
+        },
+        {
+          "context": {
             "item": {
               "key": "other",
               "label": "Other"
@@ -1164,6 +1199,20 @@
           "title": "Outputs and outcomes"
         },
         {
+          "collection_id": "20bb625b-b17a-48bb-9739-e865b7692c9c",
+          "id": "37ecd23e-7d80-4a08-91da-035add0de346",
+          "order": 0,
+          "slug": "egg-boxes",
+          "title": "Egg boxes"
+        },
+        {
+          "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
+          "id": "3f9e3987-a3ef-4a87-a5bc-8d685a12e73a",
+          "order": 6,
+          "slug": "test",
+          "title": "test"
+        },
+        {
           "collection_id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
           "id": "535ac1ba-9d56-4850-a592-89982951c679",
           "order": 0,
@@ -1256,6 +1305,12 @@
           "id": "35cf31fc-3b1a-4aa1-b32f-15305b411363",
           "mode": "live",
           "organisation_id": "3ca29557-e6b9-4e6d-8290-5fb1c9535d1e"
+        },
+        {
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "b0acdf4d-8d69-49ba-9cfe-4f07b6185120",
+          "mode": "live",
+          "organisation_id": "93e35891-d202-4391-b45e-631bb2561587"
         },
         {
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
@@ -1709,6 +1764,22 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_type": "Whole number",
+          "form_id": "37ecd23e-7d80-4a08-91da-035add0de346",
+          "hint": "",
+          "id": "8e82d052-1c53-4139-8213-a43ae60d1057",
+          "name": "egg box count",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-egg-boxes-do-you-have",
+          "text": "How many egg boxes do you have?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_type": "Single line of text",
           "form_id": "cd5fc00f-13d0-4c89-af8c-9f16c5c77afe",
           "hint": "",
@@ -1800,6 +1871,20 @@
           },
           "slug": "when-did-the-last-reporting-period-start",
           "text": "When did the last reporting period start?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Single line of text",
+          "form_id": "e2546f96-3655-483b-8531-0bbfd49a2631",
+          "hint": "You said you spent a lot last time becase ((q_19fc71ffec1b414ab8b952502c0d4617))",
+          "id": "ad8bf4cf-8467-4dcd-abfd-e536d1583890",
+          "name": "Another large spend",
+          "order": 2,
+          "presentation_options": {},
+          "slug": "do-you-anticipate-another-large-spend",
+          "text": "Do you anticipate another large spend?",
           "type": "QUESTION"
         },
         {
@@ -1944,6 +2029,20 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_type": "Single line of text",
+          "form_id": "3f9e3987-a3ef-4a87-a5bc-8d685a12e73a",
+          "hint": "",
+          "id": "d9b09497-862c-4b6a-8675-95463998a2f6",
+          "name": "eggs why",
+          "order": 1,
+          "presentation_options": {},
+          "slug": "why-so-many-eggs",
+          "text": "Why so many eggs?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Single line of text",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "db969e7d-01fc-42fa-9be6-cb5736dbfc57",
@@ -2033,6 +2132,22 @@
           },
           "slug": "what-is-the-principle-risk-category",
           "text": "What is the principle risk category?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Whole number",
+          "form_id": "3f9e3987-a3ef-4a87-a5bc-8d685a12e73a",
+          "hint": "",
+          "id": "f83cb962-a1ce-404b-a12b-44b40146900a",
+          "name": "egg count",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-eggs",
+          "text": "How many eggs?",
           "type": "QUESTION"
         }
       ]
@@ -3858,6 +3973,16 @@
       "type": "Metropolitan District"
     },
     {
+      "active_date": "Thu, 01 Jan 2026 00:00:00 GMT",
+      "can_manage_grants": false,
+      "external_id": "MHCLG-TEST-ORG",
+      "id": "93e35891-d202-4391-b45e-631bb2561587",
+      "mode": "live",
+      "name": "MHCLG Funding Service Test Organisation",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
       "can_manage_grants": false,
       "external_id": "TA01",
       "id": "d9e644d8-26ed-4287-a2d8-c0c841399ad4",
@@ -3944,6 +4069,16 @@
     },
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "193d1593-522f-4aea-ab56-c0b297098340",
+      "organisation_id": "93e35891-d202-4391-b45e-631bb2561587",
+      "permissions": [
+        "data-provider",
+        "member"
+      ],
+      "user_id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "c194df07-5871-4dc3-94dd-bb56d90e5975",
       "organisation_id": "<UUID:GB-GOV-27>",
       "permissions": [
@@ -3979,6 +4114,12 @@
       "id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
       "last_logged_in_at_utc": "Thu, 20 Nov 2025 09:49:40 GMT",
       "name": "Crystal Wheeler"
+    },
+    {
+      "email": "daniel.conway@test.communities.gov.uk",
+      "id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe",
+      "last_logged_in_at_utc": "Fri, 09 Jan 2026 07:08:26 GMT",
+      "name": "Daniel Conway"
     },
     {
       "azure_ad_subject_id": "mDLVWMQVmvxRxPNKpKUFODrcU",
