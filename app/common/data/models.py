@@ -455,6 +455,10 @@ class Component(BaseModel):
     def is_group(self) -> bool:
         return isinstance(self, Group)
 
+    @property
+    def is_question(self) -> bool:
+        return isinstance(self, Question)
+
     __table_args__ = (
         UniqueConstraint("order", "parent_id", "form_id", name="uq_component_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_component_slug_form"),

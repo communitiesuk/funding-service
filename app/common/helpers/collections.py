@@ -359,6 +359,9 @@ class SubmissionHelper:
         if len(form.cached_questions) == 0:
             return TasklistSectionStatusEnum.NO_QUESTIONS
 
+        if not self.can_start_form(form):
+            return TasklistSectionStatusEnum.CANNOT_START_YET
+
         return self.get_status_for_form(form)
 
     def get_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
@@ -374,6 +377,29 @@ class SubmissionHelper:
     def get_ordered_visible_forms(self) -> list["Form"]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
         return sorted(self.collection.forms, key=lambda f: f.order)
+
+    def get_cross_section_dependencies_for_form(self, form: "Form") -> list["Form"]:
+        """Returns earlier forms that have unanswered questions referenced by this form."""
+        unsatisfied_forms: dict[uuid.UUID, "Form"] = {}
+
+        for component in form.cached_all_components:
+            for ref in component.owned_component_references:
+                depends_on = ref.depends_on_component
+                if depends_on.form_id != form.id:
+                    if depends_on.is_question:
+                        answer = self.cached_get_answer_for_question(depends_on.id)
+                        if answer is None:
+                            unsatisfied_forms[depends_on.form_id] = depends_on.form
+
+        return sorted(unsatisfied_forms.values(), key=lambda f: f.order)
+
+    def can_start_form(self, form: "Form") -> bool:
+        """Returns True if all cross-section dependencies for this form are satisfied."""
+        return len(self.get_cross_section_dependencies_for_form(form)) == 0
+
+    def get_blocking_section_titles_for_form(self, form: "Form") -> list[str]:
+        """Returns titles of sections that need completing before this form can start."""
+        return [f.title for f in self.get_cross_section_dependencies_for_form(form)]
 
     def is_component_visible(
         self, component: "Component", context: "ExpressionContext", add_another_index: int | None = None
