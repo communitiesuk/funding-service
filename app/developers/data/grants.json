@@ -21,9 +21,13 @@
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "20bb625b-b17a-48bb-9739-e865b7692c9c",
           "name": "Earlier report",
+          "reporting_period_end_date": "Sun, 01 Jun 2025 00:00:00 GMT",
+          "reporting_period_start_date": "Wed, 01 Jan 2025 00:00:00 GMT",
           "requires_certification": true,
           "slug": "earlier-report",
-          "status": "Draft",
+          "status": "Open",
+          "submission_period_end_date": "Mon, 01 Dec 2025 00:00:00 GMT",
+          "submission_period_start_date": "Tue, 01 Jul 2025 00:00:00 GMT",
           "type": "monitoring report"
         },
         {
@@ -31,9 +35,13 @@
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "name": "Q3 2025",
+          "reporting_period_end_date": "Fri, 02 Jan 2026 00:00:00 GMT",
+          "reporting_period_start_date": "Thu, 01 Jan 2026 00:00:00 GMT",
           "requires_certification": true,
           "slug": "q3-2025",
-          "status": "Draft",
+          "status": "Open",
+          "submission_period_end_date": "Sat, 31 Jan 2026 00:00:00 GMT",
+          "submission_period_start_date": "Sat, 03 Jan 2026 00:00:00 GMT",
           "type": "monitoring report"
         },
         {
@@ -96,6 +104,12 @@
           "id": "1b32aa76-520d-4385-b138-5519c0e77756"
         },
         {
+          "component_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
+          "depends_on_component_id": "f02791d2-8c1f-44a4-b107-467b77e08ffe",
+          "expression_id": "f0b17e40-c828-4abb-9307-600f2a83faaa",
+          "id": "2e96128a-c48e-4ade-83a1-c10ec04f7863"
+        },
+        {
           "component_id": "4988b724-7b83-4b09-899b-3885fed52be1",
           "depends_on_component_id": "65664e18-722d-484f-8488-c851c5c5de36",
           "depends_on_data_source_item_id": "11dd117b-48b5-45a3-b838-a34d7e3fc405",
@@ -128,6 +142,12 @@
           "id": "4682b01a-054b-4939-bfbf-0367650f60d7"
         },
         {
+          "component_id": "f02791d2-8c1f-44a4-b107-467b77e08ffe",
+          "depends_on_component_id": "f02791d2-8c1f-44a4-b107-467b77e08ffe",
+          "expression_id": "77ef77a5-59f7-47d2-9999-763984b18374",
+          "id": "524a333e-cba9-446e-9b15-f614fe47639b"
+        },
+        {
           "component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
           "depends_on_component_id": "459a385f-f293-497b-b6fb-76011304306c",
           "expression_id": "b4f36929-a478-4d8b-b09e-3f2f0957259e",
@@ -140,6 +160,12 @@
           "id": "5eef7648-1ad2-494d-b3a0-c853a78ac43e"
         },
         {
+          "component_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
+          "depends_on_component_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
+          "expression_id": "add4ac2d-7a03-4f4d-9725-d7d5b084e56f",
+          "id": "6b9e52dc-cc80-4b5f-b0a2-ce81983a42cc"
+        },
+        {
           "component_id": "22613139-724f-41d7-84a3-3549550c6a4b",
           "depends_on_component_id": "0e6df617-b770-4525-9c06-6fdbcca72a10",
           "expression_id": "cfa12ef8-bfd2-4077-96a4-cb3362ff45c4",
@@ -150,6 +176,12 @@
           "depends_on_component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
           "expression_id": "d5b8174f-6b9e-49d7-b1ac-1bb29749009e",
           "id": "7c83c49e-5137-4873-b0d5-9e965541653b"
+        },
+        {
+          "component_id": "3beb605f-0024-45a5-901b-c477414457bd",
+          "depends_on_component_id": "f02791d2-8c1f-44a4-b107-467b77e08ffe",
+          "expression_id": "c4890b11-77b6-4f15-ab3b-96f82a1183a1",
+          "id": "810d7bcf-b43a-4042-b313-8d08d1bb0b28"
         },
         {
           "component_id": "19fc71ff-ec1b-414a-b8b9-52502c0d4617",
@@ -176,6 +208,12 @@
           "id": "9f6e2c24-a7ad-44b9-ac0e-4533d3529bf1"
         },
         {
+          "component_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
+          "depends_on_component_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
+          "expression_id": "f0b17e40-c828-4abb-9307-600f2a83faaa",
+          "id": "a5c12e4e-edd5-4a89-8c25-2012fc9b12e0"
+        },
+        {
           "component_id": "6e42d5ac-1475-4e3a-89f0-39c9ab1ac2d1",
           "depends_on_component_id": "d99b94c3-66fa-4449-b4c4-ac5a2caeb8c9",
           "expression_id": "fac76323-0d53-427f-ad85-2522a33c77e4",
@@ -185,12 +223,6 @@
           "component_id": "ad8bf4cf-8467-4dcd-abfd-e536d1583890",
           "depends_on_component_id": "19fc71ff-ec1b-414a-b8b9-52502c0d4617",
           "id": "b364ec07-c332-49b5-ba9b-8e735995537b"
-        },
-        {
-          "component_id": "d9b09497-862c-4b6a-8675-95463998a2f6",
-          "depends_on_component_id": "8e82d052-1c53-4139-8213-a43ae60d1057",
-          "expression_id": "20053596-beeb-4281-bf39-684544efc038",
-          "id": "b86b4d03-1b5f-499b-a91b-53ed84658a5e"
         },
         {
           "component_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
@@ -972,20 +1004,6 @@
         },
         {
           "context": {
-            "inclusive": false,
-            "minimum_expression": null,
-            "minimum_value": 7,
-            "question_id": "8e82d052-1c53-4139-8213-a43ae60d1057"
-          },
-          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-          "id": "20053596-beeb-4281-bf39-684544efc038",
-          "managed_name": "Greater than",
-          "question_id": "d9b09497-862c-4b6a-8675-95463998a2f6",
-          "statement": "q_8e82d0521c5341398213a43ae60d1057 > 7",
-          "type_": "CONDITION"
-        },
-        {
-          "context": {
             "item": {
               "key": "other",
               "label": "Other"
@@ -1083,6 +1101,23 @@
         },
         {
           "context": {
+            "maximum_expression": null,
+            "maximum_inclusive": true,
+            "maximum_value": 20,
+            "minimum_expression": null,
+            "minimum_inclusive": true,
+            "minimum_value": 1,
+            "question_id": "f02791d2-8c1f-44a4-b107-467b77e08ffe"
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "77ef77a5-59f7-47d2-9999-763984b18374",
+          "managed_name": "Between",
+          "question_id": "f02791d2-8c1f-44a4-b107-467b77e08ffe",
+          "statement": "1 <= q_f02791d28c1f44a4b107467b77e08ffe <= 20",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
             "inclusive": false,
             "maximum_value": 10000,
             "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c"
@@ -1113,6 +1148,23 @@
         },
         {
           "context": {
+            "maximum_expression": null,
+            "maximum_inclusive": true,
+            "maximum_value": 20,
+            "minimum_expression": null,
+            "minimum_inclusive": true,
+            "minimum_value": 1,
+            "question_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce"
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "add4ac2d-7a03-4f4d-9725-d7d5b084e56f",
+          "managed_name": "Between",
+          "question_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
+          "statement": "1 <= q_3aa34ae971244646a4aa1e6babc885ce <= 20",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
             "inclusive": false,
             "minimum_value": 1000000,
             "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c"
@@ -1137,6 +1189,20 @@
           "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
           "statement": "q_c1f6fdab3e7948ae9c751210588afc1c <=((q_459a385ff293497bb6fb76011304306c))",
           "type_": "VALIDATION"
+        },
+        {
+          "context": {
+            "inclusive": false,
+            "minimum_expression": null,
+            "minimum_value": 10,
+            "question_id": "f02791d2-8c1f-44a4-b107-467b77e08ffe"
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "c4890b11-77b6-4f15-ab3b-96f82a1183a1",
+          "managed_name": "Greater than",
+          "question_id": "3beb605f-0024-45a5-901b-c477414457bd",
+          "statement": "q_f02791d28c1f44a4b107467b77e08ffe > 10",
+          "type_": "CONDITION"
         },
         {
           "context": {
@@ -1180,6 +1246,20 @@
         },
         {
           "context": {
+            "inclusive": false,
+            "minimum_expression": "((q_f02791d28c1f44a4b107467b77e08ffe))",
+            "minimum_value": null,
+            "question_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce"
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "f0b17e40-c828-4abb-9307-600f2a83faaa",
+          "managed_name": "Greater than",
+          "question_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
+          "statement": "q_3aa34ae971244646a4aa1e6babc885ce > ((q_f02791d28c1f44a4b107467b77e08ffe))",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
             "question_id": "d99b94c3-66fa-4449-b4c4-ac5a2caeb8c9"
           },
           "created_by_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
@@ -1197,20 +1277,6 @@
           "order": 2,
           "slug": "outputs-and-outcomes",
           "title": "Outputs and outcomes"
-        },
-        {
-          "collection_id": "20bb625b-b17a-48bb-9739-e865b7692c9c",
-          "id": "37ecd23e-7d80-4a08-91da-035add0de346",
-          "order": 0,
-          "slug": "egg-boxes",
-          "title": "Egg boxes"
-        },
-        {
-          "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
-          "id": "3f9e3987-a3ef-4a87-a5bc-8d685a12e73a",
-          "order": 6,
-          "slug": "test",
-          "title": "test"
         },
         {
           "collection_id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
@@ -1255,6 +1321,13 @@
           "title": "Programme progress"
         },
         {
+          "collection_id": "20bb625b-b17a-48bb-9739-e865b7692c9c",
+          "id": "a0da25df-5f3a-48f3-91e1-0e9e3a76b120",
+          "order": 0,
+          "slug": "numbers",
+          "title": "Numbers"
+        },
+        {
           "collection_id": "0b264b13-eacd-4ccc-b187-9fcdb23c8c7a",
           "id": "c98aeb88-e4e6-4ad9-a673-4e8197ce5c8d",
           "order": 0,
@@ -1281,6 +1354,13 @@
           "order": 3,
           "slug": "main-risk-to-delivery",
           "title": "Main risk to delivery"
+        },
+        {
+          "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
+          "id": "f012d1a7-1d0d-4679-9223-2645f878cd9c",
+          "order": 6,
+          "slug": "based-on-earlier-report",
+          "title": "Based on earlier report"
         }
       ],
       "grant": {
@@ -1291,6 +1371,7 @@
         "name": "Cheeseboards in parks",
         "primary_contact_email": "john.cheese@test.communities.gov.uk",
         "primary_contact_name": "John Cheese",
+        "privacy_policy_markdown": "asdfasdf",
         "status": "live"
       },
       "grant_recipients": [
@@ -1505,6 +1586,36 @@
           "presentation_options": {},
           "slug": "what-is-the-name-of-the-risk",
           "text": "What is the name of the risk?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Whole number",
+          "form_id": "f012d1a7-1d0d-4679-9223-2645f878cd9c",
+          "hint": "Specify a number higher than ((q_f02791d28c1f44a4b107467b77e08ffe)) between 1 and 20",
+          "id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
+          "name": "higher number",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "higher-number-between-1-and-20",
+          "text": "Higher number between 1 and 20",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Single line of text",
+          "form_id": "f012d1a7-1d0d-4679-9223-2645f878cd9c",
+          "hint": "This question only appears if you entered over 10 in the earlier report. You previously entered ((q_f02791d28c1f44a4b107467b77e08ffe))",
+          "id": "3beb605f-0024-45a5-901b-c477414457bd",
+          "name": "number from before",
+          "order": 1,
+          "presentation_options": {},
+          "slug": "type-the-number-you-entered-before-in-words",
+          "text": "Type the number you entered before in words",
           "type": "QUESTION"
         },
         {
@@ -1764,22 +1875,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "data_type": "Whole number",
-          "form_id": "37ecd23e-7d80-4a08-91da-035add0de346",
-          "hint": "",
-          "id": "8e82d052-1c53-4139-8213-a43ae60d1057",
-          "name": "egg box count",
-          "order": 0,
-          "presentation_options": {
-            "width": "govuk-input--width-10"
-          },
-          "slug": "how-many-egg-boxes-do-you-have",
-          "text": "How many egg boxes do you have?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_type": "Single line of text",
           "form_id": "cd5fc00f-13d0-4c89-af8c-9f16c5c77afe",
           "hint": "",
@@ -2029,20 +2124,6 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_type": "Single line of text",
-          "form_id": "3f9e3987-a3ef-4a87-a5bc-8d685a12e73a",
-          "hint": "",
-          "id": "d9b09497-862c-4b6a-8675-95463998a2f6",
-          "name": "eggs why",
-          "order": 1,
-          "presentation_options": {},
-          "slug": "why-so-many-eggs",
-          "text": "Why so many eggs?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Single line of text",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
           "id": "db969e7d-01fc-42fa-9be6-cb5736dbfc57",
@@ -2138,16 +2219,16 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_type": "Whole number",
-          "form_id": "3f9e3987-a3ef-4a87-a5bc-8d685a12e73a",
+          "form_id": "a0da25df-5f3a-48f3-91e1-0e9e3a76b120",
           "hint": "",
-          "id": "f83cb962-a1ce-404b-a12b-44b40146900a",
-          "name": "egg count",
+          "id": "f02791d2-8c1f-44a4-b107-467b77e08ffe",
+          "name": "number one to twenty",
           "order": 0,
           "presentation_options": {
             "width": "govuk-input--width-10"
           },
-          "slug": "how-many-eggs",
-          "text": "How many eggs?",
+          "slug": "specify-a-number-between-1-and-20",
+          "text": "Specify a number between 1 and 20",
           "type": "QUESTION"
         }
       ]
@@ -2161,7 +2242,7 @@
           "name": "Q3 2025",
           "requires_certification": true,
           "slug": "q3-2025",
-          "status": "Draft",
+          "status": "Open",
           "type": "monitoring report"
         }
       ],
@@ -4004,6 +4085,16 @@
   "user_roles": [
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "cfb1b9ba-4165-4275-8e80-29399a46e3b3",
+      "organisation_id": "41773840-55b6-4d5e-8b83-a6163e0c834d",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "17fa5e5d-b76a-4549-94e9-1b1b455a12c6"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "6968a72f-a002-4c3f-8b60-b9a9635c8115",
       "organisation_id": "41773840-55b6-4d5e-8b83-a6163e0c834d",
       "permissions": [
@@ -4025,8 +4116,8 @@
     {
       "id": "68e3b145-1ce2-4561-b0fc-0225c39f87ef",
       "permissions": [
-        "admin",
-        "member"
+        "member",
+        "admin"
       ],
       "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },
@@ -4092,13 +4183,13 @@
       "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
       "email": "brandy.santos@test.communities.gov.uk",
       "id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-      "last_logged_in_at_utc": "Mon, 05 Jan 2026 14:57:41 GMT",
+      "last_logged_in_at_utc": "Tue, 13 Jan 2026 10:48:47 GMT",
       "name": "Brandy Santos"
     },
     {
       "email": "christina.sanders@test.communities.gov.uk",
       "id": "4f990e2b-690b-4c97-a47b-c9a073e92827",
-      "last_logged_in_at_utc": "Thu, 11 Dec 2025 10:54:46 GMT",
+      "last_logged_in_at_utc": "Fri, 09 Jan 2026 12:21:53 GMT",
       "name": "Christina Sanders"
     },
     {
@@ -4134,6 +4225,11 @@
       "id": "acc47c80-8620-49d9-aa40-df1703286d43",
       "last_logged_in_at_utc": "Mon, 18 Aug 2025 15:36:18 GMT",
       "name": "John Floyd"
+    },
+    {
+      "email": "lauren.booth@test.communities.gov.uk",
+      "id": "17fa5e5d-b76a-4549-94e9-1b1b455a12c6",
+      "name": "Lauren Booth"
     },
     {
       "azure_ad_subject_id": "aef0d89750aa6dcb4d10040f6e5766c1",
