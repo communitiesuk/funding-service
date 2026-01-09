@@ -29,7 +29,7 @@ from app.types import FlashMessageType
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     user = get_current_user()
-    submission_mode = get_submission_mode_for_user(user)
+    submission_mode = get_submission_mode_for_user(user, user_organisation=grant_recipient.organisation)
 
     # TODO refactor when we persist the collection status and/or implement multiple rounds
     submissions = []
@@ -47,7 +47,7 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "access_grant_funding/report_list.html",
-        reports=grant_recipient.grant.get_access_reports_for_user(user),
+        reports=grant_recipient.grant.get_access_reports_for_user(user, user_organisation=grant_recipient.organisation),
         organisation_id=organisation_id,
         grant=grant_recipient.grant,
         submissions=submissions,
