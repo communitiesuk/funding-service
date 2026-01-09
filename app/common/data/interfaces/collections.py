@@ -897,6 +897,14 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
 
 # todo: persisting global order (depth + order) of components would help short circuit a lot of these checks
 def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
+    # If in a different collection, check that collection is due to close before this one starts
+    # TODO is that the right rule here?
+    if component.form.collection.id != depends_on_component.form.collection.id:
+        return (
+            component.form.collection.submission_period_start_date
+            >= depends_on_component.form.collection.submission_period_end_date
+        )
+
     # If in different forms, check form order - earlier forms are valid dependencies
     if component.form_id != depends_on_component.form_id:
         return component.form.order > depends_on_component.form.order

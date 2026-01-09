@@ -3802,3 +3802,46 @@ class TestResetTestSubmission:
         # Attempt to reset a live submission should raise ValueError
         with pytest.raises(ValueError, match="Can only reset submissions in TEST mode"):
             reset_test_submission(collection.live_submissions[0])
+
+
+class TestReferenceDataFromPreviousCollection:
+    def test_create_condition_referencing_previous_collection(self, db_session, factories):
+        grant = factories.grant.create()
+        previous_collection = factories.collection.create(
+            grant=grant, submission_period_end_date=datetime.date(2026, 1, 1)
+        )
+        referenced_form = factories.form.create(collection=previous_collection)
+
+        dgf_user = factories.user.create()
+        referenced_question = create_question(
+            form=referenced_form,
+            text="Integer Question",
+            hint="Integer Hint",
+            name="Integer Question Name",
+            data_type=QuestionDataType.INTEGER,
+            expression_context=ExpressionContext(),
+        )
+        assert referenced_question is not None
+
+        collection = factories.collection.create(grant=grant, submission_period_start_date=datetime.date(2026, 1, 2))
+        form = factories.form.create(collection=collection)
+        dependent_question = create_question(
+            form=form,
+            text="Text Question",
+            hint="Text Hint",
+            name="Text Question Name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            expression_context=ExpressionContext(),
+        )
+
+        assert dependent_question is not None
+
+        gt_expression = GreaterThan(question_id=referenced_question.id, minimum_value=10)
+
+        add_component_condition(dependent_question, dgf_user, gt_expression)
+
+        q_from_db = db_session.get(Question, dependent_question.id)
+        assert len(q_from_db.expressions) == 1
+        expression_from_db = q_from_db.expressions[0]
+        assert expression_from_db.managed_name == "Greater than"
+        assert expression_from_db.component_references[0].depends_on_component.id == referenced_question.id
