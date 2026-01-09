@@ -871,9 +871,10 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixi
             report_deadline = format_date(collection.submission_period_end_date)
 
             grant_report_url = url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.route_to_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
                 _external=True,
             )
 
