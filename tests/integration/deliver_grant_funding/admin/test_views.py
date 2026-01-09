@@ -918,7 +918,7 @@ class TestSendEmailsToRecipients:
         assert all("Test Grant" in line for line in lines[1:])
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
-        assert all(f"/grants/{grant.id}/reports" in line for line in lines[1:])
+        assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
 
     def test_download_csv_format_and_content_deadline_reminder(
         self, authenticated_platform_admin_client, factories, db_session
@@ -1044,7 +1044,7 @@ class TestSendEmailsToRecipients:
         assert all("Test Grant" in line for line in lines[1:])
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
-        assert all(f"/grants/{grant.id}/reports" in line for line in lines[1:])
+        assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
 
 
 class TestSetUpCertifiers:
