@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from flask import request
@@ -7,7 +8,10 @@ from app.common.data.interfaces.collections import get_collection
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.models_user import User
-from app.common.data.types import RoleEnum
+from app.common.data.types import OrganisationModeEnum, RoleEnum
+
+if TYPE_CHECKING:
+    from app.common.data.models import GrantRecipient
 
 
 class AuthorisationHelper:
@@ -258,7 +262,9 @@ class AuthorisationHelper:
         return False
 
     @staticmethod
-    def is_deliver_user_testing_access(user: User | AnonymousUserMixin) -> bool:
+    def is_deliver_user_testing_access(
+        user: User | AnonymousUserMixin, *, grant_recipient: "GrantRecipient | None" = None
+    ) -> bool:
         """Check if a Deliver user is accessing Access grant funding for testing.
 
         Returns True when:
@@ -266,6 +272,11 @@ class AuthorisationHelper:
         2. Current request path is under /access/
         """
         if not AuthorisationHelper.is_deliver_grant_funding_user(user):
+            return False
+
+        # if we've got a grant recipient context we can be specific for the organisation too
+        # this is likely only possibly in lower envs as deliver users won't be applying for or reporting on grants
+        if grant_recipient and grant_recipient.organisation.mode == OrganisationModeEnum.LIVE:
             return False
 
         return request.path.startswith("/access/")
