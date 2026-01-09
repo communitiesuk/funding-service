@@ -44,6 +44,7 @@
     )
   }}
 
+  {% set is_deliver_user_testing = authorisation_helper.is_deliver_user_testing_access(current_user, grant_recipient=grant_recipient if grant_recipient else None) %}
   {% if is_deliver_user_testing %}
     {{ mhclgTestBanner("Testing grant recipient journey") }}
   {% endif %}
