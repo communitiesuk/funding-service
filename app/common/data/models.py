@@ -89,7 +89,7 @@ class Grant(BaseModel):
         ]
 
     def get_access_reports_for_user(
-        self, user: "User | None" = None, *, grant_recipient: "GrantRecipient | None" = None
+        self, user: "User | None" = None, *, user_organisation: "Organisation | None" = None
     ) -> list["Collection"]:
         """Get reports visible to Access users, with special handling for testing.
 
@@ -103,7 +103,7 @@ class Grant(BaseModel):
         from app.common.auth.authorisation_helper import AuthorisationHelper
 
         # Deliver users testing Access see all reports
-        if user and AuthorisationHelper.is_deliver_user_testing_access(user, grant_recipient=grant_recipient):
+        if user and AuthorisationHelper.is_deliver_user_testing_access(user, user_organisation=user_organisation):
             return sorted(
                 self.reports, key=lambda report: (report.status, report.submission_period_end_date or datetime.date.max)
             )

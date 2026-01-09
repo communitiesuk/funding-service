@@ -11,7 +11,7 @@ from app.common.data.models_user import User
 from app.common.data.types import OrganisationModeEnum, RoleEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import GrantRecipient
+    from app.common.data.models import Organisation
 
 
 class AuthorisationHelper:
@@ -263,20 +263,14 @@ class AuthorisationHelper:
 
     @staticmethod
     def is_deliver_user_testing_access(
-        user: User | AnonymousUserMixin, *, grant_recipient: "GrantRecipient | None" = None
+        user: User | AnonymousUserMixin, *, user_organisation: "Organisation | None" = None
     ) -> bool:
-        """Check if a Deliver user is accessing Access grant funding for testing.
-
-        Returns True when:
-        1. User is a Deliver grant funding user (has can_manage_grants org)
-        2. Current request path is under /access/
-        """
         if not AuthorisationHelper.is_deliver_grant_funding_user(user):
             return False
 
         # if we've got a grant recipient context we can be specific for the organisation too
         # this is likely only possibly in lower envs as deliver users won't be applying for or reporting on grants
-        if grant_recipient and grant_recipient.organisation.mode == OrganisationModeEnum.LIVE:
+        if user_organisation and user_organisation.mode == OrganisationModeEnum.LIVE:
             return False
 
         return request.path.startswith("/access/")
