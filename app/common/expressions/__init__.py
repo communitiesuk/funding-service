@@ -56,6 +56,7 @@ class ExpressionContext(ChainMap[str, Any]):
     with answers from the current form submission (DynamicQuestionForm).
     """
 
+    # Why do we have this as well as ConditionContextSourceEnum?
     class ContextSources(enum.StrEnum):
         SECTION = "A question in this section"
         PREVIOUS_SECTION = "A question from a previous section"

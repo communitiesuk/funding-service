@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Form, Group, Question
+    from app.common.data.models import Collection, Component, Form, Group, Question
 
 
 def questions_in_same_page_group(c1: "Question", c2: "Component") -> bool:
@@ -33,6 +33,18 @@ def get_earlier_forms(form: "Form") -> list["Form"]:
     return sorted(
         [f for f in form.collection.forms if f.order < form.order],
         key=lambda f: f.order,
+    )
+
+
+def get_earlier_collections(collection: "Collection") -> list["Collection"]:
+    """Return a list of forms that come before the given form in the collection, ordered by their submission closing date."""
+    return sorted(
+        [
+            c
+            for c in collection.grant.collections
+            if c.submission_period_end_date < collection.submission_period_end_date
+        ],
+        key=lambda c: c.submission_period_end_date,
     )
 
 

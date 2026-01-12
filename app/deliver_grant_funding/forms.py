@@ -36,11 +36,11 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext
 from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
-from app.common.forms.helpers import get_earlier_forms, get_referenceable_questions
+from app.common.forms.helpers import get_earlier_collections, get_earlier_forms, get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Form, GrantRecipient, Group, Question
+    from app.common.data.models import Collection, Component, Form, GrantRecipient, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -697,6 +697,7 @@ class ConditionSelectQuestionForm(FlaskForm):
 class ConditionContextSourceEnum(enum.StrEnum):
     THIS_SECTION = "A question in this section"
     PREVIOUS_SECTION = "A question from a previous section"
+    PREVIOUS_COLLECTION = "A question from a previous collection"
 
 
 class ConditionSelectContextSourceForm(FlaskForm):
@@ -771,6 +772,36 @@ class ConditionSelectQuestionFromPreviousSectionForm(FlaskForm):
                 (str(question.id), f"{interpolate(question.text)} ({question.name})")
                 for question in compatible_questions
             ]
+
+
+class ConditionSelectPreviousCollectionForm(FlaskForm):
+    collection = RadioField(
+        "Select a previous collection",
+        choices=[],
+        validators=[DataRequired("Select a collection")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, collection: "Collection", *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        earlier_collections = get_earlier_collections(collection)
+        self.collection.choices = [(str(c.id), c.name) for c in earlier_collections]
+
+
+class ConditionSelectSectionPreviousCollectionForm(FlaskForm):
+    section = RadioField(
+        "Select a section from the previous collection",
+        choices=[],
+        validators=[DataRequired("Select a section")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, collection: "Collection", *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        forms = collection.forms
+        self.section.choices = [(str(f.id), f.title) for f in forms]
 
 
 class AddGuidanceForm(FlaskForm):

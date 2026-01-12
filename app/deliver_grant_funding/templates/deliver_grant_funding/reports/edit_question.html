@@ -174,7 +174,19 @@
 
             {% set key_html %}
               {# todo: would users find it useful to be able to link to the question being depended on from here? #}
-              <span>{{ interpolate(depends_on.text, with_interpolation_highlighting=True) }}</span>
+              <span
+                >{{ interpolate(depends_on.text, with_interpolation_highlighting=True) }}
+                {% if depends_on.form.collection_id != question.form.collection_id %}
+                  From
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=depends_on.form.collection.grant_id, report_id=depends_on.form.collection_id) }}"
+                    >{{ depends_on.form.collection.name }}</a
+                  >
+                  >
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=depends_on.form.collection.grant_id, form_id=depends_on.form.id) }}"
+                    >{{ depends_on.form.title }}</a
+                  >
+                {% endif %}
+              </span>
             {% endset %}
 
 
