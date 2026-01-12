@@ -22,17 +22,19 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-one-quarter-from-desktop app-section-nav-container">
-      <ul class="govuk-list app-section-nav-list" role="navigation" aria-label="Report sections">
-        <li class="app-section-nav-list__item app-section-nav-list__item--active"><a class="govuk-link govuk-link--no-visited-state" href="#submission">{{ page_title }}</a></li>
+      <nav aria-label="Report sections">
+        <ul class="govuk-list app-section-nav-list">
+          <li class="app-section-nav-list__item app-section-nav-list__item--active"><a class="govuk-link govuk-link--no-visited-state" href="#submission">{{ page_title }}</a></li>
 
-        {% for form in submission.get_ordered_visible_forms() %}
-          <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#form-{{ form.id }}">{{ form.title }}</a></li>
-        {% endfor %}
+          {% for form in submission.get_ordered_visible_forms() %}
+            <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#form-{{ form.id }}">{{ form.title }}</a></li>
+          {% endfor %}
 
-        {% if should_certify %}
-          <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#sign-off-and-submit-report">Sign off and submit report</a></li>
-        {% endif %}
-      </ul>
+          {% if should_certify %}
+            <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#sign-off-and-submit-report">Sign off and submit report</a></li>
+          {% endif %}
+        </ul>
+      </nav>
 
       <a
         class="govuk-button govuk-button--secondary"
