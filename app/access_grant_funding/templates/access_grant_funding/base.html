@@ -44,6 +44,8 @@
     )
   }}
 
+  {% set user_organisation = grant_recipient.organisation if grant_recipient else (organisation if organisation else None) %}
+  {% set is_deliver_user_testing = authorisation_helper.is_deliver_user_testing_access(current_user, user_organisation=user_organisation) %}
   {% if is_deliver_user_testing %}
     {{ mhclgTestBanner("Testing grant recipient journey") }}
   {% endif %}
