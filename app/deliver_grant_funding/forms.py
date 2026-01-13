@@ -527,6 +527,9 @@ class AddContextSelectSourceForm(FlaskForm):
         if choice == ExpressionContext.ContextSources.PREVIOUS_SECTION:
             if not get_earlier_forms(self.form):
                 raise ValidationError("There are no previous sections to reference questions from")
+        if choice == ExpressionContext.ContextSources.PREVIOUS_COLLECTION:
+            if not get_earlier_collections(self.form.collection):
+                raise ValidationError("There are no previous collections to reference questions from")
 
 
 class SelectDataSourceQuestionForm(FlaskForm):
@@ -774,7 +777,7 @@ class ConditionSelectQuestionFromPreviousSectionForm(FlaskForm):
             ]
 
 
-class ConditionSelectPreviousCollectionForm(FlaskForm):
+class SelectPreviousCollectionForm(FlaskForm):
     collection = RadioField(
         "Select a previous collection",
         choices=[],
@@ -789,7 +792,7 @@ class ConditionSelectPreviousCollectionForm(FlaskForm):
         self.collection.choices = [(str(c.id), c.name) for c in earlier_collections]
 
 
-class ConditionSelectSectionPreviousCollectionForm(FlaskForm):
+class SelectSectionPreviousCollectionForm(FlaskForm):
     section = RadioField(
         "Select a section from the previous collection",
         choices=[],

@@ -186,20 +186,20 @@ class ExpressionContext(ChainMap[str, Any]):
 
         # TODO further to above do we need to separately namespace data from previous submissions?
 
-        if submission_helper:
-            previous_submission_helpers = submission_helper._get_previous_dependent_submission_helpers()
+        for form in collection.forms:
+            # TODO: feels a bit gnarly!
+            for component in form.cached_all_components:
+                for ref in component.owned_component_references:
+                    depends_on = ref.depends_on_component
 
-            for form in submission_helper.collection.forms:
-                # TODO: feels a bit gnarly!
-                for component in form.cached_all_components:
-                    for ref in component.owned_component_references:
-                        depends_on = ref.depends_on_component
+                    if (
+                        depends_on.is_question
+                        and depends_on.form_id != form.id
+                        and depends_on.form.collection_id != collection.id
+                    ):
+                        if submission_helper:
+                            previous_submission_helpers = submission_helper._get_previous_dependent_submission_helpers()
 
-                        if (
-                            depends_on.is_question
-                            and depends_on.form_id != form.id
-                            and depends_on.form.collection_id != submission_helper.collection.id
-                        ):
                             previous_helper = previous_submission_helpers[component.id]
                             if previous_helper:
                                 previous_answer = previous_helper.cached_get_answer_for_question(depends_on.id)
@@ -209,8 +209,8 @@ class ExpressionContext(ChainMap[str, Any]):
                                         if mode == "evaluation"
                                         else previous_answer.get_value_for_interpolation()
                                     )
-                                if mode == "interpolation":
-                                    submission_data.setdefault(depends_on.safe_qid, f"(({depends_on.name}))")
+                        if mode == "interpolation":
+                            submission_data.setdefault(depends_on.safe_qid, f"(({depends_on.name}))")
 
         if mode == "interpolation":
             for form in collection.forms:

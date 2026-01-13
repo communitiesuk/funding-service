@@ -124,8 +124,6 @@ class SubmissionHelper:
         self.cached_get_all_questions_are_answered_for_form = lru_cache(maxsize=None)(
             self._get_all_questions_are_answered_for_form
         )
-        # TODO need to inject submission data from any referenced other submissions here otheriwse expressions
-        #   won't have that data available
         self.cached_evaluation_context = ExpressionContext.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,
@@ -136,9 +134,6 @@ class SubmissionHelper:
             submission_helper=self,
             mode="interpolation",
         )
-        # self.cached_previous_dependent_submission_helpers: dict[UUID, "SubmissionHelper | None"] = (
-        #     self._get_previous_dependent_submission_helpers
-        # )
 
     @classmethod
     def load(cls, submission_id: uuid.UUID, *, grant_recipient_id: uuid.UUID | None = None) -> "SubmissionHelper":
@@ -817,10 +812,6 @@ class SubmissionHelper:
                         dependent_collection_ids.add(depends_on.form.collection_id)
                         submission_helper = self.get_dependent_submission_helper(depends_on.form.collection_id)
                         dependent_submission_helpers[component.id] = submission_helper
-
-        # for collection_id in dependent_collection_ids:
-        #     submission_helper = self.get_dependent_submission_helper(collection_id)
-        #     dependent_submission_helpers[collection_id] = submission_helper
 
         return dependent_submission_helpers
 
