@@ -329,23 +329,35 @@
       {% else %}
         {% set rows=[] %}
         {% for form in forms %}
+          {% set status = submission.get_tasklist_status_for_form(form) %}
           {% set first_question = submission.get_first_question_for_form(form) %}
-          {%
-            set link_href = (
-              ''
-              if not first_question else
-              runner.to_url(enum.form_runner_state.QUESTION, question=first_question)
-              if (submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED and can_edit) else
-              runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
-            )
-          %}
+          {% set can_start = status != enum.tasklist_section_status.CANNOT_START_YET %}
+
+          {% if not can_start %}
+            {% set link_href = '' %}
+          {% elif not first_question %}
+            {% set link_href = '' %}
+          {% elif submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED and can_edit %}
+            {% set link_href = runner.to_url(enum.form_runner_state.QUESTION, question=first_question) %}
+          {% else %}
+            {% set link_href = runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST) %}
+          {% endif %}
+
+          {% set hint_html = None %}
+          {% if not can_start %}
+            {% set blocking_sections = submission.get_blocking_section_titles_for_form(form) %}
+            {% set hint_html %}<span class="govuk-hint govuk-!-margin-bottom-0">Complete {{ blocking_sections | join(', ') }} first</span>{% endset %}
+          {% endif %}
           {%
             do rows.append({
               "title": {
                 "text": form.title,
               },
+              "hint": {
+                "html": hint_html,
+              } if hint_html else {},
               "status": {
-                "html": tasklistSectionStatusTag(submission.get_tasklist_status_for_form(form)) ,
+                "html": tasklistSectionStatusTag(status),
               },
               "href": link_href,
             })

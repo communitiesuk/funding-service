@@ -4,6 +4,7 @@
   {% set show_without_tag = [ enum.tasklist_section_status.COMPLETED ] %}
   {%
     set classMap = {
+        enum.tasklist_section_status.CANNOT_START_YET: "govuk-tag--grey",
         enum.tasklist_section_status.NOT_STARTED: "govuk-tag--grey",
         enum.tasklist_section_status.IN_PROGRESS: "govuk-tag--light-blue",
         enum.tasklist_section_status.COMPLETED: "govuk-tag--green",

@@ -906,6 +906,11 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
 
 # todo: persisting global order (depth + order) of components would help short circuit a lot of these checks
 def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
+    # If in different forms, check form order - earlier forms are valid dependencies
+    if component.form_id != depends_on_component.form_id:
+        return component.form.order > depends_on_component.form.order
+
+    # Same form - check component order within the form
     # fetching the entire schema means whatever is calling this doesn't have to worry about
     # guaranteeing lazy loading performance behaviour
     form = get_form_by_id(component.form_id, with_all_questions=True)
@@ -1366,16 +1371,21 @@ def _validate_and_sync_component_references(component: Component, expression_con
             # same collection - but not necessarily the same form.
             if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
                 question = db.session.get_one(Question, question_id)
-                if question.form_id != component.form_id:
+                referenced_form = question.form
+                current_form = component.form
+
+                # Only allow references to earlier forms (lower order) or same form
+                if referenced_form.order > current_form.order:
                     raise InvalidReferenceInExpression(
                         f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                     )
 
-                # Prevent manually injecting a reference to a question that appears later in the same form
-                if question.form.global_component_index(question) >= question.form.global_component_index(component):
-                    raise InvalidReferenceInExpression(
-                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
-                    )
+                # For same-form references, prevent referencing questions that appear later
+                if referenced_form.id == current_form.id:
+                    if current_form.global_component_index(question) >= current_form.global_component_index(component):
+                        raise InvalidReferenceInExpression(
+                            f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
+                        )
 
                 if (
                     question.parent
