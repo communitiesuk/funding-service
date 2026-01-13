@@ -447,8 +447,12 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
 def _format_json_data(view, context, model, name):  # type: ignore[no-untyped-def]
     import json
 
+    # Small tweak so we can specify if we're formatting the data upload or the schema for the dataset upload spike,
+    # but shouldn't break existing uses
+    value = getattr(model, name, None)
+
     return markupsafe.Markup(
-        f"<pre class='govuk-!-margin-top-0'>{markupsafe.escape(json.dumps(model.data, indent=2))}</pre>"
+        f"<pre class='govuk-!-margin-top-0'>{markupsafe.escape(json.dumps(value, indent=2))}</pre>"
     )
 
 

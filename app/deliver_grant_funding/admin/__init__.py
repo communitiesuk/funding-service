@@ -11,9 +11,7 @@ from app.deliver_grant_funding.admin.entities import (
     PlatformAdminUserRoleView,
     PlatformAdminUserView,
 )
-from app.deliver_grant_funding.admin.views import (
-    PlatformAdminReportingLifecycleView,
-)
+from app.deliver_grant_funding.admin.views import PlatformAdminDataUpload, PlatformAdminReportingLifecycleView
 
 
 class ProxySession:
@@ -58,3 +56,5 @@ def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
     flask_admin.add_view(PlatformAdminCollectionView(ProxySession(db_)))  # type: ignore[arg-type]
     flask_admin.add_view(PlatformAdminInvitationView(ProxySession(db_)))  # type: ignore[arg-type]
     flask_admin.add_view(PlatformAdminAuditEventView(ProxySession(db_)))  # type: ignore[arg-type]
+
+    flask_admin.add_view(PlatformAdminDataUpload(name="Upload dataset", endpoint="data_upload", url="data-upload"))

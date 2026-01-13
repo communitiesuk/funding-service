@@ -4,15 +4,23 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from flask import current_app, flash
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovDateInput, GovSubmitInput, GovTextArea, GovTextInput
+from flask_wtf.file import FileAllowed, FileField, FileRequired
+from govuk_frontend_wtf.wtforms_widgets import (
+    GovCheckboxInput,
+    GovDateInput,
+    GovFileInput,
+    GovSubmitInput,
+    GovTextArea,
+    GovTextInput,
+)
 from markupsafe import Markup, escape
-from wtforms import DateField, SubmitField
+from wtforms import DateField, FieldList, FormField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
-from wtforms.fields.simple import BooleanField, EmailField, StringField, TextAreaField
+from wtforms.fields.simple import BooleanField, EmailField, HiddenField, StringField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
-from app.common.data.types import OrganisationData, OrganisationType
+from app.common.data.types import OrganisationData, OrganisationType, QuestionDataType
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
@@ -32,6 +40,46 @@ class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
         super().__init__()
 
         self.grant_id.choices = [("", "")] + [(str(grant.id), grant.name) for grant in grants]  # type: ignore[assignment]
+
+
+class PlatformAdminDataUploadForm(FlaskForm):
+    data_name = StringField(
+        "Data name",
+        widget=GovTextInput(),
+        validators=[DataRequired("Enter the name for this data")],
+    )
+
+    grant_id = SelectField(
+        "Grant",
+        choices=[],
+        widget=GovSelectWithSearch(),
+    )
+    file = FileField(widget=GovFileInput(), validators=[FileRequired(), FileAllowed(["csv"], "CSV only!")])
+
+    submit = SubmitField("Continue and map columns", widget=GovSubmitInput())
+
+    def __init__(self, grants: Sequence["Grant"]) -> None:
+        super().__init__()
+
+        self.grant_id.choices = [("", "")] + [(str(grant.id), grant.name) for grant in grants]  # type: ignore[assignment]
+
+
+class PlatformAdminColumnTypeMappingForm(FlaskForm):
+    class Meta:
+        csrf = False
+
+    column_name = HiddenField()
+    data_type = SelectField(
+        "Data type",
+        choices=[("", "Select a data type")] + [(dt.name, dt.value) for dt in QuestionDataType],
+        widget=GovSelectWithSearch(),
+        validators=[DataRequired("You must select a data type")],
+    )
+
+
+class PlatformAdminDataUploadTypeMappingForm(FlaskForm):
+    columns = FieldList(FormField(PlatformAdminColumnTypeMappingForm))
+    submit = SubmitField("Upload dataset", widget=GovSubmitInput())
 
 
 class PlatformAdminSelectReportForm(FlaskForm):

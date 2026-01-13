@@ -1,13 +1,16 @@
 import csv
+import datetime
+import json
 from io import BytesIO, StringIO
 from typing import Any
 from uuid import UUID
 
 import markupsafe
-from flask import abort, current_app, flash, redirect, send_file, url_for
+from flask import abort, current_app, flash, redirect, request, send_file, session, url_for
 from flask_admin import AdminIndexView, BaseView, expose
 
 from app.common.data.interfaces.collections import get_collection, update_collection
+from app.common.data.interfaces.datasets import create_uploaded_dataset, get_all_uploaded_datasets
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     GrantMustBeLiveError,
@@ -40,18 +43,23 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
+    QuestionDataType,
     ReportAdminEmailTypeEnum,
     RoleEnum,
 )
 from app.common.filters import format_date
+from app.deliver_grant_funding.admin.entities import _format_json_data
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminAddSingleDataProviderForm,
     PlatformAdminAddTestGrantRecipientUserForm,
     PlatformAdminBulkCreateGrantRecipientsForm,
     PlatformAdminBulkCreateOrganisationsForm,
+    PlatformAdminColumnTypeMappingForm,
     PlatformAdminCreateCertifiersForm,
     PlatformAdminCreateGrantOverrideCertifiersForm,
     PlatformAdminCreateGrantRecipientDataProvidersForm,
+    PlatformAdminDataUploadForm,
+    PlatformAdminDataUploadTypeMappingForm,
     PlatformAdminMakeGrantLiveForm,
     PlatformAdminMakeReportLiveForm,
     PlatformAdminMarkAsOnboardingForm,
@@ -65,6 +73,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetPrivacyPolicyForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
+    FlaskAdminPlatformAdminAccessibleMixin,
     FlaskAdminPlatformMemberAccessibleMixin,
 )
 from app.extensions import auto_commit_after_request, notification_service
@@ -72,6 +81,127 @@ from app.extensions import auto_commit_after_request, notification_service
 
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
     pass
+
+
+def coerce_value(value, data_type):  # type: ignore[no-untyped-def]
+    match data_type:
+        case QuestionDataType.INTEGER.name:
+            try:
+                return int(float(value))
+            except Exception:
+                return None
+        case QuestionDataType.DATE.name:
+            for fmt in ("%d %m %Y", "%d %b %Y", "%d %B %Y"):
+                try:
+                    return datetime.datetime.strptime(value, fmt).date()
+                except Exception:
+                    continue
+            return None
+        case QuestionDataType.YES_NO.name:
+            v = str(value).strip().lower()
+            if v in ("yes", "true", "1"):
+                return True
+            if v in ("no", "false", "0"):
+                return False
+            return None
+        case QuestionDataType.TEXT_SINGLE_LINE.name:
+            return str(value)
+        case _:
+            return value
+
+
+class PlatformAdminDataUpload(FlaskAdminPlatformAdminAccessibleMixin, BaseView):
+    @expose("/", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    def index(self) -> Any:
+        # To show existing datasets at the top of the page
+        datasets = []
+        for dataset in get_all_uploaded_datasets():
+            datasets.append(
+                {
+                    "name": dataset.name,
+                    "grant_id": str(dataset.grant_id) if dataset.grant_id else None,
+                    "data_html": _format_json_data(None, None, dataset, "data"),  # type: ignore[no-untyped-call]
+                    "schema_html": _format_json_data(None, None, dataset, "schema"),  # type: ignore[no-untyped-call]
+                }
+            )
+
+        # If at grant level, there's an assumption that it'll probably be grant recipient related - when do you want to
+        # then validate that it's got all the appropriate grant recipients? And how to handle incomplete lists
+        # or one offs?
+
+        form = PlatformAdminDataUploadForm(grants=get_all_grants())
+        if form.validate_on_submit():
+            file = form.file.data
+            raw = file.read().decode("utf-8-sig")
+            csv_file = StringIO(raw)
+            reader = csv.DictReader(csv_file)
+            rows = [dict(row) for row in reader]
+            headers = reader.fieldnames
+
+            grant_id = None
+            if form.grant_id.data:
+                grant_id = form.grant_id.data
+
+            # For now just store the data in the session
+            session["upload_rows"] = json.dumps(rows)
+            session["upload_headers"] = json.dumps(headers)
+            session["upload_data_name"] = form.data_name.data
+            session["upload_grant_id"] = grant_id
+
+            return redirect(url_for("data_upload.map_upload_columns"))
+
+        return self.render("deliver_grant_funding/admin/data-upload.html", form=form, datasets=datasets)
+
+    @expose("/map-upload-columns", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
+    @auto_commit_after_request
+    def map_upload_columns(self) -> Any:
+        # Retrieve data from session
+        rows = json.loads(session.get("upload_rows", "[]"))
+        headers = json.loads(session.get("upload_headers", "[]"))
+        data_name = session.get("upload_data_name")
+        grant_id = session.get("upload_grant_id")
+
+        form = PlatformAdminDataUploadTypeMappingForm()
+
+        if request.method == "GET":
+            form.columns.entries = []
+            for header in headers:
+                column_form = PlatformAdminColumnTypeMappingForm()
+                column_form.column_name.data = header
+                form.columns.append_entry(column_form.data)
+        else:
+            form = PlatformAdminDataUploadTypeMappingForm(request.form)
+            if form.validate_on_submit():
+                schema = {entry["column_name"]: entry["data_type"] for entry in form.data["columns"]}
+
+                coerced_rows = []
+                for row in rows:
+                    coerced_row = {}
+                    for column, data_type in schema.items():
+                        coerced_row[column] = coerce_value(row.get(column), data_type)  # type: ignore[no-untyped-call]
+                    coerced_rows.append(coerced_row)
+
+                create_uploaded_dataset(
+                    name=data_name,
+                    grant_id=grant_id,
+                    data=coerced_rows,
+                    schema=schema,
+                )
+
+                session.pop("upload_rows", None)
+                session.pop("upload_headers", None)
+                session.pop("upload_data_name", None)
+                session.pop("upload_grant_id", None)
+
+                flash(f"Uploaded dataset '{data_name}' and mapped columns.", "success")
+                return redirect(url_for("data_upload.index"))
+
+        return self.render(
+            "deliver_grant_funding/admin/data-upload-map-columns.html",
+            form=form,
+            data_name=data_name,
+            grant_id=grant_id,
+        )
 
 
 class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixin, BaseView):
