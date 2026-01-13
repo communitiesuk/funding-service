@@ -251,6 +251,69 @@ class TestGetGrantRecipients:
 
         assert len(queries) == 0
 
+    def test_without_organisations_parameter_does_not_eager_load(self, factories, db_session, track_sql_queries):
+        grant = factories.grant.create()
+        factories.grant_recipient.create(grant=grant)
+        db_session.expire_all()
+
+        result = get_grant_recipients(grant)
+
+        with track_sql_queries() as queries:
+            assert result[0].organisation is not None
+
+        assert len(queries) == 1
+
+    def test_with_organisations_false_does_not_eager_load(self, factories, db_session, track_sql_queries):
+        grant = factories.grant.create()
+        factories.grant_recipient.create(grant=grant)
+        db_session.expire_all()
+
+        result = get_grant_recipients(grant, with_organisations=False)
+
+        with track_sql_queries() as queries:
+            assert result[0].organisation is not None
+
+        assert len(queries) == 1
+
+    def test_with_organisations_true_eager_loads_relationship(self, factories, db_session, track_sql_queries):
+        grant_recipient = factories.grant_recipient.create()
+        db_session.expire_all()
+        _ = grant_recipient.grant
+
+        with track_sql_queries() as queries:
+            result = get_grant_recipients(grant_recipient.grant, with_organisations=True)
+
+        # 1 for grant recipients
+        # 1 selectin organisations
+        assert len(queries) == 2
+
+        with track_sql_queries() as queries:
+            assert result[0].organisation is not None
+
+        assert len(queries) == 0
+
+    def test_with_organisations_true_with_multiple_grant_recipients_does_not_cause_n_plus_1(
+        self, factories, db_session, track_sql_queries
+    ):
+        grant = factories.grant.create()
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+
+        db_session.expire_all()
+        _ = [gr.grant for gr in grant_recipients]
+
+        with track_sql_queries() as queries:
+            result = get_grant_recipients(grant, with_organisations=True)
+
+        # 1 for grant recipients
+        # 1 selectin organisations
+        assert len(queries) == 2
+
+        with track_sql_queries() as queries:
+            for gr in result:
+                assert gr.organisation is not None
+
+        assert len(queries) == 0
+
 
 class TestGetGrantRecipientsWithOutstandingReports:
     def test_returns_grant_recipients_for_grant_with_status(self, factories, db_session):

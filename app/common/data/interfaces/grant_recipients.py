@@ -2,7 +2,7 @@ import uuid
 from typing import Mapping, Sequence
 
 from sqlalchemy import String, cast, func, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, GrantRecipient, Organisation
@@ -17,6 +17,7 @@ def get_grant_recipients(
     mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
     with_data_providers: bool = False,
     with_certifiers: bool = False,
+    with_organisations: bool = False,
 ) -> Sequence["GrantRecipient"]:
     stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
 
@@ -25,6 +26,9 @@ def get_grant_recipients(
 
     if with_certifiers:
         stmt = stmt.options(joinedload(GrantRecipient._all_certifiers).joinedload(User.roles))
+
+    if with_organisations:
+        stmt = stmt.options(selectinload(GrantRecipient.organisation))
 
     return db.session.scalars(stmt).unique().all()
 

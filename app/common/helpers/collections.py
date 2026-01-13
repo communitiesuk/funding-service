@@ -35,6 +35,7 @@ from app.common.data.interfaces.collections import (
     get_all_submissions_with_mode_for_collection,
     get_submission,
 )
+from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
 from app.common.data.types import (
     ConditionsOperator,
@@ -770,7 +771,9 @@ class CollectionHelper:
         grant_recipient_mode = (
             GrantRecipientModeEnum.TEST if submission_mode == SubmissionModeEnum.TEST else GrantRecipientModeEnum.LIVE
         )
-        self.grant_recipients = [gr for gr in self.collection.grant.grant_recipients if gr.mode == grant_recipient_mode]
+        self.grant_recipients = get_grant_recipients(
+            self.collection.grant, mode=grant_recipient_mode, with_organisations=True
+        )
         self.grant_recipients_submission_helpers: dict[UUID, SubmissionHelper | None] = {
             gr.id: None for gr in self.grant_recipients
         }
