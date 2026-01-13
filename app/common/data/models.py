@@ -57,6 +57,9 @@ class Grant(BaseModel):
     collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
     organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="grants")
     grant_recipients: Mapped[list["GrantRecipient"]] = relationship("GrantRecipient", back_populates="grant")
+    uploaded_datasets: Mapped[list["UploadedDataset"]] = relationship(
+        "UploadedDataset", back_populates="grant", cascade="all, delete-orphan"
+    )
     privacy_policy_markdown: Mapped[str | None]
 
     invitations: Mapped[list["Invitation"]] = relationship(
@@ -909,3 +912,24 @@ class GrantRecipient(BaseModel):
             return f"{', '.join(names[:-1])} or {names[-1]}"
         else:
             return "Your certifier"
+
+
+class UploadedDataset(BaseModel):
+    __tablename__ = "uploaded_dataset"
+
+    name: Mapped[CIStr]
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id"), nullable=True)
+    data: Mapped[json_flat_scalars] = mapped_column(
+        mutable_json_type(dbtype=JSONB, nested=True),  # type: ignore[no-untyped-call]
+        nullable=False,
+        server_default="{}",
+    )
+    schema: Mapped[dict[str, str]] = mapped_column(
+        mutable_json_type(dbtype=JSONB, nested=True),  # type: ignore[no-untyped-call]
+        nullable=False,
+        server_default="{}",
+    )
+
+    grant: Mapped[Grant] = relationship("Grant", back_populates="uploaded_datasets")
+
+    __table_args__ = (UniqueConstraint("name", name="uq_uploaded_dataset_name"),)
