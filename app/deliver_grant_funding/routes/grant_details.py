@@ -22,7 +22,9 @@ def grant_details(grant_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/grant_details.html",
         grant=grant,
         roles_enum=RoleEnum,
-        grant_recipients=get_grant_recipients(grant, with_data_providers=True, with_certifiers=True),
+        grant_recipients=get_grant_recipients(
+            grant, with_data_providers=True, with_certifiers=True, with_organisations=True
+        ),
     )
 
 
