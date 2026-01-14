@@ -1,6 +1,7 @@
 import csv
 import datetime
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from flask import current_app, flash
 from flask_wtf import FlaskForm
@@ -28,7 +29,7 @@ class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
     )
     submit = SubmitField("Select grant", widget=GovSubmitInput())
 
-    def __init__(self, grants: Sequence["Grant"]) -> None:
+    def __init__(self, grants: Sequence[Grant]) -> None:
         super().__init__()
 
         self.grant_id.choices = [("", "")] + [(str(grant.id), grant.name) for grant in grants]  # type: ignore[assignment]
@@ -43,7 +44,7 @@ class PlatformAdminSelectReportForm(FlaskForm):
     )
     submit = SubmitField("Select monitoring report", widget=GovSubmitInput())
 
-    def __init__(self, collections: Sequence["Collection"]) -> None:
+    def __init__(self, collections: Sequence[Collection]) -> None:
         super().__init__()
 
         self.collection_id.choices = [("", "")] + [(str(collection.id), collection.name) for collection in collections]  # type: ignore[assignment]
@@ -82,7 +83,7 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
         except Exception as e:
             field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # type: ignore[attr-defined]
 
-    def get_normalised_organisation_data(self) -> list["OrganisationData"]:
+    def get_normalised_organisation_data(self) -> list[OrganisationData]:
         assert self.organisations_data.data
         organisations_data = self.organisations_data.data
         tsv_reader = csv.reader(organisations_data.splitlines(), delimiter="\t")
@@ -109,7 +110,7 @@ class PlatformAdminCreateCertifiersForm(FlaskForm):
     )
     submit = SubmitField("Set up certifiers", widget=GovSubmitInput())
 
-    def __init__(self, organisations: Sequence["Organisation"]) -> None:
+    def __init__(self, organisations: Sequence[Organisation]) -> None:
         super().__init__()
         self.organisations = organisations
         self.organisation_names_to_ids = {organisation.name: organisation.id for organisation in organisations}
@@ -173,7 +174,7 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
     submit = SubmitField("Set up grant recipients", widget=GovSubmitInput())
 
     def __init__(
-        self, organisations: Sequence["Organisation"], existing_grant_recipients: Sequence["GrantRecipient"]
+        self, organisations: Sequence[Organisation], existing_grant_recipients: Sequence[GrantRecipient]
     ) -> None:
         super().__init__()
         existing_grant_recipient_org_ids = {gr.organisation.id for gr in existing_grant_recipients}
@@ -191,7 +192,7 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
     )
     submit = SubmitField("Set up data providers", widget=GovSubmitInput())
 
-    def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
+    def __init__(self, grant_recipients: Sequence[GrantRecipient]) -> None:
         super().__init__()
         self.grant_recipients = grant_recipients
         self.organisation_names_to_ids = {
@@ -283,7 +284,7 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
     )
     submit = SubmitField("Add data provider", widget=GovSubmitInput())
 
-    def __init__(self, grant_recipients: Sequence["GrantRecipient"], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, grant_recipients: Sequence[GrantRecipient], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.grant_recipients = grant_recipients
         self.grant_recipient.choices = [("", "")] + [  # type: ignore[assignment]
@@ -317,9 +318,9 @@ class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
 
     def __init__(
         self,
-        grant_recipients: Sequence["GrantRecipient"],
-        grant_team_users: list["User"],
-        mhclg_users: list["User"],
+        grant_recipients: Sequence[GrantRecipient],
+        grant_team_users: list[User],
+        mhclg_users: list[User],
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -364,7 +365,7 @@ class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
     )
     submit = SubmitField("Revoke access", widget=GovSubmitInput())
 
-    def __init__(self, grant_recipients_data_providers: Mapping["GrantRecipient", Sequence["User"]]) -> None:
+    def __init__(self, grant_recipients_data_providers: Mapping[GrantRecipient, Sequence[User]]) -> None:
         super().__init__()
         self.grant_recipients_data_providers.choices = [
             (
@@ -390,7 +391,7 @@ class PlatformAdminRevokeCertifiersForm(FlaskForm):
     )
     submit = SubmitField("Revoke certifier access", widget=GovSubmitInput())
 
-    def __init__(self, organisations: Sequence["Organisation"]) -> None:
+    def __init__(self, organisations: Sequence[Organisation]) -> None:
         super().__init__()
         self.organisation_id.choices = [("", "")] + [(str(org.id), org.name) for org in organisations]  # type: ignore[assignment]
 
@@ -499,7 +500,7 @@ class PlatformAdminCreateGrantOverrideCertifiersForm(FlaskForm):
     )
     submit = SubmitField("Add grant-specific certifier", widget=GovSubmitInput())
 
-    def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
+    def __init__(self, grant_recipients: Sequence[GrantRecipient]) -> None:
         super().__init__()
         self.organisation_id.choices = [
             ("", ""),
@@ -521,7 +522,7 @@ class PlatformAdminRevokeGrantOverrideCertifiersForm(FlaskForm):
     )
     submit = SubmitField("Revoke grant-specific certifier access", widget=GovSubmitInput())
 
-    def __init__(self, grant_recipients: Sequence["GrantRecipient"]) -> None:
+    def __init__(self, grant_recipients: Sequence[GrantRecipient]) -> None:
         super().__init__()
         self.organisation_id.choices = [
             ("", ""),

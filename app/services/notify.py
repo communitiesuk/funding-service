@@ -96,7 +96,7 @@ class NotificationService:
             govuk_notify_reference=govuk_notify_reference,
         )
 
-    def send_member_confirmation(self, email_address: str, *, grant: "Grant") -> Notification:
+    def send_member_confirmation(self, email_address: str, *, grant: Grant) -> Notification:
         return self._send_email(
             email_address,
             current_app.config["GOVUK_NOTIFY_MEMBER_CONFIRMATION_TEMPLATE_ID"],
@@ -106,7 +106,7 @@ class NotificationService:
             },
         )
 
-    def send_deliver_org_admin_invitation(self, email_address: str, *, organisation: "Organisation") -> Notification:
+    def send_deliver_org_admin_invitation(self, email_address: str, *, organisation: Organisation) -> Notification:
         return self._send_email(
             email_address,
             current_app.config["GOVUK_NOTIFY_DELIVER_ORGANISATION_ADMIN_TEMPLATE_ID"],
@@ -116,7 +116,7 @@ class NotificationService:
             },
         )
 
-    def send_deliver_org_member_invitation(self, email_address: str, *, organisation: "Organisation") -> Notification:
+    def send_deliver_org_member_invitation(self, email_address: str, *, organisation: Organisation) -> Notification:
         return self._send_email(
             email_address,
             current_app.config["GOVUK_NOTIFY_DELIVER_ORGANISATION_MEMBER_TEMPLATE_ID"],
@@ -127,7 +127,7 @@ class NotificationService:
         )
 
     def send_access_report_opened(
-        self, email_address: str, *, collection: "Collection", grant_recipient: "GrantRecipient"
+        self, email_address: str, *, collection: Collection, grant_recipient: GrantRecipient
     ) -> Notification:
         personalisation = {
             "grant_name": grant_recipient.grant.name,
@@ -153,7 +153,7 @@ class NotificationService:
         )
 
     def send_access_submission_sent_for_certification_confirmation(
-        self, email_address: str, *, submission: "Submission"
+        self, email_address: str, *, submission: Submission
     ) -> Notification:
         return self._send_email(
             email_address,
@@ -175,7 +175,7 @@ class NotificationService:
         )
 
     def send_access_submission_ready_to_certify(
-        self, email_address: str, *, submission: "Submission", submitted_by: "User"
+        self, email_address: str, *, submission: Submission, submitted_by: User
     ) -> Notification:
         personalisation = {
             "grant_name": submission.collection.grant.name,
@@ -204,8 +204,8 @@ class NotificationService:
 
     def send_access_certifier_confirm_submission_declined(
         self,
-        user: "User",
-        submission_helper: "SubmissionHelper",
+        user: User,
+        submission_helper: SubmissionHelper,
     ) -> Notification:
         if not (
             submission_helper.sent_for_certification_by
@@ -253,8 +253,8 @@ class NotificationService:
 
     def send_access_submitter_submission_declined(
         self,
-        user: "User",
-        submission_helper: "SubmissionHelper",
+        user: User,
+        submission_helper: SubmissionHelper,
     ) -> Notification:
         submission_state = submission_helper.events.submission_state
         if not submission_helper.declined_by:
@@ -295,7 +295,7 @@ class NotificationService:
         )
 
     def send_access_submission_submitted(
-        self, email_address: str, *, submission_helper: "SubmissionHelper"
+        self, email_address: str, *, submission_helper: SubmissionHelper
     ) -> Notification:
         if not submission_helper.submitted_at_utc or (
             submission_helper.collection.requires_certification

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 class _ManagedExpressionForm(FlaskForm):
-    _managed_expressions: list[type["ManagedExpression"]]
+    _managed_expressions: list[type[ManagedExpression]]
     _referenced_question: Question
     type: RadioField
 
@@ -76,7 +76,7 @@ class _ManagedExpressionForm(FlaskForm):
 
         return super().validate(extra_validators=extra_validators)
 
-    def get_expression(self, question: Question) -> "ManagedExpression":
+    def get_expression(self, question: Question) -> ManagedExpression:
         for _managed_expression in self._managed_expressions:
             if _managed_expression.name == self.type.data:
                 return _managed_expression.build_from_form(self, question)
@@ -86,7 +86,7 @@ class _ManagedExpressionForm(FlaskForm):
 
 def build_managed_expression_form(  # noqa: C901
     type_: ExpressionType, referenced_question: Question, expression: Expression | None = None
-) -> type["_ManagedExpressionForm"] | None:
+) -> type[_ManagedExpressionForm] | None:
     """
     For a given question, generate a FlaskForm that will allow a user to select one of its managed expressions.
 

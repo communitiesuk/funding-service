@@ -24,17 +24,17 @@ class User(BaseModel):
     email: Mapped[CIStr] = mapped_column(unique=True)
     azure_ad_subject_id: Mapped[str] = mapped_column(nullable=True, unique=True)
 
-    magic_links: Mapped[list["MagicLink"]] = relationship("MagicLink", back_populates="user")
-    invitations: Mapped[list["Invitation"]] = relationship(
+    magic_links: Mapped[list[MagicLink]] = relationship("MagicLink", back_populates="user")
+    invitations: Mapped[list[Invitation]] = relationship(
         "Invitation", back_populates="user", cascade="all, delete-orphan"
     )
-    roles: Mapped[list["UserRole"]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
-    submissions: Mapped[list["Submission"]] = relationship("Submission", back_populates="created_by")
+    roles: Mapped[list[UserRole]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
+    submissions: Mapped[list[Submission]] = relationship("Submission", back_populates="created_by")
 
     # These relationships need Organisation table as part of the join for filtering
     # Using string expressions to allow forward references to work properly
     # NOTE: This does not account for platform admin privileges; this is specifically for normal users
-    deliver_grants: Mapped[list["Grant"]] = relationship(
+    deliver_grants: Mapped[list[Grant]] = relationship(
         "Grant",
         secondary="join(UserRole, Organisation, UserRole.organisation_id == Organisation.id)",
         primaryjoin="User.id == UserRole.user_id",
@@ -59,7 +59,7 @@ class User(BaseModel):
     #              AND GrantRecipient.organisation_id == UserRole.organisation_id)
     # We also filter by Organisation.can_manage_grants == False
     # NOTE: This does not account for platform admin privileges; this is specifically for normal users
-    access_grants: Mapped[list["Grant"]] = relationship(
+    access_grants: Mapped[list[Grant]] = relationship(
         "Grant",
         secondary="""join(
             join(UserRole, Organisation, UserRole.organisation_id == Organisation.id),
@@ -84,7 +84,7 @@ class User(BaseModel):
 
     # this has some overlap with access_grants above but is most interested in the organisation you
     # have access to
-    _grant_recipients: Mapped[list["GrantRecipient"]] = relationship(
+    _grant_recipients: Mapped[list[GrantRecipient]] = relationship(
         "GrantRecipient",
         secondary="""join(
             UserRole,
@@ -105,7 +105,7 @@ class User(BaseModel):
 
     def get_grant_recipients(
         self, *, limit_to_organisation_id: uuid.UUID | None = None, limit_to_grant_id: uuid.UUID | None = None
-    ) -> list["GrantRecipient"]:
+    ) -> list[GrantRecipient]:
         return [
             gr
             for gr in self._grant_recipients
@@ -113,7 +113,7 @@ class User(BaseModel):
             and (gr.grant_id == limit_to_grant_id if limit_to_grant_id is not None else True)
         ]
 
-    def get_grant_recipient(self, *, organisation_id: uuid.UUID, grant_id: uuid.UUID) -> "GrantRecipient | None":
+    def get_grant_recipient(self, *, organisation_id: uuid.UUID, grant_id: uuid.UUID) -> GrantRecipient | None:
         return next(
             (gr for gr in self._grant_recipients if gr.organisation.id == organisation_id and gr.grant_id == grant_id),
             None,
@@ -148,14 +148,14 @@ class UserRole(BaseModel):
         ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True
     )
     grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
-    permissions: Mapped[list["RoleEnum"]] = mapped_column(
+    permissions: Mapped[list[RoleEnum]] = mapped_column(
         postgresql.ARRAY(SqlEnum(RoleEnum, name="role_enum", validate_strings=True)),
         nullable=False,
     )
 
     user: Mapped[User] = relationship("User", back_populates="roles")
-    organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="roles")
-    grant: Mapped["Grant"] = relationship("Grant")
+    organisation: Mapped[Organisation] = relationship("Organisation", back_populates="roles")
+    grant: Mapped[Grant] = relationship("Grant")
 
     __table_args__ = (
         UniqueConstraint(
@@ -218,14 +218,14 @@ class Invitation(BaseModel):
         ForeignKey("organisation.id", ondelete="CASCADE"), nullable=True
     )
     grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id", ondelete="CASCADE"), nullable=True)
-    permissions: Mapped[list["RoleEnum"]] = mapped_column(
+    permissions: Mapped[list[RoleEnum]] = mapped_column(
         postgresql.ARRAY(SqlEnum(RoleEnum, name="role_enum", validate_strings=True)),
         nullable=False,
     )
 
     user: Mapped[User] = relationship("User", back_populates="invitations")
-    organisation: Mapped["Organisation"] = relationship("Organisation")
-    grant: Mapped["Grant"] = relationship("Grant", back_populates="invitations")
+    organisation: Mapped[Organisation] = relationship("Organisation")
+    grant: Mapped[Grant] = relationship("Grant", back_populates="invitations")
 
     expires_at_utc: Mapped[datetime] = mapped_column(nullable=False)
     claimed_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)

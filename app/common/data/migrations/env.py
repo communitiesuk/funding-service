@@ -1,7 +1,8 @@
 import logging
+from collections.abc import Iterable
 from logging.config import fileConfig
 from pathlib import Path
-from typing import Iterable, cast
+from typing import cast
 
 import alembic_postgresql_enum  # noqa
 from alembic import context

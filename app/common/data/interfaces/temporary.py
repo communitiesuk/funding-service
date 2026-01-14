@@ -29,7 +29,7 @@ def delete_grant(grant_id: UUID) -> None:
     db.session.flush()
 
 
-def get_submission_by_collection_and_user(collection: Collection, user: "User") -> Submission | None:
+def get_submission_by_collection_and_user(collection: Collection, user: User) -> Submission | None:
     return db.session.scalar(
         select(Submission).where(Submission.collection == collection, Submission.created_by == user)
     )

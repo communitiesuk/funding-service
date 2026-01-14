@@ -139,7 +139,7 @@ def sso_get_token() -> ResponseReturnValue:
                 "Authorization code was already redeemed: %(error)s.", {"error": result.get("error_description")}
             )
             return redirect(url_for("auth.sign_out"))
-        return abort(500, "Azure AD get-token flow failed with: {}".format(result))
+        return abort(500, f"Azure AD get-token flow failed with: {result}")
 
     sso_user = result["id_token_claims"]
 
