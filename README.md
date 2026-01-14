@@ -90,8 +90,9 @@ In order for the E2E tests to run against deployed environments (either kicked o
 
 If the database is reset and wiped, these two users and the role will need to be manually added to the databases online:
 
-* `svc-Preaward-Funds@test.communities.gov.uk` as the Platform Admin user and role, and
-* `svc-Preaward-Funds@communities.gov.uk` as a normal user without any role.
+* `svc-Preaward-Funds@test.communities.gov.uk` as the Platform Admin user and role,
+* `svc-Preaward-Funds@communities.gov.uk` as a normal user without any role, and
+* `fsd-post-award@levellingup.gov.uk` as a normal user with a member+data-provider role in an MHCLG test organisation.
 
 If adding them to an empty database (either via the ad-hoc script or via the Query editor in AWS), be sure to use the correct IDs from the Parameter Store as the IDs of these users.
 
