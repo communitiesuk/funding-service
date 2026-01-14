@@ -3,7 +3,7 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
+from tests.e2e.access_grant_funding.pages import AccessHomePage, RequestALinkToSignInPage
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.helpers import retrieve_magic_link
 
@@ -23,7 +23,9 @@ def test_magic_link_redirect_journey(page: Page, domain: str, e2e_test_secrets: 
     magic_link_url = retrieve_magic_link(notification_id, e2e_test_secrets)
     page.goto(magic_link_url)
 
-    expected_url_pattern = rf"^{domain}/access/organisation/[a-f0-9-]{{36}}/grants/[a-f0-9-]{{36}}/reports$"
+    access_home_page = AccessHomePage(page, domain)
+    access_home_page.select_grant("MHCLG Funding Service Test Organisation", "Cheeseboards in parks")
+    expected_url_pattern = rf"^{domain}/access/organisation/[a-f0-9-]{{36}}/grants/[a-f0-9-]{{36}}/reports[#]?$"
 
     # JavaScript on the page automatically claims the link and should redirect to where they started.
     expect(page).to_have_url(re.compile(expected_url_pattern))
