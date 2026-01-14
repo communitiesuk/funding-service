@@ -1,6 +1,6 @@
 import io
 import uuid
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
@@ -718,7 +718,7 @@ class AddQuestionGroup(BaseModel):
         return self.model_dump(exclude_none=True)
 
     @classmethod
-    def from_session(cls, session_data: dict[str, Any]) -> "AddQuestionGroup":
+    def from_session(cls, session_data: dict[str, Any]) -> AddQuestionGroup:
         return cls.model_validate(session_data)
 
 
@@ -1057,7 +1057,7 @@ def _handle_remove_context_for_expression_forms(
     form: _ManagedExpressionForm,
     component_id: UUID,
     expression_type: ExpressionType,
-    expression: Optional["Expression"] = None,
+    expression: Expression | None = None,
     add_context_data: AddContextToExpressionsModel | None = None,
     depends_on_question_id: UUID | None = None,
 ) -> None:

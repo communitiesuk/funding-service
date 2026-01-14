@@ -1,6 +1,7 @@
 import datetime
 import uuid
-from typing import TYPE_CHECKING, Any, Literal, Never, Optional, Protocol, Sequence, Unpack, overload
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
@@ -519,7 +520,7 @@ def _create_data_source(question: Question, items: list[str]) -> None:
     data_source = DataSource(id=uuid.uuid4(), question_id=question.id)
     db.session.add(data_source)
 
-    if len(set(slugify(item) for item in items)) != len(items):
+    if len({slugify(item) for item in items}) != len(items):
         # If this error occurs, it's probably because QuestionForm does not check for duplication between the
         # main options and the 'Other' option. Might need to add that if this has triggered; but avoiding
         # now because I consider it unlikely. This will protect us even if it's not the best UX.
@@ -538,7 +539,7 @@ def _update_data_source(question: Question, items: list[str]) -> None:
         if slugify(item) in existing_choices_map:
             existing_choices_map[slugify(item)].label = item
 
-    if len(set(slugify(item) for item in items)) != len(items):
+    if len({slugify(item) for item in items}) != len(items):
         # If this error occurs, it's probably because QuestionForm does not check for duplication between the
         # main options and the 'Other' option. Might need to add that if this has triggered; but avoiding
         # now because I consider it unlikely. This will protect us even if it's not the best UX.
@@ -571,7 +572,7 @@ def create_question(
     name: str,
     data_type: QuestionDataType,
     expression_context: ExpressionContext,
-    parent: Optional[Group] = None,
+    parent: Group | None = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
@@ -650,8 +651,8 @@ def create_group(
     form: Form,
     *,
     text: str,
-    name: Optional[str] = None,
-    parent: Optional[Group] = None,
+    name: str | None = None,
+    parent: Group | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
     add_another: bool = False,
 ) -> Group:
@@ -1235,7 +1236,7 @@ def add_submission_event(
 
 
 def get_referenced_data_source_items_by_managed_expression(
-    managed_expression: "BaseDataSourceManagedExpression",
+    managed_expression: BaseDataSourceManagedExpression,
 ) -> Sequence[DataSourceItem]:
     referenced_data_source_items = db.session.scalars(
         select(DataSourceItem).where(
@@ -1396,7 +1397,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_component_condition(component: Component, user: User, managed_expression: "ManagedExpression") -> Component:
+def add_component_condition(component: Component, user: User, managed_expression: ManagedExpression) -> Component:
     if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
         raise DependencyOrderException(
             "Cannot add managed condition that depends on a later question",
@@ -1425,7 +1426,7 @@ def add_component_condition(component: Component, user: User, managed_expression
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
+def add_question_validation(question: Question, user: User, managed_expression: ManagedExpression) -> Question:
     expression = Expression(
         statement=managed_expression.statement,
         context=managed_expression.model_dump(mode="json"),
@@ -1449,7 +1450,7 @@ def remove_question_expression(question: Component, expression: Expression) -> C
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def update_question_expression(expression: Expression, managed_expression: "ManagedExpression") -> Expression:
+def update_question_expression(expression: Expression, managed_expression: ManagedExpression) -> Expression:
     expression.statement = managed_expression.statement
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key

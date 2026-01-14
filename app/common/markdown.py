@@ -1,5 +1,5 @@
 from html import escape
-from typing import Any, Optional
+from typing import Any
 
 import mistune
 from flask import Flask
@@ -12,7 +12,7 @@ class _GOVUKRenderer(HTMLRenderer):
     def __init__(
         self,
         escape: bool = True,
-        allow_harmful_protocols: Optional[bool] = None,
+        allow_harmful_protocols: bool | None = None,
         heading_level_start: int = 2,
         heading_level_end: int = 2,
         heading_level_classes: tuple[str, ...] = ("govuk-heading-m",),
@@ -30,7 +30,7 @@ class _GOVUKRenderer(HTMLRenderer):
         title_attr = f' title="{safe_entity(title)}"' if title else ""
         return f'<a href="{self.safe_url(url)}" class="govuk-link govuk-link--no-visited-state"{title_attr}>{text}</a>'
 
-    def image(self, text: str, url: str, title: Optional[str] = None) -> str:
+    def image(self, text: str, url: str, title: str | None = None) -> str:
         return escape(text) if text else ""
 
     def emphasis(self, text: str) -> str:

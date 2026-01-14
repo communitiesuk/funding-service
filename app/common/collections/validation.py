@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class SubmissionValidator:
-    def __init__(self, submission_helper: "SubmissionHelper"):
+    def __init__(self, submission_helper: SubmissionHelper):
         self.helper = submission_helper
 
     def validate_all_reachable_questions(self) -> None:
@@ -31,7 +31,7 @@ class SubmissionValidator:
                 errors=errors,
             )
 
-    def _validate_form(self, form: "Form") -> list[ValidationError]:
+    def _validate_form(self, form: Form) -> list[ValidationError]:
         errors = []
         processed_add_another_containers = []
 
@@ -52,7 +52,7 @@ class SubmissionValidator:
         return errors
 
     def _validate_question(
-        self, question: "Question", form: "Form", add_another_index: int | None = None
+        self, question: Question, form: Form, add_another_index: int | None = None
     ) -> list[ValidationError]:
         errors: list[ValidationError] = []
 
@@ -95,7 +95,7 @@ class SubmissionValidator:
 
         return errors
 
-    def _validate_add_another_container(self, container: "Component", form: "Form") -> list[ValidationError]:
+    def _validate_add_another_container(self, container: Component, form: Form) -> list[ValidationError]:
         errors = []
         container = cast("Group | Question", container)
 

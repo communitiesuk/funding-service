@@ -54,32 +54,26 @@ def to_dict(instance: BaseModel, exclude: list[str] | None = None) -> dict[str, 
     }
 
 
-GrantExport = TypedDict(
-    "GrantExport",
-    {
-        "grant": dict[str, Any],
-        "grant_recipients": list[Any],
-        "collections": list[Any],
-        "forms": list[Any],
-        # intentionally leaving this as questions for now to avoid
-        # transitioning to a new schema, we can change this to components for
-        # clarity when everything is settled if we need to
-        "questions": list[Any],
-        "expressions": list[Any],
-        "data_sources": list[Any],
-        "data_source_items": list[Any],
-        "component_references": list[Any],
-    },
-)
-ExportData = TypedDict(
-    "ExportData",
-    {
-        "grants": list[GrantExport],
-        "users": list[Any],
-        "user_roles": list[Any],
-        "organisations": list[Any],
-    },
-)
+class GrantExport(TypedDict):
+    grant: dict[str, Any]
+    grant_recipients: list[Any]
+    collections: list[Any]
+    forms: list[Any]
+    # intentionally leaving this as questions for now to avoid
+    # transitioning to a new schema, we can change this to components for
+    # clarity when everything is settled if we need to
+    questions: list[Any]
+    expressions: list[Any]
+    data_sources: list[Any]
+    data_source_items: list[Any]
+    component_references: list[Any]
+
+
+class ExportData(TypedDict):
+    grants: list[GrantExport]
+    users: list[Any]
+    user_roles: list[Any]
+    organisations: list[Any]
 
 
 def _sort_export_data_in_place(export_data: ExportData) -> None:

@@ -1,5 +1,5 @@
 # todo: propose moving common/helper/collections.py to common/collections/submission.py
-from typing import TYPE_CHECKING, ClassVar, Optional, Union, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 from uuid import UUID
 
 from flask import abort, current_app, url_for
@@ -34,16 +34,16 @@ class FormRunner:
     This allows us to implement the form runner in different domain environments consistently."""
 
     url_map: ClassVar[TRunnerUrlMap] = {}
-    component: Optional[Union["Question", "Group"]]
-    questions: list["Question"]
+    component: Question | Group | None
+    questions: list[Question]
 
     def __init__(
         self,
         submission: SubmissionHelper,
-        question: Optional["Question"] = None,
-        form: Optional["Form"] = None,
-        source: Optional["FormRunnerState"] = None,
-        add_another_index: Optional[int] = None,
+        question: Question | None = None,
+        form: Form | None = None,
+        source: FormRunnerState | None = None,
+        add_another_index: int | None = None,
         is_removing: bool = False,
     ):
         if question and form:
@@ -55,13 +55,13 @@ class FormRunner:
         self.add_another_index = add_another_index
         self.is_removing = is_removing
 
-        self._valid: Optional[bool] = None
+        self._valid: bool | None = None
 
         self._tasklist_form = GenericSubmitForm()
-        self._question_form: Optional[DynamicQuestionForm] = None
-        self._check_your_answers_form: Optional[CheckYourAnswersForm] = None
-        self._add_another_summary_form: Optional[AddAnotherSummaryForm] = None
-        self._confirm_remove_form: Optional[ConfirmRemoveAddAnotherForm] = None
+        self._question_form: DynamicQuestionForm | None = None
+        self._check_your_answers_form: CheckYourAnswersForm | None = None
+        self._add_another_summary_form: AddAnotherSummaryForm | None = None
+        self._confirm_remove_form: ConfirmRemoveAddAnotherForm | None = None
 
         self.add_another_summary_context = bool(
             (question and question.add_another_container) and self.add_another_index is None
@@ -136,13 +136,13 @@ class FormRunner:
         cls,
         *,
         submission_id: UUID,
-        question_id: Optional[UUID] = None,
-        form_id: Optional[UUID] = None,
-        source: Optional[FormRunnerState] = None,
-        add_another_index: Optional[int] = None,
-        grant_recipient_id: Optional[UUID] = None,
+        question_id: UUID | None = None,
+        form_id: UUID | None = None,
+        source: FormRunnerState | None = None,
+        add_another_index: int | None = None,
+        grant_recipient_id: UUID | None = None,
         is_removing: bool = False,
-    ) -> "FormRunner":
+    ) -> FormRunner:
         if question_id and form_id:
             raise ValueError("Expected only one of question_id or form_id")
 
@@ -189,29 +189,29 @@ class FormRunner:
         )
 
     @property
-    def question_form(self) -> "DynamicQuestionForm":
+    def question_form(self) -> DynamicQuestionForm:
         if not self.component or not self._question_form:
             raise RuntimeError("Question context not set")
         return self._question_form
 
     @property
-    def check_your_answers_form(self) -> "CheckYourAnswersForm":
+    def check_your_answers_form(self) -> CheckYourAnswersForm:
         if not self.form or not self._check_your_answers_form:
             raise RuntimeError("Form context not set")
         return self._check_your_answers_form
 
     @property
-    def tasklist_form(self) -> "GenericSubmitForm":
+    def tasklist_form(self) -> GenericSubmitForm:
         return self._tasklist_form
 
     @property
-    def add_another_summary_form(self) -> "AddAnotherSummaryForm":
+    def add_another_summary_form(self) -> AddAnotherSummaryForm:
         if not self.component or not self._add_another_summary_form:
             raise RuntimeError("Add another summary context not set")
         return self._add_another_summary_form
 
     @property
-    def confirm_remove_form(self) -> "ConfirmRemoveAddAnotherForm":
+    def confirm_remove_form(self) -> ConfirmRemoveAddAnotherForm:
         if not self.component or not self._confirm_remove_form:
             raise RuntimeError("Confirm remove context not set")
         return self._confirm_remove_form
@@ -219,7 +219,7 @@ class FormRunner:
     @property
     def question_with_add_another_summary_form(
         self,
-    ) -> "DynamicQuestionForm | AddAnotherSummaryForm | ConfirmRemoveAddAnotherForm":
+    ) -> DynamicQuestionForm | AddAnotherSummaryForm | ConfirmRemoveAddAnotherForm:
         if self.is_removing:
             return self.confirm_remove_form
         return self.add_another_summary_form if self.add_another_summary_context else self.question_form
@@ -246,10 +246,10 @@ class FormRunner:
                         add_another_index=self.add_another_index,
                     )
 
-    def interpolate(self, text: str, *, context: "ExpressionContext | None" = None) -> str:
+    def interpolate(self, text: str, *, context: ExpressionContext | None = None) -> str:
         return interpolate(text, context=context or self.runner_interpolation_context)
 
-    def save_is_form_completed(self, user: "User") -> bool:
+    def save_is_form_completed(self, user: User) -> bool:
         if not self.form:
             raise RuntimeError("Form context not set")
 
@@ -274,7 +274,7 @@ class FormRunner:
             self._tasklist_form.submit.errors.append(e.error_message)  # type:ignore[attr-defined]
             return False
 
-    def complete_submission(self, user: "User") -> bool:
+    def complete_submission(self, user: User) -> bool:
         try:
             if self.submission.collection.requires_certification:
                 self.submission.mark_as_sent_for_certification(user)
@@ -298,11 +298,11 @@ class FormRunner:
         self,
         state: FormRunnerState,
         *,
-        question: Optional["Question"] = None,
-        form: Optional["Form"] = None,
-        source: Optional[FormRunnerState] = None,
-        add_another_index: Optional[int] = None,
-        is_removing: Optional[bool] = None,
+        question: Question | None = None,
+        form: Form | None = None,
+        source: FormRunnerState | None = None,
+        add_another_index: int | None = None,
+        is_removing: bool | None = None,
     ) -> str:
         # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
         return self.url_map[state](
@@ -471,7 +471,7 @@ class FormRunner:
         return caption
 
     @property
-    def runner_evaluation_context(self) -> "ExpressionContext":
+    def runner_evaluation_context(self) -> ExpressionContext:
         if self.add_another_index is not None and self.component and self.component.add_another_container:
             return self.submission.cached_evaluation_context.with_add_another_context(
                 self.component,
@@ -482,7 +482,7 @@ class FormRunner:
         return self.submission.cached_evaluation_context
 
     @property
-    def runner_interpolation_context(self) -> "ExpressionContext":
+    def runner_interpolation_context(self) -> ExpressionContext:
         if self.add_another_index is not None and self.component and self.component.add_another_container:
             return self.submission.cached_interpolation_context.with_add_another_context(
                 self.component,

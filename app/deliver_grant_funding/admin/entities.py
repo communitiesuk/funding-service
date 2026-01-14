@@ -51,14 +51,14 @@ class PlatformAdminModelView(XGovukModelView):
     def __init__(
         self,
         session: orm.Session,
-        name: "str | None" = None,
-        category: "str | None" = None,
-        endpoint: "str | None" = None,
-        url: "str | None" = None,
-        static_folder: "str | None" = None,
-        menu_class_name: "str | None" = None,
-        menu_icon_type: "str | None" = None,
-        menu_icon_value: "str | None" = None,
+        name: str | None = None,
+        category: str | None = None,
+        endpoint: str | None = None,
+        url: str | None = None,
+        static_folder: str | None = None,
+        menu_class_name: str | None = None,
+        menu_icon_type: str | None = None,
+        menu_icon_value: str | None = None,
     ) -> None:
         super().__init__(
             self._model,
@@ -358,7 +358,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, Platf
                 .all()
             )
             for invitation in usable_invitations:
-                invitation.expires_at_utc = datetime.datetime.now(datetime.timezone.utc)
+                invitation.expires_at_utc = datetime.datetime.now(datetime.UTC)
                 audit_event = create_database_model_change_for_update(invitation, get_current_user())
                 if not audit_event:
                     raise RuntimeError("Expected an audit event")
