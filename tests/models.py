@@ -746,6 +746,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     )
     data_type = QuestionDataType.TEXT_SINGLE_LINE
     add_another = False
+    add_another_max = None
 
     form = factory.Maybe(
         decider="parent",

@@ -273,6 +273,11 @@ class GroupAddAnotherOptionsForm(FlaskForm):
         ],
         widget=GovRadioInput(),
     )
+    add_another_max = IntegerField(
+        "How many times should people be able to answer all questions in this question group?",
+        widget=GovTextInput(),
+        validators=[Optional()],
+    )
     submit = SubmitField(widget=GovSubmitInput())
 
 

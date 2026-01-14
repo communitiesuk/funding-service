@@ -3871,3 +3871,27 @@ class TestReferenceDataFromPreviousCollection:
             submission_helper.is_component_visible(dependent_question, submission_helper.cached_evaluation_context)
             is False
         )
+
+
+class TestAddAnotherSpike:
+    def test_update_submission_data_add_another_question_with_max(self, db_session, factories):
+        form = factories.form.create()
+        question1 = factories.question.create(form=form, add_another=True, add_another_max=3)
+        submission = factories.submission.create(collection=form.collection)
+
+        q1_data1 = TextSingleLineAnswer("Question 1 - Answer 1")
+        q1_data2 = TextSingleLineAnswer("Question 1 - Answer 2")
+        q1_data3 = TextSingleLineAnswer("Question 1 - Answer 3")
+
+        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
+        updated_submission = update_submission_data(submission, question1, q1_data2, 1)
+        updated_submission = update_submission_data(submission, question1, q1_data3, 2)
+        assert len(updated_submission.data[str(question1.id)]) == 3
+        assert updated_submission.data[str(question1.id)] == [
+            {str(question1.id): "Question 1 - Answer 1"},
+            {str(question1.id): "Question 1 - Answer 2"},
+            {str(question1.id): "Question 1 - Answer 3"},
+        ]
+        q1_data4 = TextSingleLineAnswer("Question 1 - Answer 4")
+        with pytest.raises(ValueError):
+            update_submission_data(submission, question1, q1_data4, 3)

@@ -576,7 +576,10 @@ def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> Response
 def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
 
-    form = GroupAddAnotherOptionsForm(question_group_is_add_another="yes" if db_group.add_another else "no")
+    form = GroupAddAnotherOptionsForm(
+        question_group_is_add_another="yes" if db_group.add_another else "no",
+        add_another_max=str(db_group.add_another_max),
+    )
     if form.validate_on_submit():
         try:
             # todo: pass the result of checking if questions depend on each other
@@ -589,6 +592,7 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
                     collection=db_group.form.collection, mode="interpolation"
                 ),
                 add_another=True if form.question_group_is_add_another.data == "yes" else False,
+                add_another_max=int(form.add_another_max.data),
             )
             return redirect(
                 url_for(
@@ -716,6 +720,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 class AddQuestionGroup(BaseModel):
     group_name: str
     show_questions_on_the_same_page: bool | None = None
+    add_another_max: int | None = None
 
     def to_session_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)
@@ -873,6 +878,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
                     show_questions_on_the_same_page=add_question_group.show_questions_on_the_same_page
                 ),
                 add_another=add_another,
+                add_another_max=int(wt_form.add_another_max.data),
             )
             session.pop("add_question_group", None)
             return redirect(

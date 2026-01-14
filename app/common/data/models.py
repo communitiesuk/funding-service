@@ -383,6 +383,7 @@ class Component(BaseModel):
     guidance_body: Mapped[Optional[str]]
     add_another_guidance_body: Mapped[Optional[str]]
     add_another: Mapped[bool] = mapped_column(default=False)
+    add_another_max: Mapped[Optional[int]] = mapped_column(default=None)
     conditions_operator: Mapped[ConditionsOperator] = mapped_column(
         SqlEnum(ConditionsOperator, name="conditions_operator_enum", validate_strings=True),
         default=ConditionsOperator.ALL,
