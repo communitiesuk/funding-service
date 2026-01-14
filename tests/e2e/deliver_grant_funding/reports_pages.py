@@ -1544,11 +1544,13 @@ class SetUpTestGrantRecipientsPage:
         self.grant_id = grant_id
         self.collection_id = collection_id
         self.heading = page.get_by_role("heading", name="Set up test grant recipients")
-        self.grant_recipients_combobox = page.get_by_role("combobox", name="Grant recipients")
+
+        self.grant_recipients_combobox = page.locator(".choices", has=page.locator(".choices__input#recipients"))
+        expect(self.grant_recipients_combobox).to_be_visible()
+
         self.set_up_button = page.get_by_role("button", name="Set up grant recipients")
 
     def select_organisation(self, org_name: str) -> None:
-        expect(self.heading).to_be_visible()
         self.grant_recipients_combobox.click()
         self.page.get_by_role("option", name=org_name).click()
         self.page.keyboard.press("Escape")
@@ -1566,12 +1568,18 @@ class SetUpTestGrantRecipientUsersPage:
         self.grant_id = grant_id
         self.collection_id = collection_id
         self.heading = page.get_by_role("heading", name="Add users to test Access grant funding")
-        self.test_grant_recipient_combobox = page.get_by_role("combobox", name="Test grant recipient")
-        self.grant_team_members_combobox = page.get_by_role("combobox", name="Members of the grant team")
+
+        self.test_grant_recipient_combobox = page.locator(
+            ".choices", has=page.locator(".choices__input#grant_recipient")
+        )
+        expect(self.test_grant_recipient_combobox).to_be_visible()
+
+        self.grant_team_members_combobox = page.locator(".choices", has=page.locator(".choices__input#user"))
+        expect(self.grant_team_members_combobox).to_be_visible()
+
         self.add_user_button = page.get_by_role("button", name="Add user")
 
     def select_test_grant_recipient(self, org_name: str) -> None:
-        expect(self.heading).to_be_visible()
         self.test_grant_recipient_combobox.click()
         self.page.get_by_role("option", name=org_name).click()
 
