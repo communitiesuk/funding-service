@@ -35,6 +35,7 @@ class AddContextToComponentSessionModel(BaseModel):
 
     data_source: ExpressionContext.ContextSources | None = None
     source_section_id: UUID | None = None
+    source_collection_id: UUID | None = None
 
     component_id: UUID | None = None
     parent_id: UUID | None = None
@@ -68,5 +69,6 @@ class AddContextToExpressionsModel(BaseModel):
 
     data_source: ExpressionContext.ContextSources | None = None
     source_section_id: UUID | None = None
+    source_collection_id: UUID | None = None
     depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None

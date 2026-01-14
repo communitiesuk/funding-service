@@ -56,9 +56,11 @@ class ExpressionContext(ChainMap[str, Any]):
     with answers from the current form submission (DynamicQuestionForm).
     """
 
+    # Why do we have this as well as ConditionContextSourceEnum?
     class ContextSources(enum.StrEnum):
         SECTION = "A question in this section"
         PREVIOUS_SECTION = "A question from a previous section"
+        PREVIOUS_COLLECTION = "A question from a previous collection"
 
     def __init__(
         self,
@@ -167,7 +169,7 @@ class ExpressionContext(ChainMap[str, Any]):
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
-        assert len(ExpressionContext.ContextSources) == 2, (
+        assert len(ExpressionContext.ContextSources) == 3, (
             "When defining a new source of context for expressions, "
             "update this method and the ContextSourceChoices enum"
         )
@@ -181,6 +183,34 @@ class ExpressionContext(ChainMap[str, Any]):
             expression_context_end_point=expression_context_end_point,
             submission_helper=submission_helper,
         )
+
+        # TODO further to above do we need to separately namespace data from previous submissions?
+
+        for form in collection.forms:
+            # TODO: feels a bit gnarly!
+            for component in form.cached_all_components:
+                for ref in component.owned_component_references:
+                    depends_on = ref.depends_on_component
+
+                    if (
+                        depends_on.is_question
+                        and depends_on.form_id != form.id
+                        and depends_on.form.collection_id != collection.id
+                    ):
+                        if submission_helper:
+                            previous_submission_helpers = submission_helper._get_previous_dependent_submission_helpers()
+
+                            previous_helper = previous_submission_helpers[component.id]
+                            if previous_helper:
+                                previous_answer = previous_helper.cached_get_answer_for_question(depends_on.id)
+                                if previous_answer:
+                                    submission_data[depends_on.safe_qid] = (
+                                        previous_answer.get_value_for_evaluation()
+                                        if mode == "evaluation"
+                                        else previous_answer.get_value_for_interpolation()
+                                    )
+                        if mode == "interpolation":
+                            submission_data.setdefault(depends_on.safe_qid, f"(({depends_on.name}))")
 
         if mode == "interpolation":
             for form in collection.forms:

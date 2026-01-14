@@ -87,8 +87,10 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     SelectDataSourceQuestionForm,
+    SelectPreviousCollectionForm,
     SelectPreviousSectionForm,
     SelectQuestionFromPreviousSectionForm,
+    SelectSectionPreviousCollectionForm,
     SetUpReportForm,
     TestGrantRecipientJourneyForm,
 )
@@ -1208,6 +1210,15 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                     url_for("deliver_grant_funding.select_previous_section", grant_id=grant_id, form_id=form_id)
                 )
 
+            case ExpressionContext.ContextSources.PREVIOUS_COLLECTION:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.add_context_select_previous_collection",
+                        grant_id=grant_id,
+                        form_id=form_id,
+                    )
+                )
+
             case _:
                 abort(500)
 
@@ -1363,6 +1374,77 @@ def select_previous_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
 
     return render_template(
         "deliver_grant_funding/reports/select_previous_section.html",
+        grant=db_form.collection.grant,
+        db_form=db_form,
+        form=wtform,
+        add_context_data=add_context_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-section-from-previous-collection",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_context_select_section_from_previous_collection(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+
+    add_context_data = _extract_add_context_data_from_session()
+    if not add_context_data:
+        return abort(400)
+
+    wtform = SelectSectionPreviousCollectionForm(collection=get_collection(add_context_data.source_collection_id))
+
+    if wtform.validate_on_submit():
+        add_context_data.source_section_id = UUID(wtform.section.data)
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.select_question_from_previous_section",
+                grant_id=grant_id,
+                form_id=form_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/select_section_from_previous_collection.html",
+        grant=db_form.collection.grant,
+        db_form=db_form,
+        form=wtform,
+        add_context_data=add_context_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-previous-collection", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_context_select_previous_collection(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+
+    add_context_data = _extract_add_context_data_from_session()
+    if not add_context_data:
+        return abort(400)
+
+    source_collection = db_form.collection
+    wtform = SelectPreviousCollectionForm(
+        collection=source_collection,
+    )
+    if wtform.validate_on_submit():
+        add_context_data.source_collection_id = UUID(wtform.collection.data)
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_context_select_section_from_previous_collection",
+                grant_id=grant_id,
+                form_id=form_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/select_previous_collection.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         form=wtform,
@@ -1797,6 +1879,15 @@ def add_condition_select_context_source(grant_id: UUID, component_id: UUID) -> R
                     component_id=component_id,
                 )
             )
+        elif form.context_source.data == ConditionContextSourceEnum.PREVIOUS_COLLECTION.name:
+            # Previous collection
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.add_condition_select_previous_collection",
+                    grant_id=grant_id,
+                    component_id=component_id,
+                )
+            )
         else:
             return redirect(
                 url_for(
@@ -1815,12 +1906,75 @@ def add_condition_select_context_source(grant_id: UUID, component_id: UUID) -> R
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-previous-collection",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_condition_select_previous_collection(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
+    form = SelectPreviousCollectionForm(collection=component.form.collection)
+
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_condition_select_section_from_previous_collection",
+                grant_id=grant_id,
+                component_id=component_id,
+                source_collection_id=form.collection.data,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_condition_select_previous_collection.html",
+        component=component,
+        grant=component.form.collection.grant,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-section-from-previous-collection/<uuid:source_collection_id>",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_condition_select_section_from_previous_collection(
+    grant_id: UUID, component_id: UUID, source_collection_id: UUID
+) -> ResponseReturnValue:
+    component = get_component_by_id(component_id)
+    collection = get_collection(source_collection_id)
+    form = SelectSectionPreviousCollectionForm(collection=collection)
+
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_condition_select_question_from_previous_section",
+                grant_id=grant_id,
+                component_id=component_id,
+                source_form_id=form.section.data,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_condition_select_section_from_previous_collection.html",
+        component=component,
+        grant=component.form.collection.grant,
+        form=form,
+        source_collection=collection,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-previous-section",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
-def add_condition_select_previous_section(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+def add_condition_select_previous_section(
+    grant_id: UUID,
+    component_id: UUID,
+) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
     form = ConditionSelectPreviousSectionForm(form=component.form)
 

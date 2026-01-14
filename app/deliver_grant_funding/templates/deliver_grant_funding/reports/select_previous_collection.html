@@ -1,0 +1,48 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "deliver_grant_funding/macros/select_context_source_header_caption.html" import context_source_heading_caption %}
+{% from "deliver_grant_funding/macros/select_context_source_return_url.html" import context_source_return_url %}
+
+{% set page_title = "Select a collection - " ~ db_form.title %}
+{% set active_item_identifier = "reports" %}
+{% set back_url = url_for("deliver_grant_funding.select_context_source", grant_id=grant.id, form_id=db_form.id) %}
+
+{# Set heading caption and cancel button to for what initiated the `add data` flow #}
+{% set heading_caption = context_source_heading_caption(add_context_data) %}
+{% set cancel_url = context_source_return_url(add_context_data, grant, db_form, enum) %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_url
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if form.collection.choices | length > 0 %}
+        <span class="govuk-caption-l">Question {{ heading_caption }}</span>
+
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.collection(params={"fieldset": {"legend": {"text": form.collection.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} } }) }}
+
+          <span class="govuk-button-group">
+            {{ form.submit(params={"text": "Select collection"}) }}
+
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ cancel_url }}">Cancel</a>
+          </span>
+        </form>
+      {% else %}
+        <h1 class="govuk-heading-l">
+          <span class="govuk-caption-l">Question {{ heading_caption }}</span>
+          {{ form.collection.label.text }}
+        </h1>
+        <p class="govuk-body">There are no previous collections available to reference.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}
