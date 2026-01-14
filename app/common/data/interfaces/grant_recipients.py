@@ -1,5 +1,5 @@
 import uuid
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.orm import joinedload, selectinload
@@ -12,13 +12,13 @@ from app.extensions import db
 
 
 def get_grant_recipients(
-    grant: "Grant",
+    grant: Grant,
     *,
     mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
     with_data_providers: bool = False,
     with_certifiers: bool = False,
     with_organisations: bool = False,
-) -> Sequence["GrantRecipient"]:
+) -> Sequence[GrantRecipient]:
     stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
 
     if with_data_providers:
@@ -34,7 +34,7 @@ def get_grant_recipients(
 
 
 def get_grant_recipients_with_outstanding_submissions_for_collection(
-    grant: "Grant", *, collection_id: uuid.UUID, with_data_providers: bool = False, with_certifiers: bool = False
+    grant: Grant, *, collection_id: uuid.UUID, with_data_providers: bool = False, with_certifiers: bool = False
 ) -> list[GrantRecipient]:
     """
     Gets all the grant recipients who have not submitted their submission for the given collection.
@@ -64,7 +64,7 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
     return grant_recipients_with_outstanding_submissions
 
 
-def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> "GrantRecipient":
+def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> GrantRecipient:
     statement = (
         select(GrantRecipient)
         .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
@@ -78,7 +78,7 @@ def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> "Gra
     return db.session.scalars(statement).one()
 
 
-def get_grant_recipients_count(grant: "Grant", mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
+def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
     statement = (
         select(func.count())
         .select_from(GrantRecipient)
@@ -89,7 +89,7 @@ def get_grant_recipients_count(grant: "Grant", mode: GrantRecipientModeEnum = Gr
 
 @flush_and_rollback_on_exceptions()
 def create_grant_recipients(
-    grant: "Grant", organisation_ids: list[uuid.UUID], mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE
+    grant: Grant, organisation_ids: list[uuid.UUID], mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE
 ) -> None:
     grant_recipients = []
 
@@ -99,7 +99,7 @@ def create_grant_recipients(
     db.session.add_all(grant_recipients)
 
 
-def all_grant_recipients_have_data_providers(grant: "Grant") -> bool:
+def all_grant_recipients_have_data_providers(grant: Grant) -> bool:
     grant_recipients = get_grant_recipients(grant, with_data_providers=True)
 
     if not grant_recipients:

@@ -1,5 +1,6 @@
 import json
-from typing import Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Optional
 
 from flask import url_for
 from flask.sansio.app import App
@@ -10,13 +11,13 @@ from app.config import Environment
 
 class Asset(BaseModel):
     file: str
-    name: Optional[str] = None
+    name: str | None = None
     src: str
     isEntry: bool
 
 
-class Manifest(RootModel[Optional[Dict[str, Asset]]]):
-    root: Optional[Dict[str, Asset]]
+class Manifest(RootModel[Optional[dict[str, Asset]]]):
+    root: dict[str, Asset] | None
 
     def __getitem__(self, item: str) -> Asset | None:
         if self.root:
@@ -38,7 +39,7 @@ class FlaskAssetsViteExtension:
         self._live_enabled = self._app.config["ASSETS_VITE_LIVE_ENABLED"]
 
         try:
-            with open("app/assets/dist/manifest.json", "r") as f:
+            with open("app/assets/dist/manifest.json") as f:
                 data = json.load(f)
                 self._manifest = Manifest(root=data)
         except FileNotFoundError as e:

@@ -16,33 +16,33 @@ if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
 
 
-_registry_by_expression_enum: dict[ManagedExpressionsEnum, type["ManagedExpression"]] = {}
-_condition_registry_by_data_type: dict[QuestionDataType, list[type["ManagedExpression"]]] = defaultdict(list)
-_validator_registry_by_data_type: dict[QuestionDataType, list[type["ManagedExpression"]]] = defaultdict(list)
+_registry_by_expression_enum: dict[ManagedExpressionsEnum, type[ManagedExpression]] = {}
+_condition_registry_by_data_type: dict[QuestionDataType, list[type[ManagedExpression]]] = defaultdict(list)
+_validator_registry_by_data_type: dict[QuestionDataType, list[type[ManagedExpression]]] = defaultdict(list)
 
 
 def get_registered_data_types() -> set[QuestionDataType]:
     """Returns the set of question data types that have at least one managed expression supporting them."""
-    return set(k for k, v in _condition_registry_by_data_type.items() if v) | set(
+    return {k for k, v in _condition_registry_by_data_type.items() if v} | {
         k for k, v in _validator_registry_by_data_type.items() if v
-    )
+    }
 
 
-def get_managed_conditions_by_data_type(question_type: QuestionDataType) -> list[type["ManagedExpression"]]:
+def get_managed_conditions_by_data_type(question_type: QuestionDataType) -> list[type[ManagedExpression]]:
     """Returns the list of managed expressions supported for a particular question type."""
     return _condition_registry_by_data_type[question_type]
 
 
-def get_managed_validators_by_data_type(question_type: QuestionDataType) -> list[type["ManagedExpression"]]:
+def get_managed_validators_by_data_type(question_type: QuestionDataType) -> list[type[ManagedExpression]]:
     """Returns the list of managed expressions supported for a particular question type."""
     return _validator_registry_by_data_type[question_type]
 
 
-def lookup_managed_expression(expression_enum: ManagedExpressionsEnum) -> type["ManagedExpression"]:
+def lookup_managed_expression(expression_enum: ManagedExpressionsEnum) -> type[ManagedExpression]:
     return _registry_by_expression_enum[expression_enum]
 
 
-def register_managed_expression(cls: type["ManagedExpression"]) -> type["ManagedExpression"]:
+def register_managed_expression(cls: type[ManagedExpression]) -> type[ManagedExpression]:
     """
     A decorator that can be used to include a managed expression definition (subclass of
     app.common.expressions.managed.ManagedExpression) in this registry, which should allow it to automatically show up
@@ -57,7 +57,7 @@ def register_managed_expression(cls: type["ManagedExpression"]) -> type["Managed
     return cls
 
 
-def get_supported_form_questions(question: "Component") -> list["Question"]:
+def get_supported_form_questions(question: Component) -> list[Question]:
     form = question.form
     return [
         q

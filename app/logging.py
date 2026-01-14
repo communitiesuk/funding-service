@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import datetime
 import enum
 import logging
@@ -194,7 +192,7 @@ class JSONFormatter(BaseJSONFormatter):
             s = time.strftime(datefmt, ct)
         else:
             s = (
-                datetime.datetime.fromtimestamp(record.created, datetime.timezone.utc)
+                datetime.datetime.fromtimestamp(record.created, datetime.UTC)
                 .astimezone()
                 .isoformat(sep=" ", timespec="milliseconds")
             )

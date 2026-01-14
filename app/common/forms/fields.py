@@ -176,7 +176,7 @@ class MHCLGApproximateDateInput(GovFormBase):
             [
                 {
                     "label": "Month",
-                    "id": "{}-month".format(field.name),
+                    "id": f"{field.name}-month",
                     "name": field.name,
                     "classes": " ".join(
                         [
@@ -188,7 +188,7 @@ class MHCLGApproximateDateInput(GovFormBase):
                 },
                 {
                     "label": "Year",
-                    "id": "{}-year".format(field.name),
+                    "id": f"{field.name}-year",
                     "name": field.name,
                     "classes": " ".join(
                         [

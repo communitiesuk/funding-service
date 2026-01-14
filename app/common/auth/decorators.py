@@ -1,6 +1,7 @@
 import functools
 import uuid
-from typing import Callable, cast
+from collections.abc import Callable
+from typing import cast
 
 import sentry_sdk
 from flask import abort, current_app, flash, redirect, request, session, url_for

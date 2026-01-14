@@ -21,7 +21,7 @@ class GrantSetupSession(BaseModel):
         return self.model_dump(exclude_none=True)
 
     @classmethod
-    def from_session(cls, session_data: dict[str, Any]) -> "GrantSetupSession":
+    def from_session(cls, session_data: dict[str, Any]) -> GrantSetupSession:
         """Create from session dict with validation"""
         return cls.model_validate(session_data)
 

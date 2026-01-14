@@ -1,5 +1,6 @@
+from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import Any, Callable, Sequence, cast, overload
+from typing import Any, cast, overload
 
 from flask import current_app
 from psycopg.errors import CheckViolation, UniqueViolation

@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from app.common.data.models import Component, Form, Group, Question
 
 
-def questions_in_same_page_group(c1: "Question", c2: "Component") -> bool:
+def questions_in_same_page_group(c1: Question, c2: Component) -> bool:
     """
     Check if two components are in the same group and that group shows on the same page.
     If they are then they shouldn't reference each other.
@@ -12,12 +12,12 @@ def questions_in_same_page_group(c1: "Question", c2: "Component") -> bool:
     Note: this relies on a current tech/product constraint that the "same page" setting can only be turned on for the
     leaf group in a set of nested groups (so we don't have to check parent groups for the same-page setting).
     """
-    c2_parent: "Group | None" = cast("Group", c2) if c2.is_group else cast("Group | None", c2.parent)
+    c2_parent: Group | None = cast("Group", c2) if c2.is_group else cast("Group | None", c2.parent)
 
     return True if c1.parent and c2_parent and c1.parent == c2_parent and c2_parent.same_page else False
 
 
-def questions_in_same_add_another_container(q1: "Component", q2: "Component") -> bool:
+def questions_in_same_add_another_container(q1: Component, q2: Component) -> bool:
     """
     Check if two components are both in the same add another group.
     """
@@ -29,8 +29,8 @@ def questions_in_same_add_another_container(q1: "Component", q2: "Component") ->
 
 
 def get_referenceable_questions(
-    form: "Form", current_component: "Component | None" = None, parent_component: "Group | None" = None
-) -> list["Question"]:
+    form: Form, current_component: Component | None = None, parent_component: Group | None = None
+) -> list[Question]:
     """
     Return a list of questions from the current form that could be referenced from the current component, determined by:
     - Question comes before the current component in the form

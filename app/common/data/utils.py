@@ -1,6 +1,6 @@
 import random
 import re
-from typing import Sequence
+from collections.abc import Sequence
 
 from app.common.data.models import Collection
 from app.common.data.types import CollectionType

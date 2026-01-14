@@ -850,20 +850,20 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixi
         match email_type:
             case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
                 grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
-                email_recipients = set(
+                email_recipients = {
                     (data_provider, grant_recipient)
                     for grant_recipient in grant_recipients
                     for data_provider in grant_recipient.data_providers
-                )
+                }
             case ReportAdminEmailTypeEnum.DEADLINE_REMINDER:
                 grant_recipients = get_grant_recipients_with_outstanding_submissions_for_collection(
                     grant, collection_id=collection.id, with_data_providers=True, with_certifiers=True
                 )
-                email_recipients = set(
+                email_recipients = {
                     (recipient_user, grant_recipient)
                     for grant_recipient in grant_recipients
                     for recipient_user in grant_recipient.data_providers + list(grant_recipient.certifiers)
-                )
+                }
             case _:
                 return abort(404)
         for email_recipient, grant_recipient in sorted(email_recipients, key=lambda u: u[0].email):

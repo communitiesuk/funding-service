@@ -1,4 +1,3 @@
-from typing import Optional
 from uuid import UUID
 
 from flask import abort, redirect, render_template, request, url_for
@@ -130,8 +129,8 @@ def ask_a_question(
     grant_id: UUID,
     submission_id: UUID,
     question_id: UUID,
-    add_another_index: Optional[int] = None,
-    action: Optional[str] = None,
+    add_another_index: int | None = None,
+    action: str | None = None,
 ) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
