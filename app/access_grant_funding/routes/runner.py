@@ -147,7 +147,6 @@ def ask_a_question(
 
     if not runner.validate_can_show_question_page():
         return redirect(runner.next_url)
-
     if (
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()

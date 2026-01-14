@@ -382,6 +382,38 @@ class FormRunner:
         # default back to the tasklist if we're routing forward outside of a question context (check your answers)
         return self.to_url(FormRunnerState.TASKLIST)
 
+    def evaluate_ref(self, reference) -> int:
+        print(self.submission.cached_evaluation_context)
+        x = interpolate(f"(({reference}))", self.submission.cached_evaluation_context)
+        print(x)
+        value = int(x)
+        print(value)
+        return value
+
+    def validate_add_another(self) -> bool:
+        print("validate_add_another")
+        add_another_container = self.component.add_another_container
+        print(add_another_container)
+        if not add_another_container:
+            return True
+
+        current_answer = self.submission.submission.data.get(str(add_another_container.id))
+        if not current_answer:
+            return True
+        number_of_current_answers = len(current_answer)
+
+        if add_another_container.add_another_max:
+            if number_of_current_answers >= add_another_container.add_another_max:
+                raise ValueError(
+                    f"You can't supply more than {add_another_container.add_another_max} answers to this question group"
+                )
+
+        if add_another_container.add_another_max_ref:
+            max_ref_value = self.evaluate_ref(add_another_container.add_another_max_ref)
+            if number_of_current_answers >= max_ref_value:
+                raise ValueError(f"You can't supply more than {max_ref_value} answers to this question group")
+        return True
+
     def validate_can_show_question_page(self) -> bool:
         # for now we're only validating the question state, there may be integrity
         # checks for check your answers or tasklist in the future

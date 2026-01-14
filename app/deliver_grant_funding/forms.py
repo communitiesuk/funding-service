@@ -278,6 +278,12 @@ class GroupAddAnotherOptionsForm(FlaskForm):
         widget=GovTextInput(),
         validators=[Optional()],
     )
+    add_another_max_ref = StringField(
+        "Add another max (referencing another question)",
+        validators=[Optional()],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
     submit = SubmitField(widget=GovSubmitInput())
 
 

@@ -349,6 +349,7 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     }
 
     try:
+        print(expression.statement)
         result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message) from e
@@ -375,12 +376,12 @@ def interpolate(
 ) -> str | Markup:
     from app.common.data.models import Expression
 
+    print(f"interpolate {text}")
     if text is None:
         return "" if not with_interpolation_highlighting else Markup("")
 
     def _interpolate(matchobj: re.Match[Any]) -> str:
         expr = Expression(statement=matchobj.group(0))
-
         try:
             value = _evaluate_expression_with_context(expr, context)
             if with_interpolation_highlighting:
@@ -394,7 +395,6 @@ def interpolate(
         _interpolate,
         text,
     )
-
     if with_interpolation_highlighting:
         return Markup(result)
     return result

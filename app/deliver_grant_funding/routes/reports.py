@@ -579,6 +579,7 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
     form = GroupAddAnotherOptionsForm(
         question_group_is_add_another="yes" if db_group.add_another else "no",
         add_another_max=str(db_group.add_another_max),
+        add_another_max_ref=db_group.add_another_max_ref,
     )
     if form.validate_on_submit():
         try:
@@ -593,6 +594,7 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
                 ),
                 add_another=True if form.question_group_is_add_another.data == "yes" else False,
                 add_another_max=int(form.add_another_max.data),
+                add_another_max_ref=form.add_another_max_ref.data,
             )
             return redirect(
                 url_for(
@@ -721,6 +723,7 @@ class AddQuestionGroup(BaseModel):
     group_name: str
     show_questions_on_the_same_page: bool | None = None
     add_another_max: int | None = None
+    add_another_max_ref: str | None = None
 
     def to_session_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)
@@ -879,6 +882,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
                 ),
                 add_another=add_another,
                 add_another_max=int(wt_form.add_another_max.data),
+                add_another_max_ref=wt_form.add_another_max_ref.data,
             )
             session.pop("add_question_group", None)
             return redirect(

@@ -520,7 +520,6 @@ class SubmissionHelper:
 
         question = self.get_question(question_id)
         data = _form_data_to_question_type(question, form)
-        print(f"add another index: {add_another_index}")
         interfaces.collections.update_submission_data(
             self.submission, question, data, add_another_index=add_another_index
         )

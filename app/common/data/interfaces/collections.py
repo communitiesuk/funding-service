@@ -283,7 +283,6 @@ def update_submission_data(
     parent_container = question.add_another_container
     existing_answers = submission.data.get(str(parent_container.id), [])
 
-    print(f"add another index {add_another_index}, add_another_max {parent_container.add_another_max}")
     if parent_container.add_another_max and add_another_index >= parent_container.add_another_max:
         raise ValueError(f"You cannot add more than {parent_container.add_another_max} answers for this question")
 
@@ -651,6 +650,7 @@ def create_group(
     presentation_options: QuestionPresentationOptions | None = None,
     add_another: bool = False,
     add_another_max: int | None = None,
+    add_another_max_ref: str | None = None,
 ) -> Group:
     # If this group is nested, ensure it meets rules for nesting groups
     # This is a safety check as we don't allow users to create nested groups when these rules aren't met
@@ -664,6 +664,7 @@ def create_group(
         presentation_options=presentation_options,
         add_another=add_another,
         add_another_max=add_another_max,
+        add_another_max_ref=add_another_max_ref,
     )
     owner = parent or form
     owner.components.append(group)
@@ -1078,6 +1079,7 @@ def update_group(  # noqa: C901
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
     add_another: bool | TNotProvided = NOT_PROVIDED,
     add_another_max: int | TNotProvided = NOT_PROVIDED,
+    add_another_max_ref: str | TNotProvided = NOT_PROVIDED,
     add_another_guidance_body: str | None | TNotProvided = NOT_PROVIDED,
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
 ) -> Group:
@@ -1123,6 +1125,8 @@ def update_group(  # noqa: C901
 
     if add_another_max is not NOT_PROVIDED:
         group.add_another_max = add_another_max
+    if add_another_max_ref is not NOT_PROVIDED:
+        group.add_another_max_ref = add_another_max_ref
 
     if add_another_guidance_body is not NOT_PROVIDED:
         group.add_another_guidance_body = add_another_guidance_body  # ty: ignore[invalid-assignment]

@@ -4,6 +4,7 @@ from flask import flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.decorators import has_deliver_grant_role
+from app.common.collections.forms import AddAnotherSummaryForm
 from app.common.collections.runner import DGFFormRunner
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, RoleEnum
@@ -93,6 +94,12 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
+        if (
+            isinstance(runner.question_with_add_another_summary_form, AddAnotherSummaryForm)
+            and runner.question_with_add_another_summary_form.add_another.data == "yes"
+            and not runner.validate_add_another()
+        ):
+            raise ValueError("You cannot add another answer")
         if runner.is_removing:
             runner.save_add_another()
         elif not runner.add_another_summary_context:
