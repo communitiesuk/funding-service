@@ -2,7 +2,7 @@
 {% extends "access_grant_funding/base.html" %}
 
 {# todo: move the suffix to the base template and call super #}
-{% set page_title = submission_helper.name ~ " - " ~ grant_recipient.grant.name %}
+{% set page_title = "Report submitted to certifier - " ~ submission_helper.name ~ " - " ~ grant_recipient.grant.name %}
 
 {% set active_item_identifier = "reports" %}
 
