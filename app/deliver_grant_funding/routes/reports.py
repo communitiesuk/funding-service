@@ -2055,10 +2055,12 @@ def export_report_submissions(
         case "csv":
             data = helper.generate_csv_content_for_all_submissions()
             mimetype = "text/csv"
+            encoding = "utf-8-sig"  # Helps Excel open in UTF-8 mode so that eg `£` doesn't get mangled to `Â£`
 
         case "json":
             data = helper.generate_json_content_for_all_submissions()
             mimetype = "application/json"
+            encoding = "utf-8"
 
         case _:
             abort(400)
@@ -2067,7 +2069,7 @@ def export_report_submissions(
     buffer.write(data)
     buffer.seek(0)
     return send_file(
-        io.BytesIO(buffer.getvalue().encode("utf-8")),
+        io.BytesIO(buffer.getvalue().encode(encoding)),
         mimetype=mimetype,
         as_attachment=True,
         download_name=f"{report.name} - {submission_mode.name.lower()}.{export_format}",

@@ -5562,6 +5562,9 @@ class TestExportReportSubmissions:
         assert response.content_length > 0
         assert len(response.text.splitlines()) == 2  # Header + 1 submission
 
+        # Check that it begins with the UTF-8-BOM, which provides better signalling to MS Excel to open in UTF-8 mode.
+        assert response.data[:3] == bytes.fromhex("efbbbf")
+
     def test_json_download(self, authenticated_grant_member_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
         factories.submission.create(
