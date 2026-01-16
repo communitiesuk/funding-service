@@ -17,6 +17,7 @@ from app.common.exceptions import RedirectException, SubmissionValidationFailed
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.qid import SafeQidMixin
 
 if TYPE_CHECKING:
     from app.common.collections.forms import DynamicQuestionForm
@@ -93,9 +94,12 @@ class FormRunner:
 
             if self.component and self.component.add_another_container and self.add_another_summary_context:
                 _AddAnotherSummaryForm = AddAnotherSummaryForm(
+                    # TODO take account of max add anothers or how many required
                     add_another_required=bool(
                         self.submission.get_count_for_add_another(self.component.add_another_container)
                     )
+                    if not self.component.add_another_iterate_ref
+                    else False
                 )
                 self._add_another_summary_form = _AddAnotherSummaryForm
             else:
@@ -245,6 +249,23 @@ class FormRunner:
                         add_another_container=self.component.add_another_container,
                         add_another_index=self.add_another_index,
                     )
+
+    def get_name_of_referenced_add_another_iterate_component(self):
+        iterate_component_id = SafeQidMixin.safe_qid_to_id(self.component.add_another_iterate_ref)
+        # TODO assumes this is in the same collection
+        iterate_component = self.submission.get_component(iterate_component_id)
+        return iterate_component.name
+
+    def get_entry_name_for_referenced_add_another_iterate_component(self, add_another_index: int):
+        iterate_component_id = SafeQidMixin.safe_qid_to_id(self.component.add_another_iterate_ref)
+        # TODO assumes this is in the same collection
+        iterate_component = self.submission.get_component(iterate_component_id)
+        iterate_group = cast("Group", iterate_component)
+        first_question_in_group = iterate_group.components[0]
+        referenced_answer = self.submission.cached_get_answer_for_question(
+            first_question_in_group.id, add_another_index
+        )
+        return referenced_answer.get_value_for_form() or f"{iterate_component.name} {add_another_index + 1}"
 
     def interpolate(self, text: str, *, context: "ExpressionContext | None" = None) -> str:
         return interpolate(text, context=context or self.runner_interpolation_context)
@@ -494,7 +515,22 @@ class FormRunner:
             and self.component.add_another_container
             and self.component != self.component.add_another_container
         ):
-            caption = add_another_suffix(self.component.add_another_container.name, self.add_another_index)
+            if self.component.add_another_container.add_another_iterate_ref:
+                iterate_component = self.submission.get_component(
+                    SafeQidMixin.safe_qid_to_id(self.component.add_another_container.add_another_iterate_ref)
+                )
+                # TODO think through what this should really be
+                # TODO assumes referencing an add another group
+                first_question_in_group = cast("Group", iterate_component).components[0]
+                caption = (
+                    iterate_component.name
+                    + ": "
+                    + self.submission.cached_get_answer_for_question(
+                        first_question_in_group.id, self.add_another_index
+                    ).get_value_for_form()
+                )
+            else:
+                caption = add_another_suffix(self.component.add_another_container.name, self.add_another_index)
         return caption
 
     @property

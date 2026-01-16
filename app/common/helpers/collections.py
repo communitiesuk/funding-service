@@ -54,6 +54,7 @@ from app.common.expressions import (
 )
 from app.common.filters import format_datetime
 from app.common.helpers.submission_events import SubmissionEventHelper
+from app.common.qid import SafeQidMixin
 from app.extensions import notification_service
 
 if TYPE_CHECKING:
@@ -190,9 +191,29 @@ class SubmissionHelper:
 
         return form_data
 
-    def get_count_for_add_another(self, add_another_container: "Component") -> int:
-        if answers := self.submission.data.get(str(add_another_container.id)):
-            return len(answers)
+    def _get_referenced_add_another_data(self, add_another_reference: str) -> list[dict[str, Any]]:
+        referenced_container_id = SafeQidMixin.safe_qid_to_id(add_another_reference)
+        referenced_add_another_data = self.submission.data.get(str(referenced_container_id))
+        return referenced_add_another_data
+
+    def get_count_for_add_another(self, add_another_container: "Component", expected_count: bool = False) -> int:
+        if expected_count and not add_another_container.add_another_iterate_ref:
+            raise ValueError(
+                "Cannot request expected count for an add another question that doesn't reference another add another container"
+            )
+        if not expected_count:
+            if answers := self.submission.data.get(str(add_another_container.id)):
+                return len(answers)
+            return 0
+
+        if add_another_container.add_another_iterate_ref:
+            # TODO this assumes it references a question in the same collection
+            referenced_add_another_data = self._get_referenced_add_another_data(
+                add_another_container.add_another_iterate_ref
+            )
+            count_of_referenced_items = len(referenced_add_another_data) if referenced_add_another_data else 0
+            return count_of_referenced_items
+
         return 0
 
     @property
@@ -321,20 +342,45 @@ class SubmissionHelper:
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
 
+    def get_component(self, component_id: uuid.UUID) -> "Component":
+        try:
+            return next(
+                filter(
+                    lambda c: c.id == component_id,
+                    chain.from_iterable(form.cached_all_components for form in self.collection.forms),
+                )
+            )
+        except StopIteration as e:
+            raise ValueError(
+                f"Could not find a component with id={component_id} in collection={self.collection.id}"
+            ) from e
+
     def _get_all_questions_are_answered_for_form(self, form: "Form") -> FormQuestionsAnswered:
         question_answer_status = []
 
         for question in form.cached_questions:
             if question.add_another_container:
-                number_of_add_another_entries = self.get_count_for_add_another(question.add_another_container)
-                if number_of_add_another_entries == 0:
+                enough_add_another_entries = False
+                actual_number_of_add_another_entries = self.get_count_for_add_another(
+                    question.add_another_container, expected_count=False
+                )
+                if question.add_another_container.add_another_iterate_ref:
+                    expected_number_of_add_another_entries = self.get_count_for_add_another(
+                        question.add_another_container, expected_count=True
+                    )
+                    enough_add_another_entries = (
+                        actual_number_of_add_another_entries == expected_number_of_add_another_entries
+                    )
+                else:
+                    enough_add_another_entries = actual_number_of_add_another_entries > 0
+                if not enough_add_another_entries:
                     # we don't currently support optional questions so anything without answers
                     # should be considered blocking
                     if self.is_component_visible(question, self.cached_evaluation_context):
                         question_answer_status.append(False)
                 else:
                     # check each of this questions answers for each entry being complete
-                    for i in range(number_of_add_another_entries):
+                    for i in range(actual_number_of_add_another_entries):
                         context = self.cached_evaluation_context.with_add_another_context(
                             question, submission_helper=self, add_another_index=i
                         )
@@ -487,27 +533,66 @@ class SubmissionHelper:
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
     def _get_answer_for_question(
-        self, question_id: UUID, add_another_index: int | None = None
+        self, question_id: UUID, add_another_index: int | None = None, show_expected: bool = False
     ) -> AllAnswerTypes | None:
         question = self.get_question(question_id)
 
+        question_to_use_answer_for = question
+
+        data_entry = self.submission.data
         if question.add_another_container:
             if add_another_index is None:
                 raise ValueError("add_another_index must be provided for questions within an add another container")
-            if self.submission.data.get(str(question.add_another_container.id)) is None or add_another_index >= len(
-                self.submission.data.get(str(question.add_another_container.id), [])
-            ):
-                # we raise here instead of returning None as the consuming code should never ask for an answer to an
-                # add another entry that doesn't exist
-                raise ValueError("no add another entry exists at this index")
+            # if self.submission.data.get(str(question.add_another_container.id)) is None or add_another_index >= len(
+            #     self.submission.data.get(str(question.add_another_container.id), [])
+            # ):
+            #     raise ValueError("no add another entry exists at this index")
+            # If this add another container references a list, and doesn't have an entry at this index yet, return a placeholder
+            if question.add_another_container.add_another_iterate_ref:
+                referenced_data = self._get_referenced_add_another_data(
+                    question.add_another_container.add_another_iterate_ref
+                )
+                if not referenced_data:
+                    # TODO think about if the referenced data wasn't none originally so this question does have answers
+                    return None
+                if show_expected:
+                    question_to_use_answer_for = cast(
+                        "Group",
+                        self.get_component(
+                            SafeQidMixin.safe_qid_to_id(question.add_another_container.add_another_iterate_ref)
+                        ),
+                    ).cached_all_components[0]
+                    data_entry = referenced_data[
+                        add_another_index
+                    ]  # self.submission.data.get(str(question_to_use_answer_for.id), [])[add_another_index]
+                else:
+                    if self.submission.data.get(
+                        str(question.add_another_container.id)
+                    ) is None or add_another_index >= len(
+                        self.submission.data.get(str(question.add_another_container.id), [])
+                    ):
+                        # raise ValueError("no add another entry exists at this index")
 
-        data_entry = (
-            self.submission.data
-            if not question.add_another_container
-            else self.submission.data.get(str(question.add_another_container.id), [])[add_another_index]
+                        return None
+                    data_entry = self.submission.data.get(str(question.add_another_container.id), [])[add_another_index]
+            else:
+                if self.submission.data.get(str(question.add_another_container.id)) is None or add_another_index >= len(
+                    self.submission.data.get(str(question.add_another_container.id), [])
+                ):
+                    raise ValueError("no add another entry exists at this index")
+                data_entry = self.submission.data.get(str(question.add_another_container.id), [])[add_another_index]
+
+        # data_entry = (
+        #     self.submission.data
+        #     if not question.add_another_container
+        #     else self.submission.data.get(str(question.add_another_container.id), [])[add_another_index]
+        # )
+        serialised_data = data_entry.get(str(question_to_use_answer_for.id))
+        return (
+            _deserialise_question_type(question_to_use_answer_for, serialised_data)
+            if serialised_data is not None
+            else None
         )
-        serialised_data = data_entry.get(str(question_id))
-        return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
 
     def submit_answer_for_question(
         self, question_id: UUID, form: DynamicQuestionForm, *, add_another_index: int | None = None

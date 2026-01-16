@@ -403,23 +403,40 @@
 
   {{ runner.interpolate(add_another_container.add_another_guidance_body) | govuk_markdown }}
 
-  {% set number_of_entries = runner.submission.get_count_for_add_another(add_another_container) %}
+  {% set actual_number_of_entries = runner.submission.get_count_for_add_another(add_another_container, False) %}
+  {% if runner.component.add_another_iterate_ref %}
+    {% set expected_number_of_entries = runner.submission.get_count_for_add_another(add_another_container, True) %}
+    <h2 class="govuk-heading-s">You have added {{ actual_number_of_entries }} of {{ expected_number_of_entries }} {{ add_another_container.name | lower }}</h2>
+    {% set number_of_entries = expected_number_of_entries %}
+  {% else %}
+    {% set number_of_entries = actual_number_of_entries %}
+    {% if actual_number_of_entries %}
+      <h2 class="govuk-heading-s">You have added {{ actual_number_of_entries }} {{ add_another_container.name | lower }}</h2>
+    {% endif %}
+  {% endif %}
 
   {% if number_of_entries %}
-    <h2 class="govuk-heading-s">You have added {{ number_of_entries }} {{ add_another_container.name | lower }}</h2>
-
     {% set rows = [] %}
     {% for i in range(number_of_entries) %}
       {% set (summary, is_answered) = runner.submission.get_answer_summary_for_add_another(add_another_container, add_another_index=i) %}
 
 
       {% set key_html %}
-        {% if is_answered %}
-          <span>{{ summary }}</span>
+        {% if runner.component.add_another_iterate_ref %}
+          {% set name_of_referenced_thing=runner.get_entry_name_for_referenced_add_another_iterate_component(i) %}
+          {% if is_answered %}
+            <span>{{ name_of_referenced_thing }}: {{ summary }}</span>
+          {% else %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i) }}"> Enter missing information for {{ name_of_referenced_thing }} </a>
+          {% endif %}
         {% else %}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i) }}">
-            Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }}
-          </a>
+          {% if is_answered %}
+            <span>{{ summary }}</span>
+          {% else %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i) }}">
+              Enter missing information for {{ to_ordinal(i + 1) }} {{ add_another_container.name | lower }} {{ "(" ~ summary ~ ")" if summary else "" }}
+            </a>
+          {% endif %}
         {% endif %}
       {% endset %}
 
@@ -435,14 +452,16 @@
           })
         %}
       {% endif %}
-      {%
-        do actions.append({
-          "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i, is_removing=True),
-          "text": "Remove",
-          "visuallyHiddenText": entry_hidden_description,
-          "classes": "govuk-link--no-visited-state"
-        })
-      %}
+      {% if not runner.component.add_another_iterate_ref %}
+        {%
+          do actions.append({
+            "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i, is_removing=True),
+            "text": "Remove",
+            "visuallyHiddenText": entry_hidden_description,
+            "classes": "govuk-link--no-visited-state"
+          })
+        %}
+      {% endif %}
       {%
         do rows.append({
           "key": { "html": key_html, "classes": "govuk-!-width-two-thirds" },
@@ -457,23 +476,31 @@
 
     {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
 
-    <form method="post" novalidate>
-      {{ runner.add_another_summary_form.csrf_token }}
+    {% if runner.component.add_another_iterate_ref %}
+      <form method="post" novalidate>
+        {{ runner.add_another_summary_form.csrf_token }}
 
-      {{
-        runner.add_another_summary_form.add_another(params={
-          "fieldset": {
-            "legend": {
-              "text": "Do you need to add another answer?",
-              "isPageHeading": false,
-              "classes": "govuk-fieldset__legend--m"
+        {{ runner.add_another_summary_form.submit }}
+      </form>
+    {% else %}
+      <form method="post" novalidate>
+        {{ runner.add_another_summary_form.csrf_token }}
+
+        {{
+          runner.add_another_summary_form.add_another(params={
+            "fieldset": {
+              "legend": {
+                "text": "Do you need to add another answer?",
+                "isPageHeading": false,
+                "classes": "govuk-fieldset__legend--m"
+              }
             }
-          }
-        })
-      }}
+          })
+        }}
 
-      {{ runner.add_another_summary_form.submit }}
-    </form>
+        {{ runner.add_another_summary_form.submit }}
+      </form>
+    {% endif %}
   {% else %}
     <p class="govuk-body">You have not added any {{ add_another_container.name | lower }}.</p>
 
