@@ -46,6 +46,7 @@ from app.common.data.interfaces.collections import (
     update_group,
     update_question,
 )
+from app.common.data.interfaces.datasets import get_all_uploaded_datasets, get_uploaded_dataset
 from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
     InvalidReferenceInExpression,
@@ -82,6 +83,8 @@ from app.deliver_grant_funding.forms import (
     GroupForm,
     QuestionForm,
     QuestionTypeForm,
+    SelectDataSourceDatasetDatapointForm,
+    SelectDataSourceDatasetForm,
     SelectDataSourceQuestionForm,
     SetUpReportForm,
     TestGrantRecipientJourneyForm,
@@ -1202,6 +1205,14 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                     url_for("deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id)
                 )
 
+            # We probably want different options for different types of arbitrary uploads (global lists, grant
+            # specific lists, grant recipient specific)
+
+            case ExpressionContext.ContextSources.DATASET:
+                return redirect(
+                    url_for("deliver_grant_funding.select_context_source_dataset", grant_id=grant_id, form_id=form_id)
+                )
+
             case _:
                 abort(500)
 
@@ -1210,6 +1221,156 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         grant=db_form.collection.grant,
         db_form=db_form,
         form=wtform,
+        add_context_data=add_context_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-uploaded-dataset", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def select_context_source_dataset(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    add_context_data = _extract_add_context_data_from_session()
+    if not add_context_data:
+        return abort(400)
+
+    datasets = [
+        dataset for dataset in get_all_uploaded_datasets() if dataset.grant_id is None or dataset.grant_id == grant_id
+    ]
+
+    form = SelectDataSourceDatasetForm(datasets)
+
+    if form.validate_on_submit():
+        add_context_data.selected_dataset_id = UUID(form.dataset.data)
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.select_uploaded_dataset_datapoint",
+                grant_id=grant_id,
+                form_id=form_id,
+                dataset_id=form.dataset.data,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/select_context_source_dataset.html",
+        form=form,
+        grant=get_grant(grant_id),
+        db_form=get_form_by_id(form_id),
+        add_context_data=add_context_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-uploaded-dataset-datapoint/<uuid:dataset_id>",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def select_uploaded_dataset_datapoint(grant_id: UUID, form_id: UUID, dataset_id: UUID) -> ResponseReturnValue:
+    add_context_data = _extract_add_context_data_from_session()
+    if not add_context_data:
+        return abort(400)
+    dataset = get_uploaded_dataset(dataset_id)
+
+    current_component = (
+        get_component_by_id(add_context_data.depends_on_question_id)  # type: ignore[union-attr, arg-type]
+        if getattr(add_context_data, "depends_on_question_id", None)
+        else get_component_by_id(add_context_data.component_id)
+        if add_context_data.component_id
+        else None
+    )
+
+    form = SelectDataSourceDatasetDatapointForm(
+        dataset=dataset, current_component=current_component, session_model=add_context_data
+    )
+
+    if form.validate_on_submit():
+        reference = f"dataset:{dataset_id}:{form.identifier_column}:{form.datapoint.data}"
+        add_context_data.selected_datapoint_name = reference
+
+        match add_context_data:
+            case AddContextToComponentSessionModel():
+                return_url = (
+                    url_for(
+                        "deliver_grant_funding.add_question",
+                        grant_id=grant_id,
+                        form_id=form_id,
+                        parent_id=add_context_data.parent_id,
+                        question_data_type=add_context_data.data_type.name,
+                    )
+                    if add_context_data.component_id is None
+                    else url_for(
+                        "deliver_grant_funding.edit_question",
+                        grant_id=grant_id,
+                        question_id=add_context_data.component_id,
+                    )
+                )
+
+                if add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
+                    target_field = add_context_data.component_form_data["add_context"]
+                    add_context_data.component_form_data[target_field] += f" (({reference}))"
+
+            case AddContextToComponentGuidanceSessionModel():
+                return_url = (
+                    url_for(
+                        "deliver_grant_funding.manage_guidance",
+                        grant_id=grant_id,
+                        question_id=add_context_data.component_id,
+                    )
+                    if add_context_data.is_add_another_guidance is False
+                    else url_for(
+                        "deliver_grant_funding.manage_add_another_guidance",
+                        grant_id=grant_id,
+                        group_id=add_context_data.component_id,
+                    )
+                )
+                if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
+                    target_field = add_context_data.component_form_data["add_context"]
+                    add_context_data.component_form_data[target_field] += f" (({reference}))"
+
+            case AddContextToExpressionsModel():
+                if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
+                    target_field = add_context_data.expression_form_data["add_context"]
+                    add_context_data.expression_form_data[target_field] = f"(({reference}))"
+
+                if add_context_data.field == ExpressionType.CONDITION:
+                    if not add_context_data.expression_id:
+                        return_url = url_for(
+                            "deliver_grant_funding.add_question_condition",
+                            grant_id=grant_id,
+                            component_id=add_context_data.component_id,
+                            depends_on_question_id=add_context_data.depends_on_question_id,
+                        )
+                    else:
+                        return_url = url_for(
+                            "deliver_grant_funding.edit_question_condition",
+                            grant_id=grant_id,
+                            expression_id=add_context_data.expression_id,
+                        )
+                else:
+                    if not add_context_data.expression_id:
+                        return_url = url_for(
+                            "deliver_grant_funding.add_question_validation",
+                            grant_id=grant_id,
+                            question_id=add_context_data.component_id,
+                        )
+                    else:
+                        return_url = url_for(
+                            "deliver_grant_funding.edit_question_validation",
+                            grant_id=grant_id,
+                            expression_id=add_context_data.expression_id,
+                        )
+
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(return_url)
+
+    return render_template(
+        "deliver_grant_funding/reports/select_context_source_dataset_datapoint.html",
+        form=form,
+        grant=get_grant(grant_id),
+        db_form=get_form_by_id(form_id),
         add_context_data=add_context_data,
     )
 

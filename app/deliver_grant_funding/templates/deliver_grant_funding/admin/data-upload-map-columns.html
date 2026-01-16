@@ -1,0 +1,47 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">Map data upload columns</h1>
+      <p class="govuk-body">Currently showing all question data types, but we should probably restrict to just text, number, bool and date?</p>
+
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {{ form.csrf_token }}
+
+        {% set tableRows = [] %}
+        {% for column_form in form.columns %}
+          {% set column_name_html %}
+            <span class="govuk-body">{{ column_form.column_name.data }}</span>
+            {{ column_form.column_name(type="hidden") }}
+          {% endset %}
+          {% set data_type_html %}
+            {{ column_form.data_type(class="govuk-select") }}
+          {% endset %}
+          {% do tableRows.append([{"html": column_name_html}, {"html": data_type_html}]) %}
+        {% endfor %}
+
+        {{
+          govukTable({
+            "head": [
+              {"text": "Column name", "classes": "govuk-table__header govuk-!-width-two-thirds"},
+              {"text": "Data type"}
+            ],
+            "rows": tableRows
+          })
+        }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

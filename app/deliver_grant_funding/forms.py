@@ -37,6 +37,7 @@ from app.common.expressions.registry import get_supported_form_questions
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
+from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 
 if TYPE_CHECKING:
     from app.common.data.models import Component, Form, GrantRecipient, Group, Question
@@ -560,6 +561,48 @@ class SelectDataSourceQuestionForm(FlaskForm):
                 for question in referenceable_questions
                 if (not expression or question.data_type == current_component.data_type)  # type: ignore[assignment, union-attr]
             ]
+
+
+class SelectDataSourceDatasetForm(FlaskForm):
+    dataset = SelectField(
+        "Select a dataset to reference",
+        choices=[],
+        validators=[DataRequired("Select a dataset")],
+        widget=MHCLGAccessibleAutocomplete(),
+    )
+
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, datasets, *args, **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(*args, **kwargs)
+        self.dataset.choices = [("", "")] + [(str(ds.id), ds.name) for ds in datasets]
+
+
+class SelectDataSourceDatasetDatapointForm(FlaskForm):
+    datapoint = SelectField(
+        "Select a datapoint to reference",
+        choices=[],
+        validators=[DataRequired("Select a datapoint")],
+        widget=MHCLGAccessibleAutocomplete(),
+    )
+
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, *args, dataset, current_component=TOptional["Component"], session_model=None, **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(*args, **kwargs)
+        schema_keys = list(dataset.schema.keys())
+        self.identifier_column = schema_keys[0]
+
+        if isinstance(session_model, AddContextToExpressionsModel) and current_component:
+            question_data_type = current_component.data_type
+
+            matching_columns = [
+                column for column, data_type in dataset.schema.items() if data_type == question_data_type.name
+            ]
+            self.datapoint.choices = [("", "")] + [(col, col) for col in matching_columns]
+
+        else:
+            self.datapoint.choices = [("", "")] + [(key, key) for key in schema_keys[1:]]
 
 
 class GrantAddUserForm(FlaskForm):

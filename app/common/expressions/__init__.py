@@ -60,6 +60,10 @@ class ExpressionContext(ChainMap[str, Any]):
         # We actually expose all questions in the collection, but for now we're limited contextual references to
         # just questions in the same section.
         SECTION = "A previous question in this section"
+        # We probably want different options for different types of arbitrary uploads (global lists, grant
+        # specific lists, grant recipient specific - this would make it easier to filter what the user sees and have
+        # a more specific/helpful UI and handle the referenced data correctly)
+        DATASET = "An uploaded dataset"
 
     def __init__(
         self,
@@ -165,10 +169,11 @@ class ExpressionContext(ChainMap[str, Any]):
         mode: Literal["evaluation", "interpolation"],
         expression_context_end_point: Optional["Component"] = None,
         submission_helper: Optional["SubmissionHelper"] = None,
+        grant_recipient_name: Optional[str] = None,
     ) -> "ExpressionContext":
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
-        assert len(ExpressionContext.ContextSources) == 1, (
+        assert len(ExpressionContext.ContextSources) == 2, (
             "When defining a new source of context for expressions, "
             "update this method and the ContextSourceChoices enum"
         )
@@ -194,6 +199,11 @@ class ExpressionContext(ChainMap[str, Any]):
                         continue
 
                     submission_data.setdefault(question.safe_qid, f"(({question.name}))")
+
+        # This is so when we build the expression context from the submission helper, we know which
+        # GR is filling out the report and can match it to the appropriate datapoint in the dataset
+        if grant_recipient_name:
+            submission_data["grant recipient"] = grant_recipient_name
 
         return ExpressionContext(submission_data=submission_data)
 
@@ -233,10 +243,24 @@ class ExpressionContext(ChainMap[str, Any]):
         TODO: When we have more than just questions here, we'll need to do more complicated mapping, and possibly
         find a way to include labels for eg DB model columns, such as the grant name
         """
+        from app.common.data.interfaces.datasets import get_all_uploaded_datasets
+
         ec = ExpressionContext.build_expression_context(
             collection=collection, mode="interpolation", expression_context_end_point=expression_context_end_point
         )
-        return {k: v for k, v in ec.items()}
+        context_keys_labels = {k: v for k, v in ec.items()}
+        # You probably also only want to grab global datasets or datasets specifically for the grant you're in
+        # so you're not unecessarily adding all the datasets to the context
+        datasets = get_all_uploaded_datasets()
+        for dataset in datasets:
+            schema_keys = list(dataset.schema.keys())
+            identifier_column = schema_keys[0]
+            for col in schema_keys[1:]:
+                # This feels like all the info we'd need in a ref to then drill down to the specific value?
+                # But maybe not for lists for things like list options, where we just want the whole dataset
+                ref = f"dataset:{dataset.id}:{identifier_column}:{col}"
+                context_keys_labels[ref] = f"(({col}))"
+        return context_keys_labels
 
     def is_valid_reference(self, reference: str) -> bool:
         """For a given ExpressionContext, work out if this reference resolves to a real value or not.
@@ -265,6 +289,30 @@ class ExpressionContext(ChainMap[str, Any]):
         return hash(id(self))
 
 
+def resolve_dataset_reference(reference: str, context: ExpressionContext) -> str | None:
+    from app.common.data.interfaces.datasets import get_uploaded_dataset
+
+    # Yeah this is gross shhh
+    _, dataset_id, identifier_column, datapoint_col = reference.split(":")
+    dataset = get_uploaded_dataset(dataset_id)
+    identifier_value = context.get(identifier_column)
+    if identifier_value is not None:
+        for row in dataset.data:
+            if row.get(identifier_column) == identifier_value:
+                return row.get(datapoint_col)
+    else:
+        # Fallback to the first row of the data for now
+        return dataset.data[0].get(datapoint_col)
+
+
+def inject_dataset_references(context: ExpressionContext):
+    for key in list(context.keys()):
+        if key.startswith("dataset:"):
+            value = resolve_dataset_reference(key, context)
+            if value is not None:
+                context[key] = value
+
+
 def _evaluate_expression_with_context(expression: "Expression", context: ExpressionContext | None = None) -> Any:
     """
     The base evaluator to use for handling all expressions.
@@ -279,6 +327,19 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     if context is None:
         context = ExpressionContext()
     context.expression_context = expression.context or {}
+
+    statement = expression.statement
+
+    def replace_dataset_reference(expression_statement):
+        key = expression_statement.group(1).strip()
+        if key.startswith("dataset:"):
+            value = resolve_dataset_reference(key, context)
+            return repr(value) if value is not None else "None"
+        if not key.isidentifier():
+            return repr(context.get(key, ""))
+        return f"{key}"
+
+    statement = INTERPOLATE_REGEX.sub(replace_dataset_reference, statement)
 
     evaluator = simpleeval.EvalWithCompoundTypes(names=context, functions=expression.required_functions)  # type: ignore[no-untyped-call]
 
@@ -304,7 +365,7 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     }
 
     try:
-        result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
+        result = evaluator.eval(statement)  # type: ignore[no-untyped-call]
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message) from e
     except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined) as e:
@@ -333,6 +394,9 @@ def interpolate(
     if text is None:
         return "" if not with_interpolation_highlighting else Markup("")
 
+    if context is not None:
+        inject_dataset_references(context)
+
     def _interpolate(matchobj: re.Match[Any]) -> str:
         expr = Expression(statement=matchobj.group(0))
 
@@ -356,6 +420,8 @@ def interpolate(
 
 
 def evaluate(expression: "Expression", context: ExpressionContext | None = None) -> bool:
+    if context is not None:
+        inject_dataset_references(context)
     result = _evaluate_expression_with_context(expression, context)
 
     # do we want these to evalaute to non-bool types like int/str ever?

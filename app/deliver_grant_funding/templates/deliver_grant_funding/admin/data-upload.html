@@ -1,0 +1,61 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
+{% from 'govuk_frontend_jinja/components/table/macro.html' import govukTable %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">Arbitrary reference data upload</h1>
+      <p class="govuk-body">Some explanation here of what kind of things to upload. It could be helpful to have an example spreadsheet download as well, or guidance for the csv?</p>
+
+      {% set existingDatasetsHtml %}
+      {% set tableRows = [] %}
+        {% for dataset in datasets %}
+          {%
+            do tableRows.append([
+              {"text": dataset.name},
+              {"text": dataset.grant_id or "—"},
+              {"html": dataset.data_html},
+              {"html": dataset.schema_html}
+            ])
+          %}
+        {% endfor %}
+        {{
+          govukTable({
+            "head": [
+              {"text": "Name"},
+              {"text": "Grant ID"},
+              {"text": "Data"},
+              {"text": "Schema"}
+            ],
+            "rows": tableRows
+          })
+        }}
+      {% endset %}
+
+      {{
+        govukDetails({
+          "summaryText": "Existing uploaded datasets",
+          "html": existingDatasetsHtml,
+        })
+      }}
+
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {{ form.csrf_token }}
+        {{ form.data_name }}
+        {{ form.grant_id }}
+        {{ form.file }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}
