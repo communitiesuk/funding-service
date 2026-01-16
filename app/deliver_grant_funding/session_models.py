@@ -32,6 +32,8 @@ class AddContextToComponentSessionModel(BaseModel):
     data_type: QuestionDataType
     field: Literal["component"] = "component"
     component_form_data: dict[str, Any]
+    selected_dataset_id: UUID | None = None
+    selected_datapoint_name: str | None = None
 
     data_source: ExpressionContext.ContextSources | None = None
 
@@ -47,6 +49,8 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
 
     component_id: UUID | None = None
     parent_id: UUID | None = None
+    selected_dataset_id: UUID | None = None
+    selected_datapoint_name: str | None = None
 
     is_add_another_guidance: bool | None = False
 
@@ -63,6 +67,8 @@ class AddContextToExpressionsModel(BaseModel):
     expression_form_data: dict[str, Any]
     component_id: UUID
     parent_id: UUID | None = None
+    selected_dataset_id: UUID | None = None
+    selected_datapoint_name: str | None = None
 
     data_source: ExpressionContext.ContextSources | None = None
     depends_on_question_id: UUID | None = None
