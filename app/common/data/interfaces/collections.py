@@ -286,11 +286,27 @@ def update_submission_data(
     if parent_container.add_another_max and add_another_index >= parent_container.add_another_max:
         raise ValueError(f"You cannot add more than {parent_container.add_another_max} answers for this question")
 
-    if add_another_index > len(existing_answers) or add_another_index < 0:
-        raise ValueError(
-            f"Cannot update answers at index {add_another_index} as there are "
-            f"only {len(existing_answers)} existing answers"
+    if parent_container.add_another_iterate_ref:
+        expected_answer_count = len(
+            submission.data.get(str(SafeQidMixin.safe_qid_to_id(parent_container.add_another_iterate_ref)), [])
         )
+        if add_another_index > expected_answer_count:
+            raise ValueError(
+                f"Cannot update answers at index {add_another_index} as there are "
+                f"only {expected_answer_count} expected answers"
+            )
+
+        if add_another_index >= len(existing_answers):
+            # if we are adding an expected answer but it's not the next empty one add some empty answers
+            for i in range(add_another_index):
+                existing_answers.append({})
+
+    else:
+        if add_another_index > len(existing_answers) or add_another_index < 0:
+            raise ValueError(
+                f"Cannot update answers at index {add_another_index} as there are "
+                f"only {len(existing_answers)} existing answers"
+            )
     if len(existing_answers) == add_another_index:
         existing_answers.append({})
     existing_answers[add_another_index][str(question.id)] = data.get_value_for_submission()

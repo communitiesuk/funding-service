@@ -376,7 +376,6 @@ def interpolate(
 ) -> str | Markup:
     from app.common.data.models import Expression
 
-    print(f"interpolate {text}")
     if text is None:
         return "" if not with_interpolation_highlighting else Markup("")
 
