@@ -580,6 +580,7 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
         question_group_is_add_another="yes" if db_group.add_another else "no",
         add_another_max=str(db_group.add_another_max),
         add_another_max_ref=db_group.add_another_max_ref,
+        add_another_iterate_ref=db_group.add_another_iterate_ref,
     )
     if form.validate_on_submit():
         try:
@@ -593,8 +594,9 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
                     collection=db_group.form.collection, mode="interpolation"
                 ),
                 add_another=True if form.question_group_is_add_another.data == "yes" else False,
-                add_another_max=int(form.add_another_max.data),
+                add_another_max=int(form.add_another_max.data) if form.add_another_max.data else None,
                 add_another_max_ref=form.add_another_max_ref.data,
+                add_another_iterate_ref=form.add_another_iterate_ref.data,
             )
             return redirect(
                 url_for(
@@ -883,6 +885,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
                 add_another=add_another,
                 add_another_max=int(wt_form.add_another_max.data),
                 add_another_max_ref=wt_form.add_another_max_ref.data,
+                add_another_iterate_ref=wt_form.add_another_iterate_ref.data,
             )
             session.pop("add_question_group", None)
             return redirect(

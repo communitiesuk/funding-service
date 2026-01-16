@@ -284,6 +284,13 @@ class GroupAddAnotherOptionsForm(FlaskForm):
         filters=[strip_string_if_not_empty],
         widget=GovTextInput(),
     )
+    add_another_iterate_ref = StringField(
+        "Iterate over a list",
+        description="Iterate over the items from a previous add another group",
+        validators=[Optional()],
+        filters=[strip_string_if_not_empty],
+        widget=GovTextInput(),
+    )
     submit = SubmitField(widget=GovSubmitInput())
 
 

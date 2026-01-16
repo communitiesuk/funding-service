@@ -385,6 +385,7 @@ class Component(BaseModel):
     add_another: Mapped[bool] = mapped_column(default=False)
     add_another_max: Mapped[Optional[int]] = mapped_column(default=None)
     add_another_max_ref: Mapped[Optional[CIStr]] = mapped_column(default=None)
+    add_another_iterate_ref: Mapped[Optional[CIStr]] = mapped_column(default=None)
     conditions_operator: Mapped[ConditionsOperator] = mapped_column(
         SqlEnum(ConditionsOperator, name="conditions_operator_enum", validate_strings=True),
         default=ConditionsOperator.ALL,
