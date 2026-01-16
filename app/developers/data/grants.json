@@ -59,6 +59,16 @@
           "type": "monitoring report"
         },
         {
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "e1f95190-b16f-4952-92ba-ad61b7381616",
+          "name": "add another",
+          "requires_certification": true,
+          "slug": "add-another",
+          "status": "Draft",
+          "type": "monitoring report"
+        },
+        {
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "f8b061f2-8f9d-43d3-8ff7-d9da0f8048f5",
@@ -74,6 +84,12 @@
         }
       ],
       "component_references": [
+        {
+          "component_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
+          "depends_on_component_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
+          "expression_id": "36fcb348-fe90-4143-8582-d90709e0668d",
+          "id": "0c11f12d-9f6d-4867-b5f7-76847114ef96"
+        },
         {
           "component_id": "0be64f3f-e841-48e2-aeeb-203dcc8f077d",
           "depends_on_component_id": "058d7d3a-3e5e-4b94-9a81-57882961c59a",
@@ -223,6 +239,12 @@
           "component_id": "ad8bf4cf-8467-4dcd-abfd-e536d1583890",
           "depends_on_component_id": "19fc71ff-ec1b-414a-b8b9-52502c0d4617",
           "id": "b364ec07-c332-49b5-ba9b-8e735995537b"
+        },
+        {
+          "component_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
+          "depends_on_component_id": "5a0c200e-de4e-4cb3-9e97-ba0cbd30a645",
+          "expression_id": "36fcb348-fe90-4143-8582-d90709e0668d",
+          "id": "cd0f407a-44c8-466e-abcd-afebcf9c1438"
         },
         {
           "component_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
@@ -1043,6 +1065,20 @@
         },
         {
           "context": {
+            "earliest_expression": "((q_5a0c200ede4e4cb39e97ba0cbd30a645))",
+            "earliest_value": null,
+            "inclusive": false,
+            "question_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791"
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "36fcb348-fe90-4143-8582-d90709e0668d",
+          "managed_name": "Is after",
+          "question_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
+          "statement": "q_3dc0dd193d2a4d00b7d9f0ac0eb6e791 > ((q_5a0c200ede4e4cb39e97ba0cbd30a645))",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
             "inclusive": false,
             "latest_value": "2025-01-01",
             "question_id": "a4af0ddd-9d74-49d3-b4ff-3f2504f2a8d3"
@@ -1286,6 +1322,13 @@
           "title": "Cheese"
         },
         {
+          "collection_id": "e1f95190-b16f-4952-92ba-ad61b7381616",
+          "id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "order": 0,
+          "slug": "section-1",
+          "title": "section 1"
+        },
+        {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "order": 0,
@@ -1312,6 +1355,13 @@
           "order": 4,
           "slug": "spend-in-the-last-reporting-period",
           "title": "Spend in the last reporting period"
+        },
+        {
+          "collection_id": "e1f95190-b16f-4952-92ba-ad61b7381616",
+          "id": "93e304f5-d7cf-4b59-9cb9-c284cdc84281",
+          "order": 1,
+          "slug": "section-2",
+          "title": "section 2"
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -1401,6 +1451,22 @@
         }
       ],
       "questions": [
+        {
+          "add_another": true,
+          "add_another_iterate_ref": "",
+          "add_another_max_ref": "q_e69d42e56d7847d098fa1e6939d57029",
+          "conditions_operator": "ALL",
+          "form_id": "93e304f5-d7cf-4b59-9cb9-c284cdc84281",
+          "id": "0351f2f4-e484-48e7-b188-caca3774efdb",
+          "name": "Location details",
+          "order": 1,
+          "presentation_options": {
+            "show_questions_on_the_same_page": true
+          },
+          "slug": "location-details",
+          "text": "Location details",
+          "type": "GROUP"
+        },
         {
           "add_another": false,
           "conditions_operator": "ALL",
@@ -1608,6 +1674,21 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_type": "Single line of text",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "hint": "",
+          "id": "3b9587f7-bf43-4ced-a9f0-43620c1cbd40",
+          "name": "project name",
+          "order": 0,
+          "parent_id": "a442662d-9ba7-403d-bed4-70a431619c03",
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-the-project",
+          "text": "What is the name of the project?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Single line of text",
           "form_id": "f012d1a7-1d0d-4679-9223-2645f878cd9c",
           "hint": "This question only appears if you entered over 10 in the earlier report. You previously entered ((q_f02791d28c1f44a4b107467b77e08ffe))",
           "id": "3beb605f-0024-45a5-901b-c477414457bd",
@@ -1632,6 +1713,23 @@
           },
           "slug": "provide-a-brief-update-on-the-progress-of-your-programme",
           "text": "Provide a brief update on the progress of your programme",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "A date",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "hint": "",
+          "id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
+          "name": "project end date",
+          "order": 1,
+          "parent_id": "d7e571f2-bae9-44f4-aeae-373368d28c85",
+          "presentation_options": {
+            "approximate_date": true
+          },
+          "slug": "project-end-date",
+          "text": "Project end date",
           "type": "QUESTION"
         },
         {
@@ -1728,6 +1826,23 @@
           },
           "slug": "what-is-the-risk-status",
           "text": "What is the risk status?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "A date",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "hint": "",
+          "id": "5a0c200e-de4e-4cb3-9e97-ba0cbd30a645",
+          "name": "project start date",
+          "order": 0,
+          "parent_id": "d7e571f2-bae9-44f4-aeae-373368d28c85",
+          "presentation_options": {
+            "approximate_date": true
+          },
+          "slug": "project-start-date",
+          "text": "Project start date",
           "type": "QUESTION"
         },
         {
@@ -1907,6 +2022,21 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_type": "Single line of text",
+          "form_id": "93e304f5-d7cf-4b59-9cb9-c284cdc84281",
+          "hint": "",
+          "id": "97299566-67fb-4d99-a49d-25bf8f95cab6",
+          "name": "location name",
+          "order": 0,
+          "parent_id": "0351f2f4-e484-48e7-b188-caca3774efdb",
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-this-location",
+          "text": "What is the name of this location?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_type": "Multiple lines of text",
           "form_id": "9cf64797-461d-467c-8834-470051899da7",
           "hint": "",
@@ -1939,6 +2069,23 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_type": "Whole number",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "hint": "",
+          "id": "a3e485ff-cbae-41d9-8454-9a264c3d0125",
+          "name": "years project lasts",
+          "order": 1,
+          "parent_id": "a442662d-9ba7-403d-bed4-70a431619c03",
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-years-will-the-project-last",
+          "text": "How many years will the project last?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_type": "Multiple lines of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1951,6 +2098,23 @@
           "slug": "what-planned-mitigations-are-there-for-the-risk",
           "text": "What planned mitigations are there for the risk?",
           "type": "QUESTION"
+        },
+        {
+          "add_another": true,
+          "add_another_iterate_ref": "",
+          "add_another_max": 2,
+          "add_another_max_ref": "",
+          "conditions_operator": "ALL",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "id": "a442662d-9ba7-403d-bed4-70a431619c03",
+          "name": "Projects",
+          "order": 0,
+          "presentation_options": {
+            "show_questions_on_the_same_page": true
+          },
+          "slug": "projects",
+          "text": "Projects",
+          "type": "GROUP"
         },
         {
           "add_another": false,
@@ -1966,6 +2130,23 @@
           },
           "slug": "when-did-the-last-reporting-period-start",
           "text": "When did the last reporting period start?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Whole number",
+          "form_id": "93e304f5-d7cf-4b59-9cb9-c284cdc84281",
+          "hint": "",
+          "id": "a6724717-4ff3-44b2-aa93-82fa855b78c8",
+          "name": "number of primary schools",
+          "order": 1,
+          "parent_id": "0351f2f4-e484-48e7-b188-caca3774efdb",
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-primary-schools-are-in-this-location",
+          "text": "How many primary schools are in this location?",
           "type": "QUESTION"
         },
         {
@@ -2107,6 +2288,22 @@
           "type": "QUESTION"
         },
         {
+          "add_another": true,
+          "add_another_iterate_ref": "q_a442662d9ba7403dbed470a431619c03",
+          "add_another_max_ref": "",
+          "conditions_operator": "ALL",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "id": "d7e571f2-bae9-44f4-aeae-373368d28c85",
+          "name": "Project details",
+          "order": 1,
+          "presentation_options": {
+            "show_questions_on_the_same_page": false
+          },
+          "slug": "project-details",
+          "text": "Project details",
+          "type": "GROUP"
+        },
+        {
           "add_another": false,
           "conditions_operator": "ALL",
           "data_type": "Yes or no",
@@ -2181,6 +2378,22 @@
           },
           "slug": "describe-the-risk-in-detail",
           "text": "Describe the risk in detail",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Whole number",
+          "form_id": "93e304f5-d7cf-4b59-9cb9-c284cdc84281",
+          "hint": "",
+          "id": "e69d42e5-6d78-47d0-98fa-1e6939d57029",
+          "name": "number of locations",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-locations-do-you-need-to-report-on",
+          "text": "How many locations do you need to report on?",
           "type": "QUESTION"
         },
         {
