@@ -129,11 +129,19 @@ class SubmissionHelper:
             collection=self.submission.collection,
             submission_helper=self,
             mode="evaluation",
+            # We probably want a better identifier than this - use the gr org ID and have that
+            # also saved in the dataset on upload?
+            grant_recipient_name=self.submission.grant_recipient.organisation.name
+            if self.submission.grant_recipient
+            else None,
         )
         self.cached_interpolation_context = ExpressionContext.build_expression_context(
             collection=self.submission.collection,
             submission_helper=self,
             mode="interpolation",
+            grant_recipient_name=self.submission.grant_recipient.organisation.name
+            if self.submission.grant_recipient
+            else None,
         )
 
     @classmethod

@@ -1345,22 +1345,23 @@ def _validate_and_sync_component_references(component: Component, expression_con
 
         for match in INTERPOLATE_REGEX.finditer(value):
             wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
+            # skip checking valid dataset references for now
+            if not inner_ref.startswith("dataset:"):
+                if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
+                    raise InvalidReferenceInExpression(
+                        f"Reference is not valid: {wrapped_ref}",
+                        field_name=field_name,
+                        bad_reference=wrapped_ref,
+                    )
 
-            if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
-                raise InvalidReferenceInExpression(
-                    f"Reference is not valid: {wrapped_ref}",
-                    field_name=field_name,
-                    bad_reference=wrapped_ref,
-                )
-
-            # TODO: When we allow complex references (eg not just a single reference but some combination of references
-            #       such as `q_id1 + q_id2`) then this logic will need to handle that.
-            if not expression_context.is_valid_reference(inner_ref):
-                raise InvalidReferenceInExpression(
-                    f"Reference is not valid: {wrapped_ref}",
-                    field_name=field_name,
-                    bad_reference=wrapped_ref,
-                )
+                # TODO: When we allow complex references (eg not just a single reference but some combination of references
+                #       such as `q_id1 + q_id2`) then this logic will need to handle that.
+                if not expression_context.is_valid_reference(inner_ref):
+                    raise InvalidReferenceInExpression(
+                        f"Reference is not valid: {wrapped_ref}",
+                        field_name=field_name,
+                        bad_reference=wrapped_ref,
+                    )
 
             # If `is_valid_referencee` above is True, then we know that we have a QID that points to a question in the
             # same collection - but not necessarily the same form.
