@@ -883,7 +883,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
                     show_questions_on_the_same_page=add_question_group.show_questions_on_the_same_page
                 ),
                 add_another=add_another,
-                add_another_max=int(wt_form.add_another_max.data),
+                add_another_max=int(wt_form.add_another_max.data) if wt_form.add_another_max.data else None,
                 add_another_max_ref=wt_form.add_another_max_ref.data,
                 add_another_iterate_ref=wt_form.add_another_iterate_ref.data,
             )
