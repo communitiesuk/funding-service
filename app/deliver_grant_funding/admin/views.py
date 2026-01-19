@@ -819,9 +819,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixi
             email_type=email_type,
         )
 
-    @expose(
+    @expose(  # type: ignore[untyped-decorator]
         "/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/download-csv/<email_type>", methods=["GET"]
-    )  # type: ignore[untyped-decorator]
+    )
     def download_data_providers_csv(
         self, grant_id: UUID, collection_id: UUID, email_type: ReportAdminEmailTypeEnum
     ) -> Any:

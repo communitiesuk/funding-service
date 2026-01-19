@@ -966,19 +966,19 @@ def _extract_add_context_data_from_session(
     if session_data := session.get("question"):
         match session_data["field"]:
             case "component":
-                add_context_data = AddContextToComponentSessionModel(**session_data)  # ty: ignore[missing-argument]
+                add_context_data = AddContextToComponentSessionModel(**session_data)
                 if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
                     del session["question"]
                     return None
 
             case "guidance":
-                add_context_data = AddContextToComponentGuidanceSessionModel(**session_data)  # ty: ignore[missing-argument]
+                add_context_data = AddContextToComponentGuidanceSessionModel(**session_data)
                 if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
                     del session["question"]
                     return None
 
             case ExpressionType.CONDITION | ExpressionType.VALIDATION:
-                add_context_data = AddContextToExpressionsModel(**session_data)  # ty: ignore[missing-argument]
+                add_context_data = AddContextToExpressionsModel(**session_data)
                 if (question_id is not NOT_PROVIDED and question_id != add_context_data.component_id) or (
                     expression_id is not NOT_PROVIDED and expression_id != add_context_data.expression_id
                 ):
@@ -1159,10 +1159,10 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type: ignore[attr-defined]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
+            field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/add_question.html",
@@ -1433,10 +1433,10 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type:ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type: ignore[attr-defined]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(e.message)  # type:ignore[attr-defined]
+            field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
         except DataSourceItemReferenceDependencyException as e:
             for flash_context in e.as_flash_contexts():
                 flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]

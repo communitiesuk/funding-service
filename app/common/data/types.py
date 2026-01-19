@@ -286,7 +286,7 @@ class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
     def process_result_value(self, value: typing.Any, dialect: Any) -> QuestionPresentationOptions | None:
         if value is None:
             return None
-        return QuestionPresentationOptions(**value)  # ty: ignore[missing-argument]
+        return QuestionPresentationOptions(**value)
 
 
 class ComponentType(enum.StrEnum):

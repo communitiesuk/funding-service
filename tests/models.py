@@ -231,8 +231,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     grant_id = factory.LazyAttribute(lambda o: o.grant.id)
     grant = factory.SubFactory(_GrantFactory)
 
-    @factory.post_generation  # type: ignore
-    def create_completed_submissions_conditional_question(  # type: ignore
+    @factory.post_generation  # type: ignore[untyped-decorator]
+    def create_completed_submissions_conditional_question(  # type: ignore[no-untyped-def]
         obj: Collection,
         create,
         extracted,
@@ -271,12 +271,12 @@ class _CollectionFactory(SQLAlchemyModelFactory):
 
         def _create_submission(mode: SubmissionModeEnum, complete_question_2: bool = False) -> None:
             response_data: dict[str, Any] = {
-                str(q1.id): IntegerAnswer(value=(40 if complete_question_2 else 20)).get_value_for_submission()  # ty: ignore[missing-argument]
+                str(q1.id): IntegerAnswer(value=(40 if complete_question_2 else 20)).get_value_for_submission()
             }
             if complete_question_2:
-                response_data[str(q2.id)] = IntegerAnswer(value=80).get_value_for_submission()  # ty: ignore[missing-argument]
+                response_data[str(q2.id)] = IntegerAnswer(value=80).get_value_for_submission()
 
-            response_data[str(q3.id)] = TextSingleLineAnswer("digestive").get_value_for_submission()  # ty: ignore[missing-argument]
+            response_data[str(q3.id)] = TextSingleLineAnswer("digestive").get_value_for_submission()
 
             _SubmissionFactory.create(
                 collection=obj,
@@ -294,8 +294,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             _create_submission(SubmissionModeEnum.LIVE, complete_question_2=True)
             _create_submission(SubmissionModeEnum.LIVE, complete_question_2=False)
 
-    @factory.post_generation  # type: ignore
-    def create_completed_submissions_conditional_question_random(  # type: ignore
+    @factory.post_generation  # type: ignore[untyped-decorator]
+    def create_completed_submissions_conditional_question_random(  # type: ignore[no-untyped-def]
         obj: Collection,
         create,
         extracted,
@@ -383,24 +383,24 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         def _create_submission(mode: SubmissionModeEnum, count: int = 0) -> None:
             for _ in range(count):
                 response_data: dict[str, Any] = {
-                    str(q1.id): IntegerAnswer(value=faker.Faker().random_int(min=0, max=60)).get_value_for_submission()  # ty: ignore[missing-argument]
+                    str(q1.id): IntegerAnswer(value=faker.Faker().random_int(min=0, max=60)).get_value_for_submission()
                 }
-                response_data[str(q2.id)] = YesNoAnswer(random.choice([True, False])).get_value_for_submission()  # ty: ignore[missing-argument]
+                response_data[str(q2.id)] = YesNoAnswer(random.choice([True, False])).get_value_for_submission()
 
-                response_data[str(q3.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
+                response_data[str(q3.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()
                 item_choice = faker.Faker().random_int(min=0, max=2)
                 response_data[str(q4.id)] = SingleChoiceFromListAnswer(
                     key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
                 ).get_value_for_submission()
 
-                response_data[str(q5.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
+                response_data[str(q5.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()
                 response_data[str(q6.id)] = MultipleChoiceFromListAnswer(
                     choices=[
                         {"key": q6.data_source.items[0].key, "label": q6.data_source.items[0].label},
                         {"key": q6.data_source.items[-1].key, "label": q6.data_source.items[-1].label},
                     ]
-                ).get_value_for_submission()  # ty: ignore[missing-argument]
-                response_data[str(q7.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()  # ty: ignore[missing-argument]
+                ).get_value_for_submission()
+                response_data[str(q7.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()
 
                 _SubmissionFactory.create(
                     collection=obj,
@@ -412,8 +412,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         _create_submission(SubmissionModeEnum.TEST, test)
         _create_submission(SubmissionModeEnum.LIVE, live)
 
-    @factory.post_generation  # type: ignore
-    def create_completed_submissions_each_question_type(  # type: ignore
+    @factory.post_generation  # type: ignore[untyped-decorator]
+    def create_completed_submissions_each_question_type(  # type: ignore[no-untyped-def]
         obj: Collection,
         create,
         extracted,
@@ -484,27 +484,27 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     collection=obj,
                     mode=submission_mode,
                     data={
-                        str(q1.id): TextSingleLineAnswer(  # ty: ignore[missing-argument]
+                        str(q1.id): TextSingleLineAnswer(
                             faker.Faker().name() if use_random_data else "test name"
                         ).get_value_for_submission(),
-                        str(q2.id): TextMultiLineAnswer(  # ty: ignore[missing-argument]
+                        str(q2.id): TextMultiLineAnswer(
                             "\r\n".join(faker.Faker().sentences(nb=3))
                             if use_random_data
                             else "Line 1\r\nline2\r\nline 3"
                         ).get_value_for_submission(),
-                        str(q3.id): IntegerAnswer(  # ty: ignore[missing-argument]
+                        str(q3.id): IntegerAnswer(
                             value=(faker.Faker().random_number(2) if use_random_data else 123)
                         ).get_value_for_submission(),
-                        str(q4.id): SingleChoiceFromListAnswer(  # ty: ignore[missing-argument]
+                        str(q4.id): SingleChoiceFromListAnswer(
                             key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
                         ).get_value_for_submission(),
-                        str(q5.id): YesNoAnswer(  # ty: ignore[missing-argument]
+                        str(q5.id): YesNoAnswer(
                             random.choice([True, False]) if use_random_data else True
-                        ).get_value_for_submission(),  # ty: ignore[missing-argument]
-                        str(q6.id): TextSingleLineAnswer(  # ty: ignore[missing-argument]
+                        ).get_value_for_submission(),
+                        str(q6.id): TextSingleLineAnswer(
                             faker.Faker().email() if use_random_data else "test@email.com"
                         ).get_value_for_submission(),
-                        str(q7.id): TextSingleLineAnswer(  # ty: ignore[missing-argument]
+                        str(q7.id): TextSingleLineAnswer(
                             faker.Faker().url()
                             if use_random_data
                             else "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government"
@@ -527,8 +527,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
-    @factory.post_generation  # type: ignore
-    def create_submissions(  # type: ignore
+    @factory.post_generation  # type: ignore[untyped-decorator]
+    def create_submissions(  # type: ignore[no-untyped-def]
         obj: Collection,
         create,
         extracted,
@@ -555,8 +555,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         for _ in range(0, live):
             _SubmissionFactory.create(collection=obj, mode=SubmissionModeEnum.LIVE)
 
-    @factory.post_generation  # type: ignore
-    def create_completed_submissions_add_another_nested_group(  # type: ignore
+    @factory.post_generation  # type: ignore[untyped-decorator]
+    def create_completed_submissions_add_another_nested_group(  # type: ignore[no-untyped-def]
         obj: Collection,
         create,
         extracted,
@@ -623,10 +623,10 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         for i in range(0, number_of_add_another_answers):
             add_another_responses.append(
                 {
-                    str(q3.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                    str(q3.id): TextSingleLineAnswer(
                         faker.Faker().name() if use_random_data else f"test name {i}"
                     ).get_value_for_submission(),
-                    str(q4.id): EmailAnswer(  # ty:ignore[missing-argument]
+                    str(q4.id): EmailAnswer(
                         faker.Faker().company_email() if use_random_data else f"test_user_{i}@email.com"
                     ).get_value_for_submission(),
                 }
@@ -638,10 +638,10 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     collection=obj,
                     mode=submission_mode,
                     data={
-                        str(q1.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                        str(q1.id): TextSingleLineAnswer(
                             faker.Faker().name() if use_random_data else "test name"
                         ).get_value_for_submission(),
-                        str(q2.id): TextSingleLineAnswer(  # ty:ignore[missing-argument]
+                        str(q2.id): TextSingleLineAnswer(
                             faker.Faker().name() if use_random_data else "test org name"
                         ).get_value_for_submission(),
                         str(g2.id): add_another_responses,
@@ -656,7 +656,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
     @factory.post_generation
-    def commit_the_things_to_clean_the_session(self, create, extracted, **kwargs):  # type: ignore
+    def commit_the_things_to_clean_the_session(self, create, extracted, **kwargs):  # type: ignore[no-untyped-def]
         # Runs after all of the other post_generation hooks (hopefully) and commits anything created to the DB,
         # so that our clean-session-tracking logic has a clean session again.
         if create:
@@ -768,7 +768,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
     conditions_operator = ConditionsOperator.ALL
 
-    @factory.post_generation  # type: ignore
+    @factory.post_generation  # type: ignore[untyped-decorator]
     def form_components_join(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
@@ -833,7 +833,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
     conditions_operator = ConditionsOperator.ALL
 
-    @factory.post_generation  # type: ignore
+    @factory.post_generation  # type: ignore[untyped-decorator]
     def form_components_join(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:

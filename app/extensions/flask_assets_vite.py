@@ -72,4 +72,4 @@ class FlaskAssetsViteExtension:
             # assets that have not been transpiled by vite but may have been copied
             return url_for("static", filename=relative_file_path, _external=external)
 
-        return dict(vite_asset=vite_asset)  # ty: ignore[invalid-return-type]
+        return dict(vite_asset=vite_asset)

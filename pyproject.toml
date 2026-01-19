@@ -75,6 +75,9 @@ required-version = ">=0.8.12"
 [tool.ty.terminal]
 error-on-warning = true
 
+[tool.ty.rules]
+unused-ignore-comment = "ignore" # currently needed for compat with mypy
+
 [tool.ruff]
 line-length = 120
 

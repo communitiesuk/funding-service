@@ -46,7 +46,7 @@ def setup_db_container() -> Generator[PostgresContainer, None, None]:
 
     # Reduce sleep/wait time from 1 second to 0.1 seconds. We could drop this if it ever causes any problems, but shaves
     # off a little bit of time - why not.
-    testcontainers_config.sleep_time = 0.1  # ty: ignore[invalid-assignment]
+    testcontainers_config.sleep_time = 0.1
 
     test_postgres = PostgresContainer("postgres:17.5")
     test_postgres.start()

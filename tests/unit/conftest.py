@@ -52,7 +52,7 @@ def db_session(app: Flask) -> Generator[None, None, None]:
         def session_error(self: SQLAlchemy) -> None:
             raise RuntimeError("No access to DB session available outside of integration tests")
 
-        SQLAlchemy.session = property(session_error)  # type: ignore[method-assign, assignment]
+        SQLAlchemy.session = property(session_error)  # type: ignore[assignment, method-assign]
 
         try:
             yield

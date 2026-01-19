@@ -118,7 +118,7 @@ def flush_and_rollback_on_exceptions[T](
                 db.session.rollback()
 
                 if coerce_exceptions is not None and coerce_exceptions is not NOT_PROVIDED:
-                    for from_exception, to_exception in coerce_exceptions:  # ty: ignore[not-iterable]
+                    for from_exception, to_exception in coerce_exceptions:
                         if isinstance(e, from_exception):
                             raise to_exception(e) from e
 
