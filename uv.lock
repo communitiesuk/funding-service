@@ -629,7 +629,7 @@ requires-dist = [
     { name = "flask-sqlalchemy-lite", specifier = "==0.2.1" },
     { name = "flask-talisman", specifier = "==1.1.0" },
     { name = "flask-wtf", specifier = "==1.2.2" },
-    { name = "govuk-frontend-jinja", specifier = "==3.9.0" },
+    { name = "govuk-frontend-jinja", specifier = "==3.10.0" },
     { name = "govuk-frontend-wtf", specifier = "==3.2.0" },
     { name = "gunicorn", extras = ["gevent"], specifier = "==23.0.0" },
     { name = "mistune", specifier = "==3.2.0" },
@@ -646,7 +646,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = "==2.0.45" },
     { name = "sqlalchemy-json", specifier = "==0.7.0" },
     { name = "wtforms", extras = ["email"], specifier = "==3.2.1" },
-    { name = "xgovuk-flask-admin", specifier = "==0.1.6" },
+    { name = "xgovuk-flask-admin", specifier = "==0.1.7" },
 ]
 
 [package.metadata.requires-dev]
@@ -704,14 +704,14 @@ wheels = [
 
 [[package]]
 name = "govuk-frontend-jinja"
-version = "3.9.0"
+version = "3.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/df/a6/7b0708798c5edbbbe2575f6a3a0bf97683887757db80779a91396d83dfef/govuk_frontend_jinja-3.9.0.tar.gz", hash = "sha256:7b70b505e70a88ab5dd3fad9176ec1dec36f97122b317a6758ad8fcbee173227", size = 36459, upload-time = "2025-10-14T14:37:45.604Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/d0/ff8c73899ef8424377d9709b7a710bfab0ef89354a479f98ecdd5fc239f8/govuk_frontend_jinja-3.10.0.tar.gz", hash = "sha256:d48c6e9bbaabaefa133aa9d75feb2e0275f6a4865bb6f1d7357f6ae348b3f86c", size = 36511, upload-time = "2026-01-15T11:18:11.379Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/04/e2/544e44710b743c40575c14d6ffe85ba55c81731dc64d131dba2125364d0e/govuk_frontend_jinja-3.9.0-py3-none-any.whl", hash = "sha256:f561a792967cbf337c17b9cd511e50339eba3ce5b949d683db4aa5dfbd773d72", size = 49968, upload-time = "2025-10-14T14:37:44.26Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/4e/03610df076122185344645d5f3199d2f6249296fac8e3c99f4caa359a2d3/govuk_frontend_jinja-3.10.0-py3-none-any.whl", hash = "sha256:1cc429b044e4b4afab40777dcf20e7b9b4d8b6f1132a8668430407f6ae8017df", size = 50054, upload-time = "2026-01-15T11:18:10.004Z" },
 ]
 
 [[package]]
@@ -1944,7 +1944,7 @@ email = [
 
 [[package]]
 name = "xgovuk-flask-admin"
-version = "0.1.6"
+version = "0.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -1957,9 +1957,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tox-uv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/30/0f/4162c70a49234311af6af7fc129179ccf1fb1e0982d13d6668b772780116/xgovuk_flask_admin-0.1.6.tar.gz", hash = "sha256:17daf0837925d159e605e09a1d3488af1cb9f2c5c4ff72296852f5255d449701", size = 450553, upload-time = "2026-01-04T21:14:27.468Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/bf/60629c7d2c4edb936c0a63b59246da494abdbc2121e9cbd96559fc6559a6/xgovuk_flask_admin-0.1.7.tar.gz", hash = "sha256:1e6ca3cd698d46578210cad391d2d0f9d6d709432cdd6901ea516711a8fcbedb", size = 450591, upload-time = "2026-01-19T10:01:06.206Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/ee/b7b3fd8c0315b467f90f042f550ea17aa03939dadd8bf6a16abee71457cd/xgovuk_flask_admin-0.1.6-py3-none-any.whl", hash = "sha256:2a6cb0141f5a79455f282a0d7c4157fce744e3a003685ce2da24939ac5a39c3e", size = 458113, upload-time = "2026-01-04T21:14:24.911Z" },
+    { url = "https://files.pythonhosted.org/packages/59/5a/bcf58f25da29e61383ecf67f304b3125140e689a2ad24dccb261a60692d3/xgovuk_flask_admin-0.1.7-py3-none-any.whl", hash = "sha256:6b97c4737c1f36a001a37c34378e52d8aa840c9d1db92b2286103e9771a3877d", size = 458253, upload-time = "2026-01-19T10:01:04.477Z" },
 ]
 
 [[package]]

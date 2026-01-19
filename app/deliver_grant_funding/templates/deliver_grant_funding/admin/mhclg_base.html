@@ -34,3 +34,19 @@
     </div>
   </header>
 {% endblock %}
+
+{% block footer %}
+  {{
+    govukFooter({
+      "contentLicence": none,
+      "meta": {
+        "items": [
+          {
+            "href": config.SERVICE_DESK_URL,
+            "text": "Contact us"
+          }
+        ]
+      }
+    })
+  }}
+{% endblock footer %}
