@@ -129,11 +129,11 @@ class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdmi
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
     }
 
-    @action(
+    @action(  # type: ignore[untyped-decorator]
         "revoke_all_permissions",
         "Revoke all permissions",
         "Are you sure you want to revoke all permissiosn for these users?",
-    )  # type: ignore[untyped-decorator]
+    )
     def revoke_permissions(self, ids: list[str]) -> None:
         if not self.can_edit:
             flash("You do not have permission to do this", "error")
@@ -371,11 +371,11 @@ class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, Platf
 
         return super().after_model_change(form, model, is_created)
 
-    @action(
+    @action(  # type: ignore[untyped-decorator]
         "cancel_invitation",
         "Cancel invitation",
         "Are you sure you want to cancel these invitations?",
-    )  # type: ignore[untyped-decorator]
+    )
     def cancel_invitation(self, ids: list[str]) -> None:
         if not self.can_create:
             flash("You do not have permission to do this", "error")

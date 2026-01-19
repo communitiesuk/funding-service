@@ -977,7 +977,7 @@ class CollectionHelper:
                         task_data["answers"][question.name] = (
                             answer.get_value_for_json_export() if answer is not None else None
                         )
-                submission_data["sections"].append(task_data)  # ty: ignore[possibly-missing-attribute]
+                submission_data["sections"].append(task_data)
 
             submissions_data["submissions"].append(submission_data)
 
@@ -991,13 +991,13 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
 
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE | QuestionDataType.EMAIL | QuestionDataType.URL:
-            return TextSingleLineAnswer(answer)  # ty: ignore[missing-argument]
+            return TextSingleLineAnswer(answer)
         case QuestionDataType.TEXT_MULTI_LINE:
-            return TextMultiLineAnswer(answer)  # ty: ignore[missing-argument]
+            return TextMultiLineAnswer(answer)
         case QuestionDataType.INTEGER:
-            return IntegerAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)  # ty: ignore[missing-argument]
+            return IntegerAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)
         case QuestionDataType.YES_NO:
-            return YesNoAnswer(answer)  # ty: ignore[missing-argument]
+            return YesNoAnswer(answer)
         case QuestionDataType.RADIOS:
             label = next(item.label for item in question.data_source.items if item.key == answer)
             return SingleChoiceFromListAnswer(key=answer, label=label)
@@ -1009,7 +1009,7 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
             ]
             return MultipleChoiceFromListAnswer(choices=choices)
         case QuestionDataType.DATE:
-            return DateAnswer(answer=answer, approximate_date=question.approximate_date or False)  # ty: ignore[missing-argument]
+            return DateAnswer(answer=answer, approximate_date=question.approximate_date or False)
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 

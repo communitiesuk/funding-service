@@ -1071,9 +1071,9 @@ def update_group(  # noqa: C901
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
-        group.name = name  # ty: ignore[invalid-assignment]
-        group.text = name  # ty: ignore[invalid-assignment]
-        group.slug = slugify(name)  # ty: ignore[invalid-argument-type]
+        group.name = name
+        group.text = name
+        group.slug = slugify(name)
 
     if presentation_options is not NOT_PROVIDED:
         if (
@@ -1099,10 +1099,10 @@ def update_group(  # noqa: C901
         )
 
     if guidance_heading is not NOT_PROVIDED:
-        group.guidance_heading = guidance_heading  # ty: ignore[invalid-assignment]
+        group.guidance_heading = guidance_heading
 
     if guidance_body is not NOT_PROVIDED:
-        group.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
+        group.guidance_body = guidance_body
 
     if add_another is not NOT_PROVIDED:
         if group.add_another is not True and add_another is True:
@@ -1111,10 +1111,10 @@ def update_group(  # noqa: C901
         group.add_another = add_another
 
     if add_another_guidance_body is not NOT_PROVIDED:
-        group.add_another_guidance_body = add_another_guidance_body  # ty: ignore[invalid-assignment]
+        group.add_another_guidance_body = add_another_guidance_body
 
     if conditions_operator is not NOT_PROVIDED:
-        group.conditions_operator = conditions_operator  # ty: ignore[invalid-assignment]
+        group.conditions_operator = conditions_operator
 
     _validate_and_sync_component_references(group, expression_context)
 
@@ -1142,29 +1142,29 @@ def update_question(
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
 ) -> Question:
     if text is not NOT_PROVIDED and text is not None:
-        question.text = text  # ty: ignore[invalid-assignment]
-        question.slug = slugify(text)  # ty: ignore[invalid-argument-type]
+        question.text = text
+        question.slug = slugify(text)
 
     if hint is not NOT_PROVIDED:
-        question.hint = hint  # ty: ignore[invalid-assignment]
+        question.hint = hint
 
     if name is not NOT_PROVIDED:
-        question.name = name  # ty: ignore[invalid-assignment]
+        question.name = name
 
     if presentation_options is not NOT_PROVIDED:
-        question.presentation_options = presentation_options or QuestionPresentationOptions()  # ty: ignore[invalid-assignment]
+        question.presentation_options = presentation_options or QuestionPresentationOptions()
 
     if guidance_heading is not NOT_PROVIDED:
-        question.guidance_heading = guidance_heading  # ty: ignore[invalid-assignment]
+        question.guidance_heading = guidance_heading
 
     if guidance_body is not NOT_PROVIDED:
-        question.guidance_body = guidance_body  # ty: ignore[invalid-assignment]
+        question.guidance_body = guidance_body
 
     if conditions_operator is not NOT_PROVIDED:
-        question.conditions_operator = conditions_operator  # ty: ignore[invalid-assignment]
+        question.conditions_operator = conditions_operator
 
     if items is not NOT_PROVIDED and items is not None:
-        _update_data_source(question, items)  # ty: ignore[invalid-argument-type]
+        _update_data_source(question, items)
 
     _validate_and_sync_component_references(question, expression_context)
     return question

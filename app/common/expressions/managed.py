@@ -305,7 +305,7 @@ class GreaterThan(ManagedExpression):
             [InputRequired("Enter the minimum value allowed for this question")]
             if not form.greater_than_expression.data  # ty: ignore[unresolved-attribute]
             else [Optional()]
-        )  # ty: ignore[unresolved-attribute]
+        )
         form.greater_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
@@ -398,7 +398,7 @@ class LessThan(ManagedExpression):
             [InputRequired("Enter the maximum value allowed for this question")]
             if not form.less_than_expression.data  # ty: ignore[unresolved-attribute]
             else [Optional()]
-        )  # ty: ignore[unresolved-attribute]
+        )
         form.less_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
@@ -518,7 +518,7 @@ class Between(ManagedExpression):
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
         form.between_bottom_of_range.validators = (  # ty: ignore[unresolved-attribute]
-            [  # ty: ignore[unresolved-attribute]
+            [
                 InputRequired("Enter the minimum value allowed for this question"),
                 BottomOfRangeIsLower("The minimum value must be lower than the maximum value"),
             ]
@@ -528,7 +528,7 @@ class Between(ManagedExpression):
             else [Optional()]
         )
         form.between_top_of_range.validators = (  # ty: ignore[unresolved-attribute]
-            [  # ty: ignore[unresolved-attribute]
+            [
                 InputRequired("Enter the maximum value allowed for this question"),
                 BottomOfRangeIsLower("The maximum value must be higher than the minimum value"),
             ]
@@ -544,7 +544,7 @@ class Between(ManagedExpression):
             question_id=question.id,
             minimum_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
             if not form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
-            else None,  # ty: ignore[unresolved-attribute]
+            else None,
             minimum_expression=form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             if form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             else None,
@@ -552,7 +552,7 @@ class Between(ManagedExpression):
             maximum_value=form.between_top_of_range.data if not form.between_top_of_range_expression.data else None,  # ty: ignore[unresolved-attribute]
             maximum_expression=form.between_top_of_range_expression.data  # ty: ignore[unresolved-attribute]
             if form.between_top_of_range_expression.data  # ty: ignore[unresolved-attribute]
-            else None,  # ty: ignore[unresolved-attribute]
+            else None,
             maximum_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 
@@ -623,7 +623,7 @@ class AnyOf(BaseDataSourceManagedExpression):
         items: list[TRadioItem] = [{"key": key, "label": item_labels[key]} for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
         return AnyOf(
             question_id=question.id,
-            items=items,  # ty: ignore[unresolved-attribute]
+            items=items,
         )
 
     @property
@@ -858,7 +858,7 @@ class IsBefore(ManagedExpression):
             [DataRequired("Enter the date which this answer must come before")]
             if not form.latest_expression.data  # ty: ignore[unresolved-attribute]
             else [Optional()]
-        )  # ty: ignore[unresolved-attribute]
+        )
         form.latest_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
@@ -974,7 +974,7 @@ class IsAfter(ManagedExpression):
             [DataRequired("Enter the date which this answer must come before")]
             if not form.earliest_expression.data  # ty: ignore[unresolved-attribute]
             else [Optional()]
-        )  # ty: ignore[unresolved-attribute]
+        )
         form.earliest_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
@@ -1139,7 +1139,7 @@ class BetweenDates(ManagedExpression):
     @staticmethod
     def update_validators(form: "_ManagedExpressionForm") -> None:
         form.between_bottom_of_range.validators = (  # ty: ignore[unresolved-attribute]
-            [  # ty: ignore[unresolved-attribute]
+            [
                 InputRequired("Enter the earliest date allowed for this question"),
                 BottomOfRangeIsLower("The earliest date must be before the latest date"),
             ]
@@ -1149,7 +1149,7 @@ class BetweenDates(ManagedExpression):
             else [Optional()]
         )
         form.between_top_of_range.validators = (  # ty: ignore[unresolved-attribute]
-            [  # ty: ignore[unresolved-attribute]
+            [
                 InputRequired("Enter the latest date allowed for this question"),
                 BottomOfRangeIsLower("The latest date must be after the earliest date"),
             ]
@@ -1165,15 +1165,15 @@ class BetweenDates(ManagedExpression):
             question_id=question.id,
             earliest_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
             if not form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
-            else None,  # ty: ignore[unresolved-attribute]
+            else None,
             earliest_expression=form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             if form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
-            else None,  # ty: ignore[unresolved-attribute]
+            else None,
             earliest_inclusive=form.between_bottom_inclusive.data,  # ty: ignore[unresolved-attribute]
             latest_value=form.between_top_of_range.data,  # ty: ignore[unresolved-attribute]
             latest_expression=form.between_top_of_range_expression.data  # ty: ignore[unresolved-attribute]
             if form.between_top_of_range_expression.data  # ty: ignore[unresolved-attribute]
-            else None,  # ty: ignore[unresolved-attribute]
+            else None,
             latest_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 

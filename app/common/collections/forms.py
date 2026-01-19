@@ -294,16 +294,16 @@ class CheckYourAnswersForm(FlaskForm):
 
         # the form should be validly optional unless all questions in the section have been answered
         if all_questions_answered:
-            self.section_completed.validators = [DataRequired("Select if you have completed this section")]  # ty: ignore[invalid-assignment]
+            self.section_completed.validators = [DataRequired("Select if you have completed this section")]
         else:
-            self.section_completed.validators = [Optional()]  # ty: ignore[invalid-assignment]
+            self.section_completed.validators = [Optional()]
 
 
 class AddAnotherSummaryForm(FlaskForm):
     def __init__(self, *args: Any, add_another_required: bool = False, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         if add_another_required:
-            self.add_another.validators = [DataRequired("Select yes if you need to add another answer")]  # ty: ignore[invalid-assignment]
+            self.add_another.validators = [DataRequired("Select yes if you need to add another answer")]
 
     add_another = RadioField(
         "Do you need to add another answer?",

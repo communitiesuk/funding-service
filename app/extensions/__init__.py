@@ -30,7 +30,7 @@ except ModuleNotFoundError:
 
 
 def register_signals(app: Flask) -> None:
-    @user_logged_in.connect_via(app)  # type: ignore
+    @user_logged_in.connect_via(app)  # type: ignore[untyped-decorator]
     def user_logged_in_signal(sender: Flask, user: User) -> None:
         # This needs to be imported within the function to avoid a circular import with the `db` extension
         from app.common.data.interfaces.user import set_user_last_logged_in_at_utc

@@ -110,9 +110,9 @@ def update_grant(  # noqa: C901
     privacy_policy_markdown: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Grant:
     if ggis_number is not NOT_PROVIDED:
-        grant.ggis_number = ggis_number  # ty: ignore[invalid-assignment]
+        grant.ggis_number = ggis_number
     if name is not NOT_PROVIDED:
-        grant.name = name  # ty: ignore[invalid-assignment]
+        grant.name = name
 
     # NOTE: as/when we start to have a lot of defined state transitions, we might want to have a better state machine
     #       representation such as sqlalchemy-fsm (but all of the libs for this I've looked at lately seem to be
@@ -140,11 +140,11 @@ def update_grant(  # noqa: C901
         grant.status = status
 
     if description is not NOT_PROVIDED:
-        grant.description = description  # ty: ignore[invalid-assignment]
+        grant.description = description
     if primary_contact_name is not NOT_PROVIDED:
-        grant.primary_contact_name = primary_contact_name  # ty: ignore[invalid-assignment]
+        grant.primary_contact_name = primary_contact_name
     if primary_contact_email is not NOT_PROVIDED:
-        grant.primary_contact_email = primary_contact_email  # ty: ignore[invalid-assignment]
+        grant.primary_contact_email = primary_contact_email
     if privacy_policy_markdown is not NOT_PROVIDED:
-        grant.privacy_policy_markdown = privacy_policy_markdown  # ty: ignore[invalid-assignment]
+        grant.privacy_policy_markdown = privacy_policy_markdown
     return grant

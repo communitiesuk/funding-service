@@ -430,7 +430,7 @@ class QuestionForm(FlaskForm):
                     if question_type == QuestionDataType.RADIOS
                     else current_app.config["MAX_DATA_SOURCE_ITEMS_CHECKBOXES"]
                 )
-                self.data_source_items.validators = [  # ty: ignore[invalid-assignment]
+                self.data_source_items.validators = [
                     DataRequired("Enter the options for your list"),
                     _validate_no_blank_lines,
                     _validate_no_duplicates,
@@ -438,7 +438,7 @@ class QuestionForm(FlaskForm):
                 ]
 
                 if self.separate_option_if_no_items_match.raw_data:
-                    self.none_of_the_above_item_text.validators = [  # ty: ignore[invalid-assignment]
+                    self.none_of_the_above_item_text.validators = [
                         DataRequired("Enter the text to show for the fallback option")
                     ]
 
@@ -448,7 +448,7 @@ class QuestionForm(FlaskForm):
                     )
 
             case QuestionDataType.TEXT_MULTI_LINE:
-                self.rows.validators = [_validate_textarea_size]  # ty: ignore[invalid-assignment]
+                self.rows.validators = [_validate_textarea_size]
 
     @property
     def normalised_data_source_items(self) -> list[str] | None:
@@ -636,10 +636,10 @@ class ConditionSelectQuestionForm(FlaskForm):
         self.target_question = current_component
 
         if len(get_supported_form_questions(current_component)) > 0:
-            self.question.choices = [("", "")] + [
+            self.question.choices = [("", "")] + [  # type: ignore[assignment]
                 (str(question.id), f"{interpolate(question.text)} ({question.name})")
                 for question in get_supported_form_questions(current_component)
-            ]  # type: ignore[assignment]
+            ]
 
 
 class AddGuidanceForm(FlaskForm):

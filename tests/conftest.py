@@ -191,7 +191,7 @@ def factories(db_session: Session) -> _Factories:
 def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Call], None, None]:
     calls = []
 
-    def _track_notification(*args, **kwargs):  # type: ignore
+    def _track_notification(*args, **kwargs):  # type: ignore[no-untyped-def]
         calls.append(mocker.call(*args, **kwargs))
         return Notification(id=uuid.uuid4())
 
