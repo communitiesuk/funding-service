@@ -85,10 +85,10 @@
       ],
       "component_references": [
         {
-          "component_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
-          "depends_on_component_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
-          "expression_id": "36fcb348-fe90-4143-8582-d90709e0668d",
-          "id": "0c11f12d-9f6d-4867-b5f7-76847114ef96"
+          "component_id": "1a47e939-39c5-4def-a274-398cfcc40ee0",
+          "depends_on_component_id": "8822de9a-8942-464d-a7da-afa6acffddf6",
+          "expression_id": "017bbef6-cdee-494c-8783-c0315239d0e4",
+          "id": "0d73ac8c-afa9-4564-a10f-0435c09026ca"
         },
         {
           "component_id": "0be64f3f-e841-48e2-aeeb-203dcc8f077d",
@@ -194,6 +194,12 @@
           "id": "7c83c49e-5137-4873-b0d5-9e965541653b"
         },
         {
+          "component_id": "1a47e939-39c5-4def-a274-398cfcc40ee0",
+          "depends_on_component_id": "7fc9de36-0875-45f6-95f4-ce0906fe5e04",
+          "expression_id": "017bbef6-cdee-494c-8783-c0315239d0e4",
+          "id": "8056d52f-6575-4ba3-8849-9d92282a2866"
+        },
+        {
           "component_id": "3beb605f-0024-45a5-901b-c477414457bd",
           "depends_on_component_id": "f02791d2-8c1f-44a4-b107-467b77e08ffe",
           "expression_id": "c4890b11-77b6-4f15-ab3b-96f82a1183a1",
@@ -218,10 +224,20 @@
           "id": "8ffc5f8f-342f-4ac7-b990-317ad1091a80"
         },
         {
+          "component_id": "1a47e939-39c5-4def-a274-398cfcc40ee0",
+          "depends_on_component_id": "3b9587f7-bf43-4ced-a9f0-43620c1cbd40",
+          "id": "93673c54-b6cc-461f-a3f4-2b590fffc088"
+        },
+        {
           "component_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0",
           "depends_on_component_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0",
           "expression_id": "cf097d73-7286-4c35-aca4-d68eb14718d8",
           "id": "9f6e2c24-a7ad-44b9-ac0e-4533d3529bf1"
+        },
+        {
+          "component_id": "1a47e939-39c5-4def-a274-398cfcc40ee0",
+          "depends_on_component_id": "7fc9de36-0875-45f6-95f4-ce0906fe5e04",
+          "id": "a3fbc111-b359-4dde-bc68-c5cbe075a856"
         },
         {
           "component_id": "3aa34ae9-7124-4646-a4aa-1e6babc885ce",
@@ -241,16 +257,20 @@
           "id": "b364ec07-c332-49b5-ba9b-8e735995537b"
         },
         {
-          "component_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
-          "depends_on_component_id": "5a0c200e-de4e-4cb3-9e97-ba0cbd30a645",
-          "expression_id": "36fcb348-fe90-4143-8582-d90709e0668d",
-          "id": "cd0f407a-44c8-466e-abcd-afebcf9c1438"
+          "component_id": "1a47e939-39c5-4def-a274-398cfcc40ee0",
+          "depends_on_component_id": "8822de9a-8942-464d-a7da-afa6acffddf6",
+          "id": "c3d55e7b-ea12-4845-a350-417044afe23f"
         },
         {
           "component_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
           "depends_on_component_id": "459a385f-f293-497b-b6fb-76011304306c",
           "expression_id": "d5b8174f-6b9e-49d7-b1ac-1bb29749009e",
           "id": "ea2cb455-8461-45d5-9288-f183eb23d8b8"
+        },
+        {
+          "component_id": "7fc9de36-0875-45f6-95f4-ce0906fe5e04",
+          "depends_on_component_id": "8822de9a-8942-464d-a7da-afa6acffddf6",
+          "id": "f01ddf43-7772-488b-a044-8252223a0ce0"
         }
       ],
       "data_source_items": [
@@ -1013,6 +1033,20 @@
         {
           "context": {
             "inclusive": false,
+            "minimum_expression": "((q_8822de9a8942464da7daafa6acffddf6))",
+            "minimum_value": null,
+            "question_id": "7fc9de36-0875-45f6-95f4-ce0906fe5e04"
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "017bbef6-cdee-494c-8783-c0315239d0e4",
+          "managed_name": "Greater than",
+          "question_id": "1a47e939-39c5-4def-a274-398cfcc40ee0",
+          "statement": "q_7fc9de36087545f695f4ce0906fe5e04 > ((q_8822de9a8942464da7daafa6acffddf6))",
+          "type_": "CONDITION"
+        },
+        {
+          "context": {
+            "inclusive": false,
             "maximum_expression": null,
             "maximum_value": 0,
             "question_id": "6452da2c-0154-4af1-8d96-f668edffa36a"
@@ -1062,20 +1096,6 @@
           "question_id": "677b317f-37cd-456c-905f-f3324f905e4a",
           "statement": "q_897480b2794d416ba8272f4f2e8f5843 is True",
           "type_": "CONDITION"
-        },
-        {
-          "context": {
-            "earliest_expression": "((q_5a0c200ede4e4cb39e97ba0cbd30a645))",
-            "earliest_value": null,
-            "inclusive": false,
-            "question_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791"
-          },
-          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-          "id": "36fcb348-fe90-4143-8582-d90709e0668d",
-          "managed_name": "Is after",
-          "question_id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
-          "statement": "q_3dc0dd193d2a4d00b7d9f0ac0eb6e791 > ((q_5a0c200ede4e4cb39e97ba0cbd30a645))",
-          "type_": "VALIDATION"
         },
         {
           "context": {
@@ -1598,6 +1618,23 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_type": "Multiple lines of text",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "hint": "You told us you thought you would spend \u00a3((q_8822de9a8942464da7daafa6acffddf6)), but then told us you spent \u00a3((q_7fc9de36087545f695f4ce0906fe5e04)) on project ((q_3b9587f7bf434ceda9f043620c1cbd40))",
+          "id": "1a47e939-39c5-4def-a274-398cfcc40ee0",
+          "name": "reason for overspend",
+          "order": 1,
+          "parent_id": "d7e571f2-bae9-44f4-aeae-373368d28c85",
+          "presentation_options": {
+            "rows": 5
+          },
+          "slug": "why-did-you-spend-more-than-you-expected",
+          "text": "Why did you spend more than you expected?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Multiple lines of text",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
           "id": "22613139-724f-41d7-84a3-3549550c6a4b",
@@ -1718,23 +1755,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "data_type": "A date",
-          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
-          "hint": "",
-          "id": "3dc0dd19-3d2a-4d00-b7d9-f0ac0eb6e791",
-          "name": "project end date",
-          "order": 1,
-          "parent_id": "d7e571f2-bae9-44f4-aeae-373368d28c85",
-          "presentation_options": {
-            "approximate_date": true
-          },
-          "slug": "project-end-date",
-          "text": "Project end date",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1826,23 +1846,6 @@
           },
           "slug": "what-is-the-risk-status",
           "text": "What is the risk status?",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "A date",
-          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
-          "hint": "",
-          "id": "5a0c200e-de4e-4cb3-9e97-ba0cbd30a645",
-          "name": "project start date",
-          "order": 0,
-          "parent_id": "d7e571f2-bae9-44f4-aeae-373368d28c85",
-          "presentation_options": {
-            "approximate_date": true
-          },
-          "slug": "project-start-date",
-          "text": "Project start date",
           "type": "QUESTION"
         },
         {
@@ -1976,6 +1979,41 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_type": "Whole number",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "hint": "You told us you would spend ((q_8822de9a8942464da7daafa6acffddf6))",
+          "id": "7fc9de36-0875-45f6-95f4-ce0906fe5e04",
+          "name": "actual spend",
+          "order": 0,
+          "parent_id": "d7e571f2-bae9-44f4-aeae-373368d28c85",
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-much-did-you-spend",
+          "text": "How much did you spend?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_type": "Whole number",
+          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
+          "hint": "",
+          "id": "8822de9a-8942-464d-a7da-afa6acffddf6",
+          "name": "predicted spend",
+          "order": 1,
+          "parent_id": "a442662d-9ba7-403d-bed4-70a431619c03",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-much-do-you-think-you-will-spend-on-this-project",
+          "text": "How much do you think you will spend on this project?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_type": "Yes or no",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -2064,23 +2102,6 @@
           },
           "slug": "if-the-target-total-risk-score-is-over-20-explain-why",
           "text": "If the target total risk score is over 20, explain why",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
-          "data_type": "Whole number",
-          "form_id": "5d4502ac-b7b6-4562-8972-049fddf9e388",
-          "hint": "",
-          "id": "a3e485ff-cbae-41d9-8454-9a264c3d0125",
-          "name": "years project lasts",
-          "order": 1,
-          "parent_id": "a442662d-9ba7-403d-bed4-70a431619c03",
-          "presentation_options": {
-            "width": "govuk-input--width-10"
-          },
-          "slug": "how-many-years-will-the-project-last",
-          "text": "How many years will the project last?",
           "type": "QUESTION"
         },
         {
@@ -4329,8 +4350,8 @@
     {
       "id": "68e3b145-1ce2-4561-b0fc-0225c39f87ef",
       "permissions": [
-        "member",
-        "admin"
+        "admin",
+        "member"
       ],
       "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },
@@ -4396,7 +4417,7 @@
       "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
       "email": "brandy.santos@test.communities.gov.uk",
       "id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-      "last_logged_in_at_utc": "Tue, 13 Jan 2026 10:48:47 GMT",
+      "last_logged_in_at_utc": "Mon, 19 Jan 2026 06:48:30 GMT",
       "name": "Brandy Santos"
     },
     {

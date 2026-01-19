@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal, MutableMapping, Optional, cast, 
 import simpleeval
 from markupsafe import Markup, escape
 
+from app.common.qid import SafeQidMixin
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
@@ -67,12 +68,63 @@ class ExpressionContext(ChainMap[str, Any]):
         submission_data: dict[str, Any] | None = None,
         expression_context: dict[str, Any] | None = None,
         add_another_context: dict[str, Any] | None = None,
+        referenced_add_another_context: dict[str, Any] | None = None,
     ):
         self._submission_data = submission_data or {}
         self._expression_context = expression_context or {}
         self._add_another_context = add_another_context or {}
+        self._referenced_add_another_context = referenced_add_another_context or {}
 
         super().__init__(*self._ordered_contexts)
+
+    def with_referenced_add_another_context(
+        self,
+        component: "Component",
+        submission_helper: "SubmissionHelper",
+        *,
+        add_another_index: int,
+        allow_new_index: bool = False,
+        mode: Literal["evaluation", "interpolation"] = "evaluation",
+    ) -> "ExpressionContext":
+        if self._referenced_add_another_context:
+            raise ValueError("referenced_add_another_context is already set on this ExpressionContext")
+
+        if not (component.add_another_container and component.add_another_container.add_another_iterate_ref):
+            raise ValueError(
+                "referenced_add_another_context can only be set for add another components that iterate over another add another question"
+            )
+
+        if allow_new_index:
+            count = submission_helper.get_count_for_add_another(component.add_another_container)
+            if add_another_index == count:
+                return self
+
+        referenced_add_another_component = submission_helper.get_component(
+            SafeQidMixin.safe_qid_to_id(component.add_another_container.add_another_iterate_ref)
+        )
+
+        # we're evaluating for a specific entry in a list so we'll set the context for the
+        # questions in our container - assume submission context is already set
+        questions = (
+            cast("Group", referenced_add_another_component).cached_questions
+            if referenced_add_another_component.is_group
+            else [cast("Question", referenced_add_another_component)]
+        )
+
+        referenced_add_another_context: dict[str, Any] = {}
+        for question in questions:
+            answer = submission_helper.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
+            if answer is not None:
+                referenced_add_another_context[question.safe_qid] = (
+                    answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
+                )
+
+        return ExpressionContext(
+            submission_data=self._submission_data,
+            referenced_add_another_context=referenced_add_another_context,
+            add_another_context=self._add_another_context,
+            expression_context=self._expression_context,
+        )
 
     def with_add_another_context(
         self,
@@ -127,6 +179,7 @@ class ExpressionContext(ChainMap[str, Any]):
                 None,
                 [
                     self._add_another_context,
+                    self._referenced_add_another_context,
                     self._submission_data,
                     self.expression_context,
                 ],
@@ -349,7 +402,6 @@ def _evaluate_expression_with_context(expression: "Expression", context: Express
     }
 
     try:
-        print(expression.statement)
         result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message) from e

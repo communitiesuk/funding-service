@@ -475,7 +475,6 @@ class SubmissionHelper:
             """Evaluates a component's own conditions using its operator."""
             if not comp.conditions:
                 return True
-
             match comp.conditions_operator:
                 case ConditionsOperator.ANY:
                     return any(evaluate(condition, context) for condition in comp.conditions)
@@ -489,6 +488,10 @@ class SubmissionHelper:
                 context = context.with_add_another_context(
                     component, submission_helper=self, add_another_index=add_another_index
                 )
+                if component.add_another_container.add_another_iterate_ref:
+                    context = context.with_referenced_add_another_context(
+                        component, submission_helper=self, add_another_index=add_another_index
+                    )
 
             current = component
             while current.parent:
@@ -804,6 +807,10 @@ class SubmissionHelper:
             context_override = self.cached_evaluation_context.with_add_another_context(
                 question, submission_helper=self, add_another_index=add_another_index
             )
+            if question.add_another_container.add_another_iterate_ref:
+                context_override = context_override.with_referenced_add_another_context(
+                    question, submission_helper=self, add_another_index=add_another_index
+                )
 
         questions = self.cached_get_ordered_visible_questions(
             form, override_context=context_override if context_override else None
@@ -831,6 +838,10 @@ class SubmissionHelper:
             context_override = self.cached_evaluation_context.with_add_another_context(
                 question, submission_helper=self, add_another_index=add_another_index, allow_new_index=True
             )
+            if question.add_another_container.add_another_iterate_ref:
+                context_override = context_override.with_referenced_add_another_context(
+                    question, submission_helper=self, add_another_index=add_another_index
+                )
 
         questions = self.cached_get_ordered_visible_questions(
             form, override_context=context_override if context_override else None

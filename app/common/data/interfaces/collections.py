@@ -1338,14 +1338,28 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
                 referenced_question,
             )
 
-        if referenced_question.add_another_container and not questions_in_same_add_another_container(
-            managed.referenced_question, referenced_question
+        this_components_referenced_add_another_id = (
+            SafeQidMixin.safe_qid_to_id(managed.referenced_question.add_another_container.add_another_iterate_ref)
+            if managed.referenced_question.add_another_container
+            and managed.referenced_question.add_another_container.add_another_iterate_ref
+            else None
+        )
+        referenced_questions_add_another_id = (
+            referenced_question.add_another_container.id if referenced_question.add_another_container else None
+        )
+
+        if (
+            this_components_referenced_add_another_id
+            and this_components_referenced_add_another_id != referenced_questions_add_another_id
         ):
-            raise AddAnotherDependencyException(
-                "Cannot add managed condition that depends on an add another question",
-                managed.referenced_question,
-                referenced_question,
-            )
+            if referenced_question.add_another_container and not questions_in_same_add_another_container(
+                managed.referenced_question, referenced_question
+            ):
+                raise AddAnotherDependencyException(
+                    "Cannot add managed condition that depends on an add another question",
+                    managed.referenced_question,
+                    referenced_question,
+                )
 
         cr = ComponentReference(
             component=expression.question,

@@ -536,24 +536,40 @@ class FormRunner:
     @property
     def runner_evaluation_context(self) -> "ExpressionContext":
         if self.add_another_index is not None and self.component and self.component.add_another_container:
-            return self.submission.cached_evaluation_context.with_add_another_context(
+            eval_context = self.submission.cached_evaluation_context.with_add_another_context(
                 self.component,
                 submission_helper=self.submission,
                 add_another_index=self.add_another_index,
                 allow_new_index=True,
             )
+            if self.component.add_another_container.add_another_iterate_ref:
+                eval_context = eval_context.with_referenced_add_another_context(
+                    self.component,
+                    submission_helper=self.submission,
+                    add_another_index=self.add_another_index,
+                    allow_new_index=True,
+                )
+            return eval_context
         return self.submission.cached_evaluation_context
 
     @property
     def runner_interpolation_context(self) -> "ExpressionContext":
         if self.add_another_index is not None and self.component and self.component.add_another_container:
-            return self.submission.cached_interpolation_context.with_add_another_context(
+            interpolation_context = self.submission.cached_interpolation_context.with_add_another_context(
                 self.component,
                 submission_helper=self.submission,
                 add_another_index=self.add_another_index,
                 mode="interpolation",
                 allow_new_index=True,
             )
+            if self.component.add_another_container.add_another_iterate_ref:
+                interpolation_context = interpolation_context.with_referenced_add_another_context(
+                    self.component,
+                    submission_helper=self.submission,
+                    add_another_index=self.add_another_index,
+                    allow_new_index=True,
+                )
+            return interpolation_context
         return self.submission.cached_interpolation_context
 
 

@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, cast
 
+from app.common.qid import SafeQidMixin
+
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Component, Form, Group, Question
 
@@ -86,6 +88,13 @@ def get_referenceable_questions(
         )
 
     assert limit_to_components_before is not None
+    id_of_referenced_add_another_container = (
+        SafeQidMixin.safe_qid_to_id(current_component.add_another_container.add_another_iterate_ref)
+        if current_component
+        and current_component.add_another_container
+        and current_component.add_another_container.add_another_iterate_ref
+        else None
+    )
     questions = [
         q
         for q in questions
@@ -94,6 +103,7 @@ def get_referenceable_questions(
             and form.global_component_index(q) <= form.global_component_index(limit_to_components_before)
             and not questions_in_same_page_group(q, limit_to_components_before)
             and (questions_in_same_add_another_container(q, limit_to_components_before) or not q.add_another_container)
+            or (q.add_another_container and q.add_another_container.id == id_of_referenced_add_another_container)
         )
     ]
     return questions
