@@ -3,7 +3,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING, cast
 
 import markupsafe
-from flask import current_app, flash, g, url_for
+from flask import flash, g, url_for
 from flask_admin.actions import action
 from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.helpers import is_form_submitted
@@ -128,46 +128,6 @@ class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdmi
     form_args = {
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
     }
-
-    @action(  # type: ignore[untyped-decorator]
-        "revoke_all_permissions",
-        "Revoke all permissions",
-        "Are you sure you want to revoke all permissiosn for these users?",
-    )
-    def revoke_permissions(self, ids: list[str]) -> None:
-        if not self.can_edit:
-            flash("You do not have permission to do this", "error")
-            return
-
-        try:
-            roles_to_delete = self.session.scalars(select(UserRole).where(UserRole.user_id.in_(ids)))
-            for user_role in roles_to_delete:
-                audit_event = create_database_model_change_for_delete(user_role, get_current_user())
-                track_audit_event(self.session, audit_event, get_current_user())
-                db.session.delete(user_role)
-
-            self.session.commit()
-            current_app.logger.warning(
-                "%(name)s revoked all user permissions for user(s): %(user_ids)s",
-                dict(name=get_current_user().id, user_ids=", ".join(ids)),
-            )
-
-            count = len(ids)
-            flash(
-                ngettext(
-                    "All permissions were successfully revoked for the user.",
-                    "All permissions were successfully revoked for %(count)s users.",
-                    count,
-                    count=count,
-                ),
-                "success",
-            )
-
-        except IntegrityError:
-            flash(
-                "Failed to revoke permissions.",
-                "error",
-            )
 
 
 class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
