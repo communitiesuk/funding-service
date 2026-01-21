@@ -602,7 +602,10 @@ class AddGuidancePage(ReportsBasePage):
         self.bulleted_list_button = self.page.get_by_role("button", name="Add a bulleted list")
         self.numbered_list_button = self.page.get_by_role("button", name="Add a numbered list")
         self.guidance_heading_textbox = self.page.get_by_role("textbox", name="Give your page a heading")
-        self.guidance_body_textbox = self.page.get_by_role("textbox", name="Add guidance text")
+        self.guidance_body_textbox = self.page.locator(
+            ".app-context-aware-editor__editor-container",
+            has=self.page.get_by_role("textbox", name="Add guidance text"),
+        ).get_by_role("textbox", name="Add guidance text")
 
     def fill_guidance_heading(self, text: str) -> None:
         self.guidance_heading_textbox.fill(text)
