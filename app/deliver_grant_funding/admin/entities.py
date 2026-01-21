@@ -170,7 +170,17 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "type.value": "Type",
     }
 
-    form_columns = ["name", "slug", "type", "status", "requires_certification"]
+    form_columns = [
+        "name",
+        "slug",
+        "type",
+        "status",
+        "requires_certification",
+        "reporting_period_start_date",
+        "reporting_period_end_date",
+        "submission_period_start_date",
+        "submission_period_end_date",
+    ]
 
     def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # type: ignore[override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
