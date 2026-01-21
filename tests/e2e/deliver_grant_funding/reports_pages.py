@@ -1068,7 +1068,7 @@ class RunnerTasklistPage(ReportsBasePage):
         self.back_link = self.page.get_by_role("link", name="Back")
 
     def click_on_section(self, section_name: str) -> None:
-        self.page.get_by_role("link", name=section_name).click()
+        self.page.get_by_role("link", name=section_name, exact=True).click()
 
     def click_submit_for_preview(self) -> ReportSectionsPage:
         self.submit_button.click()
