@@ -51,6 +51,9 @@ const triggerAjaxMarkdownPreview = async () => {
                 clearErrorsFromField();
                 removeErrorClass();
             }
+            if (json.errors.length && !json.guidance_html) {
+                store.target.innerHTML = `<p>There was an error</p>`;
+            }
             addNotification("Preview updated.");
         } else {
             throw new Error("No endpoint set");

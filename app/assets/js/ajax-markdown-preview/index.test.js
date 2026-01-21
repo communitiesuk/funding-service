@@ -25,6 +25,10 @@ const jsonResponseWithError = {
     ],
 };
 
+const jsonResponseWithErrorAndNoHTML = {
+    errors: ["Guidance contains invalid syntax"],
+};
+
 const updateMarkdown = (markdownContent) => {
     source.value = markdownContent;
     const event = new window.Event("input");
@@ -236,6 +240,29 @@ describe("AJAX Markdown preview", () => {
                     ).toHaveLength(0);
                 });
             });
+        });
+    });
+
+    describe("when the request returns errors with no guidance HTML", () => {
+        beforeEach(() => {
+            global.fetch = mockFetch(jsonResponseWithErrorAndNoHTML);
+            setupDocument("# This is a level one heading");
+        });
+
+        test("a default error message is displayed for the preview", () => {
+            expect(target.innerHTML).toBe("<p>There was an error</p>");
+        });
+
+        test("an error message is displayed", () => {
+            expect(
+                document.querySelector(".govuk-error-message").textContent,
+            ).toBe(`Error: ${jsonResponseWithErrorAndNoHTML.errors[0]}`);
+        });
+
+        test("the form group has the error class", () => {
+            expect(
+                document.querySelectorAll(".govuk-form-group--error"),
+            ).toHaveLength(1);
         });
     });
 
