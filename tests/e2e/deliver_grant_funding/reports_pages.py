@@ -1506,25 +1506,29 @@ class AdminReportingLifecycleTasklistPage:
         self.collection_id = collection_id
 
     def navigate(self) -> None:
-        self.page.goto(f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}")
+        self.page.goto(
+            url=f"{self.domain}/deliver/admin/reporting-lifecycle/{str(self.grant_id)}/{str(self.collection_id)}"
+        )
 
     def click_task(self, task_name: str) -> None:
         self.page.get_by_role("link", name=re.compile(task_name)).click()
 
 
-class SetUpTestOrganisationsPage:
-    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+class SetUpOrganisationsPage:
+    def __init__(
+        self, page: Page, domain: str, grant_id: str, collection_id: str, heading: Locator | None = None
+    ) -> None:
         self.page = page
         self.domain = domain
         self.grant_id = grant_id
         self.collection_id = collection_id
-        self.heading = page.get_by_role("heading", name="Set up test organisations")
+        self.heading = heading or page.get_by_role("heading", name="Set up organisations")
         self.organisations_textarea = page.locator("textarea[name='organisations_data']")
         self.set_up_button = page.get_by_role("button", name="Set up organisations")
 
     def navigate(self) -> None:
         self.page.goto(
-            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/set-up-test-organisations"
+            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/set-up-organisations"
         )
         expect(self.heading).to_be_visible()
 
@@ -1533,17 +1537,41 @@ class SetUpTestOrganisationsPage:
 
     def click_set_up_organisations(self) -> "AdminReportingLifecycleTasklistPage":
         self.set_up_button.click()
+        expect(self.page.get_by_text("Created or updated 1 organisation")).to_be_visible()
+        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
+
+
+class SetUpTestOrganisationsPage(SetUpOrganisationsPage):
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+        super().__init__(
+            page=page,
+            domain=domain,
+            grant_id=grant_id,
+            collection_id=collection_id,
+            heading=page.get_by_role("heading", name="Set up test organisations"),
+        )
+
+    def navigate(self) -> None:
+        self.page.goto(
+            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/set-up-test-organisations"
+        )
+        expect(self.heading).to_be_visible()
+
+    def click_set_up_organisations(self) -> "AdminReportingLifecycleTasklistPage":
+        self.set_up_button.click()
         expect(self.page.get_by_text("Created or updated 1 test organisation")).to_be_visible()
         return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
-class SetUpTestGrantRecipientsPage:
-    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+class SetUpGrantRecipientsPage:
+    def __init__(
+        self, page: Page, domain: str, grant_id: str, collection_id: str, heading: Locator | None = None
+    ) -> None:
         self.page = page
         self.domain = domain
         self.grant_id = grant_id
         self.collection_id = collection_id
-        self.heading = page.get_by_role("heading", name="Set up test grant recipients")
+        self.heading = heading or page.get_by_role("heading", name="Set up grant recipients")
 
         self.grant_recipients_combobox = page.locator(".choices", has=page.locator(".choices__input#recipients"))
         expect(self.grant_recipients_combobox).to_be_visible()
@@ -1557,12 +1585,30 @@ class SetUpTestGrantRecipientsPage:
 
     def click_set_up_grant_recipients(self) -> "AdminReportingLifecycleTasklistPage":
         self.set_up_button.click()
+        expect(self.page.get_by_text("Created 1 grant recipient")).to_be_visible()
+        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
+
+
+class SetUpTestGrantRecipientsPage(SetUpGrantRecipientsPage):
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+        super().__init__(
+            page, domain, grant_id, collection_id, page.get_by_role("heading", name="Set up test grant recipients")
+        )
+
+    def click_set_up_grant_recipients(self) -> "AdminReportingLifecycleTasklistPage":
+        self.set_up_button.click()
         expect(self.page.get_by_text("Created 1 test grant recipient")).to_be_visible()
         return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
 class SetUpTestGrantRecipientUsersPage:
-    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_id: str,
+        collection_id: str,
+    ) -> None:
         self.page = page
         self.domain = domain
         self.grant_id = grant_id
@@ -1590,3 +1636,212 @@ class SetUpTestGrantRecipientUsersPage:
     def click_add_user(self) -> None:
         self.add_user_button.click()
         expect(self.page.get_by_text("Added")).to_be_visible()
+
+
+class SetUpDataProvidersPage:
+    def __init__(
+        self, page: Page, domain: str, grant_id: str, collection_id: str, heading: Locator | None = None
+    ) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = heading or page.get_by_role("heading", name="Set up grant recipient data providers")
+        self.users_textarea = page.locator("textarea[name='users_data']")
+        self.set_up_button = page.get_by_role("button", name="Set up data providers")
+
+    def navigate(self) -> None:
+        self.page.goto(
+            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/add-bulk-data-providers"
+        )
+        expect(self.heading).to_be_visible()
+
+    def fill_users_tsv_data(self, tsv_data: str) -> None:
+        self.users_textarea.fill(tsv_data)
+
+    def click_set_up_users(self) -> "AdminReportingLifecycleTasklistPage":
+        self.set_up_button.click()
+        expect(self.page.get_by_text("Successfully set up 1 grant recipient data provider.")).to_be_visible()
+        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
+
+
+class OverrideGrantRecipientCertifiersPage:
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_id: str,
+        collection_id: str,
+    ) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Override certifiers for this grant")
+
+        self.organisation_combo_box = page.locator(".choices", has=page.locator(".choices__input#organisation_id"))
+
+        self.user_full_name_box = page.get_by_role("textbox", name="Full name")
+        self.user_email_box = page.get_by_role("textbox", name="Email address")
+
+        self.add_certifer_button = page.get_by_role("button", name="Add grant-specific certifier")
+
+    def select_organisation(self, org_name: str) -> None:
+        self.organisation_combo_box.click()
+        self.page.get_by_role("option", name=org_name).click()
+
+    def complete_user_details(self, full_name: str, email: str) -> None:
+        self.user_full_name_box.fill(full_name)
+        self.user_email_box.fill(email)
+
+    def click_add_certifier(self) -> None:
+        self.add_certifer_button.click()
+        expect(self.page.get_by_text("Successfully added ")).to_be_visible()
+
+
+class SetReportingDatesPage:
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_id: str,
+        collection_id: str,
+    ) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Set reporting and submission dates")
+        self.save_dates_button = page.get_by_role("button", name="Save dates")
+
+    def complete_reporting_start_date(self, start_date: datetime.date) -> None:
+        ReportsBasePage.fill_in_date_fields(
+            self.page.get_by_role("group", name="Reporting period start date"),
+            start_date,
+        )
+
+    def complete_reporting_end_date(self, start_date: datetime.date) -> None:
+        ReportsBasePage.fill_in_date_fields(
+            self.page.get_by_role("group", name="Reporting period end date"),
+            start_date,
+        )
+
+    def complete_submission_start_date(self, start_date: datetime.date) -> None:
+        ReportsBasePage.fill_in_date_fields(
+            self.page.get_by_role("group", name="Submission period start date"),
+            start_date,
+        )
+
+    def complete_submission_end_date(self, start_date: datetime.date) -> None:
+        ReportsBasePage.fill_in_date_fields(
+            self.page.get_by_role("group", name="Submission period end date"),
+            start_date,
+        )
+
+    def click_save_dates(self, report_name: str) -> None:
+        self.save_dates_button.click()
+        expect(self.page.get_by_text(f"Updated dates for {report_name}.")).to_be_visible()
+
+    def set_dates_for_open_report(self):
+        now = datetime.datetime.now()
+        self.complete_reporting_start_date(now - datetime.timedelta(weeks=12))
+        self.complete_reporting_end_date(now - datetime.timedelta(weeks=8))
+        self.complete_submission_start_date(now - datetime.timedelta(days=15))
+        self.complete_submission_end_date(now + datetime.timedelta(days=15))
+
+
+class MarkAsOnboardingWithFundingServicePage:
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_id: str,
+        collection_id: str,
+    ) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Mark grant as onboarding with Funding Service")
+        self.mark_as_onboarding_button = page.get_by_role("button", name="Mark as onboarding")
+
+    def click_mark_as_onboarding(self) -> None:
+        self.mark_as_onboarding_button.click()
+        expect(self.page.get_by_text("is now marked as onboarding.")).to_be_visible()
+
+
+class SetPrivacyPolicyPage:
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_id: str,
+        collection_id: str,
+    ) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Set privacy policy")
+        self.save_button = page.get_by_role("button", name="Save privacy policy")
+
+    def fill_privacy_policy_markdown(self, privacy_policy: str) -> None:
+        self.page.get_by_role("textbox", name="Privacy policy markdown").fill(privacy_policy)
+
+    def click_save_privacy_policy(self) -> None:
+        self.save_button.click()
+        expect(self.page.get_by_text("Privacy policy updated for ")).to_be_visible()
+
+
+class GrantSettingsPage:
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_id: str,
+    ) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.heading = page.get_by_role("heading", name="Edit Grant")
+        self.status_dropdown = page.get_by_role("combobox", name="Status")
+        self.save_button = page.get_by_role("button", name="Save")
+
+    def navigate(self) -> None:
+        url_str = f"{self.domain}/deliver/admin/grant/edit/?id={self.grant_id}"
+        self.page.goto(url=url_str)
+        expect(self.heading).to_be_visible()
+
+    def select_grant_status(self, status: str) -> None:
+        self.status_dropdown.select_option(status)
+
+    def click_save(self) -> None:
+        self.save_button.click()
+        expect(self.page.get_by_text("Record was successfully saved.")).to_be_visible()
+
+
+class ReportSettingsPage:
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        collection_id: str,
+    ) -> None:
+        self.page = page
+        self.domain = domain
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Edit Collection")
+        self.status_dropdown = page.get_by_role("combobox", name="Status")
+        self.save_button = page.get_by_role("button", name="Save")
+
+    def navigate(self) -> None:
+        url_str = f"{self.domain}/deliver/admin/collection/edit/?id={self.collection_id}"
+        self.page.goto(url=url_str)
+        expect(self.heading).to_be_visible()
+
+    def select_collection_status(self, status: str) -> None:
+        self.status_dropdown.select_option(status)
+
+    def click_save(self) -> None:
+        self.save_button.click()
+        expect(self.page.get_by_text("Record was successfully saved.")).to_be_visible()
