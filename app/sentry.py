@@ -43,6 +43,8 @@ def init_sentry() -> None:
                 "enable_logs": True,
             },
             integrations=[
+                # Sentry automatically configures most integrations, eg Flask, so we only list overrides here
+                # https://docs.sentry.io/platforms/python/integrations/#available-integrations
                 LoggingIntegration(sentry_logs_level=None),
             ],
         )
