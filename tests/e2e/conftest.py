@@ -98,7 +98,9 @@ def context(
 
 @pytest.fixture()
 def email(request: FixtureRequest) -> str:
-    return cast(str, request.node.get_closest_marker("authenticate_as", "funding-service-notify@communities.gov.uk"))
+    if marker := request.node.get_closest_marker("authenticate_as"):
+        return cast(str, marker.args[0])
+    return "funding-service-notify@communities.gov.uk"
 
 
 @pytest.fixture()
