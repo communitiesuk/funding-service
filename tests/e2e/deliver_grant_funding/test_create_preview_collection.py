@@ -740,14 +740,7 @@ def task_check_your_answers(
 ):
     check_your_answers_page = RunnerCheckYourAnswersPage(tasklist_page.page, tasklist_page.domain, grant_name)
 
-    def _assert_check_your_answers(questions_to_check: list[TQuestionToTest]):
-        for question_to_check in questions_to_check:
-            if question_to_check["type"] == "group":
-                _assert_check_your_answers(question_to_check["questions"])
-            else:
-                assert_check_your_answers(check_your_answers_page, question_to_check)
-
-    _assert_check_your_answers(list(questions_to_test.values()))
+    assert_check_your_answer_for_all_questions(list(questions_to_test.values()), check_your_answers_page)
 
     expect(check_your_answers_page.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
 
@@ -815,12 +808,14 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
         )
 
 
-def assert_check_your_answer_for_all_questions(questions_to_check: list[TQuestionToTest], report_answers_list: Locator):
+def assert_check_your_answer_for_all_questions(
+    questions_to_check: list[TQuestionToTest], check_your_answers_page: RunnerCheckYourAnswersPage
+) -> None:
     for question_to_check in questions_to_check:
         if question_to_check["type"] == "group":
-            assert_check_your_answer_for_all_questions(question_to_check["questions"], report_answers_list)
+            assert_check_your_answer_for_all_questions(question_to_check["questions"], check_your_answers_page)
         else:
-            assert_check_your_answer_for_question(question_to_check, report_answers_list)
+            assert_check_your_answers(check_your_answers_page, question_to_check)
 
 
 def assert_check_your_answer_for_question(question: TQuestionToTest, answers_list: Locator) -> None:
