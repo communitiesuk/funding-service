@@ -29,7 +29,7 @@ from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import MHCLGApproximateDateInput
-from app.common.safe_ids import SafeQuestionIdMixin
+from app.common.safe_ids import SafeCollectionIdMixin, SafeQuestionIdMixin
 from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import TRadioItem
 
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from app.common.expressions.forms import _ManagedExpressionForm
 
 
-class ManagedExpression(SafeQuestionIdMixin, BaseModel):
+class ManagedExpression(SafeQuestionIdMixin, SafeCollectionIdMixin, BaseModel):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
     name: ClassVar[ManagedExpressionsEnum]
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
@@ -47,6 +47,7 @@ class ManagedExpression(SafeQuestionIdMixin, BaseModel):
 
     _key: ManagedExpressionsEnum
     question_id: UUID
+    collection_id: UUID | None = None  # type: ignore[assignment]
 
     @property
     @abc.abstractmethod
@@ -194,6 +195,7 @@ class ManagedExpression(SafeQuestionIdMixin, BaseModel):
             def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "GreaterThan":
                 return GreaterThan(
                     question_id=question.id,
+                    collection_id=question.form.collection_id,
                     minimum_value=form.greater_than_value.data,
                     inclusive=form.greater_than_inclusive.data,
                 )
@@ -238,6 +240,8 @@ class GreaterThan(ManagedExpression):
 
     question_id: UUID
     minimum_value: int | None
+    # TODO: Once this is no longer optional, bump back up to sit below question_id
+    collection_id: UUID | None = None
     minimum_expression: str | None = None
     inclusive: bool = False
 
@@ -310,6 +314,7 @@ class GreaterThan(ManagedExpression):
     ) -> GreaterThan:
         return GreaterThan(
             question_id=question.id,
+            collection_id=question.form.collection_id,
             minimum_value=form.greater_than_value.data if not form.greater_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             minimum_expression=form.greater_than_expression.data if form.greater_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.greater_than_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -329,6 +334,8 @@ class LessThan(ManagedExpression):
 
     question_id: UUID
     maximum_value: int | None
+    # TODO: Once this is no longer optional, bump back up to sit below question_id
+    collection_id: UUID | None = None
     maximum_expression: str | None = None
     inclusive: bool = False
 
@@ -399,6 +406,7 @@ class LessThan(ManagedExpression):
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> LessThan:
         return LessThan(
             question_id=question.id,
+            collection_id=question.form.collection_id,
             maximum_value=form.less_than_value.data if not form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             maximum_expression=form.less_than_expression.data if form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.less_than_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -418,9 +426,11 @@ class Between(ManagedExpression):
 
     question_id: UUID
     minimum_value: int | None
+    maximum_value: int | None
+    # TODO: Once this is no longer optional, bump back up to sit below question_id
+    collection_id: UUID | None = None
     minimum_expression: str | None = None
     minimum_inclusive: bool = False
-    maximum_value: int | None
     maximum_expression: str | None = None
     maximum_inclusive: bool = False
 
@@ -534,6 +544,7 @@ class Between(ManagedExpression):
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> Between:
         return Between(
             question_id=question.id,
+            collection_id=question.form.collection_id,
             minimum_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
             if not form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             else None,
@@ -567,6 +578,7 @@ class AnyOf(BaseDataSourceManagedExpression):
 
     question_id: UUID
     items: list[TRadioItem]
+    collection_id: UUID | None = None  # type: ignore[assignment]
 
     @property
     def description(self) -> str:
@@ -613,6 +625,7 @@ class AnyOf(BaseDataSourceManagedExpression):
         items = [TRadioItem(key=key, label=item_labels[key]) for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
         return AnyOf(
             question_id=question.id,
+            collection_id=question.form.collection_id,
             items=items,
         )
 
@@ -631,6 +644,7 @@ class IsYes(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID | None = None
 
     @property
     def description(self) -> str:
@@ -654,7 +668,7 @@ class IsYes(ManagedExpression):
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsYes:
-        return IsYes(question_id=question.id)
+        return IsYes(question_id=question.id, collection_id=question.form.collection_id)
 
 
 @register_managed_expression
@@ -667,6 +681,7 @@ class IsNo(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID | None = None
 
     @property
     def description(self) -> str:
@@ -690,7 +705,7 @@ class IsNo(ManagedExpression):
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsNo:
-        return IsNo(question_id=question.id)
+        return IsNo(question_id=question.id, collection_id=question.form.collection_id)
 
 
 @register_managed_expression
@@ -704,6 +719,8 @@ class Specifically(BaseDataSourceManagedExpression):
 
     question_id: UUID
     item: TRadioItem
+    # TODO: Once this is no longer optional, bump back up to sit below question_id
+    collection_id: UUID | None = None  # type: ignore[assignment]
 
     @property
     def description(self) -> str:
@@ -743,7 +760,7 @@ class Specifically(BaseDataSourceManagedExpression):
         item_labels = {item.key: item.label for item in question.data_source.items}
         selected_key = form.specifically.data  # ty: ignore[unresolved-attribute]
         item: TRadioItem = {"key": selected_key, "label": item_labels[selected_key]}
-        return Specifically(question_id=question.id, item=item)
+        return Specifically(question_id=question.id, collection_id=question.form.collection_id, item=item)
 
     @property
     def referenced_data_source_items(self) -> list[TRadioItem]:
@@ -763,6 +780,8 @@ class IsBefore(ManagedExpression):
 
     question_id: UUID
     latest_value: datetime.date | None
+    # TODO: Once this is no longer optional, bump back up to sit below question_id
+    collection_id: UUID | None = None
     latest_expression: str | None = None
     inclusive: bool = False
 
@@ -847,6 +866,7 @@ class IsBefore(ManagedExpression):
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsBefore:
         return IsBefore(
             question_id=question.id,
+            collection_id=question.form.collection_id,
             latest_value=form.latest_value.data if not form.latest_expression.data else None,  # ty: ignore[unresolved-attribute]
             latest_expression=form.latest_expression.data if form.latest_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.latest_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -879,6 +899,8 @@ class IsAfter(ManagedExpression):
 
     question_id: UUID
     earliest_value: datetime.date | None
+    # TODO: Once this is no longer optional, bump back up to sit below question_id
+    collection_id: UUID | None = None
     earliest_expression: str | None = None
     inclusive: bool = False
 
@@ -961,6 +983,7 @@ class IsAfter(ManagedExpression):
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsAfter:
         return IsAfter(
             question_id=question.id,
+            collection_id=question.form.collection_id,
             earliest_value=form.earliest_value.data if not form.earliest_expression.data else None,  # ty: ignore[unresolved-attribute]
             earliest_expression=form.earliest_expression.data if form.earliest_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.earliest_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -993,6 +1016,8 @@ class BetweenDates(ManagedExpression):
 
     question_id: UUID
     earliest_value: datetime.date | None
+    # TODO: Once this is no longer optional, bump back up to sit below question_id
+    collection_id: UUID | None = None
     earliest_expression: str | None = None
     earliest_inclusive: bool = False
     latest_value: datetime.date | None
@@ -1141,6 +1166,7 @@ class BetweenDates(ManagedExpression):
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> BetweenDates:
         return BetweenDates(
             question_id=question.id,
+            collection_id=question.form.collection_id,
             earliest_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
             if not form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             else None,
@@ -1184,6 +1210,8 @@ class UKPostcode(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    # TODO: Once this is no longer optional, bump back up to sit below question_id
+    collection_id: UUID | None = None
 
     @property
     def description(self) -> str:
@@ -1218,7 +1246,7 @@ class UKPostcode(ManagedExpression):
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> UKPostcode:
-        return UKPostcode(question_id=question.id)
+        return UKPostcode(question_id=question.id, collection_id=question.form.collection_id)
 
 
 def get_managed_expression(expression: Expression) -> ManagedExpression:
