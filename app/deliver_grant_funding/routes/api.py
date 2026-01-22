@@ -37,17 +37,25 @@ def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
     if form.validate_on_submit():
         interpolate = SubmissionHelper.get_interpolator(collection)
 
-        # NOTE: `interpolate(with_interpolation_highlighting=True)` returns HTML that must be known-good (ie escaped)
-        #       suitable for inserting straight into the DOM.
-        return jsonify(
-            PreviewGuidanceSuccessResponse(
-                guidance_html=interpolate(
-                    current_app.extensions["govuk_markdown"].convert(form.guidance.data),
-                    with_interpolation_highlighting=True,  # type: ignore[call-arg]
-                )
-            ).model_dump(mode="json")
-        ), 200
-
+        try:
+            # NOTE: `interpolate(with_interpolation_highlighting=True)` returns HTML that must be known-good
+            #       (ie escaped) suitable for inserting straight into the DOM.
+            return jsonify(
+                PreviewGuidanceSuccessResponse(
+                    guidance_html=interpolate(
+                        current_app.extensions["govuk_markdown"].convert(form.guidance.data),
+                        with_interpolation_highlighting=True,  # type: ignore[call-arg]
+                    )
+                ).model_dump(mode="json")
+            ), 200
+        except SyntaxError:
+            current_app.logger.warning(
+                "Guidance contains invalid syntax %(guidance_text)s",
+                {"guidance_text": form.guidance.data},
+            )
+            return jsonify(
+                PreviewGuidanceBadRequestResponse(errors=["Guidance contains invalid syntax"]).model_dump(mode="json")
+            ), 400
     return jsonify(
         PreviewGuidanceBadRequestResponse(
             errors=[error for error in itertools.chain.from_iterable(form.errors.values())]
