@@ -732,13 +732,14 @@ class Expression(BaseModel):
     def from_managed(
         cls,
         managed_expression: ManagedExpression,
+        expression_type: ExpressionType,
         created_by: User,
     ) -> Expression:
         return Expression(
             statement=managed_expression.statement,
             context=managed_expression.model_dump(mode="json"),
             created_by=created_by,
-            type_=ExpressionType.CONDITION,
+            type_=expression_type,
             managed_name=managed_expression._key,
         )
 

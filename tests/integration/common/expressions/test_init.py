@@ -64,7 +64,11 @@ class TestEvaluatingManagedExpressions:
         q0 = factories.question.create()
         question = factories.question.create(
             form=q0.form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q0.id, minimum_value=3000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q0.id, minimum_value=3000), ExpressionType.CONDITION, user
+                )
+            ],
         )
 
         expr = question.expressions[0]
@@ -91,7 +95,9 @@ class TestEvaluatingManagedExpressions:
             data_type=QuestionDataType.INTEGER,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=qid, minimum_value=None, minimum_expression=f"(({q0.safe_qid}))"), user
+                    GreaterThan(question_id=qid, minimum_value=None, minimum_expression=f"(({q0.safe_qid}))"),
+                    ExpressionType.CONDITION,
+                    user,
                 )  # Double brackets should be ignored by the evaluation engine
             ],
         )
@@ -126,6 +132,7 @@ class TestEvaluatingManagedExpressions:
                         earliest_expression=f"(({q0.safe_qid}))",
                         latest_expression=f"(({q1.safe_qid}))",
                     ),
+                    ExpressionType.CONDITION,
                     user,
                 )  # Double brackets should be ignored by the evaluation engine
             ],

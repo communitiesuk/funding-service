@@ -50,6 +50,7 @@ from app.common.data.types import (
     AuditEventType,
     CollectionType,
     ConditionsOperator,
+    ExpressionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
@@ -259,7 +260,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             data_type=QuestionDataType.INTEGER,
             text="What size pack of teabags do you usually buy?",
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=30), _UserFactory.create())
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=30), ExpressionType.CONDITION, _UserFactory.create()
+                )
             ],
         )
         q3 = _QuestionFactory.create(
@@ -322,7 +325,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             data_type=QuestionDataType.YES_NO,
             text="Do you buy teabags in bulk?",
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=30), _UserFactory.create())
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=30), ExpressionType.CONDITION, _UserFactory.create()
+                )
             ],
         )
         q3 = _QuestionFactory.create(
@@ -352,6 +357,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                             )
                         ],
                     ),
+                    ExpressionType.CONDITION,
                     _UserFactory.create(),
                 )
             ],
@@ -375,6 +381,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                             TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
                         ),
                     ),
+                    ExpressionType.CONDITION,
                     _UserFactory.create(),
                 )
             ],
