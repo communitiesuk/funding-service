@@ -621,7 +621,13 @@ class TestComponentReferenceModel:
         q1 = factories.question.create()
         factories.question.create(
             form=q1.form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         with pytest.raises(IntegrityError) as e:
@@ -636,7 +642,13 @@ class TestComponentReferenceModel:
         q1 = factories.question.create()
         q2 = factories.question.create(
             form=q1.form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         db_session.delete(q2.expressions[0])
@@ -658,7 +670,8 @@ class TestComponentReferenceModel:
                             "label": q1.data_source.items[0].label,
                         },
                     ),
-                    created_by=user,
+                    ExpressionType.CONDITION,
+                    user,
                 ),
             ],
         )
@@ -684,7 +697,8 @@ class TestComponentReferenceModel:
                             "label": q1.data_source.items[0].label,
                         },
                     ),
-                    created_by=user,
+                    ExpressionType.CONDITION,
+                    user,
                 ),
             ],
         )

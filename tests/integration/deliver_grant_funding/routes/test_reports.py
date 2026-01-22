@@ -846,7 +846,9 @@ class TestChangeGroupDisplayOptions:
             form=db_form,
             parent=db_group,
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=db_question1.id, minimum_value=1000), db_user)
+                Expression.from_managed(
+                    GreaterThan(question_id=db_question1.id, minimum_value=1000), ExpressionType.CONDITION, db_user
+                )
             ],
         )
 
@@ -1476,7 +1478,11 @@ class TestListGroupQuestions:
         factories.question.create(
             form=form,
             order=1,
-            expressions=[Expression.from_managed(GreaterThan(question_id=question.id, minimum_value=1000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=question.id, minimum_value=1000), ExpressionType.CONDITION, user
+                )
+            ],
         )
 
         response = authenticated_grant_admin_client.get(
@@ -2963,6 +2969,7 @@ class TestEditQuestion:
                             {"key": q1.data_source.items[0].key, "label": q1.data_source.items[0].label},
                         ],
                     ),
+                    ExpressionType.CONDITION,
                     factories.user.create(),
                 )
             ],
@@ -3031,6 +3038,7 @@ class TestEditQuestion:
             expressions=[
                 Expression.from_managed(
                     GreaterThan(question_id=q1.id, minimum_value=100),
+                    ExpressionType.CONDITION,
                     factories.user.create(),
                 )
             ],
