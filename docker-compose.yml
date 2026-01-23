@@ -30,11 +30,12 @@ services:
       bash -c "
       cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
       update-ca-certificates && \
-      SEED_SYSTEM_DATA=false uv run flask db upgrade && \
-      uv run flask developers seed-grants
+      uv sync && \
+      SEED_SYSTEM_DATA=false flask db upgrade && \
+      flask developers seed-grants
 
       npm run dev -- --host &
-      PYDEVD_DISABLE_FILE_VALIDATION=1 python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
+      PYDEVD_DISABLE_FILE_VALIDATION=1 uv run python -m watchdog.watchmedo auto-restart --directory=./app --patterns='*.py' --recursive -- python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --no-reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     env_file: .env
     environment:
@@ -72,9 +73,10 @@ services:
     command: >
       bash -c "
       cp /app/certs/rootCA.pem /usr/local/share/ca-certificates/rootCA.crt && \
-      update-ca-certificates
+      update-ca-certificates && \
+      uv sync && \
 
-      uv run python -m debugpy --listen 0.0.0.0:4006 -m flask run --host 0.0.0.0 --port 4005 --reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
+      PYDEVD_DISABLE_FILE_VALIDATION=1 uv run python -m watchdog.watchmedo auto-restart --directory=./stubs --patterns='*.py' --recursive -- python -m debugpy --listen 0.0.0.0:4006 -m flask run --host 0.0.0.0 --port 4005 --no-reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     environment:
       FLASK_APP: "stubs.sso:create_sso_stub_app"

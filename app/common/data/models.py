@@ -1,7 +1,8 @@
 import datetime
 import uuid
+from collections.abc import Callable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any
 
 from flask import current_app
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, and_, or_, select, text
@@ -54,12 +55,12 @@ class Grant(BaseModel):
         ForeignKey("organisation.id"), nullable=True
     )  # TODO: make non-nullable
 
-    collections: Mapped[list["Collection"]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
-    organisation: Mapped["Organisation"] = relationship("Organisation", back_populates="grants")
-    grant_recipients: Mapped[list["GrantRecipient"]] = relationship("GrantRecipient", back_populates="grant")
+    collections: Mapped[list[Collection]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
+    organisation: Mapped[Organisation] = relationship("Organisation", back_populates="grants")
+    grant_recipients: Mapped[list[GrantRecipient]] = relationship("GrantRecipient", back_populates="grant")
     privacy_policy_markdown: Mapped[str | None]
 
-    invitations: Mapped[list["Invitation"]] = relationship(
+    invitations: Mapped[list[Invitation]] = relationship(
         "Invitation",
         back_populates="grant",
         viewonly=True,
@@ -67,7 +68,7 @@ class Grant(BaseModel):
 
     # This is specifically people granted *explicit* access to this specific grant, not just anyone with more
     # generalised access to the grant (eg org and platform admins)
-    grant_team_users: Mapped[list["User"]] = relationship(
+    grant_team_users: Mapped[list[User]] = relationship(
         "User",
         secondary="user_role",
         primaryjoin="Grant.id==UserRole.grant_id",
@@ -77,11 +78,11 @@ class Grant(BaseModel):
     )
 
     @property
-    def reports(self) -> list["Collection"]:
+    def reports(self) -> list[Collection]:
         return [collection for collection in self.collections if collection.type == CollectionType.MONITORING_REPORT]
 
     @property
-    def test_grant_recipients(self) -> list["GrantRecipient"]:
+    def test_grant_recipients(self) -> list[GrantRecipient]:
         return [
             grant_recipient
             for grant_recipient in self.grant_recipients
@@ -89,8 +90,8 @@ class Grant(BaseModel):
         ]
 
     def get_access_reports_for_user(
-        self, user: "User | None" = None, *, user_organisation: "Organisation | None" = None
-    ) -> list["Collection"]:
+        self, user: User | None = None, *, user_organisation: Organisation | None = None
+    ) -> list[Collection]:
         """Get reports visible to Access users, with special handling for testing.
 
         Args:
@@ -119,7 +120,7 @@ class Grant(BaseModel):
         )
 
     @property
-    def access_reports(self) -> list["Collection"]:
+    def access_reports(self) -> list[Collection]:
         """Backward compatibility - uses regular Access user filtering."""
         return self.get_access_reports_for_user(user=None)
 
@@ -153,10 +154,10 @@ class Organisation(BaseModel):
     can_manage_grants: Mapped[bool] = mapped_column(default=False)
     mode: Mapped[OrganisationModeEnum] = mapped_column(default=OrganisationModeEnum.LIVE)
 
-    roles: Mapped[list["UserRole"]] = relationship(
+    roles: Mapped[list[UserRole]] = relationship(
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
     )
-    grants: Mapped[list["Grant"]] = relationship("Grant", back_populates="organisation")
+    grants: Mapped[list[Grant]] = relationship("Grant", back_populates="organisation")
 
     __table_args__ = (
         # NOTE: make it so that only a single organisation can manage grants in the platform at the moment. When we come
@@ -211,14 +212,14 @@ class Collection(SafeCollectionIdMixin, BaseModel):
     requires_certification: Mapped[bool | None]
 
     # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
-    _submissions: Mapped[list["Submission"]] = relationship(
+    _submissions: Mapped[list[Submission]] = relationship(
         "Submission",
         lazy=True,
         order_by="Submission.created_at_utc",
         back_populates="collection",
         cascade="all, delete-orphan",
     )
-    forms: Mapped[OrderingList["Form"]] = relationship(
+    forms: Mapped[OrderingList[Form]] = relationship(
         "Form",
         lazy=True,
         order_by="Form.order",
@@ -241,15 +242,15 @@ class Collection(SafeCollectionIdMixin, BaseModel):
         return self.id
 
     @property
-    def preview_submissions(self) -> list["Submission"]:
+    def preview_submissions(self) -> list[Submission]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.PREVIEW)
 
     @property
-    def test_submissions(self) -> list["Submission"]:
+    def test_submissions(self) -> list[Submission]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.TEST)
 
     @property
-    def live_submissions(self) -> list["Submission"]:
+    def live_submissions(self) -> list[Submission]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
 
     @property
@@ -283,14 +284,14 @@ class Submission(SafeCollectionIdMixin, BaseModel):
     collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
     collection: Mapped[Collection] = relationship("Collection")
 
-    events: Mapped[list["SubmissionEvent"]] = relationship(
+    events: Mapped[list[SubmissionEvent]] = relationship(
         "SubmissionEvent",
         back_populates="submission",
         cascade="all, delete-orphan",
         order_by="desc(SubmissionEvent.created_at_utc)",
     )
     created_by: Mapped[User] = relationship("User", back_populates="submissions")
-    grant_recipient: Mapped["GrantRecipient"] = relationship("GrantRecipient", back_populates="submissions")
+    grant_recipient: Mapped[GrantRecipient] = relationship("GrantRecipient", back_populates="submissions")
 
     __table_args__ = (
         CheckConstraint(
@@ -322,7 +323,7 @@ class Form(BaseModel):
     # support fetching all of a forms components so that the selectin loading strategy can make one
     # round trip to the database to optimise this further only load components flat like this and
     # manage nesting through properties rather than subsequent declarative queries
-    _all_components: Mapped[OrderingList["Component"]] = relationship(
+    _all_components: Mapped[OrderingList[Component]] = relationship(
         "Component",
         viewonly=True,
         order_by="Component.order",
@@ -330,7 +331,7 @@ class Form(BaseModel):
         cascade="all, save-update, merge",
     )
 
-    components: Mapped[OrderingList["Component"]] = relationship(
+    components: Mapped[OrderingList[Component]] = relationship(
         "Component",
         order_by="Component.order",
         collection_class=ordering_list("order"),
@@ -339,19 +340,19 @@ class Form(BaseModel):
     )
 
     @cached_property
-    def cached_questions(self) -> list["Question"]:
+    def cached_questions(self) -> list[Question]:
         """Consistently returns all questions in the form, respecting order and any level of nesting."""
         return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
 
     @cached_property
-    def cached_all_components(self) -> list["Component"]:
+    def cached_all_components(self) -> list[Component]:
         return get_ordered_nested_components(self.components)
 
-    def global_component_index(self, component: "Component") -> int:
+    def global_component_index(self, component: Component) -> int:
         return self.cached_all_components.index(component)
 
 
-def get_ordered_nested_components(components: list["Component"]) -> list["Component"]:
+def get_ordered_nested_components(components: list[Component]) -> list[Component]:
     """Recursively collects all components from a list of components, including nested components."""
     flat_components = []
     ordered_components = sorted(components, key=lambda c: c.order)
@@ -368,8 +369,8 @@ class Component(BaseModel):
     text: Mapped[CIStr]
     slug: Mapped[str]
     order: Mapped[int]
-    hint: Mapped[Optional[str]]
-    data_type: Mapped[Optional[QuestionDataType]] = mapped_column(
+    hint: Mapped[str | None]
+    data_type: Mapped[QuestionDataType | None] = mapped_column(
         SqlEnum(
             QuestionDataType,
             name="question_data_type_enum",
@@ -384,10 +385,10 @@ class Component(BaseModel):
     type: Mapped[ComponentType] = mapped_column(
         SqlEnum(ComponentType, name="component_type_enum", validate_strings=True), default=ComponentType.QUESTION
     )
-    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("component.id"))
-    guidance_heading: Mapped[Optional[str]]
-    guidance_body: Mapped[Optional[str]]
-    add_another_guidance_body: Mapped[Optional[str]]
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"))
+    guidance_heading: Mapped[str | None]
+    guidance_body: Mapped[str | None]
+    add_another_guidance_body: Mapped[str | None]
     add_another: Mapped[bool] = mapped_column(default=False)
     conditions_operator: Mapped[ConditionsOperator] = mapped_column(
         SqlEnum(ConditionsOperator, name="conditions_operator_enum", validate_strings=True),
@@ -400,14 +401,14 @@ class Component(BaseModel):
     form: Mapped[Form] = relationship("Form", back_populates="components")
 
     # todo: decide if these should be lazy loaded, eagerly joined or eagerly selectin
-    expressions: Mapped[list["Expression"]] = relationship(
+    expressions: Mapped[list[Expression]] = relationship(
         "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
     )
-    data_source: Mapped["DataSource"] = relationship(
+    data_source: Mapped[DataSource] = relationship(
         "DataSource", cascade="all, delete-orphan", back_populates="question"
     )
-    parent: Mapped["Group"] = relationship("Component", remote_side="Component.id", back_populates="components")
-    components: Mapped[OrderingList["Component"]] = relationship(
+    parent: Mapped[Group] = relationship("Component", remote_side="Component.id", back_populates="components")
+    components: Mapped[OrderingList[Component]] = relationship(
         "Component",
         back_populates="parent",
         cascade="all, save-update, merge",
@@ -415,7 +416,7 @@ class Component(BaseModel):
         collection_class=ordering_list("order"),
     )
 
-    owned_component_references: Mapped[list["ComponentReference"]] = relationship(
+    owned_component_references: Mapped[list[ComponentReference]] = relationship(
         "ComponentReference",
         back_populates="component",
         cascade="all, delete-orphan",
@@ -426,7 +427,7 @@ class Component(BaseModel):
             ComponentReference._sort_order,
         ),
     )
-    depended_on_by: Mapped[list["ComponentReference"]] = relationship(
+    depended_on_by: Mapped[list[ComponentReference]] = relationship(
         "ComponentReference",
         back_populates="depends_on_component",
         # explicitly disable cascading deletes so that ComponentReference can protect the Component
@@ -440,21 +441,21 @@ class Component(BaseModel):
     )
 
     @property
-    def conditions(self) -> list["Expression"]:
+    def conditions(self) -> list[Expression]:
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.CONDITION]
 
     @property
-    def validations(self) -> list["Expression"]:
+    def validations(self) -> list[Expression]:
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.VALIDATION]
 
-    def get_expression(self, id: uuid.UUID) -> "Expression":
+    def get_expression(self, id: uuid.UUID) -> Expression:
         try:
             return next(expression for expression in self.expressions if expression.id == id)
         except StopIteration as e:
             raise ValueError(f"Could not find an expression with id={id} in question={self.id}") from e
 
     @property
-    def container(self) -> Union["Group", "Form"]:
+    def container(self) -> Group | Form:
         return self.parent or self.form
 
     @property
@@ -480,7 +481,7 @@ class Component(BaseModel):
     # todo: this returns a question or a group or none and the types should reflect that
     #       the cleanest way to do this is probably to implement it on question and group models separately
     @property
-    def add_another_container(self) -> "Component | None":
+    def add_another_container(self) -> Component | None:
         if self.add_another:
             return self
 
@@ -589,11 +590,11 @@ class Group(Component):
 
     # todo: rename to something that makes it clear this is processed, something like all_nested_questions
     @cached_property
-    def cached_questions(self) -> list["Question"]:
+    def cached_questions(self) -> list[Question]:
         return [q for q in get_ordered_nested_components(self.components) if isinstance(q, Question)]
 
     @cached_property
-    def cached_all_components(self) -> list["Component"]:
+    def cached_all_components(self) -> list[Component]:
         return get_ordered_nested_components(self.components)
 
     @property
@@ -605,7 +606,7 @@ class Group(Component):
         return any([q for q in self.components if q.is_group])
 
     @classmethod
-    def _count_nested_group_levels(cls, group: "Group") -> int:
+    def _count_nested_group_levels(cls, group: Group) -> int:
         if not group.parent:
             return 0
         return 1 + group._count_nested_group_levels(group=group.parent)
@@ -641,7 +642,7 @@ class Group(Component):
         return bool(depended_on_outside_of_group_context)
 
     @property
-    def questions_in_add_another_summary(self) -> list["Question"]:
+    def questions_in_add_another_summary(self) -> list[Question]:
         if not self.add_another:
             return []
         if self.presentation_options.add_another_summary_line_question_ids:
@@ -683,7 +684,7 @@ class Expression(BaseModel):
         "type", SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)
     )
 
-    managed_name: Mapped[Optional[ManagedExpressionsEnum]] = mapped_column(
+    managed_name: Mapped[ManagedExpressionsEnum | None] = mapped_column(
         SqlEnum(ManagedExpressionsEnum, name="managed_expression_enum", validate_strings=True, nullable=True)
     )
 
@@ -693,7 +694,7 @@ class Expression(BaseModel):
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     created_by: Mapped[User] = relationship("User")
 
-    component_references: Mapped[list["ComponentReference"]] = relationship(
+    component_references: Mapped[list[ComponentReference]] = relationship(
         "ComponentReference",
         back_populates="expression",
         cascade="all, delete-orphan",
@@ -724,15 +725,15 @@ class Expression(BaseModel):
         return bool(self.managed_name)
 
     @property
-    def managed(self) -> "ManagedExpression":
+    def managed(self) -> ManagedExpression:
         return get_managed_expression(self)
 
     @classmethod
     def from_managed(
         cls,
-        managed_expression: "ManagedExpression",
-        created_by: "User",
-    ) -> "Expression":
+        managed_expression: ManagedExpression,
+        created_by: User,
+    ) -> Expression:
         return Expression(
             statement=managed_expression.statement,
             context=managed_expression.model_dump(mode="json"),
@@ -742,7 +743,7 @@ class Expression(BaseModel):
         )
 
     @property
-    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
         if self.managed_name:
             return self.managed.required_functions
 
@@ -756,7 +757,7 @@ class DataSource(BaseModel):
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
     question: Mapped[Question] = relationship("Question", back_populates="data_source", uselist=False)
 
-    items: Mapped[list["DataSourceItem"]] = relationship(
+    items: Mapped[list[DataSourceItem]] = relationship(
         "DataSourceItem",
         back_populates="data_source",
         order_by="DataSourceItem.order",
@@ -779,7 +780,7 @@ class DataSourceItem(BaseModel):
     label: Mapped[str]
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="items", uselist=False)
-    component_references: Mapped[list["ComponentReference"]] = relationship(
+    component_references: Mapped[list[ComponentReference]] = relationship(
         "ComponentReference",
         back_populates="depends_on_data_source_item",
         # explicitly disable cascading deletes so that ComponentReference can protect the DataSourceItems

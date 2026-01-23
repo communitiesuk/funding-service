@@ -263,7 +263,7 @@ class AuthorisationHelper:
 
     @staticmethod
     def is_deliver_user_testing_access(
-        user: User | AnonymousUserMixin, *, user_organisation: "Organisation | None" = None
+        user: User | AnonymousUserMixin, *, user_organisation: Organisation | None = None
     ) -> bool:
         if not AuthorisationHelper.is_deliver_grant_funding_user(user):
             return False

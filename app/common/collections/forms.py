@@ -1,6 +1,7 @@
 from collections import defaultdict
+from collections.abc import Callable, Mapping
 from functools import partial
-from typing import Any, Callable, Mapping, cast
+from typing import Any, cast
 
 from flask import current_app
 from flask_wtf import FlaskForm

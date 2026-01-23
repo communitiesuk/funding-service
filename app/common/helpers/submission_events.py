@@ -104,25 +104,25 @@ class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
 # Combines metadata about who has been doing the events and the event properties themselves
 @dataclass
 class SentForCertificationMetadata:
-    sent_for_certification_by: "User | None" = None
+    sent_for_certification_by: User | None = None
     sent_for_certification_at_utc: datetime | None = None
 
 
 @dataclass
 class CertifiedMetadata:
-    certified_by: "User | None" = None
-    certified_at_utc: "datetime | None" = None
+    certified_by: User | None = None
+    certified_at_utc: datetime | None = None
 
 
 @dataclass
 class CertificationDeclinedMetadata:
-    declined_by: "User | None" = None
-    declined_at_utc: "datetime | None" = None
+    declined_by: User | None = None
+    declined_at_utc: datetime | None = None
 
 
 @dataclass
 class SubmittedMetadata:
-    submitted_by: "User | None" = None
+    submitted_by: User | None = None
     submitted_at_utc: datetime | None = None
 
 
@@ -166,11 +166,11 @@ def _get_static_data(event_class: type[SubmissionEventBase]) -> dict[str, Any]:
 
 
 class SubmissionEventHelper:
-    def __init__(self, submission: "Submission"):
+    def __init__(self, submission: Submission):
         self.submission = submission
 
     @property
-    def events(self) -> list["SubmissionEvent"]:
+    def events(self) -> list[SubmissionEvent]:
         return sorted(self.submission.events, key=lambda x: x.created_at_utc, reverse=False)
 
     def form_state(self, form_id: UUID) -> FormState:
@@ -180,7 +180,7 @@ class SubmissionEventHelper:
     def submission_state(self) -> SubmissionState:
         return SubmissionState(**self._reduce([e for e in self.events if e.related_entity_id == self.submission.id]))
 
-    def _reduce(self, events: list["SubmissionEvent"]) -> dict[str, Any]:
+    def _reduce(self, events: list[SubmissionEvent]) -> dict[str, Any]:
         """
         An internal method to combine the full list of submission events into one snapshot
         representation, we take all of the data properties from each event in time order where
@@ -211,7 +211,7 @@ class SubmissionEventHelper:
 
         return state
 
-    def _extract_metadata(self, event: "SubmissionEvent") -> dict[str, Any]:
+    def _extract_metadata(self, event: SubmissionEvent) -> dict[str, Any]:
         """
         Pull out typed objects from the SubmissionEvent table that are associated with a given event.
 
@@ -269,7 +269,7 @@ class SubmissionEventHelper:
         return {k: v for k, v in kwargs.items() if k in stored_field_names}
 
 
-def shallow_asdict(obj: "DataclassInstance") -> dict[str, Any]:
+def shallow_asdict(obj: DataclassInstance) -> dict[str, Any]:
     """
     Avoid duplicating properties when using the default dataclass `asdict` method, when collecting
     metadata to build state we always want to reference ORM models and not recreate them.

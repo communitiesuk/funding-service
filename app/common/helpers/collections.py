@@ -1,11 +1,12 @@
 import csv
 import json
 import uuid
+from collections.abc import Callable
 from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, List, NamedTuple, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
 from flask import current_app
@@ -109,7 +110,7 @@ class SubmissionHelper:
     conditionals, routing, storing+retrieving data, etc in one place, consistently.
     """
 
-    def __init__(self, submission: "Submission"):
+    def __init__(self, submission: Submission):
         """
         Initialise the SubmissionHelper; the `submission` instance passed in should have been retrieved from the DB
         with the collection and related tables (eg form, question) eagerly loaded to prevent this helper from
@@ -137,13 +138,13 @@ class SubmissionHelper:
         )
 
     @classmethod
-    def load(cls, submission_id: uuid.UUID, *, grant_recipient_id: uuid.UUID | None = None) -> "SubmissionHelper":
+    def load(cls, submission_id: uuid.UUID, *, grant_recipient_id: uuid.UUID | None = None) -> SubmissionHelper:
         return cls(get_submission(submission_id, with_full_schema=True, grant_recipient_id=grant_recipient_id))
 
     @staticmethod
     def get_interpolator(
-        collection: "Collection",
-        submission_helper: Optional["SubmissionHelper"] = None,
+        collection: Collection,
+        submission_helper: SubmissionHelper | None = None,
     ) -> Callable[[str], str]:
         return partial(
             interpolate,
@@ -155,7 +156,7 @@ class SubmissionHelper:
         )
 
     @property
-    def grant(self) -> "Grant":
+    def grant(self) -> Grant:
         return self.collection.grant
 
     @property
@@ -167,7 +168,7 @@ class SubmissionHelper:
         return self.submission.reference
 
     def form_data(
-        self, *, add_another_container: "Component | None" = None, add_another_index: int | None = None
+        self, *, add_another_container: Component | None = None, add_another_index: int | None = None
     ) -> dict[str, Any]:
         form_data: dict[str, Any] = {}
 
@@ -191,13 +192,13 @@ class SubmissionHelper:
 
         return form_data
 
-    def get_count_for_add_another(self, add_another_container: "Component") -> int:
+    def get_count_for_add_another(self, add_another_container: Component) -> int:
         if answers := self.submission.data.get(str(add_another_container.id)):
             return len(answers)
         return 0
 
     @property
-    def all_visible_questions(self) -> dict[UUID, "Question"]:
+    def all_visible_questions(self) -> dict[UUID, Question]:
         return {
             question.id: question
             for form in self.get_ordered_visible_forms()
@@ -214,7 +215,7 @@ class SubmissionHelper:
     def status(self) -> SubmissionStatusEnum:
         submission_state = self.events.submission_state
 
-        form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
+        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
         if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_submitted:
             return SubmissionStatusEnum.SUBMITTED
         elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
@@ -303,13 +304,13 @@ class SubmissionHelper:
     def collection_id(self) -> UUID:
         return self.collection.id
 
-    def get_form(self, form_id: uuid.UUID) -> "Form":
+    def get_form(self, form_id: uuid.UUID) -> Form:
         try:
             return next(filter(lambda f: f.id == form_id, self.collection.forms))
         except StopIteration as e:
             raise ValueError(f"Could not find a form with id={form_id} in collection={self.collection.id}") from e
 
-    def get_question(self, question_id: uuid.UUID) -> "Question":
+    def get_question(self, question_id: uuid.UUID) -> Question:
         try:
             return next(
                 filter(
@@ -322,7 +323,7 @@ class SubmissionHelper:
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
 
-    def _get_all_questions_are_answered_for_form(self, form: "Form") -> FormQuestionsAnswered:
+    def _get_all_questions_are_answered_for_form(self, form: Form) -> FormQuestionsAnswered:
         question_answer_status = []
 
         for question in form.cached_questions:
@@ -353,16 +354,16 @@ class SubmissionHelper:
 
     @cached_property
     def all_forms_are_completed(self) -> bool:
-        form_statuses = set([self.get_status_for_form(form) for form in self.collection.forms])
+        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
         return {TasklistSectionStatusEnum.COMPLETED} == form_statuses
 
-    def get_tasklist_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
+    def get_tasklist_status_for_form(self, form: Form) -> TasklistSectionStatusEnum:
         if len(form.cached_questions) == 0:
             return TasklistSectionStatusEnum.NO_QUESTIONS
 
         return self.get_status_for_form(form)
 
-    def get_status_for_form(self, form: "Form") -> TasklistSectionStatusEnum:
+    def get_status_for_form(self, form: Form) -> TasklistSectionStatusEnum:
         form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
         marked_as_complete = self.events.form_state(form.id).is_completed
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
@@ -372,16 +373,16 @@ class SubmissionHelper:
         else:
             return TasklistSectionStatusEnum.NOT_STARTED
 
-    def get_ordered_visible_forms(self) -> list["Form"]:
+    def get_ordered_visible_forms(self) -> list[Form]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
         return sorted(self.collection.forms, key=lambda f: f.order)
 
     def is_component_visible(
-        self, component: "Component", context: "ExpressionContext", add_another_index: int | None = None
+        self, component: Component, context: ExpressionContext, add_another_index: int | None = None
     ) -> bool:
         # we can optimise this to exit early and do this in a sensible order if we switch
         # to going through questions in a nested way rather than flat
-        def evaluate_component_conditions(comp: "Component") -> bool:
+        def evaluate_component_conditions(comp: Component) -> bool:
             """Evaluates a component's own conditions using its operator."""
             if not comp.conditions:
                 return True
@@ -417,25 +418,25 @@ class SubmissionHelper:
             return False
 
     def _get_ordered_visible_questions(
-        self, parent: Union["Form", "Group"], *, override_context: "ExpressionContext | None" = None
-    ) -> list["Question"]:
+        self, parent: Form | Group, *, override_context: ExpressionContext | None = None
+    ) -> list[Question]:
         """Returns the visible, ordered questions based upon the current state of this collection."""
         context = override_context or self.cached_evaluation_context
         return [question for question in parent.cached_questions if self.is_component_visible(question, context)]
 
-    def get_first_question_for_form(self, form: "Form") -> Optional["Question"]:
+    def get_first_question_for_form(self, form: Form) -> Question | None:
         questions = self.cached_get_ordered_visible_questions(form)
         if questions:
             return questions[0]
         return None
 
-    def get_last_question_for_form(self, form: "Form") -> Optional["Question"]:
+    def get_last_question_for_form(self, form: Form) -> Question | None:
         questions = self.cached_get_ordered_visible_questions(form)
         if questions:
             return questions[-1]
         return None
 
-    def get_form_for_question(self, question_id: UUID) -> "Form":
+    def get_form_for_question(self, question_id: UUID) -> Form:
         for form in self.collection.forms:
             if any(q.id == question_id for q in form.cached_questions):
                 return form
@@ -487,7 +488,7 @@ class SubmissionHelper:
         #        an instance was failing to route (next_url) appropriately without it
         self.cached_get_ordered_visible_questions.cache_clear()
 
-    def submit(self, user: "User") -> None:
+    def submit(self, user: User) -> None:
         if self.is_submitted:
             return
 
@@ -539,7 +540,7 @@ class SubmissionHelper:
                         submission_helper=self,
                     )
 
-    def mark_as_sent_for_certification(self, user: "User") -> None:
+    def mark_as_sent_for_certification(self, user: User) -> None:
         if self.is_locked_state:
             return
 
@@ -571,7 +572,7 @@ class SubmissionHelper:
         else:
             raise ValueError(f"Could not send submission id={self.id} for sign off because not all forms are complete.")
 
-    def decline_certification(self, user: "User", declined_reason: str) -> None:
+    def decline_certification(self, user: User, declined_reason: str) -> None:
         if not self.collection.requires_certification:
             raise ValueError(
                 f"Could not decline certification for submission id={self.id} because this report does not require "
@@ -607,7 +608,7 @@ class SubmissionHelper:
                 f"Could not decline certification for submission id={self.id} because it is not awaiting sign off."
             )
 
-    def certify(self, user: "User") -> None:
+    def certify(self, user: User) -> None:
         if not self.collection.requires_certification:
             raise ValueError(
                 f"Could not approve certification for submission id={self.id} because this report does not require "
@@ -633,7 +634,7 @@ class SubmissionHelper:
             self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
         )
 
-    def toggle_form_completed(self, form: "Form", user: "User", is_complete: bool) -> None:
+    def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
         if is_complete == form_complete:
             return
@@ -661,9 +662,7 @@ class SubmissionHelper:
 
     # todo: decide if the add another index should be available submission helper wide where it just checks self
     #       does having it on lots of methods increase the cognitive load/ complexity
-    def get_next_question(
-        self, current_question_id: UUID, *, add_another_index: int | None = None
-    ) -> Optional["Question"]:
+    def get_next_question(self, current_question_id: UUID, *, add_another_index: int | None = None) -> Question | None:
         """
         Retrieve the next question that should be shown to the user, or None if this was the last relevant question.
         """
@@ -687,9 +686,7 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
-    def get_previous_question(
-        self, current_question_id: UUID, add_another_index: int | None = None
-    ) -> Optional["Question"]:
+    def get_previous_question(self, current_question_id: UUID, add_another_index: int | None = None) -> Question | None:
         """
         Retrieve the question that was asked before this one, or None if this was the first relevant question.
         """
@@ -716,7 +713,7 @@ class SubmissionHelper:
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
     def get_answer_summary_for_add_another(
-        self, component: "Component", *, add_another_index: int
+        self, component: Component, *, add_another_index: int
     ) -> AddAnotherAnswerSummary:
         if not component.add_another_container:
             raise ValueError("answer summaries can only be generated for components in an add another container")
@@ -754,12 +751,12 @@ class SubmissionHelper:
 
 
 class CollectionHelper:
-    collection: "Collection"
+    collection: Collection
     submission_mode: SubmissionModeEnum
-    submissions: List["Submission"]
+    submissions: list[Submission]
     submission_helpers: dict[UUID, SubmissionHelper]
 
-    def __init__(self, collection: "Collection", submission_mode: SubmissionModeEnum):
+    def __init__(self, collection: Collection, submission_mode: SubmissionModeEnum):
         if submission_mode == SubmissionModeEnum.PREVIEW:
             raise ValueError("Cannot create a collection helper for preview submissions.")
 
@@ -795,7 +792,7 @@ class CollectionHelper:
 
         return None
 
-    def get_all_possible_questions_for_collection(self) -> list["Question"]:
+    def get_all_possible_questions_for_collection(self) -> list[Question]:
         """
         Returns a list of all questions that are part of the collection, across all forms.
         """
@@ -816,7 +813,7 @@ class CollectionHelper:
             ]
         )
 
-        question_headers: list[tuple["Question", str, int | None]] = []
+        question_headers: list[tuple[Question, str, int | None]] = []
         processed_add_another_contexts = []
         for question in self.get_all_possible_questions_for_collection():
             if not question.add_another_container:
@@ -883,7 +880,7 @@ class CollectionHelper:
                 )
 
             visible_questions = submission.all_visible_questions
-            cached_contexts: dict[str, "ExpressionContext"] = {}
+            cached_contexts: dict[str, ExpressionContext] = {}
             for question, header_string, index in question_headers:
                 if not question.add_another_container:
                     if question.id not in visible_questions.keys():
@@ -984,7 +981,7 @@ class CollectionHelper:
         return json.dumps(submissions_data)
 
 
-def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm) -> AllAnswerTypes:
+def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -> AllAnswerTypes:
     _QuestionModel: type[PydanticBaseModel]
 
     answer = form.get_answer_to_question(question)
@@ -1014,7 +1011,7 @@ def _form_data_to_question_type(question: "Question", form: DynamicQuestionForm)
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
 
-def _deserialise_question_type(question: "Question", serialised_data: str | int | float | bool) -> AllAnswerTypes:
+def _deserialise_question_type(question: Question, serialised_data: str | int | float | bool) -> AllAnswerTypes:
     match question.data_type:
         case QuestionDataType.TEXT_SINGLE_LINE:
             return TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)

@@ -19,7 +19,7 @@ class AuditEvent(BaseModel):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"))
     data: Mapped[json_scalars] = mapped_column(JSONB)
 
-    user: Mapped["User"] = relationship("User")
+    user: Mapped[User] = relationship("User")
 
     __table_args__ = (
         Index("ix_audit_event_event_type", "event_type"),

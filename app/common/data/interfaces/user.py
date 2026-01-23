@@ -1,7 +1,8 @@
 import datetime
 import uuid
+from collections.abc import Sequence
 from itertools import groupby
-from typing import Sequence, cast
+from typing import cast
 
 from flask_login import current_user
 from sqlalchemy import and_, func, update
@@ -350,7 +351,7 @@ def get_certifiers_by_organisation() -> dict[Organisation, Sequence[User]]:
     ).all()
 
     for org, user_roles in groupby(roles, lambda role: role.organisation):
-        certifiers_by_organisation[org] = list(set(ur.user for ur in user_roles))
+        certifiers_by_organisation[org] = list({ur.user for ur in user_roles})
 
     return certifiers_by_organisation
 
@@ -370,6 +371,6 @@ def get_grant_override_certifiers_by_organisation(grant_id: uuid.UUID) -> dict[O
 
     sorted_roles = sorted(roles, key=lambda r: str(r.organisation_id or ""))
     for org, user_roles in groupby(sorted_roles, lambda role: role.organisation):
-        certifiers_by_organisation[org] = list(set(ur.user for ur in user_roles))
+        certifiers_by_organisation[org] = list({ur.user for ur in user_roles})
 
     return certifiers_by_organisation

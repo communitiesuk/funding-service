@@ -1,5 +1,5 @@
 import re
-from typing import List, Tuple, cast
+from typing import cast
 
 from email_validator import EmailNotValidError, validate_email
 from flask import current_app
@@ -148,7 +148,7 @@ class FinalOptionExclusive:
 
         checkbox_choices = field.data
         # MyPy expects field.choices to be a dict[str, Any] but in our implementation with wtforms it's a list of tuples
-        form_choices = cast(List[Tuple[str, str]], field.choices)
+        form_choices = cast(list[tuple[str, str]], field.choices)
         final_option_key, final_option_label, *_ = form_choices[-1]
         if final_option_key in checkbox_choices and len(checkbox_choices) > 1:
             message = self.message or f"Select {self.question_name}, or select {final_option_label}"

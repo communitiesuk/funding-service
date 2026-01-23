@@ -25,7 +25,9 @@ class FlashMessageType(StrEnum):
     SUBMISSION_VALIDATION_ERROR = "submission_validation_error"
 
 
-TRadioItem = TypedDict("TRadioItem", {"key": str, "label": str})
+class TRadioItem(TypedDict):
+    key: str
+    label: str
 
 
 ResolvedEndpoint = namedtuple("ResolvedEndpoint", ["name", "kwargs"])

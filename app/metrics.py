@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from enum import StrEnum
-from typing import TYPE_CHECKING, Mapping, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from flask import current_app
@@ -55,11 +56,11 @@ class MetricEventName(StrEnum):
 
 
 def _get_event_attributes(
-    grant_recipient: Optional["GrantRecipient"] = None,
-    submission: Optional["Submission"] = None,
-    collection: Optional["Collection"] = None,
-    grant: Optional["Grant"] = None,
-    managed_expression: Optional["ManagedExpression"] = None,
+    grant_recipient: GrantRecipient | None = None,
+    submission: Submission | None = None,
+    collection: Collection | None = None,
+    grant: Grant | None = None,
+    managed_expression: ManagedExpression | None = None,
     custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
 ) -> dict[str, str | int | UUID]:
     attributes: dict[str, str | int | UUID] = (
@@ -105,11 +106,11 @@ def _get_event_attributes(
 def emit_metric_count(
     event: MetricEventName,
     count: int = 1,
-    grant_recipient: Optional["GrantRecipient"] = None,
-    submission: Optional["Submission"] = None,
-    collection: Optional["Collection"] = None,
-    grant: Optional["Grant"] = None,
-    managed_expression: Optional["ManagedExpression"] = None,
+    grant_recipient: GrantRecipient | None = None,
+    submission: Submission | None = None,
+    collection: Collection | None = None,
+    grant: Grant | None = None,
+    managed_expression: ManagedExpression | None = None,
     custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
 ) -> None:
     attributes = _get_event_attributes(

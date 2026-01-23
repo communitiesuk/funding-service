@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import datetime
 import enum
 import typing
+from collections.abc import Callable
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -17,8 +16,8 @@ if TYPE_CHECKING:
     from app.deliver_grant_funding.forms import GroupDisplayOptionsForm, QuestionForm
 
 scalars = str | int | float | bool | None
-json_scalars = Dict[str, Any]
-json_flat_scalars = Dict[str, scalars]
+json_scalars = dict[str, Any]
+json_flat_scalars = dict[str, scalars]
 
 TRunnerUrlMap = dict[
     "FormRunnerState",
@@ -90,7 +89,7 @@ class QuestionDataType(enum.StrEnum):
     DATE = "A date"
 
     @staticmethod
-    def coerce(value: Any) -> "QuestionDataType":
+    def coerce(value: Any) -> QuestionDataType:
         if isinstance(value, QuestionDataType):
             return value
         if isinstance(value, str):
@@ -243,7 +242,7 @@ class QuestionPresentationOptions(BaseModel):
     approximate_date: bool | None = None
 
     @staticmethod
-    def from_question_form(form: "QuestionForm") -> QuestionPresentationOptions:
+    def from_question_form(form: QuestionForm) -> QuestionPresentationOptions:
         match form._question_type:
             case QuestionDataType.RADIOS | QuestionDataType.CHECKBOXES:
                 return QuestionPresentationOptions(
@@ -266,7 +265,7 @@ class QuestionPresentationOptions(BaseModel):
                 return QuestionPresentationOptions()
 
     @staticmethod
-    def from_group_form(form: "GroupDisplayOptionsForm") -> QuestionPresentationOptions:
+    def from_group_form(form: GroupDisplayOptionsForm) -> QuestionPresentationOptions:
         return QuestionPresentationOptions(
             show_questions_on_the_same_page=form.show_questions_on_the_same_page.data
             == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE

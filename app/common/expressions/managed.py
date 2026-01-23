@@ -2,7 +2,7 @@ import abc
 import datetime
 import re
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar, Union, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 from typing import Optional as TOptional
 
 # Define any "managed" expressions that can be applied to common conditions or validations
@@ -62,7 +62,7 @@ class ManagedExpression(SafeQuestionIdMixin, BaseModel):
     def message(self) -> str: ...
 
     @property
-    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type]]:
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type]:
         """
         Used when we evaluate an expression to add specific functions to the list of what simpleeval will accept
         and parse.
@@ -83,7 +83,7 @@ class ManagedExpression(SafeQuestionIdMixin, BaseModel):
         return dict()
 
     @property
-    def referenced_question(self) -> "Question":
+    def referenced_question(self) -> Question:
         # todo: split up the collections interface to let us sensibly reason about whats importing what
         from app.common.data.interfaces.collections import get_question_by_id
 
@@ -108,9 +108,7 @@ class ManagedExpression(SafeQuestionIdMixin, BaseModel):
     # that are defined in `question_data_types`.
     @staticmethod
     @abc.abstractmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         """
         A hook used by `build_managed_expression_form`. It should return the set of form fields which need to be
         added to the managed expression form. The fields returned should collect the data needed to define an instance
@@ -148,7 +146,7 @@ class ManagedExpression(SafeQuestionIdMixin, BaseModel):
 
     @staticmethod
     @abc.abstractmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         """
         A hook used by `build_managed_expression_form`. If this managed expression has been selected, then (some or all
         of) the fields are likely to required to correctly define the instance. Mutate the fields on the form to set
@@ -164,7 +162,7 @@ class ManagedExpression(SafeQuestionIdMixin, BaseModel):
         ...
 
     @classmethod
-    def concatenate_all_wtf_fields_html(cls, form: "_ManagedExpressionForm", referenced_question: "Question") -> Markup:
+    def concatenate_all_wtf_fields_html(cls, form: _ManagedExpressionForm, referenced_question: Question) -> Markup:
         """
         A hook used by `build_managed_expression_form` to support conditionally-revealed the fields that a user needs
         to complete when they select this managed expression type from the radio list of available managed expressions.
@@ -186,7 +184,7 @@ class ManagedExpression(SafeQuestionIdMixin, BaseModel):
 
     @staticmethod
     @abc.abstractmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "ManagedExpression":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> ManagedExpression:
         """
         A hook used by `build_managed_expression_form`. If this managed expression type has been selected during form
         submission, this hook will be called. It should pull data from the form and use that to instantiate and return
@@ -219,7 +217,7 @@ class BottomOfRangeIsLower:
             message = "The minimum value must be lower than the maximum value"
         self.message = message
 
-    def __call__(self, form: "FlaskForm", field: "Field") -> None:
+    def __call__(self, form: FlaskForm, field: Field) -> None:
         bottom_of_range = form.between_bottom_of_range and form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
         top_of_range = form.between_top_of_range and form.between_top_of_range.data  # ty: ignore[unresolved-attribute]
         if bottom_of_range and top_of_range:
@@ -269,9 +267,7 @@ class GreaterThan(ManagedExpression):
         return []
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
             "greater_than_value": IntegerField(
                 "Minimum value",
@@ -300,7 +296,7 @@ class GreaterThan(ManagedExpression):
         }
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         form.greater_than_value.validators = (  # ty: ignore[unresolved-attribute]
             [InputRequired("Enter the minimum value allowed for this question")]
             if not form.greater_than_expression.data  # ty: ignore[unresolved-attribute]
@@ -310,8 +306,8 @@ class GreaterThan(ManagedExpression):
 
     @staticmethod
     def build_from_form(
-        form: "_ManagedExpressionForm", question: "Question", expression: TOptional["Expression"] = None
-    ) -> "GreaterThan":
+        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+    ) -> GreaterThan:
         return GreaterThan(
             question_id=question.id,
             minimum_value=form.greater_than_value.data if not form.greater_than_expression.data else None,  # ty: ignore[unresolved-attribute]
@@ -362,9 +358,7 @@ class LessThan(ManagedExpression):
         return []
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
             "less_than_value": IntegerField(
                 "Maximum value",
@@ -393,7 +387,7 @@ class LessThan(ManagedExpression):
         }
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         form.less_than_value.validators = (  # ty: ignore[unresolved-attribute]
             [InputRequired("Enter the maximum value allowed for this question")]
             if not form.less_than_expression.data  # ty: ignore[unresolved-attribute]
@@ -402,7 +396,7 @@ class LessThan(ManagedExpression):
         form.less_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "LessThan":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> LessThan:
         return LessThan(
             question_id=question.id,
             maximum_value=form.less_than_value.data if not form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
@@ -469,9 +463,7 @@ class Between(ManagedExpression):
         return referenced_ids
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
             "between_bottom_of_range": IntegerField(
                 "Minimum value",
@@ -516,7 +508,7 @@ class Between(ManagedExpression):
         }
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         form.between_bottom_of_range.validators = (  # ty: ignore[unresolved-attribute]
             [
                 InputRequired("Enter the minimum value allowed for this question"),
@@ -539,7 +531,7 @@ class Between(ManagedExpression):
         )
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "Between":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> Between:
         return Between(
             question_id=question.id,
             minimum_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
@@ -560,7 +552,7 @@ class Between(ManagedExpression):
 class BaseDataSourceManagedExpression(ManagedExpression):
     @property
     @abc.abstractmethod  # todo: decorator does nothing here because ABCMeta cant be used
-    def referenced_data_source_items(self) -> list["TRadioItem"]:
+    def referenced_data_source_items(self) -> list[TRadioItem]:
         raise NotImplementedError
 
 
@@ -574,7 +566,7 @@ class AnyOf(BaseDataSourceManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    items: list["TRadioItem"]
+    items: list[TRadioItem]
 
     @property
     def description(self) -> str:
@@ -593,9 +585,7 @@ class AnyOf(BaseDataSourceManagedExpression):
         return f"{self.safe_qid} in {item_keys}"
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         if referenced_question is None or referenced_question.data_source is None:
             raise ValueError("The question for the AnyOf expression must have a data source")
 
@@ -611,23 +601,23 @@ class AnyOf(BaseDataSourceManagedExpression):
         }
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         form.any_of.validators = [  # ty: ignore[unresolved-attribute]
             DataRequired("Choose at least one option"),
         ]
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "AnyOf":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> AnyOf:
         item_labels = {choice.key: choice.label for choice in question.data_source.items}
 
-        items: list[TRadioItem] = [{"key": key, "label": item_labels[key]} for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
+        items = [TRadioItem(key=key, label=item_labels[key]) for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
         return AnyOf(
             question_id=question.id,
             items=items,
         )
 
     @property
-    def referenced_data_source_items(self) -> list["TRadioItem"]:
+    def referenced_data_source_items(self) -> list[TRadioItem]:
         return self.items
 
 
@@ -655,17 +645,15 @@ class IsYes(ManagedExpression):
         return f"{self.safe_qid} is True"
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {}
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         pass
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsYes":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsYes:
         return IsYes(question_id=question.id)
 
 
@@ -693,17 +681,15 @@ class IsNo(ManagedExpression):
         return f"{self.safe_qid} is False"
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {}
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         pass
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsNo":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsNo:
         return IsNo(question_id=question.id)
 
 
@@ -717,7 +703,7 @@ class Specifically(BaseDataSourceManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    item: "TRadioItem"
+    item: TRadioItem
 
     @property
     def description(self) -> str:
@@ -733,9 +719,7 @@ class Specifically(BaseDataSourceManagedExpression):
         return f"{self.item['key']!r} in {self.safe_qid}"
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         if referenced_question is None or referenced_question.data_source is None:
             raise ValueError("The question for the Specifically expression must have a data source")
 
@@ -751,18 +735,18 @@ class Specifically(BaseDataSourceManagedExpression):
         }
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         pass
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "Specifically":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> Specifically:
         item_labels = {item.key: item.label for item in question.data_source.items}
         selected_key = form.specifically.data  # ty: ignore[unresolved-attribute]
         item: TRadioItem = {"key": selected_key, "label": item_labels[selected_key]}
         return Specifically(question_id=question.id, item=item)
 
     @property
-    def referenced_data_source_items(self) -> list["TRadioItem"]:
+    def referenced_data_source_items(self) -> list[TRadioItem]:
         return [self.item]
 
 
@@ -817,9 +801,7 @@ class IsBefore(ManagedExpression):
         return []
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
             "latest_value": DateField(
                 "Latest date",
@@ -853,7 +835,7 @@ class IsBefore(ManagedExpression):
         }
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         form.latest_value.validators = (  # ty: ignore[unresolved-attribute]
             [DataRequired("Enter the date which this answer must come before")]
             if not form.latest_expression.data  # ty: ignore[unresolved-attribute]
@@ -862,7 +844,7 @@ class IsBefore(ManagedExpression):
         form.latest_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsBefore":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsBefore:
         return IsBefore(
             question_id=question.id,
             latest_value=form.latest_value.data if not form.latest_expression.data else None,  # ty: ignore[unresolved-attribute]
@@ -880,7 +862,7 @@ class IsBefore(ManagedExpression):
         return data
 
     @property
-    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
         return {"date": datetime.date}
 
 
@@ -933,9 +915,7 @@ class IsAfter(ManagedExpression):
         return []
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
             "earliest_value": DateField(
                 "Earliest date",
@@ -969,7 +949,7 @@ class IsAfter(ManagedExpression):
         }
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         form.earliest_value.validators = (  # ty: ignore[unresolved-attribute]
             [DataRequired("Enter the date which this answer must come before")]
             if not form.earliest_expression.data  # ty: ignore[unresolved-attribute]
@@ -978,7 +958,7 @@ class IsAfter(ManagedExpression):
         form.earliest_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "IsAfter":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsAfter:
         return IsAfter(
             question_id=question.id,
             earliest_value=form.earliest_value.data if not form.earliest_expression.data else None,  # ty: ignore[unresolved-attribute]
@@ -996,7 +976,7 @@ class IsAfter(ManagedExpression):
         return data
 
     @property
-    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
         return {"date": datetime.date}
 
 
@@ -1080,9 +1060,7 @@ class BetweenDates(ManagedExpression):
         return referenced_ids
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
             "between_bottom_of_range": DateField(
                 "Earliest date",
@@ -1137,7 +1115,7 @@ class BetweenDates(ManagedExpression):
         }
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         form.between_bottom_of_range.validators = (  # ty: ignore[unresolved-attribute]
             [
                 InputRequired("Enter the earliest date allowed for this question"),
@@ -1160,7 +1138,7 @@ class BetweenDates(ManagedExpression):
         )
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "BetweenDates":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> BetweenDates:
         return BetweenDates(
             question_id=question.id,
             earliest_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
@@ -1192,7 +1170,7 @@ class BetweenDates(ManagedExpression):
         return data
 
     @property
-    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
         return {"date": datetime.date}
 
 
@@ -1220,7 +1198,7 @@ class UKPostcode(ManagedExpression):
         return f"uk_postcode_match({self.safe_qid})"
 
     @property
-    def required_functions(self) -> dict[str, Union[Callable[[Any], Any], type[Any]]]:
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
         def uk_postcode_match(value: str) -> bool:
             if not value:
                 return False
@@ -1231,21 +1209,19 @@ class UKPostcode(ManagedExpression):
         return {"uk_postcode_match": uk_postcode_match}
 
     @staticmethod
-    def get_form_fields(
-        referenced_question: "Question", expression: TOptional["Expression"] = None
-    ) -> dict[str, "Field"]:
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {}
 
     @staticmethod
-    def update_validators(form: "_ManagedExpressionForm") -> None:
+    def update_validators(form: _ManagedExpressionForm) -> None:
         pass
 
     @staticmethod
-    def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "UKPostcode":
+    def build_from_form(form: _ManagedExpressionForm, question: Question) -> UKPostcode:
         return UKPostcode(question_id=question.id)
 
 
-def get_managed_expression(expression: "Expression") -> ManagedExpression:
+def get_managed_expression(expression: Expression) -> ManagedExpression:
     if not expression.managed_name:
         raise ValueError(f"Expression {expression.id} is not a managed expression.")
 

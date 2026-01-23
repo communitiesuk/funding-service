@@ -2,7 +2,8 @@ import ast
 import enum
 import re
 from collections import ChainMap
-from typing import TYPE_CHECKING, Any, Literal, MutableMapping, Optional, cast, overload
+from collections.abc import MutableMapping
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import simpleeval
 from markupsafe import Markup, escape
@@ -75,13 +76,13 @@ class ExpressionContext(ChainMap[str, Any]):
 
     def with_add_another_context(
         self,
-        component: "Component",
-        submission_helper: "SubmissionHelper",
+        component: Component,
+        submission_helper: SubmissionHelper,
         *,
         add_another_index: int,
         allow_new_index: bool = False,
         mode: Literal["evaluation", "interpolation"] = "evaluation",
-    ) -> "ExpressionContext":
+    ) -> ExpressionContext:
         """
         Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
         other contexts set to the same values as this context
@@ -161,11 +162,11 @@ class ExpressionContext(ChainMap[str, Any]):
 
     @staticmethod
     def build_expression_context(
-        collection: "Collection",
+        collection: Collection,
         mode: Literal["evaluation", "interpolation"],
-        expression_context_end_point: Optional["Component"] = None,
-        submission_helper: Optional["SubmissionHelper"] = None,
-    ) -> "ExpressionContext":
+        expression_context_end_point: Component | None = None,
+        submission_helper: SubmissionHelper | None = None,
+    ) -> ExpressionContext:
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
         assert len(ExpressionContext.ContextSources) == 1, (
@@ -203,8 +204,8 @@ class ExpressionContext(ChainMap[str, Any]):
     @staticmethod
     def _build_submission_data(
         mode: Literal["evaluation", "interpolation"],
-        expression_context_end_point: Optional["Component"] = None,
-        submission_helper: Optional["SubmissionHelper"] = None,
+        expression_context_end_point: Component | None = None,
+        submission_helper: SubmissionHelper | None = None,
     ) -> dict[str, Any]:
         # TODO: add arbitrary data in here? maybe doesn't live in `build_submission_data`? so new place?
         submission_data: dict[str, Any] = {"submissions": {}, "data": {}}
@@ -243,7 +244,7 @@ class ExpressionContext(ChainMap[str, Any]):
 
     @staticmethod
     def get_context_keys_and_labels(
-        collection: "Collection", expression_context_end_point: Optional["Component"] = None
+        collection: Collection, expression_context_end_point: Component | None = None
     ) -> dict[str, str]:
         """A dict mapping the reference variables (eg question safe_qids) to human-readable labels
 
@@ -282,7 +283,7 @@ class ExpressionContext(ChainMap[str, Any]):
         return hash(id(self))
 
 
-def _evaluate_expression_with_context(expression: "Expression", context: ExpressionContext | None = None) -> Any:
+def _evaluate_expression_with_context(expression: Expression, context: ExpressionContext | None = None) -> Any:
     """
     The base evaluator to use for handling all expressions.
 
@@ -372,7 +373,7 @@ def interpolate(
     return result
 
 
-def evaluate(expression: "Expression", context: ExpressionContext | None = None) -> bool:
+def evaluate(expression: Expression, context: ExpressionContext | None = None) -> bool:
     result = _evaluate_expression_with_context(expression, context)
 
     # do we want these to evalaute to non-bool types like int/str ever?

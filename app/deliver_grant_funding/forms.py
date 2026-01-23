@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, Union, cast
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -289,7 +290,7 @@ class GroupAddAnotherSummaryForm(FlaskForm):
         render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
     )
 
-    def __init__(self, *args: Any, group: "Group", **kwargs: Any):
+    def __init__(self, *args: Any, group: Group, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.questions_to_show_in_add_another_summary.choices = [
             (str(question.id), question.name) for question in group.cached_questions
@@ -415,10 +416,10 @@ class QuestionForm(FlaskForm):
         self,
         *args: Any,
         question_type: QuestionDataType,
-        obj: TOptional[Union["Question", "AddContextToComponentSessionModel"]] = None,
+        obj: TOptional[Question | AddContextToComponentSessionModel] = None,
         **kwargs: Any,
     ) -> None:
-        super(QuestionForm, self).__init__(*args, obj=obj, **kwargs)
+        super().__init__(*args, obj=obj, **kwargs)
 
         self._question_type = question_type
         self._original_separate_option_if_no_items_match = self.separate_option_if_no_items_match.data
@@ -501,9 +502,9 @@ class AddContextSelectSourceForm(FlaskForm):
     def __init__(
         self,
         *args: Any,
-        form: "Form",
-        current_component: TOptional["Component"],
-        parent_component: TOptional["Group"] = None,
+        form: Form,
+        current_component: TOptional[Component],
+        parent_component: TOptional[Group] = None,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
@@ -536,12 +537,12 @@ class SelectDataSourceQuestionForm(FlaskForm):
 
     def __init__(
         self,
-        form: "Form",
+        form: Form,
         interpolate: Callable[[str], str],
-        current_component: TOptional["Component"],
+        current_component: TOptional[Component],
         expression: bool = False,
         *args: Any,
-        parent_component: TOptional["Group"] = None,
+        parent_component: TOptional[Group] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -630,7 +631,7 @@ class ConditionSelectQuestionForm(FlaskForm):
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
-    def __init__(self, *args, current_component: "Component", interpolate: Callable[[str], str], **kwargs):  # type: ignore[no-untyped-def]
+    def __init__(self, *args, current_component: Component, interpolate: Callable[[str], str], **kwargs):  # type: ignore[no-untyped-def]
         super().__init__(*args, **kwargs)
 
         self.target_question = current_component
@@ -703,7 +704,7 @@ class TestGrantRecipientJourneyForm(FlaskForm):
         widget=GovRadioInput(),
     )
 
-    def __init__(self, *args: Any, users_test_grant_recipients: list["GrantRecipient"], **kwargs: Any):
+    def __init__(self, *args: Any, users_test_grant_recipients: list[GrantRecipient], **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.organisation.choices = [
             (str(grant_recipient.id), grant_recipient.organisation.name)

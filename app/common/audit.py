@@ -16,7 +16,7 @@ from app.common.data.types import AuditEventType
 
 class AuditEvent(BaseModel):
     user_id: UUID
-    timestamp: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
+    timestamp: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.UTC))
     event_type: AuditEventType
 
 

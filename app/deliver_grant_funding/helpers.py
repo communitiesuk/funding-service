@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from flask import redirect, session, url_for
 from flask.typing import ResponseReturnValue
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from app.common.data.models import Collection, Form
 
 
-def start_previewing_collection(collection: "Collection", form: Optional["Form"] = None) -> ResponseReturnValue:
+def start_previewing_collection(collection: Collection, form: Form | None = None) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
     delete_collection_preview_submissions_created_by_user(collection=collection, created_by_user=user)
     submission = create_submission(collection=collection, created_by=user, mode=SubmissionModeEnum.PREVIEW)
