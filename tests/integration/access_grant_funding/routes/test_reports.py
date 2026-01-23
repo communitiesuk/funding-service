@@ -7,15 +7,15 @@ from pytest import FixtureRequest
 
 from app import CollectionStatusEnum, GrantStatusEnum, TasklistSectionStatusEnum
 from app.access_grant_funding.forms import DeclineSignOffForm
+from app.common.data.interfaces.collections import add_question_validation
 from app.common.data.types import (
-    ExpressionType,
-    ManagedExpressionsEnum,
     QuestionDataType,
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
+from app.common.expressions.managed import GreaterThan
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from tests.utils import get_h1_text, page_has_button, page_has_error, page_has_link
@@ -757,18 +757,15 @@ class TestConfirmReportSubmission:
         q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1, name="amount")
         form.collection.requires_certification = False
 
-        factories.expression.create(
-            question=q2,
-            created_by=client.user,
-            type_=ExpressionType.VALIDATION,
-            managed_name=ManagedExpressionsEnum.GREATER_THAN,
-            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={
-                "question_id": str(q2.id),
-                "collection_id": str(q2.form.collection_id),
-                "minimum_value": None,
-                "minimum_expression": f"(({q1.safe_qid}))",
-            },
+        add_question_validation(
+            q2,
+            client.user,
+            GreaterThan(
+                question_id=q2.id,
+                collection_id=q2.form.collection_id,
+                minimum_value=None,
+                minimum_expression=f"(({q1.safe_qid}))",
+            ),
         )
 
         submission = factories.submission.create(

@@ -6,7 +6,7 @@ import pytest
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
-from app.common.expressions import evaluate
+from app.common.expressions import ExpressionContext, evaluate
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -22,6 +22,8 @@ from app.common.expressions.managed import (
 )
 from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import TRadioItem
+
+EC = ExpressionContext
 
 
 class TestBaseManagedExpression:
@@ -102,7 +104,7 @@ class TestGreaterThanExpression:
         expr = GreaterThan(
             question_id=uuid.uuid4(), collection_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive
         )
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert evaluate(Expression(statement=expr.statement), context=EC({expr.safe_qid: answer})) is expected_result
 
     @pytest.mark.parametrize(
         "inclusive, answer, expected_result",
@@ -160,7 +162,7 @@ class TestLessThanExpression:
         expr = LessThan(
             question_id=uuid.uuid4(), collection_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive
         )
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert evaluate(Expression(statement=expr.statement), context=EC({expr.safe_qid: answer})) is expected_result
 
     @pytest.mark.parametrize(
         "inclusive, answer, expected_result",
@@ -227,7 +229,7 @@ class TestBetweenExpression:
             maximum_value=maximum_value,
             maximum_inclusive=maximum_inclusive,
         )
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert evaluate(Expression(statement=expr.statement), context=EC({expr.safe_qid: answer})) is expected_result
 
     @pytest.mark.parametrize(
         "minimum_inclusive, maximum_inclusive, answer, expected_result",
@@ -306,7 +308,7 @@ class TestAnyOfExpression:
     )
     def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool):
         expr = AnyOf(question_id=uuid.uuid4(), collection_id=uuid.uuid4(), items=items)
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert evaluate(Expression(statement=expr.statement), context=EC({expr.safe_qid: answer})) is expected_result
 
 
 class TestIsYesExpression:
@@ -319,7 +321,7 @@ class TestIsYesExpression:
     )
     def test_evaluate(self, answer: str, expected_result: bool):
         expr = IsYes(question_id=uuid.uuid4(), collection_id=uuid.uuid4())
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert evaluate(Expression(statement=expr.statement), context=EC({expr.safe_qid: answer})) is expected_result
 
 
 class TestIsNoExpression:
@@ -332,7 +334,7 @@ class TestIsNoExpression:
     )
     def test_evaluate(self, answer: str, expected_result: bool):
         expr = IsNo(question_id=uuid.uuid4(), collection_id=uuid.uuid4())
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert evaluate(Expression(statement=expr.statement), context=EC({expr.safe_qid: answer})) is expected_result
 
 
 class TestSpecificallyExpression:
@@ -351,7 +353,7 @@ class TestSpecificallyExpression:
     )
     def test_evaluate(self, item: TRadioItem, answers: set[str], expected_result: bool):
         expr = Specifically(question_id=uuid.uuid4(), collection_id=uuid.uuid4(), item=item)
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answers})) is expected_result
+        assert evaluate(Expression(statement=expr.statement), context=EC({expr.safe_qid: answers})) is expected_result
 
 
 class TestIsBeforeExpression:

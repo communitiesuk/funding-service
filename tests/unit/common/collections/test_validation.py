@@ -3,8 +3,10 @@ import uuid
 import pytest
 
 from app.common.collections.validation import SubmissionValidator
+from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.exceptions import SubmissionValidationFailed
+from app.common.expressions.managed import GreaterThan
 from app.common.helpers.collections import SubmissionHelper
 
 
@@ -37,19 +39,24 @@ class TestSubmissionValidator:
     def test_invalid_answer_caught(self, factories):
         form = factories.form.build()
         q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=1)
-
-        factories.expression.build(
-            question=q2,
-            type_=ExpressionType.VALIDATION,
-            managed_name=ManagedExpressionsEnum.GREATER_THAN,
-            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={
-                "question_id": str(q2.id),
-                "collection_id": str(form.collection_id),
-                "minimum_value": None,
-                "minimum_expression": f"(({q1.safe_qid}))",
-            },
+        q2_id = uuid.uuid4()
+        q2 = factories.question.build(
+            form=form,
+            id=q2_id,
+            data_type=QuestionDataType.INTEGER,
+            order=1,
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(
+                        question_id=q2_id,
+                        collection_id=form.collection_id,
+                        minimum_value=None,
+                        minimum_expression=f"(({q1.safe_qid}))",
+                    ),
+                    expression_type=ExpressionType.VALIDATION,
+                    created_by=factories.user.build(),
+                )
+            ],
         )
 
         submission = factories.submission.build(collection=form.collection)

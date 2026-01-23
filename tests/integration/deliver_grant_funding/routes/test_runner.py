@@ -3,13 +3,14 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
+from app.common.data.interfaces.collections import add_component_condition, add_question_validation
 from app.common.data.types import (
     ExpressionType,
-    ManagedExpressionsEnum,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionModeEnum,
 )
+from app.common.expressions.managed import GreaterThan, IsYes
 from tests.utils import get_h1_text, page_has_button
 
 
@@ -128,18 +129,15 @@ class TestSubmissionTasklist:
         q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0, name="threshold")
         q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1, name="amount")
 
-        factories.expression.create(
-            question=q2,
-            created_by=client.user,
-            type_=ExpressionType.VALIDATION,
-            managed_name=ManagedExpressionsEnum.GREATER_THAN,
-            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={
-                "question_id": str(q2.id),
-                "collection_id": str(q2.form.collection_id),
-                "minimum_value": None,
-                "minimum_expression": f"(({q1.safe_qid}))",
-            },
+        add_question_validation(
+            q2,
+            client.user,
+            GreaterThan(
+                question_id=q2.id,
+                collection_id=q2.form.collection_id,
+                minimum_value=None,
+                minimum_expression=f"(({q1.safe_qid}))",
+            ),
         )
 
         submission = factories.submission.create(
@@ -271,13 +269,13 @@ class TestAskAQuestion:
             parent=group,
             form=question.form,
         )
-        factories.expression.create(
-            question=question_2,
-            created_by=authenticated_grant_admin_client.user,
-            type_=ExpressionType.CONDITION,
-            context={"question_id": str(question.id), "collection_id": str(question.form.collection.id)},
-            statement=f"{question.safe_qid} is True",
-            managed_name=ManagedExpressionsEnum.IS_YES,
+        add_component_condition(
+            question_2,
+            authenticated_grant_admin_client.user,
+            IsYes(
+                question_id=question.id,
+                collection_id=question.form.collection_id,
+            ),
         )
         submission = factories.submission.create(
             collection=question.form.collection, created_by=authenticated_grant_admin_client.user
