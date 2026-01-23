@@ -937,6 +937,7 @@
       "expressions": [
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": false,
             "maximum_expression": null,
             "maximum_value": 0,
@@ -951,6 +952,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "item": {
               "key": "other",
               "label": "Other"
@@ -966,6 +968,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": true,
             "minimum_value": 0,
             "question_id": "0c48320f-0b45-4686-8bed-5a09509f7f8b"
@@ -979,6 +982,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "question_id": "897480b2-794d-416b-a827-2f4f2e8f5843"
           },
           "created_by_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
@@ -990,6 +994,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": false,
             "latest_value": "2025-01-01",
             "question_id": "a4af0ddd-9d74-49d3-b4ff-3f2504f2a8d3"
@@ -1003,6 +1008,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": false,
             "maximum_value": 5,
             "question_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0"
@@ -1016,6 +1022,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "maximum_inclusive": true,
             "maximum_value": 100,
             "minimum_inclusive": true,
@@ -1031,6 +1038,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "items": [
               {
                 "key": "other",
@@ -1048,6 +1056,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": false,
             "maximum_value": 10000,
             "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c"
@@ -1061,6 +1070,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "items": [
               {
                 "key": "data-certifier-eg-section-151-officer",
@@ -1078,6 +1088,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": false,
             "minimum_value": 1000000,
             "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c"
@@ -1091,6 +1102,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": true,
             "maximum_expression": "((q_459a385ff293497bb6fb76011304306c))",
             "maximum_value": null,
@@ -1105,6 +1117,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": true,
             "minimum_value": 0,
             "question_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0"
@@ -1118,6 +1131,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": true,
             "maximum_value": 25,
             "question_id": "0e6df617-b770-4525-9c06-6fdbcca72a10"
@@ -1131,6 +1145,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "inclusive": false,
             "maximum_expression": "((q_459a385ff293497bb6fb76011304306c))",
             "maximum_value": null,
@@ -1145,6 +1160,7 @@
         },
         {
           "context": {
+            "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
             "question_id": "d99b94c3-66fa-4449-b4c4-ac5a2caeb8c9"
           },
           "created_by_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
@@ -2671,6 +2687,7 @@
       "expressions": [
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "sponsorship-concluded-at-the-end-of-3-years",
@@ -2692,6 +2709,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "item": {
               "key": "sponsor-groups-recruited",
               "label": "Sponsor groups recruited"
@@ -2707,6 +2725,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "inclusive": true,
             "maximum_value": 10,
             "question_id": "6b247b27-9372-46b0-ab93-13893445b992"
@@ -2720,6 +2739,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "other",
@@ -2737,6 +2757,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "yes---the-property-has-been-accepted",
@@ -2754,6 +2775,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "question_id": "1a4fff3c-0340-428a-8a3f-3bc26215506b"
           },
           "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
@@ -2765,6 +2787,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "yes",
@@ -2782,6 +2805,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "question_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -2793,6 +2817,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "question_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -2804,6 +2829,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "other",
@@ -2821,6 +2847,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "yes---the-property-has-been-accepted",
@@ -2838,6 +2865,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "no---the-property-was-rejected",
@@ -2855,6 +2883,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "sponsorship-ended-early",
@@ -2872,6 +2901,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "maximum_inclusive": true,
             "maximum_value": 10,
             "minimum_inclusive": true,
@@ -2887,6 +2917,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "no",
@@ -2904,6 +2935,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "item": {
               "key": "successful-sponsorships",
               "label": "Successful sponsorships"
@@ -2919,6 +2951,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "question_id": "0faf4b7b-bed2-4c29-b4f9-90fe3a9d2768"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -2930,6 +2963,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "yes---the-property-has-been-accepted",
@@ -2947,6 +2981,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "other",
@@ -2964,6 +2999,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "yes---the-property-has-been-accepted",
@@ -2981,6 +3017,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "question_id": "1a4fff3c-0340-428a-8a3f-3bc26215506b"
           },
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
@@ -2992,6 +3029,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "items": [
               {
                 "key": "other",
@@ -3009,6 +3047,7 @@
         },
         {
           "context": {
+            "collection_id": "09e8d677-5fce-4081-9434-eefac1348e12",
             "item": {
               "key": "properties-delivered",
               "label": "Properties delivered"
