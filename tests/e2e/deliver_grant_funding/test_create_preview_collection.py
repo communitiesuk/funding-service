@@ -46,10 +46,19 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     EditQuestionPage,
     GrantReportsPage,
     ManageSectionPage,
+    MarkAsOnboardingWithFundingServicePage,
+    OverrideGrantRecipientCertifiersPage,
+    PlatformAdminGrantSettingsPage,
+    PlatformAdminReportSettingsPage,
     ReportSectionsPage,
     RunnerCheckYourAnswersPage,
     RunnerQuestionPage,
     RunnerTasklistPage,
+    SetPrivacyPolicyPage,
+    SetReportingDatesPage,
+    SetUpDataProvidersPage,
+    SetUpGrantRecipientsPage,
+    SetUpOrganisationsPage,
     SetUpTestGrantRecipientsPage,
     SetUpTestGrantRecipientUsersPage,
     SetUpTestOrganisationsPage,
@@ -965,6 +974,68 @@ def test_setup_grant_and_collection(
     set_up_users_page.select_grant_team_member(grant_team_email)
     set_up_users_page.click_add_user()
 
+    reporting_lifecycle_tasklist_page.navigate()
+    reporting_lifecycle_tasklist_page.click_task("Set up organisations")
+
+    # TODO make a new organisation and then remove at the end
+    org_name = "MHCLG Funding Service Test Organisation"
+    user_name = "MHCLG Test User"
+    user_email = "fsd-post-award@levellingup.gov.uk"
+    tsv_data = (
+        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+        f"MHCLG-TEST-ORG\t{org_name}\tCentral Government\t\t\n"
+    )
+    set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
+    set_up_orgs_page.fill_organisations_tsv_data(tsv_data)
+    set_up_orgs_page.click_set_up_organisations()
+
+    reporting_lifecycle_tasklist_page.click_task("Set up grant recipients")
+    set_up_grant_recipients_page = SetUpGrantRecipientsPage(page, domain, grant_id, collection_id)
+    set_up_grant_recipients_page.select_organisation(org_name)
+    set_up_grant_recipients_page.click_set_up_grant_recipients()
+
+    tsv_data = f"organisation-name\tfull-name\temail-address\n{org_name}\t{user_name}\t{user_email}\n"
+    reporting_lifecycle_tasklist_page.click_task("Set up grant recipient data providers")
+    setup_data_providers_page = SetUpDataProvidersPage(page, domain, grant_id, collection_id)
+    setup_data_providers_page.fill_users_tsv_data(tsv_data)
+    setup_data_providers_page.click_set_up_users()
+
+    reporting_lifecycle_tasklist_page.click_task("Override certifiers for this grant")
+    override_certifiers_page = OverrideGrantRecipientCertifiersPage(page, domain, grant_id, collection_id)
+    override_certifiers_page.select_organisation(org_name)
+    override_certifiers_page.complete_user_details(user_name, user_email)
+    override_certifiers_page.click_add_certifier()
+
+    reporting_lifecycle_tasklist_page.navigate()
+    reporting_lifecycle_tasklist_page.click_task("Set reporting dates")
+    set_reporting_dates_page = SetReportingDatesPage(page, domain, grant_id, collection_id)
+    set_reporting_dates_page.set_dates_for_open_report()
+    set_reporting_dates_page.click_save_dates(report_name=new_report_name)
+
+    reporting_lifecycle_tasklist_page.click_task("Mark as onboarding with Funding Service")
+    mark_as_onboarding_page = MarkAsOnboardingWithFundingServicePage(page, domain, grant_id, collection_id)
+    mark_as_onboarding_page.click_mark_as_onboarding()
+
+    reporting_lifecycle_tasklist_page.click_task("Set privacy policy")
+    set_privacy_policy_page = SetPrivacyPolicyPage(page, domain, grant_id, collection_id)
+    set_privacy_policy_page.fill_privacy_policy_markdown("https://www.gov.uk/help/privacy-notice")
+    set_privacy_policy_page.click_save_privacy_policy()
+
+    # Do this the admin way so we don't have to create grant team users (that's why the option is
+    # greyed out in the tasklist at this point)
+    grant_settings_page = PlatformAdminGrantSettingsPage(page, domain, grant_id)
+    grant_settings_page.navigate()
+    grant_settings_page.select_grant_status("LIVE")
+    grant_settings_page.click_save()
+
+    report_settings_page = PlatformAdminReportSettingsPage(page, domain, collection_id)
+    report_settings_page.navigate()
+    report_settings_page.select_collection_status("OPEN")
+    report_settings_page.click_save()
+
+    # The report is now open and ready for submissions
+    # TODO go on to login with the fsd-post-award user via magic link and complete the report
+
     # Store data for dependent tests
     _shared_setup_data = {
         "grant_name": new_grant_name,
@@ -977,6 +1048,9 @@ def test_setup_grant_and_collection(
         "second_section_name": second_section_name,
         "test_org_name": test_org_name,
         "test_org_external_id": test_org_external_id,
+        "grant_recipient_org": org_name,
+        "grant_recipient_user_name": user_name,
+        "grant_recipient_user_email": user_email,
     }
 
 
@@ -1107,6 +1181,8 @@ def test_zzz_cleanup_grant(
     switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
 
     # Tidy up by deleting the grant via admin panel, which will cascade to all related entities
-    delete_grant_recipient_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
+    delete_grant_recipient_through_admin(
+        page, domain, _shared_setup_data["grant_name_uuid"], expected_grant_recipients_matching_search=2
+    )
     delete_test_org_through_admin(page, domain, _shared_setup_data["test_org_external_id"])
     delete_grant_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
