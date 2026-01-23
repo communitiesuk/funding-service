@@ -256,7 +256,12 @@ class TestSubmissionHelper:
             submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.cached_evaluation_context == ExpressionContext()
+            assert helper.cached_evaluation_context == ExpressionContext(
+                {
+                    "data": {},
+                    "submissions": {form.collection.safe_cid: {}},
+                }
+            )
 
         def test_with_submission_data(self, factories):
             assert len(QuestionDataType) == 9, "Update this test if adding new questions"
@@ -336,6 +341,20 @@ class TestSubmissionHelper:
 
             assert helper.cached_evaluation_context == ExpressionContext(
                 submission_data={
+                    "data": {},
+                    "submissions": {
+                        form.collection.safe_cid: {
+                            "q_d696aebc49d24170a92fb6ef42994294": "answer",
+                            "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
+                            "q_d696aebc49d24170a92fb6ef42994296": 50,
+                            "q_d696aebc49d24170a92fb6ef42994297": True,
+                            "q_d696aebc49d24170a92fb6ef42994298": "my-key",
+                            "q_d696aebc49d24170a92fb6ef42994299": "name@example.com",
+                            "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
+                            "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
+                            "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
+                        }
+                    },
                     "q_d696aebc49d24170a92fb6ef42994294": "answer",
                     "q_d696aebc49d24170a92fb6ef42994295": "answer\nthis",
                     "q_d696aebc49d24170a92fb6ef42994296": 50,
@@ -359,6 +378,14 @@ class TestSubmissionHelper:
 
             assert helper.cached_evaluation_context == ExpressionContext(
                 submission_data={
+                    "data": {},
+                    "submissions": {
+                        collection.safe_cid: {
+                            f"{questions[0].safe_qid}": "test name",
+                            f"{questions[1].safe_qid}": "test org name",
+                            f"{questions[4].safe_qid}": 3,
+                        }
+                    },
                     f"{questions[0].safe_qid}": "test name",
                     f"{questions[1].safe_qid}": "test org name",
                     f"{questions[4].safe_qid}": 3,
