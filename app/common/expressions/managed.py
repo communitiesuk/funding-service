@@ -26,6 +26,7 @@ from wtforms.fields.core import Field
 from wtforms.validators import DataRequired, InputRequired, Optional, ReadOnly, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
+from app.common.expressions import ExpressionContext
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import MHCLGApproximateDateInput
@@ -257,15 +258,23 @@ class GreaterThan(ManagedExpression):
 
     @property
     def statement(self) -> str:
+        # NOTE: starting to feel like this should be `source_expression > minimum_expression`, where `source_expression`
+        #       is defined as the submissions.cid.qid string externally - then this could be generic over any source
+        #       +minimum expression (eg to support custom expressions) rather than being hard-coded for comparing
+        #       against a submission.cid.qid?
+        #       But we rely on knowing the question ID explicitly for our Deliver grant funding reference data managed
+        #       managed expression flows - making this an arbitrary source expression would make that more complicated?
         return (
-            f"{self.safe_qid} >{'=' if self.inclusive else ''} "
+            f"submissions.{self.safe_cid}.{self.safe_qid} >{'=' if self.inclusive else ''} "
             + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
         )
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         if self.minimum_expression:
-            if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
+            if question_id := ExpressionContext.extract_qid_from_submission_reference(
+                self.minimum_expression.strip("() ")
+            ):
                 return [question_id]
         return []
 
@@ -351,14 +360,16 @@ class LessThan(ManagedExpression):
     @property
     def statement(self) -> str:
         return (
-            f"{self.safe_qid} <{'=' if self.inclusive else ''}"
+            f"submissions.{self.safe_cid}.{self.safe_qid} <{'=' if self.inclusive else ''}"
             + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
         )
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         if self.maximum_expression:
-            if question_id := self.safe_qid_to_id(self.maximum_expression.strip("() ")):
+            if question_id := ExpressionContext.extract_qid_from_submission_reference(
+                self.maximum_expression.strip("() ")
+            ):
                 return [question_id]
         return []
 
@@ -450,7 +461,7 @@ class Between(ManagedExpression):
         return (
             f"{self.minimum_expression if self.minimum_expression else self.minimum_value} "
             f"<{'=' if self.minimum_inclusive else ''} "
-            f"{self.safe_qid} "
+            f"submissions.{self.safe_cid}.{self.safe_qid} "
             f"<{'=' if self.maximum_inclusive else ''} "
             f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
         )
@@ -460,11 +471,15 @@ class Between(ManagedExpression):
         referenced_ids = []
 
         if self.minimum_expression:
-            if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
+            if question_id := ExpressionContext.extract_qid_from_submission_reference(
+                self.minimum_expression.strip("() ")
+            ):
                 referenced_ids.append(question_id)
 
         if self.maximum_expression:
-            if question_id := self.safe_qid_to_id(self.maximum_expression.strip("() ")):
+            if question_id := ExpressionContext.extract_qid_from_submission_reference(
+                self.maximum_expression.strip("() ")
+            ):
                 referenced_ids.append(question_id)
 
         return referenced_ids
@@ -591,7 +606,7 @@ class AnyOf(BaseDataSourceManagedExpression):
     @property
     def statement(self) -> str:
         item_keys = {str(item["key"]) for item in self.items}
-        return f"{self.safe_qid} in {item_keys}"
+        return f"submissions.{self.safe_cid}.{self.safe_qid} in {item_keys}"
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -653,7 +668,7 @@ class IsYes(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} is True"
+        return f"submissions.{self.safe_cid}.{self.safe_qid} is True"
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -690,7 +705,7 @@ class IsNo(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} is False"
+        return f"submissions.{self.safe_cid}.{self.safe_qid} is False"
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -729,7 +744,7 @@ class Specifically(BaseDataSourceManagedExpression):
     @property
     def statement(self) -> str:
         # TODO: This a bit fragile - another reason for referencing a data source item?
-        return f"{self.item['key']!r} in {self.safe_qid}"
+        return f"{self.item['key']!r} in submissions.{self.safe_cid}.{self.safe_qid}"
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -805,12 +820,14 @@ class IsBefore(ManagedExpression):
             if self.latest_expression
             else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
-        return f"{self.safe_qid} <{'=' if self.inclusive else ''} {date_expression}"
+        return f"submissions.{self.safe_cid}.{self.safe_qid} <{'=' if self.inclusive else ''} {date_expression}"
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         if self.latest_expression:
-            if question_id := self.safe_qid_to_id(self.latest_expression.strip("() ")):
+            if question_id := ExpressionContext.extract_qid_from_submission_reference(
+                self.latest_expression.strip("() ")
+            ):
                 return [question_id]
         return []
 
@@ -921,12 +938,14 @@ class IsAfter(ManagedExpression):
             if self.earliest_expression
             else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
-        return f"{self.safe_qid} >{'=' if self.inclusive else ''} {date_expression}"
+        return f"submissions.{self.safe_cid}.{self.safe_qid} >{'=' if self.inclusive else ''} {date_expression}"
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         if self.earliest_expression:
-            if question_id := self.safe_qid_to_id(self.earliest_expression.strip("() ")):
+            if question_id := ExpressionContext.extract_qid_from_submission_reference(
+                self.earliest_expression.strip("() ")
+            ):
                 return [question_id]
         return []
 
@@ -1058,7 +1077,7 @@ class BetweenDates(ManagedExpression):
         return (
             earliest_date_expression
             + f"<{'=' if self.earliest_inclusive else ''} "
-            + f"{self.safe_qid} "
+            + f"submissions.{self.safe_cid}.{self.safe_qid} "
             + f"<{'=' if self.latest_inclusive else ''} "
             + latest_date_expression
         )
@@ -1068,11 +1087,15 @@ class BetweenDates(ManagedExpression):
         referenced_ids = []
 
         if self.earliest_expression:
-            if question_id := self.safe_qid_to_id(self.earliest_expression.strip("() ")):
+            if question_id := ExpressionContext.extract_qid_from_submission_reference(
+                self.earliest_expression.strip("() ")
+            ):
                 referenced_ids.append(question_id)
 
         if self.latest_expression:
-            if question_id := self.safe_qid_to_id(self.latest_expression.strip("() ")):
+            if question_id := ExpressionContext.extract_qid_from_submission_reference(
+                self.latest_expression.strip("() ")
+            ):
                 referenced_ids.append(question_id)
 
         return referenced_ids
@@ -1215,7 +1238,7 @@ class UKPostcode(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        return f"uk_postcode_match({self.safe_qid})"
+        return f"uk_postcode_match(submissions.{self.safe_cid}.{self.safe_qid})"
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:

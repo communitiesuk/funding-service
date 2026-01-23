@@ -35,7 +35,9 @@ def test_validation_attached_to_field_and_runs__text(factories, value, error_mes
     )
 
     _FormClass = build_question_form(
-        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        [question],
+        evaluation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
+        interpolation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
     )
     form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7b": str(value)}))
 
@@ -85,7 +87,9 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
     )
 
     _FormClass = build_question_form(
-        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        [question],
+        evaluation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
+        interpolation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
     )
     form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e7a": str(value)}))
 
@@ -108,7 +112,12 @@ def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_sess
         data_type=QuestionDataType.RADIOS,
         items=[str(i) for i in range(25)],
     )
-    form = build_question_form([q], evaluation_context=EC(), interpolation_context=EC())()
+    _FormClass = build_question_form(
+        [q],
+        evaluation_context=ExpressionContext({"submissions": {q.form.safe_cid: {}}}),
+        interpolation_context=ExpressionContext({"submissions": {q.form.safe_cid: {}}}),
+    )
+    form = _FormClass()
 
     question_field = form.get_question_field(q)
     assert isinstance(question_field, SelectField)
@@ -122,15 +131,17 @@ def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_sess
 def test_validation_attached_to_multiple_fields(factories, db_session):
     user = factories.user.create()
     q1 = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE, name="q0")
-    q2 = factories.question.create(data_type=QuestionDataType.INTEGER)
-    q3 = factories.question.create(data_type=QuestionDataType.YES_NO)
+    q2 = factories.question.create(data_type=QuestionDataType.INTEGER, form=q1.form)
+    q3 = factories.question.create(data_type=QuestionDataType.YES_NO, form=q1.form)
 
     interfaces.collections.add_question_validation(
         q2, user, GreaterThan(question_id=q2.id, collection_id=q2.form.collection_id, minimum_value=100, inclusive=True)
     )
 
     _FormClass = build_question_form(
-        [q1, q2, q3], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        [q1, q2, q3],
+        evaluation_context=ExpressionContext({"submissions": {q1.form.safe_cid: {}}}),
+        interpolation_context=ExpressionContext({"submissions": {q1.form.safe_cid: {}}}),
     )
     form = _FormClass(formdata=MultiDict({q1.safe_qid: "", q2.safe_qid: 50, q3.safe_qid: True}))
 
@@ -163,15 +174,18 @@ def test_reference_data_validation__integer(factories, db_session):
             question_id=q2.id,
             collection_id=q2.form.collection_id,
             minimum_value=None,
-            minimum_expression=f"(({q1.safe_qid}))",
+            minimum_expression=f"((submissions.{q1.form.safe_cid}.{q1.safe_qid}))",
             inclusive=True,
         ),
     )
 
     _FormClass = build_question_form(
         [q2],
-        evaluation_context=ExpressionContext({q1.safe_qid: 100}),
-        interpolation_context=ExpressionContext({q1.safe_qid: "£100"}),
+        # TODO: remove ExpressionContext duplication
+        evaluation_context=ExpressionContext({"submissions": {q1.form.safe_cid: {q1.safe_qid: 100}}, q1.safe_qid: 100}),
+        interpolation_context=ExpressionContext(
+            {"submissions": {q1.form.safe_cid: {q1.safe_qid: "£100"}}, q1.safe_qid: "£100"}
+        ),
     )
     form = _FormClass(formdata=MultiDict({q2.safe_qid: 50}))
 
@@ -199,15 +213,20 @@ def test_reference_data_validation__date(factories, db_session):
             question_id=q2.id,
             collection_id=q2.form.collection_id,
             earliest_value=None,
-            earliest_expression=f"(({q1.safe_qid}))",
+            earliest_expression=f"((submissions.{q1.form.safe_cid}.{q1.safe_qid}))",
             inclusive=True,
         ),
     )
 
     _FormClass = build_question_form(
         [q2],
-        evaluation_context=ExpressionContext({q1.safe_qid: date(2025, 1, 1)}),
-        interpolation_context=ExpressionContext({q1.safe_qid: "1 January 2025"}),
+        # TODO: remove ExpressionContext duplication
+        evaluation_context=ExpressionContext(
+            {"submissions": {q1.form.safe_cid: {q1.safe_qid: date(2025, 1, 1)}}, q1.safe_qid: date(2025, 1, 1)}
+        ),
+        interpolation_context=ExpressionContext(
+            {"submissions": {q1.form.safe_cid: {q1.safe_qid: "1 January 2025"}}, q1.safe_qid: "1 January 2025"}
+        ),
     )
     form = _FormClass(formdata=MultiDict({q2.safe_qid: "1 1 2020"}))
 
@@ -233,7 +252,9 @@ def test_email_strips_empty_chars(factories, user_input, will_validate, saved_in
         name="test email",
     )
     _FormClass = build_question_form(
-        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        [question],
+        evaluation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
+        interpolation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
     )
     form = _FormClass(formdata=MultiDict({question.safe_qid: user_input}))
     valid = form.validate()
@@ -255,7 +276,9 @@ def test_url_strips_empty_chars(factories, user_input, will_validate, saved_inpu
         name="test url",
     )
     _FormClass = build_question_form(
-        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        [question],
+        evaluation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
+        interpolation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
     )
     form = _FormClass(formdata=MultiDict({question.safe_qid: user_input}))
     valid = form.validate()
@@ -286,7 +309,9 @@ def test_integer_accepts_commas(factories, user_input, will_validate, saved_inpu
         name="test integer",
     )
     _FormClass = build_question_form(
-        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        [question],
+        evaluation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
+        interpolation_context=ExpressionContext({"submissions": {question.form.safe_cid: {}}}),
     )
     form = _FormClass(formdata=MultiDict({question.safe_qid: user_input}))
     valid = form.validate()

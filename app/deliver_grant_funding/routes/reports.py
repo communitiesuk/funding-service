@@ -1265,7 +1265,9 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
 
                 if add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
-                    add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
+                    add_context_data.component_form_data[target_field] += (
+                        f" ((submissions.{referenced_question.form.safe_cid}.{referenced_question.safe_qid}))"
+                    )
 
             case AddContextToComponentGuidanceSessionModel():
                 return_url = (
@@ -1283,12 +1285,16 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                 )
                 if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
-                    add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
+                    add_context_data.component_form_data[target_field] += (
+                        f" ((submissions.{referenced_question.form.safe_cid}.{referenced_question.safe_qid}))"
+                    )
 
             case AddContextToExpressionsModel():
                 if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
                     target_field = add_context_data.expression_form_data["add_context"]
-                    add_context_data.expression_form_data[target_field] = f"(({referenced_question.safe_qid}))"
+                    add_context_data.expression_form_data[target_field] += (
+                        f"((submissions.{referenced_question.form.safe_cid}.{referenced_question.safe_qid}))"
+                    )
 
                 if add_context_data.field == ExpressionType.CONDITION:
                     if not add_context_data.expression_id:

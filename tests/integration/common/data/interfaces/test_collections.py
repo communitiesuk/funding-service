@@ -2771,7 +2771,7 @@ class TestExpressions:
 
         assert len(from_db.expressions) == 1
         assert from_db.expressions[0].type_ == ExpressionType.CONDITION
-        assert from_db.expressions[0].statement == f"{q0.safe_qid} > 3000"
+        assert from_db.expressions[0].statement == f"submissions.{q0.form.safe_cid}.{q0.safe_qid} > 3000"
 
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
@@ -2918,7 +2918,7 @@ class TestExpressions:
 
         assert len(from_db.expressions) == 1
         assert from_db.expressions[0].type_ == ExpressionType.VALIDATION
-        assert from_db.expressions[0].statement == f"{question.safe_qid} > 3000"
+        assert from_db.expressions[0].statement == f"submissions.{question.form.safe_cid}.{question.safe_qid} > 3000"
 
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
@@ -2935,7 +2935,7 @@ class TestExpressions:
 
         update_question_expression(question.expressions[0], updated_expression)
 
-        assert question.expressions[0].statement == f"{q0.safe_qid} > 5000"
+        assert question.expressions[0].statement == f"submissions.{q0.form.safe_cid}.{q0.safe_qid} > 5000"
 
     def test_update_anyof_expression(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)

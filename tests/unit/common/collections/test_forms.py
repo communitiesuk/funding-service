@@ -15,7 +15,7 @@ from wtforms.validators import DataRequired, Email, InputRequired
 
 from app import create_app
 from app.common.collections.forms import build_question_form
-from app.common.data.models import Question
+from app.common.data.models import Form, Question
 from app.common.data.types import QuestionDataType, QuestionPresentationOptions
 from app.common.expressions import ExpressionContext
 from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
@@ -95,6 +95,7 @@ class TestBuildQuestionForm:
             text="Question text",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
+        q.form = Form(collection_id=uuid.UUID("31673d51-95b0-4589-b254-33b866dfd943"))
         form = build_question_form([q], evaluation_context=EC(), interpolation_context=EC())
         assert hasattr(form, "q_31673d5195b04589b25433b866dfd94f")
         assert hasattr(form, "submit")

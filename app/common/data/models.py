@@ -304,7 +304,7 @@ class Submission(SafeCollectionIdMixin, BaseModel):
         return f"{self.__class__.__name__}(reference={self.reference}, mode={self.mode})"
 
 
-class Form(BaseModel):
+class Form(SafeCollectionIdMixin, BaseModel):
     __tablename__ = "form"
 
     title: Mapped[str]

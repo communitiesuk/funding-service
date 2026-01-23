@@ -75,9 +75,22 @@ class TestEvaluatingManagedExpressions:
 
         expr = question.expressions[0]
 
-        assert evaluate(expr, ExpressionContext({q0.safe_qid: 500})) is False
-        assert evaluate(expr, ExpressionContext({q0.safe_qid: 3000})) is False
-        assert evaluate(expr, ExpressionContext({q0.safe_qid: 3001})) is True
+        assert (
+            evaluate(expr, ExpressionContext({"submissions": {q0.form.safe_cid: {q0.safe_qid: 500}}, q0.safe_qid: 500}))
+            is False
+        )
+        assert (
+            evaluate(
+                expr, ExpressionContext({"submissions": {q0.form.safe_cid: {q0.safe_qid: 3000}}, q0.safe_qid: 3000})
+            )
+            is False
+        )
+        assert (
+            evaluate(
+                expr, ExpressionContext({"submissions": {q0.form.safe_cid: {q0.safe_qid: 3001}}, q0.safe_qid: 3001})
+            )
+            is True
+        )
 
     @pytest.mark.parametrize(
         "value, expected_result",
@@ -101,7 +114,7 @@ class TestEvaluatingManagedExpressions:
                         question_id=qid,
                         collection_id=q0.form.collection_id,
                         minimum_value=None,
-                        minimum_expression=f"(({q0.safe_qid}))",
+                        minimum_expression=f"((submissions.{q0.form.safe_cid}.{q0.safe_qid}))",
                     ),
                     ExpressionType.CONDITION,
                     user,
@@ -111,7 +124,19 @@ class TestEvaluatingManagedExpressions:
 
         expr = q1.expressions[0]
 
-        assert evaluate(expr, ExpressionContext({q0.safe_qid: 3000, q1.safe_qid: value})) is expected_result
+        assert (
+            evaluate(
+                expr,
+                ExpressionContext(
+                    {
+                        "submissions": {q0.form.safe_cid: {q0.safe_qid: 3000, q1.safe_qid: value}},
+                        q0.safe_qid: 3000,
+                        q1.safe_qid: value,
+                    }
+                ),
+            )
+            is expected_result
+        )
 
     @pytest.mark.parametrize(
         "value, expected_result",
@@ -137,8 +162,8 @@ class TestEvaluatingManagedExpressions:
                         collection_id=q0.form.collection_id,
                         earliest_value=None,
                         latest_value=None,
-                        earliest_expression=f"(({q0.safe_qid}))",
-                        latest_expression=f"(({q1.safe_qid}))",
+                        earliest_expression=f"((submissions.{q0.form.safe_cid}.{q0.safe_qid}))",
+                        latest_expression=f"((submissions.{q0.form.safe_cid}.{q1.safe_qid}))",
                     ),
                     ExpressionType.CONDITION,
                     user,
@@ -154,6 +179,13 @@ class TestEvaluatingManagedExpressions:
                 expr,
                 ExpressionContext(
                     {
+                        "submissions": {
+                            q0.form.safe_cid: {
+                                q0.safe_qid: datetime.date(2020, 1, 1),
+                                q1.safe_qid: datetime.date(2025, 1, 1),
+                                q2.safe_qid: value,
+                            }
+                        },
                         q0.safe_qid: datetime.date(2020, 1, 1),
                         q1.safe_qid: datetime.date(2025, 1, 1),
                         q2.safe_qid: value,

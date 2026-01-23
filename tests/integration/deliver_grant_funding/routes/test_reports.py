@@ -2516,7 +2516,10 @@ class TestSelectContextSourceQuestion:
         with authenticated_grant_admin_client.session_transaction() as sess:
             question_data = sess.get("question")
             assert question_data is not None
-            assert question_data["component_form_data"]["text"] == f"Test text (({question.safe_qid}))"
+            assert (
+                question_data["component_form_data"]["text"]
+                == f"Test text ((submissions.{question.form.safe_cid}.{question.safe_qid}))"
+            )
 
     def test_post_redirects_to_guidance_and_updates_session(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
@@ -2553,9 +2556,9 @@ class TestSelectContextSourceQuestion:
         with authenticated_grant_admin_client.session_transaction() as sess:
             question_data = sess.get("question")
             assert question_data is not None
-            assert (
-                question_data["component_form_data"]["guidance_body"]
-                == f"Some guidance text here (({referenced_question.safe_qid}))"
+            assert question_data["component_form_data"]["guidance_body"] == (
+                f"Some guidance text here "
+                f"((submissions.{referenced_question.form.safe_cid}.{referenced_question.safe_qid}))"
             )
 
     @pytest.mark.parametrize(
@@ -2622,7 +2625,7 @@ class TestSelectContextSourceQuestion:
             assert question_data is not None
             assert (
                 question_data["expression_form_data"]["greater_than_expression"]
-                == f"(({reference_data_question.safe_qid}))"
+                == f"((submissions.{reference_data_question.form.safe_cid}.{reference_data_question.safe_qid}))"
             )
 
         if expression_type is ExpressionType.CONDITION:
@@ -4244,7 +4247,9 @@ class TestEditQuestionCondition:
             data={
                 "type": "Is after",
                 "earliest_value": None,
-                "earliest_expression": f"(({reference_data_question.safe_qid}))",
+                "earliest_expression": (
+                    f"((submissions.{reference_data_question.form.safe_cid}.{reference_data_question.safe_qid}))"
+                ),
             }
         )
 
@@ -4281,7 +4286,11 @@ class TestEditQuestionCondition:
         assert expression.type_ == ExpressionType.CONDITION
         assert expression.managed_name == "Is after"
         assert expression.managed.referenced_question.id == depends_on_question.id
-        assert expression.statement == f"{depends_on_question.safe_qid} > (({reference_data_question.safe_qid}))"
+        assert expression.statement == (
+            f"submissions.{depends_on_question.form.safe_cid}.{depends_on_question.safe_qid} "
+            f"> "
+            f"((submissions.{reference_data_question.form.safe_cid}.{reference_data_question.safe_qid}))"
+        )
 
         with authenticated_grant_admin_client.session_transaction() as session:
             assert "question" not in session
@@ -5009,7 +5018,9 @@ class TestEditQuestionValidation:
             data={
                 "type": "Less than",
                 "less_than_value": 1000,
-                "less_than_expression": f"(({reference_data_question.safe_qid}))",
+                "less_than_expression": (
+                    f"((submissions.{reference_data_question.form.safe_cid}.{reference_data_question.safe_qid}))"
+                ),
                 "less_than_inclusive": True,
             }
         )
@@ -5046,7 +5057,11 @@ class TestEditQuestionValidation:
         assert expression.type_ == ExpressionType.VALIDATION
         assert expression.managed_name == "Less than"
         assert expression.managed.referenced_question.id == target_question.id
-        assert expression.statement == f"{target_question.safe_qid} <=(({reference_data_question.safe_qid}))"
+        assert expression.statement == (
+            f"submissions.{target_question.form.safe_cid}.{target_question.safe_qid} "
+            f"<="
+            f"((submissions.{reference_data_question.form.safe_cid}.{reference_data_question.safe_qid}))"
+        )
 
         with authenticated_grant_admin_client.session_transaction() as session:
             assert "question" not in session

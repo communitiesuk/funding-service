@@ -51,6 +51,7 @@ _accepted_fields = (
 # by `build_question_form`. This gives us nicer intellisense/etc. The downside is that this class needs to be kept
 # in sync manually with the one inside `build_question_form`.
 class DynamicQuestionForm(FlaskForm):
+    _safe_cid: str
     _evaluation_context: ExpressionContext
     _interpolation_context: ExpressionContext
     _questions: list[Question]
@@ -88,7 +89,7 @@ class DynamicQuestionForm(FlaskForm):
         # Inject the latest data from this form submission into the context for validators to use. This will override
         # any existing data for expression contexts from the current state of the submission with the data submitted
         # in this form by the user.
-        self._evaluation_context.update_submission_answers(self._extract_submission_answers())
+        self._evaluation_context.update_submission_answers(self._extract_submission_answers(), self._safe_cid)
 
         for q in self._questions:
             # only add custom validators if that question hasn't already failed basic validation
@@ -148,6 +149,7 @@ def build_question_form(  # noqa: C901
 ) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
+        _safe_cid = questions[0].form.safe_cid
         _evaluation_context = evaluation_context
         _interpolation_context = interpolation_context
         _questions = questions

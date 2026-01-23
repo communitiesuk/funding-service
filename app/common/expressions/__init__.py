@@ -1,13 +1,15 @@
 import ast
 import enum
 import re
+import uuid
 from collections import ChainMap
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Generator, Literal, cast, overload
 
 import simpleeval
 from markupsafe import Markup, escape
 
+from app.common.safe_ids import SafeQuestionIdMixin
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
@@ -87,6 +89,16 @@ class ExpressionContext(ChainMap[str, Any]):
         Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
         other contexts set to the same values as this context
         """
+        # TODO: DANGER - here be danger for namespaced submissions data; we use ChainMap for ExpressionContext and
+        #       ChainMap doesn't handle deeply nested overlapping things, eg:
+        #       > context = ChainMap(dict(a=dict(one=1)), dict(a=dict(two=2))
+        #       We can only hit context['a']['one'], we cannot hit context['a']['two']. This means if we have an
+        #       add-another context - which is the highest priority - and it shows namespaced data like
+        #       submissions->cid->qid, only the qids from the add another container will be resolvable and we won't be
+        #       able to fall through to all the other questions in the collection in the base submission_data chainmap
+        #       layer. How do we resolve this? Do we add complexity with some custom DeepChainMap? Do we actually
+        #       undo the namespacing work and have all submission data just floating at the top level under qids?
+
         if self._add_another_context:
             raise ValueError("add_another_context is already set on this ExpressionContext")
 
@@ -142,7 +154,7 @@ class ExpressionContext(ChainMap[str, Any]):
         self._expression_context = expression_context
         self.maps = self._ordered_contexts
 
-    def update_submission_answers(self, submission_answers_from_form: dict[str, Any]) -> None:
+    def update_submission_answers(self, submission_answers_from_form: dict[str, Any], safe_cid: str) -> None:
         """The default submission data we use for expression context is all of the data from the Submission DB record.
         However, if we're processing things on a POST request when a user is submitting data for a question, then we
         need to override any existing answer in the DB with the latest answer from the current POST request. This
@@ -153,12 +165,14 @@ class ExpressionContext(ChainMap[str, Any]):
         way.
         """
         self._submission_data.update(**submission_answers_from_form)
+        self._submission_data["submissions"][safe_cid].update(**submission_answers_from_form)
 
         # the add another context includes answers from its add another container which
         # could include previously persisted values for answers questions, also override those
         # for this form evaluation context
         if self._add_another_context:
             self._add_another_context.update(**submission_answers_from_form)
+            # TODO: what do we need to do for add another answers? :sweat:
 
     @staticmethod
     def build_expression_context(
@@ -200,6 +214,18 @@ class ExpressionContext(ChainMap[str, Any]):
                     )
 
         return ExpressionContext(submission_data=submission_data)
+
+    @staticmethod
+    def extract_qid_from_submission_reference(submission_dot_notation_reference: str) -> uuid.UUID | None:
+        """Takes a reference to a questions's data in our nested submission structure and returns the question ID
+
+        Input: submissions.c_1234.q_1234
+        Output: q_1234
+
+        Note: can also backwards-compatibly handle non-namespaced qids, eg q_1234, but this is mostly incidental.
+        """
+        maybe_qid = submission_dot_notation_reference.split(".")[-1]
+        return SafeQuestionIdMixin.safe_qid_to_id(maybe_qid)
 
     @staticmethod
     def _build_submission_data(
@@ -246,15 +272,34 @@ class ExpressionContext(ChainMap[str, Any]):
     def get_context_keys_and_labels(
         collection: Collection, expression_context_end_point: Component | None = None
     ) -> dict[str, str]:
-        """A dict mapping the reference variables (eg question safe_qids) to human-readable labels
+        """A dict mapping the reference variables (eg namespaced question safe_qids) to human-readable labels
 
         TODO: When we have more than just questions here, we'll need to do more complicated mapping, and possibly
         find a way to include labels for eg DB model columns, such as the grant name
+
+        This powers the context highlighting in Deliver grant funding for form designers.
         """
+
+        def iter_nested_dicts(data: dict[str, Any], prefix: str = "") -> Generator[tuple[str, str], None, None]:
+            """Iterate over a nested dict and return dot-notation joined keys to labels, eg:
+
+            Input: {"submissions": {"c_1234": {"q_1234": "((project name))", ...}}, "q_1234": "((project name))"}
+            Output: [("submissions.c_1234.q_1234", "project name"), ("q_1234", "project name"), ...]
+
+            # TODO: remove non-namespaced qid from example when we clean up later
+            """
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    yield from iter_nested_dicts(value, prefix + key + ".")
+                else:
+                    yield prefix + key, value
+
         ec = ExpressionContext.build_expression_context(
             collection=collection, mode="interpolation", expression_context_end_point=expression_context_end_point
         )
-        return {k: v for k, v in ec.items()}
+        # Iterate over the expression context are return key:value pairs mapping the dot-notation nested key to the
+        # name of the label, eg `submissions.c_1234.q_1234: "project name"`
+        return dict(iter_nested_dicts(ec))  # type: ignore[arg-type]
 
     def is_valid_reference(self, reference: str) -> bool:
         """For a given ExpressionContext, work out if this reference resolves to a real value or not.
@@ -323,7 +368,7 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
 
     try:
         result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
-    except simpleeval.NameNotDefined as e:
+    except (simpleeval.NameNotDefined, simpleeval.AttributeDoesNotExist) as e:
         raise UndefinedVariableInExpression(e.message) from e
     except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined) as e:
         raise DisallowedExpression("Expression is using unsafe/unsupported features") from e
@@ -374,6 +419,7 @@ def interpolate(
 
 
 def evaluate(expression: Expression, context: ExpressionContext | None = None) -> bool:
+    print(context)
     result = _evaluate_expression_with_context(expression, context)
 
     # do we want these to evalaute to non-bool types like int/str ever?
