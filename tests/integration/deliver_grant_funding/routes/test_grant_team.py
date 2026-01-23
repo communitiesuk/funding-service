@@ -28,7 +28,7 @@ class TestGrantTeamListUsers:
             ("authenticated_platform_admin_client", True),
             ("authenticated_org_admin_client", True),
             ("authenticated_grant_admin_client", True),
-            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_member_client", True),
         ],
     )
     def test_list_users_for_grant_check_add_member_button(self, client_fixture, can_add_users, factories, request):
@@ -111,6 +111,7 @@ class TestGrantTeamAddUser:
             "authenticated_platform_admin_client",
             "authenticated_org_admin_client",
             "authenticated_grant_admin_client",
+            "authenticated_grant_member_client",
         ],
     )
     def test_add_user_to_grant_add_member(

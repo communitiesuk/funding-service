@@ -27,7 +27,7 @@ def list_users_for_grant(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/users/add", methods=["GET", "POST"])
-@has_deliver_grant_role(RoleEnum.ADMIN)
+@has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
 def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)

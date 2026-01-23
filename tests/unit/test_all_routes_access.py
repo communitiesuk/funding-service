@@ -35,7 +35,6 @@ routes_with_expected_deliver_org_member_only_access = [
     "deliver_grant_funding.grant_setup_check_your_answers",
 ]
 routes_with_expected_grant_admin_only_access = [
-    "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.grant_change_name",
     "deliver_grant_funding.grant_change_description",
     "deliver_grant_funding.grant_change_contact",
@@ -108,6 +107,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_submissions",
     "deliver_grant_funding.view_submission",
     "deliver_grant_funding.export_report_submissions",
+    "deliver_grant_funding.add_user_to_grant",
 ]
 
 routes_with_expected_access_grant_funding_logged_in_access = [
