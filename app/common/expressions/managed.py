@@ -47,7 +47,7 @@ class ManagedExpression(SafeQuestionIdMixin, SafeCollectionIdMixin, BaseModel):
 
     _key: ManagedExpressionsEnum
     question_id: UUID
-    collection_id: UUID | None = None  # type: ignore[assignment]
+    collection_id: UUID
 
     @property
     @abc.abstractmethod
@@ -239,9 +239,8 @@ class GreaterThan(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID
     minimum_value: int | None
-    # TODO: Once this is no longer optional, bump back up to sit below question_id
-    collection_id: UUID | None = None
     minimum_expression: str | None = None
     inclusive: bool = False
 
@@ -333,9 +332,8 @@ class LessThan(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID
     maximum_value: int | None
-    # TODO: Once this is no longer optional, bump back up to sit below question_id
-    collection_id: UUID | None = None
     maximum_expression: str | None = None
     inclusive: bool = False
 
@@ -425,10 +423,9 @@ class Between(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID
     minimum_value: int | None
     maximum_value: int | None
-    # TODO: Once this is no longer optional, bump back up to sit below question_id
-    collection_id: UUID | None = None
     minimum_expression: str | None = None
     minimum_inclusive: bool = False
     maximum_expression: str | None = None
@@ -577,8 +574,8 @@ class AnyOf(BaseDataSourceManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID
     items: list[TRadioItem]
-    collection_id: UUID | None = None  # type: ignore[assignment]
 
     @property
     def description(self) -> str:
@@ -644,7 +641,7 @@ class IsYes(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    collection_id: UUID | None = None
+    collection_id: UUID
 
     @property
     def description(self) -> str:
@@ -681,7 +678,7 @@ class IsNo(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    collection_id: UUID | None = None
+    collection_id: UUID
 
     @property
     def description(self) -> str:
@@ -718,9 +715,8 @@ class Specifically(BaseDataSourceManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID
     item: TRadioItem
-    # TODO: Once this is no longer optional, bump back up to sit below question_id
-    collection_id: UUID | None = None  # type: ignore[assignment]
 
     @property
     def description(self) -> str:
@@ -779,9 +775,8 @@ class IsBefore(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID
     latest_value: datetime.date | None
-    # TODO: Once this is no longer optional, bump back up to sit below question_id
-    collection_id: UUID | None = None
     latest_expression: str | None = None
     inclusive: bool = False
 
@@ -898,9 +893,8 @@ class IsAfter(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID
     earliest_value: datetime.date | None
-    # TODO: Once this is no longer optional, bump back up to sit below question_id
-    collection_id: UUID | None = None
     earliest_expression: str | None = None
     inclusive: bool = False
 
@@ -1015,9 +1009,8 @@ class BetweenDates(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
+    collection_id: UUID
     earliest_value: datetime.date | None
-    # TODO: Once this is no longer optional, bump back up to sit below question_id
-    collection_id: UUID | None = None
     earliest_expression: str | None = None
     earliest_inclusive: bool = False
     latest_value: datetime.date | None
@@ -1210,8 +1203,7 @@ class UKPostcode(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    # TODO: Once this is no longer optional, bump back up to sit below question_id
-    collection_id: UUID | None = None
+    collection_id: UUID
 
     @property
     def description(self) -> str:

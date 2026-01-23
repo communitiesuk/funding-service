@@ -32,7 +32,13 @@ class TestBaseManagedExpression:
             form=depends_on_question.form,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=depends_on_question.id, minimum_value=1000), ExpressionType.CONDITION, user
+                    GreaterThan(
+                        question_id=depends_on_question.id,
+                        collection_id=depends_on_question.form.collection_id,
+                        minimum_value=1000,
+                    ),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -93,7 +99,9 @@ class TestGreaterThanExpression:
         ),
     )
     def test_evaluate(self, minimum_value, inclusive, answer, expected_result):
-        expr = GreaterThan(question_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive)
+        expr = GreaterThan(
+            question_id=uuid.uuid4(), collection_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive
+        )
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
 
     @pytest.mark.parametrize(
@@ -111,6 +119,7 @@ class TestGreaterThanExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
         expr = GreaterThan(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             minimum_value=None,
             minimum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
@@ -120,6 +129,7 @@ class TestGreaterThanExpression:
             referenced_question.safe_qid: 1000,
             target_question.safe_qid: answer,
             "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
             "minimum_value": expr.minimum_value,
         }
         assert evaluate(expression) is expected_result
@@ -129,6 +139,7 @@ class TestGreaterThanExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
         expr = GreaterThan(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             minimum_value=None,
             minimum_expression=f"(({referenced_question.safe_qid}))",
         )
@@ -146,7 +157,9 @@ class TestLessThanExpression:
         ),
     )
     def test_evaluate(self, maximum_value, inclusive, answer, expected_result):
-        expr = LessThan(question_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive)
+        expr = LessThan(
+            question_id=uuid.uuid4(), collection_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive
+        )
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
 
     @pytest.mark.parametrize(
@@ -164,6 +177,7 @@ class TestLessThanExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
         expr = LessThan(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             maximum_value=None,
             maximum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
@@ -173,6 +187,7 @@ class TestLessThanExpression:
             referenced_question.safe_qid: 1000,
             target_question.safe_qid: answer,
             "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
             "maximum_value": expr.maximum_value,
         }
         assert evaluate(expression) is expected_result
@@ -182,6 +197,7 @@ class TestLessThanExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
         expr = LessThan(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             maximum_value=None,
             maximum_expression=f"(({referenced_question.safe_qid}))",
         )
@@ -205,6 +221,7 @@ class TestBetweenExpression:
     ):
         expr = Between(
             question_id=uuid.uuid4(),
+            collection_id=uuid.uuid4(),
             minimum_value=minimum_value,
             minimum_inclusive=minimum_inclusive,
             maximum_value=maximum_value,
@@ -236,6 +253,7 @@ class TestBetweenExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
         expr = Between(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             minimum_value=0,
             minimum_inclusive=minimum_inclusive,
             maximum_value=None,
@@ -247,6 +265,7 @@ class TestBetweenExpression:
             referenced_question.safe_qid: 1000,
             target_question.safe_qid: answer,
             "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
             "minimum_value": expr.minimum_value,
             "maximum_value": expr.maximum_value,
         }
@@ -262,6 +281,7 @@ class TestBetweenExpression:
         )
         expr = Between(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             minimum_value=None,
             minimum_expression=f"(({first_referenced_question.safe_qid}))",
             maximum_value=None,
@@ -285,7 +305,7 @@ class TestAnyOfExpression:
         ),
     )
     def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool):
-        expr = AnyOf(question_id=uuid.uuid4(), items=items)
+        expr = AnyOf(question_id=uuid.uuid4(), collection_id=uuid.uuid4(), items=items)
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
 
 
@@ -298,7 +318,7 @@ class TestIsYesExpression:
         ),
     )
     def test_evaluate(self, answer: str, expected_result: bool):
-        expr = IsYes(question_id=uuid.uuid4())
+        expr = IsYes(question_id=uuid.uuid4(), collection_id=uuid.uuid4())
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
 
 
@@ -311,7 +331,7 @@ class TestIsNoExpression:
         ),
     )
     def test_evaluate(self, answer: str, expected_result: bool):
-        expr = IsNo(question_id=uuid.uuid4())
+        expr = IsNo(question_id=uuid.uuid4(), collection_id=uuid.uuid4())
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
 
 
@@ -330,7 +350,7 @@ class TestSpecificallyExpression:
         ),
     )
     def test_evaluate(self, item: TRadioItem, answers: set[str], expected_result: bool):
-        expr = Specifically(question_id=uuid.uuid4(), item=item)
+        expr = Specifically(question_id=uuid.uuid4(), collection_id=uuid.uuid4(), item=item)
         assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answers})) is expected_result
 
 
@@ -348,9 +368,16 @@ class TestIsBeforeExpression:
     )
     def test_evaluate(self, inclusive, answer, expected_result, factories):
         user = factories.user.create()
-        expr = IsBefore(question_id=uuid.uuid4(), latest_value=self.maximum_value, inclusive=inclusive)
+        expr = IsBefore(
+            question_id=uuid.uuid4(), collection_id=uuid.uuid4(), latest_value=self.maximum_value, inclusive=inclusive
+        )
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
-        expression.context = {expr.safe_qid: answer, "latest_value": expr.latest_value, "question_id": expr.question_id}
+        expression.context = {
+            expr.safe_qid: answer,
+            "latest_value": expr.latest_value,
+            "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
+        }
         assert evaluate(expression) is expected_result
 
     @pytest.mark.parametrize(
@@ -368,6 +395,7 @@ class TestIsBeforeExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
         expr = IsBefore(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             latest_value=None,
             latest_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
@@ -377,6 +405,7 @@ class TestIsBeforeExpression:
             referenced_question.safe_qid: self.maximum_value,
             target_question.safe_qid: answer,
             "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
             "latest_value": expr.latest_value,
         }
         assert evaluate(expression) is expected_result
@@ -405,6 +434,7 @@ class TestIsBeforeExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
         expr = IsBefore(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             latest_value=None,
             latest_expression=f"(({referenced_question.safe_qid}))",
         )
@@ -425,12 +455,15 @@ class TestIsAfterExpression:
     )
     def test_evaluate(self, inclusive, answer, expected_result, factories):
         user = factories.user.create()
-        expr = IsAfter(question_id=uuid.uuid4(), earliest_value=self.min_value, inclusive=inclusive)
+        expr = IsAfter(
+            question_id=uuid.uuid4(), collection_id=uuid.uuid4(), earliest_value=self.min_value, inclusive=inclusive
+        )
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
         expression.context = {
             expr.safe_qid: answer,
             "earliest_value": expr.earliest_value,
             "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
         }
         assert evaluate(expression) is expected_result
 
@@ -449,6 +482,7 @@ class TestIsAfterExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
         expr = IsAfter(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             earliest_value=None,
             earliest_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
@@ -459,6 +493,7 @@ class TestIsAfterExpression:
             target_question.safe_qid: answer,
             "earliest_value": expr.earliest_value,
             "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
         }
 
         assert evaluate(expression) is expected_result
@@ -487,6 +522,7 @@ class TestIsAfterExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
         expr = IsAfter(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             earliest_value=None,
             earliest_expression=f"(({referenced_question.safe_qid}))",
         )
@@ -518,6 +554,7 @@ class TestIsBetweenDatesExpression:
         user = factories.user.create()
         expr = BetweenDates(
             question_id=uuid.uuid4(),
+            collection_id=uuid.uuid4(),
             earliest_value=self.min_value,
             latest_value=self.max_value,
             earliest_inclusive=earliest_inc,
@@ -531,6 +568,7 @@ class TestIsBetweenDatesExpression:
             "earliest_inclusive": expr.earliest_inclusive,
             "latest_inclusive": expr.latest_inclusive,
             "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
         }
         assert evaluate(expression) is expected_result
 
@@ -557,6 +595,7 @@ class TestIsBetweenDatesExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
         expr = BetweenDates(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             earliest_value=self.min_value,
             earliest_expression=None,
             latest_value=None,
@@ -573,6 +612,7 @@ class TestIsBetweenDatesExpression:
             "earliest_inclusive": expr.earliest_inclusive,
             "latest_inclusive": expr.latest_inclusive,
             "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
         }
         assert evaluate(expression) is expected_result
 
@@ -608,6 +648,7 @@ class TestIsBetweenDatesExpression:
         )
         expr = BetweenDates(
             question_id=target_question.id,
+            collection_id=target_question.form.collection_id,
             earliest_value=None,
             earliest_expression=f"(({first_referenced_question.safe_qid}))",
             latest_value=None,
@@ -643,7 +684,11 @@ class TestUKPostcodeExpression:
     )
     def test_evaluate(self, answer, expected_result, factories):
         user = factories.user.create()
-        expr = UKPostcode(question_id=uuid.uuid4())
+        expr = UKPostcode(question_id=uuid.uuid4(), collection_id=uuid.uuid4())
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
-        expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
+        expression.context = {
+            expr.safe_qid: answer,
+            "question_id": expr.question_id,
+            "collection_id": expr.collection_id,
+        }
         assert evaluate(expression) is expected_result

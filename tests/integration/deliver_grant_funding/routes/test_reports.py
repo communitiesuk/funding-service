@@ -847,7 +847,9 @@ class TestChangeGroupDisplayOptions:
             parent=db_group,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=db_question1.id, minimum_value=1000), ExpressionType.CONDITION, db_user
+                    GreaterThan(question_id=db_question1.id, collection_id=db_form.collection_id, minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    db_user,
                 )
             ],
         )
@@ -1052,7 +1054,9 @@ class TestChangeGroupAddAnotherOptions:
 
         add_question_validation(
             question=db_question,
-            managed_expression=GreaterThan(question_id=group_question.id, minimum_value=100),
+            managed_expression=GreaterThan(
+                question_id=group_question.id, collection_id=db_form.collection_id, minimum_value=100
+            ),
             user=factories.user.create(),
         )
 
@@ -1480,7 +1484,9 @@ class TestListGroupQuestions:
             order=1,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=question.id, minimum_value=1000), ExpressionType.CONDITION, user
+                    GreaterThan(question_id=question.id, collection_id=form.collection_id, minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2572,7 +2578,9 @@ class TestSelectContextSourceQuestion:
 
         expression_id = None
         if existing_expression:
-            expression = GreaterThan(question_id=target_question.id, minimum_value=100)
+            expression = GreaterThan(
+                question_id=target_question.id, collection_id=form.collection_id, minimum_value=100
+            )
             interfaces.collections.add_question_validation(
                 target_question, interfaces.user.get_current_user(), expression
             )
@@ -2965,6 +2973,7 @@ class TestEditQuestion:
                 Expression.from_managed(
                     AnyOf(
                         question_id=q1.id,
+                        collection_id=db_form.collection_id,
                         items=[
                             {"key": q1.data_source.items[0].key, "label": q1.data_source.items[0].label},
                         ],
@@ -3037,7 +3046,7 @@ class TestEditQuestion:
             data_type=QuestionDataType.INTEGER,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=100),
+                    GreaterThan(question_id=q1.id, collection_id=db_form.collection_id, minimum_value=100),
                     ExpressionType.CONDITION,
                     factories.user.create(),
                 )
@@ -3538,7 +3547,11 @@ class TestAddQuestionCondition:
             data_type=QuestionDataType.EMAIL,
         )
 
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -3784,7 +3797,11 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -3839,7 +3856,11 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -3873,7 +3894,11 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -3913,7 +3938,11 @@ class TestEditQuestionCondition:
             data_type=QuestionDataType.YES_NO,
         )
         target_question = factories.group.create(form=db_form)
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -3958,12 +3987,20 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        yes_expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        yes_expression = IsYes(
+            question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(
             target_question, interfaces.user.get_current_user(), yes_expression
         )
 
-        no_expression = IsNo(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        no_expression = IsNo(
+            question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(
             target_question, interfaces.user.get_current_user(), no_expression
         )
@@ -4010,7 +4047,11 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -4056,7 +4097,9 @@ class TestEditQuestionCondition:
             data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
 
-        expression = IsAfter(question_id=depends_on_question.id, earliest_value=date(2025, 1, 1))
+        expression = IsAfter(
+            question_id=depends_on_question.id, collection_id=db_form.collection_id, earliest_value=date(2025, 1, 1)
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -4108,6 +4151,7 @@ class TestEditQuestionCondition:
 
         expression = IsAfter(
             question_id=depends_on_question.id,
+            collection_id=db_form.collection_id,
             earliest_value=None,
             earliest_expression=f"(({reference_data_question.safe_qid}))",
             inclusive=True,
@@ -4183,7 +4227,9 @@ class TestEditQuestionCondition:
             data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
 
-        expression = IsAfter(question_id=depends_on_question.id, earliest_value=date(2025, 12, 1))
+        expression = IsAfter(
+            question_id=depends_on_question.id, collection_id=db_form.collection_id, earliest_value=date(2025, 12, 1)
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -4824,6 +4870,7 @@ class TestEditQuestionValidation:
 
         expression = LessThan(
             question_id=target_question.id,
+            collection_id=db_form.collection_id,
             maximum_value=None,
             maximum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=True,
@@ -4886,7 +4933,7 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.INTEGER,
         )
 
-        expression = LessThan(question_id=target_question.id, maximum_value=1000)
+        expression = LessThan(question_id=target_question.id, collection_id=db_form.collection_id, maximum_value=1000)
         interfaces.collections.add_question_validation(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -4947,7 +4994,7 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.INTEGER,
         )
 
-        expression = LessThan(question_id=target_question.id, maximum_value=1000)
+        expression = LessThan(question_id=target_question.id, collection_id=db_form.collection_id, maximum_value=1000)
         interfaces.collections.add_question_validation(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 

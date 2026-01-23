@@ -763,7 +763,12 @@ class TestConfirmReportSubmission:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            context={
+                "question_id": str(q2.id),
+                "collection_id": str(q2.form.collection_id),
+                "minimum_value": None,
+                "minimum_expression": f"(({q1.safe_qid}))",
+            },
         )
 
         submission = factories.submission.create(

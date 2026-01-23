@@ -623,7 +623,7 @@ class TestComponentReferenceModel:
             form=q1.form,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=3000),
+                    GreaterThan(question_id=q1.id, collection_id=q1.form.collection_id, minimum_value=3000),
                     ExpressionType.CONDITION,
                     user,
                 )
@@ -644,7 +644,7 @@ class TestComponentReferenceModel:
             form=q1.form,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=3000),
+                    GreaterThan(question_id=q1.id, collection_id=q1.form.collection_id, minimum_value=3000),
                     ExpressionType.CONDITION,
                     user,
                 )
@@ -665,6 +665,7 @@ class TestComponentReferenceModel:
                 Expression.from_managed(
                     Specifically(
                         question_id=q1.id,
+                        collection_id=q1.form.collection_id,
                         item={
                             "key": q1.data_source.items[0].key,
                             "label": q1.data_source.items[0].label,
@@ -692,6 +693,7 @@ class TestComponentReferenceModel:
                 Expression.from_managed(
                     Specifically(
                         question_id=q1.id,
+                        collection_id=q1.form.collection_id,
                         item={
                             "key": q1.data_source.items[0].key,
                             "label": q1.data_source.items[0].label,

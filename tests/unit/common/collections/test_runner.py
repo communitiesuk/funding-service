@@ -71,7 +71,9 @@ class TestFormRunner:
             form=group.form,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=q0.id, minimum_value=100), ExpressionType.CONDITION, user
+                    GreaterThan(question_id=q0.id, collection_id=group.form.collection_id, minimum_value=100),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )

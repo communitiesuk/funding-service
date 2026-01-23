@@ -66,7 +66,9 @@ class TestEvaluatingManagedExpressions:
             form=q0.form,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=q0.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(question_id=q0.id, collection_id=q0.form.collection_id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -95,7 +97,12 @@ class TestEvaluatingManagedExpressions:
             data_type=QuestionDataType.INTEGER,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=qid, minimum_value=None, minimum_expression=f"(({q0.safe_qid}))"),
+                    GreaterThan(
+                        question_id=qid,
+                        collection_id=q0.form.collection_id,
+                        minimum_value=None,
+                        minimum_expression=f"(({q0.safe_qid}))",
+                    ),
                     ExpressionType.CONDITION,
                     user,
                 )  # Double brackets should be ignored by the evaluation engine
@@ -127,6 +134,7 @@ class TestEvaluatingManagedExpressions:
                 Expression.from_managed(
                     BetweenDates(
                         question_id=qid,
+                        collection_id=q0.form.collection_id,
                         earliest_value=None,
                         latest_value=None,
                         earliest_expression=f"(({q0.safe_qid}))",

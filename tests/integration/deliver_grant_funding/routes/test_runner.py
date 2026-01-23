@@ -134,7 +134,12 @@ class TestSubmissionTasklist:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            context={
+                "question_id": str(q2.id),
+                "collection_id": str(q2.form.collection_id),
+                "minimum_value": None,
+                "minimum_expression": f"(({q1.safe_qid}))",
+            },
         )
 
         submission = factories.submission.create(
@@ -270,7 +275,7 @@ class TestAskAQuestion:
             question=question_2,
             created_by=authenticated_grant_admin_client.user,
             type_=ExpressionType.CONDITION,
-            context={"question_id": str(question.id)},
+            context={"question_id": str(question.id), "collection_id": str(question.form.collection.id)},
             statement=f"{question.safe_qid} is True",
             managed_name=ManagedExpressionsEnum.IS_YES,
         )

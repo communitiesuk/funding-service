@@ -70,10 +70,18 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
     )
     user = factories.user.create()
     interfaces.collections.add_question_validation(
-        question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True)
+        question,
+        user,
+        GreaterThan(
+            question_id=question.id, collection_id=question.form.collection_id, minimum_value=0, inclusive=True
+        ),
     )
     interfaces.collections.add_question_validation(
-        question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
+        question,
+        user,
+        LessThan(
+            question_id=question.id, collection_id=question.form.collection_id, maximum_value=100, inclusive=False
+        ),
     )
 
     _FormClass = build_question_form(
@@ -118,7 +126,7 @@ def test_validation_attached_to_multiple_fields(factories, db_session):
     q3 = factories.question.create(data_type=QuestionDataType.YES_NO)
 
     interfaces.collections.add_question_validation(
-        q2, user, GreaterThan(question_id=q2.id, minimum_value=100, inclusive=True)
+        q2, user, GreaterThan(question_id=q2.id, collection_id=q2.form.collection_id, minimum_value=100, inclusive=True)
     )
 
     _FormClass = build_question_form(
@@ -151,7 +159,13 @@ def test_reference_data_validation__integer(factories, db_session):
     interfaces.collections.add_question_validation(
         q2,
         user,
-        GreaterThan(question_id=q2.id, minimum_value=None, minimum_expression=f"(({q1.safe_qid}))", inclusive=True),
+        GreaterThan(
+            question_id=q2.id,
+            collection_id=q2.form.collection_id,
+            minimum_value=None,
+            minimum_expression=f"(({q1.safe_qid}))",
+            inclusive=True,
+        ),
     )
 
     _FormClass = build_question_form(
@@ -181,7 +195,13 @@ def test_reference_data_validation__date(factories, db_session):
     interfaces.collections.add_question_validation(
         q2,
         user,
-        IsAfter(question_id=q2.id, earliest_value=None, earliest_expression=f"(({q1.safe_qid}))", inclusive=True),
+        IsAfter(
+            question_id=q2.id,
+            collection_id=q2.form.collection_id,
+            earliest_value=None,
+            earliest_expression=f"(({q1.safe_qid}))",
+            inclusive=True,
+        ),
     )
 
     _FormClass = build_question_form(

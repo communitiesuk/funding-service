@@ -261,7 +261,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             text="What size pack of teabags do you usually buy?",
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=30), ExpressionType.CONDITION, _UserFactory.create()
+                    GreaterThan(question_id=q1.id, collection_id=form.collection_id, minimum_value=30),
+                    ExpressionType.CONDITION,
+                    _UserFactory.create(),
                 )
             ],
         )
@@ -326,7 +328,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             text="Do you buy teabags in bulk?",
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=30), ExpressionType.CONDITION, _UserFactory.create()
+                    GreaterThan(question_id=q1.id, collection_id=form.collection_id, minimum_value=30),
+                    ExpressionType.CONDITION,
+                    _UserFactory.create(),
                 )
             ],
         )
@@ -351,6 +355,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 Expression.from_managed(
                     AnyOf(
                         question_id=q4.id,
+                        collection_id=form.collection_id,
                         items=[
                             cast(
                                 TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
@@ -377,6 +382,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 Expression.from_managed(
                     Specifically(
                         question_id=q4.id,
+                        collection_id=form.collection_id,
                         item=cast(
                             TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
                         ),

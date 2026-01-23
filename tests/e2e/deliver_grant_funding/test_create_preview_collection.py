@@ -144,6 +144,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         validation=E2EManagedExpression(
             managed_expression=BetweenDates(
                 question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 earliest_value=datetime.date(2020, 1, 1),
                 earliest_inclusive=True,
                 latest_value=datetime.date(2025, 1, 1),
@@ -168,6 +169,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         validation=E2EManagedExpression(
             managed_expression=BetweenDates(
                 question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 earliest_value=datetime.date(2020, 4, 1),
                 earliest_inclusive=True,
                 latest_value=datetime.date(2022, 3, 1),
@@ -185,11 +187,14 @@ questions_to_test: dict[str, TQuestionToTest] = {
         ],
         "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS, approximate_date=True),
         "validation": E2EManagedExpression(
-            managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False)
+            managed_expression=GreaterThan(
+                question_id=uuid.uuid4(), collection_id=uuid.uuid4(), minimum_value=1, inclusive=False
+            )
         ),
         "condition": E2EManagedExpression(
             managed_expression=BetweenDates(
                 question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 earliest_value=datetime.date(2020, 4, 1),
                 earliest_inclusive=False,
                 latest_value=None,
@@ -212,6 +217,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "validation": E2EManagedExpression(
             managed_expression=LessThan(
                 question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 maximum_value=None,
                 maximum_expression="",
                 inclusive=True,
@@ -220,7 +226,9 @@ questions_to_test: dict[str, TQuestionToTest] = {
         ),  # question_id does not matter here
         "condition": E2EManagedExpression(
             referenced_question="Enter the total cost as a number",
-            managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),
+            managed_expression=GreaterThan(
+                question_id=uuid.uuid4(), collection_id=uuid.uuid4(), minimum_value=1, inclusive=False
+            ),
         ),
     },
     "between-integer": {
@@ -235,6 +243,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "validation": E2EManagedExpression(
             managed_expression=Between(
                 question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 maximum_value=100,
                 maximum_inclusive=False,
                 minimum_value=20,
@@ -243,7 +252,9 @@ questions_to_test: dict[str, TQuestionToTest] = {
         ),  # question_id does not matter here
         "condition": E2EManagedExpression(
             referenced_question="Enter the total weight as a number",
-            managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),
+            managed_expression=LessThan(
+                question_id=uuid.uuid4(), collection_id=uuid.uuid4(), maximum_value=100, inclusive=True
+            ),
         ),
     },
     "yes-no": {
@@ -257,6 +268,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
             referenced_question="Enter a number between 20 and 100",
             managed_expression=Between(
                 question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 maximum_value=40,
                 maximum_inclusive=True,
                 minimum_value=15,
@@ -273,7 +285,11 @@ questions_to_test: dict[str, TQuestionToTest] = {
             _QuestionResponse("option 2"),
         ],
         "condition": E2EManagedExpression(
-            referenced_question="Yes or no", managed_expression=IsYes(question_id=uuid.uuid4())
+            referenced_question="Yes or no",
+            managed_expression=IsYes(
+                question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
+            ),
         ),
     },
     "autocomplete": {
@@ -289,6 +305,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
             referenced_question="Select an option",
             managed_expression=AnyOf(
                 question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 items=[{"key": "option-2", "label": "option 2"}, {"key": "option-3", "label": "option 3"}],
             ),
         ),
@@ -304,7 +321,9 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
         "condition": E2EManagedExpression(
             referenced_question="Select an option from the accessible autocomplete",
-            managed_expression=AnyOf(question_id=uuid.uuid4(), items=[{"key": "other", "label": "Other"}]),
+            managed_expression=AnyOf(
+                question_id=uuid.uuid4(), collection_id=uuid.uuid4(), items=[{"key": "other", "label": "Other"}]
+            ),
         ),
     },
     "email": {
@@ -317,7 +336,9 @@ questions_to_test: dict[str, TQuestionToTest] = {
         ],
         "condition": E2EManagedExpression(
             referenced_question="Select one or more options",
-            managed_expression=Specifically(question_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}),
+            managed_expression=Specifically(
+                question_id=uuid.uuid4(), collection_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}
+            ),
         ),
     },
     "postcode": {
@@ -331,6 +352,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "validation": E2EManagedExpression(
             managed_expression=UKPostcode(
                 question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
             )
         ),  # question_id does not matter here
         "guidance": GuidanceText(
@@ -367,7 +389,11 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "display_text": "This question should not be shown",
         "answers": [_QuestionResponse("This question shouldn't be shown")],
         "condition": E2EManagedExpression(
-            referenced_question="Yes or no", managed_expression=IsNo(question_id=uuid.uuid4())
+            referenced_question="Yes or no",
+            managed_expression=IsNo(
+                question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
+            ),
         ),
     },
 }
@@ -399,7 +425,10 @@ questions_with_groups_to_test: dict[str, TQuestionToTest] = {
         ),
         "condition": E2EManagedExpression(
             referenced_question="Do you want to show question groups?",
-            managed_expression=IsYes(question_id=uuid.uuid4()),
+            managed_expression=IsYes(
+                question_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
+            ),
         ),
         "questions": [
             {
