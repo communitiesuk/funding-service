@@ -350,8 +350,8 @@ class TestTasklist:
         client = authenticated_grant_recipient_data_provider_client
         grant_recipient = client.grant_recipient
         form = factories.form.create(title="Financial Report", collection__grant=grant_recipient.grant)
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0, name="threshold")
-        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1, name="amount")
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0, name="threshold")
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=1, name="amount")
 
         factories.expression.create(
             question=q2,
@@ -695,7 +695,7 @@ class TestAskAQuestion:
         form = factories.form.create(title="number form", collection__grant=grant_recipient.grant)
         question_1 = factories.question.create(
             text="Enter a number",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             name="number question",
             order=0,
             form=form,
@@ -750,7 +750,7 @@ class TestAskAQuestion:
         form = factories.form.create(title="number form", collection__grant=grant_recipient.grant)
         question_1 = factories.question.create(
             text="Enter a number",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             name="number question",
             order=0,
             form=form,

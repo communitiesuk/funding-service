@@ -42,7 +42,7 @@ class TestBaseManagedExpression:
         assert from_db.conditions[0].managed.referenced_question.id == depends_on_question.id
 
     def test_prepare_form_data_removes_add_context(self, factories):
-        question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
         session_data = AddContextToExpressionsModel(
             field=ExpressionType.VALIDATION,
             managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
@@ -65,7 +65,7 @@ class TestBaseManagedExpression:
         }
 
     def test_base_prepare_form_data_with_no_add_context_field(self, factories):
-        question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
         session_data = AddContextToExpressionsModel(
             field=ExpressionType.VALIDATION,
             managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
@@ -107,8 +107,8 @@ class TestGreaterThanExpression:
     )
     def test_evaluate_with_reference(self, inclusive, answer, expected_result, factories):
         user = factories.user.create()
-        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
         expr = GreaterThan(
             question_id=target_question.id,
             minimum_value=None,
@@ -125,8 +125,8 @@ class TestGreaterThanExpression:
         assert evaluate(expression) is expected_result
 
     def test_expression_referenced_question_ids(self, factories):
-        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
         expr = GreaterThan(
             question_id=target_question.id,
             minimum_value=None,
@@ -160,8 +160,8 @@ class TestLessThanExpression:
     )
     def test_evaluate_with_reference(self, inclusive, answer, expected_result, factories):
         user = factories.user.create()
-        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
         expr = LessThan(
             question_id=target_question.id,
             maximum_value=None,
@@ -178,8 +178,8 @@ class TestLessThanExpression:
         assert evaluate(expression) is expected_result
 
     def test_expression_referenced_question_ids(self, factories):
-        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
         expr = LessThan(
             question_id=target_question.id,
             maximum_value=None,
@@ -232,8 +232,8 @@ class TestBetweenExpression:
         factories,
     ):
         user = factories.user.create()
-        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
         expr = Between(
             question_id=target_question.id,
             minimum_value=0,
@@ -253,12 +253,12 @@ class TestBetweenExpression:
         assert evaluate(expression) is expected_result
 
     def test_expression_referenced_question_ids(self, factories):
-        first_referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        first_referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         second_referenced_question = factories.question.create(
-            form=first_referenced_question.form, data_type=QuestionDataType.INTEGER
+            form=first_referenced_question.form, data_type=QuestionDataType.NUMBER
         )
         target_question = factories.question.create(
-            form=first_referenced_question.form, data_type=QuestionDataType.INTEGER
+            form=first_referenced_question.form, data_type=QuestionDataType.NUMBER
         )
         expr = Between(
             question_id=target_question.id,

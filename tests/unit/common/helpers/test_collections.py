@@ -260,7 +260,7 @@ class TestSubmissionHelper:
             form = factories.form.build()
             q0 = factories.question.build(form=form, order=0)
             group = factories.group.build(form=form, add_another=True, order=1)
-            q1 = factories.question.build(parent=group, data_type=QuestionDataType.INTEGER, order=0)
+            q1 = factories.question.build(parent=group, data_type=QuestionDataType.NUMBER, order=0)
             q2 = factories.question.build(parent=group, order=1)
             q3 = factories.question.build(parent=group, order=2)
             q4 = factories.question.build(form=form, order=2)
@@ -342,7 +342,7 @@ class TestSubmissionHelper:
             form = factories.form.build()
             q0 = factories.question.build(form=form, order=0)
             group = factories.group.build(form=form, add_another=True, order=1)
-            q1 = factories.question.build(parent=group, data_type=QuestionDataType.INTEGER, order=0)
+            q1 = factories.question.build(parent=group, data_type=QuestionDataType.NUMBER, order=0)
             q2 = factories.question.build(parent=group, order=1)
             q3 = factories.question.build(parent=group, order=2)
             q4 = factories.question.build(form=form, order=2)
@@ -408,7 +408,7 @@ class TestSubmissionHelper:
             assert all_answered is False
 
         def test_all_questions_answered_with_add_another_empty_individual_conditions(self, factories):
-            q1 = factories.question.build(data_type=QuestionDataType.INTEGER)
+            q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
             group = factories.group.build(form=q1.form, add_another=True)
             q2 = factories.question.build(form=q1.form, parent=group)
             submission = factories.submission.build(collection=group.form.collection)
@@ -461,7 +461,7 @@ class TestSubmissionHelper:
         # and other moving parts
         def test_all_questions_answered_with_add_another_conditions(self, factories):
             group = factories.group.build(add_another=True)
-            q1 = factories.question.build(form=group.form, parent=group, data_type=QuestionDataType.INTEGER)
+            q1 = factories.question.build(form=group.form, parent=group, data_type=QuestionDataType.NUMBER)
             q2 = factories.question.build(form=group.form, parent=group)
             submission = factories.submission.build(collection=group.form.collection)
             submission.data = {

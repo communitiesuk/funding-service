@@ -176,7 +176,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         ),
     ),
     "prefix-integer": {
-        "type": QuestionDataType.INTEGER,
+        "type": QuestionDataType.NUMBER,
         "text": "Enter the total cost as a number",
         "display_text": "Enter the total cost as a number",
         "answers": [
@@ -201,7 +201,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         ),
     },
     "suffix-integer": {
-        "type": QuestionDataType.INTEGER,
+        "type": QuestionDataType.NUMBER,
         "text": "Enter the total weight as a number",
         "display_text": "Enter the total weight as a number",
         "answers": [
@@ -224,7 +224,7 @@ questions_to_test: dict[str, TQuestionToTest] = {
         ),
     },
     "between-integer": {
-        "type": QuestionDataType.INTEGER,
+        "type": QuestionDataType.NUMBER,
         "text": "Enter a number between 20 and 100",
         "display_text": "Enter a number between 20 and 100",
         "answers": [
@@ -584,7 +584,7 @@ def create_question(
 
     if (
         question_definition["type"]
-        in [QuestionDataType.INTEGER, QuestionDataType.TEXT_MULTI_LINE, QuestionDataType.DATE]
+        in [QuestionDataType.NUMBER, QuestionDataType.TEXT_MULTI_LINE, QuestionDataType.DATE]
         and question_definition.get("options") is not None
     ):
         add_advanced_formatting(question_definition, question_details_page)
@@ -621,7 +621,7 @@ def add_advanced_formatting(
                 question_details_page.select_multiline_input_rows(options.rows)
             if options.word_limit is not None:
                 question_details_page.fill_word_limit(options.word_limit)
-        case QuestionDataType.INTEGER:
+        case QuestionDataType.NUMBER:
             if options.prefix is not None:
                 question_details_page.fill_prefix(options.prefix)
             if options.suffix is not None:
@@ -808,7 +808,7 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
     if question["type"] == QuestionDataType.CHECKBOXES:
         checkbox_answers_list = check_your_answers_page.page.get_by_test_id(f"answer-{question_name}").locator("li")
         expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
-    elif question["type"] == QuestionDataType.INTEGER:
+    elif question["type"] == QuestionDataType.NUMBER:
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
             f"{question['options'].prefix or ''}"
             f"{format_thousands(int(question['answers'][-1].answer))}"
@@ -840,7 +840,7 @@ def assert_check_your_answer_for_question(question: TQuestionToTest, answers_lis
         expect(
             answers_list.get_by_text(f"{question['text']} {' '.join(question['answers'][-1].answer)}", exact=True)
         ).to_be_visible()
-    elif question["type"] == QuestionDataType.INTEGER:
+    elif question["type"] == QuestionDataType.NUMBER:
         expect(
             answers_list.get_by_text(
                 f"{question['text']} {question['options'].prefix or ''}"
@@ -884,7 +884,7 @@ def test_setup_grant_and_collection(
     grant_name_uuid = str(uuid.uuid4())
 
     # Sense check that the test includes all question types
-    assert len(QuestionDataType) == 10 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
+    assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
         "If you have added a new question type or managed expression, update this test to include the "
         "new question type or managed expression in `questions_to_test`."
     )
