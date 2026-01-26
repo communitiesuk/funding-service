@@ -125,8 +125,8 @@ class TestSubmissionTasklist:
         client = authenticated_grant_admin_client
         grant = client.grant
         form = factories.form.create(title="Financial Report", collection__grant=grant)
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0, name="threshold")
-        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1, name="amount")
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0, name="threshold")
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=1, name="amount")
 
         factories.expression.create(
             question=q2,

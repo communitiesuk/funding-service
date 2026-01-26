@@ -195,7 +195,7 @@ def build_question_form(  # noqa: C901
                     ),
                     filters=[lambda x: x.strip() if x else x],
                 )
-            case QuestionDataType.INTEGER | QuestionDataType.NUMBER:
+            case QuestionDataType.NUMBER:
                 field = IntegerWithCommasField(
                     label=interpolate(text=question.text, context=interpolation_context),
                     description=interpolate(text=question.hint or "", context=interpolation_context),

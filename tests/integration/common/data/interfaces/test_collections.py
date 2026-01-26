@@ -1142,7 +1142,7 @@ class TestUpdateGroup:
     def test_synced_component_references(self, db_session, factories, mocker):
         form = factories.form.create()
         user = factories.user.create()
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         group = create_group(
             form=form,
             text="Test group",
@@ -1224,7 +1224,7 @@ class TestCreateQuestion:
             text="Test Question",
             hint="Test Hint",
             name="Test Question Name",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
         )
@@ -1359,7 +1359,7 @@ class TestCreateQuestion:
         assert question.data_options == QuestionDataOptions(allow_decimals=None)
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 10, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 9, "Add a new test above if adding a new question type"
 
     def test_question_requires_data_type(self, db_session, factories):
         form = factories.form.create()
@@ -1451,7 +1451,7 @@ class TestUpdateQuestion:
             text="Test Question",
             hint="Test Hint",
             name="Test Question Name",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
         )
@@ -1742,7 +1742,7 @@ class TestUpdateQuestion:
         assert updated_question.slug == "updated-question"
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 10, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 9, "Add a new test above if adding a new question type"
 
     def test_update_question_with_guidance_fields(self, db_session, factories):
         form = factories.form.create()
@@ -1821,7 +1821,7 @@ class TestUpdateQuestion:
             text="Test Question",
             hint="Test Hint",
             name="Test Question Name",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
         )
         add_question_validation(question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True))
@@ -2279,7 +2279,7 @@ class TestDependencyExceptionHelpers:
         form = factories.form.create()
         user = factories.user.create()
         group = factories.group.create(form=form)
-        q1 = factories.question.create(parent=group, form=form, data_type=QuestionDataType.INTEGER)
+        q1 = factories.question.create(parent=group, form=form, data_type=QuestionDataType.NUMBER)
         q2 = factories.question.create(
             parent=group,
             form=form,
@@ -2771,7 +2771,7 @@ class TestExpressions:
         group = factories.group.create(
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
         )
-        q0 = factories.question.create(form=group.form, parent=group, data_type=QuestionDataType.INTEGER)
+        q0 = factories.question.create(form=group.form, parent=group, data_type=QuestionDataType.NUMBER)
         q1 = factories.question.create(form=group.form, parent=group)
         user = factories.user.create()
 
@@ -3024,7 +3024,7 @@ class TestExpressions:
             get_expression(uuid.uuid4())
 
     def test_get_expression_by_id(self, db_session, factories, track_sql_queries):
-        question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
         managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
         add_question_validation(question, user, managed_expression)
@@ -3046,7 +3046,7 @@ class TestExpressions:
         assert len(queries) == 0
 
     def test_get_expression_by_id_missing(self, db_session, factories):
-        question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
         managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
         add_question_validation(question, user, managed_expression)
@@ -3267,7 +3267,7 @@ class TestDeleteCollectionSubmissions:
 class TestValidateAndSyncExpressionReferences:
     def test_creates_component_reference_for_managed_expression(self, db_session, factories):
         user = factories.user.create()
-        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         dependent_question = factories.question.create(form=referenced_question.form)
 
         expression = Expression.from_managed(
@@ -3308,7 +3308,7 @@ class TestValidateAndSyncExpressionReferences:
 
     def test_replaces_existing_component_references(self, db_session, factories):
         user = factories.user.create()
-        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         dependent_question = factories.question.create(form=referenced_question.form)
 
         managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
@@ -3360,9 +3360,9 @@ class TestValidateAndSyncExpressionReferences:
     def test_creates_references_to_referenced_questions(self, db_session, factories):
         user = factories.user.create()
         form = factories.form.create()
-        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form)
 
         expression = Expression.from_managed(
@@ -3397,9 +3397,9 @@ class TestValidateAndSyncExpressionReferences:
     def test_raises_dependency_order_exception(self, db_session, factories):
         user = factories.user.create()
         form = factories.form.create()
-        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
         expression = Expression.from_managed(
             Between(
@@ -3427,9 +3427,9 @@ class TestValidateAndSyncExpressionReferences:
     def test_raises_incompatible_data_type_exception(self, db_session, factories):
         user = factories.user.create()
         form = factories.form.create()
-        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        first_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.DATE)
-        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
         expression = Expression.from_managed(
             Between(
@@ -3458,10 +3458,10 @@ class TestValidateAndSyncExpressionReferences:
         user = factories.user.create()
         form = factories.form.create()
         first_referenced_question = factories.question.create(
-            form=form, data_type=QuestionDataType.INTEGER, add_another=True
+            form=form, data_type=QuestionDataType.NUMBER, add_another=True
         )
-        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
         expression = Expression.from_managed(
             Between(
@@ -3490,10 +3490,10 @@ class TestValidateAndSyncExpressionReferences:
         user = factories.user.create()
         form = factories.form.create()
         first_referenced_question = factories.question.create(
-            form=form, data_type=QuestionDataType.INTEGER, add_another=True
+            form=form, data_type=QuestionDataType.NUMBER, add_another=True
         )
-        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, add_another=True)
+        second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, add_another=True)
 
         expression = Expression.from_managed(
             Between(
@@ -3568,7 +3568,7 @@ class TestValidateAndSyncComponentReferences:
 
     def test_handles_expression_references(self, db_session, factories):
         user = factories.user.create()
-        referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         dependent_question = factories.question.create(form=referenced_question.form)
 
         managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
@@ -3592,9 +3592,7 @@ class TestValidateAndSyncComponentReferences:
 
     def test_throws_error_on_referencing_later_question_in_form(self, db_session, factories):
         dependent_question = factories.question.create()
-        referenced_question = factories.question.create(
-            form=dependent_question.form, data_type=QuestionDataType.INTEGER
-        )
+        referenced_question = factories.question.create(form=dependent_question.form, data_type=QuestionDataType.NUMBER)
         dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
 
         with pytest.raises(InvalidReferenceInExpression):
