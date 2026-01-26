@@ -90,7 +90,7 @@ class DynamicQuestionForm(FlaskForm):
         # Inject the latest data from this form submission into the context for validators to use. This will override
         # any existing data for expression contexts from the current state of the submission with the data submitted
         # in this form by the user.
-        evaluation_context = self._evaluation_context.copy_and_insert_answers_from_form_context(
+        evaluation_context = self._evaluation_context.copy_and_insert_submission_data_from_form_context(
             self._extract_submission_answers()
         )
 

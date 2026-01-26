@@ -326,3 +326,14 @@ class TestExtendingWithAddAnotherContext:
         with pytest.raises(ValueError) as e:
             ex.with_add_another_context(component, submission_helper=SubmissionHelper(submission), add_another_index=0)
         assert str(e.value) == "add_another_context can only be set for add another components"
+
+
+class TestExtendingWithQuestionFormContext:
+    def test_copy_and_insert_submission_data_from_form_context_does_not_override_original_by_reference(self):
+        ex = ExpressionContext(
+            submission_data={"a": 1, "b": 1, "e": 1},
+            expression_context={"a": 2, "c": 2, "d": 2},
+        )
+        question_form_expression_context = ex.copy_and_insert_submission_data_from_form_context({"b": 3})
+        assert question_form_expression_context["b"] == 3
+        assert ex["b"] == 1

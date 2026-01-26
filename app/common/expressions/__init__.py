@@ -143,7 +143,7 @@ class ExpressionContext(ChainMap[str, Any]):
         self._expression_context = expression_context
         self.maps = self._ordered_contexts
 
-    def copy_and_insert_answers_from_form_context(
+    def copy_and_insert_submission_data_from_form_context(
         self, submission_answers_from_form: dict[str, Any]
     ) -> ExpressionContext:
         """The default submission data we use for expression context is all of the data from the Submission DB record.
