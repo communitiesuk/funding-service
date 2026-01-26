@@ -126,16 +126,6 @@ class SubmissionHelper:
         self.cached_get_all_questions_are_answered_for_form = lru_cache(maxsize=None)(
             self._get_all_questions_are_answered_for_form
         )
-        self.cached_evaluation_context = ExpressionContext.build_expression_context(
-            collection=self.submission.collection,
-            submission_helper=self,
-            mode="evaluation",
-        )
-        self.cached_interpolation_context = ExpressionContext.build_expression_context(
-            collection=self.submission.collection,
-            submission_helper=self,
-            mode="interpolation",
-        )
 
     @classmethod
     def load(cls, submission_id: uuid.UUID, *, grant_recipient_id: uuid.UUID | None = None) -> SubmissionHelper:
@@ -153,6 +143,22 @@ class SubmissionHelper:
                 mode="interpolation",
                 submission_helper=submission_helper,
             ),
+        )
+
+    @cached_property
+    def cached_evaluation_context(self) -> ExpressionContext:
+        return ExpressionContext.build_expression_context(
+            collection=self.submission.collection,
+            submission_helper=self,
+            mode="evaluation",
+        )
+
+    @cached_property
+    def cached_interpolation_context(self) -> ExpressionContext:
+        return ExpressionContext.build_expression_context(
+            collection=self.submission.collection,
+            submission_helper=self,
+            mode="interpolation",
         )
 
     @property
@@ -482,6 +488,7 @@ class SubmissionHelper:
         )
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
+        del self.cached_evaluation_context
 
         # FIXME: work out why end to end tests aren't happy without this here
         #        I've made it work but not happy with not clearly pointing to where
