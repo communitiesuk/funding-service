@@ -60,7 +60,7 @@ class TestSubmissionHelper:
 
         def test_get_data_maps_type(self, db_session, factories):
             question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.NUMBER
             )
             submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
@@ -74,7 +74,7 @@ class TestSubmissionHelper:
 
         def test_can_get_falsey_answers(self, db_session, factories):
             question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.NUMBER
             )
             submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
@@ -134,7 +134,7 @@ class TestSubmissionHelper:
                 data_type=QuestionDataType.TEXT_MULTI_LINE,
             )
             q3 = factories.question.create(
-                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
+                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.NUMBER
             )
             q4 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
@@ -274,7 +274,7 @@ class TestSubmissionHelper:
                 data_type=QuestionDataType.TEXT_MULTI_LINE,
             )
             q3 = factories.question.create(
-                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
+                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.NUMBER
             )
             q4 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
@@ -1457,8 +1457,8 @@ class TestSubmissionValidation:
     def test_submit_fails_when_answer_no_longer_valid(self, factories):
         form = factories.form.create()
         user = factories.user.create()
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.create(
             question=q2,
@@ -1490,8 +1490,8 @@ class TestSubmissionValidation:
     def test_submit_succeeds_when_all_answers_valid(self, factories):
         form = factories.form.create()
         user = factories.user.create()
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.create(
             question=q2,
@@ -1516,8 +1516,8 @@ class TestSubmissionValidation:
     def test_certification_fails_when_answer_no_longer_valid(self, factories):
         form = factories.form.create()
         user = factories.user.create()
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.create(
             question=q2,

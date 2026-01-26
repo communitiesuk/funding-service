@@ -382,8 +382,7 @@ class Component(BaseModel):
     data_options: Mapped[QuestionDataOptions] = mapped_column(
         default=QuestionDataOptions,
         server_default="{}",
-        # TODO make this nullable=False in future migration - setting to True to allow zero downtime deployment
-        nullable=True,
+        nullable=False,
     )
     type: Mapped[ComponentType] = mapped_column(
         SqlEnum(ComponentType, name="component_type_enum", validate_strings=True), default=ComponentType.QUESTION
@@ -563,17 +562,17 @@ class Question(Component, SafeQidMixin):
 
     @property
     def prefix(self) -> str | None:
-        return self.presentation_options.prefix if self.data_type == QuestionDataType.INTEGER else None
+        return self.presentation_options.prefix if self.data_type == QuestionDataType.NUMBER else None
 
     @property
     def suffix(self) -> str | None:
-        return self.presentation_options.suffix if self.data_type == QuestionDataType.INTEGER else None
+        return self.presentation_options.suffix if self.data_type == QuestionDataType.NUMBER else None
 
     @property
     def width(self) -> str | None:
         return (
             self.presentation_options.width.value
-            if self.data_type == QuestionDataType.INTEGER and self.presentation_options.width
+            if self.data_type == QuestionDataType.NUMBER and self.presentation_options.width
             else None
         )
 

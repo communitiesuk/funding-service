@@ -228,8 +228,8 @@ class BottomOfRangeIsLower:
 @register_managed_expression
 class GreaterThan(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.GREATER_THAN
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
-    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
         "deliver_grant_funding/reports/managed_expressions/greater_than.html"
     )
@@ -319,8 +319,8 @@ class GreaterThan(ManagedExpression):
 @register_managed_expression
 class LessThan(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.LESS_THAN
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
-    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
         "deliver_grant_funding/reports/managed_expressions/less_than.html"
     )
@@ -408,8 +408,8 @@ class LessThan(ManagedExpression):
 @register_managed_expression
 class Between(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.BETWEEN
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
-    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.INTEGER}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
         "deliver_grant_funding/reports/managed_expressions/between.html"
     )
