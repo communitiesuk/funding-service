@@ -60,14 +60,14 @@ dev = [
     "html5lib==1.1",
     "types-html5lib==1.1.11.20251117",
     "types-pytz==2025.2.0.20251108",
-    "boto3==1.42.27",
-    "types-boto3==1.42.27",
+    "boto3==1.42.30",
+    "types-boto3==1.42.30",
     "freezegun==1.5.5",
     "import-linter==2.9",
     "pytest==9.0.2",
     "pytest-playwright==0.7.2",
     "ty==0.0.14",
-    "watchdog[watchmedo]>=4.0.0",
+    "watchdog[watchmedo]==6.0.0",
 ]
 
 [tool.uv]
