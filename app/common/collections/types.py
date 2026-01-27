@@ -1,5 +1,6 @@
 import abc
 from datetime import date
+from decimal import Decimal
 from typing import Any, Protocol, TypedDict, Union, cast
 
 from pydantic import BaseModel, RootModel
@@ -111,32 +112,38 @@ class YesNoAnswer(SubmissionAnswerRootModel[bool]):
         return cast(bool, self.model_dump(mode="json"))
 
 
-class IntegerAnswer(SubmissionAnswerBaseModel):
-    value: int
+class _NumberAnswer[T: int | Decimal](SubmissionAnswerBaseModel):
+    value: T
     prefix: str | None = None
     suffix: str | None = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if type(self).__pydantic_generic_metadata__["parameters"]:
+            raise TypeError(
+                "Cannot instantiate _NumberAnswer directly. Use a concrete type like IntegerAnswer or DecimalAnswer."
+            )
 
     @property
     def _render_answer_template(self) -> str:
         return "common/partials/answers/integer.html"
 
-    def get_value_for_submission(self) -> dict[str, Any]:
-        return self.model_dump(mode="json", exclude_none=True)
-
-    def get_value_for_form(self) -> int:
-        return self.value
-
-    def get_value_for_evaluation(self) -> int:
-        return self.value
-
     def get_value_for_interpolation(self) -> str:
         return self.get_value_for_text_export()
 
-    def get_value_for_text_export(self) -> str:
-        return f"{self.prefix or ''}{self.value:,d}{self.suffix or ''}"
+    def get_value_for_submission(self) -> dict[str, Any]:
+        return self.model_dump(mode="json", exclude_none=True)
 
-    def get_value_for_json_export(self) -> dict[str, Any]:
-        data: dict[str, str | int] = {"value": self.value}
+    def get_value_for_form(self) -> T:
+        return self.value
+
+    def get_value_for_evaluation(self) -> T:
+        return self.value
+
+    def get_value_for_text_export(self) -> str:
+        return f"{self.prefix or ''}{self.value:,}{self.suffix or ''}"
+
+    def get_value_for_json_export(self) -> dict[str, str | T]:
+        data: dict[str, str | T] = {"value": self.value}
 
         if self.prefix:
             data["prefix"] = self.prefix
@@ -144,6 +151,10 @@ class IntegerAnswer(SubmissionAnswerBaseModel):
             data["suffix"] = self.suffix
 
         return data
+
+
+IntegerAnswer = _NumberAnswer[int]
+DecimalAnswer = _NumberAnswer[Decimal]
 
 
 class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):

@@ -196,6 +196,8 @@ def build_question_form(  # noqa: C901
                     filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.NUMBER:
+                if question.data_options.allow_decimals:
+                    raise NotImplementedError("Decimal number fields are not yet supported.")
                 field = IntegerWithCommasField(
                     label=interpolate(text=question.text, context=interpolation_context),
                     description=interpolate(text=question.hint or "", context=interpolation_context),
