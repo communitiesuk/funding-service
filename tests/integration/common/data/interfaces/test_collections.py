@@ -975,7 +975,13 @@ class TestUpdateGroup:
         _ = factories.question.create(
             form=form,
             parent=group,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=100), created_by=user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=100),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         with pytest.raises(DependencyOrderException):
@@ -998,7 +1004,13 @@ class TestUpdateGroup:
         _ = factories.question.create(
             form=form,
             parent=group,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=100), created_by=user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=100),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         update_group(
@@ -1909,7 +1921,13 @@ class TestMoveComponent:
         q1, q2 = factories.question.create_batch(2, form=form)
         q3 = factories.question.create(
             form=form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q2.id, minimum_value=3000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q2.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         # q3 can't move above its dependency q2
@@ -1965,7 +1983,13 @@ class TestMoveComponent:
         q1, q2 = factories.question.create_batch(2, form=form)
         group = factories.group.create(
             form=form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q2.id, minimum_value=3000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q2.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         # group can't move above its dependency q2
@@ -1994,7 +2018,13 @@ class TestMoveComponent:
         _ = factories.question.create(
             form=form,
             parent=group,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=3000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         # you can't move a group above a question that something in the group depends on
@@ -2015,7 +2045,13 @@ class TestMoveComponent:
         nested_q1 = factories.question.create(form=form, parent=group)
         q2 = factories.question.create(
             form=form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=nested_q1.id, minimum_value=3000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=nested_q1.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         # you can't move a question above a group that it depends on a question in
@@ -2038,7 +2074,13 @@ class TestMoveComponent:
         _ = factories.question.create(
             form=form,
             parent=group2,
-            expressions=[Expression.from_managed(GreaterThan(question_id=nested_q1.id, minimum_value=3000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=nested_q1.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         # you can't move a group above a question in a group that it depends on
@@ -2063,7 +2105,11 @@ class TestNestedGroupDependencies:
         factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000), user)
+                Expression.from_managed(
+                    GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
             ],
             parent=child_group,
         )
@@ -2092,7 +2138,11 @@ class TestNestedGroupDependencies:
             form=form,
             parent=parent_group,
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000), user)
+                Expression.from_managed(
+                    GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
             ],
         )
 
@@ -2120,7 +2170,11 @@ class TestNestedGroupDependencies:
             form=form,
             parent=parent_group,
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000), user)
+                Expression.from_managed(
+                    GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
             ],
         )
         # you can't delete a nested group that a quetsion depends on
@@ -2138,7 +2192,11 @@ class TestNestedGroupDependencies:
         q1_in_child_group = factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000), user)
+                Expression.from_managed(
+                    GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
             ],
             parent=child_group,
         )
@@ -2166,7 +2224,13 @@ class TestDependencyExceptionHelpers:
         q1 = factories.question.create(form=form)
         q2 = factories.question.create(
             form=form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=1000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         assert raise_if_question_has_any_dependencies(q2) is None
@@ -2184,7 +2248,11 @@ class TestDependencyExceptionHelpers:
         q2 = factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=nested_question.id, minimum_value=1000), user)
+                Expression.from_managed(
+                    GreaterThan(question_id=nested_question.id, minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
             ],
         )
 
@@ -2205,7 +2273,13 @@ class TestDependencyExceptionHelpers:
         q2 = factories.question.create(
             parent=group,
             form=form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q1.id, minimum_value=1000), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q1.id, minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
         )
 
         with pytest.raises(DependencyOrderException) as e:
@@ -2909,7 +2983,11 @@ class TestExpressions:
         question = factories.question.create(
             id=qid,
             expressions=[
-                Expression.from_managed(GreaterThan(question_id=qid, minimum_value=3000), user),
+                Expression.from_managed(
+                    GreaterThan(question_id=qid, minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
+                ),
             ],
         )
 
@@ -3182,7 +3260,11 @@ class TestValidateAndSyncExpressionReferences:
         referenced_question = factories.question.create(data_type=QuestionDataType.INTEGER)
         dependent_question = factories.question.create(form=referenced_question.form)
 
-        expression = Expression.from_managed(GreaterThan(question_id=referenced_question.id, minimum_value=100), user)
+        expression = Expression.from_managed(
+            GreaterThan(question_id=referenced_question.id, minimum_value=100),
+            ExpressionType.CONDITION,
+            user,
+        )
         dependent_question.expressions.append(expression)
         db_session.add(expression)
         db_session.flush()
@@ -3220,7 +3302,7 @@ class TestValidateAndSyncExpressionReferences:
         dependent_question = factories.question.create(form=referenced_question.form)
 
         managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
-        expression = Expression.from_managed(managed_expression, user)
+        expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
         dependent_question.expressions.append(expression)
         db_session.add(expression)
 
@@ -3255,7 +3337,7 @@ class TestValidateAndSyncExpressionReferences:
                 "label": referenced_question.data_source.items[0].label,
             },
         )
-        expression = Expression.from_managed(managed_expression, user)
+        expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
         dependent_question.expressions.append(expression)
         db_session.add(expression)
         assert len(expression.component_references) == 0
@@ -3281,6 +3363,7 @@ class TestValidateAndSyncExpressionReferences:
                 maximum_value=None,
                 maximum_expression=f"(({second_referenced_question.safe_qid}))",
             ),
+            ExpressionType.CONDITION,
             user,
         )
         target_question.expressions.append(expression)
@@ -3316,6 +3399,7 @@ class TestValidateAndSyncExpressionReferences:
                 maximum_value=None,
                 maximum_expression=f"(({second_referenced_question.safe_qid}))",
             ),
+            ExpressionType.CONDITION,
             user,
         )
         target_question.expressions.append(expression)
@@ -3345,6 +3429,7 @@ class TestValidateAndSyncExpressionReferences:
                 maximum_value=None,
                 maximum_expression=f"(({second_referenced_question.safe_qid}))",
             ),
+            ExpressionType.CONDITION,
             user,
         )
         target_question.expressions.append(expression)
@@ -3376,6 +3461,7 @@ class TestValidateAndSyncExpressionReferences:
                 maximum_value=None,
                 maximum_expression=f"(({second_referenced_question.safe_qid}))",
             ),
+            ExpressionType.CONDITION,
             user,
         )
         target_question.expressions.append(expression)
@@ -3407,6 +3493,7 @@ class TestValidateAndSyncExpressionReferences:
                 maximum_value=None,
                 maximum_expression=f"(({second_referenced_question.safe_qid}))",
             ),
+            ExpressionType.CONDITION,
             user,
         )
         target_question.expressions.append(expression)
@@ -3475,7 +3562,7 @@ class TestValidateAndSyncComponentReferences:
         dependent_question = factories.question.create(form=referenced_question.form)
 
         managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
-        expression = Expression.from_managed(managed_expression, user)
+        expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
         dependent_question.expressions.append(expression)
         db_session.add(expression)
         db_session.flush()

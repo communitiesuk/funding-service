@@ -1414,7 +1414,7 @@ def add_component_condition(component: Component, user: User, managed_expression
             managed_expression.referenced_question,
         )
 
-    expression = Expression.from_managed(managed_expression, user)
+    expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
     component.expressions.append(expression)
 
     _validate_and_sync_expression_references(expression)
@@ -1426,14 +1426,8 @@ def add_component_condition(component: Component, user: User, managed_expression
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_question_validation(question: Question, user: User, managed_expression: ManagedExpression) -> Question:
-    expression = Expression(
-        statement=managed_expression.statement,
-        context=managed_expression.model_dump(mode="json"),
-        created_by=user,
-        type_=ExpressionType.VALIDATION,
-        managed_name=managed_expression._key,
-    )
+def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
+    expression = Expression.from_managed(managed_expression, ExpressionType.VALIDATION, user)
     question.expressions.append(expression)
     _validate_and_sync_expression_references(expression)
     return question

@@ -5,7 +5,7 @@ import pytest
 from app.common.collections.runner import FormRunner
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.models import Expression
-from app.common.data.types import FormRunnerState, QuestionDataType, QuestionPresentationOptions
+from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan
 from app.common.helpers.collections import SubmissionHelper
 
@@ -69,7 +69,11 @@ class TestFormRunner:
         q2 = factories.question.build(
             parent=group,
             form=group.form,
-            expressions=[Expression.from_managed(GreaterThan(question_id=q0.id, minimum_value=100), user)],
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q0.id, minimum_value=100), ExpressionType.CONDITION, user
+                )
+            ],
         )
         q3 = factories.question.build(parent=group, form=group.form)
         submission = factories.submission.build(collection=group.form.collection)
