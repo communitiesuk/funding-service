@@ -16,15 +16,18 @@ class TestExpressionContext:
         ex = ExpressionContext(
             submission_data={"a": 1, "b": 1, "e": 1},
             expression_context={"a": 2, "c": 2, "d": 2},
+            question_form_context={"a": 3, "f": 3, "g": 3},
         )
-        assert ex["a"] == 1
+        assert ex["a"] == 3
         assert ex["b"] == 1
         assert ex["c"] == 2
         assert ex["d"] == 2
         assert ex["e"] == 1
+        assert ex["f"] == 3
+        assert ex["g"] == 3
 
         with pytest.raises(KeyError):
-            assert ex["f"]
+            assert ex["h"]
 
     def test_get(self):
         ex = ExpressionContext(
@@ -329,11 +332,11 @@ class TestExtendingWithAddAnotherContext:
 
 
 class TestExtendingWithQuestionFormContext:
-    def test_copy_and_insert_submission_data_from_form_context_does_not_override_original_by_reference(self):
+    def test_with_question_form_context_does_not_override_original_by_reference(self):
         ex = ExpressionContext(
             submission_data={"a": 1, "b": 1, "e": 1},
             expression_context={"a": 2, "c": 2, "d": 2},
         )
-        question_form_expression_context = ex.copy_and_insert_submission_data_from_form_context({"b": 3})
+        question_form_expression_context = ex.with_question_form_context({"b": 3})
         assert question_form_expression_context["b"] == 3
         assert ex["b"] == 1

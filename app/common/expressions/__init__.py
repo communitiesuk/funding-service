@@ -3,7 +3,6 @@ import enum
 import re
 from collections import ChainMap
 from collections.abc import MutableMapping
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import simpleeval
@@ -68,10 +67,12 @@ class ExpressionContext(ChainMap[str, Any]):
         submission_data: dict[str, Any] | None = None,
         expression_context: dict[str, Any] | None = None,
         add_another_context: dict[str, Any] | None = None,
+        question_form_context: dict[str, Any] | None = None,
     ):
         self._submission_data = submission_data or {}
         self._expression_context = expression_context or {}
         self._add_another_context = add_another_context or {}
+        self._question_form_context = question_form_context or {}
 
         super().__init__(*self._ordered_contexts)
 
@@ -119,6 +120,7 @@ class ExpressionContext(ChainMap[str, Any]):
             submission_data=self._submission_data,
             add_another_context=add_another_context,
             expression_context=self._expression_context,
+            question_form_context=self._question_form_context,
         )
 
     @property
@@ -127,9 +129,10 @@ class ExpressionContext(ChainMap[str, Any]):
             filter(
                 None,
                 [
+                    self._question_form_context,
                     self._add_another_context,
                     self._submission_data,
-                    self.expression_context,
+                    self._expression_context,
                 ],
             )
         )
@@ -143,34 +146,20 @@ class ExpressionContext(ChainMap[str, Any]):
         self._expression_context = expression_context
         self.maps = self._ordered_contexts
 
-    def copy_and_insert_submission_data_from_form_context(
-        self, submission_answers_from_form: dict[str, Any]
-    ) -> ExpressionContext:
+    def with_question_form_context(self, submission_answers_from_form: dict[str, Any]) -> ExpressionContext:
         """The default submission data we use for expression context is all of the data from the Submission DB record.
         However, if we're processing things on a POST request when a user is submitting data for a question, then we
         need to override any existing answer in the DB with the latest answer from the current POST request. This
         happens during the question form validation, after we know that the answer the user has submitted is broadly
         valid (ie of the correct data type). This can't happen during the initial instantiation of the
         ExpressionContext, because of the way we use WTForms and the way it validates data.
-
-        As this should only happen once when data is being changed (when the user is submitting a question form), we
-        should be okay from a performance point of view to clone the current context and avoid the context leaking
-        to anything else using the form runner.
         """
-        context = ExpressionContext(
-            submission_data=deepcopy(self._submission_data),
-            expression_context=deepcopy(self._expression_context),
-            add_another_context=deepcopy(self._add_another_context),
+        return ExpressionContext(
+            submission_data=self._submission_data,
+            expression_context=self._expression_context,
+            add_another_context=self._add_another_context,
+            question_form_context=submission_answers_from_form,
         )
-        context._submission_data.update(**submission_answers_from_form)
-
-        # the add another context includes answers from its add another container which
-        # could include previously persisted values for answers questions, also override those
-        # for this form evaluation context
-        if context._add_another_context:
-            context._add_another_context.update(**submission_answers_from_form)
-
-        return context
 
     @staticmethod
     def build_expression_context(
