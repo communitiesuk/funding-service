@@ -14,18 +14,15 @@ if TYPE_CHECKING:
 
 # Mixins - schema protocol used to guarantee that the properties we're tracking using events
 # and our final state line up
-@dataclass
 class CompletedMixin(Protocol):
     is_completed: bool
 
 
-@dataclass
 class SignOffMixin(Protocol):
     is_awaiting_sign_off: bool | None
     is_approved: bool | None
 
 
-@dataclass
 class SubmittedMixin(Protocol):
     is_submitted: bool
 
@@ -33,7 +30,6 @@ class SubmittedMixin(Protocol):
 # Events - things that can happen in the service, we calculate the final state
 # by taking all the latest event properties allowing workflows to go forward and backwards
 # Event names are past tense
-@dataclass
 class DeclinedMixin(Protocol):
     declined_reason: str | None
 
