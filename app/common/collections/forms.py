@@ -68,6 +68,8 @@ class DynamicQuestionForm(FlaskForm):
         #        transforming the data here to a format that matches our serialised submission format (which passes
         #        through pydantic models. Otherwise we risk exposing different views of the data to the expressions
         #        system (fully serialised+normalised in the submission context, and more raw in the form context).
+        # todo: if allowing validations for questions on the same page or supporting optional questions this will
+        #       need to consider what happens for expression context evaluations if the answer is being set to None
         data = {k: v for k, v in self.data.items() if k not in {"csrf_token", "submit"}}
         return data
 
@@ -88,14 +90,14 @@ class DynamicQuestionForm(FlaskForm):
         # Inject the latest data from this form submission into the context for validators to use. This will override
         # any existing data for expression contexts from the current state of the submission with the data submitted
         # in this form by the user.
-        self._evaluation_context.update_submission_answers(self._extract_submission_answers())
+        evaluation_context = self._evaluation_context.with_question_form_context(self._extract_submission_answers())
 
         for q in self._questions:
             # only add custom validators if that question hasn't already failed basic validation
             # (it's may not be well formed data of that type)
             if not self[q.safe_qid].errors:
                 extra_validators[q.safe_qid].extend(
-                    build_validators(q, self._evaluation_context, self._interpolation_context)
+                    build_validators(q, evaluation_context, self._interpolation_context)
                 )
 
         # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of

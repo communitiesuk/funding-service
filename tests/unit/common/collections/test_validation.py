@@ -140,11 +140,8 @@ class TestSubmissionValidator:
 
         submission.data[str(q1.id)] = {"value": 150}
         helper.cached_get_answer_for_question.cache_clear()
-        from app.common.expressions import ExpressionContext
 
-        helper.cached_evaluation_context = ExpressionContext.build_expression_context(
-            collection=submission.collection, submission_helper=helper, mode="evaluation"
-        )
+        del helper.cached_evaluation_context
 
         with pytest.raises(SubmissionValidationFailed) as e:
             validator.validate_all_reachable_questions()

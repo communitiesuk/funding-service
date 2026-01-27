@@ -17,7 +17,7 @@ from app.common.data.types import (
     SubmissionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
-from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_h2, page_has_link
+from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_h2, page_has_link
 
 
 class TestRouteToSubmission:
@@ -669,6 +669,134 @@ class TestAskAQuestion:
                 section_id=question.form.id,
             )
             assert response.location == expected_location
+
+    @pytest.mark.parametrize(
+        "data_to_submit_for_number_question, expected_error_message",
+        [
+            (None, "Enter the number question"),
+            ("", "Enter the number question"),
+            ("words", "The answer must be a whole number, like 100"),
+        ],
+    )
+    def test_post_ask_a_question_generates_back_link_correctly_with_invalid_user_input(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+        data_to_submit_for_number_question,
+        expected_error_message,
+    ):
+        # This test exists to prevent regression of a bug where the evaluation context was polluted by validation,
+        # and this scenario in this test resulted in an exception:
+        # TypeError: '<' not supported between instances of 'NoneType' and 'int'
+        grant_recipient = (
+            getattr(authenticated_grant_recipient_data_provider_client, "grant_recipient", None)
+            or factories.grant_recipient.create()
+        )
+        form = factories.form.create(title="number form", collection__grant=grant_recipient.grant)
+        question_1 = factories.question.create(
+            text="Enter a number",
+            data_type=QuestionDataType.INTEGER,
+            name="number question",
+            order=0,
+            form=form,
+        )
+        question_2 = factories.question.create(
+            text="Why so low?",
+            order=1,
+            form=form,
+        )
+        factories.question.create(
+            text="Another question",
+            order=2,
+            form=form,
+        )
+        factories.expression.create(
+            question=question_2,
+            created_by=authenticated_grant_recipient_data_provider_client.user,
+            type_=ExpressionType.CONDITION,
+            statement=f"{question_1.safe_qid} < 5",
+            managed_name=ManagedExpressionsEnum.LESS_THAN,
+            context={"question_id": str(question_2.id), "maximum_value": 5},
+        )
+        submission = factories.submission.create(
+            collection=form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                question_id=question_1.id,
+            ),
+            data={"submit": "y", question_1.safe_qid: data_to_submit_for_number_question},
+            follow_redirects=False,
+        )
+        # expect a 200 - same page, but with the error message
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, expected_error_message)
+
+    def test_post_ask_a_question_generates_next_url_with_latest_data_after_saving_question(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+    ):
+        grant_recipient = (
+            getattr(authenticated_grant_recipient_data_provider_client, "grant_recipient", None)
+            or factories.grant_recipient.create()
+        )
+        form = factories.form.create(title="number form", collection__grant=grant_recipient.grant)
+        question_1 = factories.question.create(
+            text="Enter a number",
+            data_type=QuestionDataType.INTEGER,
+            name="number question",
+            order=0,
+            form=form,
+        )
+        question_2 = factories.question.create(
+            text="Why so low?",
+            order=1,
+            form=form,
+        )
+        factories.question.create(
+            text="Another question",
+            order=2,
+            form=form,
+        )
+        factories.expression.create(
+            question=question_2,
+            created_by=authenticated_grant_recipient_data_provider_client.user,
+            type_=ExpressionType.CONDITION,
+            statement=f"{question_1.safe_qid} < 5",
+            managed_name=ManagedExpressionsEnum.LESS_THAN,
+            context={"question_id": str(question_2.id), "maximum_value": 5},
+        )
+        submission = factories.submission.create(
+            collection=form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                question_id=question_1.id,
+            ),
+            data={"submit": "y", question_1.safe_qid: 3},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        expected_location = url_for(
+            "access_grant_funding.ask_a_question",
+            grant_id=grant_recipient.grant.id,
+            organisation_id=grant_recipient.organisation.id,
+            submission_id=submission.id,
+            question_id=question_2.id,
+        )
+        assert response.location == expected_location
 
     def test_post_ask_a_question_add_another_context(
         self, authenticated_grant_recipient_data_provider_client, factories
