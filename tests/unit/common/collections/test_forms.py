@@ -7,7 +7,7 @@ import pytest
 from flask import Flask
 from govuk_frontend_wtf.wtforms_widgets import GovCharacterCount, GovDateInput, GovRadioInput, GovTextArea, GovTextInput
 from werkzeug.datastructures import MultiDict
-from wtforms import DateField
+from wtforms import DateField, DecimalField
 from wtforms.fields.choices import RadioField, SelectMultipleField
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import EmailField, StringField
@@ -16,7 +16,7 @@ from wtforms.validators import DataRequired, Email, InputRequired
 from app import create_app
 from app.common.collections.forms import build_question_form
 from app.common.data.models import Question
-from app.common.data.types import QuestionDataType, QuestionPresentationOptions
+from app.common.data.types import QuestionDataOptions, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions import ExpressionContext
 from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import URLWithoutProtocol
@@ -105,28 +105,49 @@ class TestBuildQuestionForm:
         )
 
     QPO = QuestionPresentationOptions
+    QDO = QuestionDataOptions
 
     @pytest.mark.parametrize(
-        "data_type, presentation_options, expected_field_type, expected_widget, expected_validators",
+        "data_type, presentation_options, data_options, expected_field_type, expected_widget, expected_validators",
         (
-            (QuestionDataType.TEXT_SINGLE_LINE, QPO(), StringField, GovTextInput, [DataRequired]),
-            (QuestionDataType.TEXT_MULTI_LINE, QPO(), StringField, GovTextArea, [DataRequired]),
-            (QuestionDataType.TEXT_MULTI_LINE, QPO(word_limit=500), StringField, GovCharacterCount, [DataRequired]),
-            (QuestionDataType.NUMBER, QPO(), IntegerField, GovTextInput, [InputRequired]),
-            (QuestionDataType.YES_NO, QPO(), RadioField, GovRadioInput, [InputRequired]),
-            (QuestionDataType.RADIOS, QPO(), RadioField, MHCLGRadioInput, []),
-            (QuestionDataType.EMAIL, QPO(), EmailField, GovTextInput, [DataRequired, Email]),
-            (QuestionDataType.URL, QPO(), StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
-            (QuestionDataType.CHECKBOXES, QPO(), SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
-            (QuestionDataType.DATE, QPO(), DateField, GovDateInput, [DataRequired]),
+            (QuestionDataType.TEXT_SINGLE_LINE, QPO(), None, StringField, GovTextInput, [DataRequired]),
+            (QuestionDataType.TEXT_MULTI_LINE, QPO(), None, StringField, GovTextArea, [DataRequired]),
+            (
+                QuestionDataType.TEXT_MULTI_LINE,
+                QPO(word_limit=500),
+                None,
+                StringField,
+                GovCharacterCount,
+                [DataRequired],
+            ),
+            (QuestionDataType.NUMBER, QPO(), QDO(allow_decimals=False), IntegerField, GovTextInput, [InputRequired]),
+            (QuestionDataType.NUMBER, QPO(), QDO(allow_decimals=True), DecimalField, GovTextInput, [InputRequired]),
+            (QuestionDataType.YES_NO, QPO(), None, RadioField, GovRadioInput, [InputRequired]),
+            (QuestionDataType.RADIOS, QPO(), None, RadioField, MHCLGRadioInput, []),
+            (QuestionDataType.EMAIL, QPO(), None, EmailField, GovTextInput, [DataRequired, Email]),
+            (QuestionDataType.URL, QPO(), None, StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
+            (QuestionDataType.CHECKBOXES, QPO(), None, SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
+            (QuestionDataType.DATE, QPO(), None, DateField, GovDateInput, [DataRequired]),
         ),
     )
     def test_expected_field_types(
-        self, factories, app, data_type, presentation_options, expected_field_type, expected_widget, expected_validators
+        self,
+        factories,
+        app,
+        data_type,
+        presentation_options,
+        data_options,
+        expected_field_type,
+        expected_widget,
+        expected_validators,
     ):
         """Feels like a bit of a redundant test that's just reimplementing the function, but ... :shrug:"""
         q = factories.question.build(
-            text="Question text", hint="Question hint", data_type=data_type, presentation_options=presentation_options
+            text="Question text",
+            hint="Question hint",
+            data_type=data_type,
+            presentation_options=presentation_options,
+            data_options=data_options,
         )
         form = build_question_form([q], evaluation_context=EC(), interpolation_context=EC())()
 

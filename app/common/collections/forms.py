@@ -15,7 +15,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 )
 from wtforms import DateField, Field, Form, RadioField
 from wtforms.fields.choices import SelectField, SelectMultipleField
-from wtforms.fields.numeric import IntegerField
+from wtforms.fields.numeric import DecimalField, IntegerField
 from wtforms.fields.simple import EmailField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
@@ -41,6 +41,7 @@ _accepted_fields = (
     | SelectField
     | SelectMultipleField
     | DateField
+    | DecimalField
 )
 
 
@@ -197,13 +198,21 @@ def build_question_form(  # noqa: C901
                 )
             case QuestionDataType.NUMBER:
                 if question.data_options.allow_decimals:
-                    raise NotImplementedError("Decimal number fields are not yet supported.")
-                field = IntegerWithCommasField(
-                    label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
-                    widget=GovTextInput(),
-                    validators=[InputRequired(f"Enter the {question.name}")],
-                )
+                    field = DecimalField(
+                        label=interpolate(text=question.text, context=interpolation_context),
+                        description=interpolate(text=question.hint or "", context=interpolation_context),
+                        widget=GovTextInput(),
+                        validators=[InputRequired(f"Enter the {question.name}")],
+                        places=None,  # TODO are we allowing restriction of decimal places?
+                        rounding=None,
+                    )
+                else:
+                    field = IntegerWithCommasField(
+                        label=interpolate(text=question.text, context=interpolation_context),
+                        description=interpolate(text=question.hint or "", context=interpolation_context),
+                        widget=GovTextInput(),
+                        validators=[InputRequired(f"Enter the {question.name}")],
+                    )
             case QuestionDataType.YES_NO:
                 field = RadioField(
                     label=interpolate(text=question.text, context=interpolation_context),

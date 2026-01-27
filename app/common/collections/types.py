@@ -1,4 +1,5 @@
 import abc
+import decimal
 from datetime import date
 from typing import Any, Protocol, TypedDict, Union, cast
 
@@ -115,6 +116,10 @@ class NumberAnswer(SubmissionAnswerBaseModel, abc.ABC):
     prefix: str | None = None
     suffix: str | None = None
 
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/number.html"
+
     def get_value_for_interpolation(self) -> str:
         return self.get_value_for_text_export()
 
@@ -124,12 +129,6 @@ class NumberAnswer(SubmissionAnswerBaseModel, abc.ABC):
 
 class IntegerAnswer(NumberAnswer):
     value: int
-    prefix: str | None = None
-    suffix: str | None = None
-
-    @property
-    def _render_answer_template(self) -> str:
-        return "common/partials/answers/integer.html"
 
     def get_value_for_form(self) -> int:
         return self.value
@@ -142,6 +141,29 @@ class IntegerAnswer(NumberAnswer):
 
     def get_value_for_json_export(self) -> dict[str, Any]:
         data: dict[str, str | int] = {"value": self.value}
+
+        if self.prefix:
+            data["prefix"] = self.prefix
+        if self.suffix:
+            data["suffix"] = self.suffix
+
+        return data
+
+
+class DecimalAnswer(NumberAnswer):
+    value: decimal.Decimal
+
+    def get_value_for_form(self) -> decimal.Decimal:
+        return self.value
+
+    def get_value_for_evaluation(self) -> decimal.Decimal:
+        return self.value
+
+    def get_value_for_text_export(self) -> str:
+        return f"{self.prefix or ''}{self.value:,}{self.suffix or ''}"
+
+    def get_value_for_json_export(self) -> dict[str, Any]:
+        data: dict[str, str | decimal.Decimal] = {"value": self.value}
 
         if self.prefix:
             data["prefix"] = self.prefix
@@ -242,4 +264,5 @@ AllAnswerTypes = Union[
     | SingleChoiceFromListAnswer
     | MultipleChoiceFromListAnswer
     | DateAnswer
+    | DecimalAnswer
 ]
