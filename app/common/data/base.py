@@ -7,6 +7,8 @@ from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.common.data.types import (
+    QuestionDataOptions,
+    QuestionDataOptionsPostgresType,
     QuestionOptionsPostgresType,
     QuestionPresentationOptions,
     json_flat_scalars,
@@ -31,6 +33,7 @@ class BaseModel(DeclarativeBase):
         json_scalars: postgresql.JSONB,
         json_flat_scalars: postgresql.JSONB,
         QuestionPresentationOptions: QuestionOptionsPostgresType,
+        QuestionDataOptions: QuestionDataOptionsPostgresType,
         CIStr: CITEXT,
     }
 
