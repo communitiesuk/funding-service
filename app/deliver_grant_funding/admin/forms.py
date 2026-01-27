@@ -3,6 +3,7 @@ import datetime
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
+import email_validator
 from flask import current_app, flash
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovDateInput, GovSubmitInput, GovTextArea, GovTextInput
@@ -142,13 +143,10 @@ class PlatformAdminCreateCertifiersForm(FlaskForm):
                 flash(f"Ignoring certifier for '{org_name}' - organisation has not been set up.", "error")
 
         # Validate email addresses
-        from wtforms.validators import Email as EmailValidator
-
-        email_validator = EmailValidator()
         invalid_emails = []
         for _, _, email_address in certifiers_data:
             try:
-                email_validator(self, type("obj", (), {"data": email_address})())
+                email_validator.validate_email(email_address, check_deliverability=False, allow_smtputf8=True)
             except Exception:
                 invalid_emails.append(email_address)
 
@@ -236,13 +234,10 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
                 )
 
         # Validate email addresses
-        from wtforms.validators import Email as EmailValidator
-
-        email_validator = EmailValidator()
         invalid_emails = []
         for _, _, email_address in users_data:
             try:
-                email_validator(self, type("obj", (), {"data": email_address})())
+                email_validator.validate_email(email_address, check_deliverability=False, allow_smtputf8=True)
             except Exception:
                 invalid_emails.append(email_address)
 
