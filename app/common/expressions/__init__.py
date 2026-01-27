@@ -195,9 +195,6 @@ class ExpressionContext(ChainMap[str, Any]):
                         continue
 
                     submission_data.setdefault(question.safe_qid, f"(({question.name}))")
-                    submission_data.setdefault("submissions", {}).setdefault(collection.safe_cid, {}).setdefault(
-                        question.safe_qid, f"(({question.name}))"
-                    )
 
         return ExpressionContext(submission_data=submission_data)
 
@@ -207,14 +204,8 @@ class ExpressionContext(ChainMap[str, Any]):
         expression_context_end_point: Component | None = None,
         submission_helper: SubmissionHelper | None = None,
     ) -> dict[str, Any]:
-        # TODO: add arbitrary data in here? maybe doesn't live in `build_submission_data`? so new place?
-        submission_data: dict[str, Any] = {"submissions": {}, "data": {}}
+        submission_data: dict[str, Any] = {}
         if submission_helper:
-            # TODO: insert 'previous' submissions
-            submission_data["submissions"] = {
-                submission_helper.submission.safe_cid: {},
-            }
-
             for form in submission_helper.collection.forms:
                 for question in form.cached_questions:
                     if expression_context_end_point is None or (
@@ -227,19 +218,11 @@ class ExpressionContext(ChainMap[str, Any]):
                         if not question.add_another_container:
                             answer = submission_helper.cached_get_answer_for_question(question.id)
                             if answer is not None:
-                                # Sets the answer at both of these places:
-                                # -> submissions -> collection -> question (nested key; new structure)
-                                # -> question (top-level key; backwards compatible structure, to be removed)
-
-                                # TODO: delete this assignment
                                 submission_data[question.safe_qid] = (
                                     answer.get_value_for_evaluation()
                                     if mode == "evaluation"
                                     else answer.get_value_for_interpolation()
                                 )
-                                submission_data["submissions"][submission_helper.submission.safe_cid][
-                                    question.safe_qid
-                                ] = submission_data[question.safe_qid]
         return submission_data
 
     @staticmethod

@@ -55,7 +55,7 @@ from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGE
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.forms.helpers import questions_in_same_add_another_container
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
-from app.common.safe_ids import SafeQuestionIdMixin
+from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
@@ -1365,7 +1365,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
 
             # If `is_valid_referencee` above is True, then we know that we have a QID that points to a question in the
             # same collection - but not necessarily the same form.
-            if question_id := SafeQuestionIdMixin.safe_qid_to_id(inner_ref):
+            if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
                 question = db.session.get_one(Question, question_id)
                 if question.form_id != component.form_id:
                     raise InvalidReferenceInExpression(
