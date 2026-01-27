@@ -1274,6 +1274,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1288,6 +1289,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1303,6 +1305,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
@@ -1321,6 +1326,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "e2546f96-3655-483b-8531-0bbfd49a2631",
           "hint": "",
@@ -1337,6 +1343,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "Enter a percentage score between 0 and 100",
@@ -1355,6 +1364,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "This is not compliant with data standards",
@@ -1369,6 +1379,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "",
@@ -1385,6 +1396,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one or more from a list (checkboxes)",
           "form_id": "535ac1ba-9d56-4850-a592-89982951c679",
           "hint": "",
@@ -1401,6 +1413,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
@@ -1417,6 +1430,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1431,6 +1445,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1447,6 +1462,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1461,6 +1477,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "9cf64797-461d-467c-8834-470051899da7",
           "hint": "",
@@ -1477,6 +1494,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1493,6 +1511,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "",
@@ -1510,6 +1531,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
@@ -1528,6 +1552,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "id": "4988b724-7b83-4b09-899b-3885fed52be1",
           "name": "Lead contact role - other",
@@ -1543,6 +1568,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Website address (URL)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1557,6 +1583,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1573,6 +1600,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1589,6 +1617,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "If you have overspent, enter a negative number",
@@ -1606,6 +1637,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1623,6 +1655,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1639,6 +1672,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "c98aeb88-e4e6-4ad9-a673-4e8197ce5c8d",
           "hint": "",
@@ -1653,6 +1687,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "9cf64797-461d-467c-8834-470051899da7",
           "hint": "",
@@ -1669,6 +1704,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1685,6 +1721,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1701,6 +1738,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1715,6 +1753,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "cd5fc00f-13d0-4c89-af8c-9f16c5c77afe",
           "hint": "",
@@ -1729,6 +1768,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "e2546f96-3655-483b-8531-0bbfd49a2631",
           "hint": "The next reporting period is October 2025 to April 2026",
@@ -1747,6 +1789,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "9cf64797-461d-467c-8834-470051899da7",
           "hint": "",
@@ -1763,6 +1806,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "The target total risk score is calculated by multiplying the likelihood by the impact. Note: custom conditions would let this to be branched away from.",
@@ -1779,6 +1823,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1795,6 +1840,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "A date",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
@@ -1811,6 +1857,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -1827,6 +1874,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Email address",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1841,6 +1889,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "",
@@ -1857,6 +1906,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one or more from a list (checkboxes)",
           "form_id": "76752d13-4781-4b2c-9003-4cc3710c47a7",
           "hint": "",
@@ -1873,6 +1923,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "id": "b9a4f920-7704-4799-92b9-c4457e1c8705",
           "name": "Lead contact's role",
@@ -1887,6 +1938,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1904,6 +1956,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "72907157-c74a-4aab-bb87-0965926514d2",
           "hint": "",
@@ -1918,6 +1971,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "",
@@ -1935,6 +1991,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "9cf64797-461d-467c-8834-470051899da7",
           "hint": "",
@@ -1949,6 +2006,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1964,6 +2022,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "1482f2ef-9cbe-4e75-b8f0-4362f65822de",
           "hint": "",
@@ -1980,6 +2039,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one or more from a list (checkboxes)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "hint": "",
@@ -1996,6 +2056,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "Think about what could go wrong, what could happen to cause things to go wrong, and what would the outcome be if it did go wrong",
@@ -2012,6 +2073,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "hint": "",
@@ -2028,6 +2090,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
           "hint": "",
@@ -3047,6 +3110,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3064,6 +3128,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3079,6 +3144,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3094,6 +3160,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3111,6 +3180,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "Enter a number between 1 and 10",
@@ -3128,6 +3200,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3143,6 +3216,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3158,6 +3232,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3176,6 +3253,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3193,6 +3271,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3210,6 +3289,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3228,6 +3310,7 @@
           "add_another": true,
           "add_another_guidance_body": "Add the details of every property offer you need to report on, up to a maximum of  ((q_14f1872cc0924680a3fa60b09d9cced9)).",
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "id": "310c17af-1885-4760-89c6-9fb7b38a0075",
           "name": "Match offer details",
@@ -3246,6 +3329,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "id": "39323a70-9b4a-4231-a3a3-b768add7995a",
           "name": "Household has moved in",
@@ -3261,6 +3345,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3278,6 +3365,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3295,6 +3383,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3312,6 +3401,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3327,6 +3417,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3342,6 +3433,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3357,6 +3449,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "id": "4ff702ff-f65f-4f8e-95a6-7af8d6854523",
           "name": "Tell us how you are delivering against the following KPIs for 'successful sponsorships'",
@@ -3371,6 +3464,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "id": "515f5527-25eb-43b9-8707-bf69063232fc",
           "name": "Tell us how you are delivering against the following KPIs for 'sponsor groups recruited'",
@@ -3385,6 +3479,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "A date",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3402,6 +3497,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3417,6 +3513,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3434,6 +3531,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3452,6 +3552,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "id": "62a8bd04-08e0-4d92-8422-017aa16feafc",
           "name": "Property offers",
@@ -3466,6 +3567,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3483,6 +3587,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3500,6 +3607,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "guidance_body": "You are completing this form as the following principal sponsor: [PERSONALISATION GOES HERE]",
           "guidance_heading": "Sponsor group",
@@ -3516,6 +3624,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3531,6 +3640,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3548,6 +3658,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3563,6 +3674,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3581,6 +3695,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3599,6 +3716,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one or more from a list (checkboxes)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3615,6 +3733,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "guidance_body": "## If you have multiple sponsor groups\r\n\r\nThis form collects information about one sponsor group. If you have multiple sponsor groups to report on, complete the form as many times as necessary.\r\n\r\nTo submit information about another sponsor group, go back your 'Collection requests', click into the form title, and add a new return.\r\n\r\n## Saving progress and making changes\r\n\r\nYour work will not save automatically. To make sure you do not lose anything, select \"Save draft\" regularly, and always before you go back or close your internet browser window.\r\n\r\nIf you need to edit or revisit any sections, select 'Back to contents'. You can edit your responses as many times as you like before you submit.\r\n\r\n## Submitting your form\r\n\r\nOnce you have completed all sections, you can then submit the form. You will not be able to edit your responses once you have submitted the form.\r\n\r\n## Get help\r\n\r\nIf you have questions about using Delta or need further support, [complete the service desk form](https://mhclgdigital.atlassian.net/servicedesk/customer/portal/6/group/12).\r\n\r\n## How we\u2019ll use your information\r\n\r\nRead how we\u2019ll use the information from this form in our [link to privacy notice].",
           "guidance_heading": "How to complete the Communities for Afghans monitoring form",
@@ -3631,6 +3750,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3646,6 +3766,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3663,6 +3784,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3678,6 +3800,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3695,6 +3820,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3712,6 +3840,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3729,6 +3858,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3746,6 +3876,9 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "allow_decimals": false
+          },
           "data_type": "Whole number",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3764,6 +3897,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "id": "eb959f1d-45cb-4499-8025-e69c481f790d",
           "name": "Tell us how you have delivered against the following KPIs for 'properties delivered'",
@@ -3778,6 +3912,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Yes or no",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3793,6 +3928,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3810,6 +3946,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Select one from a list (radios)",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
@@ -3827,6 +3964,7 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "0f6c5ce4-0903-42c3-89b5-da19b011e3e0",
           "hint": "",
