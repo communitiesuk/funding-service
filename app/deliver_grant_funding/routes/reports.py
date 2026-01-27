@@ -1203,7 +1203,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 )
 
             case _:
-                abort(500)
+                wtform.form_errors.append("Unknown data source selected")
 
     return render_template(
         "deliver_grant_funding/reports/select_context_source.html",

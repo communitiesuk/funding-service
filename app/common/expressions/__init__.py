@@ -61,6 +61,9 @@ class ExpressionContext(ChainMap[str, Any]):
         # We actually expose all questions in the collection, but for now we're limited contextual references to
         # just questions in the same section.
         SECTION = "A previous question in this section"
+        PREVIOUS_SECTION = "A question in a previous section"
+        PREVIOUS_COLLECTION = "A question in a previous collection"
+        DATASET = "An uploaded dataset"
 
     def __init__(
         self,
@@ -170,7 +173,7 @@ class ExpressionContext(ChainMap[str, Any]):
     ) -> ExpressionContext:
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
-        assert len(ExpressionContext.ContextSources) == 1, (
+        assert len(ExpressionContext.ContextSources) == 4, (
             "When defining a new source of context for expressions, "
             "update this method and the ContextSourceChoices enum"
         )

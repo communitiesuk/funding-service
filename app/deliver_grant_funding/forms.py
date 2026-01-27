@@ -25,7 +25,7 @@ from app.common.data.interfaces.collections import (
     group_name_exists,
 )
 from app.common.data.interfaces.grants import grant_code_exists, grant_name_exists
-from app.common.data.interfaces.user import get_user_by_email
+from app.common.data.interfaces.user import get_current_user, get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
     GroupDisplayOptions,
@@ -493,7 +493,7 @@ class QuestionForm(FlaskForm):
 class AddContextSelectSourceForm(FlaskForm):
     data_source = RadioField(
         "Select a data source",
-        choices=[(choice.name, choice.value) for choice in ExpressionContext.ContextSources],
+        choices=[],
         widget=GovRadioInput(),
     )
 
@@ -511,6 +511,16 @@ class AddContextSelectSourceForm(FlaskForm):
         self.form = form
         self.current_component = current_component
         self.parent_component = parent_component
+
+        # TODO: remove this when implementation for referencing previous sections+collections is ready to release.
+        if AuthorisationHelper.is_platform_admin(get_current_user()):
+            # A soft feature flag that will (when implemented) allow platform admins to test new context sources
+            # before releasing to a wider audience eg form builders.
+            self.data_source.choices = [(choice.name, choice.value) for choice in ExpressionContext.ContextSources]
+        else:
+            self.data_source.choices = [
+                (ExpressionContext.ContextSources.SECTION.name, ExpressionContext.ContextSources.SECTION.value)
+            ]
 
     def validate_data_source(self, field: Field) -> None:
         try:
