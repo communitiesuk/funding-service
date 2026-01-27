@@ -35,7 +35,7 @@ from app.common.data.types import (
     json_scalars,
 )
 from app.common.expressions.managed import get_managed_expression
-from app.common.safe_ids import SafeCollectionIdMixin, SafeQuestionIdMixin
+from app.common.qid import SafeQidMixin
 
 if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
@@ -175,7 +175,7 @@ class Organisation(BaseModel):
     )
 
 
-class Collection(SafeCollectionIdMixin, BaseModel):
+class Collection(BaseModel):
     __tablename__ = "collection"
 
     type: Mapped[CollectionType] = mapped_column(SqlEnum(CollectionType, name="collection_type", validate_strings=True))
@@ -238,10 +238,6 @@ class Collection(SafeCollectionIdMixin, BaseModel):
     )
 
     @property
-    def collection_id(self) -> uuid.UUID:  # type: ignore[override]
-        return self.id
-
-    @property
     def preview_submissions(self) -> list[Submission]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.PREVIEW)
 
@@ -268,7 +264,7 @@ class Collection(SafeCollectionIdMixin, BaseModel):
         return self.submission_period_end_date < datetime.date.today()
 
 
-class Submission(SafeCollectionIdMixin, BaseModel):
+class Submission(BaseModel):
     __tablename__ = "submission"
 
     reference: Mapped[CIStr] = mapped_column(unique=True)
@@ -495,7 +491,7 @@ class Component(BaseModel):
         return None
 
 
-class Question(SafeQuestionIdMixin, Component):
+class Question(Component, SafeQidMixin):
     __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
 
     if TYPE_CHECKING:

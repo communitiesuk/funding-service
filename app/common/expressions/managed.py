@@ -29,7 +29,7 @@ from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import MHCLGApproximateDateInput
-from app.common.safe_ids import SafeQuestionIdMixin
+from app.common.qid import SafeQidMixin
 from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import TRadioItem
 
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from app.common.expressions.forms import _ManagedExpressionForm
 
 
-class ManagedExpression(SafeQuestionIdMixin, BaseModel):
+class ManagedExpression(BaseModel, SafeQidMixin):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
     name: ClassVar[ManagedExpressionsEnum]
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
