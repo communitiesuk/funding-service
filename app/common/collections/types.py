@@ -111,7 +111,18 @@ class YesNoAnswer(SubmissionAnswerRootModel[bool]):
         return cast(bool, self.model_dump(mode="json"))
 
 
-class IntegerAnswer(SubmissionAnswerBaseModel):
+class NumberAnswer(SubmissionAnswerBaseModel, abc.ABC):
+    prefix: str | None = None
+    suffix: str | None = None
+
+    def get_value_for_interpolation(self) -> str:
+        return self.get_value_for_text_export()
+
+    def get_value_for_submission(self) -> dict[str, Any]:
+        return self.model_dump(mode="json", exclude_none=True)
+
+
+class IntegerAnswer(NumberAnswer):
     value: int
     prefix: str | None = None
     suffix: str | None = None
@@ -120,17 +131,11 @@ class IntegerAnswer(SubmissionAnswerBaseModel):
     def _render_answer_template(self) -> str:
         return "common/partials/answers/integer.html"
 
-    def get_value_for_submission(self) -> dict[str, Any]:
-        return self.model_dump(mode="json", exclude_none=True)
-
     def get_value_for_form(self) -> int:
         return self.value
 
     def get_value_for_evaluation(self) -> int:
         return self.value
-
-    def get_value_for_interpolation(self) -> str:
-        return self.get_value_for_text_export()
 
     def get_value_for_text_export(self) -> str:
         return f"{self.prefix or ''}{self.value:,d}{self.suffix or ''}"

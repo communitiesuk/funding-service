@@ -999,6 +999,8 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
         case QuestionDataType.TEXT_MULTI_LINE:
             return TextMultiLineAnswer(answer)
         case QuestionDataType.NUMBER:
+            if question.data_options.allow_decimals:
+                raise NotImplementedError("Support for decimal numbers is not yet implemented")
             return IntegerAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)
         case QuestionDataType.YES_NO:
             return YesNoAnswer(answer)
@@ -1029,6 +1031,8 @@ def _deserialise_question_type(question: Question, serialised_data: str | int | 
         case QuestionDataType.TEXT_MULTI_LINE:
             return TypeAdapter(TextMultiLineAnswer).validate_python(serialised_data)
         case QuestionDataType.NUMBER:
+            if question.data_options.allow_decimals:
+                raise NotImplementedError("Support for decimal numbers is not yet implemented")
             return TypeAdapter(IntegerAnswer).validate_python(serialised_data)
         case QuestionDataType.YES_NO:
             return TypeAdapter(YesNoAnswer).validate_python(serialised_data)
