@@ -21,6 +21,7 @@ from app.common.collections.types import (
     AllAnswerTypes,
     ChoiceDict,
     DateAnswer,
+    DecimalAnswer,
     EmailAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
@@ -1000,7 +1001,7 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
             return TextMultiLineAnswer(answer)
         case QuestionDataType.NUMBER:
             if question.data_options.allow_decimals:
-                raise NotImplementedError("Support for decimal numbers is not yet implemented")
+                return DecimalAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)
             return IntegerAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)
         case QuestionDataType.YES_NO:
             return YesNoAnswer(answer)
@@ -1032,7 +1033,7 @@ def _deserialise_question_type(question: Question, serialised_data: str | int | 
             return TypeAdapter(TextMultiLineAnswer).validate_python(serialised_data)
         case QuestionDataType.NUMBER:
             if question.data_options.allow_decimals:
-                raise NotImplementedError("Support for decimal numbers is not yet implemented")
+                return TypeAdapter(DecimalAnswer).validate_python(serialised_data)
             return TypeAdapter(IntegerAnswer).validate_python(serialised_data)
         case QuestionDataType.YES_NO:
             return TypeAdapter(YesNoAnswer).validate_python(serialised_data)

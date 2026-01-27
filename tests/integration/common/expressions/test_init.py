@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from decimal import Decimal
 from unittest.mock import PropertyMock
 
 import pytest
@@ -79,6 +80,9 @@ class TestEvaluatingManagedExpressions:
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 500})) is False
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 3000})) is False
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 3001})) is True
+        assert evaluate(expr, ExpressionContext({q0.safe_qid: Decimal("500.1")})) is False
+        assert evaluate(expr, ExpressionContext({q0.safe_qid: Decimal("3000.0")})) is False
+        assert evaluate(expr, ExpressionContext({q0.safe_qid: Decimal("3000.1")})) is True
 
     @pytest.mark.parametrize(
         "value, expected_result",
@@ -86,6 +90,9 @@ class TestEvaluatingManagedExpressions:
             (500, False),
             (3000, False),
             (3001, True),
+            (Decimal("500.1"), False),
+            (Decimal("3000.0"), False),
+            (Decimal("3000.2"), True),
         ),
     )
     def test_expression_with_numerical_reference_data(self, factories, value, expected_result):

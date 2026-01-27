@@ -1,3 +1,4 @@
+import decimal
 from datetime import date, datetime
 from typing import cast
 
@@ -83,5 +84,5 @@ def to_ordinal(number: int) -> str:
     return cast(str, num2words(number, to="ordinal"))
 
 
-def format_thousands(number: int) -> str:
+def format_thousands(number: int | decimal.Decimal) -> str:
     return f"{number:,}"

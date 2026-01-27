@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from unittest.mock import Mock
 
 import pytest
@@ -136,6 +137,12 @@ class TestEvaluate:
         with pytest.raises(InvalidEvaluationResult):
             evaluate(Expression(statement="1"), context=ExpressionContext())
 
+    def test_decimal_evaluation(self):
+        result = evaluate(Expression(statement="value < 0.5"), context=ExpressionContext({"value": Decimal("0.25")}))
+        assert result is True
+        result = evaluate(Expression(statement="value < 1"), context=ExpressionContext({"value": Decimal("0.25")}))
+        assert result is True
+
 
 class TestInterpolate:
     def test_no_interpolation_patterns(self):
@@ -174,8 +181,17 @@ class TestInterpolate:
     def test_zero_integer_formatting(self):
         assert interpolate("Zero: ((0))", None) == "Zero: 0"
 
+    def test_zero_decimal_formatting(self):
+        assert interpolate("Zero: ((0.00))", None) == "Zero: 0.0"
+
+    def test_multiple_decimal_places_formatting(self):
+        assert interpolate("Value: ((1234.56789))", None) == "Value: 1234.56789"
+
     def test_negative_integer_formatting(self):
         assert interpolate("Negative: ((-1234))", None) == "Negative: -1234"
+
+    def test_negative_decimal_formatting(self):
+        assert interpolate("Negative: ((-1234.01))", None) == "Negative: -1234.01"
 
     def test_empty_string_interpolation(self):
         assert interpolate("Empty: ((''))", None) == "Empty: "
