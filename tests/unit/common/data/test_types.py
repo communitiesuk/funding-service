@@ -1,4 +1,5 @@
 from app import CollectionStatusEnum
+from app.common.data.types import QuestionDataOptions, QuestionDataOptionsPostgresType
 
 
 class TestCollectionStatusEnum:
@@ -44,3 +45,15 @@ class TestCollectionStatusEnum:
             CollectionStatusEnum.CLOSED,
         ]
         assert sorted(input) == expected
+
+
+class TestQuestionDataOptionsPostgresType:
+    def test_defaults(self):
+        options = QuestionDataOptions()
+        data_options = QuestionDataOptionsPostgresType().process_bind_param(options, dialect=None)
+        assert data_options == {}
+
+    def test_allow_decimals(self):
+        options = QuestionDataOptions(allow_decimals=True)
+        data_options = QuestionDataOptionsPostgresType().process_bind_param(options, dialect=None)
+        assert data_options == {"allow_decimals": True}

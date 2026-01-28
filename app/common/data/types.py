@@ -272,6 +272,11 @@ class QuestionPresentationOptions(BaseModel):
         )
 
 
+class QuestionDataOptions(BaseModel):
+    # numbers
+    allow_decimals: bool | None = None
+
+
 class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
     impl = JSONB
 
@@ -286,6 +291,22 @@ class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
         if value is None:
             return None
         return QuestionPresentationOptions(**value)
+
+
+class QuestionDataOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
+    impl = JSONB
+
+    cache_ok = False
+
+    def process_bind_param(self, value: BaseModel, dialect: Any) -> Any:  # type: ignore[override]
+        if value is None:
+            return None
+        return value.model_dump(mode="json", exclude_none=True)
+
+    def process_result_value(self, value: typing.Any, dialect: Any) -> QuestionDataOptions | None:
+        if value is None:
+            return None
+        return QuestionDataOptions(**value)
 
 
 class ComponentType(enum.StrEnum):

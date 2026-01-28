@@ -45,6 +45,7 @@ from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
     GrantStatusEnum,
+    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionEventType,
@@ -576,6 +577,11 @@ def create_question(
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
+    # TODO remove this once decimal support fully implemented in Deliver Grant Funding.
+    #  In the meantime, this ensures any number questions created are integers only
+    temp_data_options = None
+    if data_type == QuestionDataType.INTEGER:
+        temp_data_options = QuestionDataOptions(allow_decimals=False)
     question = Question(
         text=text,
         form_id=form.id,
@@ -584,6 +590,7 @@ def create_question(
         name=name,
         data_type=data_type,
         presentation_options=presentation_options,
+        data_options=temp_data_options,
         parent_id=parent.id if parent else None,
     )
     owner = parent or form

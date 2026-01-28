@@ -31,7 +31,7 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import ComponentType, QuestionPresentationOptions
+from app.common.data.types import ComponentType, QuestionDataOptions, QuestionPresentationOptions
 from app.common.expressions import ExpressionContext
 from app.developers import developers_blueprint
 from app.extensions import db
@@ -325,6 +325,8 @@ def seed_grants() -> None:  # noqa: C901
             if "presentation_options" in component:
                 component["presentation_options"] = QuestionPresentationOptions(**component["presentation_options"])
 
+            if "data_options" in component:
+                component["data_options"] = QuestionDataOptions(**component["data_options"])
             match component["type"]:
                 case ComponentType.QUESTION:
                     component = Question(**component)

@@ -54,6 +54,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
+    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
@@ -773,6 +774,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)
 
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
+    data_options = factory.LazyFunction(lambda: QuestionDataOptions())
     conditions_operator = ConditionsOperator.ALL
 
     @factory.post_generation  # type: ignore[untyped-decorator]

@@ -26,6 +26,7 @@ from app.common.data.types import (
     OrganisationModeEnum,
     OrganisationStatus,
     OrganisationType,
+    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
@@ -377,6 +378,12 @@ class Component(BaseModel):
     form_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("form.id"))
     presentation_options: Mapped[QuestionPresentationOptions] = mapped_column(
         default=QuestionPresentationOptions, server_default="{}"
+    )
+    data_options: Mapped[QuestionDataOptions] = mapped_column(
+        default=QuestionDataOptions,
+        server_default="{}",
+        # TODO make this nullable=False in future migration - setting to True to allow zero downtime deployment
+        nullable=True,
     )
     type: Mapped[ComponentType] = mapped_column(
         SqlEnum(ComponentType, name="component_type_enum", validate_strings=True), default=ComponentType.QUESTION
