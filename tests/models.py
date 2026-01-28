@@ -436,7 +436,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
 
         # Assertion to remind us to add more question types here when we start supporting them
-        assert len(QuestionDataType) == 9, "If you have added a new question type, please update this factory."
+        assert len(QuestionDataType) == 10, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
         q1 = _QuestionFactory.create(
