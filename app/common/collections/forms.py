@@ -23,6 +23,7 @@ from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext, evaluate, interpolate
 from app.common.forms.fields import (
+    DecimalWithCommasField,
     IntegerWithCommasField,
     MHCLGAccessibleAutocomplete,
     MHCLGApproximateDateInput,
@@ -198,13 +199,15 @@ def build_question_form(  # noqa: C901
                 )
             case QuestionDataType.NUMBER:
                 if question.data_options.allow_decimals:
-                    field = DecimalField(
+                    field = DecimalWithCommasField(
                         label=interpolate(text=question.text, context=interpolation_context),
                         description=interpolate(text=question.hint or "", context=interpolation_context),
                         widget=GovTextInput(),
                         validators=[InputRequired(f"Enter the {question.name}")],
                         places=None,  # TODO are we allowing restriction of decimal places?
                         rounding=None,
+                        # We are allowing commas for thousands separators but not full locale-aware formatting
+                        use_locale=False,
                     )
                 else:
                     field = IntegerWithCommasField(

@@ -100,12 +100,12 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
         (0.2, None),
         (56.234, None),
         (99.9999999999, None),
-        (None, "Not a valid decimal value."),
-        ("abcd", "Not a valid decimal value."),
+        (None, "The answer must be a decimal number, like 100.45"),
+        ("abcd", "The answer must be a decimal number, like 100.45"),
         ("", "Enter the test_decimal"),
         (100.10, "The answer must be less than 100"),
         (1000.45, "The answer must be less than 100"),
-        ("1,000.45", "Not a valid decimal value."),  # comma-separated, fails validation
+        ("1,000.45", "The answer must be less than 100"),
         (50000.0, "The answer must be less than 100"),
     ),
 )
