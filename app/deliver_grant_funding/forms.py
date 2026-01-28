@@ -211,7 +211,7 @@ class GrantContactForm(GrantSetupForm):
 class QuestionTypeForm(FlaskForm):
     question_data_type = RadioField(
         "What type of question do you need?",
-        choices=[(qdt.name, qdt.value) for qdt in QuestionDataType],
+        choices=[(qdt.name, qdt.value) for qdt in QuestionDataType if qdt != QuestionDataType.NUMBER],
         validators=[DataRequired("Select a question type")],
         widget=GovRadioInput(),
     )

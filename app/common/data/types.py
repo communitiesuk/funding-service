@@ -83,6 +83,7 @@ class QuestionDataType(enum.StrEnum):
     # todo: should we call this "A URL" or "A website address"
     URL = "Website address (URL)"
     INTEGER = "Whole number"
+    NUMBER = "A whole number"
     YES_NO = "Yes or no"
     RADIOS = "Select one from a list (radios)"
     CHECKBOXES = "Select one or more from a list (checkboxes)"

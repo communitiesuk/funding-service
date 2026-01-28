@@ -119,7 +119,7 @@ class TestSubmissionHelper:
             assert helper.form_data() == {}
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 9, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 10, "Update this test if adding new questions"
 
             form = factories.form.create()
             form_two = factories.form.create(collection=form.collection)
@@ -259,7 +259,7 @@ class TestSubmissionHelper:
             assert helper.cached_evaluation_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 9, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 10, "Update this test if adding new questions"
 
             form = factories.form.create()
             form_two = factories.form.create(collection=form.collection)
