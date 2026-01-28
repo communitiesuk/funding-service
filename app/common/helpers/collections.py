@@ -21,6 +21,7 @@ from app.common.collections.types import (
     AllAnswerTypes,
     ChoiceDict,
     DateAnswer,
+    DecimalAnswer,
     EmailAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
@@ -998,7 +999,9 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
             return TextSingleLineAnswer(answer)
         case QuestionDataType.TEXT_MULTI_LINE:
             return TextMultiLineAnswer(answer)
-        case QuestionDataType.INTEGER:
+        case QuestionDataType.NUMBER:
+            if question.data_options.allow_decimals:
+                return DecimalAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)
             return IntegerAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)
         case QuestionDataType.YES_NO:
             return YesNoAnswer(answer)
@@ -1028,7 +1031,9 @@ def _deserialise_question_type(question: Question, serialised_data: str | int | 
             return TypeAdapter(EmailAnswer).validate_python(serialised_data)
         case QuestionDataType.TEXT_MULTI_LINE:
             return TypeAdapter(TextMultiLineAnswer).validate_python(serialised_data)
-        case QuestionDataType.INTEGER:
+        case QuestionDataType.NUMBER:
+            if question.data_options.allow_decimals:
+                return TypeAdapter(DecimalAnswer).validate_python(serialised_data)
             return TypeAdapter(IntegerAnswer).validate_python(serialised_data)
         case QuestionDataType.YES_NO:
             return TypeAdapter(YesNoAnswer).validate_python(serialised_data)

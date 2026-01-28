@@ -580,7 +580,7 @@ def create_question(
     # TODO remove this once decimal support fully implemented in Deliver Grant Funding.
     #  In the meantime, this ensures any number questions created are integers only
     temp_data_options = None
-    if data_type == QuestionDataType.INTEGER:
+    if data_type == QuestionDataType.NUMBER:
         temp_data_options = QuestionDataOptions(allow_decimals=False)
     question = Question(
         text=text,

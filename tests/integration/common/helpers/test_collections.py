@@ -2,6 +2,7 @@ import csv
 import json
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from io import StringIO
 from unittest import mock
 
@@ -11,6 +12,7 @@ from app.common.collections.forms import build_question_form
 from app.common.collections.types import (
     NOT_ASKED,
     DateAnswer,
+    DecimalAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
@@ -22,6 +24,7 @@ from app.common.data import interfaces
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
+    QuestionDataOptions,
     QuestionDataType,
     RoleEnum,
     SubmissionEventType,
@@ -60,7 +63,15 @@ class TestSubmissionHelper:
 
         def test_get_data_maps_type(self, db_session, factories):
             question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.NUMBER,
+                data_options=QuestionDataOptions(allow_decimals=False),
+            )
+            question_2 = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"),
+                data_type=QuestionDataType.NUMBER,
+                data_options=QuestionDataOptions(allow_decimals=True),
+                form=question.form,
             )
             submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
@@ -69,12 +80,17 @@ class TestSubmissionHelper:
                 q_d696aebc49d24170a92fb6ef42994294=5
             )
             helper.submit_answer_for_question(question.id, form)
+            form = build_question_form([question_2], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994295=Decimal(7.6)
+            )
+            helper.submit_answer_for_question(question_2.id, form)
 
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=5)
+            assert helper.cached_get_answer_for_question(question_2.id) == DecimalAnswer(value=Decimal(7.6))
 
         def test_can_get_falsey_answers(self, db_session, factories):
             question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.INTEGER
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), data_type=QuestionDataType.NUMBER
             )
             submission = factories.submission.create(collection=question.form.collection)
             helper = SubmissionHelper(submission)
@@ -134,7 +150,10 @@ class TestSubmissionHelper:
                 data_type=QuestionDataType.TEXT_MULTI_LINE,
             )
             q3 = factories.question.create(
-                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
+                form=form_two,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"),
+                data_type=QuestionDataType.NUMBER,
+                data_options=QuestionDataOptions(allow_decimals=False),
             )
             q4 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
@@ -172,6 +191,12 @@ class TestSubmissionHelper:
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429c"),
                 data_type=QuestionDataType.DATE,
             )
+            q10 = factories.question.create(
+                form=form_two,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429d"),
+                data_type=QuestionDataType.NUMBER,
+                data_options=QuestionDataOptions(allow_decimals=True),
+            )
 
             submission = factories.submission.create(
                 collection=form.collection,
@@ -187,6 +212,7 @@ class TestSubmissionHelper:
                         choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
                     ).get_value_for_submission(),
                     str(q9.id): DateAnswer(answer=date(2003, 2, 1)).get_value_for_submission(),
+                    str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -201,6 +227,7 @@ class TestSubmissionHelper:
                 "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
                 "q_d696aebc49d24170a92fb6ef4299429b": ["cheddar", "stilton"],
                 "q_d696aebc49d24170a92fb6ef4299429c": date(2003, 2, 1),
+                "q_d696aebc49d24170a92fb6ef4299429d": 12.21,
             }
 
         def test_with_add_another_groups_no_context(self, factories):
@@ -274,7 +301,10 @@ class TestSubmissionHelper:
                 data_type=QuestionDataType.TEXT_MULTI_LINE,
             )
             q3 = factories.question.create(
-                form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"), data_type=QuestionDataType.INTEGER
+                form=form_two,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"),
+                data_type=QuestionDataType.NUMBER,
+                data_options=QuestionDataOptions(allow_decimals=False),
             )
             q4 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
@@ -315,6 +345,12 @@ class TestSubmissionHelper:
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429c"),
                 data_type=QuestionDataType.DATE,
             )
+            q10 = factories.question.create(
+                form=form_two,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429d"),
+                data_type=QuestionDataType.NUMBER,
+                data_options=QuestionDataOptions(allow_decimals=True),
+            )
 
             submission = factories.submission.create(
                 collection=form.collection,
@@ -330,6 +366,7 @@ class TestSubmissionHelper:
                         choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
                     ).get_value_for_submission(),
                     str(q9.id): DateAnswer(answer=date(2000, 1, 1)).get_value_for_submission(),
+                    str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -345,6 +382,7 @@ class TestSubmissionHelper:
                     "q_d696aebc49d24170a92fb6ef4299429a": "https://example.com",
                     "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
                     "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
+                    "q_d696aebc49d24170a92fb6ef4299429d": 12.21,
                 }
             )
 
@@ -1457,8 +1495,8 @@ class TestSubmissionValidation:
     def test_submit_fails_when_answer_no_longer_valid(self, factories):
         form = factories.form.create()
         user = factories.user.create()
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.create(
             question=q2,
@@ -1490,8 +1528,8 @@ class TestSubmissionValidation:
     def test_submit_succeeds_when_all_answers_valid(self, factories):
         form = factories.form.create()
         user = factories.user.create()
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.create(
             question=q2,
@@ -1516,8 +1554,8 @@ class TestSubmissionValidation:
     def test_certification_fails_when_answer_no_longer_valid(self, factories):
         form = factories.form.create()
         user = factories.user.create()
-        q1 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.create(form=form, data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.create(
             question=q2,
