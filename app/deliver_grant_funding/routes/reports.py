@@ -1194,16 +1194,35 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     )
     if wtform.validate_on_submit():
         add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
-        session["question"] = add_context_data.model_dump(mode="json")
 
+        redirect_response = None
         match add_context_data.data_source:
             case ExpressionContext.ContextSources.SECTION:
-                return redirect(
+                redirect_response = redirect(
                     url_for("deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id)
+                )
+                add_context_data.collection_id = db_form.collection_id
+                add_context_data.form_id = db_form.id
+
+            case ExpressionContext.ContextSources.PREVIOUS_SECTION:
+                redirect_response = redirect(
+                    url_for("deliver_grant_funding.select_context_source_section", grant_id=grant_id, form_id=form_id)
+                )
+                add_context_data.collection_id = db_form.collection_id
+
+            case ExpressionContext.ContextSources.PREVIOUS_COLLECTION:
+                redirect_response = redirect(
+                    url_for(
+                        "deliver_grant_funding.select_context_source_collection", grant_id=grant_id, form_id=form_id
+                    )
                 )
 
             case _:
                 wtform.form_errors.append("Unknown data source selected")
+
+        session["question"] = add_context_data.model_dump(mode="json")
+        if redirect_response:
+            return redirect_response
 
     return render_template(
         "deliver_grant_funding/reports/select_context_source.html",
@@ -1212,6 +1231,24 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         form=wtform,
         add_context_data=add_context_data,
     )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-collection", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def select_context_source_collection(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    return abort(404)
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-section", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    return abort(404)
 
 
 @deliver_grant_funding_blueprint.route(
