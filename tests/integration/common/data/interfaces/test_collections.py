@@ -1233,7 +1233,7 @@ class TestCreateQuestion:
         assert question.text == "Test Question"
         assert question.hint == "Test Hint"
         assert question.name == "Test Question Name"
-        assert question.data_type == QuestionDataType.INTEGER
+        assert question.data_type == QuestionDataType.NUMBER
         assert question.order == 0
         assert question.slug == "test-question"
         assert question.data_source is None
@@ -1472,7 +1472,7 @@ class TestUpdateQuestion:
         assert updated_question.text == "Updated Question"
         assert updated_question.hint == "Updated Hint"
         assert updated_question.name == "Updated Question Name"
-        assert updated_question.data_type == QuestionDataType.INTEGER
+        assert updated_question.data_type == QuestionDataType.NUMBER
         assert updated_question.slug == "updated-question"
         assert updated_question.prefix == "$"
         assert updated_question.suffix == "lbs"

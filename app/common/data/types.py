@@ -254,7 +254,7 @@ class QuestionPresentationOptions(BaseModel):
                     rows=form.rows.data,
                     word_limit=form.word_limit.data,
                 )
-            case QuestionDataType.INTEGER:
+            case QuestionDataType.INTEGER | QuestionDataType.NUMBER:
                 return QuestionPresentationOptions(
                     prefix=form.prefix.data,
                     suffix=form.suffix.data,
