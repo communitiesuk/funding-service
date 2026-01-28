@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest import mock
 from unittest.mock import patch
 
@@ -6,6 +7,7 @@ from flask import Flask, request
 from werkzeug.datastructures import MultiDict
 from wtforms import ValidationError
 
+from app import format_thousands
 from app.common.data.types import QuestionDataType, QuestionPresentationOptions, RoleEnum
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
@@ -24,6 +26,17 @@ from app.deliver_grant_funding.forms import (
 class TestFilters:
     def test_strip_string_if_not_empty(self):
         assert strip_string_if_not_empty("  blah ") == "blah"
+
+    def test_format_thousands_integer(self):
+        assert format_thousands(1000) == "1,000"
+        assert format_thousands(1000000) == "1,000,000"
+        assert format_thousands(0) == "0"
+
+    def test_format_thousands_decimal(self):
+        assert format_thousands(Decimal("1000.00")) == "1,000.00"
+        assert format_thousands(Decimal("1000.123")) == "1,000.123"
+        assert format_thousands(Decimal("1000000.34")) == "1,000,000.34"
+        assert format_thousands(Decimal("0.0")) == "0.0"
 
 
 class TestValidators:

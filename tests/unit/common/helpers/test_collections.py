@@ -1,17 +1,23 @@
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 import pytest
+from werkzeug.datastructures import MultiDict
 
+from app.common.collections.forms import build_question_form
+from app.common.collections.types import DecimalAnswer, IntegerAnswer
 from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
+    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionEventType,
     SubmissionModeEnum,
 )
-from app.common.helpers.collections import SubmissionHelper
+from app.common.expressions import ExpressionContext
+from app.common.helpers.collections import SubmissionHelper, _deserialise_question_type, _form_data_to_question_type
 from tests.utils import AnyStringMatching
 
 
@@ -867,3 +873,53 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert helper.sent_for_certification_by == user
+
+
+class TestDeserialiseQuestionType:
+    def test_number_integer(self, factories):
+        question = factories.question.build(
+            data_type=QuestionDataType.NUMBER, data_options=QuestionDataOptions(allow_decimals=False)
+        )
+        result = _deserialise_question_type(question, {"value": 42})
+        assert isinstance(result, IntegerAnswer)
+        assert result.value == 42
+
+    def test_number_decimal(self, factories):
+        question = factories.question.build(
+            data_type=QuestionDataType.NUMBER, data_options=QuestionDataOptions(allow_decimals=True)
+        )
+        result = _deserialise_question_type(question, {"value": "13.3"})
+        assert isinstance(result, DecimalAnswer)
+        assert result.value == Decimal("13.3")
+
+
+class TestFormDataToQuestionType:
+    def test_number_integer(self, factories):
+        question = factories.question.build(
+            id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e8c"),
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(allow_decimals=False),
+        )
+
+        _FormClass = build_question_form(
+            [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        )
+        form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e8c": str(24)}))
+        result = _form_data_to_question_type(question, form)
+        assert isinstance(result, IntegerAnswer)
+        assert result.value == 24
+
+    def test_number_decimal(self, factories):
+        question = factories.question.build(
+            id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e8c"),
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(allow_decimals=True),
+        )
+
+        _FormClass = build_question_form(
+            [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        )
+        form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e8c": "45.23"}))
+        result = _form_data_to_question_type(question, form)
+        assert isinstance(result, DecimalAnswer)
+        assert result.value == Decimal("45.23")

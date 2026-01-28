@@ -125,7 +125,7 @@ class _NumberAnswer[T: int | Decimal](SubmissionAnswerBaseModel):
 
     @property
     def _render_answer_template(self) -> str:
-        return "common/partials/answers/integer.html"
+        return "common/partials/answers/number.html"
 
     def get_value_for_interpolation(self) -> str:
         return self.get_value_for_text_export()
@@ -242,6 +242,7 @@ AllAnswerTypes = Union[
     TextSingleLineAnswer
     | TextMultiLineAnswer
     | IntegerAnswer
+    | DecimalAnswer
     | EmailAnswer
     | UrlAnswer
     | YesNoAnswer
