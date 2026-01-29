@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {# interactively display questions for a given form or question group #}
-{% macro question_table(parent, interpolate, role_can_edit=false) %}
+{% macro question_table(parent, interpolate, role_can_edit=false, enum=None) %}
   {% set grant = parent.form.collection.grant if parent.is_group else parent.collection.grant %}
 
   {% set components = [] %}
@@ -65,7 +65,14 @@
     {% if question.is_group %}
       {% set value_item={"classes":"govuk-visually-hidden" } %}
     {% else %}
-      {% set value_item={"text":question.data_type } %}
+      {% set data_type_text %}
+        {% if question.data_type == enum.question_type.NUMBER %}
+          {{ question.data_options.number_type.value }}
+        {% else %}
+          {{ question.data_type }}
+        {% endif %}
+      {% endset %}
+      {% set value_item={"text":data_type_text } %}
     {% endif %}
     {%
       do rows.append(

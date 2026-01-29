@@ -44,7 +44,7 @@ class DecimalWithCommasField(DecimalField):
             self.data = decimal.Decimal(cleaned_value)
         except (decimal.InvalidOperation, ValueError) as exc:
             self.data = None
-            raise ValueError(self.gettext("The answer must be a decimal number, like 100.45")) from exc
+            raise ValueError(self.gettext("The answer must be a decimal number, like 100.5")) from exc
 
 
 class MHCLGAccessibleAutocomplete(GovSelect):

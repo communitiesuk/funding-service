@@ -31,6 +31,7 @@ from app.common.data.types import (
     GroupDisplayOptions,
     MultilineTextInputRows,
     NumberInputWidths,
+    NumberTypeEnum,
     QuestionDataType,
 )
 from app.common.expressions import ExpressionContext
@@ -381,7 +382,19 @@ class QuestionForm(FlaskForm):
         validators=[Optional()],
     )
 
-    # Integer field presentation options
+    # Number options
+    number_type = RadioField(
+        "Type of number",
+        choices=[(number_type.value, number_type.value) for number_type in NumberTypeEnum],
+        widget=GovRadioInput(),
+        validators=[Optional()],
+    )
+    max_decimal_places = IntegerField(
+        "Maximum number of decimal places",
+        widget=GovTextInput(),
+        validators=[Optional()],
+    )
+    # Number field presentation options
     prefix = StringField(
         "Prefix (optional)",
         widget=GovTextInput(),

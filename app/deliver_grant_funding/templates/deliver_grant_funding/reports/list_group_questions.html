@@ -181,7 +181,7 @@
         {% if not group.components %}
           <p class="govuk-body">This question group has no questions.</p>
         {% else %}
-          {{ question_table(group, interpolate, role_can_edit=grant_admin) }}
+          {{ question_table(group, interpolate, role_can_edit=grant_admin, enum=enum) }}
         {% endif %}
 
         {% if grant_admin %}

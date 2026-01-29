@@ -283,8 +283,18 @@ class QuestionPresentationOptions(BaseModel):
 
 class QuestionDataOptions(BaseModel):
     # numbers
-    allow_decimals: bool | None = None
     number_type: NumberTypeEnum | None = None
+    max_decimal_places: int | None = None
+
+    @staticmethod
+    def from_question_form(form: QuestionForm) -> QuestionDataOptions:
+        match form._question_type:
+            case QuestionDataType.NUMBER:
+                return QuestionDataOptions(
+                    number_type=form.number_type.data, max_decimal_places=form.max_decimal_places.data
+                )
+            case _:
+                return QuestionDataOptions()
 
 
 class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]

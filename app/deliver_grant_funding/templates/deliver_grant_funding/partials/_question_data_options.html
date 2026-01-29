@@ -1,0 +1,27 @@
+{% macro questionDataOptions(form, data_type, enum) %}
+  {% if data_type == enum.question_type.NUMBER %}
+
+    {{
+      form.number_type(
+      params={
+              "hint": {
+                "text": "The answer will be validated and you can change this later."
+              },
+        "fieldset": {
+              "legend": {
+              "text":"Type of number",
+                "classes": "govuk-!-font-weight-bold"
+              },
+            },
+            "items": [
+              {},
+              {
+                "conditional": {
+                  "html": form.max_decimal_places(params={"classes":"govuk-input--width-4" })
+                }
+              }
+            ]
+      })
+    }}
+  {% endif %}
+{% endmacro %}

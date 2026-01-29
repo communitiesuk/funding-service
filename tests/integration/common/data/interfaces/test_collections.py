@@ -1228,6 +1228,7 @@ class TestCreateQuestion:
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
         assert question is not None
         assert question.id is not None
@@ -1455,6 +1456,7 @@ class TestUpdateQuestion:
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
         assert question is not None
         assert question.data_options.number_type == NumberTypeEnum.INTEGER
