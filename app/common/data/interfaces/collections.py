@@ -578,17 +578,19 @@ def create_question(
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> Question:
     # TODO remove this once decimal support fully implemented in Deliver Grant Funding.
-    #  In the meantime, this ensures any number questions created are integers only
+    #  In the meantime, this ensures any number questions created are integers only, but use the new enum value
     temp_data_options = None
+    temp_data_type = data_type
     if data_type == QuestionDataType.INTEGER:
         temp_data_options = QuestionDataOptions(allow_decimals=False)
+        temp_data_type = QuestionDataType.NUMBER
     question = Question(
         text=text,
         form_id=form.id,
         slug=slugify(text),
         hint=hint,
         name=name,
-        data_type=data_type,
+        data_type=temp_data_type,
         presentation_options=presentation_options,
         data_options=temp_data_options,
         parent_id=parent.id if parent else None,
