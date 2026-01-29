@@ -2391,6 +2391,64 @@ class TestSelectContextSource:
         )
 
 
+class TestSelectContextSourceCollection:
+    def test_404(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=None,
+                form_id=None,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_collection",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
+
+class TestSelectContextSourceSection:
+    def test_404(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=None,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
+
 class TestSelectContextSourceQuestion:
     def test_get_fails_with_invalid_session(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
@@ -2421,6 +2479,8 @@ class TestSelectContextSourceQuestion:
                     "add_context": "text",
                 },
                 data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -2460,6 +2520,8 @@ class TestSelectContextSourceQuestion:
                 component_id=target_question.id,
                 depends_on_question_id=depends_on_question.id,
                 data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -2491,6 +2553,8 @@ class TestSelectContextSourceQuestion:
                     "add_context": "text",
                 },
                 data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.post(
@@ -2528,6 +2592,8 @@ class TestSelectContextSourceQuestion:
                 },
                 component_id=question.id,
                 data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.post(
@@ -2592,6 +2658,8 @@ class TestSelectContextSourceQuestion:
                 },
                 component_id=target_question.id,
                 data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
                 depends_on_question_id=depends_on_question.id
                 if expression_type is ExpressionType.CONDITION and not existing_expression
                 else None,

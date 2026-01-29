@@ -25,7 +25,7 @@ from app.common.data.interfaces.collections import (
     group_name_exists,
 )
 from app.common.data.interfaces.grants import grant_code_exists, grant_name_exists
-from app.common.data.interfaces.user import get_current_user, get_user_by_email
+from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
     GroupDisplayOptions,
@@ -505,6 +505,7 @@ class AddContextSelectSourceForm(FlaskForm):
         form: Form,
         current_component: TOptional[Component],
         parent_component: TOptional[Group] = None,
+        ff_show_new_context_sources: bool = False,  # TODO: remove when implementation is fully released
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
@@ -513,7 +514,7 @@ class AddContextSelectSourceForm(FlaskForm):
         self.parent_component = parent_component
 
         # TODO: remove this when implementation for referencing previous sections+collections is ready to release.
-        if AuthorisationHelper.is_platform_admin(get_current_user()):
+        if ff_show_new_context_sources:
             # A soft feature flag that will (when implemented) allow platform admins to test new context sources
             # before releasing to a wider audience eg form builders.
             self.data_source.choices = [(choice.name, choice.value) for choice in ExpressionContext.ContextSources]

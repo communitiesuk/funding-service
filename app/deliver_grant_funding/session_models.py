@@ -38,6 +38,9 @@ class AddContextToComponentSessionModel(BaseModel):
     component_id: UUID | None = None
     parent_id: UUID | None = None
 
+    collection_id: UUID | None = None
+    form_id: UUID | None = None
+
 
 class AddContextToComponentGuidanceSessionModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
@@ -47,6 +50,9 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
 
     component_id: UUID | None = None
     parent_id: UUID | None = None
+
+    collection_id: UUID | None = None
+    form_id: UUID | None = None
 
     is_add_another_guidance: bool | None = False
 
@@ -61,8 +67,12 @@ class AddContextToExpressionsModel(BaseModel):
     field: ExpressionType
     managed_expression_name: ManagedExpressionsEnum
     expression_form_data: dict[str, Any]
+
     component_id: UUID
     parent_id: UUID | None = None
+
+    collection_id: UUID | None = None
+    form_id: UUID | None = None
 
     data_source: ExpressionContext.ContextSources | None = None
     depends_on_question_id: UUID | None = None
