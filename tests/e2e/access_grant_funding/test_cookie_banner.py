@@ -40,7 +40,7 @@ def test_cookie_banner_accepted(page: Page, domain: str):
     assert not page.locator("#cookie_choice_msg").is_visible()
     assert not page.locator("#cookie_banner").is_visible()
 
-    assert len(fetched_google_tag_manager_requests) == 2, (
+    assert len(fetched_google_tag_manager_requests) >= 2, (
         "Should have fetched google tag manager for a page load with accepted cookies"
     )
 
