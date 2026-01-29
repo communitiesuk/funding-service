@@ -11,8 +11,8 @@ from app.common.helpers.collections import SubmissionHelper
 class TestSubmissionValidator:
     def test_all_valid_answers_pass(self, factories):
         form = factories.form.build()
-        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.build(
             question=q2,
@@ -31,8 +31,8 @@ class TestSubmissionValidator:
 
     def test_invalid_answer_caught(self, factories):
         form = factories.form.build()
-        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.build(
             question=q2,
@@ -57,9 +57,9 @@ class TestSubmissionValidator:
 
     def test_multiple_validation_errors_collected(self, factories):
         form = factories.form.build()
-        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=1)
-        q3 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=2)
+        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
+        q3 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=2)
 
         factories.expression.build(
             question=q2,
@@ -93,7 +93,7 @@ class TestSubmissionValidator:
     def test_unreachable_questions_not_validated(self, factories):
         form = factories.form.build()
         q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.YES_NO, order=0)
-        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=1)
+        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.build(
             question=q2,
@@ -120,8 +120,8 @@ class TestSubmissionValidator:
 
     def test_changed_validation_rules(self, factories):
         form = factories.form.build()
-        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.build(
             question=q2,
@@ -152,8 +152,8 @@ class TestSubmissionValidator:
 
     def test_questions_without_validations(self, factories):
         form = factories.form.build()
-        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
 
         submission = factories.submission.build(collection=form.collection)
         submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
@@ -164,8 +164,8 @@ class TestSubmissionValidator:
 
     def test_unanswered_questions_skipped(self, factories):
         form = factories.form.build()
-        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0)
-        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=1)
+        q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0)
+        q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
 
         factories.expression.build(
             question=q2,
@@ -187,7 +187,7 @@ class TestSubmissionValidator:
         form = factories.form.build()
         group = factories.group.build(form=form, id=uuid.uuid4(), add_another=True, order=0)
         q1 = factories.question.build(
-            form=form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0
+            form=form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0
         )
 
         factories.expression.build(
@@ -215,7 +215,7 @@ class TestSubmissionValidator:
         form = factories.form.build()
         group = factories.group.build(form=form, id=uuid.uuid4(), add_another=True, order=0)
         q1 = factories.question.build(
-            form=form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.INTEGER, order=0
+            form=form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0
         )
 
         factories.expression.build(

@@ -13,7 +13,7 @@ class TestBuildManagedExpressionForm:
     # system/framework is capable.
 
     def test_integer_data_type(self, factories):
-        question = factories.question.build(data_type=QuestionDataType.INTEGER)
+        question = factories.question.build(data_type=QuestionDataType.NUMBER)
         _FormClass = build_managed_expression_form(ExpressionType.CONDITION, question)
         assert _FormClass
         form = _FormClass()
@@ -25,7 +25,7 @@ class TestBuildManagedExpressionForm:
         ]
 
     def test_recognises_invalid_data_for_a_managed_expression(self, factories):
-        question = factories.question.build(data_type=QuestionDataType.INTEGER)
+        question = factories.question.build(data_type=QuestionDataType.NUMBER)
         _FormClass = build_managed_expression_form(ExpressionType.CONDITION, question)
         assert _FormClass
         form = _FormClass(
@@ -50,7 +50,7 @@ class TestBuildManagedExpressionForm:
         }
 
     def test_can_build_a_managed_expression_from_valid_data(self, factories):
-        question = factories.question.build(data_type=QuestionDataType.INTEGER)
+        question = factories.question.build(data_type=QuestionDataType.NUMBER)
 
         _FormClass = build_managed_expression_form(ExpressionType.CONDITION, question)
         assert _FormClass
@@ -74,8 +74,8 @@ class TestBuildManagedExpressionForm:
         assert expression.maximum_inclusive is True
 
     def test_can_build_a_managed_expression_with_valid_reference_data__integer(self, factories):
-        referenced_question = factories.question.build(data_type=QuestionDataType.INTEGER)
-        question = factories.question.build(form=referenced_question.form, data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.build(data_type=QuestionDataType.NUMBER)
+        question = factories.question.build(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
 
         _FormClass = build_managed_expression_form(ExpressionType.VALIDATION, question)
         assert _FormClass

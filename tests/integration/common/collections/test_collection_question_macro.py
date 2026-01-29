@@ -11,12 +11,12 @@ from app.common.helpers.collections import SubmissionHelper
 
 class TestCollectionQuestionMacro:
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 10, (
+        assert len(QuestionDataType) == 9, (
             "If this test breaks, tweak the number and update "
             "`test_collection_question_renders_and_interpolates_text_and_hint_and_guidance` accordingly."
         )
 
-    @pytest.mark.parametrize("question_type", [qdt for qdt in list(QuestionDataType) if qdt != QuestionDataType.NUMBER])
+    @pytest.mark.parametrize("question_type", list(QuestionDataType))
     def test_collection_question_renders_and_interpolates_text_and_hint_and_guidance(
         self, authenticated_grant_admin_client, factories, question_type
     ):

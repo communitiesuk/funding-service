@@ -190,7 +190,7 @@ class TestQuestionForm:
         }
 
     def test_prefixes_and_suffixes_blank_coerced_to_none(self, app):
-        form = QuestionForm(question_type=QuestionDataType.INTEGER)
+        form = QuestionForm(question_type=QuestionDataType.NUMBER)
 
         formdata = MultiDict(
             [
@@ -209,7 +209,7 @@ class TestQuestionForm:
         assert form.suffix.data is None
 
     def test_prefixes_and_suffixes_mutually_exclusive(self, app):
-        form = QuestionForm(question_type=QuestionDataType.INTEGER)
+        form = QuestionForm(question_type=QuestionDataType.NUMBER)
 
         formdata = MultiDict(
             [
@@ -232,7 +232,7 @@ class TestQuestionForm:
 
 class TestSelectDataSourceQuestionForm:
     def test_only_includes_earlier_questions_in_the_form_if_given_a_current_question(self, app, factories, mocker):
-        questions = factories.question.build_batch(5, data_type=QuestionDataType.INTEGER)
+        questions = factories.question.build_batch(5, data_type=QuestionDataType.NUMBER)
 
         mocker.patch.object(questions[2].form, "cached_questions", questions)
         mocker.patch.object(questions[2].form, "cached_all_components", questions)
@@ -251,7 +251,7 @@ class TestSelectDataSourceQuestionForm:
         group = factories.group.build(
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False)
         )
-        questions = factories.question.build_batch(5, parent=group, data_type=QuestionDataType.INTEGER)
+        questions = factories.question.build_batch(5, parent=group, data_type=QuestionDataType.NUMBER)
 
         mocker.patch.object(questions[2].form, "cached_questions", questions)
         mocker.patch.object(questions[2].form, "cached_all_components", [group] + questions)
@@ -280,7 +280,7 @@ class TestSelectDataSourceQuestionForm:
         text_question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         yes_no_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.YES_NO)
         date_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.DATE)
-        integer_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.INTEGER)
+        integer_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.NUMBER)
 
         all_questions = [text_question, yes_no_question, date_question, integer_question]
 
@@ -306,7 +306,7 @@ class TestSelectDataSourceQuestionForm:
         text_question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         yes_no_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.YES_NO)
         integer_questions = factories.question.build_batch(
-            4, form=text_question.form, data_type=QuestionDataType.INTEGER
+            4, form=text_question.form, data_type=QuestionDataType.NUMBER
         )
 
         all_questions = [text_question, yes_no_question] + integer_questions
@@ -326,15 +326,15 @@ class TestSelectDataSourceQuestionForm:
         assert {q[0] for q in form.question.choices} == {"", str(integer_questions[0].id), str(integer_questions[1].id)}
 
     def test_expressions_reference_exclude_same_page_groups_and_other_question_datatypes(self, app, factories, mocker):
-        integer_q1 = factories.question.build(data_type=QuestionDataType.INTEGER)
-        integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.INTEGER)
+        integer_q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
+        integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.NUMBER)
         text_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
         group = factories.group.build(
             form=integer_q1.form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
         )
-        integer_q3 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.INTEGER)
-        integer_q4 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.INTEGER)
+        integer_q3 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
+        integer_q4 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
 
         all_questions = [integer_q1, integer_q2, text_question, integer_q3, integer_q4]
 

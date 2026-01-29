@@ -90,12 +90,12 @@ class TestEvaluatingManagedExpressions:
     )
     def test_expression_with_numerical_reference_data(self, factories, value, expected_result):
         user = factories.user.create()
-        q0 = factories.question.create(data_type=QuestionDataType.INTEGER)
+        q0 = factories.question.create(data_type=QuestionDataType.NUMBER)
         qid = uuid.uuid4()
         q1 = factories.question.create(
             id=qid,
             form=q0.form,
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             expressions=[
                 Expression.from_managed(
                     GreaterThan(question_id=qid, minimum_value=None, minimum_expression=f"(({q0.safe_qid}))"),

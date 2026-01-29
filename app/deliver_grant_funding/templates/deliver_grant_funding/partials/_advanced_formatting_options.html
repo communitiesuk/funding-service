@@ -5,7 +5,7 @@
     {% if data_type == enum.question_type.TEXT_MULTI_LINE %}
       {{ form.rows(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
       {{ form.word_limit(params={"classes": "govuk-input--width-5", "label": {"classes": "govuk-!-font-weight-bold"} }) }}
-    {% elif data_type == enum.question_type.INTEGER or data_type == enum.question_type.NUMBER %}
+    {% elif data_type == enum.question_type.NUMBER %}
       {{ form.prefix(params={"classes": "govuk-input--width-10", "label": {"classes": "govuk-!-font-weight-bold"} }) }}
       {{ form.suffix(params={"classes": "govuk-input--width-10", "label": {"classes": "govuk-!-font-weight-bold"} }) }}
       {{ form.width(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
