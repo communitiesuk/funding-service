@@ -100,7 +100,7 @@ class TestBuildQuestionForm:
         assert hasattr(form, "submit")
 
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 9, (
+        assert len(QuestionDataType) == 10, (
             "If this test breaks, tweak the number and update `test_expected_field_types` accordingly."
         )
 
@@ -139,7 +139,7 @@ class TestBuildQuestionForm:
             assert isinstance(question_field.validators[i], validator)
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 9, "Add a new parameter option above if adding a new question type"
+        assert len(QuestionDataType) == 10, "Add a new parameter option above if adding a new question type"
 
     def test_question_text_and_hint_interpolation(self, factories):
         question = factories.question.build(

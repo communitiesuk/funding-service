@@ -58,7 +58,7 @@
             }
           )
         }}
-      {% elif question.data_type == enum.question_type.INTEGER %}
+      {% elif question.data_type == enum.question_type.INTEGER or question.data_type == enum.question_type.NUMBER %}
         {{
           form.render_question(
             question,

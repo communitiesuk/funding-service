@@ -1233,7 +1233,7 @@ class TestCreateQuestion:
         assert question.text == "Test Question"
         assert question.hint == "Test Hint"
         assert question.name == "Test Question Name"
-        assert question.data_type == QuestionDataType.INTEGER
+        assert question.data_type == QuestionDataType.NUMBER
         assert question.order == 0
         assert question.slug == "test-question"
         assert question.data_source is None
@@ -1359,7 +1359,7 @@ class TestCreateQuestion:
         assert question.data_options == QuestionDataOptions(allow_decimals=None)
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 9, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 10, "Add a new test above if adding a new question type"
 
     def test_question_requires_data_type(self, db_session, factories):
         form = factories.form.create()
@@ -1472,7 +1472,7 @@ class TestUpdateQuestion:
         assert updated_question.text == "Updated Question"
         assert updated_question.hint == "Updated Hint"
         assert updated_question.name == "Updated Question Name"
-        assert updated_question.data_type == QuestionDataType.INTEGER
+        assert updated_question.data_type == QuestionDataType.NUMBER
         assert updated_question.slug == "updated-question"
         assert updated_question.prefix == "$"
         assert updated_question.suffix == "lbs"
@@ -1742,7 +1742,7 @@ class TestUpdateQuestion:
         assert updated_question.slug == "updated-question"
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 9, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 10, "Add a new test above if adding a new question type"
 
     def test_update_question_with_guidance_fields(self, db_session, factories):
         form = factories.form.create()
