@@ -252,13 +252,13 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         q1 = _QuestionFactory.create(
             name="Number of cups of tea",
             form=form,
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             text="How many cups of tea do you drink in a week?",
         )
         q2 = _QuestionFactory.create(
             name="Tea bag pack size",
             form=form,
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             text="What size pack of teabags do you usually buy?",
             expressions=[
                 Expression.from_managed(
@@ -317,7 +317,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         q1 = _QuestionFactory.create(
             name="Number of cups of tea",
             form=form,
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             text="How many cups of tea do you drink in a week?",
         )
         q2 = _QuestionFactory.create(
@@ -448,7 +448,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         q3 = _QuestionFactory.create(
             name="Airspeed velocity",
             form=form,
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             text="What is the airspeed velocity of an unladen swallow?",
         )
         q4 = _QuestionFactory.create(
@@ -623,7 +623,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         q5 = _QuestionFactory.create(
             name="Length of service",
             form=form,
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             text="How many years have you worked here?",
         )
 

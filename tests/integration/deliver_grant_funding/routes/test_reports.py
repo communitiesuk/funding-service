@@ -1474,7 +1474,7 @@ class TestListGroupQuestions:
         user = factories.user.create()
         form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
-        question = factories.question.create(form=form, parent=group, order=0, data_type=QuestionDataType.INTEGER)
+        question = factories.question.create(form=form, parent=group, order=0, data_type=QuestionDataType.NUMBER)
         factories.question.create(
             form=form,
             order=1,
@@ -2442,9 +2442,9 @@ class TestSelectContextSourceQuestion:
     ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
-        reference_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        skipped_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        reference_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        skipped_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -2566,9 +2566,9 @@ class TestSelectContextSourceQuestion:
     ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
-        reference_data_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=form, data_type=QuestionDataType.INTEGER)
+        reference_data_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
         expression_id = None
         if existing_expression:
@@ -3025,7 +3025,7 @@ class TestEditQuestion:
             text="Integer question",
             name="Integer question name",
             hint="Integer question hint",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         # Create a dependent question that references q1 via a GreaterThan managed expression
@@ -3034,7 +3034,7 @@ class TestEditQuestion:
             text="Dependent on integer",
             name="Dependent question name",
             hint="Dependent question hint",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
             expressions=[
                 Expression.from_managed(
                     GreaterThan(question_id=q1.id, minimum_value=100),
@@ -3256,7 +3256,7 @@ class TestAddQuestionConditionSelectQuestion:
         )
 
         factories.question.create(
-            form=form, text="How much cheese do you buy?", name="how much cheese", data_type=QuestionDataType.INTEGER
+            form=form, text="How much cheese do you buy?", name="how much cheese", data_type=QuestionDataType.NUMBER
         )
 
         group = factories.group.create(
@@ -3267,14 +3267,14 @@ class TestAddQuestionConditionSelectQuestion:
             parent=group,
             text="What is the most cheese you've ever eaten?",
             name="most cheese",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
         second_group_question = factories.question.create(
             form=form,
             parent=group,
             text="What is the least cheese you've ever eaten?",
             name="least cheese",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         response = client.get(
@@ -3570,7 +3570,7 @@ class TestAddQuestionCondition:
             form=db_form,
             text="How much cheese do you eat a month?",
             name="total cheese eaten",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         target_question = factories.question.create(
@@ -3619,8 +3619,8 @@ class TestAddQuestionCondition:
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Cheese habits")
 
-        reference_data_question = factories.question.create(form=db_form, data_type=QuestionDataType.INTEGER)
-        depends_on_question = factories.question.create(form=db_form, data_type=QuestionDataType.INTEGER)
+        reference_data_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
+        depends_on_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=db_form, data_type=QuestionDataType.TEXT_MULTI_LINE)
 
         session_data = AddContextToExpressionsModel(
@@ -3689,14 +3689,14 @@ class TestAddQuestionCondition:
             form=db_form,
             text="How much cheese do you buy a month?",
             name="total cheese bought",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         depends_on_question = factories.question.create(
             form=db_form,
             text="How much cheese do you eat a month?",
             name="total cheese eaten",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         target_question = factories.question.create(
@@ -4263,7 +4263,7 @@ class TestAddQuestionValidation:
             form=db_form,
             text="How many employees do you have?",
             name="employee count",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         response = client.get(
@@ -4326,7 +4326,7 @@ class TestAddQuestionValidation:
             form=db_form,
             text="How many employees do you have?",
             name="employee count",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         assert len(question.expressions) == 0
@@ -4363,7 +4363,7 @@ class TestAddQuestionValidation:
             form=db_form,
             text="How many employees do you have?",
             name="employee count",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
@@ -4401,7 +4401,7 @@ class TestAddQuestionValidation:
             form=db_form,
             text="How much cheese do you eat?",
             name="quantity of cheese",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         assert len(target_question.expressions) == 0
@@ -4442,8 +4442,8 @@ class TestAddQuestionValidation:
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Cheese habits")
 
-        referenced_question = factories.question.create(form=db_form, data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=db_form, data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
 
         assert len(target_question.expressions) == 0
 
@@ -4516,14 +4516,14 @@ class TestAddQuestionValidation:
             form=db_form,
             text="How much cheese do you buy a month?",
             name="total cheese bought",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         target_question = factories.question.create(
             form=db_form,
             text="How much cheese do you eat a month?",
             name="quantity of cheese",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, target_question)
@@ -4594,7 +4594,7 @@ class TestEditQuestionValidation:
             form=db_form,
             text="How many employees do you have?",
             name="employee count",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
@@ -4652,7 +4652,7 @@ class TestEditQuestionValidation:
             form=db_form,
             text="How many employees do you have?",
             name="employee count",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
@@ -4686,7 +4686,7 @@ class TestEditQuestionValidation:
             form=db_form,
             text="How many employees do you have?",
             name="employee count",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
@@ -4728,7 +4728,7 @@ class TestEditQuestionValidation:
             form=db_form,
             text="How many employees do you have?",
             name="employee count",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
@@ -4780,7 +4780,7 @@ class TestEditQuestionValidation:
             form=db_form,
             text="How many employees do you have?",
             name="employee count",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
@@ -4819,8 +4819,8 @@ class TestEditQuestionValidation:
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Cheese habits")
 
-        referenced_question = factories.question.create(form=db_form, data_type=QuestionDataType.INTEGER)
-        target_question = factories.question.create(form=db_form, data_type=QuestionDataType.INTEGER)
+        referenced_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
 
         expression = LessThan(
             question_id=target_question.id,
@@ -4883,7 +4883,7 @@ class TestEditQuestionValidation:
             form=db_form,
             text="How much cheese do you eat a month?",
             name="quantity of cheese",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         expression = LessThan(question_id=target_question.id, maximum_value=1000)
@@ -4937,14 +4937,14 @@ class TestEditQuestionValidation:
             form=db_form,
             text="How much cheese do you buy a month?",
             name="total cheese bought",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         target_question = factories.question.create(
             form=db_form,
             text="How much cheese do you eat a month?",
             name="quantity of cheese eaten",
-            data_type=QuestionDataType.INTEGER,
+            data_type=QuestionDataType.NUMBER,
         )
 
         expression = LessThan(question_id=target_question.id, maximum_value=1000)

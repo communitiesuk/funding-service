@@ -29,7 +29,7 @@ EC = ExpressionContext
 class TestBuildQuestionForm:
     def test_question_attached_by_id(self, factories):
         question = factories.question.build(
-            id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.INTEGER
+            id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.NUMBER
         )
 
         _FormClass = build_question_form(
@@ -42,7 +42,7 @@ class TestBuildQuestionForm:
         assert hasattr(form, "q_e4bd98ab41ef4d23b1e59c0404891e7a")
 
     def test_multiple_questions_attached_by_id(self, factories):
-        questions = factories.question.build_batch(5, data_type=QuestionDataType.INTEGER)
+        questions = factories.question.build_batch(5, data_type=QuestionDataType.NUMBER)
 
         _FormClass = build_question_form(
             questions, evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
@@ -68,7 +68,7 @@ class TestBuildQuestionForm:
 
         def test_build_form_context(self, factories):
             q1 = factories.question.build(
-                id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.INTEGER
+                id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"), data_type=QuestionDataType.NUMBER
             )
             q2 = factories.question.build(
                 id=uuid.UUID("4d188cd7-2603-4fd8-955d-40e3f65f9312"), data_type=QuestionDataType.TEXT_SINGLE_LINE
@@ -112,7 +112,7 @@ class TestBuildQuestionForm:
             (QuestionDataType.TEXT_SINGLE_LINE, QPO(), StringField, GovTextInput, [DataRequired]),
             (QuestionDataType.TEXT_MULTI_LINE, QPO(), StringField, GovTextArea, [DataRequired]),
             (QuestionDataType.TEXT_MULTI_LINE, QPO(word_limit=500), StringField, GovCharacterCount, [DataRequired]),
-            (QuestionDataType.INTEGER, QPO(), IntegerField, GovTextInput, [InputRequired]),
+            (QuestionDataType.NUMBER, QPO(), IntegerField, GovTextInput, [InputRequired]),
             (QuestionDataType.YES_NO, QPO(), RadioField, GovRadioInput, [InputRequired]),
             (QuestionDataType.RADIOS, QPO(), RadioField, MHCLGRadioInput, []),
             (QuestionDataType.EMAIL, QPO(), EmailField, GovTextInput, [DataRequired, Email]),
