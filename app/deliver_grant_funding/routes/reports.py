@@ -1191,6 +1191,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         form=db_form,
         current_component=get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
+        ff_show_new_context_sources=AuthorisationHelper.is_platform_member(get_current_user()),
     )
     if wtform.validate_on_submit():
         add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
