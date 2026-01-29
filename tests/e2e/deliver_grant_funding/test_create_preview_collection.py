@@ -884,7 +884,7 @@ def test_setup_grant_and_collection(
     grant_name_uuid = str(uuid.uuid4())
 
     # Sense check that the test includes all question types
-    assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
+    assert len(QuestionDataType) == 10 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
         "If you have added a new question type or managed expression, update this test to include the "
         "new question type or managed expression in `questions_to_test`."
     )
