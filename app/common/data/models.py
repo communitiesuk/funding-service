@@ -348,6 +348,10 @@ class Form(BaseModel):
     def global_component_index(self, component: Component) -> int:
         return self.cached_all_components.index(component)
 
+    @property
+    def earlier_forms(self):
+        return [f for f in self.collection.forms if f.order < self.order]
+
 
 def get_ordered_nested_components(components: list[Component]) -> list[Component]:
     """Recursively collects all components from a list of components, including nested components."""

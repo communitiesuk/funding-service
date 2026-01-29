@@ -83,6 +83,7 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     SelectDataSourceQuestionForm,
+    SelectDataSourceSectionForm,
     SetUpReportForm,
     TestGrantRecipientJourneyForm,
 )
@@ -1249,7 +1250,33 @@ def select_context_source_collection(grant_id: UUID, form_id: UUID) -> ResponseR
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    return abort(404)
+    db_form = get_form_by_id(form_id)
+
+    add_context_data = _extract_add_context_data_from_session()
+    if not add_context_data:
+        return abort(400)
+
+    # TODO: Add depends_on_question_id as a nullable attribute to all session models to simplify this check?
+    current_component = (
+        get_component_by_id(add_context_data.depends_on_question_id)  # type: ignore[union-attr, arg-type]
+        if getattr(add_context_data, "depends_on_question_id", None)
+        else get_component_by_id(add_context_data.component_id)
+        if add_context_data.component_id
+        else None
+    )
+
+    wtform = SelectDataSourceSectionForm(current_form=current_component.form if current_component else db_form)
+    if wtform.validate_on_submit():
+        referenced_section = get_form_by_id(uuid.UUID(wtform.section.data))
+        # TODO: store data and redirect
+
+    return render_template(
+        "deliver_grant_funding/reports/select_context_source_section.html",
+        grant=db_form.collection.grant,
+        db_form=db_form,
+        form=wtform,
+        add_context_data=add_context_data,
+    )
 
 
 @deliver_grant_funding_blueprint.route(
@@ -1669,6 +1696,8 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 @collection_is_editable()
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
+
+    # TODO: FSPT-1142+1143: Allow selecting questions from earlier sections/collections
     form = ConditionSelectQuestionForm(
         current_component=component,
         interpolate=SubmissionHelper.get_interpolator(collection=component.form.collection),

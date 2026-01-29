@@ -2421,9 +2421,11 @@ class TestSelectContextSourceCollection:
 
 
 class TestSelectContextSourceSection:
-    def test_404(self, authenticated_grant_admin_client, factories):
+    def test_get_lists_sections(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        form = factories.form.create(collection=report, title="Section 1")
+        form_2 = factories.form.create(collection=report, title="Section 2")
+        factories.question.create(form=form_2, text="Question 1")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
@@ -2437,6 +2439,7 @@ class TestSelectContextSourceSection:
                 data_source=ExpressionContext.ContextSources.SECTION,
                 collection_id=form.collection_id,
                 form_id=None,
+                component_id=None,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -2446,7 +2449,42 @@ class TestSelectContextSourceSection:
                 form_id=form.id,
             )
         )
-        assert response.status_code == 404
+        assert response.status_code == 200
+        assert "Section 1" in response.text
+        assert "Section 2" not in response.text
+
+    def test_get_lists_sections_with_dependent_question(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report, title="Section 1")
+        form_2 = factories.form.create(collection=report, title="Section 2")
+        form_3 = factories.form.create(collection=report, title="Section 3")
+        question = factories.question.create(form=form_2, text="Question 1")
+        question_2 = factories.question.create(form=form_3, text="Question 2")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=None,
+                component_id=question_2.id,
+                depends_on_question_id=question.id,
+                field=ExpressionType.CONDITION,
+                managed_expression_name=ManagedExpressionsEnum.ANY_OF,
+                expression_form_data={},
+                _prepared_form_data={},
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+        assert "Section 1" in response.text
+        assert "Section 2" not in response.text
+        assert "Section 3" not in response.text
 
 
 class TestSelectContextSourceQuestion:
