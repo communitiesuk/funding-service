@@ -37,8 +37,8 @@ class TestPreviewGuidance:
 
     @pytest.mark.authenticate_as("person@communities.gov.uk")
     def test_post_interpolates_guidance(self, authenticated_grant_member_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
-        q = factories.question.create(form__collection=collection, name="my question name")
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Collection")
+        q = factories.question.create(form__collection=collection, form__title="Form", name="my question name")
         form = PreviewGuidanceForm(guidance=f"Test interpolation: (({q.safe_qid}))")
         response = authenticated_grant_member_client.post(
             url_for("deliver_grant_funding.api.preview_guidance", collection_id=collection.id),
@@ -47,13 +47,13 @@ class TestPreviewGuidance:
         assert response.status_code == 200
         assert response.json["guidance_html"] == (
             "<p class='govuk-body'>Test interpolation: "
-            '<span class="app-context-aware-editor--valid-reference">((my question name))</span>'
+            '<span class="app-context-aware-editor--valid-reference">((Collection → Form → my question name))</span>'
             "</p>\n"
         )
 
     def test_post_with_script_tags_are_escaped(self, authenticated_grant_member_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
-        q = factories.question.create(form__collection=collection, name="my question name")
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Collection")
+        q = factories.question.create(form__collection=collection, form__title="Form", name="my question name")
         form = PreviewGuidanceForm(guidance=f"<script>alert('bad user input')</script>: (({q.safe_qid}))")
         response = authenticated_grant_member_client.post(
             url_for("deliver_grant_funding.api.preview_guidance", collection_id=collection.id),
@@ -62,5 +62,5 @@ class TestPreviewGuidance:
         assert response.status_code == 200
         assert response.json["guidance_html"] == (
             "&lt;script&gt;alert(&#x27;bad user input&#x27;)&lt;/script&gt;: "
-            '<span class="app-context-aware-editor--valid-reference">((my question name))</span>\n'
+            '<span class="app-context-aware-editor--valid-reference">((Collection → Form → my question name))</span>\n'
         )

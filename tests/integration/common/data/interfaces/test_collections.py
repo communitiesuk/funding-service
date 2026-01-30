@@ -2742,6 +2742,31 @@ class TestIsComponentDependencyOrderValid:
 
         assert is_component_dependency_order_valid(nested_question, question) is True
 
+    def test_dependency_in_earlier_form_is_valid(self, db_session, factories):
+        collection = factories.collection.create()
+        earlier_form = factories.form.create(collection=collection)
+        later_form = factories.form.create(collection=collection)
+        dependency = factories.question.create(form=earlier_form)
+        component = factories.question.create(form=later_form)
+
+        assert is_component_dependency_order_valid(component, dependency) is True
+
+    def test_dependency_in_same_form_but_later_position_is_invalid(self, db_session, factories):
+        form = factories.form.create()
+        component = factories.question.create(form=form)
+        dependency = factories.question.create(form=form)
+
+        assert is_component_dependency_order_valid(component, dependency) is False
+
+    def test_dependency_in_later_form_is_invalid(self, db_session, factories):
+        collection = factories.collection.create()
+        earlier_form = factories.form.create(collection=collection)
+        later_form = factories.form.create(collection=collection)
+        dependency = factories.question.create(form=later_form)
+        component = factories.question.create(form=earlier_form)
+
+        assert is_component_dependency_order_valid(component, dependency) is False
+
 
 class TestExpressions:
     def test_add_question_condition(self, db_session, factories):
@@ -3711,6 +3736,41 @@ class TestValidateAndSyncComponentReferences:
         refs = db_session.query(ComponentReference).filter_by(component=group).all()
         assert len(refs) == 1
         assert refs[0].depends_on_component == referenced_question
+
+    def test_allows_reference_to_question_in_earlier_form(self, db_session, factories):
+        collection = factories.collection.create()
+        earlier_form = factories.form.create(collection=collection)
+        later_form = factories.form.create(collection=collection)
+        referenced_question = factories.question.create(form=earlier_form)
+        dependent_question = factories.question.create(
+            form=later_form, text=f"Reference to (({referenced_question.safe_qid}))"
+        )
+
+        db_session.query(ComponentReference).delete()
+
+        _validate_and_sync_component_references(
+            dependent_question,
+            ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+        )
+        db_session.flush()
+
+        refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
+        assert len(refs) == 1
+        assert refs[0].depends_on_component == referenced_question
+
+    def test_throws_error_on_referencing_question_in_later_form(self, db_session, factories):
+        collection = factories.collection.create()
+        earlier_form = factories.form.create(collection=collection)
+        later_form = factories.form.create(collection=collection)
+        referenced_question = factories.question.create(form=later_form)
+        dependent_question = factories.question.create(form=earlier_form)
+        dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
+
+        with pytest.raises(InvalidReferenceInExpression):
+            _validate_and_sync_component_references(
+                dependent_question,
+                ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+            )
 
 
 class TestAddAnother:

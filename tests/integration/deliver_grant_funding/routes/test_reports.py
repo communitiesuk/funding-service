@@ -1447,7 +1447,7 @@ class TestListGroupQuestions:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Reference to ((my question name))" in soup.text
+        assert "Reference to ((Test Report → Organisation information → my question name))" in soup.text
 
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -1573,7 +1573,7 @@ class TestListSectionQuestions:
         )
 
         assert response.status_code == 200
-        assert "Reference to ((my question name))" in response.text
+        assert "Reference to ((Test Report → Organisation information → my question name))" in response.text
 
     def test_cannot_delete_with_live_submissions(self, authenticated_grant_admin_client, factories, db_session, caplog):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")

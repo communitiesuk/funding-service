@@ -61,6 +61,44 @@ class TestExpressionContext:
         assert "e" in ex
         assert "f" not in ex
 
+    class TestBuildExpressionContextCrossFormReferences:
+        def test_includes_questions_from_earlier_forms(self, factories):
+            collection = factories.collection.create(name="My Collection")
+            form1 = factories.form.create(collection=collection, title="First Form")
+            form2 = factories.form.create(collection=collection, title="Second Form")
+            q1 = factories.question.create(form=form1, name="earlier question")
+            q2 = factories.question.create(form=form2, name="later question")
+
+            context = ExpressionContext.build_expression_context(
+                collection=collection, mode="interpolation", expression_context_end_point=q2
+            )
+
+            assert context.is_valid_reference(q1.safe_qid)
+            assert context.is_valid_reference(q2.safe_qid)
+
+        def test_excludes_questions_from_later_forms(self, factories):
+            collection = factories.collection.create(name="My Collection")
+            form1 = factories.form.create(collection=collection, title="First Form")
+            form2 = factories.form.create(collection=collection, title="Second Form")
+            q1 = factories.question.create(form=form1, name="earlier question")
+            q2 = factories.question.create(form=form2, name="later question")
+
+            context = ExpressionContext.build_expression_context(
+                collection=collection, mode="interpolation", expression_context_end_point=q1
+            )
+
+            assert context.is_valid_reference(q1.safe_qid)
+            assert not context.is_valid_reference(q2.safe_qid)
+
+        def test_interpolation_labels_include_collection_and_form(self, factories):
+            collection = factories.collection.create(name="My Collection")
+            form = factories.form.create(collection=collection, title="My Form")
+            q = factories.question.create(form=form, name="my question")
+
+            context = ExpressionContext.build_expression_context(collection=collection, mode="interpolation")
+
+            assert context[q.safe_qid] == "((My Collection → My Form → my question))"
+
 
 class TestEvaluatingManagedExpressions:
     def test_greater_than(self, factories):
