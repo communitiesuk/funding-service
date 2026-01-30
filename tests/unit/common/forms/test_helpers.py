@@ -153,6 +153,24 @@ class TestGetReferenceableQuestions:
 
         assert referenceable_questions == [q1]
 
+    def test_returns_empty_for_later_section(self, factories):
+        collection = factories.collection.build()
+        form_1 = factories.form.build(collection=collection)
+        form_2 = factories.form.build(collection=collection)
+        current_question = factories.question.build(form=form_1)
+        factories.question.build_batch(2, form=form_2)
+
+        assert get_referenceable_questions(form_2, current_component=current_question) == []
+
+    def test_returns_all_questions_for_earlier_section(self, factories):
+        collection = factories.collection.build()
+        form_1 = factories.form.build(collection=collection)
+        form_2 = factories.form.build(collection=collection)
+        q1, q2 = factories.question.build_batch(2, form=form_1)
+        current_question = factories.question.build(form=form_2)
+
+        assert get_referenceable_questions(form_1, current_component=current_question) == [q1, q2]
+
     def test_filters_out_add_another_question(self, factories):
         form = factories.form.build()
         factories.question.build(form=form, add_another=True)

@@ -1256,6 +1256,8 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
     if not add_context_data:
         return abort(400)
 
+    assert add_context_data.collection_id
+
     # TODO: Add depends_on_question_id as a nullable attribute to all session models to simplify this check?
     current_component = (
         get_component_by_id(add_context_data.depends_on_question_id)  # type: ignore[union-attr, arg-type]
@@ -1268,7 +1270,11 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
     wtform = SelectDataSourceSectionForm(current_form=current_component.form if current_component else db_form)
     if wtform.validate_on_submit():
         referenced_section = get_form_by_id(uuid.UUID(wtform.section.data))
-        # TODO: store data and redirect
+        add_context_data.form_id = referenced_section.id
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(
+            url_for("deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id)
+        )
 
     return render_template(
         "deliver_grant_funding/reports/select_context_source_section.html",
@@ -1291,6 +1297,10 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
     if not add_context_data:
         return abort(400)
 
+    assert add_context_data.collection_id
+    assert add_context_data.form_id
+    target_form = get_form_by_id(add_context_data.form_id)
+
     # TODO: Add depends_on_question_id as a nullable attribute to all session models to simplify this check?
     current_component = (
         get_component_by_id(add_context_data.depends_on_question_id)  # type: ignore[union-attr, arg-type]
@@ -1301,7 +1311,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
     )
 
     wtform = SelectDataSourceQuestionForm(
-        form=db_form,
+        form=target_form,
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
         current_component=current_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,

@@ -585,7 +585,6 @@ class SelectDataSourceQuestionForm(FlaskForm):
         # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
         # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
         # centralise this logic sensibly.
-
         referenceable_questions = get_referenceable_questions(form, current_component, parent_component)
 
         if referenceable_questions:

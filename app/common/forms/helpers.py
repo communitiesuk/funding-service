@@ -52,6 +52,14 @@ def get_referenceable_questions(
     if current_component is None and parent_component is None:
         return questions
 
+    # Can't reference questions from later sections
+    elif current_component and form.order > current_component.form.order:
+        return []
+
+    # If referencing an earlier form, all questions are visible
+    elif current_component and form.order < current_component.form.order:
+        return questions
+
     # Adding a question within a group
     elif current_component is None and parent_component is not None:
         limit_to_components_before = (

@@ -349,7 +349,7 @@ class Form(BaseModel):
         return self.cached_all_components.index(component)
 
     @property
-    def earlier_forms(self):
+    def earlier_forms(self) -> list[Form]:
         return [f for f in self.collection.forms if f.order < self.order]
 
 

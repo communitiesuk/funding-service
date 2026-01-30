@@ -2486,6 +2486,49 @@ class TestSelectContextSourceSection:
         assert "Section 2" not in response.text
         assert "Section 3" not in response.text
 
+    def test_post_stores_form_id_and_redirects(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form_1 = factories.form.create(collection=report, title="Section 1")
+        form_2 = factories.form.create(collection=report, title="Section 2")
+        factories.question.create(form=form_1)
+        question_in_form_2 = factories.question.create(form=form_2)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=report.id,
+                form_id=None,
+                component_id=question_in_form_2.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form_2.id,
+            ),
+            data={"section": str(form_1.id)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.select_context_source_question",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            form_id=form_2.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            assert question_data["form_id"] == str(form_1.id)
+
 
 class TestSelectContextSourceQuestion:
     def test_get_fails_with_invalid_session(self, authenticated_grant_admin_client, factories):
@@ -2534,6 +2577,40 @@ class TestSelectContextSourceQuestion:
         assert "Select which question's answer to use" in soup.text
         assert question1.text in soup.text
         assert question2.text in soup.text
+
+    def test_get_lists_questions_from_target_section(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form_1 = factories.form.create(collection=report)
+        form_2 = factories.form.create(collection=report)
+        question_in_form_1 = factories.question.create(form=form_1, text="Question from section 1")
+        question_in_form_2 = factories.question.create(form=form_2, text="Question from section 2")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=report.id,
+                form_id=form_1.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form_2.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert question_in_form_1.text in soup.text
+        assert question_in_form_2.text not in soup.text
 
     def test_get_lists_questions_from_depends_on_question_if_condition(
         self, authenticated_grant_admin_client, factories
