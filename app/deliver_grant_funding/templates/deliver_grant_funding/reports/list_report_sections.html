@@ -20,7 +20,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="govuk-grid-column-three-quarters">
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SECTION_DEPENDENCY_ORDER_ERROR.value]) %}
         {% if flashes %}
           {{ section_dependency_banner(flashes[0]) }}
@@ -52,10 +52,7 @@
 
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Important", "classes": "", "html": banner_html}) }}
       {% endif %}
-    </div>
-  </div>
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-three-quarters">
+
       <h1 class="govuk-heading-l">{{ report.name }}</h1>
 
       <p class="govuk-body">
