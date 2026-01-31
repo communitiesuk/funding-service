@@ -7,9 +7,11 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app import CollectionStatusEnum, QuestionDataType
+from app import CollectionStatusEnum, FlashMessageType, QuestionDataType
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import add_question_validation
+from app.common.data.interfaces.collections import (
+    add_question_validation,
+)
 from app.common.data.models import Collection, Expression, Form, Group, Question, Submission, SubmissionEvent
 from app.common.data.types import (
     ConditionsOperator,
@@ -46,6 +48,7 @@ from tests.utils import (
     get_form_data,
     get_h1_text,
     get_h2_text,
+    get_test_flashes,
     page_has_button,
     page_has_error,
     page_has_link,
@@ -676,6 +679,49 @@ class TestMoveSection:
             assert report.forms[0].title == "Form 1"
         else:
             assert report.forms[2].title == "Form 1"
+
+    def test_cannot_move_above_referenced_section(self, app, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        factories.form.reset_sequence()
+        forms = factories.form.create_batch(2, collection=report)
+        assert forms[1].title == "Form 1"
+
+        q1 = factories.question.create(form=forms[0], data_type=QuestionDataType.YES_NO)
+        factories.question.create(
+            form=forms[1],
+            expressions=[
+                Expression.from_managed(
+                    IsYes(question_id=q1.id),
+                    ExpressionType.CONDITION,
+                    authenticated_grant_admin_client.user,
+                )
+            ],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=forms[1].id,
+                direction="up",
+            )
+        )
+        assert response.status_code == 302
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=forms[0].id,
+                direction="down",
+            )
+        )
+        assert response.status_code == 302
+
+        flashes = get_test_flashes(authenticated_grant_admin_client, FlashMessageType.SECTION_DEPENDENCY_ORDER_ERROR)
+        assert len(flashes) == 2
+        assert flashes[0]["message"] == "You cannot move sections above ones they depend on"
+        assert flashes[1]["message"] == "You cannot move sections below ones that depend on them"
 
 
 class TestChangeQuestionGroupName:

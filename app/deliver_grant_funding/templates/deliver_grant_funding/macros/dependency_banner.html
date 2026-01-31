@@ -22,3 +22,23 @@
 
   {{ govukNotificationBanner(params={"role": "alert", "titleText": "Error", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
 {% endmacro %}
+
+{% macro section_dependency_banner(error) %}
+  {% set question_link = url_for("deliver_grant_funding.list_section_questions", grant_id=error.grant_id, form_id=error.form_id) %}
+  {% set depends_on_link = url_for("deliver_grant_funding.list_section_questions", grant_id=error.grant_id, form_id=error.depends_on_form_id) %}
+
+
+  {% set banner_html %}
+    <p class="govuk-body govuk-!-font-weight-bold">{{ error.message }}</p>
+    <p class="govuk-body govuk-!-font-weight-bold">
+      Section:
+      <a class="govuk-notification-banner__link" href="{{ question_link }}">{{ error.form_title }}</a>
+    </p>
+    <p class="govuk-body govuk-!-font-weight-bold">
+      Depends on answers in section:
+      <a class="govuk-notification-banner__link" href="{{ depends_on_link }}">{{ error.depends_on_form_title }}</a>
+    </p>
+  {% endset %}
+
+  {{ govukNotificationBanner(params={"role": "alert", "titleText": "Error", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+{% endmacro %}

@@ -19,6 +19,7 @@ from app.common.data.interfaces.collections import (
     GroupContainsAddAnotherException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
+    SectionDependencyOrderException,
     create_collection,
     create_form,
     create_group,
@@ -282,8 +283,8 @@ def move_section(grant_id: UUID, form_id: UUID, direction: str) -> ResponseRetur
                 move_form_down(form)
             case _:
                 return abort(400)
-    except DependencyOrderException as e:
-        flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
+    except SectionDependencyOrderException as e:
+        flash(e.as_flash_context(), FlashMessageType.SECTION_DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
 
     return redirect(
         url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=form.collection_id)
