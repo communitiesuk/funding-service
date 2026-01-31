@@ -7,6 +7,7 @@ from werkzeug.datastructures import MultiDict
 
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import DecimalAnswer, IntegerAnswer
+from app.common.data.models import ComponentReference
 from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
@@ -15,6 +16,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventType,
     SubmissionModeEnum,
+    TasklistSectionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import SubmissionHelper, _deserialise_question_type, _form_data_to_question_type
@@ -873,6 +875,160 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert helper.sent_for_certification_by == user
+
+    class TestCanStartForm:
+        def test_can_start_when_no_references(self, factories):
+            form = factories.form.build()
+            factories.question.build(form=form)
+            submission = factories.submission.build(collection=form.collection)
+
+            helper = SubmissionHelper(submission)
+            assert helper.can_start_form(form) is True
+
+        def test_can_start_when_reference_is_within_same_form(self, factories):
+            form = factories.form.build()
+            q1 = factories.question.build(form=form)
+            q2 = factories.question.build(form=form)
+            q2.owned_component_references = [
+                ComponentReference(component=q2, depends_on_component=q1),
+            ]
+            submission = factories.submission.build(collection=form.collection)
+
+            helper = SubmissionHelper(submission)
+            assert helper.can_start_form(form) is True
+
+        def test_cannot_start_when_cross_form_question_reference_unanswered(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection)
+
+            helper = SubmissionHelper(submission)
+            assert helper.can_start_form(form_b) is False
+
+        def test_can_start_when_cross_form_question_reference_answered(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection, data={str(q_a.id): "answered"})
+
+            helper = SubmissionHelper(submission)
+            assert helper.can_start_form(form_b) is True
+
+        def test_ignores_cross_form_references_to_groups(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            group_a = factories.group.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=group_a),
+            ]
+            submission = factories.submission.build(collection=collection)
+
+            helper = SubmissionHelper(submission)
+            assert helper.can_start_form(form_b) is True
+
+    class TestGetReferencedFormsWithUnansweredReferences:
+        def test_returns_empty_when_no_references(self, factories):
+            form = factories.form.build()
+            factories.question.build(form=form)
+            submission = factories.submission.build(collection=form.collection)
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_referenced_forms_with_unanswered_references(form) == []
+
+        def test_returns_forms_with_unanswered_cross_form_references(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection)
+
+            helper = SubmissionHelper(submission)
+            result = helper.get_referenced_forms_with_unanswered_references(form_b)
+            assert result == [form_a]
+
+        def test_returns_sorted_by_form_order(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            form_c = factories.form.build(collection=collection, order=2)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_c = factories.question.build(form=form_c)
+            q_c.owned_component_references = [
+                ComponentReference(component=q_c, depends_on_component=q_b),
+                ComponentReference(component=q_c, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection)
+
+            helper = SubmissionHelper(submission)
+            result = helper.get_referenced_forms_with_unanswered_references(form_c)
+            assert result == [form_a, form_b]
+
+        def test_deduplicates_forms(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a1 = factories.question.build(form=form_a, order=0)
+            q_a2 = factories.question.build(form=form_a, order=1)
+            q_b1 = factories.question.build(form=form_b, order=0)
+            q_b2 = factories.question.build(form=form_b, order=1)
+            q_b1.owned_component_references = [
+                ComponentReference(component=q_b1, depends_on_component=q_a1),
+            ]
+            q_b2.owned_component_references = [
+                ComponentReference(component=q_b2, depends_on_component=q_a2),
+            ]
+            submission = factories.submission.build(collection=collection)
+
+            helper = SubmissionHelper(submission)
+            result = helper.get_referenced_forms_with_unanswered_references(form_b)
+            assert result == [form_a]
+
+    class TestGetTasklistStatusForForm:
+        def test_returns_cannot_start_yet_when_cross_form_reference_unanswered(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection)
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_tasklist_status_for_form(form_b) == TasklistSectionStatusEnum.CANNOT_START_YET
+
+        def test_returns_not_started_when_references_satisfied(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection, data={str(q_a.id): "answered"})
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_tasklist_status_for_form(form_b) == TasklistSectionStatusEnum.NOT_STARTED
 
 
 class TestDeserialiseQuestionType:

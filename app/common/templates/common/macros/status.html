@@ -1,17 +1,19 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {% macro tasklistSectionStatusTag(status) %}
-  {% set show_without_tag = [ enum.tasklist_section_status.COMPLETED ] %}
   {%
     set classMap = {
+        enum.tasklist_section_status.CANNOT_START_YET: "govuk-task-list__status--cannot-start-yet",
         enum.tasklist_section_status.NOT_STARTED: "govuk-tag--grey",
         enum.tasklist_section_status.IN_PROGRESS: "govuk-tag--light-blue",
         enum.tasklist_section_status.COMPLETED: "govuk-tag--green",
         enum.tasklist_section_status.NO_QUESTIONS: "govuk-tag--red",
     }
   %}
-  {% if status in show_without_tag %}
+  {% if status == enum.tasklist_section_status.COMPLETED %}
     {{ status }}
+  {% elif status == enum.tasklist_section_status.CANNOT_START_YET %}
+    <div class="{{ classMap[status] }}">{{ status }}</div>
   {% else %}
     {{ govukTag({"text": status, "classes": classMap[status] }) }}
   {% endif %}
