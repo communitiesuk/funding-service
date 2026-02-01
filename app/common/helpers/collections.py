@@ -361,7 +361,7 @@ class SubmissionHelper:
 
     @cached_property
     def all_forms_are_completed(self) -> bool:
-        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
+        form_statuses = {self.get_status_for_form(form) for form in self.get_ordered_visible_forms()}
         return {TasklistSectionStatusEnum.COMPLETED} == form_statuses
 
     def get_referenced_forms_with_unanswered_references(self, form: "Form") -> list["Form"]:
@@ -405,7 +405,10 @@ class SubmissionHelper:
 
     def get_ordered_visible_forms(self) -> list[Form]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
-        return sorted(self.collection.forms, key=lambda f: f.order)
+        return sorted(
+            filter(lambda f: self.cached_get_ordered_visible_questions(f), self.collection.forms),
+            key=lambda f: f.order,
+        )
 
     def is_component_visible(
         self, component: Component, context: ExpressionContext, add_another_index: int | None = None
