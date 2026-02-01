@@ -473,6 +473,10 @@ class Component(BaseModel):
     def is_question(self) -> bool:
         return isinstance(self, Question)
 
+    @property
+    def data_reference_label(self) -> str:
+        return f"{self.form.collection.name} → {self.form.title} → {self.name}"
+
     __table_args__ = (
         UniqueConstraint("order", "parent_id", "form_id", name="uq_component_order_form", deferrable=True),
         UniqueConstraint("slug", "form_id", name="uq_component_slug_form"),

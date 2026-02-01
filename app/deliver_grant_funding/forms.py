@@ -34,7 +34,7 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.registry import get_supported_form_questions
+from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
@@ -506,12 +506,14 @@ class AddContextSelectSourceForm(FlaskForm):
         current_component: TOptional[Component],
         parent_component: TOptional[Group] = None,
         ff_show_new_context_sources: bool = False,  # TODO: remove when implementation is fully released
+        condition_mode: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
         self.form = form
         self.current_component = current_component
         self.parent_component = parent_component
+        self.condition_mode = condition_mode
 
         # TODO: remove this when implementation for referencing previous sections+collections is ready to release.
         if ff_show_new_context_sources:
@@ -530,9 +532,13 @@ class AddContextSelectSourceForm(FlaskForm):
             return
 
         if choice == ExpressionContext.ContextSources.SECTION:
-            if not get_referenceable_questions(
+            referenceable = get_referenceable_questions(
                 form=self.form, current_component=self.current_component, parent_component=self.parent_component
-            ):
+            )
+            if self.condition_mode:
+                registered_types = get_registered_data_types()
+                referenceable = [q for q in referenceable if q.data_type in registered_types]
+            if not referenceable:
                 raise ValidationError("There are no available questions before this one in the section")
 
 
@@ -549,13 +555,20 @@ class SelectDataSourceSectionForm(FlaskForm):
         self,
         current_form: Form,
         *args: Any,
+        condition_mode: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
 
-        # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
-        # based on the usable data types.
-        self.section.choices = [(f.id, f.title) for f in current_form.earlier_forms]
+        if condition_mode:
+            registered_types = get_registered_data_types()
+            self.section.choices = [
+                (f.id, f.title)
+                for f in current_form.earlier_forms
+                if any(q.data_type in registered_types for q in get_referenceable_questions(f, None))
+            ]
+        else:
+            self.section.choices = [(f.id, f.title) for f in current_form.earlier_forms]
 
 
 class SelectDataSourceQuestionForm(FlaskForm):
@@ -576,16 +589,18 @@ class SelectDataSourceQuestionForm(FlaskForm):
         expression: bool = False,
         *args: Any,
         parent_component: TOptional[Group] = None,
+        condition_mode: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         # If we're editing an existing question, then only list questions that are "before" this one in the form.
         # If it's not an existing question, then it gets added to the end of the form, so all questions are "before".
 
-        # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
-        # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
-        # centralise this logic sensibly.
         referenceable_questions = get_referenceable_questions(form, current_component, parent_component)
+
+        if condition_mode:
+            registered_types = get_registered_data_types()
+            referenceable_questions = [q for q in referenceable_questions if q.data_type in registered_types]
 
         if referenceable_questions:
             self.question.choices = [("", "")] + [
@@ -652,27 +667,6 @@ class AddSectionForm(FlaskForm):
         validators=[DataRequired("Enter a name for the section")],
     )
     submit = SubmitField("Add section", widget=GovSubmitInput())
-
-
-class ConditionSelectQuestionForm(FlaskForm):
-    question = SelectField(
-        "Which answer should the condition check?",
-        choices=[],
-        validators=[DataRequired("Select a question")],
-        widget=MHCLGAccessibleAutocomplete(),
-    )
-    submit = SubmitField("Continue", widget=GovSubmitInput())
-
-    def __init__(self, *args, current_component: Component, interpolate: Callable[[str], str], **kwargs):  # type: ignore[no-untyped-def]
-        super().__init__(*args, **kwargs)
-
-        self.target_question = current_component
-
-        if len(get_supported_form_questions(current_component)) > 0:
-            self.question.choices = [("", "")] + [  # type: ignore[assignment]
-                (str(question.id), f"{interpolate(question.text)} ({question.name})")
-                for question in get_supported_form_questions(current_component)
-            ]
 
 
 class AddGuidanceForm(FlaskForm):

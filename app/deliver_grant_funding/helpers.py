@@ -23,7 +23,7 @@ def start_previewing_collection(collection: Collection, form: Form | None = None
 
     # Pop this if it exists; sanity check for not terminating a session correctly
     session.pop("test_submission_form_id", None)
-    if form:
+    if form and helper.can_start_form(form):
         question = helper.get_first_question_for_form(form)
         if not question:
             raise RuntimeError("Form with no question")

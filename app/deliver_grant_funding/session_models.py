@@ -77,3 +77,16 @@ class AddContextToExpressionsModel(BaseModel):
     data_source: ExpressionContext.ContextSources | None = None
     depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None
+
+
+class AddConditionSelectQuestionSessionModel(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    field: Literal["condition_select_question"] = "condition_select_question"
+    component_id: UUID
+    is_group: bool
+
+    data_source: ExpressionContext.ContextSources | None = None
+
+    collection_id: UUID | None = None
+    form_id: UUID | None = None

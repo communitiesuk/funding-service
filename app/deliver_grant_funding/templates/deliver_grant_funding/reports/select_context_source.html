@@ -24,6 +24,12 @@
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Question {{ heading_caption }}</span>
 
+      {% if add_context_data.field == 'condition_select_question' %}
+        {% with component=form.current_component %}
+          {% include "deliver_grant_funding/reports/_add_question_condition_context.html" %}
+        {% endwith %}
+      {% endif %}
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.data_source(params={"fieldset": {"legend": {"text": form.data_source.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} } }) }}

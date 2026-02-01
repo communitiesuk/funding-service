@@ -203,8 +203,7 @@ class ExpressionContext(ChainMap[str, Any]):
                         continue
 
                     # TODO: FSPT-1142: do we show this always or only when different to current context?
-                    label = f"{form.collection.name} → {form.title} → {question.name}"
-                    submission_data.setdefault(question.safe_qid, f"(({label}))")
+                    submission_data.setdefault(question.safe_qid, f"(({question.data_reference_label}))")
 
         return ExpressionContext(submission_data=submission_data)
 
