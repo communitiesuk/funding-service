@@ -103,6 +103,15 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
             QuestionResponse("Yes"),
         ],
     },
+    "show-cross-section-conditional": {
+        "type": QuestionDataType.NUMBER,
+        "text": "What number do you want to see in another section?",
+        "display_text": "What number do you want to see in another section?",
+        "options": QuestionPresentationOptions(),
+        "answers": [
+            QuestionResponse("100"),
+        ],
+    },
     "question-group-all-same-page": {
         "type": "group",
         "text": "This is a question group",
@@ -465,6 +474,35 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
             ),
             managed_expression=IsNo(question_id=uuid.uuid4()),
+        ),
+    },
+    "cross-section-reference": {
+        "type": QuestionDataType.NUMBER,
+        "text": "Prove that referencing data from another section works",
+        "display_text": "Prove that referencing data from another section works",
+        "hint": TextFieldWithData(
+            prefix="You entered this in the last section: ",
+            data_reference=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
+                section_text="E2E first task - grouped questions",
+                question_text="What number do you want to see in another section?",
+            ),
+        ),
+        "display_hint": "You entered this in the last section: 100",
+        "options": QuestionPresentationOptions(),
+        "answers": [
+            QuestionResponse("500", "The answer must be less than 100"),
+            QuestionResponse("50"),
+        ],
+        "validation": E2EManagedExpression(
+            managed_expression=LessThan(
+                question_id=uuid.uuid4(), maximum_value=None, maximum_expression="", inclusive=False
+            ),
+            context_source=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
+                section_text="E2E first task - grouped questions",
+                question_text="What number do you want to see in another section?",
+            ),
         ),
     },
 }
@@ -873,7 +911,7 @@ def test_setup_grant_and_collection(
 
     # Sense check that the test includes all question types
     assert (
-        len(QuestionDataType) == 9 and len(section_2_questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11
+        len(QuestionDataType) == 9 and len(section_2_questions_to_test) == 15 and len(ManagedExpressionsEnum) == 11
     ), (
         "If you have added a new question type or managed expression, update this test to include the "
         "new question type or managed expression in `questions_to_test`."
@@ -1075,7 +1113,9 @@ def test_preview_collection(
     ).to_be_visible()
     expect(tasklist_page.submit_button).to_be_disabled()
     expect(tasklist_page.page.get_by_role("link", name=data["first_section_name"])).to_be_visible()
-    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
+    # Second section is "Cannot start yet" state, so link should not be visible
+    expect(tasklist_page.page.locator(".govuk-task-list__status", has_text="Cannot start yet")).to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).not_to_be_visible()
 
     # Complete the first task with question groups
     complete_task(
@@ -1086,6 +1126,10 @@ def test_preview_collection(
     task_check_your_answers(
         tasklist_page, data["grant_name"], data["collection_name"], section_1_questions_with_groups_to_test
     )
+
+    # Section two can be started now that section one is complete (because section two references data in section one).
+    expect(tasklist_page.page.locator(".govuk-task-list__status", has_text="Cannot start yet")).not_to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
 
     # Complete the second task with flat questions list
     complete_task(tasklist_page, data["second_section_name"], data["grant_name"], section_2_questions_to_test)
@@ -1133,7 +1177,9 @@ def test_deliver_test_grant_recipient_journey(
         tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
     ).to_be_visible()
     expect(tasklist_page.page.get_by_role("link", name=data["first_section_name"])).to_be_visible()
-    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
+    # Second section is "Cannot start yet" state, so link should not be visible
+    expect(tasklist_page.page.locator(".govuk-task-list__status", has_text="Cannot start yet")).to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).not_to_be_visible()
 
     # Complete the first task with question groups
     complete_task(
@@ -1144,6 +1190,10 @@ def test_deliver_test_grant_recipient_journey(
     task_check_your_answers(
         tasklist_page, data["grant_name"], data["collection_name"], section_1_questions_with_groups_to_test
     )
+
+    # Section two can be started now that section one is complete (because section two references data in section one).
+    expect(tasklist_page.page.locator(".govuk-task-list__status", has_text="Cannot start yet")).not_to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
 
     # Complete the second task with flat questions list
     complete_task(tasklist_page, data["second_section_name"], data["grant_name"], section_2_questions_to_test)
