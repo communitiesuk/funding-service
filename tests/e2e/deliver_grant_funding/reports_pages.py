@@ -16,6 +16,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
 )
+from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -25,29 +26,55 @@ from app.common.expressions.managed import (
     ManagedExpression,
     Specifically,
 )
-from tests.e2e.dataclasses import GuidanceText
+from tests.e2e.dataclasses import DataReferenceConfig, GuidanceText
 
 if TYPE_CHECKING:
     from tests.e2e.deliver_grant_funding.pages import GrantTeamPage, SSOSignInPage
 
 
 def _reference_data_in_expression(
-    expression_form_page: "AddValidationPage" | "AddConditionPage", field_name: str, referenced_question_text: str
+    expression_form_page: "AddValidationPage" | "AddConditionPage", field_name: str, context_source: DataReferenceConfig
 ) -> None:
     select_data_source_page = expression_form_page.click_insert_data(field_name)
-    select_data_source_page.select_data_source("A previous question in this section")
-    select_question_page = select_data_source_page.click_select()
-    select_question_page.choose_question(referenced_question_text)
-    select_question_page.click_use_data()
+    select_data_source_page.select_data_source(context_source.data_source)
+
+    match context_source.data_source:
+        case (
+            ExpressionContext.ContextSources.SECTION
+            | ExpressionContext.ContextSources.PREVIOUS_SECTION
+            | ExpressionContext.ContextSources.PREVIOUS_COLLECTION
+        ):
+            if context_source.collection_text:
+                raise NotImplementedError("Select previous collection is not yet supported for this context source")
+
+            if context_source.section_text:
+                select_section_page = SelectDataSourceSectionPage(
+                    select_data_source_page.page,
+                    domain=select_data_source_page.domain,
+                    grant_name=select_data_source_page.grant_name,
+                )
+                select_section_page.choose_section(context_source.section_text)
+
+            if context_source.question_text:
+                select_question_page: SelectDataSourceQuestionPage = SelectDataSourceQuestionPage(
+                    select_data_source_page.page,
+                    domain=select_data_source_page.domain,
+                    grant_name=select_data_source_page.grant_name,
+                )
+                select_question_page.choose_question(context_source.question_text)
+                select_question_page.click_use_data()
+
+        case _:
+            raise NotImplementedError(f"Unsupported context source type: {context_source.data_source}")
 
 
 def _configure_greater_than_expression(
     expression_form_page: "AddValidationPage" | "AddConditionPage",
     expression: GreaterThan,
-    context_source_question_text: str | None,
+    context_source: DataReferenceConfig | None,
 ) -> None:
-    if context_source_question_text and expression.minimum_expression == "":
-        _reference_data_in_expression(expression_form_page, "minimum value", context_source_question_text)
+    if context_source and expression.minimum_expression == "":
+        _reference_data_in_expression(expression_form_page, "minimum value", context_source)
     else:
         expression_form_page.page.get_by_role("textbox", name="Minimum value").fill(str(expression.minimum_value))
 
@@ -60,10 +87,10 @@ def _configure_greater_than_expression(
 def _configure_less_than_expression(
     expression_form_page: "AddValidationPage" | "AddConditionPage",
     expression: LessThan,
-    context_source_question_text: str | None,
+    context_source: DataReferenceConfig | None,
 ) -> None:
-    if context_source_question_text and expression.maximum_expression == "":
-        _reference_data_in_expression(expression_form_page, "maximum value", context_source_question_text)
+    if context_source and expression.maximum_expression == "":
+        _reference_data_in_expression(expression_form_page, "maximum value", context_source)
     else:
         expression_form_page.page.get_by_role("textbox", name="Maximum value").fill(str(expression.maximum_value))
 
@@ -76,17 +103,17 @@ def _configure_less_than_expression(
 def _configure_between_expression(
     expression_form_page: "AddValidationPage" | "AddConditionPage",
     expression: Between,
-    context_source_question_text: str | None,
+    context_source: DataReferenceConfig | None,
 ) -> None:
     # Note that the E2EManagedExpression assumes you're only referencing one question's answer in an expression, if two
     # are needed here then the dataclass and this method will need updating
-    if context_source_question_text and expression.minimum_expression == "":
-        _reference_data_in_expression(expression_form_page, "minimum value", context_source_question_text)
+    if context_source and expression.minimum_expression == "":
+        _reference_data_in_expression(expression_form_page, "minimum value", context_source)
     else:
         expression_form_page.page.get_by_role("textbox", name="Minimum value").fill(str(expression.minimum_value))
 
-    if context_source_question_text and expression.maximum_expression == "":
-        _reference_data_in_expression(expression_form_page, "maximum value", context_source_question_text)
+    if context_source and expression.maximum_expression == "":
+        _reference_data_in_expression(expression_form_page, "maximum value", context_source)
     else:
         expression_form_page.page.get_by_role("textbox", name="Maximum value").fill(str(expression.maximum_value))
 
@@ -104,12 +131,12 @@ def _configure_between_dates_expression(
     expression_form_page: "AddValidationPage" | "AddConditionPage",
     expression: BetweenDates,
     presentation_options: QuestionPresentationOptions | None = None,
-    context_source_question_text: str | None = None,
+    context_source: DataReferenceConfig | None = None,
 ) -> None:
     # Note that the E2EManagedExpression assumes you're only referencing one question's answer in an expression, if two
     # are needed here then the dataclass and this method will need updating
-    if context_source_question_text and expression.earliest_expression == "":
-        _reference_data_in_expression(expression_form_page, "earliest date", context_source_question_text)
+    if context_source and expression.earliest_expression == "":
+        _reference_data_in_expression(expression_form_page, "earliest date", context_source)
     else:
         earliest_date_group = expression_form_page.page.get_by_role("group", name="Earliest date")
         ReportsBasePage.fill_in_date_fields(
@@ -122,8 +149,8 @@ def _configure_between_dates_expression(
             "checkbox", name="An answer of exactly the earliest date is allowed"
         ).check()
 
-    if context_source_question_text and expression.latest_expression == "":
-        _reference_data_in_expression(expression_form_page, "latest date", context_source_question_text)
+    if context_source and expression.latest_expression == "":
+        _reference_data_in_expression(expression_form_page, "latest date", context_source)
     else:
         latest_date_group = expression_form_page.page.get_by_role("group", name="Latest date")
         ReportsBasePage.fill_in_date_fields(
@@ -735,7 +762,7 @@ class AddValidationPage(ReportsBasePage):
     def configure_managed_validation(
         self,
         managed_validation: ManagedExpression,
-        context_source_question_text: str | None = None,
+        context_source: DataReferenceConfig | None = None,
         presentation_options: QuestionPresentationOptions | None = None,
     ) -> None:
         self.click_managed_validation_type(managed_validation)
@@ -743,21 +770,19 @@ class AddValidationPage(ReportsBasePage):
         match managed_validation._key:
             case ManagedExpressionsEnum.GREATER_THAN:
                 managed_validation = cast(GreaterThan, managed_validation)
-                _configure_greater_than_expression(self, managed_validation, context_source_question_text)
+                _configure_greater_than_expression(self, managed_validation, context_source)
 
             case ManagedExpressionsEnum.LESS_THAN:
                 managed_validation = cast(LessThan, managed_validation)
-                _configure_less_than_expression(self, managed_validation, context_source_question_text)
+                _configure_less_than_expression(self, managed_validation, context_source)
 
             case ManagedExpressionsEnum.BETWEEN:
                 managed_validation = cast(Between, managed_validation)
-                _configure_between_expression(self, managed_validation, context_source_question_text)
+                _configure_between_expression(self, managed_validation, context_source)
 
             case ManagedExpressionsEnum.BETWEEN_DATES:
                 managed_validation = cast(BetweenDates, managed_validation)
-                _configure_between_dates_expression(
-                    self, managed_validation, presentation_options, context_source_question_text
-                )
+                _configure_between_dates_expression(self, managed_validation, presentation_options, context_source)
 
     def click_managed_validation_type(self, managed_validation: ManagedExpression) -> None:
         self.page.get_by_role("radio", name=managed_validation._key.value).click()
@@ -798,7 +823,7 @@ class AddConditionPage(ReportsBasePage):
     def configure_managed_condition(
         self,
         managed_condition: ManagedExpression,
-        context_source_question_text: str | None = None,
+        context_source: DataReferenceConfig | None = None,
         presentation_options: QuestionPresentationOptions | None = None,
     ) -> None:
         self.click_managed_condition_type(managed_condition)
@@ -806,21 +831,19 @@ class AddConditionPage(ReportsBasePage):
         match managed_condition._key:
             case ManagedExpressionsEnum.GREATER_THAN:
                 managed_condition = cast(GreaterThan, managed_condition)
-                _configure_greater_than_expression(self, managed_condition, context_source_question_text)
+                _configure_greater_than_expression(self, managed_condition, context_source)
 
             case ManagedExpressionsEnum.LESS_THAN:
                 managed_condition = cast(LessThan, managed_condition)
-                _configure_less_than_expression(self, managed_condition, context_source_question_text)
+                _configure_less_than_expression(self, managed_condition, context_source)
 
             case ManagedExpressionsEnum.BETWEEN:
                 managed_condition = cast(Between, managed_condition)
-                _configure_between_expression(self, managed_condition, context_source_question_text)
+                _configure_between_expression(self, managed_condition, context_source)
 
             case ManagedExpressionsEnum.BETWEEN_DATES:
                 managed_condition = cast(BetweenDates, managed_condition)
-                _configure_between_dates_expression(
-                    self, managed_condition, presentation_options, context_source_question_text
-                )
+                _configure_between_dates_expression(self, managed_condition, presentation_options, context_source)
 
             case ManagedExpressionsEnum.IS_YES | ManagedExpressionsEnum.IS_NO:
                 return
@@ -841,13 +864,14 @@ class AddConditionPage(ReportsBasePage):
         self.page.get_by_role("button", name=f"Reference data for {field_name}").click()
         return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
-    def select_condition_question(self, condition_question: str) -> None:
+    def select_condition_question(self, condition_config: DataReferenceConfig) -> None:
         # We don't easily know randomly generated uuid apended to the previous question texts, so have to grab it to
         # select the correct option
         expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
         element = self.page.get_by_role("combobox")
         element.click()
-        element.fill(condition_question)
+        assert condition_config.question_text
+        element.fill(condition_config.question_text)
         element.press("Enter")
 
         self.continue_button.click()
@@ -989,12 +1013,37 @@ class SelectDataSourcePage(ReportsBasePage):
             grant_name=grant_name,
         )
 
-    def select_data_source(self, data_source: Literal["A previous question in this section"]) -> None:
-        self.page.get_by_role("radio", name=data_source).click()
-
-    def click_select(self) -> "SelectDataSourceQuestionPage":
+    def select_data_source(
+        self, data_source: ExpressionContext.ContextSources
+    ) -> SelectDataSourceQuestionPage | SelectDataSourceSectionPage:
+        self.page.get_by_role("radio", name=data_source.value).click()
         self.page.get_by_role("button", name="Select data source").click()
 
+        match data_source:
+            case ExpressionContext.ContextSources.SECTION:
+                return SelectDataSourceQuestionPage(page=self.page, domain=self.domain, grant_name=self.grant_name)
+
+            case ExpressionContext.ContextSources.PREVIOUS_SECTION:
+                return SelectDataSourceSectionPage(page=self.page, domain=self.domain, grant_name=self.grant_name)
+
+            case ExpressionContext.ContextSources.PREVIOUS_COLLECTION:
+                pass
+
+        raise NotImplementedError(f"Unexpected data source: {data_source}")
+
+
+class SelectDataSourceSectionPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page=page,
+            domain=domain,
+            heading=page.get_by_role("heading", name="Select a previous section"),
+            grant_name=grant_name,
+        )
+
+    def choose_section(self, section_name: str) -> SelectDataSourceQuestionPage:
+        self.page.get_by_role("radio", name=section_name).click()
+        self.page.get_by_role("button", name="Select section").click()
         return SelectDataSourceQuestionPage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
 
