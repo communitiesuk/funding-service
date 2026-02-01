@@ -32,10 +32,7 @@ if TYPE_CHECKING:
     from tests.e2e.deliver_grant_funding.pages import GrantTeamPage, SSOSignInPage
 
 
-def _reference_data_in_expression(
-    expression_form_page: "AddValidationPage" | "AddConditionPage", field_name: str, context_source: DataReferenceConfig
-) -> None:
-    select_data_source_page = expression_form_page.click_insert_data(field_name)
+def _reference_data_flow(select_data_source_page: SelectDataSourcePage, context_source: DataReferenceConfig) -> None:
     select_data_source_page.select_data_source(context_source.data_source)
 
     match context_source.data_source:
@@ -66,6 +63,13 @@ def _reference_data_in_expression(
 
         case _:
             raise NotImplementedError(f"Unsupported context source type: {context_source.data_source}")
+
+
+def _reference_data_in_expression(
+    expression_form_page: "AddValidationPage" | "AddConditionPage", field_name: str, context_source: DataReferenceConfig
+) -> None:
+    select_data_source_page = expression_form_page.click_insert_data(field_name)
+    _reference_data_flow(select_data_source_page, context_source)
 
 
 def _configure_greater_than_expression(
@@ -956,7 +960,7 @@ class AddQuestionDetailsPage(ReportsBasePage):
     def fill_question_hint(self, question_hint: str) -> None:
         self.page.get_by_role("textbox", name="Question hint").fill(question_hint)
 
-    def click_insert_data(self, field_name: Literal["text", "hint"], question: str) -> "SelectDataSourcePage":
+    def click_insert_data(self, field_name: Literal["text", "hint"]) -> "SelectDataSourcePage":
         self.page.get_by_role("button", name=f"Reference data in question {field_name}").click()
 
         return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)

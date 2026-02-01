@@ -39,7 +39,7 @@ class QuestionResponse:
 @dataclasses.dataclass
 class TextFieldWithData:
     prefix: str
-    data_from_question: str
+    data_reference: DataReferenceConfig
 
 
 @dataclasses.dataclass

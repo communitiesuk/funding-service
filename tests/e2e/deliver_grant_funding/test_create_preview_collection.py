@@ -70,6 +70,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpTestGrantRecipientsPage,
     SetUpTestGrantRecipientUsersPage,
     SetUpTestOrganisationsPage,
+    _reference_data_flow,
 )
 from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
@@ -118,7 +119,10 @@ questions_to_test: dict[str, TQuestionToTest] = {
         type=QuestionDataType.DATE,
         text="Enter an approximate date",
         display_text="Enter an approximate date",
-        hint=TextFieldWithData(prefix="You entered an exact date of", data_from_question="Enter a date"),
+        hint=TextFieldWithData(
+            prefix="You entered an exact date of",
+            data_reference=DataReferenceConfig(ExpressionContext.ContextSources.SECTION, question_text="Enter a date"),
+        ),
         display_hint="You entered an exact date of Tuesday 5 April 2022",
         answers=[
             QuestionResponse(
@@ -555,12 +559,8 @@ def create_question(
 
     if hint := question_definition.get("hint"):
         question_details_page.fill_question_hint(hint.prefix)
-        select_data_source_page = question_details_page.click_insert_data(
-            field_name="hint", question=hint.data_from_question
-        )
-        select_question_page = select_data_source_page.select_data_source(ExpressionContext.ContextSources.SECTION)
-        select_question_page.choose_question(hint.data_from_question)
-        select_question_page.click_use_data()
+        select_data_source_page = question_details_page.click_insert_data(field_name="hint")
+        _reference_data_flow(select_data_source_page, hint.data_reference)
     else:
         question_details_page.fill_question_hint(f"Hint text for: {question_text}")
 
