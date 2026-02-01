@@ -93,7 +93,112 @@ def extract_uuid_from_url(url: str, pattern: str) -> str:
 
 TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
 
-questions_to_test: dict[str, TQuestionToTest] = {
+
+section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
+    "yes-no": {
+        "type": QuestionDataType.YES_NO,
+        "text": "Do you want to show question groups?",
+        "display_text": "Do you want to show question groups?",
+        "answers": [
+            QuestionResponse("Yes"),
+        ],
+    },
+    "question-group-all-same-page": {
+        "type": "group",
+        "text": "This is a question group",
+        "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+        "guidance": GuidanceText(
+            heading="This is a guidance page heading for a group",
+            body_heading="Guidance subheading",
+            body_link_text="Design system link text",
+            body_link_url="https://design-system.service.gov.uk",
+            body_ul_items=["UL item one", "UL item two"],
+            body_ol_items=["OL item one", "OL item two"],
+        ),
+        "condition": E2EManagedExpression(
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION,
+                question_text="Do you want to show question groups?",
+            ),
+            managed_expression=IsYes(question_id=uuid.uuid4()),
+        ),
+        "questions": [
+            {
+                "type": QuestionDataType.TEXT_SINGLE_LINE,
+                "text": "Group Enter a single line of text",
+                "display_text": "Group Enter a single line of text",
+                "answers": [QuestionResponse("E2E question text single line")],
+            },
+            {
+                "type": QuestionDataType.URL,
+                "text": "Group Enter a website address",
+                "display_text": "Group Enter a website address",
+                "answers": [
+                    QuestionResponse("https://gov.uk"),
+                ],
+            },
+            {
+                "type": QuestionDataType.EMAIL,
+                "text": "Group Enter an email address",
+                "display_text": "Group Enter an email address",
+                "answers": [
+                    QuestionResponse("group@example.com"),
+                ],
+            },
+        ],
+    },
+    "text-single-line": {
+        "type": QuestionDataType.TEXT_SINGLE_LINE,
+        "text": "Enter another single line of text",
+        "display_text": "Enter another single line of text",
+        "answers": [QuestionResponse("E2E question text single line second answer")],
+    },
+    "question-group-one-per-page": {
+        "type": "group",
+        "text": "One question per page group",
+        "display_options": GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
+        "questions": [
+            {
+                "type": QuestionDataType.TEXT_SINGLE_LINE,
+                "text": "Second group Enter a single line of text",
+                "display_text": "Second group Enter a single line of text",
+                "answers": [QuestionResponse("E2E question text single line group")],
+            },
+            {
+                "type": QuestionDataType.EMAIL,
+                "text": "Second group Enter an email address",
+                "display_text": "Second group Enter an email address",
+                "answers": [
+                    QuestionResponse("group2@example.com"),
+                ],
+            },
+            {
+                "type": "group",
+                "text": "Nested Group",
+                "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+                "questions": [
+                    {
+                        "type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "text": "Nested group single line of text",
+                        "display_text": "Nested group single line of text",
+                        "answers": [QuestionResponse("E2E question text single line nested group")],
+                    },
+                    {
+                        "type": QuestionDataType.EMAIL,
+                        "text": "Nested group Enter an email address",
+                        "display_text": "Nested group Enter an email address",
+                        "answers": [
+                            QuestionResponse("nested_group@example.com"),
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+}
+
+
+section_2_questions_to_test: dict[str, TQuestionToTest] = {
     "date": QuestionDict(
         type=QuestionDataType.DATE,
         text="Enter a date",
@@ -361,113 +466,6 @@ questions_to_test: dict[str, TQuestionToTest] = {
             ),
             managed_expression=IsNo(question_id=uuid.uuid4()),
         ),
-    },
-}
-
-
-TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
-
-
-questions_with_groups_to_test: dict[str, TQuestionToTest] = {
-    "yes-no": {
-        "type": QuestionDataType.YES_NO,
-        "text": "Do you want to show question groups?",
-        "display_text": "Do you want to show question groups?",
-        "answers": [
-            QuestionResponse("Yes"),
-        ],
-    },
-    "question-group-all-same-page": {
-        "type": "group",
-        "text": "This is a question group",
-        "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
-        "guidance": GuidanceText(
-            heading="This is a guidance page heading for a group",
-            body_heading="Guidance subheading",
-            body_link_text="Design system link text",
-            body_link_url="https://design-system.service.gov.uk",
-            body_ul_items=["UL item one", "UL item two"],
-            body_ol_items=["OL item one", "OL item two"],
-        ),
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION,
-                question_text="Do you want to show question groups?",
-            ),
-            managed_expression=IsYes(question_id=uuid.uuid4()),
-        ),
-        "questions": [
-            {
-                "type": QuestionDataType.TEXT_SINGLE_LINE,
-                "text": "Group Enter a single line of text",
-                "display_text": "Group Enter a single line of text",
-                "answers": [QuestionResponse("E2E question text single line")],
-            },
-            {
-                "type": QuestionDataType.URL,
-                "text": "Group Enter a website address",
-                "display_text": "Group Enter a website address",
-                "answers": [
-                    QuestionResponse("https://gov.uk"),
-                ],
-            },
-            {
-                "type": QuestionDataType.EMAIL,
-                "text": "Group Enter an email address",
-                "display_text": "Group Enter an email address",
-                "answers": [
-                    QuestionResponse("group@example.com"),
-                ],
-            },
-        ],
-    },
-    "text-single-line": {
-        "type": QuestionDataType.TEXT_SINGLE_LINE,
-        "text": "Enter another single line of text",
-        "display_text": "Enter another single line of text",
-        "answers": [QuestionResponse("E2E question text single line second answer")],
-    },
-    "question-group-one-per-page": {
-        "type": "group",
-        "text": "One question per page group",
-        "display_options": GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
-        "questions": [
-            {
-                "type": QuestionDataType.TEXT_SINGLE_LINE,
-                "text": "Second group Enter a single line of text",
-                "display_text": "Second group Enter a single line of text",
-                "answers": [QuestionResponse("E2E question text single line group")],
-            },
-            {
-                "type": QuestionDataType.EMAIL,
-                "text": "Second group Enter an email address",
-                "display_text": "Second group Enter an email address",
-                "answers": [
-                    QuestionResponse("group2@example.com"),
-                ],
-            },
-            {
-                "type": "group",
-                "text": "Nested Group",
-                "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
-                "questions": [
-                    {
-                        "type": QuestionDataType.TEXT_SINGLE_LINE,
-                        "text": "Nested group single line of text",
-                        "display_text": "Nested group single line of text",
-                        "answers": [QuestionResponse("E2E question text single line nested group")],
-                    },
-                    {
-                        "type": QuestionDataType.EMAIL,
-                        "text": "Nested group Enter an email address",
-                        "display_text": "Nested group Enter an email address",
-                        "answers": [
-                            QuestionResponse("nested_group@example.com"),
-                        ],
-                    },
-                ],
-            },
-        ],
     },
 }
 
@@ -874,7 +872,9 @@ def test_setup_grant_and_collection(
     grant_name_uuid = str(uuid.uuid4())
 
     # Sense check that the test includes all question types
-    assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
+    assert (
+        len(QuestionDataType) == 9 and len(section_2_questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11
+    ), (
         "If you have added a new question type or managed expression, update this test to include the "
         "new question type or managed expression in `questions_to_test`."
     )
@@ -911,7 +911,7 @@ def test_setup_grant_and_collection(
     report_sections_page.check_section_exists(first_section_name)
 
     manage_section_page = report_sections_page.click_manage_section(section_name=first_section_name)
-    for question_to_test in questions_with_groups_to_test.values():
+    for question_to_test in section_1_questions_with_groups_to_test.values():
         create_question_or_group(question_to_test, manage_section_page)
 
     # Add a second task and a question of each type to the task
@@ -923,7 +923,7 @@ def test_setup_grant_and_collection(
     report_sections_page.check_section_exists(second_section_name)
 
     manage_section_page = report_sections_page.click_manage_section(section_name=second_section_name)
-    for question_to_test in questions_to_test.values():
+    for question_to_test in section_2_questions_to_test.values():
         create_question_or_group(question_to_test, manage_section_page)
 
     # Add grant team member
@@ -1078,16 +1078,20 @@ def test_preview_collection(
     expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
 
     # Complete the first task with question groups
-    complete_task(tasklist_page, data["first_section_name"], data["grant_name"], questions_with_groups_to_test)
+    complete_task(
+        tasklist_page, data["first_section_name"], data["grant_name"], section_1_questions_with_groups_to_test
+    )
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_with_groups_to_test)
+    task_check_your_answers(
+        tasklist_page, data["grant_name"], data["collection_name"], section_1_questions_with_groups_to_test
+    )
 
     # Complete the second task with flat questions list
-    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], questions_to_test)
+    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], section_2_questions_to_test)
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_to_test)
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], section_2_questions_to_test)
 
     # Submit the report
     expect(
@@ -1132,16 +1136,20 @@ def test_deliver_test_grant_recipient_journey(
     expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
 
     # Complete the first task with question groups
-    complete_task(tasklist_page, data["first_section_name"], data["grant_name"], questions_with_groups_to_test)
+    complete_task(
+        tasklist_page, data["first_section_name"], data["grant_name"], section_1_questions_with_groups_to_test
+    )
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_with_groups_to_test)
+    task_check_your_answers(
+        tasklist_page, data["grant_name"], data["collection_name"], section_1_questions_with_groups_to_test
+    )
 
     # Complete the second task with flat questions list
-    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], questions_to_test)
+    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], section_2_questions_to_test)
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_to_test)
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], section_2_questions_to_test)
 
     # Submit the report
     expect(
