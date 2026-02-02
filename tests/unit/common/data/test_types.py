@@ -1,5 +1,5 @@
 from app import CollectionStatusEnum
-from app.common.data.types import QuestionDataOptions, QuestionDataOptionsPostgresType
+from app.common.data.types import NumberTypeEnum, QuestionDataOptions, QuestionDataOptionsPostgresType
 
 
 class TestCollectionStatusEnum:
@@ -54,6 +54,6 @@ class TestQuestionDataOptionsPostgresType:
         assert data_options == {}
 
     def test_allow_decimals(self):
-        options = QuestionDataOptions(allow_decimals=True)
+        options = QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL)
         data_options = QuestionDataOptionsPostgresType().process_bind_param(options, dialect=None)
-        assert data_options == {"allow_decimals": True}
+        assert data_options == {"number_type": "Decimal number"}
