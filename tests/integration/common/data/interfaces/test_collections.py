@@ -84,6 +84,7 @@ from app.common.data.types import (
     ManagedExpressionsEnum,
     MultilineTextInputRows,
     NumberInputWidths,
+    NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -1215,7 +1216,7 @@ class TestCreateQuestion:
         assert question.order == 0
         assert question.slug == "test-question"
         assert question.data_source is None
-        assert question.data_options == QuestionDataOptions(allow_decimals=None)
+        assert question.data_options == QuestionDataOptions(number_type=None)
 
     def test_integer(self, db_session, factories):
         form = factories.form.create()
@@ -1240,7 +1241,7 @@ class TestCreateQuestion:
         assert question.prefix == "£"
         assert question.suffix == "kg"
         assert question.width == "govuk-input--width-3"
-        assert question.data_options.allow_decimals is False
+        assert question.data_options.number_type == NumberTypeEnum.INTEGER
 
     def test_text_multi_line(self, db_session, factories):
         form = factories.form.create()
@@ -1264,7 +1265,7 @@ class TestCreateQuestion:
         assert question.data_source is None
         assert question.rows == 3
         assert question.word_limit == 500
-        assert question.data_options == QuestionDataOptions(allow_decimals=None)
+        assert question.data_options == QuestionDataOptions(number_type=None)
 
     def test_yes_no(self, db_session, factories):
         form = factories.form.create()
@@ -1285,7 +1286,7 @@ class TestCreateQuestion:
         assert question.order == 0
         assert question.slug == "test-question"
         assert question.data_source is None
-        assert question.data_options == QuestionDataOptions(allow_decimals=None)
+        assert question.data_options == QuestionDataOptions(number_type=None)
 
     def test_radios(self, db_session, factories):
         form = factories.form.create()
@@ -1310,7 +1311,7 @@ class TestCreateQuestion:
         assert question.data_source is not None
         assert [item.key for item in question.data_source.items] == ["one", "two", "three"]
         assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
-        assert question.data_options == QuestionDataOptions(allow_decimals=None)
+        assert question.data_options == QuestionDataOptions(number_type=None)
 
     def test_checkboxes(self, db_session, factories):
         form = factories.form.create()
@@ -1335,7 +1336,7 @@ class TestCreateQuestion:
         assert question.data_source is not None
         assert [item.key for item in question.data_source.items] == ["one", "two", "three"]
         assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
-        assert question.data_options == QuestionDataOptions(allow_decimals=None)
+        assert question.data_options == QuestionDataOptions(number_type=None)
 
     def test_date(self, db_session, factories):
         form = factories.form.create()
@@ -1356,7 +1357,7 @@ class TestCreateQuestion:
         assert question.order == 0
         assert question.slug == "test-question"
         assert question.data_source is None
-        assert question.data_options == QuestionDataOptions(allow_decimals=None)
+        assert question.data_options == QuestionDataOptions(number_type=None)
 
     def test_break_if_new_question_types_added(self):
         assert len(QuestionDataType) == 9, "Add a new test above if adding a new question type"
@@ -1456,7 +1457,7 @@ class TestUpdateQuestion:
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
         )
         assert question is not None
-        assert question.data_options.allow_decimals is False
+        assert question.data_options.number_type == NumberTypeEnum.INTEGER
 
         updated_question = update_question(
             question=question,
@@ -1477,7 +1478,7 @@ class TestUpdateQuestion:
         assert updated_question.prefix == "$"
         assert updated_question.suffix == "lbs"
         assert updated_question.width == "govuk-input--width-5"
-        assert question.data_options.allow_decimals is False
+        assert question.data_options.number_type == NumberTypeEnum.INTEGER
 
     def test_text_multi_line(self, db_session, factories):
         form = factories.form.create()

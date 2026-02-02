@@ -24,6 +24,7 @@ from app.common.data import interfaces
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
+    NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
     RoleEnum,
@@ -65,12 +66,12 @@ class TestSubmissionHelper:
             question = factories.question.create(
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
                 data_type=QuestionDataType.NUMBER,
-                data_options=QuestionDataOptions(allow_decimals=False),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
             )
             question_2 = factories.question.create(
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"),
                 data_type=QuestionDataType.NUMBER,
-                data_options=QuestionDataOptions(allow_decimals=True),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
                 form=question.form,
             )
             submission = factories.submission.create(collection=question.form.collection)
@@ -153,7 +154,7 @@ class TestSubmissionHelper:
                 form=form_two,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"),
                 data_type=QuestionDataType.NUMBER,
-                data_options=QuestionDataOptions(allow_decimals=False),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
             )
             q4 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
@@ -195,7 +196,7 @@ class TestSubmissionHelper:
                 form=form_two,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429d"),
                 data_type=QuestionDataType.NUMBER,
-                data_options=QuestionDataOptions(allow_decimals=True),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
             )
 
             submission = factories.submission.create(
@@ -304,7 +305,7 @@ class TestSubmissionHelper:
                 form=form_two,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994296"),
                 data_type=QuestionDataType.NUMBER,
-                data_options=QuestionDataOptions(allow_decimals=False),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
             )
             q4 = factories.question.create(
                 form=form_two, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994297"), data_type=QuestionDataType.YES_NO
@@ -349,7 +350,7 @@ class TestSubmissionHelper:
                 form=form_two,
                 id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429d"),
                 data_type=QuestionDataType.NUMBER,
-                data_options=QuestionDataOptions(allow_decimals=True),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
             )
 
             submission = factories.submission.create(

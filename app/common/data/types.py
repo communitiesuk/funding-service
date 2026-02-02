@@ -219,6 +219,11 @@ class GroupDisplayOptions(enum.StrEnum):
     ALL_QUESTIONS_ON_SAME_PAGE = "all-questions-on-same-page"
 
 
+class NumberTypeEnum(enum.StrEnum):
+    INTEGER = "Whole number"
+    DECIMAL = "Decimal number"
+
+
 class QuestionPresentationOptions(BaseModel):
     # This is for radios (and maybe checkboxes) question types; the last item will be separated from the rest of the
     # data source items, visually by an 'or' break. It is meant to indicate that Other options are
@@ -278,6 +283,7 @@ class QuestionPresentationOptions(BaseModel):
 class QuestionDataOptions(BaseModel):
     # numbers
     allow_decimals: bool | None = None
+    number_type: NumberTypeEnum | None = None
 
 
 class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]

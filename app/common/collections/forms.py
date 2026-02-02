@@ -20,7 +20,7 @@ from wtforms.fields.simple import EmailField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
-from app.common.data.types import QuestionDataType
+from app.common.data.types import NumberTypeEnum, QuestionDataType
 from app.common.expressions import ExpressionContext, evaluate, interpolate
 from app.common.forms.fields import (
     DecimalWithCommasField,
@@ -198,7 +198,7 @@ def build_question_form(  # noqa: C901
                     filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.NUMBER:
-                if question.data_options.allow_decimals:
+                if question.data_options.number_type == NumberTypeEnum.DECIMAL:
                     field = DecimalWithCommasField(
                         label=interpolate(text=question.text, context=interpolation_context),
                         description=interpolate(text=question.hint or "", context=interpolation_context),

@@ -16,7 +16,7 @@ from wtforms.validators import DataRequired, Email, InputRequired
 from app import create_app
 from app.common.collections.forms import build_question_form
 from app.common.data.models import Question
-from app.common.data.types import QuestionDataOptions, QuestionDataType, QuestionPresentationOptions
+from app.common.data.types import NumberTypeEnum, QuestionDataOptions, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions import ExpressionContext
 from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import URLWithoutProtocol
@@ -120,8 +120,22 @@ class TestBuildQuestionForm:
                 GovCharacterCount,
                 [DataRequired],
             ),
-            (QuestionDataType.NUMBER, QPO(), QDO(allow_decimals=False), IntegerField, GovTextInput, [InputRequired]),
-            (QuestionDataType.NUMBER, QPO(), QDO(allow_decimals=True), DecimalField, GovTextInput, [InputRequired]),
+            (
+                QuestionDataType.NUMBER,
+                QPO(),
+                QDO(number_type=NumberTypeEnum.INTEGER),
+                IntegerField,
+                GovTextInput,
+                [InputRequired],
+            ),
+            (
+                QuestionDataType.NUMBER,
+                QPO(),
+                QDO(number_type=NumberTypeEnum.DECIMAL),
+                DecimalField,
+                GovTextInput,
+                [InputRequired],
+            ),
             (QuestionDataType.YES_NO, QPO(), None, RadioField, GovRadioInput, [InputRequired]),
             (QuestionDataType.RADIOS, QPO(), None, RadioField, MHCLGRadioInput, []),
             (QuestionDataType.EMAIL, QPO(), None, EmailField, GovTextInput, [DataRequired, Email]),
