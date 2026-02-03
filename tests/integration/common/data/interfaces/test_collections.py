@@ -1244,6 +1244,33 @@ class TestCreateQuestion:
         assert question.width == "govuk-input--width-3"
         assert question.data_options.number_type == NumberTypeEnum.INTEGER
 
+    def test_decimal(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.NUMBER,
+            expression_context=ExpressionContext(),
+            presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
+        )
+        assert question is not None
+        assert question.id is not None
+        assert question.text == "Test Question"
+        assert question.hint == "Test Hint"
+        assert question.name == "Test Question Name"
+        assert question.data_type == QuestionDataType.NUMBER
+        assert question.order == 0
+        assert question.slug == "test-question"
+        assert question.data_source is None
+        assert question.prefix == "£"
+        assert question.suffix == "kg"
+        assert question.width == "govuk-input--width-3"
+        assert question.data_options.number_type == NumberTypeEnum.DECIMAL
+        assert question.data_options.max_decimal_places == 2
+
     def test_text_multi_line(self, db_session, factories):
         form = factories.form.create()
         question = create_question(
@@ -1446,7 +1473,7 @@ class TestUpdateQuestion:
         assert updated_question.slug == "updated-question"
         assert updated_question.data_source is None
 
-    def test_integer(self, db_session, factories):
+    def test_number(self, db_session, factories):
         form = factories.form.create()
         question = create_question(
             form=form,
@@ -1460,6 +1487,7 @@ class TestUpdateQuestion:
         )
         assert question is not None
         assert question.data_options.number_type == NumberTypeEnum.INTEGER
+        assert question.data_options.max_decimal_places is None
 
         updated_question = update_question(
             question=question,
@@ -1470,6 +1498,7 @@ class TestUpdateQuestion:
             presentation_options=QuestionPresentationOptions(
                 prefix="$", suffix="lbs", width=NumberInputWidths.MILLIONS
             ),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
         )
 
         assert updated_question.text == "Updated Question"
@@ -1480,7 +1509,8 @@ class TestUpdateQuestion:
         assert updated_question.prefix == "$"
         assert updated_question.suffix == "lbs"
         assert updated_question.width == "govuk-input--width-5"
-        assert question.data_options.number_type == NumberTypeEnum.INTEGER
+        assert question.data_options.number_type == NumberTypeEnum.DECIMAL
+        assert question.data_options.max_decimal_places == 2
 
     def test_text_multi_line(self, db_session, factories):
         form = factories.form.create()

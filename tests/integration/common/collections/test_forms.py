@@ -136,6 +136,8 @@ def test_validation_attached_to_field_and_runs__decimal(factories, value, error_
     else:
         assert valid is True
 
+    # TODO test number of dp validation
+
 
 def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_session):
     form = factories.form.create()

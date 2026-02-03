@@ -502,6 +502,19 @@ class QuestionForm(FlaskForm):
     def get_component_form_data(self) -> dict[str, Any]:
         return {key: data for key, data in self.data.items() if key not in {"csrf_token", "submit"}}
 
+    def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+        if self.is_submitted_to_add_context():
+            return True
+
+        # Only need to validate number fields if the question type is NUMBER
+        if self._question_type == QuestionDataType.NUMBER:
+            self.number_type.validators = [DataRequired("Select the type of number")]
+
+        if self.number_type.data == NumberTypeEnum.DECIMAL.value:
+            self.max_decimal_places.validators = [DataRequired("Enter the maximum number of decimal places")]
+
+        return super().validate(extra_validators=extra_validators)
+
 
 class AddContextSelectSourceForm(FlaskForm):
     data_source = RadioField(

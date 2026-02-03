@@ -8,7 +8,7 @@ from werkzeug.datastructures import MultiDict
 from wtforms import ValidationError
 
 from app import format_thousands
-from app.common.data.types import QuestionDataType, QuestionPresentationOptions, RoleEnum
+from app.common.data.types import NumberTypeEnum, QuestionDataType, QuestionPresentationOptions, RoleEnum
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
 from app.deliver_grant_funding.forms import (
@@ -212,6 +212,7 @@ class TestQuestionForm:
                 ("name", "name"),
                 ("prefix", ""),
                 ("suffix", "   "),
+                ("number_type", NumberTypeEnum.INTEGER.value),
             ]
         )
 
@@ -231,6 +232,7 @@ class TestQuestionForm:
                 ("name", "name"),
                 ("prefix", "£"),
                 ("suffix", "lbs"),
+                ("number_type", NumberTypeEnum.INTEGER.value),
             ]
         )
 
@@ -241,6 +243,51 @@ class TestQuestionForm:
             "prefix": ["Remove the suffix if you need a prefix"],
             "suffix": ["Remove the prefix if you need a suffix"],
         }
+
+    def test_number_fields_not_validated_for_non_number_question(self, app):
+        form = QuestionForm(question_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is True
+
+    def test_number_type_validated_for_numbers(self, app):
+        form = QuestionForm(question_type=QuestionDataType.NUMBER)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {
+            "number_type": ["Select the type of number"],
+        }
+
+        formdata.add("number_type", NumberTypeEnum.DECIMAL.value)
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {
+            "max_decimal_places": ["Enter the maximum number of decimal places"],
+        }
+
+        formdata.add("max_decimal_places", "2")
+        form.process(formdata)
+        assert form.validate() is True
 
 
 class TestSelectDataSourceQuestionForm:
