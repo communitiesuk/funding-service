@@ -65,6 +65,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetPrivacyPolicyForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
+    FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
     FlaskAdminPlatformMemberAccessibleMixin,
 )
 from app.extensions import auto_commit_after_request, notification_service
@@ -74,7 +75,7 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
     pass
 
 
-class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixin, BaseView):
+class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):
     @expose("/", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     def index(self) -> Any:
         form = PlatformAdminSelectGrantForReportingLifecycleForm(grants=get_all_grants())

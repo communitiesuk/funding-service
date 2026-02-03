@@ -29,7 +29,7 @@ from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
-    FlaskAdminPlatformMemberAccessibleMixin,
+    FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
 )
 from app.extensions import db, notification_service
 from app.metrics import MetricEventName, emit_metric_count
@@ -254,7 +254,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
         super().after_model_change(form, model, is_created)
 
 
-class PlatformAdminInvitationView(FlaskAdminPlatformMemberAccessibleMixin, PlatformAdminModelView):
+class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
     _model = Invitation
 
     can_create = True

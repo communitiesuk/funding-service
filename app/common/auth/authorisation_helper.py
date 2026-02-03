@@ -44,6 +44,21 @@ class AuthorisationHelper:
         )
 
     @staticmethod
+    def has_platform_admin_role(role: RoleEnum, user: User | AnonymousUserMixin) -> bool:
+        """
+        Will return True if the user has the specified role for as a platform user.
+        ADMIN role grants all roles
+        """
+        if isinstance(user, AnonymousUserMixin):
+            return False
+        return any(
+            (role in user_role.permissions or RoleEnum.ADMIN in user_role.permissions)
+            and user_role.organisation_id is None
+            and user_role.grant_id is None
+            for user_role in user.roles
+        )
+
+    @staticmethod
     def is_deliver_org_admin(user: User | AnonymousUserMixin) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False

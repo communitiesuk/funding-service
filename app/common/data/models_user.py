@@ -180,6 +180,13 @@ class UserRole(BaseModel):
             "(organisation_id IS NULL AND grant_id IS NULL) or (organisation_id IS NOT NULL)",
             name="org_required_if_grant",
         ),
+        CheckConstraint(
+            (
+                "('DATA_ANALYST' != ALL(permissions) AND 'GRANT_LIFECYCLE_MANAGER' != ALL(permissions)) "
+                "OR (organisation_id IS NULL AND grant_id IS NULL)"
+            ),
+            name="platform_admin_permission_scope",
+        ),
     )
 
 
@@ -234,6 +241,13 @@ class Invitation(BaseModel):
         CheckConstraint(
             "('CERTIFIER' != ALL(permissions) AND 'DATA_PROVIDER' != ALL(permissions)) OR organisation_id IS NOT NULL",
             name="non_admin_permissions_require_org",
+        ),
+        CheckConstraint(
+            (
+                "('DATA_ANALYST' != ALL(permissions) AND 'GRANT_LIFECYCLE_MANAGER' != ALL(permissions)) "
+                "OR (organisation_id IS NULL AND grant_id IS NULL)"
+            ),
+            name="platform_admin_permission_scope",
         ),
         CheckConstraint("'MEMBER' = ANY(permissions)", name="member_permission_required"),
     )

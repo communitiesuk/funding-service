@@ -69,6 +69,8 @@ class RoleEnum(enum.StrEnum):
     MEMBER = "member"  # Basic read level permissions
     DATA_PROVIDER = "data-provider"
     CERTIFIER = "certifier"
+    GRANT_LIFECYCLE_MANAGER = "grant-lifecycle-manager"
+    DATA_ANALYST = "data-analyst"
 
 
 class AuthMethodEnum(str, enum.Enum):
