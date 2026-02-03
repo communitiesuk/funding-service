@@ -188,17 +188,23 @@ class ExpressionContext(ChainMap[str, Any]):
             submission_helper=submission_helper,
         )
 
+        # TODO: FSPT-1142 centralise this iteration/filtering logic; duplicated below
         if mode == "interpolation":
             for form in collection.forms:
                 for question in form.cached_questions:
                     if expression_context_end_point and (
-                        expression_context_end_point.form != form
-                        or form.global_component_index(expression_context_end_point)
-                        <= form.global_component_index(question)
+                        form.order > expression_context_end_point.form.order
+                        or (
+                            expression_context_end_point.form == form
+                            and form.global_component_index(question)
+                            > form.global_component_index(expression_context_end_point)
+                        )
                     ):
                         continue
 
-                    submission_data.setdefault(question.safe_qid, f"(({question.name}))")
+                    # TODO: FSPT-1142: do we show this always or only when different to current context?
+                    label = f"{form.collection.name} → {form.title} → {question.name}"
+                    submission_data.setdefault(question.safe_qid, f"(({label}))")
 
         return ExpressionContext(submission_data=submission_data)
 
@@ -212,21 +218,27 @@ class ExpressionContext(ChainMap[str, Any]):
         if submission_helper:
             for form in submission_helper.collection.forms:
                 for question in form.cached_questions:
-                    if expression_context_end_point is None or (
-                        expression_context_end_point.form == form
-                        and form.global_component_index(expression_context_end_point)
-                        >= form.global_component_index(question)
+                    # TODO: FSPT-1142 centralise this iteration/filtering logic; duplicated above
+                    if expression_context_end_point and (
+                        form.order > expression_context_end_point.form.order
+                        or (
+                            expression_context_end_point.form == form
+                            and form.global_component_index(question)
+                            > form.global_component_index(expression_context_end_point)
+                        )
                     ):
-                        # until we do support aggregate methods in expressions we only support add another
-                        # question answers through an explicit `with_add_another_context` which sets the context
-                        if not question.add_another_container:
-                            answer = submission_helper.cached_get_answer_for_question(question.id)
-                            if answer is not None:
-                                submission_data[question.safe_qid] = (
-                                    answer.get_value_for_evaluation()
-                                    if mode == "evaluation"
-                                    else answer.get_value_for_interpolation()
-                                )
+                        continue
+
+                    # until we do support aggregate methods in expressions we only support add another
+                    # question answers through an explicit `with_add_another_context` which sets the context
+                    if not question.add_another_container:
+                        answer = submission_helper.cached_get_answer_for_question(question.id)
+                        if answer is not None:
+                            submission_data[question.safe_qid] = (
+                                answer.get_value_for_evaluation()
+                                if mode == "evaluation"
+                                else answer.get_value_for_interpolation()
+                            )
         return submission_data
 
     @staticmethod

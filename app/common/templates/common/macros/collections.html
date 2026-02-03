@@ -321,6 +321,7 @@
 {% macro collection_tasklist(runner, submit_text=None, before_submission=None, has_permission_to_edit=true) %}
   {% set can_edit = has_permission_to_edit and (not runner.submission.is_locked_state) %}
   {% set submission = runner.submission %}
+
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% set forms = submission.get_ordered_visible_forms() %}
@@ -329,24 +330,38 @@
       {% else %}
         {% set rows=[] %}
         {% for form in forms %}
-          {% set first_question = submission.get_first_question_for_form(form) %}
-          {%
-            set link_href = (
-              ''
-              if not first_question else
-              runner.to_url(enum.form_runner_state.QUESTION, question=first_question)
-              if (submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED and can_edit) else
-              runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
-            )
-          %}
+          {% set can_start = submission.can_start_form(form) %}
+          {% set hint_html = None %}
+
+          {% if not can_start %}
+            {% set link_href = None %}
+            {% set blocking_sections = submission.get_referenced_forms_with_unanswered_references(form) %}
+            {% set hint_html %}
+              <span class="govuk-hint govuk-!-margin-bottom-0">Complete {{ blocking_sections | map(attribute='title') | join(', ') }} first</span>
+            {% endset %}
+          {% else %}
+            {% set first_question = submission.get_first_question_for_form(form) %}
+            {%
+              set link_href = (
+                ''
+                if not first_question else
+                runner.to_url(enum.form_runner_state.QUESTION, question=first_question)
+                if (submission.get_status_for_form(form) == enum.submission_status.NOT_STARTED and can_edit) else
+                runner.to_url(enum.form_runner_state.CHECK_YOUR_ANSWERS, form=form, source=enum.form_runner_state.TASKLIST)
+              )
+            %}
+          {% endif %}
           {%
             do rows.append({
               "title": {
                 "text": form.title,
               },
               "status": {
-                "html": tasklistSectionStatusTag(submission.get_tasklist_status_for_form(form)) ,
+                "html": tasklistSectionStatusTag(submission.get_tasklist_status_for_form(form)),
               },
+              "hint": {
+                "html": hint_html,
+              } if hint_html else {},
               "href": link_href,
             })
           %}

@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup, Tag
 from flask_wtf import FlaskForm
 from testcontainers.postgres import PostgresContainer
 
+from tests.conftest import FundingServiceTestClient
+
 
 def page_has_error(soup: BeautifulSoup, message: str) -> bool:
     error_summary = soup.find("div", class_="govuk-error-summary")
@@ -194,3 +196,9 @@ def get_form_data(form: FlaskForm, submit: str = "y") -> dict[str, Any]:
         data["submit"] = "y"
 
     return data
+
+
+def get_test_flashes(client: FundingServiceTestClient, category: str | None = None) -> list[Any]:
+    with client.session_transaction() as sess:
+        flashes = sess["_flashes"]
+        return [msg for cat, msg in flashes if category is None or category == cat]

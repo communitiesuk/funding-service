@@ -122,6 +122,7 @@ class SubmissionStatusEnum(enum.StrEnum):
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):
+    CANNOT_START_YET = "Cannot start yet"
     NOT_STARTED = "Not started"
     IN_PROGRESS = "In progress"
     COMPLETED = "Completed"

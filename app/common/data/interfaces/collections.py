@@ -499,13 +499,17 @@ def create_form(*, title: str, collection: Collection) -> Form:
 
 @flush_and_rollback_on_exceptions
 def move_form_up(form: Form) -> Form:
-    _swap_elements_in_list_and_flush(form.collection.forms, form.order, form.order - 1)
+    swap_form = form.collection.forms[form.order - 1]
+    _check_form_order_dependency(form, swap_form)
+    _swap_elements_in_list_and_flush(form.collection.forms, form.order, swap_form.order)
     return form
 
 
 @flush_and_rollback_on_exceptions
 def move_form_down(form: Form) -> Form:
-    _swap_elements_in_list_and_flush(form.collection.forms, form.order, form.order + 1)
+    swap_form = form.collection.forms[form.order + 1]
+    _check_form_order_dependency(form, swap_form)
+    _swap_elements_in_list_and_flush(form.collection.forms, form.order, swap_form.order)
     return form
 
 
@@ -746,6 +750,24 @@ class DependencyOrderException(Exception, FlashableException):
         }
 
 
+class SectionDependencyOrderException(Exception, FlashableException):
+    def __init__(self, message: str, form: Form, depends_on_form: Form):
+        super().__init__(message)
+        self.message = message
+        self.form = form
+        self.depends_on_form = depends_on_form
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        return {
+            "message": self.message,
+            "grant_id": str(self.form.collection.grant_id),  # Required for URL routing
+            "form_id": str(self.form.id),
+            "form_title": self.form.title,
+            "depends_on_form_id": str(self.depends_on_form.id),
+            "depends_on_form_title": self.depends_on_form.title,
+        }
+
+
 class IncompatibleDataTypeException(Exception):
     def __init__(self, message: str, component: Component, depends_on_component: Component):
         super().__init__(message)
@@ -875,6 +897,36 @@ class NestedGroupDisplayTypeSamePageException(Exception, FlashableException):
         return flash_contexts
 
 
+def _check_form_order_dependency(form: Form, swap_form: Form) -> None:
+    # fetching the entire schema means whatever is calling this doesn't have to worry about
+    # guaranteeing lazy loading performance behaviour
+    _ = get_form_by_id(form.id, with_all_questions=True)
+    _ = get_form_by_id(swap_form.id, with_all_questions=True)
+
+    # we could be comparing to either an individual question or a group of multiple questions so collect those
+    # as lists to compare against each other
+    child_components = form.cached_all_components
+    child_swap_components = swap_form.cached_all_components
+
+    for c in child_components:
+        for cr in c.owned_component_references:
+            if cr.depends_on_component in child_swap_components:
+                raise SectionDependencyOrderException(
+                    "You cannot move sections above ones they depend on",
+                    form,
+                    swap_form,
+                )
+
+    for c in child_swap_components:
+        for cr in c.owned_component_references:
+            if cr.depends_on_component in child_components:
+                raise SectionDependencyOrderException(
+                    "You cannot move sections below ones that depend on them",
+                    swap_form,
+                    form,
+                )
+
+
 # todo: we might want something more generalisable that checks all order dependencies across a form
 #       but this gives us the specific result we want for the UX for now
 def _check_component_order_dependency(component: Component, swap_component: Component) -> None:
@@ -917,6 +969,14 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
     # fetching the entire schema means whatever is calling this doesn't have to worry about
     # guaranteeing lazy loading performance behaviour
     form = get_form_by_id(component.form_id, with_all_questions=True)
+    depended_upon_form_is_earlier = depends_on_component.form.order < form.order
+    if depended_upon_form_is_earlier:
+        return True
+
+    dependency_is_same_form = component.form_id == depends_on_component.form_id
+    if not dependency_is_same_form:
+        return False
+
     return form.cached_all_components.index(component) > form.cached_all_components.index(depends_on_component)
 
 
@@ -1370,32 +1430,37 @@ def _validate_and_sync_component_references(component: Component, expression_con
                     bad_reference=wrapped_ref,
                 )
 
-            # If `is_valid_referencee` above is True, then we know that we have a QID that points to a question in the
+            # If `is_valid_reference` above is True, then we know that we have a QID that points to a question in the
             # same collection - but not necessarily the same form.
             if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
                 question = db.session.get_one(Question, question_id)
-                if question.form_id != component.form_id:
+                if question.form.order > component.form.order:
                     raise InvalidReferenceInExpression(
                         f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                     )
 
-                # Prevent manually injecting a reference to a question that appears later in the same form
-                if question.form.global_component_index(question) >= question.form.global_component_index(component):
-                    raise InvalidReferenceInExpression(
-                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
-                    )
-
-                if (
-                    question.parent
-                    and component.parent
-                    and question.parent.is_group
-                    and component.parent.is_group
-                    and question.parent.id == component.parent.id
-                ):
-                    if question.parent.same_page:
+                if question.form_id == component.form_id:
+                    # Prevent manually injecting a reference to a question that appears later in the same form
+                    if question.form.global_component_index(question) >= question.form.global_component_index(
+                        component
+                    ):
                         raise InvalidReferenceInExpression(
                             f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                         )
+
+                    if (
+                        question.parent
+                        and component.parent
+                        and question.parent.is_group
+                        and component.parent.is_group
+                        and question.parent.id == component.parent.id
+                    ):
+                        if question.parent.same_page:
+                            raise InvalidReferenceInExpression(
+                                f"Reference is not valid: {wrapped_ref}",
+                                field_name=field_name,
+                                bad_reference=wrapped_ref,
+                            )
 
                 references_to_set_up.add((component.id, question.id))
 

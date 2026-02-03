@@ -536,6 +536,28 @@ class AddContextSelectSourceForm(FlaskForm):
                 raise ValidationError("There are no available questions before this one in the section")
 
 
+class SelectDataSourceSectionForm(FlaskForm):
+    section = RadioField(
+        "Select a previous section",
+        choices=[],
+        validators=[DataRequired("Select a previous section")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        current_form: Form,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+
+        # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
+        # based on the usable data types.
+        self.section.choices = [(f.id, f.title) for f in current_form.earlier_forms]
+
+
 class SelectDataSourceQuestionForm(FlaskForm):
     question = SelectField(
         "Select which question's answer to use",
@@ -563,7 +585,6 @@ class SelectDataSourceQuestionForm(FlaskForm):
         # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
         # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
         # centralise this logic sensibly.
-
         referenceable_questions = get_referenceable_questions(form, current_component, parent_component)
 
         if referenceable_questions:

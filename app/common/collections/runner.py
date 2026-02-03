@@ -331,6 +331,9 @@ class FormRunner:
         # or back to check your answers based on if the integrity checks pass
         if self.component:
             if not self._valid:
+                if not self.submission.can_start_form(self.component.form):
+                    return self.to_url(FormRunnerState.TASKLIST)
+
                 return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
 
             last_question = self.questions[-1] if self.component.is_group else self.component
@@ -394,6 +397,10 @@ class FormRunner:
             self._valid = False
         else:
             self._valid = True
+
+        if self._valid:
+            if not self.submission.can_start_form(self.component.form):
+                self._valid = False
 
         return self._valid
 

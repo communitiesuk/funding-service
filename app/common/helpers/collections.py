@@ -364,9 +364,32 @@ class SubmissionHelper:
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
         return {TasklistSectionStatusEnum.COMPLETED} == form_statuses
 
+    def get_referenced_forms_with_unanswered_references(self, form: "Form") -> list["Form"]:
+        """Returns a list of forms referenced by this form where required data doesn't exist yet."""
+        unsatisfied_forms: dict[uuid.UUID, "Form"] = {}
+
+        for component in form.cached_all_components:
+            for ref in component.owned_component_references:
+                depends_on = ref.depends_on_component
+                if depends_on.form_id != form.id:
+                    if depends_on.is_question:
+                        answer = self.cached_get_answer_for_question(depends_on.id)
+                        if answer is None:
+                            unsatisfied_forms[depends_on.form_id] = depends_on.form
+
+        return sorted(unsatisfied_forms.values(), key=lambda f: f.order)
+
+    def can_start_form(self, form: "Form") -> bool:
+        """Returns False if this form requires data from other forms which hasn't been provided."""
+        unsatisfied_forms = self.get_referenced_forms_with_unanswered_references(form)
+        return len(unsatisfied_forms) == 0
+
     def get_tasklist_status_for_form(self, form: Form) -> TasklistSectionStatusEnum:
         if len(form.cached_questions) == 0:
             return TasklistSectionStatusEnum.NO_QUESTIONS
+
+        if not self.can_start_form(form):
+            return TasklistSectionStatusEnum.CANNOT_START_YET
 
         return self.get_status_for_form(form)
 

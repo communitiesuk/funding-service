@@ -7,9 +7,11 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app import CollectionStatusEnum, QuestionDataType
+from app import CollectionStatusEnum, FlashMessageType, QuestionDataType
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import add_question_validation
+from app.common.data.interfaces.collections import (
+    add_question_validation,
+)
 from app.common.data.models import Collection, Expression, Form, Group, Question, Submission, SubmissionEvent
 from app.common.data.types import (
     ConditionsOperator,
@@ -46,6 +48,7 @@ from tests.utils import (
     get_form_data,
     get_h1_text,
     get_h2_text,
+    get_test_flashes,
     page_has_button,
     page_has_error,
     page_has_link,
@@ -676,6 +679,49 @@ class TestMoveSection:
             assert report.forms[0].title == "Form 1"
         else:
             assert report.forms[2].title == "Form 1"
+
+    def test_cannot_move_above_referenced_section(self, app, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        factories.form.reset_sequence()
+        forms = factories.form.create_batch(2, collection=report)
+        assert forms[1].title == "Form 1"
+
+        q1 = factories.question.create(form=forms[0], data_type=QuestionDataType.YES_NO)
+        factories.question.create(
+            form=forms[1],
+            expressions=[
+                Expression.from_managed(
+                    IsYes(question_id=q1.id),
+                    ExpressionType.CONDITION,
+                    authenticated_grant_admin_client.user,
+                )
+            ],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=forms[1].id,
+                direction="up",
+            )
+        )
+        assert response.status_code == 302
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=forms[0].id,
+                direction="down",
+            )
+        )
+        assert response.status_code == 302
+
+        flashes = get_test_flashes(authenticated_grant_admin_client, FlashMessageType.SECTION_DEPENDENCY_ORDER_ERROR)
+        assert len(flashes) == 2
+        assert flashes[0]["message"] == "You cannot move sections above ones they depend on"
+        assert flashes[1]["message"] == "You cannot move sections below ones that depend on them"
 
 
 class TestChangeQuestionGroupName:
@@ -1447,7 +1493,7 @@ class TestListGroupQuestions:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Reference to ((my question name))" in soup.text
+        assert "Reference to ((Test Report → Organisation information → my question name))" in soup.text
 
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -1573,7 +1619,7 @@ class TestListSectionQuestions:
         )
 
         assert response.status_code == 200
-        assert "Reference to ((my question name))" in response.text
+        assert "Reference to ((Test Report → Organisation information → my question name))" in response.text
 
     def test_cannot_delete_with_live_submissions(self, authenticated_grant_admin_client, factories, db_session, caplog):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -2421,9 +2467,11 @@ class TestSelectContextSourceCollection:
 
 
 class TestSelectContextSourceSection:
-    def test_404(self, authenticated_grant_admin_client, factories):
+    def test_get_lists_sections(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        form = factories.form.create(collection=report, title="Section 1")
+        form_2 = factories.form.create(collection=report, title="Section 2")
+        factories.question.create(form=form_2, text="Question 1")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
@@ -2437,6 +2485,7 @@ class TestSelectContextSourceSection:
                 data_source=ExpressionContext.ContextSources.SECTION,
                 collection_id=form.collection_id,
                 form_id=None,
+                component_id=None,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -2446,7 +2495,85 @@ class TestSelectContextSourceSection:
                 form_id=form.id,
             )
         )
-        assert response.status_code == 404
+        assert response.status_code == 200
+        assert "Section 1" in response.text
+        assert "Section 2" not in response.text
+
+    def test_get_lists_sections_with_dependent_question(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report, title="Section 1")
+        form_2 = factories.form.create(collection=report, title="Section 2")
+        form_3 = factories.form.create(collection=report, title="Section 3")
+        question = factories.question.create(form=form_2, text="Question 1")
+        question_2 = factories.question.create(form=form_3, text="Question 2")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=None,
+                component_id=question_2.id,
+                depends_on_question_id=question.id,
+                field=ExpressionType.CONDITION,
+                managed_expression_name=ManagedExpressionsEnum.ANY_OF,
+                expression_form_data={},
+                _prepared_form_data={},
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+        assert "Section 1" in response.text
+        assert "Section 2" not in response.text
+        assert "Section 3" not in response.text
+
+    def test_post_stores_form_id_and_redirects(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form_1 = factories.form.create(collection=report, title="Section 1")
+        form_2 = factories.form.create(collection=report, title="Section 2")
+        factories.question.create(form=form_1)
+        question_in_form_2 = factories.question.create(form=form_2)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=report.id,
+                form_id=None,
+                component_id=question_in_form_2.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form_2.id,
+            ),
+            data={"section": str(form_1.id)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.select_context_source_question",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            form_id=form_2.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            assert question_data["form_id"] == str(form_1.id)
 
 
 class TestSelectContextSourceQuestion:
@@ -2496,6 +2623,40 @@ class TestSelectContextSourceQuestion:
         assert "Select which question's answer to use" in soup.text
         assert question1.text in soup.text
         assert question2.text in soup.text
+
+    def test_get_lists_questions_from_target_section(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form_1 = factories.form.create(collection=report)
+        form_2 = factories.form.create(collection=report)
+        question_in_form_1 = factories.question.create(form=form_1, text="Question from section 1")
+        question_in_form_2 = factories.question.create(form=form_2, text="Question from section 2")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=report.id,
+                form_id=form_1.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form_2.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert question_in_form_1.text in soup.text
+        assert question_in_form_2.text not in soup.text
 
     def test_get_lists_questions_from_depends_on_question_if_condition(
         self, authenticated_grant_admin_client, factories

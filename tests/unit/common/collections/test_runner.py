@@ -4,7 +4,7 @@ import pytest
 
 from app.common.collections.runner import FormRunner
 from app.common.collections.types import TextSingleLineAnswer
-from app.common.data.models import Expression
+from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan
 from app.common.helpers.collections import SubmissionHelper
@@ -355,3 +355,59 @@ class TestFormRunner:
 
             add_another_same_page_group.guidance_heading = "Test group guidance heading"
             assert runner.question_page_heading == "Test group guidance heading (1)"
+
+    class TestCannotStartForm:
+        def test_validate_can_show_question_page_returns_false_when_form_cannot_start(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection)
+            helper = SubmissionHelper(submission)
+
+            runner = FormRunner(submission=helper, question=q_b, source=None)
+            assert runner.validate_can_show_question_page() is False
+
+        def test_next_url_redirects_to_tasklist_when_form_cannot_start(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection)
+            helper = SubmissionHelper(submission)
+
+            tasklist_mock = Mock(return_value="mock_tasklist_url")
+            check_answers_mock = Mock(return_value="mock_check_answers_url")
+
+            class MappedFormRunner(FormRunner):
+                url_map = {
+                    FormRunnerState.TASKLIST: tasklist_mock,
+                    FormRunnerState.CHECK_YOUR_ANSWERS: check_answers_mock,
+                }
+
+            runner = MappedFormRunner(submission=helper, question=q_b, source=None)
+            runner.validate_can_show_question_page()
+            assert runner.next_url == "mock_tasklist_url"
+
+        def test_validate_passes_when_references_satisfied(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            q_a = factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_component=q_a),
+            ]
+            submission = factories.submission.build(collection=collection, data={str(q_a.id): "answered"})
+            helper = SubmissionHelper(submission)
+
+            runner = FormRunner(submission=helper, question=q_b, source=None)
+            assert runner.validate_can_show_question_page() is True
