@@ -38,6 +38,7 @@ from app.common.data.types import (
 )
 from app.common.expressions.managed import get_managed_expression
 from app.common.qid import SafeQidMixin
+from app.common.utils import comma_join_items
 
 if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
@@ -979,9 +980,7 @@ class GrantRecipient(BaseModel):
     @property
     def certifier_names(self) -> str:
         names = [certifier.name for certifier in self.certifiers]
-        if names and len(names) == 1:
-            return names[0]
-        elif names and len(names) > 1:
-            return f"{', '.join(names[:-1])} or {names[-1]}"
-        else:
+        if not names:
             return "Your certifier"
+
+        return comma_join_items(names, join_word="or")
