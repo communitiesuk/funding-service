@@ -1,10 +1,12 @@
 import datetime
 import itertools
+from decimal import Decimal
 
 import pytest
 
 from app.common.collections.types import (
     DateAnswer,
+    DecimalAnswer,
     EmailAnswer,
     IntegerAnswer,
     SingleChoiceFromListAnswer,
@@ -62,6 +64,9 @@ class TestSubmissionAnswerBaseModels:
             (IntegerAnswer, {"value": 50}, {"value": 50}),
             (IntegerAnswer, {"value": 50, "prefix": "£"}, {"value": 50, "prefix": "£"}),
             (IntegerAnswer, {"value": 50, "suffix": "lbs"}, {"value": 50, "suffix": "lbs"}),
+            (DecimalAnswer, {"value": Decimal("50.123456")}, {"value": "50.123456"}),
+            (DecimalAnswer, {"value": Decimal("50.00"), "prefix": "£"}, {"value": "50.00", "prefix": "£"}),
+            (DecimalAnswer, {"value": Decimal("50.3"), "suffix": "lbs"}, {"value": "50.3", "suffix": "lbs"}),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, {"key": "key", "label": "label"}),
             (
                 DateAnswer,
@@ -82,6 +87,7 @@ class TestSubmissionAnswerBaseModels:
         "model, data, form_value",
         (
             (IntegerAnswer, {"value": 50}, 50),
+            (DecimalAnswer, {"value": Decimal("50.123456")}, Decimal("50.123456")),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),
         ),
     )
@@ -92,6 +98,7 @@ class TestSubmissionAnswerBaseModels:
         "model, data, evaluation_value",
         (
             (IntegerAnswer, {"value": 50}, 50),
+            (DecimalAnswer, {"value": Decimal("50.123456")}, Decimal("50.123456")),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),
         ),
     )
@@ -104,6 +111,9 @@ class TestSubmissionAnswerBaseModels:
             (IntegerAnswer, {"value": 50}, "50"),
             (IntegerAnswer, {"value": 9_999, "prefix": "£"}, "£9,999"),
             (IntegerAnswer, {"value": 1_000_000, "suffix": "kgs"}, "1,000,000kgs"),
+            (DecimalAnswer, {"value": Decimal("50.102")}, "50.102"),
+            (DecimalAnswer, {"value": Decimal("12350.12"), "prefix": "£"}, "£12,350.12"),
+            (DecimalAnswer, {"value": Decimal("1002350.12"), "suffix": "kgs"}, "1,002,350.12kgs"),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "label"),
         ),
     )
@@ -116,6 +126,9 @@ class TestSubmissionAnswerBaseModels:
             (IntegerAnswer, {"value": 50}, "50"),
             (IntegerAnswer, {"value": 1_000_000, "prefix": "£"}, "£1,000,000"),
             (IntegerAnswer, {"value": 1_000_000, "suffix": "lbs"}, "1,000,000lbs"),
+            (DecimalAnswer, {"value": Decimal("50.102")}, "50.102"),
+            (DecimalAnswer, {"value": Decimal("12350.12"), "prefix": "£"}, "£12,350.12"),
+            (DecimalAnswer, {"value": Decimal("1002350.12"), "suffix": "kgs"}, "1,002,350.12kgs"),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "label"),
             (DateAnswer, {"answer": datetime.date(2023, 10, 5), "approximate_date": False}, "2023-10-05"),
             (DateAnswer, {"answer": datetime.date(2023, 10, 1), "approximate_date": True}, "October 2023"),
@@ -130,6 +143,17 @@ class TestSubmissionAnswerBaseModels:
             (IntegerAnswer, {"value": 50}, {"value": 50}),
             (IntegerAnswer, {"value": 1_000_000, "prefix": "£"}, {"value": 1_000_000, "prefix": "£"}),
             (IntegerAnswer, {"value": 1_000_000, "suffix": "lbs"}, {"value": 1_000_000, "suffix": "lbs"}),
+            (DecimalAnswer, {"value": Decimal("50.102")}, {"value": Decimal("50.102")}),
+            (
+                DecimalAnswer,
+                {"value": Decimal("12350.12"), "prefix": "£"},
+                {"value": Decimal("12350.12"), "prefix": "£"},
+            ),
+            (
+                DecimalAnswer,
+                {"value": Decimal("1002350.12"), "suffix": "kgs"},
+                {"value": Decimal("1002350.12"), "suffix": "kgs"},
+            ),
             (SingleChoiceFromListAnswer, {"key": "key1", "label": "label1"}, {"key": "key1", "label": "label1"}),
             (DateAnswer, {"answer": datetime.date(2023, 10, 5), "approximate_date": False}, "2023-10-05"),
             (DateAnswer, {"answer": datetime.date(2023, 10, 1), "approximate_date": True}, "October 2023"),

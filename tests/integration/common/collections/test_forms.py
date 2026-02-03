@@ -9,7 +9,7 @@ from wtforms.validators import DataRequired
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import create_question
-from app.common.data.types import QuestionDataType
+from app.common.data.types import QuestionDataOptions, QuestionDataType
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
@@ -85,6 +85,54 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
     if error_message:
         assert valid is False
         assert error_message in form.errors["q_e4bd98ab41ef4d23b1e59c0404891e7a"]
+    else:
+        assert valid is True
+
+
+@pytest.mark.parametrize(
+    "value, error_message",
+    (
+        (-50, "The answer must be greater than or equal to 0"),
+        (-50.0, "The answer must be greater than or equal to 0"),
+        (1_000, "The answer must be less than 100"),
+        (50, None),
+        (0, None),
+        (0.2, None),
+        (56.234, None),
+        (99.9999999999, None),
+        (None, "The answer must be a decimal number, like 100.45"),
+        ("abcd", "The answer must be a decimal number, like 100.45"),
+        ("", "Enter the test_decimal"),
+        (100.10, "The answer must be less than 100"),
+        (1000.45, "The answer must be less than 100"),
+        ("1,000.45", "The answer must be less than 100"),
+        (50000.0, "The answer must be less than 100"),
+    ),
+)
+def test_validation_attached_to_field_and_runs__decimal(factories, value, error_message):
+    question = factories.question.create(
+        id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e8c"),
+        data_type=QuestionDataType.NUMBER,
+        data_options=QuestionDataOptions(allow_decimals=True),
+        name="test_decimal",
+    )
+    user = factories.user.create()
+    interfaces.collections.add_question_validation(
+        question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True)
+    )
+    interfaces.collections.add_question_validation(
+        question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
+    )
+
+    _FormClass = build_question_form(
+        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+    )
+    form = _FormClass(formdata=MultiDict({"q_e4bd98ab41ef4d23b1e59c0404891e8c": str(value)}))
+
+    valid = form.validate()
+    if error_message:
+        assert valid is False
+        assert error_message in form.errors["q_e4bd98ab41ef4d23b1e59c0404891e8c"]
     else:
         assert valid is True
 

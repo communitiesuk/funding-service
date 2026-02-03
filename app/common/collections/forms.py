@@ -15,7 +15,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 )
 from wtforms import DateField, Field, Form, RadioField
 from wtforms.fields.choices import SelectField, SelectMultipleField
-from wtforms.fields.numeric import IntegerField
+from wtforms.fields.numeric import DecimalField, IntegerField
 from wtforms.fields.simple import EmailField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
@@ -23,6 +23,7 @@ from app.common.data.models import Expression, Question
 from app.common.data.types import QuestionDataType
 from app.common.expressions import ExpressionContext, evaluate, interpolate
 from app.common.forms.fields import (
+    DecimalWithCommasField,
     IntegerWithCommasField,
     MHCLGAccessibleAutocomplete,
     MHCLGApproximateDateInput,
@@ -41,6 +42,7 @@ _accepted_fields = (
     | SelectField
     | SelectMultipleField
     | DateField
+    | DecimalField
 )
 
 
@@ -196,12 +198,24 @@ def build_question_form(  # noqa: C901
                     filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.NUMBER:
-                field = IntegerWithCommasField(
-                    label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
-                    widget=GovTextInput(),
-                    validators=[InputRequired(f"Enter the {question.name}")],
-                )
+                if question.data_options.allow_decimals:
+                    field = DecimalWithCommasField(
+                        label=interpolate(text=question.text, context=interpolation_context),
+                        description=interpolate(text=question.hint or "", context=interpolation_context),
+                        widget=GovTextInput(),
+                        validators=[InputRequired(f"Enter the {question.name}")],
+                        places=None,  # TODO are we allowing restriction of decimal places?
+                        rounding=None,
+                        # We are allowing commas for thousands separators but not full locale-aware formatting
+                        use_locale=False,
+                    )
+                else:
+                    field = IntegerWithCommasField(
+                        label=interpolate(text=question.text, context=interpolation_context),
+                        description=interpolate(text=question.hint or "", context=interpolation_context),
+                        widget=GovTextInput(),
+                        validators=[InputRequired(f"Enter the {question.name}")],
+                    )
             case QuestionDataType.YES_NO:
                 field = RadioField(
                     label=interpolate(text=question.text, context=interpolation_context),
