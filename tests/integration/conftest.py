@@ -360,7 +360,58 @@ def authenticated_platform_admin_client(
     email = email_mark.args[0] if email_mark else "test@communities.gov.uk"
 
     user = factories.user.create(email=email)
-    factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN])
+    factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN])
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
+    anonymous_client.user = user
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_platform_grant_lifecycle_manager_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
+    """
+    Create a client authenticated as a platform grant lifecycle manager (GRANT_REPORTING_LIFECYCLE at platform level,
+    No org/grant)
+    """
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "platformgrantlifecyclemanager@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    factories.user_role.create(
+        user_id=user.id,
+        user=user,
+        permissions=[RoleEnum.MEMBER, RoleEnum.GRANT_LIFECYCLE_MANAGER],
+        organisation=None,
+        grant=None,
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
+    anonymous_client.user = user
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_platform_data_analyst_client(
+    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+) -> Generator[FundingServiceTestClient, None, None]:
+    """Create a client authenticated as a platform data analyst (DATA_ANALYST at platform level, no org/grant)"""
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "platformdatanalyst@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    factories.user_role.create(
+        user_id=user.id, user=user, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_ANALYST], organisation=None, grant=None
+    )
 
     login_user(user)
     with anonymous_client.session_transaction() as session:

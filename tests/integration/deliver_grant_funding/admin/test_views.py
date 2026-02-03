@@ -29,6 +29,8 @@ class TestFlaskAdminAccess:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 200),
             ("authenticated_platform_member_client", 200),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
@@ -45,6 +47,8 @@ class TestFlaskAdminAccess:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 403),
             ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
@@ -61,6 +65,8 @@ class TestFlaskAdminAccess:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 403),
             ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
@@ -81,7 +87,9 @@ class TestFlaskAdminAccess:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -99,7 +107,9 @@ class TestReportingLifecycleSelectGrant:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -111,11 +121,11 @@ class TestReportingLifecycleSelectGrant:
         response = client.get("/deliver/admin/reporting-lifecycle/")
         assert response.status_code == expected_code
 
-    def test_get_select_grant_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_select_grant_page(self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session):
         draft_grant = factories.grant.create(name="Test Draft Grant", status=GrantStatusEnum.DRAFT)
         live_grant = factories.grant.create(name="Test Live Grant", status=GrantStatusEnum.LIVE)
 
-        response = authenticated_platform_admin_client.get("/deliver/admin/reporting-lifecycle/")
+        response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/reporting-lifecycle/")
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -134,12 +144,12 @@ class TestReportingLifecycleSelectGrant:
         assert str(live_grant.id) in option_values
 
     def test_post_with_valid_grant_id_single_report_redirects_to_tasklist(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, name="Q1 Report")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             "/deliver/admin/reporting-lifecycle/",
             data={"grant_id": str(grant.id), "submit": "y"},
             follow_redirects=False,
@@ -148,13 +158,13 @@ class TestReportingLifecycleSelectGrant:
         assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
     def test_post_with_valid_grant_id_multiple_reports_redirects_to_select_report(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         factories.collection.create(grant=grant, name="Q1 Report")
         factories.collection.create(grant=grant, name="Q2 Report")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             "/deliver/admin/reporting-lifecycle/",
             data={"grant_id": str(grant.id), "submit": "y"},
             follow_redirects=False,
@@ -163,11 +173,11 @@ class TestReportingLifecycleSelectGrant:
         assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/select-report"
 
     def test_post_without_grant_id_shows_validation_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         factories.grant.create()
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             "/deliver/admin/reporting-lifecycle/",
             data={"grant_id": "", "submit": "y"},
             follow_redirects=False,
@@ -184,7 +194,9 @@ class TestReportingLifecycleSelectReport:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -198,12 +210,12 @@ class TestReportingLifecycleSelectReport:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/select-report")
         assert response.status_code == expected_code
 
-    def test_get_select_report_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_select_report_page(self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant")
         collection1 = factories.collection.create(grant=grant, name="Q1 Report")
         collection2 = factories.collection.create(grant=grant, name="Q2 Report")
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/select-report"
         )
         assert response.status_code == 200
@@ -224,12 +236,12 @@ class TestReportingLifecycleSelectReport:
         assert str(collection2.id) in option_values
 
     def test_post_with_valid_collection_id_redirects_to_tasklist(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant, name="Q1 Report")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/select-report",
             data={"collection_id": str(collection.id), "submit": "y"},
             follow_redirects=False,
@@ -243,7 +255,9 @@ class TestReportingLifecycleTasklist:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -258,7 +272,7 @@ class TestReportingLifecycleTasklist:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}")
         assert response.status_code == expected_code
 
-    def test_shows_all_tasklists(self, authenticated_platform_admin_client, factories, db_session):
+    def test_shows_all_tasklists(self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant", privacy_policy_markdown="hello")
         collection = factories.collection.create(grant=grant, name="Q1 Report")
         org_1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
@@ -276,7 +290,7 @@ class TestReportingLifecycleTasklist:
         factories.user_role.create(organisation=org_1, permissions=[RoleEnum.CERTIFIER])
         factories.user_role.create(organisation=org_2, permissions=[RoleEnum.CERTIFIER])
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -461,13 +475,13 @@ class TestReportingLifecycleTasklist:
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
     def test_get_tasklist_shows_correct_organisation_count_singular(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant, name="Q1 Report")
         factories.organisation.create(name="Org 1", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -481,13 +495,13 @@ class TestReportingLifecycleTasklist:
         assert "1 organisation" in task_status.get_text(strip=True)
 
     def test_get_tasklist_excludes_grant_managing_organisations_from_count(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant, name="Q1 Report")
         factories.organisation.create(name="Regular Org", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -501,14 +515,14 @@ class TestReportingLifecycleTasklist:
         assert "1 organisation" in task_status.get_text(strip=True)
 
     def test_get_tasklist_with_live_grant_shows_completed_status(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(
             name="Test Live Grant", status=GrantStatusEnum.LIVE, privacy_policy_markdown="something"
         )
         collection = factories.collection.create(grant=grant, name="Q1 Report")
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -542,7 +556,9 @@ class TestReportingLifecycleTasklist:
         assert "Completed" in task_status.get_text(strip=True)
         assert "govuk-tag--green" in task_status.get("class")
 
-    def test_get_tasklist_with_dates_set(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_tasklist_with_dates_set(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Draft Grant")
         collection = factories.collection.create(
             grant=grant,
@@ -553,7 +569,7 @@ class TestReportingLifecycleTasklist:
             submission_period_end_date=datetime.date(2025, 4, 30),
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -593,12 +609,12 @@ class TestReportingLifecycleTasklist:
         ],
     )
     def test_send_emails_task_cannot_start_yet_when_not_open(
-        self, authenticated_platform_admin_client, factories, db_session, collection_status
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, collection_status
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant, name="Q1 Report", status=collection_status)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -620,11 +636,13 @@ class TestReportingLifecycleTasklist:
         link = send_emails_task.find("a", {"class": "govuk-link"})
         assert link is None
 
-    def test_send_emails_task_do_once_when_open(self, authenticated_platform_admin_client, factories, db_session):
+    def test_send_emails_task_do_once_when_open(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant, name="Q1 Report", status=CollectionStatusEnum.OPEN)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -655,12 +673,12 @@ class TestReportingLifecycleTasklist:
         ],
     )
     def test_send_deadline_reminder_mails_task_cannot_start_yet_when_not_open(
-        self, authenticated_platform_admin_client, factories, db_session, collection_status
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, collection_status
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant, name="Q1 Report", status=collection_status)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -683,12 +701,12 @@ class TestReportingLifecycleTasklist:
         assert link is None
 
     def test_send_deadline_reminder_emails_task_do_once_when_open(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant, name="Q1 Report", status=CollectionStatusEnum.OPEN)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -717,7 +735,9 @@ class TestSendEmailsToRecipients:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -743,7 +763,7 @@ class TestSendEmailsToRecipients:
         assert response.status_code == expected_code
 
     def test_send_emails_to_recipients_deadline_reminder_report_not_open(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(
@@ -752,7 +772,7 @@ class TestSendEmailsToRecipients:
             submission_period_end_date=datetime.date(2025, 10, 1),
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
         )
         assert response.status_code == 404
@@ -773,7 +793,13 @@ class TestSendEmailsToRecipients:
         ],
     )
     def test_send_emails_to_recipients_page_content(
-        self, authenticated_platform_admin_client, factories, db_session, email_type, expected_heading, template_id
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        email_type,
+        expected_heading,
+        template_id,
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(
@@ -783,7 +809,7 @@ class TestSendEmailsToRecipients:
             submission_period_end_date=datetime.date(2025, 10, 1),
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type}"
         )
         assert response.status_code == 200
@@ -813,7 +839,9 @@ class TestSendEmailsToRecipients:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -842,7 +870,7 @@ class TestSendEmailsToRecipients:
         assert response.status_code == expected_code
 
     def test_download_csv_format_and_content_report_open(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         other_grant = factories.grant.create(name="Other Grant")
@@ -891,7 +919,7 @@ class TestSendEmailsToRecipients:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
         )
 
@@ -921,7 +949,7 @@ class TestSendEmailsToRecipients:
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
 
     def test_download_csv_format_and_content_deadline_reminder(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         other_grant = factories.grant.create(name="Other Grant")
@@ -1015,7 +1043,7 @@ class TestSendEmailsToRecipients:
 
         # org 3 has not started their report (has no submission) so should be in the list
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
         )
 
@@ -1052,7 +1080,9 @@ class TestSetUpCertifiers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1067,11 +1097,13 @@ class TestSetUpCertifiers:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers")
         assert response.status_code == expected_code
 
-    def test_get_set_up_global_certifiers_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_set_up_global_certifiers_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers"
         )
         assert response.status_code == 200
@@ -1081,14 +1113,16 @@ class TestSetUpCertifiers:
 
         assert soup.find("textarea", {"id": "certifiers_data"}) is not None
 
-    def test_get_shows_existing_certifiers(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_shows_existing_certifiers(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Org", can_manage_grants=False)
         user = factories.user.create(name="John Doe", email="john.doe@example.com")
         factories.user_role.create(user=user, organisation=org, permissions=[RoleEnum.CERTIFIER])
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers"
         )
         assert response.status_code == 200
@@ -1098,13 +1132,13 @@ class TestSetUpCertifiers:
         assert "john.doe@example.com" in soup.text
 
     def test_post_creates_user_and_adds_certifier_permission(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
             data={
                 "certifiers_data": (
@@ -1127,13 +1161,15 @@ class TestSetUpCertifiers:
         assert RoleEnum.CERTIFIER in user.roles[0].permissions
         assert user.roles[0].organisation_id == org.id
 
-    def test_post_with_multiple_certifiers(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_multiple_certifiers(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
         org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
             data={
                 "certifiers_data": (
@@ -1160,13 +1196,15 @@ class TestSetUpCertifiers:
         assert user2.name == "Jane Smith"
         assert any(RoleEnum.CERTIFIER in role.permissions and role.organisation_id == org2.id for role in user2.roles)
 
-    def test_post_with_existing_user_upserts(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_existing_user_upserts(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         existing_user = factories.user.create(email="existing@example.com", name="Old Name")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
             data={
                 "certifiers_data": (
@@ -1188,12 +1226,14 @@ class TestSetUpCertifiers:
         assert user.name == "New Name"
         assert any(RoleEnum.CERTIFIER in role.permissions and role.organisation_id == org.id for role in user.roles)
 
-    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_redirects_to_tasklist(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Test Organisation", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
             data={
                 "certifiers_data": (
@@ -1207,11 +1247,13 @@ class TestSetUpCertifiers:
         assert response.status_code == 302
         assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
-    def test_post_with_invalid_header_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_header_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
             data={
                 "certifiers_data": (
@@ -1229,12 +1271,14 @@ class TestSetUpCertifiers:
             soup, "The header row must be exactly: organisation-name\tfirst-name\tlast-name\temail-address"
         )
 
-    def test_post_with_invalid_email_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_email_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Test Organisation", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
             data={
                 "certifiers_data": (
@@ -1250,11 +1294,13 @@ class TestSetUpCertifiers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Invalid email address(es): invalid-email")
 
-    def test_post_with_invalid_organisation(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_organisation(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-global-certifiers",
             data={
                 "certifiers_data": (
@@ -1277,7 +1323,9 @@ class TestReportingLifecycleMakeGrantLive:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1292,11 +1340,13 @@ class TestReportingLifecycleMakeGrantLive:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live")
         assert response.status_code == expected_code
 
-    def test_get_confirm_page_with_draft_grant(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_confirm_page_with_draft_grant(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live"
         )
         assert response.status_code == 200
@@ -1305,12 +1355,12 @@ class TestReportingLifecycleMakeGrantLive:
         assert get_h1_text(soup) == "Test Grant Make grant live"
 
     def test_get_confirm_page_with_live_grant_redirects(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Already Live Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live", follow_redirects=True
         )
         assert response.status_code == 200
@@ -1319,14 +1369,14 @@ class TestReportingLifecycleMakeGrantLive:
         assert page_has_flash(soup, "Already Live Grant is already live")
 
     def test_post_makes_grant_live_with_enough_team_members(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT, privacy_policy_markdown="hello")
         collection = factories.collection.create(grant=grant)
         factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
         factories.user_role.create(grant=grant, permissions=[RoleEnum.ADMIN])
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live",
             data={"submit": "y"},
             follow_redirects=True,
@@ -1340,12 +1390,14 @@ class TestReportingLifecycleMakeGrantLive:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Test Grant is now live")
 
-    def test_post_fails_without_enough_team_members(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_fails_without_enough_team_members(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
         collection = factories.collection.create(grant=grant)
         factories.user_role.create(grant=grant, permissions=[RoleEnum.MEMBER])
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-live",
             data={"submit": "Make grant live"},
             follow_redirects=False,
@@ -1364,7 +1416,9 @@ class TestReportingLifecycleMarkGrantAsOnboarding:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1379,11 +1433,13 @@ class TestReportingLifecycleMarkGrantAsOnboarding:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding")
         assert response.status_code == expected_code
 
-    def test_get_confirm_page_with_draft_grant(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_confirm_page_with_draft_grant(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding"
         )
         assert response.status_code == 200
@@ -1393,12 +1449,12 @@ class TestReportingLifecycleMarkGrantAsOnboarding:
 
     @pytest.mark.parametrize("from_status", [GrantStatusEnum.ONBOARDING, GrantStatusEnum.LIVE])
     def test_get_confirm_page_with_live_grant_redirects(
-        self, authenticated_platform_admin_client, factories, db_session, from_status
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, from_status
     ):
         grant = factories.grant.create(name="Already Active Grant", status=from_status)
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding", follow_redirects=True
         )
         assert response.status_code == 200
@@ -1407,12 +1463,12 @@ class TestReportingLifecycleMarkGrantAsOnboarding:
         assert page_has_flash(soup, "Already Active Grant is already marked as onboarding")
 
     def test_post_makes_grant_live_with_enough_team_members(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.DRAFT)
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/mark-as-onboarding",
             data={"submit": "y"},
             follow_redirects=True,
@@ -1432,7 +1488,9 @@ class TestManageOrganisations:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1447,11 +1505,13 @@ class TestManageOrganisations:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations")
         assert response.status_code == expected_code
 
-    def test_get_manage_organisations_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_manage_organisations_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations"
         )
         assert response.status_code == 200
@@ -1463,7 +1523,9 @@ class TestManageOrganisations:
         assert textarea is not None
         assert "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n" in textarea.get_text()
 
-    def test_post_creates_new_organisations(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_creates_new_organisations(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         initial_count = get_organisation_count()
@@ -1474,7 +1536,7 @@ class TestManageOrganisations:
             "E06000001\tTest Council\tUnitary Authority\t15/06/2021\t"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
@@ -1500,7 +1562,9 @@ class TestManageOrganisations:
         assert org2.active_date == datetime.date(2021, 6, 15)
         assert org2.retirement_date is None
 
-    def test_post_updates_existing_organisations(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_updates_existing_organisations(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(
@@ -1516,7 +1580,7 @@ class TestManageOrganisations:
             "GB-GOV-123\tUpdated Name\tCentral Government\t01/01/2020\t"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
@@ -1531,7 +1595,9 @@ class TestManageOrganisations:
         org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123").one()
         assert org.name == "Updated Name"
 
-    def test_post_creates_retired_organisation(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_creates_retired_organisation(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
 
@@ -1540,7 +1606,7 @@ class TestManageOrganisations:
             "GB-GOV-123\tRetired Department\tCentral Government\t01/01/2020\t31/12/2023"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
@@ -1551,13 +1617,15 @@ class TestManageOrganisations:
         assert org.status == OrganisationStatus.RETIRED
         assert org.retirement_date == datetime.date(2023, 12, 31)
 
-    def test_post_with_invalid_header_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_header_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
 
         tsv_data = "Wrong Header\nGB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t"
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
@@ -1571,7 +1639,7 @@ class TestManageOrganisations:
         )
 
     def test_post_with_invalid_organisation_type_shows_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -1581,7 +1649,7 @@ class TestManageOrganisations:
             "GB-GOV-123\tTest Department\tInvalid Type\t01/01/2020\t"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
@@ -1592,7 +1660,7 @@ class TestManageOrganisations:
         assert page_has_error(soup, "The tab-separated data is not valid:")
 
     def test_post_with_invalid_date_format_shows_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -1602,7 +1670,7 @@ class TestManageOrganisations:
             "GB-GOV-123\tTest Department\tCentral Government\t2020-01-01\t"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
@@ -1618,7 +1686,9 @@ class TestManageGrantRecipients:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1633,14 +1703,16 @@ class TestManageGrantRecipients:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients")
         assert response.status_code == expected_code
 
-    def test_get_manage_grant_recipients_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_manage_grant_recipients_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.organisation.create(name="Org 2", can_manage_grants=False)
         factories.organisation.create(name="Org 3", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
         )
         assert response.status_code == 200
@@ -1659,7 +1731,7 @@ class TestManageGrantRecipients:
         assert "Org 3" in option_texts
 
     def test_get_excludes_grant_managing_organisations(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         from tests.models import _get_grant_managing_organisation
 
@@ -1668,7 +1740,7 @@ class TestManageGrantRecipients:
         grant_managing_org = _get_grant_managing_organisation()
         factories.organisation.create(name="Regular Org", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
         )
         assert response.status_code == 200
@@ -1681,14 +1753,16 @@ class TestManageGrantRecipients:
         assert grant_managing_org.name not in option_texts
         assert "Regular Org" in option_texts
 
-    def test_get_excludes_existing_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_excludes_existing_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.organisation.create(name="Org 2", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org1)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
         )
         assert response.status_code == 200
@@ -1701,13 +1775,15 @@ class TestManageGrantRecipients:
         assert "Org 1" not in option_texts
         assert "Org 2" in option_texts
 
-    def test_post_creates_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_creates_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
         org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
             data={"recipients": [str(org1.id), str(org2.id)], "submit": "y"},
             follow_redirects=True,
@@ -1725,12 +1801,14 @@ class TestManageGrantRecipients:
         assert org1.id in recipient_org_ids
         assert org2.id in recipient_org_ids
 
-    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_redirects_to_tasklist(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Org 1", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
             data={"recipients": [str(org.id)], "submit": "y"},
             follow_redirects=False,
@@ -1739,13 +1817,13 @@ class TestManageGrantRecipients:
         assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
     def test_post_without_recipients_shows_validation_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Org 1", can_manage_grants=False)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
             data={"recipients": [], "submit": "y"},
             follow_redirects=False,
@@ -1756,7 +1834,7 @@ class TestManageGrantRecipients:
         assert page_has_error(soup, "This field is required.")
 
     def test_get_with_no_available_organisations_shows_empty_select(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         from tests.models import _get_grant_managing_organisation
 
@@ -1764,7 +1842,7 @@ class TestManageGrantRecipients:
         collection = factories.collection.create(grant=grant)
         _get_grant_managing_organisation()
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients"
         )
         assert response.status_code == 200
@@ -1782,7 +1860,9 @@ class TestAddIndividualDataProviders:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -1801,13 +1881,15 @@ class TestAddIndividualDataProviders:
         )
         assert response.status_code == expected_code
 
-    def test_get_add_individual_data_providers_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_add_individual_data_providers_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers"
         )
         assert response.status_code == 200
@@ -1820,13 +1902,15 @@ class TestAddIndividualDataProviders:
         assert soup.find("input", {"id": "email_address"}) is not None
         assert soup.find("input", {"id": "send_notification_email"}) is not None
 
-    def test_post_creates_user_and_role(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_creates_user_and_role(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
             data={
                 "grant_recipient": str(grant_recipient.id),
@@ -1849,14 +1933,16 @@ class TestAddIndividualDataProviders:
         assert user.roles[0].organisation_id == org.id
         assert user.roles[0].grant_id == grant.id
 
-    def test_post_with_existing_user_upserts(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_existing_user_upserts(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
         existing_user = factories.user.create(email="existing@example.com", name="Old Name")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
             data={
                 "grant_recipient": str(grant_recipient.id),
@@ -1880,13 +1966,15 @@ class TestAddIndividualDataProviders:
             for role in user.roles
         )
 
-    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_redirects_to_tasklist(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
             data={
                 "grant_recipient": str(grant_recipient.id),
@@ -1899,13 +1987,15 @@ class TestAddIndividualDataProviders:
         assert response.status_code == 302
         assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
-    def test_post_with_invalid_email_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_email_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
             data={
                 "grant_recipient": str(grant_recipient.id),
@@ -1923,14 +2013,14 @@ class TestAddIndividualDataProviders:
         assert get_user_by_email("invalid-email") is None
 
     def test_post_with_missing_grant_recipient_shows_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
             data={
                 "grant_recipient": "",
@@ -1948,7 +2038,7 @@ class TestAddIndividualDataProviders:
         assert get_user_by_email("john@example.com") is None
 
     def test_post_with_send_notification_email_sends_email(
-        self, authenticated_platform_admin_client, factories, db_session, mocker
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, mocker
     ):
         mock_send = mocker.patch("app.deliver_grant_funding.admin.views.notification_service.send_access_report_opened")
 
@@ -1957,7 +2047,7 @@ class TestAddIndividualDataProviders:
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
             data={
                 "grant_recipient": str(grant_recipient.id),
@@ -1980,7 +2070,7 @@ class TestAddIndividualDataProviders:
         assert call_kwargs["grant_recipient"] == grant_recipient
 
     def test_post_without_send_notification_email_does_not_send_email(
-        self, authenticated_platform_admin_client, factories, db_session, mocker
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, mocker
     ):
         mock_send = mocker.patch("app.deliver_grant_funding.admin.views.notification_service.send_access_report_opened")
 
@@ -1989,7 +2079,7 @@ class TestAddIndividualDataProviders:
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-individual-data-providers",
             data={
                 "grant_recipient": str(grant_recipient.id),
@@ -2012,7 +2102,9 @@ class TestAddBulkDataProviders:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2027,13 +2119,15 @@ class TestAddBulkDataProviders:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers")
         assert response.status_code == expected_code
 
-    def test_get_add_bulk_data_providers_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_add_bulk_data_providers_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Org 1", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers"
         )
         assert response.status_code == 200
@@ -2043,13 +2137,15 @@ class TestAddBulkDataProviders:
 
         assert soup.find("textarea", {"id": "users_data"}) is not None
 
-    def test_post_creates_user_and_role(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_creates_user_and_role(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
@@ -2072,14 +2168,16 @@ class TestAddBulkDataProviders:
         assert user.roles[0].organisation_id == org.id
         assert user.roles[0].grant_id == grant.id
 
-    def test_post_with_existing_user_upserts(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_existing_user_upserts(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
         existing_user = factories.user.create(email="existing@example.com", name="Old Name")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
@@ -2103,13 +2201,15 @@ class TestAddBulkDataProviders:
             for role in user.roles
         )
 
-    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_redirects_to_tasklist(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
@@ -2122,13 +2222,15 @@ class TestAddBulkDataProviders:
         assert response.status_code == 302
         assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
-    def test_post_with_invalid_header_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_header_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": "wrong-header\tfull-name\temail-address\nTest Organisation\tJohn Doe\tjohn@example.com",
@@ -2142,14 +2244,14 @@ class TestAddBulkDataProviders:
         assert page_has_error(soup, "The header row must be exactly: organisation-name\tfull-name\temail-address")
 
     def test_post_with_non_grant_recipient_shows_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
@@ -2165,14 +2267,14 @@ class TestAddBulkDataProviders:
         assert page_has_error(soup, "Organisation 'Not A Recipient' is not a grant recipient for this grant.")
 
     def test_post_with_mixed_valid_invalid_orgs_creates_no_users(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Valid Org", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
@@ -2191,7 +2293,9 @@ class TestAddBulkDataProviders:
         assert get_user_by_email("john@example.com") is None
         assert get_user_by_email("jane@example.com") is None
 
-    def test_post_creates_multiple_users(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_creates_multiple_users(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
@@ -2199,7 +2303,7 @@ class TestAddBulkDataProviders:
         factories.grant_recipient.create(grant=grant, organisation=org1)
         factories.grant_recipient.create(grant=grant, organisation=org2)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
@@ -2223,13 +2327,15 @@ class TestAddBulkDataProviders:
         assert user2 is not None
         assert user2.name == "Jane Smith"
 
-    def test_post_with_invalid_emails_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_emails_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/add-bulk-data-providers",
             data={
                 "users_data": (
@@ -2251,7 +2357,9 @@ class TestRevokeGrantRecipientDataProviders:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2271,7 +2379,7 @@ class TestRevokeGrantRecipientDataProviders:
         assert response.status_code == expected_code
 
     def test_get_revoke_grant_recipient_data_providers_page(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
@@ -2282,7 +2390,7 @@ class TestRevokeGrantRecipientDataProviders:
             user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers"
         )
         assert response.status_code == 200
@@ -2292,7 +2400,7 @@ class TestRevokeGrantRecipientDataProviders:
 
         assert soup.find("select", {"id": "grant_recipients_data_providers"}) is not None
 
-    def test_post_revokes_user_role(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_revokes_user_role(self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
@@ -2306,7 +2414,7 @@ class TestRevokeGrantRecipientDataProviders:
 
         assert db_session.query(UserRole).filter_by(id=user_role.id).first() is not None
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers",
             data={"grant_recipients_data_providers": [f"{user.id}|{org.id}"], "submit": "y"},
             follow_redirects=True,
@@ -2318,7 +2426,9 @@ class TestRevokeGrantRecipientDataProviders:
 
         assert db_session.query(UserRole).filter_by(id=user_role.id).first() is None
 
-    def test_post_revokes_multiple_user_roles(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_revokes_multiple_user_roles(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
@@ -2341,7 +2451,7 @@ class TestRevokeGrantRecipientDataProviders:
         assert RoleEnum.DATA_PROVIDER in role1.permissions
         assert RoleEnum.DATA_PROVIDER in role2.permissions
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers",
             data={
                 "grant_recipients_data_providers": [f"{user1.id}|{org1.id}", f"{user2.id}|{org2.id}"],
@@ -2357,7 +2467,9 @@ class TestRevokeGrantRecipientDataProviders:
         assert db_session.query(UserRole).filter_by(id=user_role1.id).first() is None
         assert db_session.query(UserRole).filter_by(id=user_role2.id).first() is None
 
-    def test_post_redirects_to_set_up_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_redirects_to_set_up_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
@@ -2367,7 +2479,7 @@ class TestRevokeGrantRecipientDataProviders:
             user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-recipient-data-providers",
             data={"grant_recipients_data_providers": [f"{user.id}|{org.id}"], "submit": "y"},
             follow_redirects=False,
@@ -2384,7 +2496,9 @@ class TestRevokeCertifiers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2399,12 +2513,14 @@ class TestRevokeCertifiers:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers")
         assert response.status_code == expected_code
 
-    def test_get_revoke_global_certifiers_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_revoke_global_certifiers_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Org 1")
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers"
         )
         assert response.status_code == 200
@@ -2415,7 +2531,9 @@ class TestRevokeCertifiers:
         assert soup.find("select", {"id": "organisation_id"}) is not None
         assert soup.find("input", {"id": "email"}) is not None
 
-    def test_post_revokes_certifier_permission(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_revokes_certifier_permission(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation")
@@ -2429,7 +2547,7 @@ class TestRevokeCertifiers:
         assert db_session.query(UserRole).filter_by(id=user_role.id).first() is not None
         assert RoleEnum.CERTIFIER in user_role.permissions
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers",
             data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
             follow_redirects=True,
@@ -2442,12 +2560,14 @@ class TestRevokeCertifiers:
         db_session.refresh(user_role)
         assert user_role.permissions == [RoleEnum.MEMBER]
 
-    def test_post_with_nonexistent_user_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_nonexistent_user_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers",
             data={"organisation_id": str(org.id), "email": "nonexistent@example.com", "submit": "y"},
             follow_redirects=False,
@@ -2457,13 +2577,15 @@ class TestRevokeCertifiers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "User with email 'nonexistent@example.com' does not exist.")
 
-    def test_post_with_non_certifier_user_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_non_certifier_user_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation")
         factories.user.create(name="John Doe", email="john@example.com")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers",
             data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
             follow_redirects=False,
@@ -2476,7 +2598,7 @@ class TestRevokeCertifiers:
         )
 
     def test_post_redirects_to_set_up_global_certifiers_page(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -2484,7 +2606,7 @@ class TestRevokeCertifiers:
         user = factories.user.create(name="John Doe", email="john@example.com")
         factories.user_role.create(user=user, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER])
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-global-certifiers",
             data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
             follow_redirects=False,
@@ -2501,7 +2623,9 @@ class TestOverrideGrantCertifiers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2518,12 +2642,14 @@ class TestOverrideGrantCertifiers:
         )
         assert response.status_code == expected_code
 
-    def test_get_override_grant_certifiers_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_override_grant_certifiers_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         factories.grant_recipient.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers"
         )
         assert response.status_code == 200
@@ -2536,7 +2662,7 @@ class TestOverrideGrantCertifiers:
         assert soup.find("input", {"id": "email"}) is not None
 
     def test_organisation_dropdown_only_shows_grant_recipients(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
@@ -2546,7 +2672,7 @@ class TestOverrideGrantCertifiers:
         factories.grant_recipient.create(grant=grant, organisation=org1)
         factories.grant_recipient.create(grant=grant, organisation=org2)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers"
         )
 
@@ -2560,14 +2686,14 @@ class TestOverrideGrantCertifiers:
         assert "Non-Recipient Org" not in option_texts
 
     def test_post_creates_grant_specific_certifier_new_user(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
             data={
                 "organisation_id": str(org.id),
@@ -2591,7 +2717,7 @@ class TestOverrideGrantCertifiers:
         assert user.roles[0].grant_id == grant.id
 
     def test_post_creates_grant_specific_certifier_existing_user(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -2599,7 +2725,7 @@ class TestOverrideGrantCertifiers:
         factories.grant_recipient.create(grant=grant, organisation=org)
         user = factories.user.create(name="Jane Doe", email="jane.doe@example.com")
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
             data={
                 "organisation_id": str(org.id),
@@ -2619,13 +2745,15 @@ class TestOverrideGrantCertifiers:
         assert RoleEnum.CERTIFIER in user.roles[0].permissions
         assert user.roles[0].grant_id == grant.id
 
-    def test_grant_id_is_set_in_user_role(self, authenticated_platform_admin_client, factories, db_session):
+    def test_grant_id_is_set_in_user_role(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        authenticated_platform_admin_client.post(
+        authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
             data={
                 "organisation_id": str(org.id),
@@ -2639,7 +2767,7 @@ class TestOverrideGrantCertifiers:
         assert user.roles[0].grant_id == grant.id
 
     def test_tasklist_count_shows_grant_specific_certifiers_only(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -2658,7 +2786,7 @@ class TestOverrideGrantCertifiers:
         factories.user_role.create(user=grant_user2, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER])
         factories.user_role.create(user=grant_user3, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER])
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
 
@@ -2666,7 +2794,7 @@ class TestOverrideGrantCertifiers:
         assert "3 overrides" in soup.text
 
     def test_existing_certifiers_section_shows_grant_specific_only(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -2681,7 +2809,7 @@ class TestOverrideGrantCertifiers:
             user=grant_specific_user, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER]
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers"
         )
 
@@ -2689,13 +2817,15 @@ class TestOverrideGrantCertifiers:
         assert b"Grant Specific User" in response.data
         assert b"Org Level User" not in response.data
 
-    def test_post_with_invalid_email(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_email(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
             data={
                 "organisation_id": str(org.id),
@@ -2710,12 +2840,14 @@ class TestOverrideGrantCertifiers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Enter a valid email address")
 
-    def test_post_with_missing_organisation(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_missing_organisation(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         factories.grant_recipient.create(grant=grant)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/override-grant-certifiers",
             data={
                 "organisation_id": "",
@@ -2736,7 +2868,9 @@ class TestRevokeGrantOverrideCertifiers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2756,13 +2890,13 @@ class TestRevokeGrantOverrideCertifiers:
         assert response.status_code == expected_code
 
     def test_get_revoke_grant_override_certifiers_page(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         factories.grant_recipient.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers"
         )
         assert response.status_code == 200
@@ -2774,7 +2908,7 @@ class TestRevokeGrantOverrideCertifiers:
         assert soup.find("input", {"id": "email"}) is not None
 
     def test_post_successfully_revokes_grant_specific_certifier(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -2790,7 +2924,7 @@ class TestRevokeGrantOverrideCertifiers:
         assert db_session.query(UserRole).filter_by(id=user_role.id).first() is not None
         assert RoleEnum.CERTIFIER in user_role.permissions
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers",
             data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
             follow_redirects=True,
@@ -2806,7 +2940,7 @@ class TestRevokeGrantOverrideCertifiers:
         assert user_role.permissions == [RoleEnum.MEMBER]
 
     def test_revoke_does_not_affect_org_level_certifier(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -2819,7 +2953,7 @@ class TestRevokeGrantOverrideCertifiers:
         )
         factories.user_role.create(user=user, organisation=org, grant=grant, permissions=[RoleEnum.CERTIFIER])
 
-        authenticated_platform_admin_client.post(
+        authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers",
             data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
             follow_redirects=True,
@@ -2830,13 +2964,15 @@ class TestRevokeGrantOverrideCertifiers:
         assert RoleEnum.CERTIFIER in org_level_role.permissions
         assert len([r for r in user.roles if r.grant_id == grant.id and RoleEnum.CERTIFIER in r.permissions]) == 0
 
-    def test_post_with_nonexistent_user_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_nonexistent_user_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
         factories.grant_recipient.create(grant=grant, organisation=org)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers",
             data={"organisation_id": str(org.id), "email": "nonexistent@example.com", "submit": "y"},
             follow_redirects=False,
@@ -2847,7 +2983,7 @@ class TestRevokeGrantOverrideCertifiers:
         assert page_has_flash(soup, "User with email 'nonexistent@example.com' does not exist.")
 
     def test_post_with_user_without_grant_specific_permission(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -2856,7 +2992,7 @@ class TestRevokeGrantOverrideCertifiers:
         user = factories.user.create(name="John Doe", email="john@example.com")
         factories.user_role.create(user=user, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER])
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/revoke-grant-override-certifiers",
             data={"organisation_id": str(org.id), "email": "john@example.com", "submit": "y"},
             follow_redirects=False,
@@ -2874,7 +3010,9 @@ class TestScheduleReport:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -2900,7 +3038,9 @@ class TestScheduleReport:
         response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report")
         assert response.status_code == expected_code
 
-    def test_get_confirm_page_with_prerequisites_met(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_confirm_page_with_prerequisites_met(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
@@ -2916,7 +3056,7 @@ class TestScheduleReport:
             user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report"
         )
         assert response.status_code == 200
@@ -2924,7 +3064,9 @@ class TestScheduleReport:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Test Grant Sign off and lock report"
 
-    def test_post_schedules_collection(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_schedules_collection(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
@@ -2944,7 +3086,7 @@ class TestScheduleReport:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report",
             data={"submit": "Sign off and lock report"},
             follow_redirects=True,
@@ -2959,7 +3101,7 @@ class TestScheduleReport:
         assert page_has_flash(soup, "Q1 Report is now locked")
 
     def test_post_fails_when_grant_recipients_have_no_users(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
@@ -2973,7 +3115,7 @@ class TestScheduleReport:
         )
         factories.grant_recipient.create(grant=grant)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/schedule-report",
             data={"submit": "Schedule report"},
             follow_redirects=False,
@@ -2999,7 +3141,7 @@ class TestSetCollectionDatesStatusRestriction:
         ],
     )
     def test_get_set_dates_redirects_with_error_for_non_draft_status(
-        self, authenticated_platform_admin_client, factories, db_session, collection_status
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, collection_status
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(
@@ -3008,7 +3150,7 @@ class TestSetCollectionDatesStatusRestriction:
             status=collection_status,
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates",
             follow_redirects=True,
         )
@@ -3030,7 +3172,7 @@ class TestSetCollectionDatesStatusRestriction:
         ],
     )
     def test_post_set_dates_redirects_with_error_for_non_draft_status(
-        self, authenticated_platform_admin_client, factories, db_session, collection_status
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, collection_status
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(
@@ -3043,7 +3185,7 @@ class TestSetCollectionDatesStatusRestriction:
             submission_period_end_date=datetime.date(2025, 4, 30),
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates",
             data={
                 "reporting_period_start_date-day": "1",
@@ -3075,7 +3217,9 @@ class TestSetCollectionDatesStatusRestriction:
             "You cannot set dates for Q1 Report because it is not in draft status.",
         )
 
-    def test_get_set_dates_allows_draft_status(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_set_dates_allows_draft_status(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(
             grant=grant,
@@ -3083,7 +3227,7 @@ class TestSetCollectionDatesStatusRestriction:
             status=CollectionStatusEnum.DRAFT,
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-dates",
         )
         assert response.status_code == 200
@@ -3100,7 +3244,7 @@ class TestSetCollectionDatesStatusRestriction:
         ],
     )
     def test_tasklist_does_not_link_to_set_dates_for_non_draft_status(
-        self, authenticated_platform_admin_client, factories, db_session, collection_status
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, collection_status
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(
@@ -3113,7 +3257,7 @@ class TestSetCollectionDatesStatusRestriction:
             submission_period_end_date=datetime.date(2025, 4, 30),
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -3131,7 +3275,7 @@ class TestSetCollectionDatesStatusRestriction:
         assert submission_dates_link is None
 
     def test_tasklist_links_to_set_dates_for_draft_status(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(
@@ -3140,7 +3284,7 @@ class TestSetCollectionDatesStatusRestriction:
             status=CollectionStatusEnum.DRAFT,
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
         )
         assert response.status_code == 200
@@ -3169,7 +3313,9 @@ class TestMakeReportLive:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -3206,7 +3352,7 @@ class TestMakeReportLive:
         assert response.status_code == expected_code
 
     def test_get_confirm_page_with_all_prerequisites_met(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
@@ -3234,7 +3380,7 @@ class TestMakeReportLive:
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live"
         )
         assert response.status_code == 200
@@ -3243,7 +3389,9 @@ class TestMakeReportLive:
         assert get_h1_text(soup) == "Test Grant Open the report for submissions"
 
     @pytest.mark.freeze_time("2024-04-01 10:00:00")
-    def test_post_makes_collection_open(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_makes_collection_open(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
@@ -3270,7 +3418,7 @@ class TestMakeReportLive:
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
             data={"submit": "y"},
             follow_redirects=True,
@@ -3284,7 +3432,9 @@ class TestMakeReportLive:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now live and grant recipients can start making submissions")
 
-    def test_post_fails_when_grant_not_live(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_fails_when_grant_not_live(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.ONBOARDING)
         collection = factories.collection.create(
             grant=grant,
@@ -3311,7 +3461,7 @@ class TestMakeReportLive:
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
             data={"submit": "y"},
             follow_redirects=False,
@@ -3324,7 +3474,9 @@ class TestMakeReportLive:
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
 
-    def test_post_fails_when_no_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_fails_when_no_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
@@ -3336,7 +3488,7 @@ class TestMakeReportLive:
             submission_period_end_date=datetime.date(2024, 4, 30),
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
             data={"submit": "y"},
             follow_redirects=False,
@@ -3350,7 +3502,7 @@ class TestMakeReportLive:
         assert collection.status == CollectionStatusEnum.SCHEDULED
 
     def test_post_fails_when_grant_recipients_have_no_users(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
@@ -3371,7 +3523,7 @@ class TestMakeReportLive:
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
             data={"submit": "y"},
             follow_redirects=False,
@@ -3386,7 +3538,9 @@ class TestMakeReportLive:
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
 
-    def test_post_fails_when_dates_not_set(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_fails_when_dates_not_set(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
@@ -3409,7 +3563,7 @@ class TestMakeReportLive:
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
             data={"submit": "y"},
             follow_redirects=False,
@@ -3422,7 +3576,9 @@ class TestMakeReportLive:
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
 
-    def test_post_fails_when_collection_not_scheduled(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_fails_when_collection_not_scheduled(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
@@ -3449,7 +3605,7 @@ class TestMakeReportLive:
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
             data={"submit": "Open report for submissions"},
             follow_redirects=False,
@@ -3468,7 +3624,9 @@ class TestSetUpTestOrganisations:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -3485,11 +3643,13 @@ class TestSetUpTestOrganisations:
         )
         assert response.status_code == expected_code
 
-    def test_get_set_up_test_organisations_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_set_up_test_organisations_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-organisations"
         )
         assert response.status_code == 200
@@ -3501,7 +3661,9 @@ class TestSetUpTestOrganisations:
         assert textarea is not None
         assert "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n" in textarea.get_text()
 
-    def test_post_creates_new_test_organisations(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_creates_new_test_organisations(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         initial_count = get_organisation_count(mode=OrganisationModeEnum.TEST)
@@ -3512,7 +3674,7 @@ class TestSetUpTestOrganisations:
             "E06000099\tTest Council\tUnitary Authority\t15/06/2021\t"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
@@ -3540,7 +3702,9 @@ class TestSetUpTestOrganisations:
         assert org2.retirement_date is None
         assert org2.mode == OrganisationModeEnum.TEST
 
-    def test_post_updates_existing_test_organisations(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_updates_existing_test_organisations(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(
@@ -3557,7 +3721,7 @@ class TestSetUpTestOrganisations:
             "GB-GOV-TEST-123\tUpdated Name\tCentral Government\t01/01/2020\t"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
@@ -3573,7 +3737,9 @@ class TestSetUpTestOrganisations:
         assert org.name == "Updated Name"
         assert org.mode == OrganisationModeEnum.TEST
 
-    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_redirects_to_tasklist(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
 
@@ -3582,7 +3748,7 @@ class TestSetUpTestOrganisations:
             "GB-GOV-TEST-123\tTest Department\tCentral Government\t01/01/2020\t"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
@@ -3590,13 +3756,15 @@ class TestSetUpTestOrganisations:
         assert response.status_code == 302
         assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
-    def test_post_with_invalid_header_shows_error(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_with_invalid_header_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
 
         tsv_data = "Wrong Header\nGB-GOV-TEST-123\tTest Department\tCentral Government\t01/01/2020\t"
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
@@ -3610,7 +3778,7 @@ class TestSetUpTestOrganisations:
         )
 
     def test_post_with_invalid_organisation_type_shows_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
@@ -3620,7 +3788,7 @@ class TestSetUpTestOrganisations:
             "GB-GOV-TEST-123\tTest Department\tInvalid Type\t01/01/2020\t"
         )
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
@@ -3636,7 +3804,9 @@ class TestSetUpTestGrantRecipients:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -3655,14 +3825,16 @@ class TestSetUpTestGrantRecipients:
         )
         assert response.status_code == expected_code
 
-    def test_get_set_up_test_grant_recipients_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_set_up_test_grant_recipients_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Test Org 1", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
         factories.organisation.create(name="Test Org 2", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
         factories.organisation.create(name="Test Org 3", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
         )
         assert response.status_code == 200
@@ -3680,13 +3852,15 @@ class TestSetUpTestGrantRecipients:
         assert "Test Org 2" in option_texts
         assert "Test Org 3" in option_texts
 
-    def test_get_only_shows_test_organisations(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_only_shows_test_organisations(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
         factories.organisation.create(name="Live Org", can_manage_grants=False, mode=OrganisationModeEnum.LIVE)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
         )
         assert response.status_code == 200
@@ -3700,7 +3874,7 @@ class TestSetUpTestGrantRecipients:
         assert "Live Org" not in option_texts
 
     def test_get_excludes_grant_managing_organisations(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         from tests.models import _get_grant_managing_organisation
 
@@ -3709,7 +3883,7 @@ class TestSetUpTestGrantRecipients:
         grant_managing_org = _get_grant_managing_organisation()
         factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
         )
         assert response.status_code == 200
@@ -3723,7 +3897,7 @@ class TestSetUpTestGrantRecipients:
         assert "Test Org" in option_texts
 
     def test_get_excludes_existing_test_grant_recipients(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
@@ -3731,7 +3905,7 @@ class TestSetUpTestGrantRecipients:
         factories.organisation.create(name="Test Org 2", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
         factories.grant_recipient.create(grant=grant, organisation=org1, mode=GrantRecipientModeEnum.TEST)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
         )
         assert response.status_code == 200
@@ -3744,13 +3918,15 @@ class TestSetUpTestGrantRecipients:
         assert "Test Org 1" not in option_texts
         assert "Test Org 2" in option_texts
 
-    def test_post_creates_test_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_creates_test_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Test Org 1", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
         org2 = factories.organisation.create(name="Test Org 2", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients",
             data={"recipients": [str(org1.id), str(org2.id)], "submit": "y"},
             follow_redirects=True,
@@ -3769,12 +3945,14 @@ class TestSetUpTestGrantRecipients:
         assert org2.id in recipient_org_ids
         assert all(gr.mode == GrantRecipientModeEnum.TEST for gr in grant_recipients)
 
-    def test_post_redirects_to_tasklist(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_redirects_to_tasklist(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients",
             data={"recipients": [str(org.id)], "submit": "y"},
             follow_redirects=False,
@@ -3783,13 +3961,13 @@ class TestSetUpTestGrantRecipients:
         assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
 
     def test_post_without_recipients_shows_validation_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients",
             data={"recipients": [], "submit": "y"},
             follow_redirects=False,
@@ -3805,7 +3983,9 @@ class TestSetUpTestGrantRecipientUsers:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
@@ -3825,14 +4005,14 @@ class TestSetUpTestGrantRecipientUsers:
         assert response.status_code == expected_code
 
     def test_get_set_up_test_grant_recipient_users_page(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         org = factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
         factories.grant_recipient.create(grant=grant, organisation=org, mode=GrantRecipientModeEnum.TEST)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users"
         )
         assert response.status_code == 200
@@ -3844,7 +4024,9 @@ class TestSetUpTestGrantRecipientUsers:
         assert soup.find("select", {"id": "user"}) is not None
         assert soup.find("select", {"id": "mhclg_user"}) is not None
 
-    def test_get_shows_only_test_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_shows_only_test_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         test_org = factories.organisation.create(
@@ -3856,7 +4038,7 @@ class TestSetUpTestGrantRecipientUsers:
         factories.grant_recipient.create(grant=grant, organisation=test_org, mode=GrantRecipientModeEnum.TEST)
         factories.grant_recipient.create(grant=grant, organisation=live_org, mode=GrantRecipientModeEnum.LIVE)
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users"
         )
         assert response.status_code == 200
@@ -3870,7 +4052,7 @@ class TestSetUpTestGrantRecipientUsers:
         assert "Live Org" not in option_texts
 
     def test_post_adds_grant_team_user_as_data_provider(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         from tests.models import _get_grant_managing_organisation
 
@@ -3887,7 +4069,7 @@ class TestSetUpTestGrantRecipientUsers:
         grant_team_user = factories.user.create(name="Grant Team User", email="grant.user@example.com")
         factories.user_role.create(user=grant_team_user, organisation=mhclg, grant=grant, permissions=[RoleEnum.ADMIN])
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users",
             data={"grant_recipient": str(grant_recipient.id), "user": str(grant_team_user.id), "submit": "y"},
             follow_redirects=True,
@@ -3912,7 +4094,9 @@ class TestSetUpTestGrantRecipientUsers:
         assert RoleEnum.DATA_PROVIDER in data_provider_role.permissions
         assert RoleEnum.CERTIFIER in data_provider_role.permissions
 
-    def test_post_adds_mhclg_user_as_data_provider(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_adds_mhclg_user_as_data_provider(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         from tests.models import _get_grant_managing_organisation
 
         grant = factories.grant.create()
@@ -3928,7 +4112,7 @@ class TestSetUpTestGrantRecipientUsers:
         mhclg_user = factories.user.create(name="MHCLG User", email="mhclg.user@example.com")
         factories.user_role.create(user=mhclg_user, organisation=mhclg, grant=None, permissions=[RoleEnum.MEMBER])
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users",
             data={"grant_recipient": str(grant_recipient.id), "mhclg_user": str(mhclg_user.id), "submit": "y"},
             follow_redirects=True,
@@ -3953,7 +4137,9 @@ class TestSetUpTestGrantRecipientUsers:
         assert RoleEnum.DATA_PROVIDER in data_provider_role.permissions
         assert RoleEnum.CERTIFIER in data_provider_role.permissions
 
-    def test_post_redirects_to_same_page(self, authenticated_platform_admin_client, factories, db_session):
+    def test_post_redirects_to_same_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         from tests.models import _get_grant_managing_organisation
 
         grant = factories.grant.create()
@@ -3969,7 +4155,7 @@ class TestSetUpTestGrantRecipientUsers:
         grant_team_user = factories.user.create(name="Grant Team User", email="grant.user@example.com")
         factories.user_role.create(user=grant_team_user, organisation=mhclg, grant=grant, permissions=[RoleEnum.ADMIN])
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users",
             data={"grant_recipient": str(grant_recipient.id), "user": str(grant_team_user.id), "submit": "y"},
             follow_redirects=False,
@@ -3981,7 +4167,7 @@ class TestSetUpTestGrantRecipientUsers:
         )
 
     def test_post_without_grant_recipient_shows_validation_error(
-        self, authenticated_platform_admin_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         from tests.models import _get_grant_managing_organisation
 
@@ -3992,7 +4178,7 @@ class TestSetUpTestGrantRecipientUsers:
         mhclg_user = factories.user.create(name="MHCLG User", email="mhclg.user@example.com")
         factories.user_role.create(user=mhclg_user, organisation=mhclg, grant=None, permissions=[RoleEnum.MEMBER])
 
-        response = authenticated_platform_admin_client.post(
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users",
             data={"mhclg_user": str(mhclg_user.id), "submit": "y"},
             follow_redirects=False,
@@ -4002,7 +4188,9 @@ class TestSetUpTestGrantRecipientUsers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Select a test grant recipient")
 
-    def test_get_shows_existing_data_providers(self, authenticated_platform_admin_client, factories, db_session):
+    def test_get_shows_existing_data_providers(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
         test_org = factories.organisation.create(
@@ -4017,7 +4205,7 @@ class TestSetUpTestGrantRecipientUsers:
             permissions=[RoleEnum.DATA_PROVIDER],
         )
 
-        response = authenticated_platform_admin_client.get(
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users"
         )
         assert response.status_code == 200
@@ -4025,3 +4213,87 @@ class TestSetUpTestGrantRecipientUsers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Existing Provider" in soup.text
         assert "existing@example.com" in soup.text
+
+
+class TestPlatformAdminDataAnalysis:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 200),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_data_analysis_index_permissions(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/data-analysis/")
+        assert response.status_code == expected_code
+
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 200),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_certification_events_csv_permissions(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/data-analysis/certification-events.csv")
+        assert response.status_code == expected_code
+
+    def test_data_analysis_index_page(self, authenticated_platform_data_analyst_client):
+        response = authenticated_platform_data_analyst_client.get("/deliver/admin/data-analysis/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Data analysis"
+        assert soup.find("a", href="/deliver/admin/data-analysis/certification-events.csv")
+
+    def test_certification_events_csv_content(self, authenticated_platform_data_analyst_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            created_by=user,
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+            created_by=user,
+            created_at_utc=datetime.datetime(2025, 6, 1, 10, 0, 0),
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+            created_by=user,
+            created_at_utc=datetime.datetime(2025, 7, 1, 12, 0, 0),
+        )
+
+        response = authenticated_platform_data_analyst_client.get(
+            "/deliver/admin/data-analysis/certification-events.csv"
+        )
+        assert response.status_code == 200
+        assert response.content_type == "text/csv; charset=utf-8"
+
+        csv_content = response.data.decode("utf-8-sig")
+        lines = csv_content.strip().splitlines()
+        assert lines[0] == "Submission reference,Sent for certification at,Number of times sent for certification"
+        assert len(lines) == 2
+        row = lines[1].split(",")
+        assert row[0] == submission.reference
+        assert row[2] == "2"

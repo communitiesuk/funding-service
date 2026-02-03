@@ -268,6 +268,8 @@ routes_with_access_controlled_by_flask_admin = [
     "reporting_lifecycle.set_up_test_grant_recipient_users",
     "reporting_lifecycle.set_up_test_organisations",
     "reporting_lifecycle.set_up_test_grant_recipients",
+    "data_analysis.index",
+    "data_analysis.download_certification_events_csv",
 ]
 
 

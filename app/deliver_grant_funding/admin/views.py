@@ -6,6 +6,7 @@ from uuid import UUID
 import markupsafe
 from flask import abort, current_app, flash, redirect, send_file, url_for
 from flask_admin import AdminIndexView, BaseView, expose
+from sqlalchemy import text
 
 from app.common.data.interfaces.collections import get_collection, update_collection
 from app.common.data.interfaces.exceptions import (
@@ -42,6 +43,8 @@ from app.common.data.types import (
     OrganisationModeEnum,
     ReportAdminEmailTypeEnum,
     RoleEnum,
+    SubmissionEventType,
+    SubmissionModeEnum,
 )
 from app.common.filters import format_date
 from app.deliver_grant_funding.admin.forms import (
@@ -65,16 +68,18 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetPrivacyPolicyForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
+    FlaskAdminPlatformAdminDataAnalystAccessibleMixin,
+    FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
     FlaskAdminPlatformMemberAccessibleMixin,
 )
-from app.extensions import auto_commit_after_request, notification_service
+from app.extensions import auto_commit_after_request, db, notification_service
 
 
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
     pass
 
 
-class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixin, BaseView):
+class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):
     @expose("/", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     def index(self) -> Any:
         form = PlatformAdminSelectGrantForReportingLifecycleForm(grants=get_all_grants())
@@ -903,4 +908,47 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformMemberAccessibleMixi
             mimetype="text/csv",
             as_attachment=True,
             download_name=filename,
+        )
+
+
+class PlatformAdminDataAnalysisView(FlaskAdminPlatformAdminDataAnalystAccessibleMixin, BaseView):
+    @expose("/")  # type: ignore[untyped-decorator]
+    def index(self) -> Any:
+        return self.render("deliver_grant_funding/admin/data-analysis.html")
+
+    @expose("/certification-events.csv")  # type: ignore[untyped-decorator]
+    def download_certification_events_csv(self) -> Any:
+        result = db.session.execute(
+            text(
+                """
+                SELECT
+                    submission.reference::text AS "Submission reference",
+                    MAX(submission_event.created_at_utc) AS "Sent for certification at",
+                    COUNT(submission_event.created_at_utc) AS "Number of times sent for certification"
+                 FROM submission
+                 JOIN submission_event ON submission.id = submission_event.submission_id
+                 WHERE submission.mode::text = :submission_mode
+                 AND submission_event.event_type = :certification_event_name
+                 GROUP BY submission.reference
+                """
+            ),
+            {
+                "submission_mode": SubmissionModeEnum.LIVE.name,
+                "certification_event_name": SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION.name,
+            },
+        )
+
+        csv_output = StringIO()
+        csv_writer = csv.writer(csv_output)
+        csv_writer.writerow(result.keys())
+        csv_writer.writerows(result.fetchall())
+
+        csv_bytes = BytesIO(csv_output.getvalue().encode("utf-8-sig"))
+        csv_bytes.seek(0)
+
+        return send_file(
+            csv_bytes,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name="certification-events.csv",
         )
