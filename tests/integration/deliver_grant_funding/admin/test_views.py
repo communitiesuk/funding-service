@@ -4213,3 +4213,87 @@ class TestSetUpTestGrantRecipientUsers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Existing Provider" in soup.text
         assert "existing@example.com" in soup.text
+
+
+class TestPlatformAdminDataAnalysis:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 200),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_data_analysis_index_permissions(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/data-analysis/")
+        assert response.status_code == expected_code
+
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 200),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_certification_events_csv_permissions(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/data-analysis/certification-events.csv")
+        assert response.status_code == expected_code
+
+    def test_data_analysis_index_page(self, authenticated_platform_data_analyst_client):
+        response = authenticated_platform_data_analyst_client.get("/deliver/admin/data-analysis/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Data analysis"
+        assert soup.find("a", href="/deliver/admin/data-analysis/certification-events.csv")
+
+    def test_certification_events_csv_content(self, authenticated_platform_data_analyst_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            created_by=user,
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+            created_by=user,
+            created_at_utc=datetime.datetime(2025, 6, 1, 10, 0, 0),
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+            created_by=user,
+            created_at_utc=datetime.datetime(2025, 7, 1, 12, 0, 0),
+        )
+
+        response = authenticated_platform_data_analyst_client.get(
+            "/deliver/admin/data-analysis/certification-events.csv"
+        )
+        assert response.status_code == 200
+        assert response.content_type == "text/csv; charset=utf-8"
+
+        csv_content = response.data.decode("utf-8-sig")
+        lines = csv_content.strip().splitlines()
+        assert lines[0] == "Submission reference,Sent for certification at,Number of times sent for certification"
+        assert len(lines) == 2
+        row = lines[1].split(",")
+        assert row[0] == submission.reference
+        assert row[2] == "2"

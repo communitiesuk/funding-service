@@ -12,6 +12,7 @@ from app.deliver_grant_funding.admin.entities import (
     PlatformAdminUserView,
 )
 from app.deliver_grant_funding.admin.views import (
+    PlatformAdminDataAnalysisView,
     PlatformAdminReportingLifecycleView,
 )
 
@@ -48,6 +49,9 @@ def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
         PlatformAdminReportingLifecycleView(
             name="Reporting lifecycle", endpoint="reporting_lifecycle", url="reporting-lifecycle"
         )
+    )
+    flask_admin.add_view(
+        PlatformAdminDataAnalysisView(name="Data analysis", endpoint="data_analysis", url="data-analysis")
     )
 
     flask_admin.add_view(PlatformAdminUserView(ProxySession(db_)))  # type: ignore[arg-type]

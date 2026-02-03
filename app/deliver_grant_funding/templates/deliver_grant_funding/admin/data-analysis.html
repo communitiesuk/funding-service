@@ -1,0 +1,14 @@
+{% extends "admin/master.html" %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Data analysis</h1>
+
+      <h2 class="govuk-heading-m">Reports</h2>
+      <p class="govuk-body">
+        <a class="govuk-link" href="{{ url_for('data_analysis.download_certification_events_csv') }}">Download sent-for-certification events by submission reference (CSV)</a>
+      </p>
+    </div>
+  </div>
+{% endblock %}

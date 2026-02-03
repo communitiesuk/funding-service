@@ -27,7 +27,7 @@ def upgrade() -> None:
         batch_op.drop_constraint(op.f("ck_user_role_non_admin_permissions_require_org"), type_="check")
         batch_op.drop_constraint(op.f("ck_user_role_member_permission_required"), type_="check")
 
-    op.sync_enum_values(
+    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="role_enum",
         new_values=["ADMIN", "MEMBER", "DATA_PROVIDER", "CERTIFIER", "GRANT_LIFECYCLE_MANAGER", "DATA_ANALYST"],
@@ -89,7 +89,7 @@ def downgrade() -> None:
         batch_op.drop_constraint(op.f("ck_user_role_member_permission_required"), type_="check")
         batch_op.drop_constraint(op.f("ck_platform_admin_permission_scope"), type_="check")
 
-    op.sync_enum_values(
+    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="role_enum",
         new_values=["ADMIN", "MEMBER", "DATA_PROVIDER", "CERTIFIER"],
