@@ -10,6 +10,7 @@ from wtforms.form import BaseForm
 from wtforms.validators import Email, HostnameValidation, Regexp, ValidationError
 
 from app.common.data import interfaces
+from app.common.forms.fields import DecimalWithCommasField
 
 
 class WordRange:
@@ -152,4 +153,31 @@ class FinalOptionExclusive:
         final_option_key, final_option_label, *_ = form_choices[-1]
         if final_option_key in checkbox_choices and len(checkbox_choices) > 1:
             message = self.message or f"Select {self.question_name}, or select {final_option_label}"
+            raise ValidationError(message)
+
+
+class MaxNumberOfDecimalPlacesValidator:
+    """
+    Validates that the user has not entered more than the maximum number of decimal places allowed. We don't do rounding
+    as this could result in using a value other than what the user typed in so we error if they have entered too
+    many decimal places
+    """
+
+    def __init__(self, max_decimal_places: int, message: str | None = None) -> None:
+        self.max_decimal_places = max_decimal_places
+        self.message = message
+
+    def __call__(self, form: BaseForm, field: DecimalWithCommasField) -> None:
+        if not field.data:
+            return  # Don't validate empty fields - use DataRequired for that
+
+        value_entered = str(field.data)
+
+        if "." not in value_entered:
+            # If they've just entered a whole number there's nothing to validate here
+            return
+
+        decimal_places = value_entered.split(".")[1]
+        if len(decimal_places) > self.max_decimal_places:
+            message = self.message or f"The answer cannot be more than {self.max_decimal_places} decimal places"
             raise ValidationError(message)
