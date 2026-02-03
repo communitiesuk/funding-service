@@ -11,7 +11,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
-from app.common.data.types import RoleEnum
+from app.common.data.types import ACTIVE_GRANT_RECIPIENT_STATUSES, RoleEnum
 
 if TYPE_CHECKING:
     from app.common.data.models import Grant, GrantRecipient, Organisation, Submission
@@ -73,7 +73,8 @@ class User(BaseModel):
                 Grant.id == UserRole.grant_id,
                 and_(
                     Grant.id == GrantRecipient.grant_id,
-                    UserRole.grant_id.is_(None)
+                    UserRole.grant_id.is_(None),
+                    GrantRecipient.status.in_(['ALLOCATED', 'AWARDED'])
                 )
             ),
             Organisation.can_manage_grants == False
@@ -98,7 +99,8 @@ class User(BaseModel):
                 GrantRecipient.grant_id == UserRole.grant_id,
                 UserRole.grant_id.is_(None)
             ),
-            Organisation.can_manage_grants == False
+            Organisation.can_manage_grants == False,
+            GrantRecipient.status.in_(['ALLOCATED', 'AWARDED'])
         )""",
         viewonly=True,
     )
@@ -111,11 +113,18 @@ class User(BaseModel):
             for gr in self._grant_recipients
             if (gr.organisation.id == limit_to_organisation_id if limit_to_organisation_id is not None else True)
             and (gr.grant_id == limit_to_grant_id if limit_to_grant_id is not None else True)
+            and gr.status in ACTIVE_GRANT_RECIPIENT_STATUSES
         ]
 
     def get_grant_recipient(self, *, organisation_id: uuid.UUID, grant_id: uuid.UUID) -> GrantRecipient | None:
         return next(
-            (gr for gr in self._grant_recipients if gr.organisation.id == organisation_id and gr.grant_id == grant_id),
+            (
+                gr
+                for gr in self._grant_recipients
+                if gr.organisation.id == organisation_id
+                and gr.grant_id == grant_id
+                and gr.status in ACTIVE_GRANT_RECIPIENT_STATUSES
+            ),
             None,
         )
 

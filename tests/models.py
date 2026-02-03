@@ -55,6 +55,7 @@ from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
     GrantRecipientModeEnum,
+    GrantRecipientStatus,
     GrantStatusEnum,
     NumberTypeEnum,
     OrganisationModeEnum,
@@ -186,6 +187,7 @@ class _GrantRecipientFactory(SQLAlchemyModelFactory):
     organisation = factory.SubFactory(_OrganisationFactory, can_manage_grants=False)
 
     mode = GrantRecipientModeEnum.LIVE
+    status = GrantRecipientStatus.ALLOCATED
 
 
 class _UserRoleFactory(SQLAlchemyModelFactory):

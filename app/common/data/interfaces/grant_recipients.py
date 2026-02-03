@@ -7,7 +7,13 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import GrantRecipientModeEnum, RoleEnum, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    ACTIVE_GRANT_RECIPIENT_STATUSES,
+    GrantRecipientModeEnum,
+    RoleEnum,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
 from app.extensions import db
 
 
@@ -19,7 +25,11 @@ def get_grant_recipients(
     with_certifiers: bool = False,
     with_organisations: bool = False,
 ) -> Sequence[GrantRecipient]:
-    stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
+    stmt = select(GrantRecipient).where(
+        GrantRecipient.grant_id == grant.id,
+        GrantRecipient.mode == mode,
+        GrantRecipient.status.in_(ACTIVE_GRANT_RECIPIENT_STATUSES),
+    )
 
     if with_data_providers:
         stmt = stmt.options(joinedload(GrantRecipient.data_providers))
@@ -72,6 +82,7 @@ def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> Gran
             GrantRecipient.grant_id == grant_id,
             GrantRecipient.organisation_id == organisation_id,
             cast(GrantRecipient.mode, String) == cast(Organisation.mode, String),
+            GrantRecipient.status.in_(ACTIVE_GRANT_RECIPIENT_STATUSES),
         )
         .options(joinedload(GrantRecipient.grant), joinedload(GrantRecipient.organisation))
     )
@@ -82,7 +93,11 @@ def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = Gran
     statement = (
         select(func.count())
         .select_from(GrantRecipient)
-        .where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
+        .where(
+            GrantRecipient.grant_id == grant.id,
+            GrantRecipient.mode == mode,
+            GrantRecipient.status.in_(ACTIVE_GRANT_RECIPIENT_STATUSES),
+        )
     )
     return db.session.scalar(statement) or 0
 

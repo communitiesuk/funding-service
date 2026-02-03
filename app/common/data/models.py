@@ -22,6 +22,7 @@ from app.common.data.types import (
     ExpressionType,
     FileUploadTypes,
     GrantRecipientModeEnum,
+    GrantRecipientStatus,
     GrantStatusEnum,
     ManagedExpressionsEnum,
     MaximumFileSize,
@@ -92,6 +93,7 @@ class Grant(BaseModel):
             grant_recipient
             for grant_recipient in self.grant_recipients
             if grant_recipient.mode == GrantRecipientModeEnum.TEST
+            and grant_recipient.status in (GrantRecipientStatus.ALLOCATED, GrantRecipientStatus.AWARDED)
         ]
 
     def get_access_reports_for_user(
@@ -1039,6 +1041,12 @@ class GrantRecipient(BaseModel):
         viewonly=True,
         lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
     )
+
+    # this will likely be derived and synced in the future from a similar event workflow to
+    # submissions but for now it will be set directly
+    # assumes grant recipients are being set up for monitoring directly which will be
+    # overridden by pre-award context
+    status: Mapped[GrantRecipientStatus] = mapped_column(server_default=GrantRecipientStatus.ALLOCATED.name)
 
     _all_certifiers: Mapped[list[User]] = relationship(
         "User",

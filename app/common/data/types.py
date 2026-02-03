@@ -46,6 +46,16 @@ class OrganisationStatus(enum.StrEnum):
     RETIRED = "retired"
 
 
+class GrantRecipientStatus(enum.StrEnum):
+    APPLYING = "applying"
+    ALLOCATED = "allocated"
+    AWARDED = "awarded"
+    DECLINED = "declined"
+
+
+ACTIVE_GRANT_RECIPIENT_STATUSES = (GrantRecipientStatus.ALLOCATED, GrantRecipientStatus.AWARDED)
+
+
 class OrganisationType(enum.StrEnum):
     CENTRAL_GOVERNMENT = "Central Government"
     UNITARY_AUTHORITY = "Unitary Authority"
