@@ -1,8 +1,7 @@
-import dataclasses
 import datetime
 import re
 import uuid
-from typing import Literal, NotRequired, TypedDict, Union
+from typing import Union
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
@@ -15,6 +14,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
 )
+from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -23,7 +23,6 @@ from app.common.expressions.managed import (
     IsNo,
     IsYes,
     LessThan,
-    ManagedExpression,
     Specifically,
     UKPostcode,
 )
@@ -36,7 +35,16 @@ from tests.e2e.conftest import (
     login_with_session_cookie,
     login_with_stub_sso,
 )
-from tests.e2e.dataclasses import E2ETestUser, GuidanceText
+from tests.e2e.dataclasses import (
+    DataReferenceConfig,
+    E2EManagedExpression,
+    E2ETestUser,
+    GuidanceText,
+    QuestionDict,
+    QuestionGroupDict,
+    QuestionResponse,
+    TextFieldWithData,
+)
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage, GrantDetailsPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
     AddQuestionDetailsPage,
@@ -62,6 +70,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpTestGrantRecipientsPage,
     SetUpTestGrantRecipientUsersPage,
     SetUpTestOrganisationsPage,
+    _reference_data_flow,
 )
 from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
@@ -82,64 +91,133 @@ def extract_uuid_from_url(url: str, pattern: str) -> str:
     return match.group("uuid")
 
 
-@dataclasses.dataclass
-class _QuestionResponse:
-    answer: str | list[str]
-    error_message: str | None = None
-    check_your_answers_text: str | None = None
-
-
-@dataclasses.dataclass
-class TextFieldWithData:
-    prefix: str
-    data_from_question: str
-
-
-@dataclasses.dataclass
-class E2EManagedExpression:
-    managed_expression: ManagedExpression
-    referenced_question: str | None = None
-    # Note this assumes you're only referencing one question's answer in an expression, if two are needed for
-    # Between/BetweenDates then this will need updating
-    context_source_question_text: str | None = None
-
-
-class QuestionDict(TypedDict):
-    type: QuestionDataType
-    text: str
-    display_text: str
-    hint: NotRequired[TextFieldWithData]  # Allows testing the 'Reference data' journey
-    display_hint: NotRequired[str]  # For use with the 'Reference data' journey
-    answers: list[_QuestionResponse]
-    choices: NotRequired[list[str]]
-    options: NotRequired[QuestionPresentationOptions]
-    guidance: NotRequired[GuidanceText]
-    validation: NotRequired[E2EManagedExpression]
-    condition: NotRequired[E2EManagedExpression]
-
-
-class QuestionGroupDict(TypedDict):
-    type: Literal["group"]
-    text: str
-    display_options: GroupDisplayOptions
-    guidance: NotRequired[GuidanceText]
-    condition: NotRequired[E2EManagedExpression]
-    questions: list[QuestionDict]
-
-
 TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
 
-questions_to_test: dict[str, TQuestionToTest] = {
+
+section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
+    "yes-no": {
+        "type": QuestionDataType.YES_NO,
+        "text": "Do you want to show question groups?",
+        "display_text": "Do you want to show question groups?",
+        "answers": [
+            QuestionResponse("Yes"),
+        ],
+    },
+    "show-cross-section-conditional": {
+        "type": QuestionDataType.NUMBER,
+        "text": "What number do you want to see in another section?",
+        "display_text": "What number do you want to see in another section?",
+        "options": QuestionPresentationOptions(),
+        "answers": [
+            QuestionResponse("100"),
+        ],
+    },
+    "question-group-all-same-page": {
+        "type": "group",
+        "text": "This is a question group",
+        "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+        "guidance": GuidanceText(
+            heading="This is a guidance page heading for a group",
+            body_heading="Guidance subheading",
+            body_link_text="Design system link text",
+            body_link_url="https://design-system.service.gov.uk",
+            body_ul_items=["UL item one", "UL item two"],
+            body_ol_items=["OL item one", "OL item two"],
+        ),
+        "condition": E2EManagedExpression(
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION,
+                question_text="Do you want to show question groups?",
+            ),
+            managed_expression=IsYes(question_id=uuid.uuid4()),
+        ),
+        "questions": [
+            {
+                "type": QuestionDataType.TEXT_SINGLE_LINE,
+                "text": "Group Enter a single line of text",
+                "display_text": "Group Enter a single line of text",
+                "answers": [QuestionResponse("E2E question text single line")],
+            },
+            {
+                "type": QuestionDataType.URL,
+                "text": "Group Enter a website address",
+                "display_text": "Group Enter a website address",
+                "answers": [
+                    QuestionResponse("https://gov.uk"),
+                ],
+            },
+            {
+                "type": QuestionDataType.EMAIL,
+                "text": "Group Enter an email address",
+                "display_text": "Group Enter an email address",
+                "answers": [
+                    QuestionResponse("group@example.com"),
+                ],
+            },
+        ],
+    },
+    "text-single-line": {
+        "type": QuestionDataType.TEXT_SINGLE_LINE,
+        "text": "Enter another single line of text",
+        "display_text": "Enter another single line of text",
+        "answers": [QuestionResponse("E2E question text single line second answer")],
+    },
+    "question-group-one-per-page": {
+        "type": "group",
+        "text": "One question per page group",
+        "display_options": GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
+        "questions": [
+            {
+                "type": QuestionDataType.TEXT_SINGLE_LINE,
+                "text": "Second group Enter a single line of text",
+                "display_text": "Second group Enter a single line of text",
+                "answers": [QuestionResponse("E2E question text single line group")],
+            },
+            {
+                "type": QuestionDataType.EMAIL,
+                "text": "Second group Enter an email address",
+                "display_text": "Second group Enter an email address",
+                "answers": [
+                    QuestionResponse("group2@example.com"),
+                ],
+            },
+            {
+                "type": "group",
+                "text": "Nested Group",
+                "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+                "questions": [
+                    {
+                        "type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "text": "Nested group single line of text",
+                        "display_text": "Nested group single line of text",
+                        "answers": [QuestionResponse("E2E question text single line nested group")],
+                    },
+                    {
+                        "type": QuestionDataType.EMAIL,
+                        "text": "Nested group Enter an email address",
+                        "display_text": "Nested group Enter an email address",
+                        "answers": [
+                            QuestionResponse("nested_group@example.com"),
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+}
+
+
+section_2_questions_to_test: dict[str, TQuestionToTest] = {
     "date": QuestionDict(
         type=QuestionDataType.DATE,
         text="Enter a date",
         display_text="Enter a date",
         answers=[
-            _QuestionResponse(
+            QuestionResponse(
                 ["2003", "2", "01"],
                 "The answer must be between 1 January 2020 (inclusive) and 1 January 2025 (exclusive)",
             ),
-            _QuestionResponse(answer=["2022", "04", "05"], check_your_answers_text="5 April 2022"),
+            QuestionResponse(answer=["2022", "04", "05"], check_your_answers_text="5 April 2022"),
         ],
         validation=E2EManagedExpression(
             managed_expression=BetweenDates(
@@ -155,14 +233,17 @@ questions_to_test: dict[str, TQuestionToTest] = {
         type=QuestionDataType.DATE,
         text="Enter an approximate date",
         display_text="Enter an approximate date",
-        hint=TextFieldWithData(prefix="You entered an exact date of", data_from_question="Enter a date"),
+        hint=TextFieldWithData(
+            prefix="You entered an exact date of",
+            data_reference=DataReferenceConfig(ExpressionContext.ContextSources.SECTION, question_text="Enter a date"),
+        ),
         display_hint="You entered an exact date of Tuesday 5 April 2022",
         answers=[
-            _QuestionResponse(
+            QuestionResponse(
                 ["2003", "2"],
                 "The answer must be between April 2020 (inclusive) and March 2022 (exclusive)",
             ),
-            _QuestionResponse(["2021", "04"], check_your_answers_text="April 2021"),
+            QuestionResponse(["2021", "04"], check_your_answers_text="April 2021"),
         ],
         options=QuestionPresentationOptions(approximate_date=True),
         validation=E2EManagedExpression(
@@ -180,8 +261,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Enter the total cost as a number",
         "display_text": "Enter the total cost as a number",
         "answers": [
-            _QuestionResponse("0", "The answer must be greater than 1"),
-            _QuestionResponse("10000"),
+            QuestionResponse("0", "The answer must be greater than 1"),
+            QuestionResponse("10000"),
         ],
         "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS, approximate_date=True),
         "validation": E2EManagedExpression(
@@ -196,8 +277,12 @@ questions_to_test: dict[str, TQuestionToTest] = {
                 latest_expression="",
                 latest_inclusive=False,
             ),
-            referenced_question="Enter an approximate date",
-            context_source_question_text="Enter a date",
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter an approximate date"
+            ),
+            context_source=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter a date"
+            ),
         ),
     },
     "suffix-integer": {
@@ -205,8 +290,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Enter the total weight as a number",
         "display_text": "Enter the total weight as a number",
         "answers": [
-            _QuestionResponse("10001", "The answer must be less than or equal to £10,000"),
-            _QuestionResponse("100"),
+            QuestionResponse("10001", "The answer must be less than or equal to £10,000"),
+            QuestionResponse("100"),
         ],
         "options": QuestionPresentationOptions(suffix="kg", width=NumberInputWidths.HUNDREDS),
         "validation": E2EManagedExpression(
@@ -216,10 +301,14 @@ questions_to_test: dict[str, TQuestionToTest] = {
                 maximum_expression="",
                 inclusive=True,
             ),
-            context_source_question_text="Enter the total cost as a number",
+            context_source=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total cost as a number"
+            ),
         ),  # question_id does not matter here
         "condition": E2EManagedExpression(
-            referenced_question="Enter the total cost as a number",
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total cost as a number"
+            ),
             managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),
         ),
     },
@@ -228,8 +317,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Enter a number between 20 and 100",
         "display_text": "Enter a number between 20 and 100",
         "answers": [
-            _QuestionResponse("101", "The answer must be between 20 (inclusive) and 100 (exclusive)"),
-            _QuestionResponse("20"),
+            QuestionResponse("101", "The answer must be between 20 (inclusive) and 100 (exclusive)"),
+            QuestionResponse("20"),
         ],
         "options": QuestionPresentationOptions(),
         "validation": E2EManagedExpression(
@@ -242,7 +331,9 @@ questions_to_test: dict[str, TQuestionToTest] = {
             )
         ),  # question_id does not matter here
         "condition": E2EManagedExpression(
-            referenced_question="Enter the total weight as a number",
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total weight as a number"
+            ),
             managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),
         ),
     },
@@ -251,10 +342,12 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Yes or no",
         "display_text": "Yes or no",
         "answers": [
-            _QuestionResponse("Yes"),
+            QuestionResponse("Yes"),
         ],
         "condition": E2EManagedExpression(
-            referenced_question="Enter a number between 20 and 100",
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter a number between 20 and 100"
+            ),
             managed_expression=Between(
                 question_id=uuid.uuid4(),
                 maximum_value=40,
@@ -270,10 +363,13 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "display_text": "Select an option",
         "choices": ["option 1", "option 2", "option 3"],
         "answers": [
-            _QuestionResponse("option 2"),
+            QuestionResponse("option 2"),
         ],
         "condition": E2EManagedExpression(
-            referenced_question="Yes or no", managed_expression=IsYes(question_id=uuid.uuid4())
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
+            ),
+            managed_expression=IsYes(question_id=uuid.uuid4()),
         ),
     },
     "autocomplete": {
@@ -282,11 +378,13 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "display_text": "Select an option from the accessible autocomplete",
         "choices": [f"option {x}" for x in range(1, 30)],
         "answers": [
-            _QuestionResponse("Other"),
+            QuestionResponse("Other"),
         ],
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
         "condition": E2EManagedExpression(
-            referenced_question="Select an option",
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Select an option"
+            ),
             managed_expression=AnyOf(
                 question_id=uuid.uuid4(),
                 items=[{"key": "option-2", "label": "option 2"}, {"key": "option-3", "label": "option 3"}],
@@ -299,11 +397,14 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "display_text": "Select one or more options",
         "choices": ["option 1", "option 2", "option 3", "option 4"],
         "answers": [
-            _QuestionResponse(["option 2", "option 3"]),
+            QuestionResponse(["option 2", "option 3"]),
         ],
         "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
         "condition": E2EManagedExpression(
-            referenced_question="Select an option from the accessible autocomplete",
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION,
+                question_text="Select an option from the accessible autocomplete",
+            ),
             managed_expression=AnyOf(question_id=uuid.uuid4(), items=[{"key": "other", "label": "Other"}]),
         ),
     },
@@ -312,11 +413,13 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Enter an email address",
         "display_text": "Enter an email address",
         "answers": [
-            _QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
-            _QuestionResponse("name@example.com"),
+            QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
+            QuestionResponse("name@example.com"),
         ],
         "condition": E2EManagedExpression(
-            referenced_question="Select one or more options",
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Select one or more options"
+            ),
             managed_expression=Specifically(question_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}),
         ),
     },
@@ -325,8 +428,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Enter a postcode",
         "display_text": "Enter a postcode",
         "answers": [
-            _QuestionResponse("E2E question text single line", "The answer must be a UK postcode"),
-            _QuestionResponse("SW1A 1AA"),
+            QuestionResponse("E2E question text single line", "The answer must be a UK postcode"),
+            QuestionResponse("SW1A 1AA"),
         ],
         "validation": E2EManagedExpression(
             managed_expression=UKPostcode(
@@ -347,8 +450,8 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Enter a few lines of text",
         "display_text": "Enter a few lines of text",
         "answers": [
-            _QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
-            _QuestionResponse("E2E question text multi line\nwith a second line"),
+            QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
+            QuestionResponse("E2E question text multi line\nwith a second line"),
         ],
         "options": QuestionPresentationOptions(word_limit=10, rows=MultilineTextInputRows.LARGE),
     },
@@ -357,122 +460,50 @@ questions_to_test: dict[str, TQuestionToTest] = {
         "text": "Enter a website address",
         "display_text": "Enter a website address",
         "answers": [
-            _QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
-            _QuestionResponse("https://gov.uk"),
+            QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
+            QuestionResponse("https://gov.uk"),
         ],
     },
     "text-single-line-not-shown": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "This question should not be shown",
         "display_text": "This question should not be shown",
-        "answers": [_QuestionResponse("This question shouldn't be shown")],
+        "answers": [QuestionResponse("This question shouldn't be shown")],
         "condition": E2EManagedExpression(
-            referenced_question="Yes or no", managed_expression=IsNo(question_id=uuid.uuid4())
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
+            ),
+            managed_expression=IsNo(question_id=uuid.uuid4()),
         ),
     },
-}
-
-
-TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
-
-
-questions_with_groups_to_test: dict[str, TQuestionToTest] = {
-    "yes-no": {
-        "type": QuestionDataType.YES_NO,
-        "text": "Do you want to show question groups?",
-        "display_text": "Do you want to show question groups?",
+    "cross-section-reference": {
+        "type": QuestionDataType.NUMBER,
+        "text": "Prove that referencing data from another section works",
+        "display_text": "Prove that referencing data from another section works",
+        "hint": TextFieldWithData(
+            prefix="You entered this in the last section: ",
+            data_reference=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
+                section_text="E2E first task - grouped questions",
+                question_text="What number do you want to see in another section?",
+            ),
+        ),
+        "display_hint": "You entered this in the last section: 100",
+        "options": QuestionPresentationOptions(),
         "answers": [
-            _QuestionResponse("Yes"),
+            QuestionResponse("500", "The answer must be less than 100"),
+            QuestionResponse("50"),
         ],
-    },
-    "question-group-all-same-page": {
-        "type": "group",
-        "text": "This is a question group",
-        "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
-        "guidance": GuidanceText(
-            heading="This is a guidance page heading for a group",
-            body_heading="Guidance subheading",
-            body_link_text="Design system link text",
-            body_link_url="https://design-system.service.gov.uk",
-            body_ul_items=["UL item one", "UL item two"],
-            body_ol_items=["OL item one", "OL item two"],
+        "validation": E2EManagedExpression(
+            managed_expression=LessThan(
+                question_id=uuid.uuid4(), maximum_value=None, maximum_expression="", inclusive=False
+            ),
+            context_source=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
+                section_text="E2E first task - grouped questions",
+                question_text="What number do you want to see in another section?",
+            ),
         ),
-        "condition": E2EManagedExpression(
-            referenced_question="Do you want to show question groups?",
-            managed_expression=IsYes(question_id=uuid.uuid4()),
-        ),
-        "questions": [
-            {
-                "type": QuestionDataType.TEXT_SINGLE_LINE,
-                "text": "Group Enter a single line of text",
-                "display_text": "Group Enter a single line of text",
-                "answers": [_QuestionResponse("E2E question text single line")],
-            },
-            {
-                "type": QuestionDataType.URL,
-                "text": "Group Enter a website address",
-                "display_text": "Group Enter a website address",
-                "answers": [
-                    _QuestionResponse("https://gov.uk"),
-                ],
-            },
-            {
-                "type": QuestionDataType.EMAIL,
-                "text": "Group Enter an email address",
-                "display_text": "Group Enter an email address",
-                "answers": [
-                    _QuestionResponse("group@example.com"),
-                ],
-            },
-        ],
-    },
-    "text-single-line": {
-        "type": QuestionDataType.TEXT_SINGLE_LINE,
-        "text": "Enter another single line of text",
-        "display_text": "Enter another single line of text",
-        "answers": [_QuestionResponse("E2E question text single line second answer")],
-    },
-    "question-group-one-per-page": {
-        "type": "group",
-        "text": "One question per page group",
-        "display_options": GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
-        "questions": [
-            {
-                "type": QuestionDataType.TEXT_SINGLE_LINE,
-                "text": "Second group Enter a single line of text",
-                "display_text": "Second group Enter a single line of text",
-                "answers": [_QuestionResponse("E2E question text single line group")],
-            },
-            {
-                "type": QuestionDataType.EMAIL,
-                "text": "Second group Enter an email address",
-                "display_text": "Second group Enter an email address",
-                "answers": [
-                    _QuestionResponse("group2@example.com"),
-                ],
-            },
-            {
-                "type": "group",
-                "text": "Nested Group",
-                "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
-                "questions": [
-                    {
-                        "type": QuestionDataType.TEXT_SINGLE_LINE,
-                        "text": "Nested group single line of text",
-                        "display_text": "Nested group single line of text",
-                        "answers": [_QuestionResponse("E2E question text single line nested group")],
-                    },
-                    {
-                        "type": QuestionDataType.EMAIL,
-                        "text": "Nested group Enter an email address",
-                        "display_text": "Nested group Enter an email address",
-                        "answers": [
-                            _QuestionResponse("nested_group@example.com"),
-                        ],
-                    },
-                ],
-            },
-        ],
     },
 }
 
@@ -564,13 +595,8 @@ def create_question(
 
     if hint := question_definition.get("hint"):
         question_details_page.fill_question_hint(hint.prefix)
-        select_data_source_page = question_details_page.click_insert_data(
-            field_name="hint", question=hint.data_from_question
-        )
-        select_data_source_page.select_data_source("A previous question in this section")
-        select_question_page = select_data_source_page.click_select()
-        select_question_page.choose_question(hint.data_from_question)
-        select_question_page.click_use_data()
+        select_data_source_page = question_details_page.click_insert_data(field_name="hint")
+        _reference_data_flow(select_data_source_page, hint.data_reference)
     else:
         question_details_page.fill_question_hint(f"Hint text for: {question_text}")
 
@@ -661,7 +687,7 @@ def add_validation(
 ) -> None:
     add_validation_page = edit_question_page.click_add_validation()
     add_validation_page.configure_managed_validation(
-        validation.managed_expression, validation.context_source_question_text, presentation_options
+        validation.managed_expression, validation.context_source, presentation_options
     )
     edit_question_page = add_validation_page.click_add_validation()
 
@@ -672,9 +698,9 @@ def add_condition(
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> None:
     add_condition_page = edit_question_page.click_add_condition()
-    add_condition_page.select_condition_question(condition.referenced_question)
+    add_condition_page.select_condition_question(condition.conditional_on)
     add_condition_page.configure_managed_condition(
-        condition.managed_expression, condition.context_source_question_text, presentation_options
+        condition.managed_expression, condition.context_source, presentation_options
     )
     edit_question_page = add_condition_page.click_add_condition(edit_question_page)
 
@@ -884,7 +910,9 @@ def test_setup_grant_and_collection(
     grant_name_uuid = str(uuid.uuid4())
 
     # Sense check that the test includes all question types
-    assert len(QuestionDataType) == 9 and len(questions_to_test) == 14 and len(ManagedExpressionsEnum) == 11, (
+    assert (
+        len(QuestionDataType) == 9 and len(section_2_questions_to_test) == 15 and len(ManagedExpressionsEnum) == 11
+    ), (
         "If you have added a new question type or managed expression, update this test to include the "
         "new question type or managed expression in `questions_to_test`."
     )
@@ -921,7 +949,7 @@ def test_setup_grant_and_collection(
     report_sections_page.check_section_exists(first_section_name)
 
     manage_section_page = report_sections_page.click_manage_section(section_name=first_section_name)
-    for question_to_test in questions_with_groups_to_test.values():
+    for question_to_test in section_1_questions_with_groups_to_test.values():
         create_question_or_group(question_to_test, manage_section_page)
 
     # Add a second task and a question of each type to the task
@@ -933,7 +961,7 @@ def test_setup_grant_and_collection(
     report_sections_page.check_section_exists(second_section_name)
 
     manage_section_page = report_sections_page.click_manage_section(section_name=second_section_name)
-    for question_to_test in questions_to_test.values():
+    for question_to_test in section_2_questions_to_test.values():
         create_question_or_group(question_to_test, manage_section_page)
 
     # Add grant team member
@@ -1085,19 +1113,29 @@ def test_preview_collection(
     ).to_be_visible()
     expect(tasklist_page.submit_button).to_be_disabled()
     expect(tasklist_page.page.get_by_role("link", name=data["first_section_name"])).to_be_visible()
-    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
+    # Second section is "Cannot start yet" state, so link should not be visible
+    expect(tasklist_page.page.locator(".govuk-task-list__status", has_text="Cannot start yet")).to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).not_to_be_visible()
 
     # Complete the first task with question groups
-    complete_task(tasklist_page, data["first_section_name"], data["grant_name"], questions_with_groups_to_test)
+    complete_task(
+        tasklist_page, data["first_section_name"], data["grant_name"], section_1_questions_with_groups_to_test
+    )
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_with_groups_to_test)
+    task_check_your_answers(
+        tasklist_page, data["grant_name"], data["collection_name"], section_1_questions_with_groups_to_test
+    )
+
+    # Section two can be started now that section one is complete (because section two references data in section one).
+    expect(tasklist_page.page.locator(".govuk-task-list__status", has_text="Cannot start yet")).not_to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
 
     # Complete the second task with flat questions list
-    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], questions_to_test)
+    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], section_2_questions_to_test)
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_to_test)
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], section_2_questions_to_test)
 
     # Submit the report
     expect(
@@ -1139,19 +1177,29 @@ def test_deliver_test_grant_recipient_journey(
         tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
     ).to_be_visible()
     expect(tasklist_page.page.get_by_role("link", name=data["first_section_name"])).to_be_visible()
-    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
+    # Second section is "Cannot start yet" state, so link should not be visible
+    expect(tasklist_page.page.locator(".govuk-task-list__status", has_text="Cannot start yet")).to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).not_to_be_visible()
 
     # Complete the first task with question groups
-    complete_task(tasklist_page, data["first_section_name"], data["grant_name"], questions_with_groups_to_test)
+    complete_task(
+        tasklist_page, data["first_section_name"], data["grant_name"], section_1_questions_with_groups_to_test
+    )
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_with_groups_to_test)
+    task_check_your_answers(
+        tasklist_page, data["grant_name"], data["collection_name"], section_1_questions_with_groups_to_test
+    )
+
+    # Section two can be started now that section one is complete (because section two references data in section one).
+    expect(tasklist_page.page.locator(".govuk-task-list__status", has_text="Cannot start yet")).not_to_be_visible()
+    expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
 
     # Complete the second task with flat questions list
-    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], questions_to_test)
+    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], section_2_questions_to_test)
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], questions_to_test)
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], section_2_questions_to_test)
 
     # Submit the report
     expect(
