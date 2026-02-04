@@ -698,11 +698,12 @@ def add_condition(
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> None:
     add_condition_page = edit_question_page.click_add_condition()
-    add_condition_page.select_condition_question(condition.conditional_on)
+    select_data_source_page = add_condition_page.click_reference_data_button()
+    _reference_data_flow(select_data_source_page, condition.conditional_on)
     add_condition_page.configure_managed_condition(
         condition.managed_expression, condition.context_source, presentation_options
     )
-    edit_question_page = add_condition_page.click_add_condition(edit_question_page)
+    add_condition_page.click_add_condition(edit_question_page)
 
 
 def complete_question_group(

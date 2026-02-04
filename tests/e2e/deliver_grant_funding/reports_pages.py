@@ -868,6 +868,10 @@ class AddConditionPage(ReportsBasePage):
         self.page.get_by_role("button", name=f"Reference data for {field_name}").click()
         return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
+    def click_reference_data_button(self) -> "SelectDataSourcePage":
+        self.page.get_by_role("button", name="Reference data").click()
+        return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)
+
     def select_condition_question(self, condition_config: DataReferenceConfig) -> None:
         # We don't easily know randomly generated uuid apended to the previous question texts, so have to grab it to
         # select the correct option
