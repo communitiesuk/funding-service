@@ -506,6 +506,10 @@ class Component(BaseModel):
 
         return None
 
+    @property
+    def data_reference_label(self) -> str:
+        return f"{self.form.collection.name} → {self.form.title} → {self.name}"
+
 
 class Question(Component, SafeQidMixin):
     __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
