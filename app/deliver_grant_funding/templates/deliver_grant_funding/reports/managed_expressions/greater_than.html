@@ -11,7 +11,7 @@
     {% endset %}
     <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-20">
       <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
-      {{ form.greater_than_expression(params={"classes": "govuk-input--width-20", "attributes": {"data-context-aware-editor-target": "", "readonly": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": removeDataButton }}
+      {{ form.greater_than_expression(params={"classes": "govuk-!-margin-bottom-0", "attributes": {"data-context-aware-editor-target": "", "readonly": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": removeDataButton }}
       }) }}
     </div>
   {% endif %}
