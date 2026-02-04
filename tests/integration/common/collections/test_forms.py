@@ -9,7 +9,7 @@ from wtforms.validators import DataRequired
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import create_question
-from app.common.data.types import QuestionDataOptions, QuestionDataType
+from app.common.data.types import NumberTypeEnum, QuestionDataOptions, QuestionDataType
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
@@ -113,7 +113,7 @@ def test_validation_attached_to_field_and_runs__decimal(factories, value, error_
     question = factories.question.create(
         id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e8c"),
         data_type=QuestionDataType.NUMBER,
-        data_options=QuestionDataOptions(allow_decimals=True),
+        data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
         name="test_decimal",
     )
     user = factories.user.create()

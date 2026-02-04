@@ -45,6 +45,7 @@ from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
     GrantStatusEnum,
+    NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -585,7 +586,7 @@ def create_question(
     #  In the meantime, this ensures any number questions created are integers only
     temp_data_options = None
     if data_type == QuestionDataType.NUMBER:
-        temp_data_options = QuestionDataOptions(allow_decimals=False)
+        temp_data_options = QuestionDataOptions(number_type=NumberTypeEnum.INTEGER)
     question = Question(
         text=text,
         form_id=form.id,

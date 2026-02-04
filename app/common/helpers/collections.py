@@ -42,6 +42,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     ConditionsOperator,
     GrantRecipientModeEnum,
+    NumberTypeEnum,
     QuestionDataType,
     RoleEnum,
     SubmissionEventType,
@@ -1023,7 +1024,7 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
         case QuestionDataType.TEXT_MULTI_LINE:
             return TextMultiLineAnswer(answer)
         case QuestionDataType.NUMBER:
-            if question.data_options.allow_decimals:
+            if question.data_options.number_type == NumberTypeEnum.DECIMAL:
                 return DecimalAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)
             return IntegerAnswer(value=answer, prefix=question.prefix, suffix=question.suffix)
         case QuestionDataType.YES_NO:
@@ -1055,7 +1056,7 @@ def _deserialise_question_type(question: Question, serialised_data: str | int | 
         case QuestionDataType.TEXT_MULTI_LINE:
             return TypeAdapter(TextMultiLineAnswer).validate_python(serialised_data)
         case QuestionDataType.NUMBER:
-            if question.data_options.allow_decimals:
+            if question.data_options.number_type == NumberTypeEnum.DECIMAL:
                 return TypeAdapter(DecimalAnswer).validate_python(serialised_data)
             return TypeAdapter(IntegerAnswer).validate_python(serialised_data)
         case QuestionDataType.YES_NO:

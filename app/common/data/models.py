@@ -23,6 +23,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
+    NumberTypeEnum,
     OrganisationModeEnum,
     OrganisationStatus,
     OrganisationType,
@@ -584,6 +585,10 @@ class Question(Component, SafeQidMixin):
             if self.data_type == QuestionDataType.NUMBER and self.presentation_options.width
             else None
         )
+
+    @property
+    def number_type(self) -> NumberTypeEnum | None:
+        return self.data_options.number_type if self.data_type == QuestionDataType.NUMBER else None
 
     @property
     def approximate_date(self) -> bool | None:

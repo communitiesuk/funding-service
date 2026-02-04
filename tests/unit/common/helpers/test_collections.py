@@ -11,6 +11,7 @@ from app.common.data.models import ComponentReference
 from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
+    NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -1034,7 +1035,7 @@ class TestSubmissionHelper:
 class TestDeserialiseQuestionType:
     def test_number_integer(self, factories):
         question = factories.question.build(
-            data_type=QuestionDataType.NUMBER, data_options=QuestionDataOptions(allow_decimals=False)
+            data_type=QuestionDataType.NUMBER, data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER)
         )
         result = _deserialise_question_type(question, {"value": 42})
         assert isinstance(result, IntegerAnswer)
@@ -1042,7 +1043,7 @@ class TestDeserialiseQuestionType:
 
     def test_number_decimal(self, factories):
         question = factories.question.build(
-            data_type=QuestionDataType.NUMBER, data_options=QuestionDataOptions(allow_decimals=True)
+            data_type=QuestionDataType.NUMBER, data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL)
         )
         result = _deserialise_question_type(question, {"value": "13.3"})
         assert isinstance(result, DecimalAnswer)
@@ -1054,7 +1055,7 @@ class TestFormDataToQuestionType:
         question = factories.question.build(
             id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e8c"),
             data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(allow_decimals=False),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
         _FormClass = build_question_form(
@@ -1069,7 +1070,7 @@ class TestFormDataToQuestionType:
         question = factories.question.build(
             id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e8c"),
             data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(allow_decimals=True),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
         )
 
         _FormClass = build_question_form(
