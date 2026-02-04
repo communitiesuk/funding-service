@@ -2529,7 +2529,7 @@ class TestSelectContextSourceSection:
         )
         assert response.status_code == 200
         assert "Section 1" in response.text
-        assert "Section 2" not in response.text
+        assert "Section 2" in response.text
         assert "Section 3" not in response.text
 
     def test_post_stores_form_id_and_redirects(self, authenticated_grant_admin_client, factories):

@@ -1259,14 +1259,9 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
 
     assert add_context_data.collection_id
 
-    # TODO: Add depends_on_question_id as a nullable attribute to all session models to simplify this check?
-    current_component = (
-        get_component_by_id(add_context_data.depends_on_question_id)  # type: ignore[union-attr, arg-type]
-        if getattr(add_context_data, "depends_on_question_id", None)
-        else get_component_by_id(add_context_data.component_id)
-        if add_context_data.component_id
-        else None
-    )
+    # We don't look at `depends_on_question_id` here - we want to show all sections before the section that the source
+    # component is in
+    current_component = get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None
 
     wtform = SelectDataSourceSectionForm(current_form=current_component.form if current_component else db_form)
     if wtform.validate_on_submit():
