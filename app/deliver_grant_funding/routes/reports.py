@@ -5,6 +5,7 @@ from uuid import UUID
 
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
+from flask_wtf import FlaskForm
 from pydantic import BaseModel, ValidationError
 from wtforms import Field
 
@@ -75,7 +76,6 @@ from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
     AddSectionForm,
-    ConditionSelectQuestionForm,
     ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
@@ -91,6 +91,7 @@ from app.deliver_grant_funding.forms import (
 from app.deliver_grant_funding.helpers import start_previewing_collection
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.deliver_grant_funding.session_models import (
+    AddConditionDependsOnSessionModel,
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
@@ -103,7 +104,10 @@ if TYPE_CHECKING:
 
 
 SessionModelType = (
-    AddContextToComponentSessionModel | AddContextToComponentGuidanceSessionModel | AddContextToExpressionsModel
+    AddConditionDependsOnSessionModel
+    | AddContextToComponentSessionModel
+    | AddContextToComponentGuidanceSessionModel
+    | AddContextToExpressionsModel
 )
 
 
@@ -979,6 +983,12 @@ def _extract_add_context_data_from_session(
                     del session["question"]
                     return None
 
+            case "condition_depends_on":
+                add_context_data = AddConditionDependsOnSessionModel(**session_data)
+                if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
+                    del session["question"]
+                    return None
+
             case ExpressionType.CONDITION | ExpressionType.VALIDATION:
                 add_context_data = AddContextToExpressionsModel(**session_data)
                 if (question_id is not NOT_PROVIDED and question_id != add_context_data.component_id) or (
@@ -1286,7 +1296,7 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
-def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:  # noqa: C901
     db_form = get_form_by_id(form_id)
 
     add_context_data = _extract_add_context_data_from_session()
@@ -1311,11 +1321,29 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
         current_component=current_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
-        expression=isinstance(add_context_data, AddContextToExpressionsModel),
+        limit=(
+            "component_data_type"
+            if isinstance(add_context_data, AddContextToExpressionsModel)
+            else "any_expression_data_type"
+            if isinstance(add_context_data, AddConditionDependsOnSessionModel)
+            else None
+        ),
     )
 
     if wtform.validate_on_submit():
         referenced_question = get_question_by_id(UUID(wtform.question.data))
+
+        if isinstance(add_context_data, AddConditionDependsOnSessionModel):
+            del session["question"]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.add_question_condition",
+                    grant_id=grant_id,
+                    component_id=add_context_data.component_id,
+                    depends_on_question_id=referenced_question.id,
+                )
+            )
+
         match add_context_data:
             case AddContextToComponentSessionModel():
                 return_url = (
@@ -1703,20 +1731,20 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
 
-    # TODO: FSPT-1142+1143: Allow selecting questions from earlier sections/collections
-    form = ConditionSelectQuestionForm(
-        current_component=component,
-        interpolate=SubmissionHelper.get_interpolator(collection=component.form.collection),
-    )
+    form = FlaskForm()
 
     if form.validate_on_submit():
-        depends_on_question = get_question_by_id(form.question.data)
+        add_context_data = AddConditionDependsOnSessionModel(
+            component_id=component_id,
+            parent_id=component.parent_id,
+        )
+        session["question"] = add_context_data.model_dump(mode="json")
         return redirect(
             url_for(
-                "deliver_grant_funding.add_question_condition",
+                "deliver_grant_funding.select_context_source",
                 grant_id=grant_id,
-                component_id=component_id,
-                depends_on_question_id=depends_on_question.id,
+                form_id=component.form.id,
+                parent_id=component.parent_id,
             )
         )
 

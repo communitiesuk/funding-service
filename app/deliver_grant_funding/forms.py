@@ -1,5 +1,5 @@
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -573,25 +573,31 @@ class SelectDataSourceQuestionForm(FlaskForm):
         form: Form,
         interpolate: Callable[[str], str],
         current_component: TOptional[Component],
-        expression: bool = False,
         *args: Any,
         parent_component: TOptional[Group] = None,
+        limit: TOptional[Literal["component_data_type", "any_expression_data_type"]] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        # If we're editing an existing question, then only list questions that are "before" this one in the form.
-        # If it's not an existing question, then it gets added to the end of the form, so all questions are "before".
 
-        # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
-        # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
-        # centralise this logic sensibly.
-        referenceable_questions = get_referenceable_questions(form, current_component, parent_component)
+        limit_to_data_type: TOptional[set[QuestionDataType]] = (
+            {current_component.data_type}
+            if limit == "component_data_type" and current_component and current_component.data_type
+            else get_registered_data_types()
+            if limit == "any_expression_data_type"
+            else None
+        )
+
+        referenceable_questions = get_referenceable_questions(
+            form,
+            current_component if current_component and current_component.form == form else None,
+            parent_component if parent_component and parent_component.form == form else None,
+            limit_to_data_type=limit_to_data_type,
+        )
 
         if referenceable_questions:
-            self.question.choices = [("", "")] + [
-                (str(question.id), interpolate(question.text))
-                for question in referenceable_questions
-                if (not expression or question.data_type == current_component.data_type)  # type: ignore[assignment, union-attr]
+            self.question.choices = [("", "")] + [  # type: ignore[assignment]
+                (str(question.id), interpolate(question.text)) for question in referenceable_questions
             ]
 
 
