@@ -660,30 +660,6 @@ class AddSectionForm(FlaskForm):
     submit = SubmitField("Add section", widget=GovSubmitInput())
 
 
-class ConditionSelectQuestionForm(FlaskForm):
-    question = SelectField(
-        "Which answer should the condition check?",
-        choices=[],
-        validators=[DataRequired("Select a question")],
-        widget=MHCLGAccessibleAutocomplete(),
-    )
-    submit = SubmitField("Continue", widget=GovSubmitInput())
-
-    def __init__(self, *args, current_component: Component, interpolate: Callable[[str], str], **kwargs):  # type: ignore[no-untyped-def]
-        super().__init__(*args, **kwargs)
-
-        self.target_question = current_component
-
-        supported_questions = get_referenceable_questions(
-            current_component.form, current_component, limit_to_data_type=get_registered_data_types()
-        )
-        if supported_questions:
-            self.question.choices = [("", "")] + [  # type: ignore[assignment]
-                (str(question.id), f"{interpolate(question.text)} ({question.name})")
-                for question in supported_questions
-            ]
-
-
 class AddGuidanceForm(FlaskForm):
     guidance_heading = StringField(
         "Give your page a heading",
