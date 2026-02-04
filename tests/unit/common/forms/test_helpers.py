@@ -4,7 +4,8 @@ from app.common.data.interfaces.collections import (
     AddAnotherNotValidException,
     raise_if_add_another_not_valid_here,
 )
-from app.common.data.types import QuestionPresentationOptions
+from app.common.data.types import QuestionDataType, QuestionPresentationOptions
+from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.helpers import (
     get_referenceable_questions,
     questions_in_same_add_another_container,
@@ -201,6 +202,36 @@ class TestGetReferenceableQuestions:
 
         referenceable_questions = get_referenceable_questions(form, current_component=q2)
         assert referenceable_questions == [q1]
+
+    def test_limit_to_data_type_filters_unsupported_types(self, factories):
+        form = factories.form.build()
+        factories.question.build_batch(3, data_type=QuestionDataType.TEXT_MULTI_LINE, form=form)
+        supported_question = factories.question.build(data_type=QuestionDataType.NUMBER, form=form)
+        current_question = factories.question.build(data_type=QuestionDataType.NUMBER, form=form)
+
+        result = get_referenceable_questions(
+            form, current_component=current_question, limit_to_data_type=get_registered_data_types()
+        )
+
+        assert result == [supported_question]
+
+    def test_limit_to_data_type_with_no_current_component(self, factories):
+        form = factories.form.build()
+        factories.question.build(data_type=QuestionDataType.TEXT_MULTI_LINE, form=form)
+        number_question = factories.question.build(data_type=QuestionDataType.NUMBER, form=form)
+
+        result = get_referenceable_questions(form, current_component=None, limit_to_data_type={QuestionDataType.NUMBER})
+
+        assert result == [number_question]
+
+    def test_limit_to_data_type_none_returns_all(self, factories):
+        form = factories.form.build()
+        q1 = factories.question.build(data_type=QuestionDataType.TEXT_MULTI_LINE, form=form)
+        q2 = factories.question.build(data_type=QuestionDataType.NUMBER, form=form)
+
+        result = get_referenceable_questions(form, current_component=None, limit_to_data_type=None)
+
+        assert result == [q1, q2]
 
 
 class TestAddAnother:

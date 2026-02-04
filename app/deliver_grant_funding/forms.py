@@ -34,7 +34,7 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.registry import get_supported_form_questions
+from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
@@ -668,10 +668,13 @@ class ConditionSelectQuestionForm(FlaskForm):
 
         self.target_question = current_component
 
-        if len(get_supported_form_questions(current_component)) > 0:
+        supported_questions = get_referenceable_questions(
+            current_component.form, current_component, limit_to_data_type=get_registered_data_types()
+        )
+        if supported_questions:
             self.question.choices = [("", "")] + [  # type: ignore[assignment]
                 (str(question.id), f"{interpolate(question.text)} ({question.name})")
-                for question in get_supported_form_questions(current_component)
+                for question in supported_questions
             ]
 
 

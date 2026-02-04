@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, cast
 
+from app.common.data.types import QuestionDataType
+
 if TYPE_CHECKING:
     from app.common.data.models import Component, Form, Group, Question
 
@@ -29,7 +31,10 @@ def questions_in_same_add_another_container(q1: Component, q2: Component) -> boo
 
 
 def get_referenceable_questions(
-    form: Form, current_component: Component | None = None, parent_component: Group | None = None
+    form: Form,
+    current_component: Component | None = None,
+    parent_component: Group | None = None,
+    limit_to_data_type: set[QuestionDataType] | None = None,
 ) -> list[Question]:
     """
     Return a list of questions from the current form that could be referenced from the current component, determined by:
@@ -44,13 +49,15 @@ def get_referenceable_questions(
     If parent component is None then we're adding a question to the top-level of the section, which will add it to the
     end and therefore all questions are initially in-scope. If parent component is not None, then it's being added to a
     group and only questions before that in the global order should be available).
+
+    If limit_to_data_type is provided, only questions with a data type in the given set will be returned.
     """
     questions = form.cached_questions
     limit_to_components_before = current_component
 
     # Adding a question directly within a section
     if current_component is None and parent_component is None:
-        return questions
+        limit_to_components_before = None
 
     # Can't reference questions from later sections
     elif current_component and form.order > current_component.form.order:
@@ -58,7 +65,7 @@ def get_referenceable_questions(
 
     # If referencing an earlier form, all questions are visible
     elif current_component and form.order < current_component.form.order:
-        return questions
+        limit_to_components_before = None
 
     # Adding a question within a group
     elif current_component is None and parent_component is not None:
@@ -68,15 +75,22 @@ def get_referenceable_questions(
             else parent_component.cached_questions[-1]
         )
 
-    assert limit_to_components_before is not None
-    questions = [
-        q
-        for q in questions
-        if (
-            (not current_component or q != limit_to_components_before)
-            and form.global_component_index(q) <= form.global_component_index(limit_to_components_before)
-            and not questions_in_same_page_group(q, limit_to_components_before)
-            and (questions_in_same_add_another_container(q, limit_to_components_before) or not q.add_another_container)
-        )
-    ]
+    if limit_to_components_before is not None:
+        questions = [
+            q
+            for q in questions
+            if (
+                (not current_component or q != limit_to_components_before)
+                and form.global_component_index(q) <= form.global_component_index(limit_to_components_before)
+                and not questions_in_same_page_group(q, limit_to_components_before)
+                and (
+                    questions_in_same_add_another_container(q, limit_to_components_before)
+                    or not q.add_another_container
+                )
+            )
+        ]
+
+    if limit_to_data_type is not None:
+        questions = [q for q in questions if q.data_type in limit_to_data_type]
+
     return questions
