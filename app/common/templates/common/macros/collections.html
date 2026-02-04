@@ -389,7 +389,7 @@
           {{
             runner.tasklist_form.submit(params={
               "text": submit_text or "Submit",
-              "disabled": not submission.all_forms_are_completed
+              "disabled": not submission.all_needed_forms_are_completed
             })
           }}
         </form>
