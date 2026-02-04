@@ -5,6 +5,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
+from app import NumberTypeEnum
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions import DisallowedExpression, ExpressionContext, evaluate
@@ -101,14 +102,16 @@ class TestExpressionContext:
 
 
 class TestEvaluatingManagedExpressions:
-    def test_greater_than(self, factories):
+    def test_greater_than_integer(self, factories):
         user = factories.user.create()
         q0 = factories.question.create()
         question = factories.question.create(
             form=q0.form,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=q0.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(question_id=q0.id, minimum_value=3000, number_type=NumberTypeEnum.INTEGER),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -118,6 +121,25 @@ class TestEvaluatingManagedExpressions:
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 500})) is False
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 3000})) is False
         assert evaluate(expr, ExpressionContext({q0.safe_qid: 3001})) is True
+
+    def test_greater_than_decimal(self, factories):
+        user = factories.user.create()
+        q0 = factories.question.create()
+        question = factories.question.create(
+            form=q0.form,
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(
+                        question_id=q0.id, minimum_value=Decimal("3000.01"), number_type=NumberTypeEnum.DECIMAL
+                    ),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
+        )
+
+        expr = question.expressions[0]
+
         assert evaluate(expr, ExpressionContext({q0.safe_qid: Decimal("500.1")})) is False
         assert evaluate(expr, ExpressionContext({q0.safe_qid: Decimal("3000.0")})) is False
         assert evaluate(expr, ExpressionContext({q0.safe_qid: Decimal("3000.1")})) is True
@@ -143,7 +165,12 @@ class TestEvaluatingManagedExpressions:
             data_type=QuestionDataType.NUMBER,
             expressions=[
                 Expression.from_managed(
-                    GreaterThan(question_id=qid, minimum_value=None, minimum_expression=f"(({q0.safe_qid}))"),
+                    GreaterThan(
+                        question_id=qid,
+                        minimum_value=None,
+                        minimum_expression=f"(({q0.safe_qid}))",
+                        number_type=NumberTypeEnum.INTEGER,
+                    ),
                     ExpressionType.CONDITION,
                     user,
                 )  # Double brackets should be ignored by the evaluation engine

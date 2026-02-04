@@ -1,7 +1,9 @@
 import abc
 import datetime
+import decimal
 import re
 from collections.abc import Callable
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 from typing import Optional as TOptional
 
@@ -22,14 +24,14 @@ from govuk_frontend_wtf.wtforms_widgets import (
 )
 from markupsafe import Markup
 from pydantic import BaseModel, TypeAdapter
-from wtforms import BooleanField, DateField, IntegerField, SelectField, SelectMultipleField, StringField
+from wtforms import BooleanField, DateField, SelectField, SelectMultipleField, StringField
 from wtforms.fields.core import Field
 from wtforms.validators import DataRequired, InputRequired, Optional, ReadOnly, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_approximate, format_date_short
-from app.common.forms.fields import MHCLGApproximateDateInput
+from app.common.forms.fields import DecimalWithCommasField, MHCLGApproximateDateInput
 from app.common.qid import SafeQidMixin
 from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import TRadioItem
@@ -238,7 +240,7 @@ class GreaterThan(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    minimum_value: int | None
+    minimum_value: int | Decimal | None
     minimum_expression: str | None = None
     inclusive: bool = False
 
@@ -255,9 +257,10 @@ class GreaterThan(ManagedExpression):
 
     @property
     def statement(self) -> str:
+        min_value_for_stmt = f"Decimal('{self.minimum_value}')"
         return (
             f"{self.safe_qid} >{'=' if self.inclusive else ''} "
-            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+            + f"{self.minimum_expression if self.minimum_expression else min_value_for_stmt}"
         )
 
     @property
@@ -268,13 +271,19 @@ class GreaterThan(ManagedExpression):
         return []
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        referenced_question: Question,
+        expression: TOptional[Expression] = None,
+    ) -> dict[str, Field]:
         return {
-            "greater_than_value": IntegerField(
+            "greater_than_value": DecimalWithCommasField(
                 "Minimum value",
-                default=cast(int, expression.context.get("minimum_value")) if expression else None,
-                widget=GovTextInput(),
+                default=cast(Decimal, expression.context["minimum_value"]) if expression else None,
+                places=None,
+                rounding=None,
+                use_locale=False,
                 validators=[Optional()],
+                widget=GovTextInput(),
             ),
             "greater_than_expression": StringField(
                 "Minimum value",
@@ -316,6 +325,10 @@ class GreaterThan(ManagedExpression):
             inclusive=form.greater_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 
+    @property
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
+        return {"Decimal": decimal.Decimal}
+
 
 @register_managed_expression
 class LessThan(ManagedExpression):
@@ -329,7 +342,7 @@ class LessThan(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    maximum_value: int | None
+    maximum_value: int | Decimal | None
     maximum_expression: str | None = None
     inclusive: bool = False
 
@@ -346,9 +359,10 @@ class LessThan(ManagedExpression):
 
     @property
     def statement(self) -> str:
+        max_value_for_stmt = f"Decimal('{self.maximum_value}')"
         return (
             f"{self.safe_qid} <{'=' if self.inclusive else ''}"
-            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+            + f"{self.maximum_expression if self.maximum_expression else max_value_for_stmt}"
         )
 
     @property
@@ -361,11 +375,14 @@ class LessThan(ManagedExpression):
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
-            "less_than_value": IntegerField(
+            "less_than_value": DecimalWithCommasField(
                 "Maximum value",
-                default=cast(int, expression.context["maximum_value"]) if expression else None,
-                widget=GovTextInput(),
+                default=cast(Decimal, expression.context["maximum_value"]) if expression else None,
+                places=None,
+                rounding=None,
+                use_locale=False,
                 validators=[Optional()],
+                widget=GovTextInput(),
             ),
             "less_than_expression": StringField(
                 "Maximum value",
@@ -405,6 +422,10 @@ class LessThan(ManagedExpression):
             inclusive=form.less_than_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
 
+    @property
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
+        return {"Decimal": decimal.Decimal}
+
 
 @register_managed_expression
 class Between(ManagedExpression):
@@ -418,10 +439,10 @@ class Between(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    minimum_value: int | None
+    minimum_value: int | Decimal | None
     minimum_expression: str | None = None
     minimum_inclusive: bool = False
-    maximum_value: int | None
+    maximum_value: int | Decimal | None
     maximum_expression: str | None = None
     maximum_inclusive: bool = False
 
@@ -441,12 +462,14 @@ class Between(ManagedExpression):
 
     @property
     def statement(self) -> str:
+        max_value_for_stmt = f"Decimal('{self.maximum_value}')"
+        min_value_for_stmt = f"Decimal('{self.minimum_value}')"
         return (
-            f"{self.minimum_expression if self.minimum_expression else self.minimum_value} "
+            f"{self.minimum_expression if self.minimum_expression else min_value_for_stmt} "
             f"<{'=' if self.minimum_inclusive else ''} "
             f"{self.safe_qid} "
             f"<{'=' if self.maximum_inclusive else ''} "
-            f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+            f"{self.maximum_expression if self.maximum_expression else max_value_for_stmt}"
         )
 
     @property
@@ -466,11 +489,14 @@ class Between(ManagedExpression):
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
-            "between_bottom_of_range": IntegerField(
+            "between_bottom_of_range": DecimalWithCommasField(
                 "Minimum value",
-                default=cast(int, expression.context["minimum_value"]) if expression else None,
-                widget=GovTextInput(),
+                default=cast(Decimal, expression.context["minimum_value"]) if expression else None,
+                places=None,
+                rounding=None,
+                use_locale=False,
                 validators=[Optional()],
+                widget=GovTextInput(),
             ),
             "between_bottom_of_range_expression": StringField(
                 "Minimum value",
@@ -482,11 +508,14 @@ class Between(ManagedExpression):
                 default=cast(bool, expression.context["minimum_inclusive"]) if expression else None,
                 widget=GovCheckboxInput(),
             ),
-            "between_top_of_range": IntegerField(
+            "between_top_of_range": DecimalWithCommasField(
                 "Maximum value",
-                default=cast(int, expression.context["maximum_value"]) if expression else None,
-                widget=GovTextInput(),
+                default=cast(Decimal, expression.context["maximum_value"]) if expression else None,
+                places=None,
+                rounding=None,
+                use_locale=False,
                 validators=[Optional()],
+                widget=GovTextInput(),
             ),
             "between_top_of_range_expression": StringField(
                 "Maximum value",
@@ -548,6 +577,10 @@ class Between(ManagedExpression):
             else None,
             maximum_inclusive=form.between_top_inclusive.data,  # ty: ignore[unresolved-attribute]
         )
+
+    @property
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
+        return {"Decimal": decimal.Decimal}
 
 
 class BaseDataSourceManagedExpression(ManagedExpression):

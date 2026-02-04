@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from unittest.mock import Mock
+from unittest.mock import Mock, PropertyMock
 
 import pytest
 from markupsafe import Markup
@@ -141,6 +141,46 @@ class TestEvaluate:
         result = evaluate(Expression(statement="value < 0.5"), context=ExpressionContext({"value": Decimal("0.25")}))
         assert result is True
         result = evaluate(Expression(statement="value < 1"), context=ExpressionContext({"value": Decimal("0.25")}))
+        assert result is True
+        result = evaluate(Expression(statement="value < 1.31"), context=ExpressionContext({"value": Decimal("0.30")}))
+        assert result is True
+        result = evaluate(Expression(statement="value < 1.3"), context=ExpressionContext({"value": Decimal("1.29")}))
+        assert result is True
+        result = evaluate(Expression(statement="value <= 1.31"), context=ExpressionContext({"value": Decimal("1.31")}))
+        assert result is True
+
+    def test_decimal_evaluation_equality(self, mocker):
+        result = evaluate(
+            Expression(statement="value1 >= value2"),
+            context=ExpressionContext({"value1": Decimal("0.002"), "value2": Decimal("0.001")}),
+        )
+        assert result is True
+        result = evaluate(
+            Expression(statement="value1 >= value2"),
+            context=ExpressionContext({"value1": Decimal("0.001"), "value2": Decimal("0.001")}),
+        )
+        assert result is True
+        expr = Expression(statement="value >= Decimal('0.001')")
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"Decimal": Decimal},
+        )
+        result = evaluate(
+            expr,
+            context=ExpressionContext({"value": Decimal("0.002")}),
+        )
+        assert result is True
+        expr = Expression(statement="value >= Decimal('0.001')")
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"Decimal": Decimal},
+        )
+        result = evaluate(
+            expr,
+            context=ExpressionContext({"value": Decimal("0.001")}),
+        )
         assert result is True
 
 

@@ -90,22 +90,52 @@ class TestGreaterThanExpression:
             (1000, False, 1000, False),
             (1000, True, 1000, True),
             (1000, False, 1001, True),
+            # Additional decimal test cases
+            (2.5, False, 2.4, False),  # answer < minimum, both decimals
+            (2.5, False, 2.5, False),  # answer == minimum, not inclusive
+            (2.5, True, 2.5, True),  # answer == minimum, inclusive
+            (2.5, False, 2.6, True),  # answer > minimum, both decimals
+            (2, False, 2.1, True),  # integer minimum, decimal answer
+            (2.1, False, 2, False),  # decimal minimum, integer answer
+            (-1.1, False, -1.2, False),  # negative decimals, answer < minimum
+            (-1.1, False, -1.0, True),  # negative decimals, answer > minimum
+            (0.0, False, 0.1, True),  # minimum zero, answer positive decimal
+            (2.0001, False, 2.0, False),  # very close decimals, answer just below minimum
         ),
     )
-    def test_evaluate(self, minimum_value, inclusive, answer, expected_result):
+    def test_evaluate(self, minimum_value, inclusive, answer, expected_result, factories):
+        user = factories.user.build()
         expr = GreaterThan(question_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive)
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, user)
+        expression.context = {
+            expr.safe_qid: answer,
+            "minimum_value": expr.minimum_value,
+            "inclusive": expr.inclusive,
+            "question_id": expr.question_id,
+        }
+        assert evaluate(expression) is expected_result
 
     @pytest.mark.parametrize(
-        "inclusive, answer, expected_result",
+        "inclusive, minimum_value, answer, expected_result",
         (
-            (False, 999, False),
-            (False, 1000, False),
-            (True, 1000, True),
-            (False, 1001, True),
+            (False, 1000, 999, False),
+            (False, 1000, 1000, False),
+            (True, 1000, 1000, True),
+            (False, 1000, 1001, True),
+            # Additional decimal test cases
+            (False, 2.5, 2.4, False),  # answer < minimum, both decimals
+            (False, 2.5, 2.5, False),  # answer == minimum, not inclusive
+            (True, 2.5, 2.5, True),  # answer == minimum, inclusive
+            (False, 2.5, 2.6, True),  # answer > minimum, both decimals
+            (False, 2, 2.1, True),  # integer minimum, decimal answer
+            (False, 2.1, 2, False),  # decimal minimum, integer answer
+            (False, -1.1, -1.2, False),  # negative decimals, answer < minimum
+            (False, -1.1, -1.0, True),  # negative decimals, answer > minimum
+            (False, 0.0, 0.1, True),  # minimum zero, answer positive decimal
+            (False, 2.0001, 2.0, False),  # very close decimals, answer just below minimum
         ),
     )
-    def test_evaluate_with_reference(self, inclusive, answer, expected_result, factories):
+    def test_evaluate_with_reference(self, inclusive, minimum_value, answer, expected_result, factories):
         user = factories.user.create()
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
@@ -117,7 +147,7 @@ class TestGreaterThanExpression:
         )
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            referenced_question.safe_qid: 1000,
+            referenced_question.safe_qid: minimum_value,
             target_question.safe_qid: answer,
             "question_id": expr.question_id,
             "minimum_value": expr.minimum_value,
@@ -143,22 +173,51 @@ class TestLessThanExpression:
             (1000, False, 1000, False),
             (1000, True, 1000, True),
             (1000, False, 1001, False),
+            # Additional decimal test cases
+            (2.5, False, 2.4, True),  # answer < maximum, both decimals
+            (2.5, False, 2.5, False),  # answer == maximum, not inclusive
+            (2.5, True, 2.5, True),  # answer == maximum, inclusive
+            (2.5, False, 2.6, False),  # answer > maximum, both decimals
+            (2, False, 2.1, False),  # integer maximum, decimal answer
+            (2.1, False, 2, True),  # decimal maximum, integer answer
+            (-1.1, False, -1.2, True),  # negative decimals, answer < maximum
+            (-1.1, False, -1.0, False),  # negative decimals, answer > maximum
+            (0.0, False, 0.1, False),  # maximum zero, answer positive decimal
+            (2.0001, False, 2.0, True),  # very close decimals, answer just below maximum
         ),
     )
-    def test_evaluate(self, maximum_value, inclusive, answer, expected_result):
+    def test_evaluate(self, maximum_value, inclusive, answer, expected_result, factories):
+        user = factories.user.build()
         expr = LessThan(question_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive)
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, user)
+        expression.context = {
+            expr.safe_qid: answer,
+            "maximum_value": expr.maximum_value,
+            "question_id": expr.question_id,
+        }
+        assert evaluate(expression) is expected_result
 
     @pytest.mark.parametrize(
-        "inclusive, answer, expected_result",
+        "inclusive, maximum_value, answer, expected_result",
         (
-            (False, 999, True),
-            (False, 1000, False),
-            (True, 1000, True),
-            (False, 1001, False),
+            (False, 1000, 999, True),
+            (False, 1000, 1000, False),
+            (True, 1000, 1000, True),
+            (False, 1000, 1001, False),
+            # Additional decimal test cases
+            (False, 2.5, 2.4, True),  # answer < maximum, both decimals
+            (False, 2.5, 2.5, False),  # answer == maximum, not inclusive
+            (True, 2.5, 2.5, True),  # answer == maximum, inclusive
+            (False, 2.5, 2.6, False),  # answer > maximum, both decimals
+            (False, 2, 2.1, False),  # integer maximum, decimal answer
+            (False, 2.1, 2, True),  # decimal maximum, integer answer
+            (False, -1.1, -1.2, True),  # negative decimals, answer < maximum
+            (False, -1.1, -1.0, False),  # negative decimals, answer > maximum
+            (False, 0.0, 0.1, False),  # maximum zero, answer positive decimal
+            (False, 2.0001, 2.0, True),  # very close decimals, answer just below maximum
         ),
     )
-    def test_evaluate_with_reference(self, inclusive, answer, expected_result, factories):
+    def test_evaluate_with_reference(self, inclusive, maximum_value, answer, expected_result, factories):
         user = factories.user.create()
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
@@ -170,7 +229,7 @@ class TestLessThanExpression:
         )
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            referenced_question.safe_qid: 1000,
+            referenced_question.safe_qid: maximum_value,
             target_question.safe_qid: answer,
             "question_id": expr.question_id,
             "maximum_value": expr.maximum_value,
@@ -198,10 +257,28 @@ class TestBetweenExpression:
             (0, False, 1000, False, 999, True),
             (0, False, 1000, False, 1000, False),
             (0, True, 1000, True, 1000, True),
+            # Additional decimal test cases
+            (2.5, False, 5.5, False, 2.4, False),  # below min, all decimals
+            (2.5, False, 5.5, False, 2.5, False),  # at min, not inclusive
+            (2.5, True, 5.5, False, 2.5, True),  # at min, inclusive
+            (2.5, False, 5.5, False, 5.5, False),  # at max, not inclusive
+            (2.5, False, 5.5, True, 5.5, True),  # at max, inclusive
+            (2.5, False, 5.5, False, 3.0, True),  # between min and max, decimal
+            (2, False, 5.5, False, 3, True),  # int min, int answer, decimal max
+            (2.5, False, 5, False, 3, True),  # decimal min, int max, int answer
+            (2.5, False, 5.5, False, 6.0, False),  # above max, decimal
+            (-2.5, True, 2.5, True, 0.0, True),  # negative min, positive max, zero answer
+            (-2.5, True, 2.5, True, -2.5, True),  # at min, inclusive, negative
+            (-2.5, True, 2.5, True, 2.5, True),  # at max, inclusive, positive
+            (-2.5, False, 2.5, False, -2.5, False),  # at min, not inclusive, negative
+            (-2.5, False, 2.5, False, 2.5, False),  # at max, not inclusive, positive
+            (2.0001, False, 2.0002, False, 2.00015, True),  # very close decimals, answer between
+            (2.0001, False, 2.0002, False, 2.00005, False),  # just below min
+            (2.0001, False, 2.0002, False, 2.00025, False),  # just above max
         ),
     )
     def test_evaluate(
-        self, minimum_value, minimum_inclusive, maximum_value, maximum_inclusive, answer, expected_result
+        self, minimum_value, minimum_inclusive, maximum_value, maximum_inclusive, answer, expected_result, factories
     ):
         expr = Between(
             question_id=uuid.uuid4(),
@@ -210,22 +287,51 @@ class TestBetweenExpression:
             maximum_value=maximum_value,
             maximum_inclusive=maximum_inclusive,
         )
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, factories.user.build())
+        expression.context = {
+            expr.safe_qid: answer,
+            "maximum_value": expr.maximum_value,
+            "minimum_value": expr.maximum_value,
+            "minimum_inclusive": expr.minimum_inclusive,
+            "maximum_inclusive": expr.maximum_inclusive,
+            "question_id": expr.question_id,
+        }
+        assert evaluate(expression) is expected_result
 
     @pytest.mark.parametrize(
-        "minimum_inclusive, maximum_inclusive, answer, expected_result",
+        "minimum_value,minimum_inclusive,maximum_value, maximum_inclusive, answer, expected_result",
         (
-            (False, False, 0, False),
-            (True, False, 0, True),
-            (False, False, 1, True),
-            (False, False, 999, True),
-            (False, False, 1000, False),
-            (True, True, 1000, True),
+            (0, False, 1000, False, 0, False),
+            (0, True, 1000, False, 0, True),
+            (0, False, 1000, False, 1, True),
+            (0, False, 1000, False, 999, True),
+            (0, False, 1000, False, 1000, False),
+            (0, True, 1000, True, 1000, True),
+            # Additional decimal test cases
+            (2.5, False, 5.5, False, 2.4, False),  # below min, all decimals
+            (2.5, False, 5.5, False, 2.5, False),  # at min, not inclusive
+            (2.5, True, 5.5, False, 2.5, True),  # at min, inclusive
+            (2.5, False, 5.5, False, 5.5, False),  # at max, not inclusive
+            (2.5, False, 5.5, True, 5.5, True),  # at max, inclusive
+            (2.5, False, 5.5, False, 3.0, True),  # between min and max, decimal
+            (2, False, 5.5, False, 3, True),  # int min, int answer, decimal max
+            (2.5, False, 5, False, 3, True),  # decimal min, int max, int answer
+            (2.5, False, 5.5, False, 6.0, False),  # above max, decimal
+            (-2.5, True, 2.5, True, 0.0, True),  # negative min, positive max, zero answer
+            (-2.5, True, 2.5, True, -2.5, True),  # at min, inclusive, negative
+            (-2.5, True, 2.5, True, 2.5, True),  # at max, inclusive, positive
+            (-2.5, False, 2.5, False, -2.5, False),  # at min, not inclusive, negative
+            (-2.5, False, 2.5, False, 2.5, False),  # at max, not inclusive, positive
+            (2.0001, False, 2.0002, False, 2.00015, True),  # very close decimals, answer between
+            (2.0001, False, 2.0002, False, 2.00005, False),  # just below min
+            (2.0001, False, 2.0002, False, 2.00025, False),  # just above max
         ),
     )
     def test_evaluate_with_reference(
         self,
+        minimum_value,
         minimum_inclusive,
+        maximum_value,
         maximum_inclusive,
         answer,
         expected_result,
@@ -236,7 +342,7 @@ class TestBetweenExpression:
         target_question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
         expr = Between(
             question_id=target_question.id,
-            minimum_value=0,
+            minimum_value=minimum_value,
             minimum_inclusive=minimum_inclusive,
             maximum_value=None,
             maximum_expression=f"(({referenced_question.safe_qid}))",
@@ -244,7 +350,7 @@ class TestBetweenExpression:
         )
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            referenced_question.safe_qid: 1000,
+            referenced_question.safe_qid: maximum_value,
             target_question.safe_qid: answer,
             "question_id": expr.question_id,
             "minimum_value": expr.minimum_value,

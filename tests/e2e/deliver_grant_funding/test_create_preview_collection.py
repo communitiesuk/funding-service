@@ -359,6 +359,28 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True)
         ),
     },
+    "between-decimal": {
+        "type": QuestionDataType.NUMBER,
+        "text": "Enter the number with 5 decimal places",
+        "display_text": "Enter the number with 5 decimal places",
+        "answers": [
+            QuestionResponse("1.12346", "The answer must be between 0.22334 (exclusive) and 1.12345 (inclusive)"),
+            QuestionResponse("1.123456", "The answer cannot be more than 5 decimal places"),
+            QuestionResponse("0.22333", "The answer must be between 0.22334 (exclusive) and 1.12345 (inclusive)"),
+            QuestionResponse("0.45678"),
+        ],
+        "options": QuestionPresentationOptions(),
+        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=5),
+        "validation": E2EManagedExpression(
+            managed_expression=Between(
+                question_id=uuid.uuid4(),
+                maximum_value=Decimal("1.12345"),
+                maximum_inclusive=True,
+                minimum_value=Decimal("0.22334"),
+                minimum_inclusive=False,
+            )
+        ),
+    },
     "yes-no": {
         "type": QuestionDataType.YES_NO,
         "text": "Yes or no",
@@ -946,7 +968,7 @@ def test_setup_grant_and_collection(
     # Sense check that the test includes all question types
     assert (
         len(QuestionDataType) == 9
-        and len(section_2_questions_to_test) == 16
+        and len(section_2_questions_to_test) == 17
         and len(ManagedExpressionsEnum) == 11
         and len(NumberTypeEnum) == 2
     ), (
