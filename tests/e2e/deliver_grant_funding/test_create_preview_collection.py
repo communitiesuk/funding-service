@@ -1,16 +1,19 @@
 import datetime
 import re
 import uuid
+from decimal import Decimal
 from typing import Union
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
 
+from app import NumberTypeEnum
 from app.common.data.types import (
     GroupDisplayOptions,
     ManagedExpressionsEnum,
     MultilineTextInputRows,
     NumberInputWidths,
+    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
 )
@@ -108,6 +111,7 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
         "text": "What number do you want to see in another section?",
         "display_text": "What number do you want to see in another section?",
         "options": QuestionPresentationOptions(),
+        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "answers": [
             QuestionResponse("100"),
         ],
@@ -265,6 +269,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             QuestionResponse("10000"),
         ],
         "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS, approximate_date=True),
+        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
             managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False)
         ),
@@ -294,6 +299,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             QuestionResponse("100"),
         ],
         "options": QuestionPresentationOptions(suffix="kg", width=NumberInputWidths.HUNDREDS),
+        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
             managed_expression=LessThan(
                 question_id=uuid.uuid4(),
@@ -321,6 +327,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             QuestionResponse("20"),
         ],
         "options": QuestionPresentationOptions(),
+        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
             managed_expression=Between(
                 question_id=uuid.uuid4(),
@@ -335,6 +342,21 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total weight as a number"
             ),
             managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),
+        ),
+    },
+    "suffix-decimal": {
+        "type": QuestionDataType.NUMBER,
+        "text": "Enter the percentage of employees involved in this project",
+        "display_text": "Enter the percentage of employees involved in this project",
+        "answers": [
+            QuestionResponse("1,250.4", "The answer must be less than or equal to 100"),
+            QuestionResponse("50.423", "The answer cannot be more than 2 decimal places"),
+            QuestionResponse("35.67"),
+        ],
+        "options": QuestionPresentationOptions(suffix="%", width=NumberInputWidths.BILLIONS),
+        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
+        "validation": E2EManagedExpression(
+            managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True)
         ),
     },
     "yes-no": {
@@ -490,6 +512,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         ),
         "display_hint": "You entered this in the last section: 100",
         "options": QuestionPresentationOptions(),
+        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "answers": [
             QuestionResponse("500", "The answer must be less than 100"),
             QuestionResponse("50"),
@@ -589,6 +612,13 @@ def create_question(
     expect(
         question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='hint']")
     ).to_be_attached()
+
+    if question_definition["type"] == QuestionDataType.NUMBER:
+        question_details_page.select_number_type(question_definition["data_options"].number_type)
+        if question_definition["data_options"].number_type == NumberTypeEnum.DECIMAL:
+            question_details_page.fill_max_number_of_decimal_places(
+                question_definition["data_options"].max_decimal_places
+            )
 
     question_details_page.fill_question_text(question_text)
     question_details_page.fill_question_name(question_text.lower())
@@ -836,10 +866,13 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
         checkbox_answers_list = check_your_answers_page.page.get_by_test_id(f"answer-{question_name}").locator("li")
         expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
     elif question["type"] == QuestionDataType.NUMBER:
+        answer_to_format = (
+            int(question["answers"][-1].answer)
+            if question["data_options"].number_type == NumberTypeEnum.INTEGER
+            else Decimal(question["answers"][-1].answer)
+        )
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
-            f"{question['options'].prefix or ''}"
-            f"{format_thousands(int(question['answers'][-1].answer))}"
-            f"{question['options'].suffix or ''}"
+            f"{question['options'].prefix or ''}{format_thousands(answer_to_format)}{question['options'].suffix or ''}"
         )
     elif question["type"] == QuestionDataType.DATE:
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
@@ -912,10 +945,13 @@ def test_setup_grant_and_collection(
 
     # Sense check that the test includes all question types
     assert (
-        len(QuestionDataType) == 9 and len(section_2_questions_to_test) == 15 and len(ManagedExpressionsEnum) == 11
+        len(QuestionDataType) == 9
+        and len(section_2_questions_to_test) == 16
+        and len(ManagedExpressionsEnum) == 11
+        and len(NumberTypeEnum) == 2
     ), (
-        "If you have added a new question type or managed expression, update this test to include the "
-        "new question type or managed expression in `questions_to_test`."
+        "If you have added a new question/number type or managed expression, update this test to include the "
+        "new question/number type or managed expression in `questions_to_test`."
     )
 
     new_grant_name = f"E2E developer_grant {grant_name_uuid}"
