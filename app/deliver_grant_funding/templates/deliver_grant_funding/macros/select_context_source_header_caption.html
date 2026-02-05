@@ -3,6 +3,8 @@
     {% set heading_caption = add_context_data.component_form_data["add_context"] %}
   {% elif add_context_data.field == "guidance" %}
     {% set heading_caption = add_context_data.field %}
+  {% elif add_context_data.field == "condition_depends_on" %}
+    {% set heading_caption = "condition" %}
   {% else %}
     {% set heading_caption = add_context_data.field.lower() %}
   {% endif %}

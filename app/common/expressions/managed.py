@@ -17,6 +17,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovDateInput,
     GovRadioInput,
     GovSubmitInput,
+    GovTextArea,
     GovTextInput,
 )
 from markupsafe import Markup
@@ -278,7 +279,7 @@ class GreaterThan(ManagedExpression):
             "greater_than_expression": StringField(
                 "Minimum value",
                 default=expression.context.get("minimum_expression") or "" if expression else "",  # type: ignore[arg-type]
-                widget=GovTextInput(),
+                widget=GovTextArea(),
             ),
             "greater_than_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
@@ -369,7 +370,7 @@ class LessThan(ManagedExpression):
             "less_than_expression": StringField(
                 "Maximum value",
                 default=expression.context.get("maximum_expression") or "" if expression else "",  # type: ignore[arg-type]
-                widget=GovTextInput(),
+                widget=GovTextArea(),
             ),
             "less_than_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
@@ -474,7 +475,7 @@ class Between(ManagedExpression):
             "between_bottom_of_range_expression": StringField(
                 "Minimum value",
                 default=expression.context.get("minimum_expression") or "" if expression else "",  # type: ignore[arg-type]
-                widget=GovTextInput(),
+                widget=GovTextArea(),
             ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the minimum value is allowed",
@@ -490,7 +491,7 @@ class Between(ManagedExpression):
             "between_top_of_range_expression": StringField(
                 "Maximum value",
                 default=expression.context.get("maximum_expression") or "" if expression else "",  # type: ignore[arg-type]
-                widget=GovTextInput(),
+                widget=GovTextArea(),
             ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the maximum value is allowed",
@@ -817,7 +818,7 @@ class IsBefore(ManagedExpression):
             "latest_expression": StringField(
                 "Latest date",
                 default=cast(str, expression.context.get("latest_expression") or "" if expression else ""),
-                widget=GovTextInput(),
+                widget=GovTextArea(),
             ),
             "latest_inclusive": BooleanField(
                 "An answer of exactly the latest date is allowed",
@@ -931,7 +932,7 @@ class IsAfter(ManagedExpression):
             "earliest_expression": StringField(
                 "Earliest date",
                 default=cast(str, expression.context.get("earliest_expression") or "" if expression else ""),
-                widget=GovTextInput(),
+                widget=GovTextArea(),
             ),
             "earliest_inclusive": BooleanField(
                 "An answer of exactly the earliest date is allowed",
@@ -1076,7 +1077,7 @@ class BetweenDates(ManagedExpression):
             "between_bottom_of_range_expression": StringField(
                 "Earliest date",
                 default=expression.context.get("earliest_expression") or "" if expression else "",  # type: ignore[arg-type]
-                widget=GovTextInput(),
+                widget=GovTextArea(),
             ),
             "between_bottom_inclusive": BooleanField(
                 "An answer of exactly the earliest date is allowed",
@@ -1097,7 +1098,7 @@ class BetweenDates(ManagedExpression):
             "between_top_of_range_expression": StringField(
                 "Latest date",
                 default=expression.context.get("latest_expression") or "" if expression else "",  # type: ignore[arg-type]
-                widget=GovTextInput(),
+                widget=GovTextArea(),
             ),
             "between_top_inclusive": BooleanField(
                 "An answer of exactly the latest date is allowed",

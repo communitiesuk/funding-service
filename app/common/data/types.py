@@ -129,6 +129,7 @@ class TasklistSectionStatusEnum(enum.StrEnum):
     IN_PROGRESS = "In progress"
     COMPLETED = "Completed"
     NO_QUESTIONS = "No questions"
+    NOT_NEEDED = "Not needed"
 
 
 class SubmissionEventType(enum.StrEnum):

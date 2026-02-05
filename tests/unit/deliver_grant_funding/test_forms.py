@@ -331,7 +331,7 @@ class TestSelectDataSourceQuestionForm:
             form=text_question.form,
             interpolate=SubmissionHelper.get_interpolator(collection=text_question.form.collection),
             current_component=integer_questions[2],
-            expression=True,
+            limit="component_data_type",
         )
 
         assert len(form.question.choices) == 3
@@ -358,11 +358,45 @@ class TestSelectDataSourceQuestionForm:
             form=group.form,
             interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
             current_component=integer_q4,
-            expression=True,
+            limit="component_data_type",
         )
 
         assert len(form.question.choices) == 3
         assert {q[0] for q in form.question.choices} == {"", str(integer_q1.id), str(integer_q2.id)}
+
+    def test_limit_for_selecting_a_condition_data_reference_can_be_any_valid_expression_data_type(
+        self, app, factories, mocker
+    ):
+        integer_q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
+        integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.NUMBER)
+        yesno_q = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.YES_NO)
+        text_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+
+        group = factories.group.build(
+            form=integer_q1.form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        integer_q3 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
+        integer_q4 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
+
+        all_questions = [integer_q1, yesno_q, integer_q2, text_question, integer_q3, integer_q4]
+
+        mocker.patch.object(group.form, "cached_questions", all_questions)
+        mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
+
+        form = SelectDataSourceQuestionForm(
+            form=group.form,
+            interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+            current_component=integer_q4,
+            limit="any_expression_data_type",
+        )
+
+        assert len(form.question.choices) == 4
+        assert {q[0] for q in form.question.choices} == {
+            "",
+            str(integer_q1.id),
+            str(yesno_q.id),
+            str(integer_q2.id),
+        }
 
 
 class TestPlatformAdminCreateCertifiersForm:

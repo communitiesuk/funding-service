@@ -1,5 +1,5 @@
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -34,7 +34,7 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.registry import get_supported_form_questions
+from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
@@ -573,25 +573,31 @@ class SelectDataSourceQuestionForm(FlaskForm):
         form: Form,
         interpolate: Callable[[str], str],
         current_component: TOptional[Component],
-        expression: bool = False,
         *args: Any,
         parent_component: TOptional[Group] = None,
+        limit: TOptional[Literal["component_data_type", "any_expression_data_type"]] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        # If we're editing an existing question, then only list questions that are "before" this one in the form.
-        # If it's not an existing question, then it gets added to the end of the form, so all questions are "before".
 
-        # TODO: when using this for conditions and validation, we also need to filter the 'available' questions
-        # based on the usable data types. Also below in SelectDataSourceQuestionForm. Think about if we can
-        # centralise this logic sensibly.
-        referenceable_questions = get_referenceable_questions(form, current_component, parent_component)
+        limit_to_data_type: TOptional[set[QuestionDataType]] = (
+            {current_component.data_type}
+            if limit == "component_data_type" and current_component and current_component.data_type
+            else get_registered_data_types()
+            if limit == "any_expression_data_type"
+            else None
+        )
+
+        referenceable_questions = get_referenceable_questions(
+            form,
+            current_component if current_component and current_component.form == form else None,
+            parent_component if parent_component and parent_component.form == form else None,
+            limit_to_data_type=limit_to_data_type,
+        )
 
         if referenceable_questions:
-            self.question.choices = [("", "")] + [
-                (str(question.id), interpolate(question.text))
-                for question in referenceable_questions
-                if (not expression or question.data_type == current_component.data_type)  # type: ignore[assignment, union-attr]
+            self.question.choices = [("", "")] + [  # type: ignore[assignment]
+                (str(question.id), interpolate(question.text)) for question in referenceable_questions
             ]
 
 
@@ -652,27 +658,6 @@ class AddSectionForm(FlaskForm):
         validators=[DataRequired("Enter a name for the section")],
     )
     submit = SubmitField("Add section", widget=GovSubmitInput())
-
-
-class ConditionSelectQuestionForm(FlaskForm):
-    question = SelectField(
-        "Which answer should the condition check?",
-        choices=[],
-        validators=[DataRequired("Select a question")],
-        widget=MHCLGAccessibleAutocomplete(),
-    )
-    submit = SubmitField("Continue", widget=GovSubmitInput())
-
-    def __init__(self, *args, current_component: Component, interpolate: Callable[[str], str], **kwargs):  # type: ignore[no-untyped-def]
-        super().__init__(*args, **kwargs)
-
-        self.target_question = current_component
-
-        if len(get_supported_form_questions(current_component)) > 0:
-            self.question.choices = [("", "")] + [  # type: ignore[assignment]
-                (str(question.id), f"{interpolate(question.text)} ({question.name})")
-                for question in get_supported_form_questions(current_component)
-            ]
 
 
 class AddGuidanceForm(FlaskForm):

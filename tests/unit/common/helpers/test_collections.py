@@ -501,7 +501,7 @@ class TestSubmissionHelper:
             assert all_answered is True
 
     class TestStatuses:
-        def test_all_forms_are_completed(self, db_session, factories):
+        def test_all_needed_forms_are_completed(self, db_session, factories):
             form_one = factories.form.build()
             form_two = factories.form.build(collection=form_one.collection)
             question_one = factories.question.build(form=form_one)
@@ -511,7 +511,8 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             # empty collections are not completed
-            assert helper.all_forms_are_completed is False
+            assert helper.all_needed_forms_are_completed is False
+            del helper.all_needed_forms_are_completed
 
             submission.data[str(question_one.id)] = "User submitted data"
             helper.cached_get_answer_for_question.cache_clear()
@@ -525,16 +526,15 @@ class TestSubmissionHelper:
             ]
 
             # one complete form and one incomplete is still not completed
-            assert helper.all_forms_are_completed is False
+            assert helper.all_needed_forms_are_completed is False
 
             submission.data[str(question_two.id)] = "User submitted data"
             helper.cached_get_answer_for_question.cache_clear()
             helper.cached_get_all_questions_are_answered_for_form.cache_clear()
-            del helper.all_forms_are_completed
 
             # all questions complete but a form not marked as completed is still not completed
-            assert helper.all_forms_are_completed is False
-            del helper.all_forms_are_completed
+            assert helper.all_needed_forms_are_completed is False
+            del helper.all_needed_forms_are_completed
 
             submission.events.append(
                 factories.submission_event.build(
@@ -545,7 +545,7 @@ class TestSubmissionHelper:
             )
 
             # all questions answered and all marked as complete is complete
-            assert helper.all_forms_are_completed is True
+            assert helper.all_needed_forms_are_completed is True
 
     class TestIsOverdue:
         def test_is_overdue_no_deadline(self, factories):

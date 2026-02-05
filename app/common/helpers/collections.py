@@ -229,7 +229,7 @@ class SubmissionHelper:
         elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
         elif (
-            {TasklistSectionStatusEnum.COMPLETED} == form_statuses
+            form_statuses <= {TasklistSectionStatusEnum.COMPLETED, TasklistSectionStatusEnum.NOT_NEEDED}
             and (
                 self.is_preview
                 or not self.submission.collection.requires_certification
@@ -360,11 +360,6 @@ class SubmissionHelper:
             all_answered=all(question_answer_status), some_answered=any(question_answer_status)
         )
 
-    @cached_property
-    def all_forms_are_completed(self) -> bool:
-        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
-        return {TasklistSectionStatusEnum.COMPLETED} == form_statuses
-
     def get_referenced_forms_with_unanswered_references(self, form: "Form") -> list["Form"]:
         """Returns a list of forms referenced by this form where required data doesn't exist yet."""
         unsatisfied_forms: dict[uuid.UUID, "Form"] = {}
@@ -385,6 +380,11 @@ class SubmissionHelper:
         unsatisfied_forms = self.get_referenced_forms_with_unanswered_references(form)
         return len(unsatisfied_forms) == 0
 
+    @cached_property
+    def all_needed_forms_are_completed(self) -> bool:
+        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
+        return form_statuses <= {TasklistSectionStatusEnum.COMPLETED, TasklistSectionStatusEnum.NOT_NEEDED}
+
     def get_tasklist_status_for_form(self, form: Form) -> TasklistSectionStatusEnum:
         if len(form.cached_questions) == 0:
             return TasklistSectionStatusEnum.NO_QUESTIONS
@@ -401,6 +401,10 @@ class SubmissionHelper:
             return TasklistSectionStatusEnum.COMPLETED
         elif form_questions_answered.some_answered:
             return TasklistSectionStatusEnum.IN_PROGRESS
+        elif len(
+            self.cached_get_ordered_visible_questions(form)
+        ) == 0 and not self.get_referenced_forms_with_unanswered_references(form):
+            return TasklistSectionStatusEnum.NOT_NEEDED
         else:
             return TasklistSectionStatusEnum.NOT_STARTED
 
@@ -524,7 +528,7 @@ class SubmissionHelper:
         if self.is_submitted:
             return
 
-        if not self.all_forms_are_completed:
+        if not self.all_needed_forms_are_completed:
             raise ValueError(f"Could not submit submission id={self.id} because not all forms are complete.")
 
         if self.is_live:
@@ -584,7 +588,7 @@ class SubmissionHelper:
 
         SubmissionValidator(self).validate_all_reachable_questions()
 
-        if self.all_forms_are_completed:
+        if self.all_needed_forms_are_completed:
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, user=user
             )

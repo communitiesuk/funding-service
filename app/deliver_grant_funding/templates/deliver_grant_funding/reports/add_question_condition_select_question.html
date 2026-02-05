@@ -15,24 +15,6 @@
       <h1 class="govuk-heading-l">Add a condition</h1>
 
       {% include "deliver_grant_funding/reports/_add_question_condition_context.html" %}
-
-      {% if not form.question.choices %}
-        <p class="govuk-body">There are no questions in this form that can be used as a condition.</p>
-      {% else %}
-        <form method="post" novalidate>
-          {{ form.csrf_token }}
-          {{
-            form.question(params={
-              "label": {
-                "text": "What answer should the condition check?",
-                "classes": "govuk-label--m",
-                "isPageHeading": false
-              },
-            })
-          }}
-          {{ form.submit }}
-        </form>
-      {% endif %}
     </div>
   </div>
 {% endblock content %}

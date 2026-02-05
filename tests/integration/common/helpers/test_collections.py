@@ -459,7 +459,7 @@ class TestSubmissionHelper:
             form = factories.form.create()
             submission = factories.submission.create(collection=form.collection)
             helper = SubmissionHelper(submission)
-            assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.NOT_STARTED
+            assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.NOT_NEEDED
             assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.NO_QUESTIONS
 
         def test_submission_status_based_on_forms(self, db_session, factories, mock_notification_service_calls):

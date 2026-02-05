@@ -6,11 +6,10 @@
         enum.tasklist_section_status.CANNOT_START_YET: "govuk-task-list__status--cannot-start-yet",
         enum.tasklist_section_status.NOT_STARTED: "govuk-tag--grey",
         enum.tasklist_section_status.IN_PROGRESS: "govuk-tag--light-blue",
-        enum.tasklist_section_status.COMPLETED: "govuk-tag--green",
         enum.tasklist_section_status.NO_QUESTIONS: "govuk-tag--red",
     }
   %}
-  {% if status == enum.tasklist_section_status.COMPLETED %}
+  {% if status == enum.tasklist_section_status.COMPLETED or status == enum.tasklist_section_status.NOT_NEEDED %}
     {{ status }}
   {% elif status == enum.tasklist_section_status.CANNOT_START_YET %}
     <div class="{{ classMap[status] }}">{{ status }}</div>

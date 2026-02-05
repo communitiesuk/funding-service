@@ -59,6 +59,19 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
     data_source: ExpressionContext.ContextSources | None = None
 
 
+class AddConditionDependsOnSessionModel(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    field: Literal["condition_depends_on"] = "condition_depends_on"
+    component_id: UUID
+    parent_id: UUID | None = None
+
+    collection_id: UUID | None = None
+    form_id: UUID | None = None
+
+    data_source: ExpressionContext.ContextSources | None = None
+
+
 class AddContextToExpressionsModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 

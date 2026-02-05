@@ -25,18 +25,16 @@ def start_previewing_collection(collection: Collection, form: Form | None = None
     session.pop("test_submission_form_id", None)
     if form:
         question = helper.get_first_question_for_form(form)
-        if not question:
-            raise RuntimeError("Form with no question")
-
-        session["test_submission_form_id"] = form.id
-        return redirect(
-            url_for(
-                "deliver_grant_funding.ask_a_question",
-                grant_id=collection.grant_id,
-                submission_id=helper.submission.id,
-                question_id=question.id,
+        if question:
+            session["test_submission_form_id"] = form.id
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.ask_a_question",
+                    grant_id=collection.grant_id,
+                    submission_id=helper.submission.id,
+                    question_id=question.id,
+                )
             )
-        )
 
     return redirect(
         url_for(

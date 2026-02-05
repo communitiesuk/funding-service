@@ -1,4 +1,14 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% if not depends_on_question %}
+  {% set depends_on_html %}
+    <form method="post" novalidate>
+      {{ form.csrf_token }}
+      <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">Reference data</button>
+    </form>
+  {% endset %}
+{% endif %}
+
 <h2 class="govuk-heading-m">Condition</h2>
 {{
   govukSummaryList({
@@ -7,7 +17,7 @@
       "value": { "text": interpolate(component.text) },
     }, {
       "key": { "text": "Depends on the answer to" },
-      "value": { "text": "(Not selected)" if not depends_on_question else interpolate(depends_on_question.text, with_interpolation_highlighting=True) },
+      "value": { "html": depends_on_html } if not depends_on_question else { "text": interpolate(depends_on_question.text, with_interpolation_highlighting=True) },
     }],
     "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
   })
