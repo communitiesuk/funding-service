@@ -453,6 +453,48 @@ class Component(BaseModel):
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.CONDITION]
 
     @property
+    def full_condition_chain(self) -> list[Expression]:
+        """Returns a list of all of the conditions that this question depends on, eg:
+
+        Q1 has no conditions (always asked)
+        Q2 depends on Q1
+        Q3 depends on Q2
+
+        Q3.full_condition_chain == [Q3.condition, Q2.condition]
+        """
+        visited = set()
+        conditions = []
+
+        def _fetch_dependent_conditions(component: Component) -> None:
+            visited.add(component)
+            conditions.extend(component.conditions)
+            for ocr in component.owned_component_references:
+                if (
+                    ocr.depends_on_component
+                    and ocr.depends_on_component != component
+                    and ocr.depends_on_component not in visited
+                ):
+                    _fetch_dependent_conditions(ocr.depends_on_component)
+
+        _fetch_dependent_conditions(self)
+
+        return conditions
+
+    @property
+    def all_conditional_depended_on_components(self) -> set[Component]:
+        """
+        Returns a set of all components that this question depends on, walking up the full condition chain.
+        """
+        all_conditional_depended_on_components = {
+            expr.component_references[0].component for expr in self.full_condition_chain if expr.component_references
+        }
+        return all_conditional_depended_on_components
+
+    @property
+    def is_conditional(self) -> bool:
+        return len(self.full_condition_chain) > 0
+
+    @property
     def validations(self) -> list[Expression]:
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.VALIDATION]
 

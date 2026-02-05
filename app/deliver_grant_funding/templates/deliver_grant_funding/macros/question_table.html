@@ -29,7 +29,7 @@
       {% else %}
         {{ interpolate(question.text, with_interpolation_highlighting=True) }}
       {% endif %}
-      {% if role_can_edit and question.conditions %}
+      {% if role_can_edit and question.is_conditional %}
         {{
           govukTag({
             "text": "Conditional",
