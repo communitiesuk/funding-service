@@ -184,6 +184,134 @@ class TestEvaluate:
         assert result is True
 
 
+class TestCustomExpressions:
+    def test_custom_expressions_less_than(self):
+        assert (
+            evaluate(
+                Expression(statement="value1 < value2"),
+                context=ExpressionContext({"value1": Decimal("0.25"), "value2": Decimal("1.25")}),
+            )
+            is True
+        )
+        assert (
+            evaluate(
+                Expression(statement="value1 < value2"),
+                context=ExpressionContext({"value1": Decimal("6"), "value2": Decimal("1.25")}),
+            )
+            is False
+        )
+
+    def test_custom_expressions_greater_than(self):
+        assert (
+            evaluate(
+                Expression(statement="value1 > value2"),
+                context=ExpressionContext({"value1": Decimal("0.25"), "value2": Decimal("1.25")}),
+            )
+            is False
+        )
+        assert (
+            evaluate(
+                Expression(statement="value1 > value2"),
+                context=ExpressionContext({"value1": Decimal("6"), "value2": Decimal("1.25")}),
+            )
+            is True
+        )
+
+    def test_custom_expressions_add(self):
+        assert (
+            evaluate(
+                Expression(statement="value1 + value2 > 10"),
+                context=ExpressionContext({"value1": Decimal("0.25"), "value2": Decimal("1.25")}),
+            )
+            is False
+        )
+        assert (
+            evaluate(
+                Expression(statement="value1 + value2 <= 6.25"),
+                context=ExpressionContext({"value1": Decimal("6"), "value2": Decimal("0.25")}),
+            )
+            is True
+        )
+
+    def test_custom_expressions_subtract(self):
+        assert (
+            evaluate(
+                Expression(statement="value1 - value2 > 10"),
+                context=ExpressionContext({"value1": Decimal("23"), "value2": Decimal("18.25")}),
+            )
+            is False
+        )
+        assert (
+            evaluate(
+                Expression(statement="value1 - value2 <= 6.25"),
+                context=ExpressionContext({"value1": Decimal("6"), "value2": Decimal("0.25")}),
+            )
+            is True
+        )
+
+    def test_custom_expressions_kitchen_sink(self, mocker):
+        # TODO this doesn't work - arrays not allowed??
+        expr = Expression(statement="value1 - value2 > (value3 * value4)")
+
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"sum": sum},
+        )
+        assert (
+            evaluate(
+                expr,
+                context=ExpressionContext(
+                    {
+                        "value1": Decimal("23"),
+                        "value2": Decimal("18.25"),
+                        "value3": Decimal("3"),
+                        "value4": Decimal("2"),
+                    }
+                ),
+            )
+            is False
+        )
+        expr = Expression(statement="value1 / value2 > (value3 * value4)/6")
+
+        mocker.patch(
+            "app.common.data.models.Expression.required_functions",
+            new_callable=PropertyMock,
+            return_value={"sum": sum},
+        )
+        assert (
+            evaluate(
+                expr,
+                context=ExpressionContext(
+                    {
+                        "value1": Decimal("16"),
+                        "value2": Decimal("2"),
+                        "value3": Decimal("3"),
+                        "value4": Decimal("2"),
+                    }
+                ),
+            )
+            is True
+        )
+
+    def test_custom_sum_function(self):
+        # Need to allow sum as a function
+        assert (
+            evaluate(
+                Expression(statement="sum(all_answers_to_q1) > 10"),
+                context=ExpressionContext({"all_answers_to_q1": [1, 2, 3, 4]}),
+            )
+            is False
+        )
+        assert (
+            evaluate(
+                Expression(statement="sum(all_answers_to_q1) >= 10"),
+                context=ExpressionContext({"all_answers_to_q1": [1, 2, 3, 4]}),
+            )
+            is True
+        )
+
+
 class TestInterpolate:
     def test_no_interpolation_patterns(self):
         assert interpolate("This is plain text with no patterns", None) == "This is plain text with no patterns"
