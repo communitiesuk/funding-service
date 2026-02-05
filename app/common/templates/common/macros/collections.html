@@ -337,7 +337,7 @@
             {% set link_href = None %}
             {% set blocking_sections = submission.get_referenced_forms_with_unanswered_references(form) %}
             {% set hint_html %}
-              <span class="govuk-hint govuk-!-margin-bottom-0">Complete {{ blocking_sections | map(attribute='title') | comma_join_items }} first</span>
+              <span class="govuk-hint govuk-!-margin-bottom-0">Requires answers from {{ blocking_sections | map(attribute='title') | comma_join_items }}</span>
             {% endset %}
           {% else %}
             {% set first_question = submission.get_first_question_for_form(form) %}
