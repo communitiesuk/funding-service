@@ -1,0 +1,18 @@
+<div class="govuk-form-group">
+  {% if not form.greater_than_expression.data %}
+    {% set addDataButton %}
+      {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_expression"}) }}
+    {% endset %}
+
+    {{ form.custom_expression(params={ "formGroup": {"afterInput": {"html": addDataButton } } }) }}
+  {% else %}
+    {% set removeDataButton %}
+      {{ form.remove_context(params={"html": "Remove data <span class='govuk-visually-hidden'>reference for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_expression"}) }}
+    {% endset %}
+    <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-20">
+      <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+      {{ form.custom_expression(params={"classes": "govuk-!-margin-bottom-0", "attributes": {"data-context-aware-editor-target": "", "readonly": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": removeDataButton }}
+      }) }}
+    </div>
+  {% endif %}
+</div>

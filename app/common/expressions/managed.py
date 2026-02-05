@@ -229,6 +229,70 @@ class BottomOfRangeIsLower:
 
 
 @register_managed_expression
+class Custom(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CUSTOM
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/custom.html"
+    )
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    custom_expression: str
+
+    @property
+    def description(self) -> str:
+        return "Custom expression"
+
+    @property
+    def message(self) -> str:
+        return "Custom expression"
+
+    @property
+    def statement(self) -> str:
+        return f"{self.safe_qid} {self.custom_expression}"
+
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        # if self.minimum_expression:
+        #     if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
+        #         return [question_id]
+        return []
+
+    @staticmethod
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+        return {
+            "custom_expression": StringField(
+                "Expression",
+                default=expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextArea(),
+            ),
+            "add_context": StringField(
+                "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
+                widget=GovSubmitInput(),
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: _ManagedExpressionForm) -> None:
+        form.custom_expression.validators = (  # ty: ignore[unresolved-attribute]
+            [InputRequired("Enter the custom expression")]
+        )
+
+    @staticmethod
+    def build_from_form(
+        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+    ) -> Custom:
+        return Custom(question_id=question.id, custom_expression=form.custom_expression.data)
+
+
+@register_managed_expression
 class GreaterThan(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.GREATER_THAN
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
