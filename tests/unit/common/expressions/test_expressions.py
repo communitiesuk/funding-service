@@ -311,6 +311,17 @@ class TestCustomExpressions:
             is True
         )
 
+    def test_custom_function_breaks(self):
+        assert (
+            evaluate(
+                Expression(statement="all_answers_to_q1"),
+                context=ExpressionContext({"all_answers_to_q1": "print('hello')"}),
+            )
+            is False
+        )
+
+        assert True is False
+
 
 class TestInterpolate:
     def test_no_interpolation_patterns(self):

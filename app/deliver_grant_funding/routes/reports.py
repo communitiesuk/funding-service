@@ -3,6 +3,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
+import simpleeval
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
@@ -70,6 +71,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import _ManagedExpressionForm, build_managed_expression_form
+from app.common.expressions.managed import Custom
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
@@ -2129,10 +2131,21 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         return redirect(request.url)
 
     if form and form.validate_on_submit():
+        print("edit")
         # todo: any time we're dealing with the dependant component its a question - make sure this makes sense
         updated_managed_expression = form.get_expression(cast("Question", question))
+        print(updated_managed_expression.name)
         try:
+            if updated_managed_expression.name == ManagedExpressionsEnum.CUSTOM.value:
+                cast(Custom, updated_managed_expression).validate_custom_expression_syntax()
             interfaces.collections.update_question_expression(expression, updated_managed_expression)
+        except simpleeval.NameNotDefined as e:
+            form.form_errors.append(f"This name is not defined: {e.name}. ")
+        except simpleeval.FeatureNotAvailable:
+            form.form_errors.append("You can't do this ")
+        except simpleeval.FunctionNotDefined as e:
+            form.form_errors.append(f"This function is not available: {e.func_name}. ")
+
         except DuplicateValueError:
             # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
             #        complain to us about it before we think about a better way of handling it.

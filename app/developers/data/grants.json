@@ -27,6 +27,16 @@
           "type": "monitoring report"
         },
         {
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "557e02cf-d597-446f-9129-aefe17a3f7f6",
+          "name": "Calculations",
+          "requires_certification": true,
+          "slug": "calculations",
+          "status": "Draft",
+          "type": "monitoring report"
+        },
+        {
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
@@ -1164,6 +1174,13 @@
           "title": "Outputs and outcomes"
         },
         {
+          "collection_id": "557e02cf-d597-446f-9129-aefe17a3f7f6",
+          "id": "2f5ec447-d762-4d75-a486-3152ad736c92",
+          "order": 0,
+          "slug": "number-calcs",
+          "title": "Number calcs"
+        },
+        {
           "collection_id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
           "id": "535ac1ba-9d56-4850-a592-89982951c679",
           "order": 0,
@@ -1284,6 +1301,26 @@
           "presentation_options": {},
           "slug": "what-is-the-full-name-of-the-lead-contact-for-this-programme",
           "text": "What is the full name of the lead contact for this programme?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "2f5ec447-d762-4d75-a486-3152ad736c92",
+          "hint": "",
+          "id": "0b7fb919-d350-457c-ad43-b7a547b1ddff",
+          "name": "two",
+          "order": 1,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "number-two-point-oh",
+          "text": "Number two point oh",
           "type": "QUESTION"
         },
         {
@@ -1567,6 +1604,26 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "2f5ec447-d762-4d75-a486-3152ad736c92",
+          "hint": "",
+          "id": "4b97b8b8-c626-41f8-9fb1-6ac652ebcabe",
+          "name": "three",
+          "order": 2,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "number-3",
+          "text": "Number 3",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Website address (URL)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
@@ -1698,6 +1755,25 @@
           },
           "slug": "detail-the-failures-that-you-want-us-to-know-about",
           "text": "Detail the failures that you want us to know about",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "2f5ec447-d762-4d75-a486-3152ad736c92",
+          "hint": "",
+          "id": "78ae447e-9967-4d2a-a621-914d47427e7a",
+          "name": "one",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "number-one",
+          "text": "Number one",
           "type": "QUESTION"
         },
         {

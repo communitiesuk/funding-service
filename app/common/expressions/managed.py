@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
     from app.common.expressions.forms import _ManagedExpressionForm
 
-from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX
+from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, get_safe_evaluator
 
 
 class ManagedExpression(BaseModel, SafeQidMixin):
@@ -275,8 +275,9 @@ class Custom(ManagedExpression):
             #         field_name=field_name,
             #         bad_reference=wrapped_ref,
             #     )
-
-            referenced_question_ids.append(SafeQidMixin.safe_qid_to_id(inner_ref))
+            safe_qid = SafeQidMixin.safe_qid_to_id(inner_ref)
+            if safe_qid:
+                referenced_question_ids.append(safe_qid)
 
         return referenced_question_ids
 
@@ -309,6 +310,16 @@ class Custom(ManagedExpression):
         form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
     ) -> Custom:
         return Custom(question_id=question.id, custom_expression=form.custom_expression.data)
+
+    def validate_custom_expression_syntax(self):
+        names = {}
+        for ref_q in self.expression_referenced_question_ids:
+            # assume these are numbers
+            names[f"q_{ref_q.hex}"] = 1
+        evaluator = get_safe_evaluator(names=names, required_functions={})
+
+        # raise up any exceptions for now to pass back to user as syntax validation errors
+        evaluator.eval(self.custom_expression)
 
 
 @register_managed_expression
