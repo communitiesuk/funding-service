@@ -252,7 +252,7 @@ class Custom(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} {self.custom_expression}"
+        return f"{self.custom_expression}"
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:

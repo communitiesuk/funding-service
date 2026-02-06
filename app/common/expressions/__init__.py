@@ -60,6 +60,7 @@ class ExpressionContext(ChainMap[str, Any]):
     class ContextSources(enum.StrEnum):
         # We actually expose all questions in the collection, but for now we're limited contextual references to
         # just questions in the same section.
+        THIS_QUESTION = "The answer to this question"
         SECTION = "A previous question in this section"
         PREVIOUS_SECTION = "A question in a previous section"
         PREVIOUS_COLLECTION = "A question in a previous collection"
@@ -173,10 +174,11 @@ class ExpressionContext(ChainMap[str, Any]):
     ) -> ExpressionContext:
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
-        assert len(ExpressionContext.ContextSources) == 4, (
+        assert len(ExpressionContext.ContextSources) == 5, (
             "When defining a new source of context for expressions, "
             "update this method and the ContextSourceChoices enum"
         )
+        # TODO update this for new this_question source
 
         if submission_helper and submission_helper.collection.id != collection.id:
             raise ValueError("Mismatch between collection and submission.collection")
