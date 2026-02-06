@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
     from app.common.expressions.forms import _ManagedExpressionForm
 
+from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX
+
 
 class ManagedExpression(BaseModel, SafeQidMixin):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
@@ -256,10 +258,27 @@ class Custom(ManagedExpression):
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
-        # if self.minimum_expression:
-        #     if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
-        #         return [question_id]
-        return []
+        referenced_question_ids: list[UUID] = []
+        for match in INTERPOLATE_REGEX.finditer(self.custom_expression):
+            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
+
+            if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
+                raise InvalidReferenceInExpression(
+                    f"Reference is not valid: {wrapped_ref}",
+                    field_name=field_name,
+                    bad_reference=wrapped_ref,
+                )
+            # TODO some kind of validation to check references are valid for this expression
+            # if not expression_context.is_valid_reference(inner_ref):
+            #     raise InvalidReferenceInExpression(
+            #         f"Reference is not valid: {wrapped_ref}",
+            #         field_name=field_name,
+            #         bad_reference=wrapped_ref,
+            #     )
+
+            referenced_question_ids.append(SafeQidMixin.safe_qid_to_id(inner_ref))
+
+        return referenced_question_ids
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
