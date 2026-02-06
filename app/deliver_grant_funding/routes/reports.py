@@ -62,6 +62,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
+    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
@@ -1156,6 +1157,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                     collection=form.collection, mode="interpolation"
                 ),
                 parent=parent,
+                data_options=QuestionDataOptions.from_question_form(wt_form),
             )
             flash("Question created", FlashMessageType.QUESTION_CREATED)
 
@@ -1510,6 +1512,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
                 name=wt_form.name.data,
                 items=wt_form.normalised_data_source_items,
                 presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
+                data_options=QuestionDataOptions.from_question_form(wt_form),
             )
 
             if "question" in session:

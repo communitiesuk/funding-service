@@ -92,28 +92,33 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
 @pytest.mark.parametrize(
     "value, error_message",
     (
+        # TODO reinstate once we add support for decimal values in expressions
+        #  ("0.001", None),
         (-50, "The answer must be greater than or equal to 0"),
         (-50.0, "The answer must be greater than or equal to 0"),
-        (1_000, "The answer must be less than 100"),
+        (3_000, "The answer must be less than 2000"),
         (50, None),
-        (0, None),
-        (0.2, None),
-        (56.234, None),
-        (99.9999999999, None),
-        (None, "The answer must be a decimal number, like 100.45"),
-        ("abcd", "The answer must be a decimal number, like 100.45"),
+        ("0.002", None),
+        ("0.2", None),
+        ("56.234", None),
+        ("1,000", None),
+        ("1,222.333", None),
+        ("99.9999999999", "The answer cannot be more than 3 decimal places"),
+        ("123.4567", "The answer cannot be more than 3 decimal places"),
+        (None, "The answer must be a number, like 100.5"),
+        ("abcd", "The answer must be a number, like 100.5"),
         ("", "Enter the test_decimal"),
-        (100.10, "The answer must be less than 100"),
-        (1000.45, "The answer must be less than 100"),
-        ("1,000.45", "The answer must be less than 100"),
-        (50000.0, "The answer must be less than 100"),
+        ("2000.10", "The answer must be less than 2000"),
+        ("2000.45", "The answer must be less than 2000"),
+        ("2,000.45", "The answer must be less than 2000"),
+        ("50000.0", "The answer must be less than 2000"),
     ),
 )
 def test_validation_attached_to_field_and_runs__decimal(factories, value, error_message):
     question = factories.question.create(
         id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e8c"),
         data_type=QuestionDataType.NUMBER,
-        data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
+        data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=3),
         name="test_decimal",
     )
     user = factories.user.create()
@@ -121,7 +126,7 @@ def test_validation_attached_to_field_and_runs__decimal(factories, value, error_
         question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True)
     )
     interfaces.collections.add_question_validation(
-        question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
+        question, user, LessThan(question_id=question.id, maximum_value=2000, inclusive=False)
     )
 
     _FormClass = build_question_form(
@@ -134,7 +139,7 @@ def test_validation_attached_to_field_and_runs__decimal(factories, value, error_
         assert valid is False
         assert error_message in form.errors["q_e4bd98ab41ef4d23b1e59c0404891e8c"]
     else:
-        assert valid is True
+        assert valid is True, f"Unexpected validation error: {form.errors}"
 
 
 def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_session):

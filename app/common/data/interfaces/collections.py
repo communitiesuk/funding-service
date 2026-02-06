@@ -45,7 +45,6 @@ from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
     GrantStatusEnum,
-    NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -581,12 +580,8 @@ def create_question(
     parent: Group | None = None,
     items: list[str] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
+    data_options: QuestionDataOptions | None = None,
 ) -> Question:
-    # TODO remove this once decimal support fully implemented in Deliver Grant Funding.
-    #  In the meantime, this ensures any number questions created are integers only
-    temp_data_options = None
-    if data_type == QuestionDataType.NUMBER:
-        temp_data_options = QuestionDataOptions(number_type=NumberTypeEnum.INTEGER)
     question = Question(
         text=text,
         form_id=form.id,
@@ -595,7 +590,7 @@ def create_question(
         name=name,
         data_type=data_type,
         presentation_options=presentation_options,
-        data_options=temp_data_options,
+        data_options=data_options,
         parent_id=parent.id if parent else None,
     )
     owner = parent or form
@@ -1209,6 +1204,7 @@ def update_question(
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
     guidance_body: str | None | TNotProvided = NOT_PROVIDED,
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
+    data_options: QuestionDataOptions | TNotProvided = NOT_PROVIDED,
 ) -> Question:
     if text is not NOT_PROVIDED and text is not None:
         question.text = text
@@ -1234,6 +1230,9 @@ def update_question(
 
     if items is not NOT_PROVIDED and items is not None:
         _update_data_source(question, items)
+
+    if data_options is not NOT_PROVIDED:
+        question.data_options = data_options
 
     _validate_and_sync_component_references(question, expression_context)
     return question

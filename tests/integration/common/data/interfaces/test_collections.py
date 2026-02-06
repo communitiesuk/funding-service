@@ -1228,6 +1228,7 @@ class TestCreateQuestion:
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
         assert question is not None
         assert question.id is not None
@@ -1242,6 +1243,33 @@ class TestCreateQuestion:
         assert question.suffix == "kg"
         assert question.width == "govuk-input--width-3"
         assert question.data_options.number_type == NumberTypeEnum.INTEGER
+
+    def test_decimal(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text="Test Question",
+            hint="Test Hint",
+            name="Test Question Name",
+            data_type=QuestionDataType.NUMBER,
+            expression_context=ExpressionContext(),
+            presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
+        )
+        assert question is not None
+        assert question.id is not None
+        assert question.text == "Test Question"
+        assert question.hint == "Test Hint"
+        assert question.name == "Test Question Name"
+        assert question.data_type == QuestionDataType.NUMBER
+        assert question.order == 0
+        assert question.slug == "test-question"
+        assert question.data_source is None
+        assert question.prefix == "£"
+        assert question.suffix == "kg"
+        assert question.width == "govuk-input--width-3"
+        assert question.data_options.number_type == NumberTypeEnum.DECIMAL
+        assert question.data_options.max_decimal_places == 2
 
     def test_text_multi_line(self, db_session, factories):
         form = factories.form.create()
@@ -1445,7 +1473,7 @@ class TestUpdateQuestion:
         assert updated_question.slug == "updated-question"
         assert updated_question.data_source is None
 
-    def test_integer(self, db_session, factories):
+    def test_number(self, db_session, factories):
         form = factories.form.create()
         question = create_question(
             form=form,
@@ -1455,9 +1483,11 @@ class TestUpdateQuestion:
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
             presentation_options=QuestionPresentationOptions(prefix="£", suffix="kg", width=NumberInputWidths.HUNDREDS),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
         assert question is not None
         assert question.data_options.number_type == NumberTypeEnum.INTEGER
+        assert question.data_options.max_decimal_places is None
 
         updated_question = update_question(
             question=question,
@@ -1468,6 +1498,7 @@ class TestUpdateQuestion:
             presentation_options=QuestionPresentationOptions(
                 prefix="$", suffix="lbs", width=NumberInputWidths.MILLIONS
             ),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
         )
 
         assert updated_question.text == "Updated Question"
@@ -1478,7 +1509,8 @@ class TestUpdateQuestion:
         assert updated_question.prefix == "$"
         assert updated_question.suffix == "lbs"
         assert updated_question.width == "govuk-input--width-5"
-        assert question.data_options.number_type == NumberTypeEnum.INTEGER
+        assert question.data_options.number_type == NumberTypeEnum.DECIMAL
+        assert question.data_options.max_decimal_places == 2
 
     def test_text_multi_line(self, db_session, factories):
         form = factories.form.create()
@@ -2785,7 +2817,7 @@ class TestExpressions:
 
         assert len(from_db.expressions) == 1
         assert from_db.expressions[0].type_ == ExpressionType.CONDITION
-        assert from_db.expressions[0].statement == f"{q0.safe_qid} > 3000"
+        assert from_db.expressions[0].statement == f"{q0.safe_qid} > Decimal('3000')"
 
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
@@ -2919,7 +2951,7 @@ class TestExpressions:
 
         assert len(from_db.expressions) == 1
         assert from_db.expressions[0].type_ == ExpressionType.VALIDATION
-        assert from_db.expressions[0].statement == f"{question.safe_qid} > 3000"
+        assert from_db.expressions[0].statement == f"{question.safe_qid} > Decimal('3000')"
 
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
@@ -2936,7 +2968,7 @@ class TestExpressions:
 
         update_question_expression(question.expressions[0], updated_expression)
 
-        assert question.expressions[0].statement == f"{q0.safe_qid} > 5000"
+        assert question.expressions[0].statement == f"{q0.safe_qid} > Decimal('5000')"
 
     def test_update_anyof_expression(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)

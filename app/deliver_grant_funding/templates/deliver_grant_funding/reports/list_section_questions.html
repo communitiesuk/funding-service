@@ -57,7 +57,7 @@
       {% if not db_form.cached_all_components %}
         <p class="govuk-body">This section has no questions.</p>
       {% else %}
-        {{ question_table(db_form, interpolate, role_can_edit=can_edit) }}
+        {{ question_table(db_form, interpolate, role_can_edit=can_edit, enum=enum) }}
       {% endif %}
 
       {% if can_edit %}

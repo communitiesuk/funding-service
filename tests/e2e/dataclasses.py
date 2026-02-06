@@ -2,7 +2,12 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Literal, NotRequired, TypedDict
 
-from app.common.data.types import GroupDisplayOptions, QuestionDataType, QuestionPresentationOptions
+from app.common.data.types import (
+    GroupDisplayOptions,
+    QuestionDataOptions,
+    QuestionDataType,
+    QuestionPresentationOptions,
+)
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import ManagedExpression
 
@@ -68,6 +73,7 @@ class QuestionDict(TypedDict):
     answers: list[QuestionResponse]
     choices: NotRequired[list[str]]
     options: NotRequired[QuestionPresentationOptions]
+    data_options: NotRequired[QuestionDataOptions]
     guidance: NotRequired[GuidanceText]
     validation: NotRequired[E2EManagedExpression]
     condition: NotRequired[E2EManagedExpression]

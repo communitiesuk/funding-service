@@ -8,6 +8,7 @@ from app.common.forms.validators import (
     AccessGrantFundingEmail,
     CommunitiesEmail,
     FinalOptionExclusive,
+    MaxNumberOfDecimalPlacesValidator,
     URLWithoutProtocol,
     WordRange,
 )
@@ -284,3 +285,24 @@ class TestAccessGrantFundingEmail:
         field.data = user.email
 
         validator(form, field)
+
+
+class TestMaxDecimalPlaces:
+    @pytest.mark.parametrize("input_value", [12, 1, 0, 1.0, 4.5, 2.00, 2.12, 2.09, 99.99])
+    def test_max_decimal_places_valid(self, input_value):
+        validator = MaxNumberOfDecimalPlacesValidator(max_decimal_places=2)
+        form = Mock()
+        field = Mock()
+        field.data = input_value
+
+        validator(form, field)  # Should not raise
+
+    @pytest.mark.parametrize("input_value", [2.123, 4.5678, 1.999, 0.001, 100.555])
+    def test_max_decimal_places_invalid(self, input_value):
+        validator = MaxNumberOfDecimalPlacesValidator(max_decimal_places=2)
+        form = Mock()
+        field = Mock()
+        field.data = input_value
+
+        with pytest.raises(ValidationError, match="The answer cannot be more than 2 decimal places"):
+            validator(form, field)

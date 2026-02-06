@@ -30,7 +30,12 @@ from app.common.forms.fields import (
     MHCLGCheckboxesInput,
     MHCLGRadioInput,
 )
-from app.common.forms.validators import FinalOptionExclusive, URLWithoutProtocol, WordRange
+from app.common.forms.validators import (
+    FinalOptionExclusive,
+    MaxNumberOfDecimalPlacesValidator,
+    URLWithoutProtocol,
+    WordRange,
+)
 from app.metrics import MetricEventName, emit_metric_count
 
 _accepted_fields = (
@@ -199,15 +204,20 @@ def build_question_form(  # noqa: C901
                 )
             case QuestionDataType.NUMBER:
                 if question.data_options.number_type == NumberTypeEnum.DECIMAL:
-                    field = DecimalWithCommasField(
+                    field = DecimalWithCommasField(  # type: ignore[call-overload]
                         label=interpolate(text=question.text, context=interpolation_context),
                         description=interpolate(text=question.hint or "", context=interpolation_context),
-                        widget=GovTextInput(),
-                        validators=[InputRequired(f"Enter the {question.name}")],
-                        places=None,  # TODO are we allowing restriction of decimal places?
+                        places=None,
                         rounding=None,
                         # We are allowing commas for thousands separators but not full locale-aware formatting
                         use_locale=False,
+                        validators=[
+                            InputRequired(f"Enter the {question.name}"),
+                            MaxNumberOfDecimalPlacesValidator(
+                                max_decimal_places=question.data_options.max_decimal_places,  # type: ignore[arg-type]
+                            ),
+                        ],
+                        widget=GovTextInput(),
                     )
                 else:
                     field = IntegerWithCommasField(

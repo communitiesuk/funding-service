@@ -1,6 +1,7 @@
 import logging
 import uuid
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -4587,7 +4588,7 @@ class TestAddQuestionValidation:
             assert session["question"]["field"] == ExpressionType.VALIDATION
             assert session["question"]["expression_form_data"]["between_bottom_of_range_expression"] == ""
             assert session["question"]["expression_form_data"]["between_bottom_inclusive"] is False
-            assert session["question"]["expression_form_data"]["between_top_of_range"] == 100
+            assert session["question"]["expression_form_data"]["between_top_of_range"] == str(Decimal("100"))
 
     def test_post_from_add_context_success_cleans_that_bit_of_session(
         self, authenticated_grant_admin_client, factories, db_session

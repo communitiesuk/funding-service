@@ -595,6 +595,14 @@ class Question(Component, SafeQidMixin):
         return self.data_options.number_type if self.data_type == QuestionDataType.NUMBER else None
 
     @property
+    def max_decimal_places(self) -> int | None:
+        return (
+            self.data_options.max_decimal_places
+            if self.data_type == QuestionDataType.NUMBER and self.data_options.number_type == NumberTypeEnum.DECIMAL
+            else None
+        )
+
+    @property
     def approximate_date(self) -> bool | None:
         return self.presentation_options.approximate_date if self.data_type == QuestionDataType.DATE else None
 

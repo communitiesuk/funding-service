@@ -13,6 +13,7 @@ from app.common.data.types import (
     ManagedExpressionsEnum,
     MultilineTextInputRows,
     NumberInputWidths,
+    NumberTypeEnum,
     QuestionDataType,
     QuestionPresentationOptions,
 )
@@ -998,6 +999,12 @@ class AddQuestionDetailsPage(ReportsBasePage):
 
     def click_is_approximate_date_checkbox(self) -> None:
         self.page.get_by_role("checkbox", name="Ask for an approximate date (month and year only)").click()
+
+    def select_number_type(self, number_type: NumberTypeEnum) -> None:
+        self.page.get_by_role("radio", name=number_type.value).click()
+
+    def fill_max_number_of_decimal_places(self, max_decimal_places: int) -> None:
+        self.page.get_by_role("textbox", name="Maximum number of decimal places").fill(str(max_decimal_places))
 
     def click_submit(self) -> "EditQuestionPage":
         self.page.get_by_role("button", name="Add question").click()

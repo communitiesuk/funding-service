@@ -5,6 +5,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/partials/_advanced_formatting_options.html" import advancedFormattingOptions %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/partials/_question_data_options.html" import questionDataOptions %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
@@ -98,6 +99,7 @@
 
         {# Duplicate the submit button, fully hidden, so that the default action for the form is to submit it (rather than add data to a field) #}
         {{ form.submit(params={"classes": "govuk-!-display-none"}) }}
+        {{ questionDataOptions(form, question.data_type, enum) }}
 
         <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
           <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
