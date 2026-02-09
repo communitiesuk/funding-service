@@ -1270,7 +1270,7 @@ def get_managed_expression(expression: Expression) -> ManagedExpression:
 @register_managed_expression
 class Custom(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CUSTOM
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = set()
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
         "deliver_grant_funding/reports/managed_expressions/custom.html"
@@ -1279,43 +1279,53 @@ class Custom(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    custom_expression: str
-    custom_message: str
+    custom_expression: str | None = None
 
     @property
     def description(self) -> str:
         return "Custom expression"
 
     @property
+    def message(self) -> str:
+        return "Custom expression failed validation"
+
+    @property
     def statement(self) -> str:
         return self.custom_expression
 
     @property
-    def message(self) -> str:
-        return self.custom_message
-
-    @property
     def expression_referenced_question_ids(self) -> list[UUID]:
-        raise NotImplementedError("Custom expression does not implement this - use expression_referenced_items instead")
+        referenced_question_ids: list[UUID] = []
+        for match in INTERPOLATE_REGEX.finditer(self.custom_expression):
+            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
+            # TODO do we validate the references here or is this just a list of things that were referenced?
+            #  If we don't validate here, handle errors from safe_qid_to_id
 
-    @staticmethod
-    def build_from_form(
-        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
-    ) -> Custom:
-        return Custom(
-            question_id=question.id,
-            custom_expression=form.custom_expression.data,  # ty: ignore[unresolved-attribute]
-            custom_message=form.custom_message.data,  # ty: ignore[unresolved-attribute]
-        )
+            safe_qid = SafeQidMixin.safe_qid_to_id(inner_ref)
+            if safe_qid:
+                referenced_question_ids.append(safe_qid)
 
-    # TODO these don't make sense as we have a static custom expression form - at what point do we change the hierarchy?
+        return referenced_question_ids
+
     @staticmethod
     def get_form_fields(
         referenced_question: Question,
         expression: TOptional[Expression] = None,
     ) -> dict[str, Field]:
-        return {}
+        return {
+            "custom_expression": StringField(
+                "Expression",
+                default=expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextArea(),
+                validators=[InputRequired()],
+            ),
+        }
 
     @staticmethod
-    def update_validators(form: _ManagedExpressionForm) -> None:
-        pass
+    def build_from_form(
+        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+    ) -> GreaterThan:
+        return GreaterThan(
+            question_id=question.id,
+            custom_expression=form.custom_expression.data if form.custom_expression.data else None,  # ty: ignore[unresolved-attribute]
+        )
