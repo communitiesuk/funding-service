@@ -3,6 +3,16 @@
     {
       "collections": [
         {
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "011af874-bb1d-453b-8578-56143ae72d7f",
+          "name": "Cheesey Calculations",
+          "requires_certification": true,
+          "slug": "cheesey-calculations",
+          "status": "Draft",
+          "type": "monitoring report"
+        },
+        {
           "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "0b264b13-eacd-4ccc-b187-9fcdb23c8c7a",
@@ -1192,6 +1202,13 @@
           "title": "Cheese"
         },
         {
+          "collection_id": "011af874-bb1d-453b-8578-56143ae72d7f",
+          "id": "817a9aaf-0504-4358-953e-14f4e1fd0441",
+          "order": 0,
+          "slug": "validations",
+          "title": "Validations"
+        },
+        {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "id": "8506d7ef-2421-40d5-b120-daf870e09968",
           "order": 4,
@@ -1567,6 +1584,25 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "817a9aaf-0504-4358-953e-14f4e1fd0441",
+          "hint": "",
+          "id": "4bace2ba-ac2b-41af-a4f6-fea40fd343d9",
+          "name": "Total cheese wheels",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-wheels-of-cheese-all-types-did-you-get-through-in-the-last-quarter",
+          "text": "How many wheels of cheese (all types) did you get through in the last quarter?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Website address (URL)",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
@@ -1594,6 +1630,25 @@
           },
           "slug": "what-is-the-risk-status",
           "text": "What is the risk status?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "817a9aaf-0504-4358-953e-14f4e1fd0441",
+          "hint": "",
+          "id": "5e9ecf73-39d1-45b3-8307-4b4bc80196a0",
+          "name": "Total wheels of Brie",
+          "order": 2,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-wheels-of-brie-did-you-get-through-in-the-last-quarter",
+          "text": "How many wheels of Brie did you get through in the last quarter?",
           "type": "QUESTION"
         },
         {
@@ -2036,6 +2091,25 @@
           "presentation_options": {},
           "slug": "describe-the-role-of-q058d7d3a3e5e4b949a8157882961c59a-in-your-own-words",
           "text": "Describe the role of ((q_058d7d3a3e5e4b949a8157882961c59a)) in your own words",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "817a9aaf-0504-4358-953e-14f4e1fd0441",
+          "hint": "",
+          "id": "dd2ca6aa-3c28-4cb7-b7af-358f1f0091ad",
+          "name": "Total cheddar wheels",
+          "order": 1,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-wheels-of-cheddar-did-you-get-through-in-the-last-quarter",
+          "text": "How many wheels of Cheddar did you get through in the last quarter?",
           "type": "QUESTION"
         },
         {
