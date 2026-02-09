@@ -1,4 +1,6 @@
-{% macro render_managed_expression_form(form, label_html, submit_label) %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+{% macro render_managed_expression_form(form, label_html, submit_label, ff_show_custom_expression_option) %}
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
@@ -16,5 +18,14 @@
     }}
 
     {{ form.submit(params={"text": submit_label}) }}
+    {% if ff_show_custom_expression_option %}
+      {{
+        govukButton({
+          "text": "Create a custom expression",
+          "classes": "govuk-button--secondary",
+          "href":"#"
+        })
+      }}
+    {% endif %}
   </form>
 {% endmacro %}

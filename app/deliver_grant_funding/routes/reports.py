@@ -1961,6 +1961,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     )
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+    ff_show_custom_expression_option = AuthorisationHelper.is_platform_member(get_current_user())
     form = (
         ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ValidationForm
@@ -2021,6 +2022,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         form=form,
         QuestionDataType=QuestionDataType,
         interpolate=SubmissionHelper.get_interpolator(question.form.collection),
+        ff_show_custom_expression_option=ff_show_custom_expression_option,
     )
 
 
@@ -2056,7 +2058,9 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
     form = (
-        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+        ValidationForm(
+            data=add_context_data._prepared_form_data if add_context_data else None, ff_show_custom_expression=False
+        )  # type: ignore[union-attr]
         if ValidationForm
         else None
     )

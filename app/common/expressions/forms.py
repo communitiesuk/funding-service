@@ -26,16 +26,17 @@ class _ManagedExpressionForm(FlaskForm):
     def get_managed_expression_radio_conditional_items(self) -> list[dict[str, dict[str, Markup]]]:
         items = []
         for _managed_expression in self._managed_expressions:
-            # format the radio items for `govuk-frontend-wtf` macro syntax
-            items.append(
-                {
-                    "conditional": {
-                        "html": _managed_expression.concatenate_all_wtf_fields_html(
-                            self, referenced_question=self._referenced_question
-                        )
+            if _managed_expression.name != ManagedExpressionsEnum.CUSTOM.value:
+                # format the radio items for `govuk-frontend-wtf` macro syntax
+                items.append(
+                    {
+                        "conditional": {
+                            "html": _managed_expression.concatenate_all_wtf_fields_html(
+                                self, referenced_question=self._referenced_question
+                            )
+                        }
                     }
-                }
-            )
+                )
         return items
 
     def is_submitted_to_add_context(self) -> bool:
@@ -85,7 +86,9 @@ class _ManagedExpressionForm(FlaskForm):
 
 
 def build_managed_expression_form(  # noqa: C901
-    type_: ExpressionType, referenced_question: Question, expression: Expression | None = None
+    type_: ExpressionType,
+    referenced_question: Question,
+    expression: Expression | None = None,
 ) -> type[_ManagedExpressionForm] | None:
     """
     For a given question, generate a FlaskForm that will allow a user to select one of its managed expressions.
@@ -117,12 +120,15 @@ def build_managed_expression_form(  # noqa: C901
         _managed_expressions = managed_expressions
 
         type = RadioField(
-            choices=[(managed_expression.name, managed_expression.name) for managed_expression in managed_expressions],
+            choices=[
+                (managed_expression.name, managed_expression.name)
+                for managed_expression in managed_expressions
+                if managed_expression.name != ManagedExpressionsEnum.CUSTOM.value
+            ],
             default=expression.managed_name if expression else None,
             validators=[DataRequired(type_validation_message)],
             widget=GovRadioInput(),
         )
-
         submit = SubmitField("Add validation", widget=GovSubmitInput())
 
     for managed_expression in managed_expressions:

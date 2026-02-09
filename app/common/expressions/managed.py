@@ -1265,3 +1265,76 @@ def get_managed_expression(expression: Expression) -> ManagedExpression:
     #       blob? We need to have hardlink references between expressions and the radio items they rely on first (this
     #       would be done in FSPT-673).
     return ExpressionType.validate_python(expression.context)
+
+
+@register_managed_expression
+class Custom(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CUSTOM
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/custom.html"
+    )
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    custom_expression: str | None = None
+
+    @property
+    def description(self) -> str:
+        return "Custom expression"
+
+    @property
+    def message(self) -> str:
+        return "Custom expression failed validation"
+
+    @property
+    def statement(self) -> str:
+        return self.custom_expression
+
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        referenced_question_ids: list[UUID] = []
+        for match in INTERPOLATE_REGEX.finditer(self.custom_expression):
+            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
+            # TODO do we validate the references here or is this just a list of things that were referenced?
+            #  If we don't validate here, handle errors from safe_qid_to_id
+
+            safe_qid = SafeQidMixin.safe_qid_to_id(inner_ref)
+            if safe_qid:
+                referenced_question_ids.append(safe_qid)
+
+        return referenced_question_ids
+
+    @staticmethod
+    def get_form_fields(
+        referenced_question: Question,
+        expression: TOptional[Expression] = None,
+    ) -> dict[str, Field]:
+        return {
+            "custom_expression": StringField(
+                "Expression",
+                default=expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextArea(),
+                validators=[InputRequired()],
+            ),
+        }
+
+    # @staticmethod
+    # def update_validators(form: _ManagedExpressionForm) -> None:
+    #     form.greater_than_value.validators = (  # ty: ignore[unresolved-attribute]
+    #         [InputRequired("Enter the minimum value allowed for this question")]
+    #         if not form.greater_than_expression.data  # ty: ignore[unresolved-attribute]
+    #         else [Optional()]
+    #     )
+    #     form.greater_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
+
+    @staticmethod
+    def build_from_form(
+        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+    ) -> GreaterThan:
+        return GreaterThan(
+            question_id=question.id,
+            custom_expression=form.custom_expression.data if form.custom_expression.data else None,  # ty: ignore[unresolved-attribute]
+        )

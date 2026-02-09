@@ -198,6 +198,7 @@ class ManagedExpressionsEnum(enum.StrEnum):
     IS_AFTER = "Is after"
     BETWEEN_DATES = "Between dates"
     UK_POSTCODE = "UK postcode"
+    CUSTOM = "Custom"
 
 
 class FormRunnerState(enum.StrEnum):
