@@ -32,7 +32,7 @@ def get_engine() -> Engine:
     try:
         # this works with Flask-SQLAlchemy<3 and Alchemical
         return cast(Engine, current_app.extensions["migrate"].db.get_engine())
-    except (TypeError, AttributeError):
+    except TypeError, AttributeError:
         # this works with Flask-SQLAlchemy>=3
         return cast(Engine, current_app.extensions["migrate"].db.engine)
 

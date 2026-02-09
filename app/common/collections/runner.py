@@ -522,17 +522,14 @@ class DGFFormRunner(FormRunner):
             submission_id=runner.submission.id,
             form_id=runner.form.id if runner.form else None,
         ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner,
-        _question,
-        form,
-        source,
-        _add_another_index,
-        _is_removing: url_for(
-            "deliver_grant_funding.check_your_answers",
-            grant_id=runner.submission.grant.id,
-            submission_id=runner.submission.id,
-            form_id=form.id if form else runner.form.id if runner.form else None,
-            source=source,
+        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index, _is_removing: (
+            url_for(
+                "deliver_grant_funding.check_your_answers",
+                grant_id=runner.submission.grant.id,
+                submission_id=runner.submission.id,
+                form_id=form.id if form else runner.form.id if runner.form else None,
+                source=source,
+            )
         ),
     }
 
@@ -555,17 +552,14 @@ class AGFFormRunner(FormRunner):
             grant_id=runner.submission.submission.grant_recipient.grant.id,
             submission_id=runner.submission.id,
         ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner,
-        _question,
-        form,
-        source,
-        _add_another_index,
-        _is_removing: url_for(
-            "access_grant_funding.check_your_answers",
-            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
-            grant_id=runner.submission.submission.grant_recipient.grant.id,
-            submission_id=runner.submission.id,
-            section_id=form.id if form else runner.form.id if runner.form else None,
-            source=source,
+        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index, _is_removing: (
+            url_for(
+                "access_grant_funding.check_your_answers",
+                organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+                grant_id=runner.submission.submission.grant_recipient.grant.id,
+                submission_id=runner.submission.id,
+                section_id=form.id if form else runner.form.id if runner.form else None,
+                source=source,
+            )
         ),
     }
