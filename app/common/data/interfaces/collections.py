@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
 
 from flask import current_app
@@ -1416,6 +1416,19 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             references.append(cr)
         referenced_question_ids = managed.expression_referenced_question_ids
     elif isinstance(managed, Custom):
+        # all the references for a custom expression will come from expression_referenced_question_ids below
+        custom_expr = cast(Custom, managed)
+        expression_references = _find_and_validate_references(
+            component=expression.question,
+            value=custom_expr.custom_expression,
+            expression_context=expression_context,
+            field_name="custom expression",
+            self_reference_allowed=True,
+        )
+        referenced_question_ids = set([ref for c, ref in expression_references])
+        # TODO get references from custom message as well
+        referenced_question_ids = managed.expression_referenced_question_ids
+    elif isinstance(managed, Custom):
         custom_references = _find_and_validate_references(
             component=expression.question,
             value=managed.custom_expression,
@@ -1489,7 +1502,7 @@ def _find_and_validate_references(
     value: str,
     expression_context: ExpressionContext,
     field_name: str,
-    allow_reference_to_self: bool = False,
+    self_reference_allowed: bool = False,
 ) -> set[tuple[UUID, UUID]]:
     references_to_set_up: set[tuple[UUID, UUID]] = set()
     for match in INTERPOLATE_REGEX.finditer(value):
@@ -1515,10 +1528,21 @@ def _find_and_validate_references(
         # same collection - but not necessarily the same form.
         if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
             question = db.session.get_one(Question, question_id)
-            if not is_component_dependency_order_valid(component, question, allow_reference_to_self):
+            if question.form.order > component.form.order:
                 raise InvalidReferenceInExpression(
                     f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                 )
+
+            if question.form_id == component.form_id:
+                # Prevent manually injecting a reference to a question that appears later in the same form
+                if (
+                    not self_reference_allowed
+                    and question.form.global_component_index(question)
+                    == question.form.global_component_index(component)
+                ) or (question.form.global_component_index(question) > question.form.global_component_index(component)):
+                    raise InvalidReferenceInExpression(
+                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
+                    )
 
                 if (
                     question.parent
@@ -1556,7 +1580,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
         _validate_and_sync_expression_references(expression, expression_context)
 
     references_to_set_up: set[tuple[UUID, UUID]] = set()
-    field_names = ["text", "hint", "guidance_body", "add_another_guidance_body"]
+    field_names = ["text", "hint", "guidance_body","add_another_guidance_body"]
     for field_name in field_names:
         value = getattr(component, field_name)
         if value is None:
