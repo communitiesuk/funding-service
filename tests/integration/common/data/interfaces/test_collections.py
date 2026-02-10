@@ -644,7 +644,8 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
     # * Load the forms
     # * Load the questions (components)
     # * Load any recursive questions (components)
-    assert len(queries) == 4
+    # * Load all owned component references to help evaluate conditional question visibility
+    assert len(queries) == 5
 
     # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
     count = 0
@@ -652,6 +653,8 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
         for f in from_db.collection.forms:
             for q in f._all_components:
                 for _e in q.expressions:
+                    count += 1
+                for _ocr in q.owned_component_references:
                     count += 1
 
     assert queries == []
