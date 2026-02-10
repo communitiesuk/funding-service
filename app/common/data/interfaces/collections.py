@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
@@ -1417,14 +1417,21 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             references.append(cr)
         referenced_question_ids = managed.expression_referenced_question_ids
     elif isinstance(managed, Custom):
-        # all the references for a custom expression will come from expression_referenced_question_ids below
-        custom_expr = cast(Custom, managed)
-        expression_references = _find_and_validate_references(
+        custom_references = _find_and_validate_references(
             component=expression.question,
-            value=custom_expr.custom_expression,
+            value=managed.custom_expression,
             expression_context=expression_context,
             field_name="custom expression",
-            self_reference_allowed=True,
+            allow_reference_to_self=True,
+        )
+        custom_references.update(
+            _find_and_validate_references(
+                component=expression.question,
+                value=managed.custom_message,
+                expression_context=expression_context,
+                field_name="custom message",
+                allow_reference_to_self=False,
+            )
         )
         referenced_question_ids = set([ref for c, ref in expression_references])
         # TODO get references from custom message as well
@@ -1440,7 +1447,7 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
         references.append(cr)
         referenced_question_ids = managed.expression_referenced_question_ids
 
-    for referenced_question_id in referenced_question_ids:
+    for referenced_question_id in set(referenced_question_ids):
         referenced_question = get_question_by_id(referenced_question_id)
 
         if not is_component_dependency_order_valid(
@@ -1484,7 +1491,7 @@ def _find_and_validate_references(
     value: str,
     expression_context: ExpressionContext,
     field_name: str,
-    self_reference_allowed: bool = False,
+    allow_reference_to_self: bool = False,
 ) -> set[tuple[UUID, UUID]]:
     references_to_set_up: set[tuple[UUID, UUID]] = set()
     for match in INTERPOLATE_REGEX.finditer(value):
@@ -1510,21 +1517,10 @@ def _find_and_validate_references(
         # same collection - but not necessarily the same form.
         if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
             question = db.session.get_one(Question, question_id)
-            if question.form.order > component.form.order:
+            if not is_component_dependency_order_valid(component, question, allow_reference_to_self):
                 raise InvalidReferenceInExpression(
                     f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                 )
-
-            if question.form_id == component.form_id:
-                # Prevent manually injecting a reference to a question that appears later in the same form
-                if (
-                    not self_reference_allowed
-                    and question.form.global_component_index(question)
-                    == question.form.global_component_index(component)
-                ) or (question.form.global_component_index(question) > question.form.global_component_index(component)):
-                    raise InvalidReferenceInExpression(
-                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
-                    )
 
                 if (
                     question.parent
@@ -1595,7 +1591,9 @@ def add_component_condition(component: Component, user: User, managed_expression
     expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
     component.expressions.append(expression)
 
-    _validate_and_sync_expression_references(expression)
+    _validate_and_sync_expression_references(
+        expression, ExpressionContext.build_expression_context(component.form.collection, "interpolation", component)
+    )
 
     if component.parent and component.parent.same_page:
         raise_if_group_questions_depend_on_each_other(component.parent)
@@ -1629,7 +1627,7 @@ def update_question_expression(expression: Expression, managed_expression: Manag
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
 
-    _validate_and_sync_expression_references(expression)
+    _validate_and_sync_expression_references(expression, ExpressionContext(expression_context=expression.context))
     return expression
 
 
