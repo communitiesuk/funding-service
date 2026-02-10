@@ -155,7 +155,7 @@ def ask_a_question(
             runner.save_add_another()
         elif not runner.add_another_summary_context:
             # todo: always call save, it should check this itself and no-op
-            runner.save_question_answer()
+            runner.save_question_answer(interfaces.user.get_current_user())
 
         return redirect(runner.next_url)
 

@@ -612,7 +612,7 @@ class SubmissionHelper:
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
 
     def submit_answer_for_question(
-        self, question_id: UUID, form: DynamicQuestionForm, *, add_another_index: int | None = None
+        self, question_id: UUID, form: DynamicQuestionForm, user: User, *, add_another_index: int | None = None
     ) -> None:
         if self.is_locked_state:
             raise ValueError(

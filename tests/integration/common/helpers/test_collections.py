@@ -58,7 +58,7 @@ class TestSubmissionHelper:
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294="User submitted data"
             )
-            helper.submit_answer_for_question(question.id, form)
+            helper.submit_answer_for_question(question.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("User submitted data")
 
@@ -80,11 +80,11 @@ class TestSubmissionHelper:
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294=5
             )
-            helper.submit_answer_for_question(question.id, form)
+            helper.submit_answer_for_question(question.id, form, submission.created_by)
             form = build_question_form([question_2], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994295=Decimal("7.6")
             )
-            helper.submit_answer_for_question(question_2.id, form)
+            helper.submit_answer_for_question(question_2.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=5)
             assert helper.cached_get_answer_for_question(question_2.id) == DecimalAnswer(value=Decimal("7.6"))
@@ -99,7 +99,7 @@ class TestSubmissionHelper:
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294=0
             )
-            helper.submit_answer_for_question(question.id, form)
+            helper.submit_answer_for_question(question.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=0)
 
@@ -115,7 +115,11 @@ class TestSubmissionHelper:
             )(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
 
             with pytest.raises(ValueError) as e:
-                helper.submit_answer_for_question(submission_submitted.collection.forms[0].cached_questions[0].id, form)
+                helper.submit_answer_for_question(
+                    submission_submitted.collection.forms[0].cached_questions[0].id,
+                    form,
+                    submission_submitted.created_by,
+                )
 
             assert str(e.value) == AnyStringMatching(
                 "Could not submit answer for question_id=[a-z0-9-]+ "
@@ -425,6 +429,7 @@ class TestSubmissionHelper:
                 build_question_form([question_one], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
 
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
@@ -435,6 +440,7 @@ class TestSubmissionHelper:
                 build_question_form([question_two], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994295="User submitted data"
                 ),
+                submission.created_by,
             )
 
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
@@ -451,6 +457,7 @@ class TestSubmissionHelper:
                 build_question_form([question_three], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994296="User submitted data"
                 ),
+                submission.created_by,
             )
             assert helper.get_status_for_form(form_two) == TasklistSectionStatusEnum.IN_PROGRESS
             assert helper.get_tasklist_status_for_form(form_two) == TasklistSectionStatusEnum.IN_PROGRESS
@@ -493,6 +500,7 @@ class TestSubmissionHelper:
                 build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
@@ -505,6 +513,7 @@ class TestSubmissionHelper:
                 build_question_form([question_two], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994295="User submitted data"
                 ),
+                submission.created_by,
             )
             helper.toggle_form_completed(question_two.form, submission.created_by, True)
 
@@ -572,6 +581,7 @@ class TestSubmissionHelper:
                 build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
             helper.toggle_form_completed(form, submission.created_by, True)
 
@@ -596,6 +606,7 @@ class TestSubmissionHelper:
                 build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
@@ -618,6 +629,7 @@ class TestSubmissionHelper:
                 build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
 
             with pytest.raises(ValueError) as e:
