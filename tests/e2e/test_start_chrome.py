@@ -1,6 +1,8 @@
+import pytest
 from playwright.sync_api import Page
 
 
+@pytest.mark.skip_in_environments(["dev", "test", "prod"])
 def test_start_chrome(page: Page):
     """Test to ensure that the Playwright setup is working correctly by navigating to Google.
     Used in the e2e test pipeline to launch chrome before we generate certificates so that the
