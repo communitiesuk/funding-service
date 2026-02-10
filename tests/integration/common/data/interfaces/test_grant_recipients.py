@@ -331,7 +331,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
         question = factories.question.create(form__collection__grant=grant)
         collection = question.form.collection
 
-        # gr1 has submitted, so should not be in the list
+        # gr1 has sent for certification, not submitted, so should be in the list
         submission1 = factories.submission.create(
             grant_recipient=gr1,
             collection=collection,
@@ -343,9 +343,11 @@ class TestGetGrantRecipientsWithOutstandingReports:
             related_entity_id=collection.forms[0].id,
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
         )
-        factories.submission_event.create(submission=submission1, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+        factories.submission_event.create(
+            submission=submission1, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        )
 
-        # gr2 has sent for certification, not submitted, so should be in the list
+        # gr2 has submitted so should not be in the list
         submission2 = factories.submission.create(
             grant_recipient=gr2,
             collection=collection,
@@ -357,9 +359,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
             related_entity_id=collection.forms[0].id,
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
         )
-        factories.submission_event.create(
-            submission=submission2, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
-        )
+        factories.submission_event.create(submission=submission2, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
 
         # gr3 has had their certification declined, so should be in the list
         submission3 = factories.submission.create(
@@ -386,7 +386,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
         )
 
         assert len(result) == 3
-        assert {gr.organisation_id for gr in result} == {org2.id, org3.id, org4.id}
+        assert {gr.organisation_id for gr in result} == {org1.id, org3.id, org4.id}
 
 
 class TestGetGrantRecipient:

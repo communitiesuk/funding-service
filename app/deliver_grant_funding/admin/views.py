@@ -903,12 +903,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             f"grant-recipients-{grant.name.lower().replace(' ', '-')}-{collection.name.lower().replace(' ', '-')}.csv"
         )
 
-        return send_file(
-            csv_bytes,
-            mimetype="text/csv",
-            as_attachment=True,
-            download_name=filename,
-        )
+        return send_file(csv_bytes, mimetype="text/csv", as_attachment=True, download_name=filename, max_age=1)
 
 
 class PlatformAdminDataAnalysisView(FlaskAdminPlatformAdminDataAnalystAccessibleMixin, BaseView):

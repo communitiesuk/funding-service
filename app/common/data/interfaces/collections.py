@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overloa
 from uuid import UUID
 
 from flask import current_app
-from sqlalchemy import ScalarResult, and_, delete, or_, select, text
+from sqlalchemy import and_, delete, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -305,7 +305,7 @@ def get_all_submissions_with_mode_for_collection(
     *,
     with_full_schema: bool = True,
     with_users: bool = False,
-) -> ScalarResult[Submission]:
+) -> Sequence[Submission]:
     """
     Use this function to get all submission data for a collection - it
     loads all the question/expression/user data at once to optimise
@@ -348,7 +348,7 @@ def get_all_submissions_with_mode_for_collection(
         )
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))
-    return db.session.scalars(stmt).unique()
+    return db.session.scalars(stmt).unique().all()
 
 
 def get_submission_by_grant_recipient_collection(
