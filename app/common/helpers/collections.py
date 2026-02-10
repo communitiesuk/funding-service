@@ -588,6 +588,33 @@ class SubmissionHelper:
 
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
+    def _statuses_for_all_forms(self) -> dict[Form, TasklistSectionStatusEnum]:
+        return {form: self.get_status_for_form(form) for form in self.collection.forms}
+
+    def _emit_submission_events_for_forms_reset_to_in_progress(
+        self, current_form: Form, previous_form_statuses: dict[Form, TasklistSectionStatusEnum], user: User
+    ) -> None:
+        if previous_form_statuses[current_form] == TasklistSectionStatusEnum.COMPLETED:
+            interfaces.collections.add_submission_event(
+                self.submission,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                user=user,
+                related_entity_id=current_form.id,
+            )
+            del previous_form_statuses[current_form]
+
+        for form, old_form_status in previous_form_statuses.items():
+            if (
+                old_form_status == TasklistSectionStatusEnum.COMPLETED
+                and self.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+            ):
+                interfaces.collections.add_submission_event(
+                    self.submission,
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                    user=user,
+                    related_entity_id=form.id,
+                )
+
     def _get_answer_for_question(
         self, question_id: UUID, add_another_index: int | None = None
     ) -> AllAnswerTypes | None:
@@ -621,6 +648,9 @@ class SubmissionHelper:
             )
 
         question = self.get_question(question_id)
+        current_form = self.get_form_for_question(question_id)
+        current_form_statuses = self._statuses_for_all_forms()
+
         data = _form_data_to_question_type(question, form)
         interfaces.collections.update_submission_data(
             self.submission, question, data, add_another_index=add_another_index
@@ -633,6 +663,8 @@ class SubmissionHelper:
         #        I've made it work but not happy with not clearly pointing to where
         #        an instance was failing to route (next_url) appropriately without it
         self.cached_get_ordered_visible_questions.cache_clear()
+
+        self._emit_submission_events_for_forms_reset_to_in_progress(current_form, current_form_statuses, user)
 
     def submit(self, user: User) -> None:
         if self.is_submitted:
