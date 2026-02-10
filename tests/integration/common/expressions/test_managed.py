@@ -11,6 +11,7 @@ from app.common.expressions.managed import (
     AnyOf,
     Between,
     BetweenDates,
+    Custom,
     GreaterThan,
     IsAfter,
     IsBefore,
@@ -753,3 +754,25 @@ class TestUKPostcodeExpression:
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
         expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result
+
+
+class TestCustomExpression:
+    def test_expression_referenced_question_ids(self):
+        with pytest.raises(NotImplementedError):
+            _ = Custom(question_id=uuid.uuid4(), custom_expression="some expression").expression_referenced_question_ids
+
+    #
+    # @pytest.mark.parametrize(
+    #     "expression, expected_references",
+    #     [
+    #         ("((question1)) + ((question2))", ["question1", "question2"]),
+    #         ("((question1)) * 2", ["question1"]),
+    #         ("3.14", []),
+    #         ("(something in brackets) + ((2brackets))", ["2brackets"]),
+    #     ],
+    # )
+    # def test_expression_referenced_items(self, factories, expression, expected_references):
+    #     assert (
+    #         Custom(question_id=uuid.uuid4(), custom_expression=expression).expression_referenced_items
+    #         == expected_references
+    #     )

@@ -23,7 +23,7 @@
             {{ form.add_context_expression(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-6", "value": "custom_expression"}) }}
           {% endset %}
           {% set addDataToMessageButton %}
-            {{ form.add_context_message(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "message"}) }}
+            {{ form.add_context_message(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_message"}) }}
           {% endset %}
 
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
@@ -43,7 +43,7 @@
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
             <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
             {{
-              form.message(params={
+              form.custom_message(params={
               "label": {"classes": "govuk-!-font-weight-bold"},
                 "classes": "govuk-!-margin-bottom-0",
                 "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},

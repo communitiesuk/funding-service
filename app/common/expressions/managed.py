@@ -1280,7 +1280,7 @@ class Custom(ManagedExpression):
 
     question_id: UUID
     custom_expression: str | None = None
-    message: str | None = None
+    custom_message: str | None = None
 
     @property
     def description(self) -> str:
@@ -1291,25 +1291,22 @@ class Custom(ManagedExpression):
         return self.custom_expression
 
     @property
+    def message(self):
+        return self.custom_message
+
+    @property
     def expression_referenced_question_ids(self) -> list[UUID]:
-        referenced_question_ids: list[UUID] = []
-        for match in INTERPOLATE_REGEX.finditer(self.custom_expression):
-            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
-            # TODO do we validate the references here or is this just a list of things that were referenced?
-            #  If we don't validate here, handle errors from safe_qid_to_id
+        raise NotImplementedError("Custom expression does not implement this - use expression_referenced_items instead")
 
-            safe_qid = SafeQidMixin.safe_qid_to_id(inner_ref)
-            if safe_qid:
-                referenced_question_ids.append(safe_qid)
-
-        return referenced_question_ids
-
-    @staticmethod
-    def get_form_fields(
-        referenced_question: Question,
-        expression: TOptional[Expression] = None,
-    ) -> dict[str, Field]:
-        return {}
+    # @property
+    # def expression_referenced_items(self) -> list[str]:
+    #     """Returns an unvalidated list of items referenced in the expression - these should be validated by the caller"""
+    #     referenced_items: list[str] = []
+    #     for match in INTERPOLATE_REGEX.finditer(self.custom_expression):
+    #         wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
+    #         referenced_items.append(inner_ref)
+    #
+    #     return referenced_items
 
     @staticmethod
     def build_from_form(
@@ -1318,4 +1315,17 @@ class Custom(ManagedExpression):
         return GreaterThan(
             question_id=question.id,
             custom_expression=form.custom_expression.data if form.custom_expression.data else None,  # ty: ignore[unresolved-attribute]
+            custom_message=form.custom_message.data if form.custom_message.data else None,  # ty: ignore[unresolved-attribute]
         )
+
+    # TODO these don't make sense as we have a static custom expression form - at what point do we change the hierarchy?
+    @staticmethod
+    def get_form_fields(
+        referenced_question: Question,
+        expression: TOptional[Expression] = None,
+    ) -> dict[str, Field]:
+        return {}
+
+    @staticmethod
+    def update_validators(form: _ManagedExpressionForm) -> None:
+        pass

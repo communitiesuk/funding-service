@@ -150,7 +150,7 @@ class CustomExpressionForm(_ManagedExpressionForm):
         widget=GovTextArea(),
         validators=[InputRequired()],
     )
-    message = StringField(
+    custom_message = StringField(
         "Message",
         description="Shown to the user if the answer is not valid",
         # default=None,  # expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]

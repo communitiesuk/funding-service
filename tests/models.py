@@ -919,6 +919,7 @@ class _ExpressionFactory(SQLAlchemyModelFactory):
     #       makes some kind of sense for the question type
     statement = factory.LazyFunction(_required)
     type_ = factory.LazyFunction(_required)
+    managed_name = factory.LazyAttribute(lambda o: o.type_.value)
 
 
 class _InvitationFactory(SQLAlchemyModelFactory):
