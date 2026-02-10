@@ -15,6 +15,7 @@ from app.common.data.interfaces.collections import (
     IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
+    _find_and_validate_references,
     _validate_and_sync_component_references,
     _validate_and_sync_expression_references,
     add_component_condition,
@@ -95,7 +96,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
+from app.common.expressions.managed import AnyOf, Between, Custom, GreaterThan, LessThan, Specifically
 
 
 class TestGetCollection:
@@ -1558,7 +1559,7 @@ class TestCreateQuestion:
         assert question.data_options == QuestionDataOptions(number_type=None)
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 10, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 9, "Add a new test above if adding a new question type"
 
     def test_question_requires_data_type(self, db_session, factories):
         form = factories.form.create()
@@ -2996,6 +2997,13 @@ class TestIsComponentDependencyOrderValid:
 
         assert is_component_dependency_order_valid(component, dependency) is False
 
+    def test_dependency_in_same_form_referencing_self(self, db_session, factories):
+        form = factories.form.create()
+        component = factories.question.create(form=form)
+
+        assert is_component_dependency_order_valid(component, component, allow_reference_to_self=False) is False
+        assert is_component_dependency_order_valid(component, component, allow_reference_to_self=True) is True
+
 
 class TestExpressions:
     def test_add_question_condition(self, db_session, factories):
@@ -3542,6 +3550,34 @@ class TestValidateAndSyncExpressionReferences:
         assert reference.component == dependent_question
         assert reference.expression == expression
         assert reference.depends_on_component == referenced_question
+
+    def test_creates_component_references_for_custom_expression(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_managed(
+            Custom(
+                question_id=q3.id,
+                custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+                custom_message="Q3 must be less than Q1+Q2",
+            ),
+            ExpressionType.VALIDATION,
+            user,
+        )
+        q3.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+
+        assert len(expression.component_references) == 3
+
+        assert all(ref.component == q3 for ref in expression.component_references)
+        assert all(ref.expression == expression for ref in expression.component_references)
+        assert all(ref.depends_on_component in {q1, q2, q3} for ref in expression.component_references)
 
     def test_raises_not_implemented_for_unmanaged_expression(self, db_session, factories):
         user = factories.user.create()
@@ -4379,3 +4415,56 @@ class TestResetAllTestSubmissions:
         assert len(remaining_test) == 0
         assert len(remaining_live) == 2
         assert len(remaining_live_events) == 2
+
+
+class TestAddQuestionValidationCustomExpression:
+    def test_create_custom_validation_expression_valid(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+        user = factories.user.create()
+        custom_expr = Custom(
+            question_id=q3.id,
+            custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+            custom_message="Q3 must be less than Q1+Q2",
+        )
+
+        collections.add_question_validation(question=q3, user=user, managed_expression=custom_expr)
+
+        q3_from_db = get_question_by_id(q3.id)
+        assert len(q3_from_db.expressions) == 1
+        assert len(q3_from_db.owned_component_references) == 3
+
+
+class TestFindAndValidateReferences:
+    def test_custom_expression_valid_references(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
+        result = _find_and_validate_references(q3, value, context, "custom expression")
+        assert len(result) == 3
+        assert (q3.id, q1.id) in result
+        assert (q3.id, q2.id) in result
+        assert (q3.id, q3.id) in result
+
+    def test_custom_expression_bad_order(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
+        with pytest.raises(InvalidReferenceInExpression) as e:
+            _find_and_validate_references(q2, value, context, "custom expression")
+            assert "Reference is not valid" in str(e)
+            assert e.field_name == "custom expression"
+            assert e.bad_reference == f"(({q3.safe_qid}))"
+
+    def test_custom_expression_bad_reference(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + ((q_bad_ref))"
+        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
+        with pytest.raises(InvalidReferenceInExpression) as e:
+            _find_and_validate_references(q2, value, context, "custom expression")
+            assert "Reference is not valid" in str(e)
+            assert e.field_name == "custom expression"
+            assert e.bad_reference == "((q_bad_ref))"
