@@ -1,6 +1,6 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
-{% macro render_managed_expression_form(form, label_html, submit_label, ff_show_custom_expression_option) %}
+{% macro render_managed_expression_form(form, label_html, submit_label, ff_show_custom_expression_option, grant_id, question_id) %}
   <form method="post" novalidate>
     {{ form.csrf_token }}
 
@@ -23,7 +23,7 @@
         govukButton({
           "text": "Create a custom expression",
           "classes": "govuk-button--secondary",
-          "href":"#"
+          "href": url_for("deliver_grant_funding.add_custom_question_validation", grant_id=grant_id, question_id=question_id)
         })
       }}
     {% endif %}

@@ -1280,14 +1280,11 @@ class Custom(ManagedExpression):
 
     question_id: UUID
     custom_expression: str | None = None
+    message: str | None = None
 
     @property
     def description(self) -> str:
         return "Custom expression"
-
-    @property
-    def message(self) -> str:
-        return "Custom expression failed validation"
 
     @property
     def statement(self) -> str:
@@ -1312,23 +1309,7 @@ class Custom(ManagedExpression):
         referenced_question: Question,
         expression: TOptional[Expression] = None,
     ) -> dict[str, Field]:
-        return {
-            "custom_expression": StringField(
-                "Expression",
-                default=expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
-                widget=GovTextArea(),
-                validators=[InputRequired()],
-            ),
-        }
-
-    # @staticmethod
-    # def update_validators(form: _ManagedExpressionForm) -> None:
-    #     form.greater_than_value.validators = (  # ty: ignore[unresolved-attribute]
-    #         [InputRequired("Enter the minimum value allowed for this question")]
-    #         if not form.greater_than_expression.data  # ty: ignore[unresolved-attribute]
-    #         else [Optional()]
-    #     )
-    #     form.greater_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
+        return {}
 
     @staticmethod
     def build_from_form(

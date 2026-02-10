@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Any
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea
 from markupsafe import Markup
-from wtforms import RadioField, SubmitField
-from wtforms.validators import DataRequired
+from wtforms import RadioField, StringField, SubmitField
+from wtforms.validators import DataRequired, InputRequired
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum
@@ -131,7 +131,7 @@ def build_managed_expression_form(  # noqa: C901
         )
         submit = SubmitField("Add validation", widget=GovSubmitInput())
 
-    for managed_expression in managed_expressions:
+    for managed_expression in [me for me in managed_expressions if me.name != ManagedExpressionsEnum.CUSTOM.value]:
         pass_expression = expression and expression.managed_name == managed_expression.name
         for field_name, field in managed_expression.get_form_fields(
             expression=expression if pass_expression else None, referenced_question=referenced_question
@@ -139,3 +139,30 @@ def build_managed_expression_form(  # noqa: C901
             setattr(ManagedExpressionForm, field_name, field)
 
     return ManagedExpressionForm
+
+
+class CustomExpressionForm(_ManagedExpressionForm):
+    custom_expression = StringField(
+        "Expression",
+        description="The user's answer will be checked against this expression and must be true for the user "
+        "to continue, you can include reference data.",
+        # default=None,  # expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
+        widget=GovTextArea(),
+        validators=[InputRequired()],
+    )
+    message = StringField(
+        "Message",
+        description="Shown to the user if the answer is not valid",
+        # default=None,  # expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
+        widget=GovTextArea(),
+        validators=[InputRequired()],
+    )
+    add_context_expression = StringField(
+        "Reference data",
+        widget=GovSubmitInput(),
+    )
+    add_context_message = StringField(
+        "Reference data",
+        widget=GovSubmitInput(),
+    )
+    submit = SubmitField("Add validation", widget=GovSubmitInput())
