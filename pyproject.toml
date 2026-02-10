@@ -8,7 +8,7 @@ requires-python = "==3.14.2"
 dependencies = [
     "alembic-utils==0.8.8",
     "alembic-postgresql-enum==1.8.0",
-    "babel==2.17.0",
+    "babel==2.18.0",
     "flask==3.1.2",
     "flask-babel==4.0.0",
     "flask-migrate==4.1.0",
@@ -35,7 +35,7 @@ dependencies = [
     "faker==40.1.2",
     "xgovuk-flask-admin==0.1.7",
     "flask-admin==2.0.2",
-    "playwright==1.57.0",
+    "playwright==1.58.0",
 ]
 
 [dependency-groups]
