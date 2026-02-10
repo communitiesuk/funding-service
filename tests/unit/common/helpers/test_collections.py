@@ -1507,6 +1507,34 @@ class TestSubmissionHelper:
                 == ComponentVisibilityState.UNDETERMINED
             )
 
+        def test_returns_hidden_when_any_reference_is_hidden_among_multiple(self, factories):
+            form = factories.form.build()
+            q1 = factories.question.build(form=form, order=0, data_type=QuestionDataType.YES_NO)
+            q2 = factories.question.build(form=form, order=1)
+            q3 = factories.question.build(form=form, order=2)
+            q4 = factories.question.build(form=form, order=2)
+
+            cond_q2 = factories.expression.build(
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'yes'"
+            )
+            q2.owned_component_references = [
+                ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)
+            ]
+
+            factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement="False")
+
+            q4.owned_component_references = [
+                ComponentReference(component=q4, depends_on_component=q2),  # undetermined
+                ComponentReference(component=q4, depends_on_component=q3),  # hidden
+            ]
+            submission = factories.submission.build(collection=form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert (
+                helper.get_component_visibility_state(q4, helper.cached_evaluation_context)
+                == ComponentVisibilityState.HIDDEN
+            )
+
         def test_add_another_chained_undetermined_visibility(self, factories):
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(form=group.form, parent=group)

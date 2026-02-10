@@ -463,6 +463,8 @@ class SubmissionHelper:
         if visited is None:
             visited = set()
 
+        return_status = ComponentVisibilityState.VISIBLE
+
         for ref in component.owned_component_references:
             depends_on = ref.depends_on_component
             if depends_on.id == component.id:
@@ -480,12 +482,14 @@ class SubmissionHelper:
                 depends_on, context, add_another_index=add_another_index, visited=visited
             )
 
+            # If any depended-upon component is hidden, then this one needs to be hidden as well.
             if ref_visibility == ComponentVisibilityState.HIDDEN:
                 return ComponentVisibilityState.HIDDEN
-            else:
-                return ComponentVisibilityState.UNDETERMINED
 
-        return ComponentVisibilityState.VISIBLE
+            # Otherwise we should expect the component status to be undetermined instead of visible.
+            return_status = ComponentVisibilityState.UNDETERMINED
+
+        return return_status
 
     def _get_component_visibility_state_internal(  # noqa: C901
         self,
