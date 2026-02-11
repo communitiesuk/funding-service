@@ -3366,13 +3366,14 @@ class TestValidateAndSyncExpressionReferences:
     def test_creates_component_references_for_custom_expression(self, db_session, factories):
         user = factories.user.create()
         form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+        q0, q1, q2, q3 = factories.question.create_batch(4, form=form, data_type=QuestionDataType.NUMBER)
 
         expression = Expression.from_managed(
             Custom(
                 question_id=q3.id,
                 custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
-                custom_message="Q3 must be less than Q1+Q2",
+                custom_message=f"(({q3.safe_qid})) must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
+                f" and a random reference to (({q0.safe_qid}))",
             ),
             ExpressionType.VALIDATION,
             user,
@@ -3387,11 +3388,11 @@ class TestValidateAndSyncExpressionReferences:
             expression, ExpressionContext.build_expression_context(form.collection, "interpolation", q3)
         )
 
-        assert len(expression.component_references) == 3
+        assert len(expression.component_references) == 4
 
         assert all(ref.component == q3 for ref in expression.component_references)
         assert all(ref.expression == expression for ref in expression.component_references)
-        assert all(ref.depends_on_component in {q1, q2, q3} for ref in expression.component_references)
+        assert all(ref.depends_on_component in {q0, q1, q2, q3} for ref in expression.component_references)
 
     def test_raises_not_implemented_for_unmanaged_expression(self, db_session, factories):
         user = factories.user.create()

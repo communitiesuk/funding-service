@@ -1351,15 +1351,23 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             references.append(cr)
         referenced_question_ids = managed.expression_referenced_question_ids
     elif isinstance(managed, Custom):
-        expression_references = _find_and_validate_references(
+        custom_references = _find_and_validate_references(
             component=expression.question,
             value=managed.custom_expression,
             expression_context=expression_context,
             field_name="custom expression",
             allow_reference_to_self=True,
         )
-        referenced_question_ids = [ref for c, ref in expression_references]
-        # TODO get references from custom message as well
+        custom_references.update(
+            _find_and_validate_references(
+                component=expression.question,
+                value=managed.custom_message,
+                expression_context=expression_context,
+                field_name="custom expression",
+                allow_reference_to_self=True,
+            )
+        )
+        referenced_question_ids = [ref for c, ref in custom_references]
     else:
         # Creates a reference from the expression's question to itself so that we can't delete a question with an
         # expression without deleting the expression first

@@ -759,7 +759,9 @@ class TestUKPostcodeExpression:
 class TestCustomExpression:
     def test_expression_referenced_question_ids(self):
         with pytest.raises(NotImplementedError):
-            _ = Custom(question_id=uuid.uuid4(), custom_expression="some expression").expression_referenced_question_ids
+            _ = Custom(
+                question_id=uuid.uuid4(), custom_expression="some expression", custom_message="a message"
+            ).expression_referenced_question_ids
 
     #
     # @pytest.mark.parametrize(
