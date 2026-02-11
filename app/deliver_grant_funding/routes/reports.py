@@ -69,7 +69,12 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.forms import CustomExpressionForm, _ManagedExpressionForm, build_managed_expression_form
+from app.common.expressions.forms import (
+    ContextAwareAbstractExpressionForm,
+    CustomExpressionForm,
+    _ManagedExpressionForm,
+    build_managed_expression_form,
+)
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
@@ -1017,7 +1022,7 @@ def _extract_add_context_data_from_session(
 
 
 def _store_question_state_and_redirect_to_add_context(
-    form: QuestionForm | AddGuidanceForm | _ManagedExpressionForm,
+    form: QuestionForm | AddGuidanceForm | ContextAwareAbstractExpressionForm,
     grant_id: UUID,
     form_id: UUID,
     question_id: UUID | None = None,
@@ -1047,7 +1052,7 @@ def _store_question_state_and_redirect_to_add_context(
                 parent_id=parent_id,
                 is_add_another_guidance=is_add_another_guidance,
             )
-        case _ManagedExpressionForm():
+        case ContextAwareAbstractExpressionForm():
             add_context_data = AddContextToExpressionsModel(  # type: ignore[call-arg]
                 field=expression_type,  # type: ignore[arg-type]
                 managed_expression_name=managed_expression_name,  # type: ignore[arg-type]
@@ -1389,7 +1394,10 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
             case AddContextToExpressionsModel():
                 if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
                     target_field = add_context_data.expression_form_data["add_context"]
-                    add_context_data.expression_form_data[target_field] = f"(({referenced_question.safe_qid}))"
+                    if add_context_data.managed_expression_name == ManagedExpressionsEnum.CUSTOM.value:
+                        add_context_data.expression_form_data[target_field] += f"(({referenced_question.safe_qid}))"
+                    else:
+                        add_context_data.expression_form_data[target_field] = f"(({referenced_question.safe_qid}))"
 
                 if add_context_data.field == ExpressionType.CONDITION:
                     if not add_context_data.expression_id:
@@ -1407,11 +1415,18 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                         )
                 else:
                     if not add_context_data.expression_id:
-                        return_url = url_for(
-                            "deliver_grant_funding.add_question_validation",
-                            grant_id=grant_id,
-                            question_id=add_context_data.component_id,
-                        )
+                        if add_context_data.managed_expression_name == ManagedExpressionsEnum.CUSTOM.value:  #
+                            return_url = url_for(
+                                "deliver_grant_funding.add_custom_question_validation",
+                                grant_id=grant_id,
+                                question_id=add_context_data.component_id,
+                            )
+                        else:
+                            return_url = url_for(
+                                "deliver_grant_funding.add_question_validation",
+                                grant_id=grant_id,
+                                question_id=add_context_data.component_id,
+                            )
                     else:
                         return_url = url_for(
                             "deliver_grant_funding.edit_question_validation",
@@ -2036,21 +2051,33 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
 def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
 
-    # add_context_data = _extract_add_context_data_from_session(
-    #     session_model=AddContextToExpressionsModel, question_id=question.id
-    # )
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToExpressionsModel, question_id=question.id
+    )
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(
             url_for("deliver_grant_funding.add_question_validation", grant_id=grant_id, question_id=question_id)
         )
-
+    form = CustomExpressionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+    if form and form.is_submitted_to_add_context():
+        form_data = form.get_expression_form_data()
+        return _store_question_state_and_redirect_to_add_context(
+            form=form,
+            grant_id=grant_id,
+            form_id=question.form.id,
+            question_id=question.id,
+            parent_id=question.parent_id,
+            form_data=form_data,
+            expression_type=ExpressionType.VALIDATION,
+            managed_expression_name=ManagedExpressionsEnum.CUSTOM,
+        )
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )
     return render_template(
         "deliver_grant_funding/reports/managed_expressions/custom.html",
-        form=CustomExpressionForm(),
+        form=form,
         question=question,
         grant=question.form.collection.grant,
     )

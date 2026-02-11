@@ -1,3 +1,4 @@
+import abc
 from typing import TYPE_CHECKING, Any
 
 from flask_wtf import FlaskForm
@@ -18,7 +19,24 @@ if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
 
 
-class _ManagedExpressionForm(FlaskForm):
+class ContextAwareAbstractExpressionForm(FlaskForm):
+    def is_submitted_to_add_context(
+        self,
+    ) -> bool:
+        """Check if user clicked any managed expression Reference Data button"""
+        add_context_field = self._fields.get("add_context")
+        return bool(
+            self.is_submitted()
+            and add_context_field is not None
+            and hasattr(add_context_field, "data")
+            and add_context_field.data
+        )
+
+    @abc.abstractmethod
+    def get_expression_form_data(self) -> dict[str, Any]: ...
+
+
+class _ManagedExpressionForm(ContextAwareAbstractExpressionForm):
     _managed_expressions: list[type[ManagedExpression]]
     _referenced_question: Question
     type: RadioField
@@ -38,16 +56,6 @@ class _ManagedExpressionForm(FlaskForm):
                     }
                 )
         return items
-
-    def is_submitted_to_add_context(self) -> bool:
-        """Check if user clicked any managed expression Reference Data button"""
-        add_context_field = self._fields.get("add_context")
-        return bool(
-            self.is_submitted()
-            and add_context_field is not None
-            and hasattr(add_context_field, "data")
-            and add_context_field.data
-        )
 
     def is_submitted_to_remove_context(self) -> bool:
         """Check if user clicked any managed expression Remove Data button"""
@@ -141,7 +149,7 @@ def build_managed_expression_form(  # noqa: C901
     return ManagedExpressionForm
 
 
-class CustomExpressionForm(_ManagedExpressionForm):
+class CustomExpressionForm(ContextAwareAbstractExpressionForm):
     custom_expression = StringField(
         "Expression",
         description="The user's answer will be checked against this expression and must be true for the user "
@@ -155,12 +163,16 @@ class CustomExpressionForm(_ManagedExpressionForm):
         widget=GovTextArea(),
         validators=[InputRequired()],
     )
-    add_context_expression = StringField(
-        "Reference data",
-        widget=GovSubmitInput(),
-    )
-    add_context_message = StringField(
+    add_context = StringField(
         "Reference data",
         widget=GovSubmitInput(),
     )
     submit = SubmitField("Add validation", widget=GovSubmitInput())
+
+    def get_expression_form_data(self) -> dict[str, Any]:
+        data = {
+            "custom_expression": self.custom_expression.data,
+            "custom_message": self.custom_message.data,
+            "add_context": self.add_context.data,
+        }
+        return data
