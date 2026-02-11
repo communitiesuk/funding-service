@@ -1416,7 +1416,6 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             references.append(cr)
         referenced_question_ids = managed.expression_referenced_question_ids
     elif isinstance(managed, Custom):
-        # all the references for a custom expression will come from expression_referenced_question_ids below
         custom_expr = cast(Custom, managed)
         expression_references = _find_and_validate_references(
             component=expression.question,
