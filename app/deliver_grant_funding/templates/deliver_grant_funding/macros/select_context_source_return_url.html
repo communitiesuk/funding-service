@@ -21,7 +21,11 @@
     {% endif %}
   {% elif add_context_data.field == enum.expression_type.VALIDATION %}
     {% if not add_context_data.expression_id %}
-      {% set return_url = url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=add_context_data.component_id) %}
+      {% if add_context_data.managed_expression_name == "Custom" %}
+        {% set return_url = url_for("deliver_grant_funding.add_custom_question_validation", grant_id=grant.id, question_id=add_context_data.component_id) %}
+      {% else %}
+        {% set return_url = url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=add_context_data.component_id) %}
+      {% endif %}
     {% else %}
       {% set return_url = url_for("deliver_grant_funding.edit_question_validation", grant_id=grant.id, expression_id=add_context_data.expression_id) %}
     {% endif %}

@@ -1,5 +1,7 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+
 {% set active_item_identifier = "reports" %}
 
 {% block pageTitle %}
@@ -20,10 +22,10 @@
       <form method="post" novalidate>
         <div class="govuk-form-group">
           {% set addDataToExpressionButton %}
-            {{ form.add_context_expression(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-6", "value": "custom_expression"}) }}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-6", "value": "custom_expression"}) }}
           {% endset %}
           {% set addDataToMessageButton %}
-            {{ form.add_context_message(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_message"}) }}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_message"}) }}
           {% endset %}
 
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
@@ -40,6 +42,23 @@
               })
             }}
           </div>
+          {% set helpHtml %}
+            <div class="govuk-body">
+              The following operations are available:
+              <ul class="govuk-list">
+                <li><span class="govuk-!-font-weight-bold">+</span> plus</li>
+                <li><span class="govuk-!-font-weight-bold">-</span> minus</li>
+                <li><span class="govuk-!-font-weight-bold">*</span> multiply</li>
+                <li><span class="govuk-!-font-weight-bold">/</span> divide</li>
+              </ul>
+            </div>
+          {% endset %}
+          {{
+            govukDetails({
+              "summaryText": "Calculations help",
+              "html": helpHtml
+            })
+          }}
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
             <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
             {{
