@@ -1290,7 +1290,7 @@ class Custom(AbstractExpression):
         return self.custom_expression
 
     @property
-    def message(self):
+    def message(self) -> str:
         return self.custom_message
 
     @staticmethod
