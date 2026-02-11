@@ -1357,7 +1357,7 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             value=custom_expr.custom_expression,
             expression_context=expression_context,
             field_name="custom expression",
-            self_reference_allowed=True,
+            allow_reference_to_self=True,
         )
         referenced_question_ids = set([ref for c, ref in expression_references])
         # TODO get references from custom message as well
@@ -1417,7 +1417,7 @@ def _find_and_validate_references(
     value: str,
     expression_context: ExpressionContext,
     field_name: str,
-    self_reference_allowed: bool = False,
+    allow_reference_to_self: bool = False,
 ) -> set[tuple[UUID, UUID]]:
     references_to_set_up: set[tuple[UUID, UUID]] = set()
     for match in INTERPOLATE_REGEX.finditer(value):
@@ -1443,21 +1443,10 @@ def _find_and_validate_references(
         # same collection - but not necessarily the same form.
         if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
             question = db.session.get_one(Question, question_id)
-            if question.form.order > component.form.order:
+            if not is_component_dependency_order_valid(component, question, allow_reference_to_self):
                 raise InvalidReferenceInExpression(
                     f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
                 )
-
-            if question.form_id == component.form_id:
-                # Prevent manually injecting a reference to a question that appears later in the same form
-                if (
-                    not self_reference_allowed
-                    and question.form.global_component_index(question)
-                    == question.form.global_component_index(component)
-                ) or (question.form.global_component_index(question) > question.form.global_component_index(component)):
-                    raise InvalidReferenceInExpression(
-                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
-                    )
 
                 if (
                     question.parent

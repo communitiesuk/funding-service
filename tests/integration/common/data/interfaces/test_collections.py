@@ -4150,7 +4150,7 @@ class TestFindAndValidateReferences:
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
         value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
-        result = _find_and_validate_references(q3, value, context, "custom expression", self_reference_allowed=True)
+        result = _find_and_validate_references(q3, value, context, "custom expression", allow_reference_to_self=True)
         assert len(result) == 3
         assert (q3.id, q1.id) in result
         assert (q3.id, q2.id) in result
