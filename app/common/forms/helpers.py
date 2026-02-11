@@ -89,6 +89,8 @@ def get_referenceable_questions(
                 )
             )
         ]
+    else:
+        questions = [q for q in questions if not q.add_another_container]
 
     if limit_to_data_type is not None:
         questions = [q for q in questions if q.data_type in limit_to_data_type]
