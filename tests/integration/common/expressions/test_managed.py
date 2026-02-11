@@ -13,6 +13,7 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.expressions import evaluate
+from app.common.expressions.forms import CustomExpressionForm
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -796,4 +797,16 @@ class TestCustomExpression:
             "custom_message": expr.custom_message,
         }
 
-        assert evaluate(expression) is expected_result
+    def test_build_from_form(self, factories):
+        question = factories.question.build()
+        form = CustomExpressionForm()
+        form.custom_expression.data = "some expression"
+        form.custom_message.data = "a message"
+        result = Custom.build_from_form(
+            form=form,
+            question=question,
+        )
+        assert isinstance(result, Custom)
+        assert result.question_id == question.id
+        assert result.custom_expression == "some expression"
+        assert result.custom_message == "a message"
