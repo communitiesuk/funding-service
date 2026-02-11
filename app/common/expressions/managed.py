@@ -1270,7 +1270,7 @@ def get_managed_expression(expression: Expression) -> ManagedExpression:
 @register_managed_expression
 class Custom(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CUSTOM
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = set()
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
         "deliver_grant_funding/reports/managed_expressions/custom.html"
@@ -1279,8 +1279,8 @@ class Custom(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    custom_expression: str | None = None
-    custom_message: str | None = None
+    custom_expression: str
+    custom_message: str
 
     @property
     def description(self) -> str:
@@ -1291,7 +1291,7 @@ class Custom(ManagedExpression):
         return self.custom_expression
 
     @property
-    def message(self):
+    def message(self) -> str:
         return self.custom_message
 
     @property
@@ -1301,11 +1301,11 @@ class Custom(ManagedExpression):
     @staticmethod
     def build_from_form(
         form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
-    ) -> GreaterThan:
-        return GreaterThan(
+    ) -> Custom:
+        return Custom(
             question_id=question.id,
-            custom_expression=form.custom_expression.data if form.custom_expression.data else None,  # ty: ignore[unresolved-attribute]
-            custom_message=form.custom_message.data if form.custom_message.data else None,  # ty: ignore[unresolved-attribute]
+            custom_expression=form.custom_expression.data,  # ty: ignore[unresolved-attribute]
+            custom_message=form.custom_message.data,  # ty: ignore[unresolved-attribute]
         )
 
     # TODO these don't make sense as we have a static custom expression form - at what point do we change the hierarchy?
