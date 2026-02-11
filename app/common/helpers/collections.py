@@ -474,10 +474,6 @@ class SubmissionHelper:
             if ref.component.add_another_container and add_another_index is None:
                 continue
 
-            answer = self.cached_get_answer_for_question(depends_on.id, add_another_index)
-            if answer is not None:
-                continue
-
             ref_visibility = self._get_component_visibility_state_internal(
                 depends_on, context, add_another_index=add_another_index, visited=visited
             )
@@ -485,6 +481,10 @@ class SubmissionHelper:
             # If any depended-upon component is hidden, then this one needs to be hidden as well.
             if ref_visibility == ComponentVisibilityState.HIDDEN:
                 return ComponentVisibilityState.HIDDEN
+
+            answer = self.cached_get_answer_for_question(depends_on.id, add_another_index)
+            if answer is not None:
+                continue
 
             # Otherwise we should expect the component status to be undetermined instead of visible.
             return_status = ComponentVisibilityState.UNDETERMINED
