@@ -21,6 +21,7 @@ from app.common.collections.types import (
     YesNoAnswer,
 )
 from app.common.data import interfaces
+from app.common.data.models import Expression
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
@@ -34,6 +35,7 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.managed import GreaterThan
 from app.common.filters import format_datetime
 from app.common.helpers.collections import (
     CollectionHelper,
@@ -58,7 +60,7 @@ class TestSubmissionHelper:
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294="User submitted data"
             )
-            helper.submit_answer_for_question(question.id, form)
+            helper.submit_answer_for_question(question.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("User submitted data")
 
@@ -80,11 +82,11 @@ class TestSubmissionHelper:
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294=5
             )
-            helper.submit_answer_for_question(question.id, form)
+            helper.submit_answer_for_question(question.id, form, submission.created_by)
             form = build_question_form([question_2], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994295=Decimal("7.6")
             )
-            helper.submit_answer_for_question(question_2.id, form)
+            helper.submit_answer_for_question(question_2.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=5)
             assert helper.cached_get_answer_for_question(question_2.id) == DecimalAnswer(value=Decimal("7.6"))
@@ -99,7 +101,7 @@ class TestSubmissionHelper:
             form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                 q_d696aebc49d24170a92fb6ef42994294=0
             )
-            helper.submit_answer_for_question(question.id, form)
+            helper.submit_answer_for_question(question.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == IntegerAnswer(value=0)
 
@@ -115,7 +117,11 @@ class TestSubmissionHelper:
             )(q_d696aebc49d24170a92fb6ef42994294="User submitted data")
 
             with pytest.raises(ValueError) as e:
-                helper.submit_answer_for_question(submission_submitted.collection.forms[0].cached_questions[0].id, form)
+                helper.submit_answer_for_question(
+                    submission_submitted.collection.forms[0].cached_questions[0].id,
+                    form,
+                    submission_submitted.created_by,
+                )
 
             assert str(e.value) == AnyStringMatching(
                 "Could not submit answer for question_id=[a-z0-9-]+ "
@@ -425,6 +431,7 @@ class TestSubmissionHelper:
                 build_question_form([question_one], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
 
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
@@ -435,6 +442,7 @@ class TestSubmissionHelper:
                 build_question_form([question_two], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994295="User submitted data"
                 ),
+                submission.created_by,
             )
 
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
@@ -451,6 +459,7 @@ class TestSubmissionHelper:
                 build_question_form([question_three], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994296="User submitted data"
                 ),
+                submission.created_by,
             )
             assert helper.get_status_for_form(form_two) == TasklistSectionStatusEnum.IN_PROGRESS
             assert helper.get_tasklist_status_for_form(form_two) == TasklistSectionStatusEnum.IN_PROGRESS
@@ -493,6 +502,7 @@ class TestSubmissionHelper:
                 build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
@@ -505,6 +515,7 @@ class TestSubmissionHelper:
                 build_question_form([question_two], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994295="User submitted data"
                 ),
+                submission.created_by,
             )
             helper.toggle_form_completed(question_two.form, submission.created_by, True)
 
@@ -572,6 +583,7 @@ class TestSubmissionHelper:
                 build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
             helper.toggle_form_completed(form, submission.created_by, True)
 
@@ -596,6 +608,7 @@ class TestSubmissionHelper:
                 build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
             helper.toggle_form_completed(question.form, submission.created_by, True)
 
@@ -618,6 +631,7 @@ class TestSubmissionHelper:
                 build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
                     q_d696aebc49d24170a92fb6ef42994294="User submitted data"
                 ),
+                submission.created_by,
             )
 
             with pytest.raises(ValueError) as e:
@@ -971,6 +985,223 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             # TODO should we change the decline function to send emails for consistency with submit/certify
             assert len(mock_notification_service_calls) == 0
+
+
+class TestFormResetOnAnswerChange:
+    def test_same_section_reset_when_completed(self, db_session, factories):
+        question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+        form = question.form
+        submission = factories.submission.create(collection=form.collection)
+        helper = SubmissionHelper(submission)
+
+        helper.submit_answer_for_question(
+            question.id,
+            build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="First answer"
+            ),
+            submission.created_by,
+        )
+        helper.toggle_form_completed(form, submission.created_by, True)
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+
+        helper.submit_answer_for_question(
+            question.id,
+            build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="Changed answer"
+            ),
+            user=submission.created_by,
+        )
+
+        reset_events = [
+            e
+            for e in submission.events
+            if e.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            and e.related_entity_id == form.id
+        ]
+        assert len(reset_events) == 1
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+    def test_same_section_no_reset_when_not_completed(self, db_session, factories):
+        question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+        form = question.form
+        submission = factories.submission.create(collection=form.collection)
+        helper = SubmissionHelper(submission)
+
+        helper.submit_answer_for_question(
+            question.id,
+            build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="First answer"
+            ),
+            submission.created_by,
+        )
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+        helper.submit_answer_for_question(
+            question.id,
+            build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="Changed answer"
+            ),
+            submission.created_by,
+        )
+
+        reset_events = [
+            e for e in submission.events if e.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+        ]
+        assert len(reset_events) == 0
+
+    def test_cross_section_reset_when_visibility_changes(self, db_session, factories):
+        collection = factories.collection.create()
+        form_a = factories.form.create(collection=collection, order=0)
+        form_b = factories.form.create(collection=collection, order=1)
+        user = factories.user.create()
+
+        q_a = factories.question.create(
+            form=form_a,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        q_b1 = factories.question.create(form=form_b, order=0)
+        factories.question.create(
+            form=form_b,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            order=1,
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q_a.id, minimum_value=50),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
+        )
+
+        submission = factories.submission.create(
+            collection=collection,
+            data={
+                str(q_a.id): IntegerAnswer(value=10).get_value_for_submission(),
+                str(q_b1.id): TextSingleLineAnswer("answer b1").get_value_for_submission(),
+            },
+            created_by=user,
+        )
+        helper = SubmissionHelper(submission)
+
+        helper.toggle_form_completed(form_b, user, True)
+        assert helper.get_status_for_form(form_b) == TasklistSectionStatusEnum.COMPLETED
+
+        helper.submit_answer_for_question(
+            q_a.id,
+            build_question_form([q_a], evaluation_context=EC(), interpolation_context=EC())(**{q_a.safe_qid: 100}),
+            user=user,
+        )
+
+        reset_events_b = [
+            e
+            for e in submission.events
+            if e.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            and e.related_entity_id == form_b.id
+        ]
+        assert len(reset_events_b) == 1
+
+    def test_cross_section_no_reset_when_visibility_unchanged(self, db_session, factories):
+        collection = factories.collection.create()
+        form_a = factories.form.create(collection=collection, order=0)
+        form_b = factories.form.create(collection=collection, order=1)
+        user = factories.user.create()
+
+        q_a = factories.question.create(
+            form=form_a,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        q_b1 = factories.question.create(form=form_b, order=0)
+        factories.question.create(
+            form=form_b,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            order=1,
+            expressions=[
+                Expression.from_managed(
+                    GreaterThan(question_id=q_a.id, minimum_value=50),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
+        )
+
+        submission = factories.submission.create(
+            collection=collection,
+            data={
+                str(q_a.id): IntegerAnswer(value=10).get_value_for_submission(),
+                str(q_b1.id): TextSingleLineAnswer("answer b1").get_value_for_submission(),
+            },
+        )
+        helper = SubmissionHelper(submission)
+
+        helper.toggle_form_completed(form_b, user, True)
+        assert helper.get_status_for_form(form_b) == TasklistSectionStatusEnum.COMPLETED
+
+        helper.submit_answer_for_question(
+            q_a.id,
+            build_question_form([q_a], evaluation_context=EC(), interpolation_context=EC())(**{q_a.safe_qid: 20}),
+            user=user,
+        )
+
+        reset_events_b = [
+            e
+            for e in submission.events
+            if e.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            and e.related_entity_id == form_b.id
+        ]
+        assert len(reset_events_b) == 0
+
+    def test_no_duplicate_events_for_multi_question_component(self, db_session, factories):
+        form = factories.form.create()
+        user = factories.user.create()
+        q1 = factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), order=0)
+        q2 = factories.question.create(form=form, id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994295"), order=1)
+
+        submission = factories.submission.create(collection=form.collection)
+        helper = SubmissionHelper(submission)
+
+        helper.submit_answer_for_question(
+            q1.id,
+            build_question_form([q1], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="Answer 1"
+            ),
+            submission.created_by,
+        )
+        helper.submit_answer_for_question(
+            q2.id,
+            build_question_form([q2], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994295="Answer 2"
+            ),
+            submission.created_by,
+        )
+        helper.toggle_form_completed(form, user, True)
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+
+        helper.submit_answer_for_question(
+            q1.id,
+            build_question_form([q1], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="Changed 1"
+            ),
+            submission.created_by,
+        )
+        helper.submit_answer_for_question(
+            q2.id,
+            build_question_form([q2], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994295="Changed 2"
+            ),
+            submission.created_by,
+        )
+
+        reset_events = [
+            e
+            for e in submission.events
+            if e.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            and e.related_entity_id == form.id
+        ]
+        assert len(reset_events) == 1
 
 
 class TestCollectionHelper:

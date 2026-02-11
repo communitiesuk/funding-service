@@ -224,13 +224,13 @@ class FormRunner:
             return self.confirm_remove_form
         return self.add_another_summary_form if self.add_another_summary_context else self.question_form
 
-    def save_question_answer(self) -> None:
+    def save_question_answer(self, user: User) -> None:
         if not self.component:
             raise RuntimeError("Question context not set")
 
         for question in self.questions:
             self.submission.submit_answer_for_question(
-                question.id, self.question_form, add_another_index=self.add_another_index
+                question.id, self.question_form, user, add_another_index=self.add_another_index
             )
 
     def save_add_another(self) -> None:
