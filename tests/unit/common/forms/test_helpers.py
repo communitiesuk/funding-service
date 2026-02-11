@@ -233,6 +233,20 @@ class TestGetReferenceableQuestions:
 
         assert result == [q1, q2]
 
+    def test_get_from_earlier_section_cannot_reference_add_another_questions(self, factories):
+        form = factories.form.build()
+        q1 = factories.question.build(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        group = factories.group.build(
+            add_another=True,
+            name="Your colour preferences",
+            form=form,
+        )
+        factories.question.build(parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        form_2 = factories.form.build(collection=form.collection)
+        q2 = factories.question.build(form=form_2, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        assert get_referenceable_questions(form, current_component=q2) == [q1]
+
 
 class TestAddAnother:
     def test_raise_if_add_another_not_valid_question_in_group(self, factories):
