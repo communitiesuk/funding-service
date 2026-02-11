@@ -38,7 +38,7 @@ from app.types import TRadioItem
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
-    from app.common.expressions.forms import _ManagedExpressionForm
+    from app.common.expressions.forms import CustomExpressionForm, _ManagedExpressionForm
 
 
 class ManagedExpression(BaseModel, SafeQidMixin):
@@ -1279,8 +1279,8 @@ class Custom(ManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     question_id: UUID
-    custom_expression: str | None = None
-    custom_message: str | None = None
+    custom_expression: str
+    custom_message: str
 
     @property
     def description(self) -> str:
@@ -1291,37 +1291,19 @@ class Custom(ManagedExpression):
         return self.custom_expression
 
     @property
-    def message(self):
+    def message(self) -> str:
         return self.custom_message
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         raise NotImplementedError("Custom expression does not implement this - use expression_referenced_items instead")
 
-        return referenced_question_ids
-
     @staticmethod
-    def get_form_fields(
-        referenced_question: Question,
-        expression: TOptional[Expression] = None,
-    ) -> dict[str, Field]:
-        return {
-            "custom_expression": StringField(
-                "Expression",
-                default=expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
-                widget=GovTextArea(),
-                validators=[InputRequired()],
-            ),
-        }
-
-    @staticmethod
-    def build_from_form(
-        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
-    ) -> GreaterThan:
-        return GreaterThan(
+    def build_from_form(form: CustomExpressionForm, question: Question) -> Custom:
+        return Custom(
             question_id=question.id,
-            custom_expression=form.custom_expression.data if form.custom_expression.data else None,  # ty: ignore[unresolved-attribute]
-            custom_message=form.custom_message.data if form.custom_message.data else None,  # ty: ignore[unresolved-attribute]
+            custom_expression=form.custom_expression.data,  # type:ignore[arg-type]
+            custom_message=form.custom_message.data,  # type:ignore[arg-type]
         )
 
     # TODO these don't make sense as we have a static custom expression form - at what point do we change the hierarchy?
@@ -1335,13 +1317,3 @@ class Custom(ManagedExpression):
     @staticmethod
     def update_validators(form: _ManagedExpressionForm) -> None:
         pass
-
-    @classmethod
-    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
-        data = {
-            k: v
-            for k, v in add_context_data.expression_form_data.items()
-            if k != "add_context" and k != "remove_context"
-        }
-
-        return data

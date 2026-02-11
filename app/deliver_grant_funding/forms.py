@@ -554,6 +554,7 @@ class AddContextSelectSourceForm(FlaskForm):
         current_component: TOptional[Component],
         parent_component: TOptional[Group] = None,
         ff_show_new_context_sources: bool = False,  # TODO: remove when implementation is fully released
+        show_this_question: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
@@ -565,7 +566,14 @@ class AddContextSelectSourceForm(FlaskForm):
         if ff_show_new_context_sources:
             # A soft feature flag that will (when implemented) allow platform admins to test new context sources
             # before releasing to a wider audience eg form builders.
-            self.data_source.choices = [(choice.name, choice.value) for choice in ExpressionContext.ContextSources]
+            self.data_source.choices = [
+                (choice.name, choice.value)
+                for choice in [
+                    cs
+                    for cs in ExpressionContext.ContextSources
+                    if cs != ExpressionContext.ContextSources.THIS_QUESTION
+                ]
+            ]
         else:
             self.data_source.choices = [
                 (ExpressionContext.ContextSources.SECTION.name, ExpressionContext.ContextSources.SECTION.value),
@@ -574,6 +582,15 @@ class AddContextSelectSourceForm(FlaskForm):
                     ExpressionContext.ContextSources.PREVIOUS_SECTION.value,
                 ),
             ]
+        # We only let someone reference 'This question' in very specific circumstances (custom expressions)
+        if show_this_question:
+            self.data_source.choices.insert(
+                0,
+                (
+                    ExpressionContext.ContextSources.THIS_QUESTION.name,
+                    ExpressionContext.ContextSources.THIS_QUESTION.value,
+                ),
+            )
 
     def validate_data_source(self, field: Field) -> None:
         try:
