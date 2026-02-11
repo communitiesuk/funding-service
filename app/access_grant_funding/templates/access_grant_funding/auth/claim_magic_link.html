@@ -5,7 +5,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <form class="app-js-hidden" method="post" novalidate>
+      <form {% if auto_submit %}class="app-js-hidden"{% endif %} method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.submit(params={"text": "Sign in"}) }}
       </form>
@@ -14,7 +14,9 @@
 {% endblock content %}
 
 {% block bodyEnd %}
-  <script nonce="{{ csp_nonce() }}">
-    document.getElementById("submit").click();
-  </script>
+  {% if auto_submit %}
+    <script nonce="{{ csp_nonce() }}">
+      document.getElementById("submit").click();
+    </script>
+  {% endif %}
 {% endblock bodyEnd %}

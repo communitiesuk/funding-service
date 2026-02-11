@@ -195,6 +195,29 @@ class TestClaimMagicLinkView:
         assert response.status_code == 302
         assert response.location == url_for("auth.request_a_link_to_sign_in", link_expired=True)
 
+    def test_get_without_session_flag_does_not_auto_submit(self, anonymous_client, factories):
+        magic_link = factories.magic_link.create()
+
+        response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
+
+        assert response.status_code == 200
+        assert b"Sign in" in response.data
+        assert b'document.getElementById("submit").click()' not in response.data
+
+    def test_get_with_session_flag_enables_auto_submit(self, anonymous_client, factories):
+        magic_link = factories.magic_link.create()
+
+        with anonymous_client.session_transaction() as session:
+            session["magic_link_requested"] = True
+
+        response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        form = soup.find("form", {"method": "post"})
+        assert "app-js-hidden" in form.get("class")
+        assert b'document.getElementById("submit").click()' in response.data
+
     @pytest.mark.parametrize(
         "redirect_to, safe_redirect_to",
         (
