@@ -1559,7 +1559,7 @@ class TestCreateQuestion:
         assert question.data_options == QuestionDataOptions(number_type=None)
 
     def test_break_if_new_question_types_added(self):
-        assert len(QuestionDataType) == 10, "Add a new test above if adding a new question type"
+        assert len(QuestionDataType) == 9, "Add a new test above if adding a new question type"
 
     def test_question_requires_data_type(self, db_session, factories):
         form = factories.form.create()

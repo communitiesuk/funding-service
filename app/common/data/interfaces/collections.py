@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
 
 from flask import current_app
