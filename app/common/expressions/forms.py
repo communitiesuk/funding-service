@@ -146,14 +146,12 @@ class CustomExpressionForm(_ManagedExpressionForm):
         "Expression",
         description="The user's answer will be checked against this expression and must be true for the user "
         "to continue, you can include reference data.",
-        # default=None,  # expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
         widget=GovTextArea(),
         validators=[InputRequired()],
     )
     custom_message = StringField(
         "Message",
         description="Shown to the user if the answer is not valid",
-        # default=None,  # expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
         widget=GovTextArea(),
         validators=[InputRequired()],
     )

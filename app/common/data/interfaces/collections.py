@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
@@ -1351,15 +1351,14 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             references.append(cr)
         referenced_question_ids = managed.expression_referenced_question_ids
     elif isinstance(managed, Custom):
-        custom_expr = cast(Custom, managed)
         expression_references = _find_and_validate_references(
             component=expression.question,
-            value=custom_expr.custom_expression,
+            value=managed.custom_expression,
             expression_context=expression_context,
             field_name="custom expression",
             allow_reference_to_self=True,
         )
-        referenced_question_ids = set([ref for c, ref in expression_references])
+        referenced_question_ids = [ref for c, ref in expression_references]
         # TODO get references from custom message as well
     else:
         # Creates a reference from the expression's question to itself so that we can't delete a question with an
@@ -1373,7 +1372,7 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
         references.append(cr)
         referenced_question_ids = managed.expression_referenced_question_ids
 
-    for referenced_question_id in referenced_question_ids:
+    for referenced_question_id in set(referenced_question_ids):
         referenced_question = get_question_by_id(referenced_question_id)
 
         if not is_component_dependency_order_valid(

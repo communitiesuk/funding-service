@@ -2036,9 +2036,9 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
 def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
 
-    add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id
-    )
+    # add_context_data = _extract_add_context_data_from_session(
+    #     session_model=AddContextToExpressionsModel, question_id=question.id
+    # )
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(
@@ -2050,7 +2050,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
     )
     return render_template(
         "deliver_grant_funding/reports/managed_expressions/custom.html",
-        form=CustomExpressionForm(),  # data=add_context_data._prepared_form_data if add_context_data else None),  # type: ignore[union-attr]
+        form=CustomExpressionForm(),
         question=question,
         grant=question.form.collection.grant,
     )
@@ -2089,8 +2089,9 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
     form = (
         ValidationForm(
-            data=add_context_data._prepared_form_data if add_context_data else None, ff_show_custom_expression=False
-        )  # type: ignore[union-attr]
+            data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
+            ff_show_custom_expression=False,
+        )
         if ValidationForm
         else None
     )
