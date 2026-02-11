@@ -64,6 +64,7 @@ class ExpressionContext(ChainMap[str, Any]):
         PREVIOUS_SECTION = "A question in a previous section"
         PREVIOUS_COLLECTION = "A question in a previous collection"
         DATASET = "An uploaded dataset"
+        THIS_QUESTION = "This question"
 
     def __init__(
         self,
@@ -173,9 +174,8 @@ class ExpressionContext(ChainMap[str, Any]):
     ) -> ExpressionContext:
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
-        assert len(ExpressionContext.ContextSources) == 4, (
-            "When defining a new source of context for expressions, "
-            "update this method and the ContextSourceChoices enum"
+        assert len(ExpressionContext.ContextSources) == 5, (
+            "When defining a new source of context for expressions, update this method"
         )
 
         if submission_helper and submission_helper.collection.id != collection.id:
