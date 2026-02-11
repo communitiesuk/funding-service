@@ -105,10 +105,15 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
             return abort(400)
 
         session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        auto_submit = session.pop("magic_link_requested", False)
+        current_app.logger.info(
+            "Magic link claim page submitted: auto_submit=%(auto_submit)s",
+            dict(auto_submit=auto_submit),
+        )
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
-    auto_submit = session.pop("magic_link_requested", False)
-
+    auto_submit = session.get("magic_link_requested", False)
     return render_template(
         "access_grant_funding/auth/claim_magic_link.html", form=form, magic_link=magic_link, auto_submit=auto_submit
     )
