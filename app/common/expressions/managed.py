@@ -1298,16 +1298,6 @@ class Custom(ManagedExpression):
     def expression_referenced_question_ids(self) -> list[UUID]:
         raise NotImplementedError("Custom expression does not implement this - use expression_referenced_items instead")
 
-    # @property
-    # def expression_referenced_items(self) -> list[str]:
-    #     """Returns an unvalidated list of items referenced in the expression - these should be validated by the caller"""
-    #     referenced_items: list[str] = []
-    #     for match in INTERPOLATE_REGEX.finditer(self.custom_expression):
-    #         wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
-    #         referenced_items.append(inner_ref)
-    #
-    #     return referenced_items
-
     @staticmethod
     def build_from_form(
         form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None

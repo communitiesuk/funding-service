@@ -3350,7 +3350,12 @@ class TestValidateAndSyncExpressionReferences:
 
         assert len(expression.component_references) == 0
 
-        _validate_and_sync_expression_references(expression)
+        _validate_and_sync_expression_references(
+            expression,
+            ExpressionContext.build_expression_context(
+                dependent_question.form.collection, "interpolation", dependent_question
+            ),
+        )
 
         assert len(expression.component_references) == 1
         reference = expression.component_references[0]
@@ -3378,7 +3383,9 @@ class TestValidateAndSyncExpressionReferences:
 
         assert len(expression.component_references) == 0
 
-        _validate_and_sync_expression_references(expression)
+        _validate_and_sync_expression_references(
+            expression, ExpressionContext.build_expression_context(form.collection, "interpolation", q3)
+        )
 
         assert len(expression.component_references) == 3
 
@@ -3401,7 +3408,10 @@ class TestValidateAndSyncExpressionReferences:
         db_session.add(expression)
 
         with pytest.raises(NotImplementedError):
-            _validate_and_sync_expression_references(expression)
+            _validate_and_sync_expression_references(
+                expression,
+                ExpressionContext.build_expression_context(question.form.collection, "interpolation", question),
+            )
 
     def test_replaces_existing_component_references(self, db_session, factories):
         user = factories.user.create()
@@ -3422,7 +3432,12 @@ class TestValidateAndSyncExpressionReferences:
 
         original_reference_id = existing_reference.id
 
-        _validate_and_sync_expression_references(expression)
+        _validate_and_sync_expression_references(
+            expression,
+            ExpressionContext.build_expression_context(
+                dependent_question.form.collection, "interpolation", dependent_question
+            ),
+        )
         db_session.flush()
 
         assert len(expression.component_references) == 1
@@ -3449,7 +3464,12 @@ class TestValidateAndSyncExpressionReferences:
         db_session.add(expression)
         assert len(expression.component_references) == 0
 
-        _validate_and_sync_expression_references(expression)
+        _validate_and_sync_expression_references(
+            expression,
+            ExpressionContext.build_expression_context(
+                dependent_question.form.collection, "interpolation", dependent_question
+            ),
+        )
         db_session.flush()
 
         assert len(expression.component_references) == 1
@@ -3485,7 +3505,9 @@ class TestValidateAndSyncExpressionReferences:
         # This shouldn't raise an IncompatibleDataTypeException as the question evaluated by the managed expression
         # matches the data types of the questions used as reference values. The target_question (the one with the
         # expression attached) is irrelevant in terms of question data type.
-        _validate_and_sync_expression_references(expression)
+        _validate_and_sync_expression_references(
+            expression, ExpressionContext.build_expression_context(form.collection, "interpolation", target_question)
+        )
 
         assert len(expression.component_references) == 3
         referenced_components = {ref.depends_on_component for ref in expression.component_references}
@@ -3519,7 +3541,12 @@ class TestValidateAndSyncExpressionReferences:
             del form.cached_all_components
 
         with pytest.raises(DependencyOrderException):
-            _validate_and_sync_expression_references(expression)
+            _validate_and_sync_expression_references(
+                expression,
+                ExpressionContext.build_expression_context(
+                    target_question.form.collection, "interpolation", target_question
+                ),
+            )
 
     def test_raises_incompatible_data_type_exception(self, db_session, factories):
         user = factories.user.create()
@@ -3549,7 +3576,12 @@ class TestValidateAndSyncExpressionReferences:
             del form.cached_all_components
 
         with pytest.raises(IncompatibleDataTypeException):
-            _validate_and_sync_expression_references(expression)
+            _validate_and_sync_expression_references(
+                expression,
+                ExpressionContext.build_expression_context(
+                    target_question.form.collection, "interpolation", target_question
+                ),
+            )
 
     def test_raises_add_another_exception_on_question(self, db_session, factories):
         user = factories.user.create()
@@ -3581,7 +3613,10 @@ class TestValidateAndSyncExpressionReferences:
             del form.cached_all_components
 
         with pytest.raises(AddAnotherDependencyException):
-            _validate_and_sync_expression_references(expression)
+            _validate_and_sync_expression_references(
+                expression,
+                ExpressionContext.build_expression_context(form.collection, "interpolation", target_question),
+            )
 
     def test_raises_add_another_exception_on_different_group(self, db_session, factories):
         user = factories.user.create()
@@ -3613,7 +3648,10 @@ class TestValidateAndSyncExpressionReferences:
             del form.cached_all_components
 
         with pytest.raises(AddAnotherDependencyException):
-            _validate_and_sync_expression_references(expression)
+            _validate_and_sync_expression_references(
+                expression,
+                ExpressionContext.build_expression_context(form.collection, "interpolation", target_question),
+            )
 
 
 class TestValidateAndSyncComponentReferences:
@@ -4112,7 +4150,7 @@ class TestFindAndValidateReferences:
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
         value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
-        result = _find_and_validate_references(q3, value, context, "custom expression")
+        result = _find_and_validate_references(q3, value, context, "custom expression", self_reference_allowed=True)
         assert len(result) == 3
         assert (q3.id, q1.id) in result
         assert (q3.id, q2.id) in result

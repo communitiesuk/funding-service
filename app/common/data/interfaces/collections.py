@@ -1351,7 +1351,6 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             references.append(cr)
         referenced_question_ids = managed.expression_referenced_question_ids
     elif isinstance(managed, Custom):
-        # all the references for a custom expression will come from expression_referenced_question_ids below
         custom_expr = cast(Custom, managed)
         expression_references = _find_and_validate_references(
             component=expression.question,
@@ -1529,7 +1528,9 @@ def add_component_condition(component: Component, user: User, managed_expression
     expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
     component.expressions.append(expression)
 
-    _validate_and_sync_expression_references(expression)
+    _validate_and_sync_expression_references(
+        expression, ExpressionContext.build_expression_context(component.form.collection, "interpolation", component)
+    )
 
     if component.parent and component.parent.same_page:
         raise_if_group_questions_depend_on_each_other(component.parent)
@@ -1563,7 +1564,7 @@ def update_question_expression(expression: Expression, managed_expression: Manag
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
 
-    _validate_and_sync_expression_references(expression)
+    _validate_and_sync_expression_references(expression, ExpressionContext(expression_context=expression.context))
     return expression
 
 
