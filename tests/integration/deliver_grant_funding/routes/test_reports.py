@@ -2403,7 +2403,8 @@ class TestSelectContextSource:
         assert "Select a data source" in soup.text
 
     def test_post_redirect_and_updates_session(self, authenticated_grant_admin_client, factories):
-        assert len(ExpressionContext.ContextSources) == 4, "Check all redirects if adding new context source choices"
+        # TODO check other context sources, including THIS_QUESITON
+        assert len(ExpressionContext.ContextSources) == 5, "Check all redirects if adding new context source choices"
 
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
