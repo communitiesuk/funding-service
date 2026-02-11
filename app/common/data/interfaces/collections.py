@@ -396,6 +396,10 @@ def get_submission(
                 .selectinload(Form.components)
                 .joinedload(Component.expressions),
                 joinedload(Submission.events),
+                joinedload(Submission.collection)
+                .joinedload(Collection.forms)
+                .selectinload(Form.components)
+                .selectinload(Component.owned_component_references),
             ]
         )
 

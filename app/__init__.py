@@ -47,6 +47,7 @@ from app.common.filters import (
     to_ordinal,
 )
 from app.common.helpers.collections import SubmissionAuthorisationError
+from app.common.utils import comma_join_items
 from app.config import get_settings
 from app.extensions import (
     auto_commit_after_request,
@@ -261,6 +262,8 @@ def create_app() -> Flask:  # noqa: C901
 
     def get_current_env_name() -> str:
         return str(current_app.config["FLASK_ENV"].value)
+
+    app.jinja_env.filters["comma_join_items"] = comma_join_items
 
     @app.context_processor
     def _jinja_template_context() -> dict[str, Any]:

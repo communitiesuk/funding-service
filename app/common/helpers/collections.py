@@ -40,6 +40,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
 from app.common.data.types import (
+    ComponentVisibilityState,
     ConditionsOperator,
     GrantRecipientModeEnum,
     NumberTypeEnum,
@@ -371,7 +372,11 @@ class SubmissionHelper:
                     if depends_on.is_question:
                         answer = self.cached_get_answer_for_question(depends_on.id)
                         if answer is None:
-                            unsatisfied_forms[depends_on.form_id] = depends_on.form
+                            # Only count as unsatisfied if the question is visible or undetermined.
+                            # If definitively HIDDEN, the question won't be asked, so not blocking.
+                            visibility = self.get_component_visibility_state(depends_on, self.cached_evaluation_context)
+                            if visibility != ComponentVisibilityState.HIDDEN:
+                                unsatisfied_forms[depends_on.form_id] = depends_on.form
 
         return sorted(unsatisfied_forms.values(), key=lambda f: f.order)
 
@@ -415,13 +420,109 @@ class SubmissionHelper:
     def is_component_visible(
         self, component: Component, context: ExpressionContext, add_another_index: int | None = None
     ) -> bool:
-        # we can optimise this to exit early and do this in a sensible order if we switch
-        # to going through questions in a nested way rather than flat
+        state = self.get_component_visibility_state(component, context, add_another_index, check_undetermined=False)
+        return state == ComponentVisibilityState.VISIBLE
+
+    def get_component_visibility_state(
+        self,
+        component: Component,
+        context: ExpressionContext,
+        add_another_index: int | None = None,
+        check_undetermined: bool = True,
+    ) -> ComponentVisibilityState:
+        """Returns the visibility state of a component, distinguishing between
+        definitively hidden (conditions evaluated to False) and undetermined
+        (conditions couldn't be evaluated due to missing data).
+
+        - VISIBLE: Conditions evaluated to True
+        - HIDDEN: Conditions evaluated to False (definitive - won't be asked)
+        - UNDETERMINED: Conditions couldn't be evaluated due to missing data
+
+        When a condition references an unanswered question, we recursively check
+        that question's visibility. If the referenced question is HIDDEN, it will
+        never be answered, so this component is also HIDDEN.
+        """
+        return self._get_component_visibility_state_internal(
+            component, context, add_another_index=add_another_index, visited=None, check_undetermined=check_undetermined
+        )
+
+    def _check_reference_visibility(
+        self,
+        component: Component,
+        context: ExpressionContext,
+        add_another_index: int | None = None,
+        visited: set[UUID] | None = None,
+    ) -> ComponentVisibilityState:
+        """Check if all referenced components have answers.
+
+        Returns:
+            VISIBLE: All referenced questions are answered
+            HIDDEN: A referenced question is definitively hidden (will never be answered)
+            UNDETERMINED: A referenced question exists but is unanswered and may become visible
+        """
+        if visited is None:
+            visited = set()
+
+        return_status = ComponentVisibilityState.VISIBLE
+
+        for ref in component.owned_component_references:
+            depends_on = ref.depends_on_component
+            if depends_on.id == component.id:
+                continue
+            if not depends_on.is_question:
+                continue
+            if ref.component.add_another_container and add_another_index is None:
+                continue
+
+            answer = self.cached_get_answer_for_question(depends_on.id, add_another_index)
+            if answer is not None:
+                continue
+
+            ref_visibility = self._get_component_visibility_state_internal(
+                depends_on, context, add_another_index=add_another_index, visited=visited
+            )
+
+            # If any depended-upon component is hidden, then this one needs to be hidden as well.
+            if ref_visibility == ComponentVisibilityState.HIDDEN:
+                return ComponentVisibilityState.HIDDEN
+
+            # Otherwise we should expect the component status to be undetermined instead of visible.
+            return_status = ComponentVisibilityState.UNDETERMINED
+
+        return return_status
+
+    def _get_component_visibility_state_internal(  # noqa: C901
+        self,
+        component: Component,
+        context: ExpressionContext,
+        add_another_index: int | None = None,
+        visited: set[UUID] | None = None,
+        check_undetermined: bool = True,
+    ) -> ComponentVisibilityState:
+        """Internal implementation with cycle detection support.
+
+        Our UI should protect against cyclical references such as Q1 referencing Q2 and Q2 referencing Q1,
+        but this adds a further guard rail to prevent against that being an infinite loop.
+
+        `check_undetermined` decides whether we need to distinguish between UNDETERMINED and HIDDEN; for
+        `is_component_visible` we don't care to distinguish; both cases mean that currently the question should not be
+        shown to an end user.
+        """
+        if visited is None:
+            visited = set()
+
+        if component.id in visited:
+            return ComponentVisibilityState.UNDETERMINED
+
+        visited = visited | {component.id}
+
+        ref_state = self._check_reference_visibility(component, context, add_another_index, visited)
+        if ref_state != ComponentVisibilityState.VISIBLE:
+            return ref_state
+
         def evaluate_component_conditions(comp: Component) -> bool:
-            """Evaluates a component's own conditions using its operator."""
             if not comp.conditions:
                 return True
-
             match comp.conditions_operator:
                 case ConditionsOperator.ANY:
                     return any(evaluate(condition, context) for condition in comp.conditions)
@@ -439,18 +540,27 @@ class SubmissionHelper:
             current = component
             while current.parent:
                 if not evaluate_component_conditions(current.parent):
-                    return False
+                    return ComponentVisibilityState.HIDDEN
                 current = current.parent
 
-            # Finally evaluate this component's own conditions
-            return evaluate_component_conditions(component)
+            if evaluate_component_conditions(component):
+                return ComponentVisibilityState.VISIBLE
+            return ComponentVisibilityState.HIDDEN
 
         except UndefinedVariableInExpression:
-            # todo: fail open for now - this method should accept an optional bool that allows this condition to fail
-            #       or not- checking visibility on the question page itself should never fail - the summary page could
-            # todo: check dependency chain for conditions when undefined variables are encountered to avoid
-            #       always suppressing errors and not surfacing issues on misconfigured forms
-            return False
+            if not check_undetermined:
+                return ComponentVisibilityState.HIDDEN
+
+            # Undefined variable means that the referenced question does not have an answer; to work out whether this
+            # question *must not* be shown because a condition correctly evaluates to prevent it being shown vs this
+            # question *might* be shown if further data is provided that finally will make it visible, we need to follow
+            # the full conditional chain up.
+            undetermined_component_visibility = self._check_reference_visibility(
+                component, context, add_another_index, visited
+            )
+            if undetermined_component_visibility == ComponentVisibilityState.HIDDEN:
+                return ComponentVisibilityState.HIDDEN
+            return ComponentVisibilityState.UNDETERMINED
 
     def _get_ordered_visible_questions(
         self, parent: Form | Group, *, override_context: ExpressionContext | None = None

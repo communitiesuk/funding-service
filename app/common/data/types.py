@@ -175,6 +175,12 @@ class ExpressionType(enum.StrEnum):
     VALIDATION = "VALIDATION"
 
 
+class ComponentVisibilityState(enum.Enum):
+    VISIBLE = "visible"  # Conditions evaluated to True
+    HIDDEN = "hidden"  # Conditions evaluated to False (definitive)
+    UNDETERMINED = "undetermined"  # Conditions couldn't evaluate (missing data)
+
+
 class ConditionsOperator(enum.StrEnum):
     ALL = "ALL"
     ANY = "ANY"

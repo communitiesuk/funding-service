@@ -1,4 +1,5 @@
 import re
+from typing import Any, Sequence
 
 
 def slugify(text: str) -> str:
@@ -22,3 +23,20 @@ def slugify(text: str) -> str:
     # Replace spaces (one or more) with a single hyphen
     text = re.sub(r"\s+", "-", text.strip())
     return text
+
+
+def comma_join_items(items: Sequence[Any], join_word: str = "and") -> str:
+    """Take a list of items and join them with (Oxford) commas and an optional join word, eg:
+
+    > comma_join_items(["foo", "bar", "baz"]) == "foo, bar, and baz"
+
+    > comma_join_items(["foo", "bar", "baz"], join_word="or") == "foo, bar, or baz"
+
+    """
+    items = list(items)
+    if len(items) < 2:
+        return "".join(items)
+    elif len(items) == 2:
+        return f"{items[0]} {join_word} {items[1]}"
+
+    return f"{', '.join(items[:-1])}, {join_word} {items[-1]}"

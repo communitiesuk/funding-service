@@ -578,7 +578,7 @@ class TestGrantRecipientModel:
             ([], "Your certifier"),
             (["Certifier One"], "Certifier One"),
             (["Certifier One", "Certifier Two"], "Certifier One or Certifier Two"),
-            (["Certifier One", "Certifier Two", "Certifier Three"], "Certifier One, Certifier Two or Certifier Three"),
+            (["Certifier One", "Certifier Two", "Certifier Three"], "Certifier One, Certifier Two, or Certifier Three"),
         ),
     )
     def test_certifier_names_property(self, factories, certifier_names: list[str], expected: str):
