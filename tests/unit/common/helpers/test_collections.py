@@ -1515,7 +1515,7 @@ class TestSubmissionHelper:
             q4 = factories.question.build(form=form, order=2)
 
             cond_q2 = factories.expression.build(
-                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'yes'"
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} is True"
             )
             q2.owned_component_references = [
                 ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)
@@ -1527,9 +1527,23 @@ class TestSubmissionHelper:
                 ComponentReference(component=q4, depends_on_component=q2),  # undetermined
                 ComponentReference(component=q4, depends_on_component=q3),  # hidden
             ]
-            submission = factories.submission.build(collection=form.collection)
+            submission = factories.submission.build(
+                collection=form.collection,
+            )
             helper = SubmissionHelper(submission)
 
+            assert (
+                helper.get_component_visibility_state(q1, helper.cached_evaluation_context)
+                == ComponentVisibilityState.VISIBLE
+            )
+            assert (
+                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
+                == ComponentVisibilityState.UNDETERMINED
+            )
+            assert (
+                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
+                == ComponentVisibilityState.HIDDEN
+            )
             assert (
                 helper.get_component_visibility_state(q4, helper.cached_evaluation_context)
                 == ComponentVisibilityState.HIDDEN
@@ -1572,6 +1586,43 @@ class TestSubmissionHelper:
             )
             assert (
                 helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=1)
+                == ComponentVisibilityState.HIDDEN
+            )
+
+        def test_referencing_hidden_question_in_condition_returns_hidden_even_with_existing_answers(self, factories):
+            form = factories.form.build()
+            q1 = factories.question.build(form=form, order=0, data_type=QuestionDataType.YES_NO)
+            q2 = factories.question.build(form=form, order=1, data_type=QuestionDataType.YES_NO)
+            cond_q2 = factories.expression.build(
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} is True"
+            )
+            q2.owned_component_references = [
+                ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)
+            ]
+            q3 = factories.question.build(form=form, order=2)
+            cond_q3 = factories.expression.build(
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} is True"
+            )
+            q3.owned_component_references = [
+                ComponentReference(component=q3, expression=cond_q3, depends_on_component=q2)
+            ]
+
+            submission = factories.submission.build(
+                collection=form.collection,
+                data={str(q1.id): "no", str(q2.id): "yes", str(q3.id): "yes"},
+            )
+            helper = SubmissionHelper(submission)
+
+            assert (
+                helper.get_component_visibility_state(q1, helper.cached_evaluation_context)
+                == ComponentVisibilityState.VISIBLE
+            )
+            assert (
+                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
+                == ComponentVisibilityState.HIDDEN
+            )
+            assert (
+                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
                 == ComponentVisibilityState.HIDDEN
             )
 
