@@ -546,7 +546,11 @@ class AddContextSelectSourceForm(FlaskForm):
             self.data_source.choices = [(choice.name, choice.value) for choice in ExpressionContext.ContextSources]
         else:
             self.data_source.choices = [
-                (ExpressionContext.ContextSources.SECTION.name, ExpressionContext.ContextSources.SECTION.value)
+                (ExpressionContext.ContextSources.SECTION.name, ExpressionContext.ContextSources.SECTION.value),
+                (
+                    ExpressionContext.ContextSources.PREVIOUS_SECTION.name,
+                    ExpressionContext.ContextSources.PREVIOUS_SECTION.value,
+                ),
             ]
 
     def validate_data_source(self, field: Field) -> None:
