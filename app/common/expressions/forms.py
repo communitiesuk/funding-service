@@ -5,7 +5,7 @@ from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea
 from markupsafe import Markup
 from wtforms import RadioField, StringField, SubmitField
-from wtforms.validators import DataRequired, InputRequired
+from wtforms.validators import DataRequired
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum
@@ -153,13 +153,13 @@ class CustomExpressionForm(ContextAwareAbstractExpressionForm):
     custom_expression = StringField(
         "Expression",
         widget=GovTextArea(),
-        validators=[InputRequired()],
+        validators=[DataRequired()],
     )
     custom_message = StringField(
         "Message",
         description="Shown to the user if the answer is not valid",
         widget=GovTextArea(),
-        validators=[InputRequired()],
+        validators=[DataRequired()],
     )
     add_context = StringField(
         "Reference data",

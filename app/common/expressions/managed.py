@@ -38,7 +38,7 @@ from app.types import TRadioItem
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
-    from app.common.expressions.forms import _ManagedExpressionForm
+    from app.common.expressions.forms import CustomExpressionForm, _ManagedExpressionForm
 
 
 class AbstractExpression(BaseModel, SafeQidMixin):
@@ -1294,11 +1294,9 @@ class Custom(AbstractExpression):
         return self.custom_message
 
     @staticmethod
-    def build_from_form(
-        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
-    ) -> Custom:
+    def build_from_form(form: CustomExpressionForm, question: Question) -> Custom:
         return Custom(
             question_id=question.id,
-            custom_expression=form.custom_expression.data,  # ty: ignore[unresolved-attribute]
-            custom_message=form.custom_message.data,  # ty: ignore[unresolved-attribute]
+            custom_expression=form.custom_expression.data,  # type:ignore[arg-type]
+            custom_message=form.custom_message.data,  # type:ignore[arg-type]
         )
