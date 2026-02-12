@@ -38,7 +38,7 @@ from app.types import TRadioItem
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
-    from app.common.expressions.forms import _ManagedExpressionForm
+    from app.common.expressions.forms import CustomExpressionForm, _ManagedExpressionForm
 
 
 class ManagedExpression(BaseModel, SafeQidMixin):
@@ -1294,21 +1294,19 @@ class Custom(ManagedExpression):
     def message(self) -> str:
         return self.custom_message
 
+    @staticmethod
+    def build_from_form(form: CustomExpressionForm, question: Question) -> Custom:
+        return Custom(
+            question_id=question.id,
+            custom_expression=form.custom_expression.data,  # type:ignore[arg-type]
+            custom_message=form.custom_message.data,  # type:ignore[arg-type]
+        )
+
+    # TODO these don't make sense as we have a static custom expression form - at what point do we change the hierarchy?
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         raise NotImplementedError("Custom expression does not implement this - use expression_referenced_items instead")
 
-    @staticmethod
-    def build_from_form(
-        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
-    ) -> Custom:
-        return Custom(
-            question_id=question.id,
-            custom_expression=form.custom_expression.data,  # ty: ignore[unresolved-attribute]
-            custom_message=form.custom_message.data,  # ty: ignore[unresolved-attribute]
-        )
-
-    # TODO these don't make sense as we have a static custom expression form - at what point do we change the hierarchy?
     @staticmethod
     def get_form_fields(
         referenced_question: Question,

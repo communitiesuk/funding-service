@@ -24,7 +24,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.forms import build_managed_expression_form
+from app.common.expressions.forms import CustomExpressionForm, build_managed_expression_form
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
@@ -2403,7 +2403,7 @@ class TestSelectContextSource:
         assert "Select a data source" in soup.text
 
     def test_post_redirect_and_updates_session(self, authenticated_grant_admin_client, factories):
-        assert len(ExpressionContext.ContextSources) == 4, "Check all redirects if adding new context source choices"
+        assert len(ExpressionContext.ContextSources) == 5, "Check all redirects if adding new context source choices"
 
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
@@ -2434,6 +2434,66 @@ class TestSelectContextSource:
                 "deliver_grant_funding.select_context_source_question",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
+            )
+        )
+
+    def test_post_errors_if_select_this_question_outside_expression(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        factories.question.create(form=form)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"data_source": "THIS_QUESTION"},
+        )
+        assert response.status_code == 200
+        assert page_has_error(BeautifulSoup(response.data, "html.parser"), "Not a valid choice")
+
+    def test_post_this_question_for_expression(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form)
+        wtform = CustomExpressionForm(
+            data={"add_context": "custom_expression", "custom_expression": "", "custom_message": ""}
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.VALIDATION,
+                managed_expression_name=ManagedExpressionsEnum.CUSTOM,
+                expression_form_data=wtform.data,
+                component_id=question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"data_source": "THIS_QUESTION"},
+        )
+        assert response.status_code == 302
+        assert response.location.endswith(
+            url_for(
+                "deliver_grant_funding.add_custom_question_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
             )
         )
 
