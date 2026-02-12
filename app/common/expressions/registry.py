@@ -8,7 +8,7 @@ registry. The registry is probed by the managed expression form builder to autom
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 
 if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
@@ -34,6 +34,19 @@ def get_managed_conditions_by_data_type(question_type: QuestionDataType) -> list
 def get_managed_validators_by_data_type(question_type: QuestionDataType) -> list[type[ManagedExpression]]:
     """Returns the list of managed expressions supported for a particular question type."""
     return _validator_registry_by_data_type[question_type]
+
+
+# TODO maybe we don't need this? Maybe it's fine / better to just compare data types directly
+def validate_dependent_question_data_type_for_expression(
+    target_managed_expression_name: ManagedExpressionsEnum,
+    target_expression_type: ExpressionType,
+    dependent_question_data_type: QuestionDataType,
+) -> bool:
+    target_expression_type_name = _registry_by_expression_enum[target_managed_expression_name]
+    if target_expression_type == ExpressionType.CONDITION:
+        return target_expression_type_name in _condition_registry_by_data_type[dependent_question_data_type]
+    else:
+        return target_expression_type_name in _validator_registry_by_data_type[dependent_question_data_type]
 
 
 def lookup_managed_expression(expression_enum: ManagedExpressionsEnum) -> type[ManagedExpression]:
