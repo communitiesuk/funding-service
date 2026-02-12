@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
     from app.common.expressions.forms import _ManagedExpressionForm
 
+from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, get_safe_evaluator
+
 
 class ManagedExpression(BaseModel, SafeQidMixin):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
@@ -226,6 +228,98 @@ class BottomOfRangeIsLower:
         if bottom_of_range and top_of_range:
             if bottom_of_range >= top_of_range:
                 raise ValidationError(self.message)
+
+
+@register_managed_expression
+class Custom(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CUSTOM
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/custom.html"
+    )
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    custom_expression: str
+
+    @property
+    def description(self) -> str:
+        return "Custom expression"
+
+    @property
+    def message(self) -> str:
+        return "Custom expression"
+
+    @property
+    def statement(self) -> str:
+        return f"{self.custom_expression}"
+
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        referenced_question_ids: list[UUID] = []
+        for match in INTERPOLATE_REGEX.finditer(self.custom_expression):
+            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
+
+            if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
+                raise InvalidReferenceInExpression(
+                    f"Reference is not valid: {wrapped_ref}",
+                    field_name=field_name,
+                    bad_reference=wrapped_ref,
+                )
+            # TODO some kind of validation to check references are valid for this expression
+            # if not expression_context.is_valid_reference(inner_ref):
+            #     raise InvalidReferenceInExpression(
+            #         f"Reference is not valid: {wrapped_ref}",
+            #         field_name=field_name,
+            #         bad_reference=wrapped_ref,
+            #     )
+            safe_qid = SafeQidMixin.safe_qid_to_id(inner_ref)
+            if safe_qid:
+                referenced_question_ids.append(safe_qid)
+
+        return referenced_question_ids
+
+    @staticmethod
+    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+        return {
+            "custom_expression": StringField(
+                "Expression",
+                default=expression.context.get("custom_expression") or "" if expression else "",  # type: ignore[arg-type]
+                widget=GovTextArea(),
+            ),
+            "add_context": StringField(
+                "Reference data",
+                widget=GovSubmitInput(),
+            ),
+            "remove_context": StringField(
+                "Remove data",
+                widget=GovSubmitInput(),
+            ),
+        }
+
+    @staticmethod
+    def update_validators(form: _ManagedExpressionForm) -> None:
+        form.custom_expression.validators = (  # ty: ignore[unresolved-attribute]
+            [InputRequired("Enter the custom expression")]
+        )
+
+    @staticmethod
+    def build_from_form(
+        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+    ) -> Custom:
+        return Custom(question_id=question.id, custom_expression=form.custom_expression.data)
+
+    def validate_custom_expression_syntax(self):
+        names = {}
+        for ref_q in self.expression_referenced_question_ids:
+            # assume these are numbers
+            names[f"q_{ref_q.hex}"] = 1
+        evaluator = get_safe_evaluator(names=names, required_functions={})
+
+        # raise up any exceptions for now to pass back to user as syntax validation errors
+        evaluator.eval(self.custom_expression)
 
 
 @register_managed_expression

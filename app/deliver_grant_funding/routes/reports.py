@@ -3,6 +3,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
+import simpleeval
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
@@ -70,6 +71,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import _ManagedExpressionForm, build_managed_expression_form
+from app.common.expressions.managed import Custom
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
@@ -1200,12 +1202,14 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
         return abort(400)
-
+    current_component = get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None
     wtform = AddContextSelectSourceForm(
         form=db_form,
-        current_component=get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None,
+        current_component=current_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
         ff_show_new_context_sources=AuthorisationHelper.is_platform_member(get_current_user()),
+        include_this_question=isinstance(add_context_data, AddContextToExpressionsModel)
+        and add_context_data.managed_expression_name == ManagedExpressionsEnum.CUSTOM.value,
     )
     if wtform.validate_on_submit():
         add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
@@ -1231,7 +1235,42 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                         "deliver_grant_funding.select_context_source_collection", grant_id=grant_id, form_id=form_id
                     )
                 )
-
+            case ExpressionContext.ContextSources.THIS_QUESTION:
+                print("this question")
+                target_field = add_context_data.expression_form_data["add_context"]
+                print(f"target field: {target_field}")
+                add_context_data.expression_form_data[target_field] = f" (({current_component.safe_qid}))"
+                print(f"safe qid: {current_component.safe_qid}")
+                print(add_context_data.expression_form_data[target_field])
+                if add_context_data.field == ExpressionType.CONDITION:
+                    if not add_context_data.expression_id:
+                        return_url = url_for(
+                            "deliver_grant_funding.add_question_condition",
+                            grant_id=grant_id,
+                            component_id=add_context_data.component_id,
+                            depends_on_question_id=add_context_data.depends_on_question_id,
+                        )
+                    else:
+                        return_url = url_for(
+                            "deliver_grant_funding.edit_question_condition",
+                            grant_id=grant_id,
+                            expression_id=add_context_data.expression_id,
+                        )
+                else:
+                    if not add_context_data.expression_id:
+                        return_url = url_for(
+                            "deliver_grant_funding.add_question_validation",
+                            grant_id=grant_id,
+                            question_id=add_context_data.component_id,
+                        )
+                    else:
+                        return_url = url_for(
+                            "deliver_grant_funding.edit_question_validation",
+                            grant_id=grant_id,
+                            expression_id=add_context_data.expression_id,
+                        )
+                session["question"] = add_context_data.model_dump(mode="json")
+                return redirect(return_url)
             case _:
                 wtform.form_errors.append("Unknown data source selected")
 
@@ -1389,9 +1428,15 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
             case AddContextToExpressionsModel():
                 if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
                     target_field = add_context_data.expression_form_data["add_context"]
-                    add_context_data.expression_form_data[target_field] = f"(({referenced_question.safe_qid}))"
+                    if add_context_data.managed_expression_name == ManagedExpressionsEnum.CUSTOM.value:
+                        add_context_data.expression_form_data[target_field] += f"(({referenced_question.safe_qid}))"
+                    else:
+                        add_context_data.expression_form_data[target_field] = f"(({referenced_question.safe_qid}))"
 
-                if add_context_data.field == ExpressionType.CONDITION:
+                if (
+                    add_context_data.field == ExpressionType.CONDITION
+                    or add_context_data.field == "condition_depends_on"
+                ):
                     if not add_context_data.expression_id:
                         return_url = url_for(
                             "deliver_grant_funding.add_question_condition",
@@ -2086,10 +2131,21 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         return redirect(request.url)
 
     if form and form.validate_on_submit():
+        print("edit")
         # todo: any time we're dealing with the dependant component its a question - make sure this makes sense
         updated_managed_expression = form.get_expression(cast("Question", question))
+        print(updated_managed_expression.name)
         try:
+            if updated_managed_expression.name == ManagedExpressionsEnum.CUSTOM.value:
+                cast(Custom, updated_managed_expression).validate_custom_expression_syntax()
             interfaces.collections.update_question_expression(expression, updated_managed_expression)
+        except simpleeval.NameNotDefined as e:
+            form.form_errors.append(f"This name is not defined: {e.name}. ")
+        except simpleeval.FeatureNotAvailable:
+            form.form_errors.append("You can't do this ")
+        except simpleeval.FunctionNotDefined as e:
+            form.form_errors.append(f"This function is not available: {e.func_name}. ")
+
         except DuplicateValueError:
             # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
             #        complain to us about it before we think about a better way of handling it.

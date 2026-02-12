@@ -977,7 +977,8 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
     if not dependency_is_same_form:
         return False
 
-    return form.cached_all_components.index(component) > form.cached_all_components.index(depends_on_component)
+    # TODO probably shouldn't just make this >= but otherwise the custom expression can't reference itself
+    return form.cached_all_components.index(component) >= form.cached_all_components.index(depends_on_component)
 
 
 def raise_if_question_has_any_dependencies(question: Question | Group) -> Never | None:
@@ -1346,13 +1347,14 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             db.session.add(cr)
             references.append(cr)
     else:
-        cr = ComponentReference(
-            depends_on_component=expression.managed.referenced_question,
-            component=expression.question,
-            expression=expression,
-        )
-        db.session.add(cr)
-        references.append(cr)
+        if expression.managed.referenced_question.id not in managed.expression_referenced_question_ids:
+            cr = ComponentReference(
+                depends_on_component=expression.managed.referenced_question,
+                component=expression.question,
+                expression=expression,
+            )
+            db.session.add(cr)
+            references.append(cr)
 
     for referenced_question_id in managed.expression_referenced_question_ids:
         referenced_question = get_question_by_id(referenced_question_id)
