@@ -3,6 +3,8 @@ import uuid
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
+import simpleeval
+import wtforms
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
@@ -21,6 +23,7 @@ from app.common.data.interfaces.collections import (
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
     SectionDependencyOrderException,
+    _find_and_validate_references,
     create_collection,
     create_form,
     create_group,
@@ -68,7 +71,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
-from app.common.expressions import ExpressionContext
+from app.common.expressions import ExpressionContext, get_safe_evaluator
 from app.common.expressions.forms import (
     ContextAwareAbstractExpressionForm,
     CustomExpressionForm,
@@ -107,7 +110,7 @@ from app.extensions import auto_commit_after_request, notification_service
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.data.models import Expression, Group, Question
+    from app.common.data.models import Component, Expression, Group, Question
 
 
 SessionModelType = (
@@ -1183,7 +1186,9 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
             field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
-
+        except DependencyOrderException as e:
+            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
     return render_template(
         "deliver_grant_funding/reports/add_question.html",
         grant=form.collection.grant,
@@ -1587,6 +1592,9 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
             field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
+        except DependencyOrderException as e:
+            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
         except DataSourceItemReferenceDependencyException as e:
             for flash_context in e.as_flash_contexts():
                 flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]
@@ -1673,6 +1681,9 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(form, e.field_name)
             field_with_error.errors.append(e.message)
+        except DependencyOrderException as e:
+            field_with_error = getattr(form, e.field_name)
+            field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/manage_add_another_guidance.html",
@@ -1759,6 +1770,9 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(form, e.field_name)
             field_with_error.errors.append(e.message)
+        except DependencyOrderException as e:
+            field_with_error = getattr(form, e.field_name)
+            field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
 
     # Build expression context for reference mappings
     return render_template(
@@ -2074,6 +2088,48 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     )
 
 
+def _validate_custom_expression_syntax(
+    component: Component, expression_context: ExpressionContext, field: wtforms.Field
+) -> bool:
+    """Badly named function that finds all the references in a custom expression, checks they are valid in the
+    relevant expression context, and adds the first error it encounters to the field's errors.
+
+    It lives here in the routes because creating it as a validator broke all sorts of contracts/ circular imports
+    because it needs an expression context to properly validate the references.
+    """
+    expression_statement = field.data
+    try:
+        items_in_expression = _find_and_validate_references(
+            component, expression_statement, expression_context, field.name, allow_reference_to_self=True
+        )
+        names = {}
+        for _, ref_q_uuid in items_in_expression:
+            # assume these are numbers as we can't do custom expressions unless using the number data
+            # type but we could check this
+            # Also assumes the references are all questions but this will changes with ref data etc
+            names[f"q_{ref_q_uuid.hex}"] = 1
+        evaluator = get_safe_evaluator(names=names, required_functions={})
+
+        evaluator.eval(expression_statement)
+        return True
+    # TODO review error message wording
+    except DependencyOrderException as e:
+        field.errors.append(
+            f"{field.label.text} cannot reference {e.depends_on_question.name} as it appears in the wrong order."
+        )
+    except InvalidReferenceInExpression as e:
+        field.errors.append(f"{e.bad_reference} is not a valid reference")
+    except simpleeval.NameNotDefined as e:
+        field.errors.append(f"This name is not defined: {e.name}. ")
+    except simpleeval.FeatureNotAvailable:
+        field.errors.append("You can't do this ")
+    except simpleeval.FunctionNotDefined as e:
+        field.errors.append(f"This function is not available: {e.func_name}. ")
+    except SyntaxError as e:
+        field.errors.append(f"Invalid syntax in expression: {e.text}")
+    return False
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-validation/custom",
     methods=["GET", "POST"],
@@ -2082,16 +2138,16 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
 @collection_is_editable()
 @auto_commit_after_request
 def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    question = get_question_by_id(question_id)
-
-    add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id
-    )
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(
             url_for("deliver_grant_funding.add_question_validation", grant_id=grant_id, question_id=question_id)
         )
+    question = get_question_by_id(question_id)
+
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToExpressionsModel, question_id=question.id
+    )
     form = CustomExpressionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
     if form and form.is_submitted_to_add_context():
         form_data = form.get_expression_form_data()
@@ -2106,7 +2162,18 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
             managed_expression_name=ManagedExpressionsEnum.CUSTOM,
         )
 
-    if form and form.validate_on_submit():
+    if (
+        form
+        and form.validate_on_submit()
+        and _validate_custom_expression_syntax(
+            question,
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "interpolation",
+            ),
+            form.custom_expression,
+        )
+    ):
         expression = Custom.build_from_form(form, question)
 
         try:
@@ -2188,7 +2255,18 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
             expression_id=expression.id,
         )
 
-    if form and form.validate_on_submit():
+    if (
+        form
+        and form.validate_on_submit()
+        and _validate_custom_expression_syntax(
+            question,
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "interpolation",
+            ),
+            form.custom_expression,
+        )
+    ):
         custom_expression = Custom.build_from_form(form, question)
 
         try:
@@ -2197,6 +2275,8 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
             # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
             #        complain to us about it before we think about a better way of handling it.
             form.form_errors.append(f"“{custom_expression.description}” validation already exists on the question.")
+        except InvalidReferenceInExpression as e:
+            form[e.field_name].errors.append(e.message)
         else:
             if "question" in session:
                 del session["question"]
