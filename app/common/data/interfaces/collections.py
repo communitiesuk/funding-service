@@ -1560,7 +1560,12 @@ def update_question_expression(expression: Expression, managed_expression: Manag
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
 
-    _validate_and_sync_expression_references(expression, ExpressionContext(expression_context=expression.context))
+    _validate_and_sync_expression_references(
+        expression,
+        ExpressionContext.build_expression_context(
+            expression.question.form.collection, mode="interpolation", expression_context_end_point=expression.question
+        ),
+    )  # ExpressionContext(expression_context=expression.context))
     return expression
 
 
