@@ -33,10 +33,10 @@ def test_slugify(test_string, expected_result):
         ([], "and", ""),
         (["foo"], "and", "foo"),
         (["foo", "bar"], "and", "foo and bar"),
-        (["foo", "bar", "baz"], "and", "foo, bar, and baz"),
-        (["a", "b", "c", "d"], "and", "a, b, c, and d"),
+        (["foo", "bar", "baz"], "and", "foo, bar and baz"),
+        (["a", "b", "c", "d"], "and", "a, b, c and d"),
         (["foo", "bar"], "or", "foo or bar"),
-        (["foo", "bar", "baz"], "or", "foo, bar, or baz"),
+        (["foo", "bar", "baz"], "or", "foo, bar or baz"),
     ],
 )
 def test_comma_join_items(items, join_word, expected):
