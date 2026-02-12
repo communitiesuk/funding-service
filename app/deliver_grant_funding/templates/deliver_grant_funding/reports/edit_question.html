@@ -226,8 +226,15 @@
                 {{ to_ordinal(loop.index) | capitalize }}
                 <span class="govuk-visually-hidden">validation</span>
               {% endset %}
+              {% set edit_validation_link %}
+                {% if validation.managed_name == "Custom" %}
+                  {{ url_for('deliver_grant_funding.edit_custom_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}
+                {% else %}
+                  {{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}
+                {% endif %}
+              {% endset %}
               {% set value_html %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}" disabled>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ edit_validation_link }}" disabled>
                   <span class="govuk-visually-hidden">Change validation for</span>
                   {{ interpolate(validation.managed.message, with_interpolation_highlighting=True) }}
                 </a>
