@@ -1,0 +1,12 @@
+{% set all_conditional_depended_on_components = component.all_conditional_depended_on_components %}
+{% for ocr in component.owned_component_references %}
+  {% if ocr.component_id != ocr.depends_on_component_id and ocr.depends_on_component in all_conditional_depended_on_components %}
+    {% set key_html %}
+      <span>{{ ocr.depends_on_component.data_reference_label }}</span>
+    {% endset %}
+    {% set value_html %}
+      <span class="govuk-body">Must have been answered (automatic)</span>
+    {% endset %}
+    {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
+  {% endif %}
+{% endfor %}
