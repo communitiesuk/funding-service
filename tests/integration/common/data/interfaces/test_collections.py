@@ -10,7 +10,6 @@ from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
     AddAnotherNotValidException,
     DataSourceItemReferenceDependencyException,
-    DependencyOrderException,
     GroupContainsAddAnotherException,
     IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
@@ -62,6 +61,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
+    DependencyOrderException,
     DuplicateValueError,
     GrantMustBeLiveError,
     InvalidReferenceInExpression,
@@ -3565,7 +3565,7 @@ class TestValidateAndSyncExpressionReferences:
             Custom(
                 question_id=q3.id,
                 custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
-                custom_message=f"(({q3.safe_qid})) must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
+                custom_message=f"The answer must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
                 f" and a random reference to (({q0.safe_qid}))",
             ),
             ExpressionType.VALIDATION,
@@ -3853,13 +3853,11 @@ class TestValidateAndSyncComponentReferences:
         text_question = factories.question.create()
         hint_question = factories.question.create(form=text_question.form)
         guidance_body_question = factories.question.create(form=text_question.form)
-        add_another_guidance_body_question = factories.question.create(form=text_question.form)
         dependent_question = factories.question.create(
             form=text_question.form,
             text=f"Reference to (({text_question.safe_qid}))",
             hint=f"Reference to (({hint_question.safe_qid}))",
             guidance_body=f"Reference to (({guidance_body_question.safe_qid}))",
-            add_another_guidance_body=f"Reference to (({add_another_guidance_body_question.safe_qid}))",
         )
 
         # The factories create component references automatically; this will generally be the desirable behaviour
@@ -3881,7 +3879,6 @@ class TestValidateAndSyncComponentReferences:
             text_question,
             hint_question,
             guidance_body_question,
-            add_another_guidance_body_question,
         }
 
     def test_handles_multiple_interpolations(self, db_session, factories):
@@ -3931,7 +3928,7 @@ class TestValidateAndSyncComponentReferences:
         referenced_question = factories.question.create(form=dependent_question.form, data_type=QuestionDataType.NUMBER)
         dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
 
-        with pytest.raises(InvalidReferenceInExpression):
+        with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
@@ -3943,7 +3940,7 @@ class TestValidateAndSyncComponentReferences:
         question = factories.question.create()
         question.text = f"Reference to (({question.safe_qid}))"
 
-        with pytest.raises(InvalidReferenceInExpression):
+        with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
                 question,
                 ExpressionContext.build_expression_context(collection=question.form.collection, mode="interpolation"),
@@ -4077,7 +4074,7 @@ class TestValidateAndSyncComponentReferences:
         dependent_question = factories.question.create(form=earlier_form)
         dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
 
-        with pytest.raises(InvalidReferenceInExpression):
+        with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
@@ -4416,59 +4413,6 @@ class TestResetTestSubmission:
             reset_test_submission(collection.live_submissions[0])
 
 
-class TestAddQuestionValidationCustomExpression:
-    def test_create_custom_validation_expression_valid(self, factories):
-        form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
-        user = factories.user.create()
-        custom_expr = Custom(
-            question_id=q3.id,
-            custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
-            custom_message="Q3 must be less than Q1+Q2",
-        )
-
-        collections.add_question_validation(question=q3, user=user, managed_expression=custom_expr)
-
-        q3_from_db = get_question_by_id(q3.id)
-        assert len(q3_from_db.expressions) == 1
-        assert len(q3_from_db.owned_component_references) == 3
-
-
-class TestFindAndValidateReferences:
-    def test_custom_expression_valid_references(self, factories):
-        form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
-        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
-        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
-        result = _find_and_validate_references(q3, value, context, "custom expression")
-        assert len(result) == 3
-        assert (q3.id, q1.id) in result
-        assert (q3.id, q2.id) in result
-        assert (q3.id, q3.id) in result
-
-    def test_custom_expression_bad_order(self, factories):
-        form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
-        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
-        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _find_and_validate_references(q2, value, context, "custom expression")
-            assert "Reference is not valid" in str(e)
-            assert e.field_name == "custom expression"
-            assert e.bad_reference == f"(({q3.safe_qid}))"
-
-    def test_custom_expression_bad_reference(self, factories):
-        form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
-        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + ((q_bad_ref))"
-        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _find_and_validate_references(q2, value, context, "custom expression")
-            assert "Reference is not valid" in str(e)
-            assert e.field_name == "custom expression"
-            assert e.bad_reference == "((q_bad_ref))"
-
-
 class TestResetAllTestSubmissions:
     def test_deletes_all_test_submissions_and_their_events(self, db_session, factories):
         collection = factories.collection.create(create_submissions__test=3)
@@ -4533,7 +4477,14 @@ class TestFindAndValidateReferences:
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
         value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
-        result = _find_and_validate_references(q3, value, context, "custom expression", allow_reference_to_self=True)
+        result = _find_and_validate_references(
+            q3,
+            value,
+            context,
+            "custom expression",
+            allow_reference_to_self=True,
+            is_custom_expression=True,
+        )
         assert len(result) == 3
         assert (q3.id, q1.id) in result
         assert (q3.id, q2.id) in result
@@ -4544,19 +4495,52 @@ class TestFindAndValidateReferences:
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
         value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _find_and_validate_references(q2, value, context, "custom expression")
-            assert "Reference is not valid" in str(e)
-            assert e.field_name == "custom expression"
-            assert e.bad_reference == f"(({q3.safe_qid}))"
+        with pytest.raises(DependencyOrderException) as e:
+            _find_and_validate_references(
+                q2,
+                value,
+                context,
+                "custom expression",
+                allow_reference_to_self=True,
+                is_custom_expression=True,
+            )
+        assert "Reference is not valid" in str(e)
+        assert e.value.depends_on_question.id == q3.id
+        assert e.value.question.id == q2.id
 
     def test_custom_expression_bad_reference(self, factories):
         form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
-        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + ((q_bad_ref))"
+        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + ((q_bad_ref))"
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
         with pytest.raises(InvalidReferenceInExpression) as e:
-            _find_and_validate_references(q2, value, context, "custom expression")
-            assert "Reference is not valid" in str(e)
-            assert e.field_name == "custom expression"
-            assert e.bad_reference == "((q_bad_ref))"
+            _find_and_validate_references(
+                q3,
+                value,
+                context,
+                "custom expression",
+                allow_reference_to_self=True,
+                is_custom_expression=True,
+            )
+        assert "Reference is not valid" in str(e)
+        assert e.value.field_name == "custom expression"
+        assert e.value.bad_reference == "((q_bad_ref))"
+
+    def test_custom_expression_wrong_data_type(self, factories):
+        form = factories.form.create()
+        q1 = factories.question.create(form=form)
+        q2, q3 = factories.question.create_batch(2, form=form, data_type=QuestionDataType.NUMBER)
+        value = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
+        with pytest.raises(IncompatibleDataTypeException) as e:
+            _find_and_validate_references(
+                q3,
+                value,
+                context,
+                "custom expression",
+                allow_reference_to_self=True,
+                is_custom_expression=True,
+            )
+        assert "Reference is not valid due to incompatible data types" in str(e)
+        assert e.value.field_name == "custom expression"
+        assert e.value.depends_on_question == q1
