@@ -17,7 +17,7 @@ class TestManagedExpressions:
         assert unsupported_question_type not in get_registered_data_types()
 
     def test_new_managed_expressions_added(self):
-        assert len(_registry_by_expression_enum) == 11, (
-            "If you've added a new managed expression, update this test and add"
+        assert len(_registry_by_expression_enum) == 12, (
+            "If you've added a new managed expression, update this test and add "
             "suitable tests in `tests/integration/common/expressions/test_managed.py`"
         )

@@ -210,7 +210,7 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
     },
 }
 
-
+# TODO add a test for a CustomExpression once this is available in the UI
 section_2_questions_to_test: dict[str, TQuestionToTest] = {
     "date": QuestionDict(
         type=QuestionDataType.DATE,
@@ -969,7 +969,7 @@ def test_setup_grant_and_collection(
     assert (
         len(QuestionDataType) == 9
         and len(section_2_questions_to_test) == 17
-        and len(ManagedExpressionsEnum) == 11
+        and len(ManagedExpressionsEnum) == 12
         and len(NumberTypeEnum) == 2
     ), (
         "If you have added a new question/number type or managed expression, update this test to include the "

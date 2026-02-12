@@ -69,7 +69,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.forms import _ManagedExpressionForm, build_managed_expression_form
+from app.common.expressions.forms import CustomExpressionForm, _ManagedExpressionForm, build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
@@ -1961,6 +1961,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     )
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+    ff_show_custom_expression_option = AuthorisationHelper.is_platform_member(get_current_user())
     form = (
         ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ValidationForm
@@ -2021,6 +2022,37 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         form=form,
         QuestionDataType=QuestionDataType,
         interpolate=SubmissionHelper.get_interpolator(question.form.collection),
+        ff_show_custom_expression_option=ff_show_custom_expression_option,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-validation/custom",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+
+    # add_context_data = _extract_add_context_data_from_session(
+    #     session_model=AddContextToExpressionsModel, question_id=question.id
+    # )
+    # TODO remove once we un-feature-flag this
+    if not AuthorisationHelper.is_platform_member(get_current_user()):
+        return redirect(
+            url_for("deliver_grant_funding.add_question_validation", grant_id=grant_id, question_id=question_id)
+        )
+
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=question.form.collection, expression_context_end_point=question
+    )
+    return render_template(
+        "deliver_grant_funding/reports/managed_expressions/custom.html",
+        form=CustomExpressionForm(),
+        question=question,
+        grant=question.form.collection.grant,
     )
 
 
@@ -2056,7 +2088,10 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
     form = (
-        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+        ValidationForm(
+            data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
+            ff_show_custom_expression=False,
+        )
         if ValidationForm
         else None
     )
