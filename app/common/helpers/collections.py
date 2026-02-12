@@ -65,6 +65,7 @@ if TYPE_CHECKING:
     from app.common.data.models import (
         Collection,
         Component,
+        Expression,
         Form,
         Grant,
         Group,
@@ -520,16 +521,16 @@ class SubmissionHelper:
         if ref_state != ComponentVisibilityState.VISIBLE:
             return ref_state
 
-        def evaluate_component_conditions(comp: Component) -> bool:
-            if not comp.conditions:
+        def evaluate_component_conditions(operator: ConditionsOperator, conditions: list[Expression]) -> bool:
+            if not conditions:
                 return True
-            match comp.conditions_operator:
+            match operator:
                 case ConditionsOperator.ANY:
-                    return any(evaluate(condition, context) for condition in comp.conditions)
+                    return any(evaluate(condition, context) for condition in conditions)
                 case ConditionsOperator.ALL:
-                    return all(evaluate(condition, context) for condition in comp.conditions)
+                    return all(evaluate(condition, context) for condition in conditions)
                 case _:
-                    raise RuntimeError(f"Unknown condition operator={comp.conditions_operator}")
+                    raise RuntimeError(f"Unknown condition operator={operator}")
 
         try:
             if component.add_another_container and add_another_index is not None:
@@ -537,15 +538,11 @@ class SubmissionHelper:
                     component, submission_helper=self, add_another_index=add_another_index
                 )
 
-            current = component
-            while current.parent:
-                if not evaluate_component_conditions(current.parent):
+            for _operator, _conditions in component.full_condition_chain:
+                if not evaluate_component_conditions(_operator, _conditions):
                     return ComponentVisibilityState.HIDDEN
-                current = current.parent
 
-            if evaluate_component_conditions(component):
-                return ComponentVisibilityState.VISIBLE
-            return ComponentVisibilityState.HIDDEN
+            return ComponentVisibilityState.VISIBLE
 
         except UndefinedVariableInExpression:
             if not check_undetermined:

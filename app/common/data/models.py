@@ -454,7 +454,7 @@ class Component(BaseModel):
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.CONDITION]
 
     @property
-    def full_condition_chain(self) -> list[Expression]:
+    def full_condition_chain(self) -> list[tuple[ConditionsOperator, list[Expression]]]:
         """Returns a list of all of the conditions that this question depends on, eg:
 
         Q1 has no conditions (always asked)
@@ -463,31 +463,43 @@ class Component(BaseModel):
 
         Q3.full_condition_chain == [Q3.condition, Q2.condition]
         """
-        visited = set()
         conditions = []
 
-        def _fetch_dependent_conditions(component: Component) -> None:
+        def _fetch_dependent_conditions(component: Component, visited: set[Component]) -> None:
             visited.add(component)
-            conditions.extend(component.conditions)
+
+            if component.conditions:
+                conditions.append((component.conditions_operator, component.conditions))
+
             for ocr in component.owned_component_references:
                 if (
                     ocr.depends_on_component
                     and ocr.depends_on_component != component
                     and ocr.depends_on_component not in visited
                 ):
-                    _fetch_dependent_conditions(ocr.depends_on_component)
+                    _fetch_dependent_conditions(ocr.depends_on_component, visited)
 
-        _fetch_dependent_conditions(self)
+        target_component = self
+        while target_component:
+            _fetch_dependent_conditions(target_component, set())
+            target_component = target_component.parent
 
-        return conditions
+        return list(reversed(conditions))  # starts with farthest parent, ends with this component
 
     @property
     def all_conditional_depended_on_components(self) -> set[Component]:
         """
         Returns a set of all components that this question depends on, walking up the full condition chain.
+
+        This relies on component references, which means that it includes both explicitly-configured conditions (eg
+        managed conditions) and implicit conditions (eg where a question interpolates the answer from another question
+        into its text).
         """
         all_conditional_depended_on_components = {
-            expr.component_references[0].component for expr in self.full_condition_chain if expr.component_references
+            expr.component_references[0].component
+            for _operator, _exprs in self.full_condition_chain
+            for expr in _exprs
+            if expr.component_references
         }
         return all_conditional_depended_on_components
 
