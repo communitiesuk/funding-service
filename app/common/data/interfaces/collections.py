@@ -1409,7 +1409,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
         _validate_and_sync_expression_references(expression)
 
     references_to_set_up: set[tuple[UUID, UUID]] = set()
-    field_names = ["text", "hint", "guidance_body"]
+    field_names = ["text", "hint", "guidance_body", "add_another_guidance_body"]
     for field_name in field_names:
         value = getattr(component, field_name)
         if value is None:

@@ -3585,11 +3585,13 @@ class TestValidateAndSyncComponentReferences:
         text_question = factories.question.create()
         hint_question = factories.question.create(form=text_question.form)
         guidance_body_question = factories.question.create(form=text_question.form)
+        add_another_guidance_body_question = factories.question.create(form=text_question.form)
         dependent_question = factories.question.create(
             form=text_question.form,
             text=f"Reference to (({text_question.safe_qid}))",
             hint=f"Reference to (({hint_question.safe_qid}))",
             guidance_body=f"Reference to (({guidance_body_question.safe_qid}))",
+            add_another_guidance_body=f"Reference to (({add_another_guidance_body_question.safe_qid}))",
         )
 
         # The factories create component references automatically; this will generally be the desirable behaviour
@@ -3607,7 +3609,12 @@ class TestValidateAndSyncComponentReferences:
         )
 
         refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
-        assert {ref.depends_on_component for ref in refs} == {text_question, hint_question, guidance_body_question}
+        assert {ref.depends_on_component for ref in refs} == {
+            text_question,
+            hint_question,
+            guidance_body_question,
+            add_another_guidance_body_question,
+        }
 
     def test_handles_multiple_interpolations(self, db_session, factories):
         ref_question1 = factories.question.create()
