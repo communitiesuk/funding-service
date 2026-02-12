@@ -381,25 +381,18 @@ def get_submission(
                 # joinedload lets us avoid an exponentially increasing number of queries
                 joinedload(Submission.collection)
                 .joinedload(Collection.forms)
-                .selectinload(Form._all_components)
-                .joinedload(Component.expressions),
-                # get any nested components in one go
-                joinedload(Submission.collection)
-                .joinedload(Collection.forms)
-                .selectinload(Form._all_components)
-                .selectinload(Component.components)
-                .joinedload(Component.expressions),
-                # eagerly populate the forms top level components - this is a redundant query but
-                # leaves as much as possible with the ORM
-                joinedload(Submission.collection)
-                .joinedload(Collection.forms)
-                .selectinload(Form.components)
-                .joinedload(Component.expressions),
-                joinedload(Submission.events),
-                joinedload(Submission.collection)
-                .joinedload(Collection.forms)
-                .selectinload(Form.components)
-                .selectinload(Component.owned_component_references),
+                .options(
+                    # eagerly populate the forms top level components - this is a redundant query but
+                    # leaves as much as possible with the ORM
+                    selectinload(Form.components).joinedload(Component.expressions),
+                    selectinload(Form._all_components).options(
+                        joinedload(Component.expressions),
+                        # get any nested components in one go
+                        joinedload(Component.components).joinedload(Component.expressions),
+                        selectinload(Component.owned_component_references),
+                    ),
+                ),
+                selectinload(Submission.events),
             ]
         )
 

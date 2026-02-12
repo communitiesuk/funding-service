@@ -640,11 +640,11 @@ def test_get_submission_with_full_schema(db_session, factories, track_sql_querie
     assert from_db is not None
 
     # Expected queries:
-    # * Load the collection with the nested relationships attached
-    # * Load the forms
-    # * Load the questions (components)
-    # * Load any recursive questions (components)
-    # * Load all owned component references to help evaluate conditional question visibility
+    # * Load the submission with collection and forms(sections)
+    # * Load the submission events
+    # * For all forms, load the top-level components and their expressions
+    # * For all forms, load every component, their expressions, their nested components+expressions
+    # * For all forms, load every component's set of component references
     assert len(queries) == 5
 
     # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
