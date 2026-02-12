@@ -195,6 +195,29 @@ class TestClaimMagicLinkView:
         assert response.status_code == 302
         assert response.location == url_for("auth.request_a_link_to_sign_in", link_expired=True)
 
+    def test_get_without_session_flag_does_not_auto_submit(self, anonymous_client, factories):
+        magic_link = factories.magic_link.create()
+
+        response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
+
+        assert response.status_code == 200
+        assert b"Sign in" in response.data
+        assert b'document.getElementById("submit").click()' not in response.data
+
+    def test_get_with_session_flag_enables_auto_submit(self, anonymous_client, factories):
+        magic_link = factories.magic_link.create()
+
+        with anonymous_client.session_transaction() as session:
+            session["magic_link_requested"] = True
+
+        response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        form = soup.find("form", {"method": "post"})
+        assert "app-js-hidden" in form.get("class")
+        assert b'document.getElementById("submit").click()' in response.data
+
     @pytest.mark.parametrize(
         "redirect_to, safe_redirect_to",
         (
@@ -203,7 +226,7 @@ class TestClaimMagicLinkView:
         ),
     )
     def test_post_claims_link_and_creates_user_and_redirects(
-        self, anonymous_client, factories, db_session, redirect_to, safe_redirect_to
+        self, anonymous_client, factories, db_session, redirect_to, safe_redirect_to, caplog
     ):
         user_email = "new_user@email.com"
 
@@ -230,6 +253,23 @@ class TestClaimMagicLinkView:
         assert user.is_authenticated is True
         assert magic_link.user.id == user.id
         assert user_from_db is not None
+
+        assert "Magic link claim page submitted: auto_submit=False" in caplog.messages
+
+    def test_post_with_session_flag_logs_auto_submit_true(self, anonymous_client, factories, caplog):
+        magic_link = factories.magic_link.create()
+
+        with anonymous_client.session_transaction() as session:
+            session["magic_link_requested"] = True
+
+        response = anonymous_client.post(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
+            json={"submit": "yes"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert "Magic link claim page submitted: auto_submit=True" in caplog.messages
 
 
 class TestSignOutView:

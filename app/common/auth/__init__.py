@@ -55,6 +55,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
             request_new_magic_link_url=url_for("auth.request_a_link_to_sign_in", _external=True),
         )
         session["magic_link_email_notification_id"] = notification.id
+        session["magic_link_requested"] = True
 
         return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
@@ -104,9 +105,18 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
             return abort(400)
 
         session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        auto_submit = session.pop("magic_link_requested", False)
+        current_app.logger.info(
+            "Magic link claim page submitted: auto_submit=%(auto_submit)s",
+            dict(auto_submit=auto_submit),
+        )
         return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
 
-    return render_template("access_grant_funding/auth/claim_magic_link.html", form=form, magic_link=magic_link)
+    auto_submit = session.get("magic_link_requested", False)
+    return render_template(
+        "access_grant_funding/auth/claim_magic_link.html", form=form, magic_link=magic_link, auto_submit=auto_submit
+    )
 
 
 @auth_blueprint.route("/sso/permissions-error", methods=["GET", "POST"])
