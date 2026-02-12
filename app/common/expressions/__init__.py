@@ -3,7 +3,7 @@ import enum
 import re
 from collections import ChainMap
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Literal, cast, overload
 
 import simpleeval
 from markupsafe import Markup, escape
@@ -281,22 +281,10 @@ class ExpressionContext(ChainMap[str, Any]):
         return hash(id(self))
 
 
-def _evaluate_expression_with_context(expression: Expression, context: ExpressionContext | None = None) -> Any:
-    """
-    The base evaluator to use for handling all expressions.
-
-    This parses arbitrary Python-language text into an Abstract Syntax Tree (AST) and then evaluates the result of
-    that expression. Parsing arbitrary Python is extremely dangerous so we heavily restrict the AST nodes that we
-    are willing to handle, to (hopefully) close off the attack surface to any malicious behaviour.
-
-    The addition of any new AST nodes should be well-tested and intentional consideration should be given to any
-    ways of exploit or misuse.
-    """
-    if context is None:
-        context = ExpressionContext()
-    context.expression_context = expression.context or {}
-
-    evaluator = simpleeval.EvalWithCompoundTypes(names=context, functions=expression.required_functions)  # type: ignore[no-untyped-call]
+def get_safe_evaluator(
+    names: Any, required_functions: dict[str, Callable[[Any], Any] | type[Any]]
+) -> simpleeval.SimpleEval:
+    evaluator = simpleeval.EvalWithCompoundTypes(names=names, functions=required_functions)  # type: ignore[no-untyped-call]
 
     # Remove all nodes except those we explicitly allowlist
     evaluator.nodes = {
@@ -318,6 +306,25 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
             ast.Set,
         }
     }
+    return evaluator
+
+
+def _evaluate_expression_with_context(expression: Expression, context: ExpressionContext | None = None) -> Any:
+    """
+    The base evaluator to use for handling all expressions.
+
+    This parses arbitrary Python-language text into an Abstract Syntax Tree (AST) and then evaluates the result of
+    that expression. Parsing arbitrary Python is extremely dangerous so we heavily restrict the AST nodes that we
+    are willing to handle, to (hopefully) close off the attack surface to any malicious behaviour.
+
+    The addition of any new AST nodes should be well-tested and intentional consideration should be given to any
+    ways of exploit or misuse.
+    """
+    if context is None:
+        context = ExpressionContext()
+    context.expression_context = expression.context or {}
+
+    evaluator = get_safe_evaluator(context, expression.required_functions)
 
     try:
         result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
