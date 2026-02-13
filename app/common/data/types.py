@@ -205,6 +205,7 @@ class FormRunnerState(enum.StrEnum):
     TASKLIST = "tasklist"
     QUESTION = "question"
     CHECK_YOUR_ANSWERS = "check-your-answers"
+    CONFIRM = "confirm"
 
 
 class MultilineTextInputRows(IntEnum):

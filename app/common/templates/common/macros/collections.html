@@ -128,15 +128,39 @@
           }}
         {% endif %}
       {% elif question.data_type == enum.question_type.FILE_UPLOAD %}
-        {{
-          form.render_question(
-            question,
-            params={
-              "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
-              "javascript": true
-            }
-          )
-        }}
+        {% set existing_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none) %}
+        {% if existing_answer is not none %}
+          {% if questionAsPageHeading %}
+            <h1 class="govuk-heading-l">{{ runner.interpolate(question.text) }}</h1>
+          {% else %}
+            <p class="govuk-body govuk-!-font-weight-bold">{{ runner.interpolate(question.text) }}</p>
+          {% endif %}
+          {{
+            govukSummaryList({
+              "rows": [{
+                "key": {"text": "Your file"},
+                "value": {"text": existing_answer.root},
+                "actions": {
+                  "items": [{
+                    "href": runner.to_url(enum.form_runner_state.CONFIRM, question=question),
+                    "text": "Remove",
+                    "visuallyHiddenText": question.name,
+                    "classes": "govuk-link--no-visited-state"
+                  }]
+                }
+              }]
+            })
+          }}
+        {% else %}
+          {{
+            form.render_question(
+              question,
+              params={
+                "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading}
+              }
+            )
+          }}
+        {% endif %}
       {% endif %}
     {% endfor %}
     {{ form.submit }}

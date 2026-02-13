@@ -160,7 +160,10 @@ def build_validators(
 
 
 def build_question_form(  # noqa: C901
-    questions: list[Question], evaluation_context: ExpressionContext, interpolation_context: ExpressionContext
+    questions: list[Question],
+    evaluation_context: ExpressionContext,
+    interpolation_context: ExpressionContext,
+    existing_data: dict[str, Any] | None = None,
 ) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
@@ -308,11 +311,12 @@ def build_question_form(  # noqa: C901
                 )
 
             case QuestionDataType.FILE_UPLOAD:
+                has_existing_file = bool(existing_data and existing_data.get(question.safe_qid))
                 field = FileField(
                     label=interpolate(text=question.text, context=interpolation_context),
                     description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovFileInput(),
-                    validators=[DataRequired(f"Upload the {question.name}")],
+                    validators=[Optional()] if has_existing_file else [DataRequired(f"Upload the {question.name}")],
                 )
 
             case _:

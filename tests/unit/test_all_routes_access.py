@@ -106,6 +106,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_section_questions",
     "deliver_grant_funding.list_group_questions",
     "deliver_grant_funding.ask_a_question",
+    "deliver_grant_funding.confirm_question",
     "deliver_grant_funding.submission_tasklist",
     "deliver_grant_funding.check_your_answers",
     "deliver_grant_funding.list_submissions",
@@ -140,6 +141,7 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
 
 routes_with_expected_access_grant_funding_has_data_provider_role_access = [
     "access_grant_funding.ask_a_question",
+    "access_grant_funding.confirm_question",
     "access_grant_funding.confirm_report_submission_direct_submission",
 ]
 routes_with_expected_access_grant_funding_has_certifier_role_access = [

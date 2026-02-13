@@ -102,6 +102,17 @@ def ask_a_question(
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/confirm", methods=["GET"]
+)
+@auto_commit_after_request
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def confirm_question(grant_id: UUID, submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    runner = DGFFormRunner.load(submission_id=submission_id, question_id=question_id)
+    runner.clear_file_upload_answer(interfaces.user.get_current_user())
+    return redirect(runner.to_url(FormRunnerState.QUESTION))
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/check-yours-answers/<uuid:form_id>",
     methods=["GET", "POST"],
 )

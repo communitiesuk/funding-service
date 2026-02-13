@@ -269,6 +269,16 @@ def remove_add_another_answers_at_index(
 
 
 @flush_and_rollback_on_exceptions
+def clear_submission_data(submission: Submission, question: Question) -> Submission:
+    """Remove the answer for a single question from the submission data."""
+    if question.add_another_container:
+        raise ValueError("Cannot clear answers for questions within an add another container using this function")
+
+    submission.data.pop(str(question.id), None)
+    return submission
+
+
+@flush_and_rollback_on_exceptions
 def update_submission_data(
     submission: Submission, question: Question, data: AllAnswerTypes, add_another_index: int | None = None
 ) -> Submission:

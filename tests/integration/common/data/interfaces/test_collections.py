@@ -20,6 +20,7 @@ from app.common.data.interfaces.collections import (
     add_component_condition,
     add_question_validation,
     add_submission_event,
+    clear_submission_data,
     create_collection,
     create_form,
     create_group,
@@ -2714,6 +2715,36 @@ class TestUpdateSubmissionData:
             str(add_another_name_question.id): "Added name 6",
             str(add_another_email_question.id): "Added_email_6@email.com",
         }
+
+
+class TestClearSubmissionData:
+    def test_clear_submission_data_removes_answer(self, db_session, factories):
+        question = factories.question.create()
+        submission = factories.submission.create(collection=question.form.collection)
+
+        data = TextSingleLineAnswer("User submitted data")
+        update_submission_data(submission, question, data)
+        assert str(question.id) in submission.data
+
+        clear_submission_data(submission, question)
+        assert str(question.id) not in submission.data
+
+    def test_clear_submission_data_no_op_when_no_answer(self, db_session, factories):
+        question = factories.question.create()
+        submission = factories.submission.create(collection=question.form.collection)
+        assert str(question.id) not in submission.data
+
+        clear_submission_data(submission, question)
+        assert str(question.id) not in submission.data
+
+    def test_clear_submission_data_rejects_add_another_questions(self, db_session, factories):
+        form = factories.form.create()
+        group = factories.group.create(form=form, add_another=True)
+        question = factories.question.create(form=form, parent=group)
+        submission = factories.submission.create(collection=form.collection)
+
+        with pytest.raises(ValueError, match="Cannot clear answers for questions within an add another container"):
+            clear_submission_data(submission, question)
 
 
 def test_add_submission_event(db_session, factories):

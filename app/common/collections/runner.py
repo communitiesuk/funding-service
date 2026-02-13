@@ -12,7 +12,7 @@ from app.common.collections.forms import (
 )
 from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
-from app.common.data.types import FormRunnerState, TasklistSectionStatusEnum, TRunnerUrlMap
+from app.common.data.types import FormRunnerState, QuestionDataType, TasklistSectionStatusEnum, TRunnerUrlMap
 from app.common.exceptions import RedirectException, SubmissionValidationFailed
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
@@ -104,19 +104,19 @@ class FormRunner:
                 if self.is_removing:
                     self._confirm_remove_form = ConfirmRemoveAddAnotherForm()
                 else:
+                    existing_data = self.submission.form_data(
+                        add_another_container=self.component.add_another_container
+                        if self.component and self.add_another_index is not None
+                        else None,
+                        add_another_index=self.add_another_index,
+                    )
                     _QuestionForm = build_question_form(
                         self.questions,
                         evaluation_context=self.runner_evaluation_context,
                         interpolation_context=self.runner_interpolation_context,
+                        existing_data=existing_data,
                     )
-                    self._question_form = _QuestionForm(
-                        data=self.submission.form_data(
-                            add_another_container=self.component.add_another_container
-                            if self.component and self.add_another_index is not None
-                            else None,
-                            add_another_index=self.add_another_index,
-                        )
-                    )
+                    self._question_form = _QuestionForm(data=existing_data)
 
         if self.form:
             all_questions_answered = self.submission.cached_get_all_questions_are_answered_for_form(
@@ -229,9 +229,31 @@ class FormRunner:
             raise RuntimeError("Question context not set")
 
         for question in self.questions:
+            if question.data_type == QuestionDataType.FILE_UPLOAD:
+                file_data = self.question_form.get_answer_to_question(question)
+                has_existing_answer = (
+                    self.submission.cached_get_answer_for_question(
+                        question.id, add_another_index=self.add_another_index
+                    )
+                    is not None
+                )
+                if has_existing_answer and not getattr(file_data, "filename", None):
+                    continue
+
             self.submission.submit_answer_for_question(
                 question.id, self.question_form, user, add_another_index=self.add_another_index
             )
+
+    def clear_file_upload_answer(self, user: User) -> None:
+        """Clear the answer for a file upload question, allowing the user to upload a new file."""
+        if not self.component or self.component.is_group:
+            raise RuntimeError("Question context not set or is a group")
+
+        question = cast("Question", self.component)
+        if question.data_type != QuestionDataType.FILE_UPLOAD:
+            raise ValueError("Can only clear answers for file upload questions")
+
+        self.submission.clear_answer_for_question(question, user)
 
     def save_add_another(self) -> None:
         if self.add_another_index is None or not (self.component and self.component.add_another_container):
@@ -534,6 +556,12 @@ class DGFFormRunner(FormRunner):
             form_id=form.id if form else runner.form.id if runner.form else None,
             source=source,
         ),
+        FormRunnerState.CONFIRM: lambda runner, question, _form, _source, _add_another_index, _is_removing: url_for(
+            "deliver_grant_funding.confirm_question",
+            grant_id=runner.submission.grant.id,
+            submission_id=runner.submission.id,
+            question_id=question.id if question else None,
+        ),
     }
 
 
@@ -567,5 +595,12 @@ class AGFFormRunner(FormRunner):
             submission_id=runner.submission.id,
             section_id=form.id if form else runner.form.id if runner.form else None,
             source=source,
+        ),
+        FormRunnerState.CONFIRM: lambda runner, question, _form, _source, _add_another_index, _is_removing: url_for(
+            "access_grant_funding.confirm_question",
+            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+            grant_id=runner.submission.submission.grant_recipient.grant.id,
+            submission_id=runner.submission.id,
+            question_id=question.id if question else None,
         ),
     }

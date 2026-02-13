@@ -165,6 +165,25 @@ def ask_a_question(
 
 
 @access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/confirm",
+    methods=["GET"],
+)
+@auto_commit_after_request
+@has_access_grant_role(RoleEnum.DATA_PROVIDER)
+def confirm_question(
+    organisation_id: UUID, grant_id: UUID, submission_id: UUID, question_id: UUID
+) -> ResponseReturnValue:
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    runner = AGFFormRunner.load(
+        submission_id=submission_id,
+        question_id=question_id,
+        grant_recipient_id=grant_recipient.id,
+    )
+    runner.clear_file_upload_answer(interfaces.user.get_current_user())
+    return redirect(runner.to_url(FormRunnerState.QUESTION))
+
+
+@access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/check-your-answers/<uuid:section_id>",
     methods=["GET", "POST"],
 )

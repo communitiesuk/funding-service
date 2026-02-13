@@ -129,6 +129,29 @@ class TestSubmissionHelper:
                 "because submission id=[a-z0-9-]+ is already submitted."
             )
 
+    class TestClearAnswerForQuestion:
+        def test_clear_answer(self, db_session, factories):
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.FILE_UPLOAD,
+            )
+            submission = factories.submission.create(collection=question.form.collection)
+            submission.data = {str(question.id): "uploaded_file.pdf"}
+            helper = SubmissionHelper(submission)
+
+            assert helper.cached_get_answer_for_question(question.id) is not None
+
+            helper.clear_answer_for_question(question, submission.created_by)
+
+            assert helper.cached_get_answer_for_question(question.id) is None
+
+        def test_cannot_clear_answer_on_submitted_submission(self, db_session, factories, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+            question = submission_submitted.collection.forms[0].cached_questions[0]
+
+            with pytest.raises(ValueError, match="Could not clear answer for question_id"):
+                helper.clear_answer_for_question(question, submission_submitted.created_by)
+
     class TestFormData:
         def test_no_submission_data(self, factories):
             form = factories.form.create()
