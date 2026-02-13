@@ -1,4 +1,4 @@
-"""Abitrary datasource uploads
+"""Arbitrary datasource uploads
 
 Revision ID: 049_uploaded_datasource
 Revises: 048_multi_submissions_managed
@@ -73,10 +73,14 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("created_by_id", sa.Uuid(), nullable=True))
         batch_op.add_column(sa.Column("updated_by_id", sa.Uuid(), nullable=True))
         batch_op.add_column(sa.Column("schema", postgresql.JSONB(astext_type=sa.Text()), nullable=True))
-        batch_op.add_column(sa.Column("s3_uri", sa.String(), nullable=True))
         batch_op.create_index("ix_data_source_collection_id", ["collection_id"], unique=False)
         batch_op.create_index("ix_data_source_grant_id", ["grant_id"], unique=False)
-        batch_op.create_unique_constraint("uq_data_source_name", ["name"])
+        batch_op.create_index(
+            "uq_data_source_name_collection",
+            ["name", "collection_id"],
+            unique=True,
+            postgresql_where="collection_id != NULL",
+        )
         batch_op.create_check_constraint(
             "ck_data_source_non_custom_requires_name_grant_collection_and_schema",
             (
@@ -138,11 +142,10 @@ def downgrade() -> None:
         batch_op.drop_constraint(batch_op.f("fk_data_source_grant_id_grant"), type_="foreignkey")
         batch_op.drop_constraint("ck_data_source_non_custom_requires_name_grant_collection_and_schema", type_="check")
         batch_op.drop_constraint("ck_data_source_collection_requires_grant", type_="check")
-        batch_op.drop_constraint("uq_data_source_name", type_="unique")
         batch_op.drop_index("ix_data_source_grant_id")
         batch_op.drop_index("ix_data_source_collection_id")
+        batch_op.drop_index("uq_data_source_name_collection")
         batch_op.create_unique_constraint("uq_question_id", ["question_id"])
-        batch_op.drop_column("s3_uri")
         batch_op.drop_column("schema")
         batch_op.drop_column("updated_by_id")
         batch_op.drop_column("created_by_id")

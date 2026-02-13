@@ -957,7 +957,6 @@ class DataSource(BaseModel):
     schema: Mapped[dict[str, Any] | None] = mapped_column(
         mutable_json_type(dbtype=JSONB, nested=True),  # type: ignore[no-untyped-call]
     )
-    s3_uri: Mapped[str | None]
 
     questions: Mapped[list[Question]] = relationship(
         "Question",
@@ -987,7 +986,6 @@ class DataSource(BaseModel):
     )
 
     __table_args__ = (
-        UniqueConstraint("name", name="uq_data_source_name"),
         CheckConstraint(
             (
                 "type = 'CUSTOM' OR "
@@ -1001,6 +999,13 @@ class DataSource(BaseModel):
         ),
         Index("ix_data_source_grant_id", "grant_id"),
         Index("ix_data_source_collection_id", "collection_id"),
+        Index(
+            "uq_data_source_name_collection",
+            "name",
+            "collection_id",
+            postgresql_where="collection_id != NULL",
+            unique=True,
+        ),
     )
 
 
