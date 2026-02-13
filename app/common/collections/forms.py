@@ -242,6 +242,7 @@ def build_question_form(  # noqa: C901
                     coerce=lambda val: bool(int(val)),
                 )
             case QuestionDataType.RADIOS:
+                assert question.data_source is not None
                 if len(question.data_source.items) > current_app.config["ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS"]:
                     fallback_option = (
                         question.data_source.items[-1].label if question.separate_option_if_no_items_match else None
@@ -278,6 +279,7 @@ def build_question_form(  # noqa: C901
                     filters=[lambda x: x.strip() if x else x],
                 )
             case QuestionDataType.CHECKBOXES:
+                assert question.data_source is not None
                 choices = [(item.key, item.label) for item in question.data_source.items]
                 validators: list[Callable[[Any, Any], None]] = [DataRequired(f"Select {question.name}")]
                 if question.separate_option_if_no_items_match:
