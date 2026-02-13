@@ -361,6 +361,18 @@ def seed_grants() -> None:  # noqa: C901
 
         db.session.flush()
 
+        for data_source in grant_data["data_sources"]:
+            data_source["id"] = uuid.UUID(data_source["id"])
+            data_source = DataSource(**data_source)
+            db.session.add(data_source)
+
+        for data_source_item in grant_data["data_source_items"]:
+            data_source_item["id"] = uuid.UUID(data_source_item["id"])
+            data_source_item = DataSourceItem(**data_source_item)
+            db.session.add(data_source_item)
+
+        db.session.flush()
+
         for component in grant_data["questions"]:
             component["id"] = uuid.UUID(component["id"])
             if "presentation_options" in component:
@@ -381,16 +393,6 @@ def seed_grants() -> None:  # noqa: C901
             expression["id"] = uuid.UUID(expression["id"])
             expression = Expression(**expression)
             db.session.add(expression)
-
-        for data_source in grant_data["data_sources"]:
-            data_source["id"] = uuid.UUID(data_source["id"])
-            data_source = DataSource(**data_source)
-            db.session.add(data_source)
-
-        for data_source_item in grant_data["data_source_items"]:
-            data_source_item["id"] = uuid.UUID(data_source_item["id"])
-            data_source_item = DataSourceItem(**data_source_item)
-            db.session.add(data_source_item)
 
         for component_reference in grant_data["component_references"]:
             component_reference["id"] = uuid.UUID(component_reference["id"])
