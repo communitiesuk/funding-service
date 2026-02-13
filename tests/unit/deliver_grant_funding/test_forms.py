@@ -495,13 +495,15 @@ class TestPlatformAdminCreateCertifiersForm:
         form.certifiers_data.data = (
             "organisation-name\tfirst-name\tlast-name\temail-address\n"
             f"{organisations[0].name}\tJohn\tDoe\tinvalid-email\n"
-            f"{organisations[1].name}\tJane\tSmith\talso-invalid"
+            f"{organisations[1].name}\tJane\tSmith\talso-invalid\n"
+            f"{organisations[1].name}\tJane\tSmith\tmostly-valid-email-with-smart’quote@example.com"
         )
 
         assert form.validate() is False
         assert "Invalid email address(es)" in form.certifiers_data.errors[0]
         assert "invalid-email" in form.certifiers_data.errors[0]
         assert "also-invalid" in form.certifiers_data.errors[0]
+        assert "mostly-valid-email-with-smart’quote@example.com" in form.certifiers_data.errors[0]
 
     def test_invalid_tsv_format(self, app, factories):
         organisations = factories.organisation.build_batch(3)

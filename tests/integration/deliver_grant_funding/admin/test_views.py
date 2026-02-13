@@ -1413,7 +1413,8 @@ class TestSetUpCertifiers:
             data={
                 "certifiers_data": (
                     "organisation-name\tfirst-name\tlast-name\temail-address\n"
-                    "Test Organisation\tJohn\tDoe\tinvalid-email"
+                    "Test Organisation\tJohn\tDoe\tinvalid-email\n"
+                    "Test Organisation\tJane\tSmith\tmostly-valid-email-with-smart’quote@example.com"
                 ),
                 "submit": "y",
             },
@@ -1422,7 +1423,9 @@ class TestSetUpCertifiers:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Invalid email address(es): invalid-email")
+        assert page_has_error(
+            soup, "Invalid email address(es): invalid-email, mostly-valid-email-with-smart’quote@example.com"
+        )
 
     def test_post_with_invalid_organisation(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -2470,7 +2473,8 @@ class TestAddBulkDataProviders:
             data={
                 "users_data": (
                     "organisation-name\tfull-name\temail-address\n"
-                    "Test Organisation\tJohn Doe\tinvalid-email\nTest Organisation\tJane Smith\talso-bad"
+                    "Test Organisation\tJohn Doe\tinvalid-email\nTest Organisation\tJane Smith\talso-bad\n"
+                    "Test Organisation\tJane Smith\tmostly-valid-email-with-smart’quote@example.com"
                 ),
                 "submit": "y",
             },
@@ -2479,7 +2483,9 @@ class TestAddBulkDataProviders:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Invalid email address(es): invalid-email, also-bad")
+        assert page_has_error(
+            soup, "Invalid email address(es): invalid-email, also-bad, mostly-valid-email-with-smart’quote@example.com"
+        )
 
 
 class TestRevokeGrantRecipientDataProviders:
