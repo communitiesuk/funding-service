@@ -308,7 +308,7 @@ class TestReportingLifecycleTasklist:
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 3
         assert len(grant_task_items) == 6
-        assert len(report_task_items) == 6
+        assert len(report_task_items) == 7
 
         # TODO: update for testing task list
 
@@ -656,7 +656,7 @@ class TestReportingLifecycleTasklist:
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send emails to data providers"
         assert (
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/report_open_notification"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/report-open-notification"
             in task_title.get("href")
         )
 
@@ -690,7 +690,7 @@ class TestReportingLifecycleTasklist:
         send_emails_task = report_task_items[5]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Send deadline reminder emails to data providers"
+        assert task_title.get_text(strip=True) == "Send deadline reminder emails"
 
         task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
@@ -718,13 +718,99 @@ class TestReportingLifecycleTasklist:
         send_emails_task = report_task_items[5]
         task_title = send_emails_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Send deadline reminder emails to data providers"
+        assert task_title.get_text(strip=True) == "Send deadline reminder emails"
         assert (
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/deadline_reminder"
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/deadline-reminder"
             in task_title.get("href")
         )
 
         task_status = send_emails_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Do once" in task_status.get_text(strip=True)
+        assert "govuk-tag--orange" in task_status.get("class")
+
+    @pytest.mark.parametrize(
+        "collection_status, submission_period_end_date",
+        [
+            (CollectionStatusEnum.DRAFT, None),
+            (CollectionStatusEnum.SCHEDULED, None),
+            (CollectionStatusEnum.OPEN, datetime.date(2099, 12, 31)),
+        ],
+    )
+    def test_send_report_overdue_emails_task_cannot_start_yet(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        collection_status,
+        submission_period_end_date,
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=collection_status,
+            submission_period_end_date=submission_period_end_date,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        send_report_closed_task = report_task_items[6]
+        task_title = send_report_closed_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send report overdue emails"
+
+        task_status = send_report_closed_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        link = send_report_closed_task.find("a", {"class": "govuk-link"})
+        assert link is None
+
+    @pytest.mark.parametrize(
+        "collection_status",
+        [
+            CollectionStatusEnum.OPEN,
+        ],
+    )
+    def test_send_report_overdue_emails_task_do_once_when_overdue(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, collection_status
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=collection_status,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        send_report_closed_task = report_task_items[6]
+        task_title = send_report_closed_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send report overdue emails"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/report-overdue"
+            in task_title.get("href")
+        )
+
+        task_status = send_report_closed_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "Do once" in task_status.get_text(strip=True)
         assert "govuk-tag--orange" in task_status.get("class")
@@ -761,6 +847,10 @@ class TestSendEmailsToRecipients:
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
         )
         assert response.status_code == expected_code
+        response = client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_OVERDUE.value}"
+        )
+        assert response.status_code == expected_code
 
     def test_send_emails_to_recipients_deadline_reminder_report_not_open(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -778,6 +868,37 @@ class TestSendEmailsToRecipients:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
+        "collection_status, submission_period_end_date, expected_status",
+        [
+            (CollectionStatusEnum.DRAFT, datetime.date(2020, 1, 1), 404),
+            (CollectionStatusEnum.SCHEDULED, datetime.date(2020, 1, 1), 404),
+            (CollectionStatusEnum.OPEN, datetime.date(2020, 1, 1), 200),
+            (CollectionStatusEnum.OPEN, datetime.date(2099, 1, 1), 404),
+            (CollectionStatusEnum.CLOSED, datetime.date(2099, 1, 1), 404),
+        ],
+    )
+    def test_send_emails_to_recipients_report_overdue_not_available(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        collection_status,
+        submission_period_end_date,
+        expected_status,
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=collection_status,
+            submission_period_end_date=submission_period_end_date,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_OVERDUE.value}"
+        )
+        assert response.status_code == expected_status
+
+    @pytest.mark.parametrize(
         "email_type, expected_heading, template_id",
         [
             (
@@ -789,6 +910,11 @@ class TestSendEmailsToRecipients:
                 ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value,
                 "Send deadline reminder emails",
                 "6e482561-e1dc-4d4d-8a9e-3b5ad8add968",
+            ),
+            (
+                ReportAdminEmailTypeEnum.REPORT_OVERDUE.value,
+                "Send report overdue emails",
+                "b11391b3-c589-48ae-a8a3-e2acaf951787",
             ),
         ],
     )
@@ -866,6 +992,10 @@ class TestSendEmailsToRecipients:
         assert response.status_code == expected_code
         response = client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+        )
+        assert response.status_code == expected_code
+        response = client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OVERDUE.value}"
         )
         assert response.status_code == expected_code
 

@@ -33,6 +33,20 @@
           <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
           <li>Date to send reminder email: {{ format_date_short(collection.submission_period_end_date - timedelta(days=7)) }}</li>
         </ul>
+      {% elif email_type == enum.report_admin_email_type_enum.REPORT_OVERDUE %}
+        <h1 class="govuk-heading-l">
+          <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+          Send report overdue emails
+        </h1>
+
+        <p class="govuk-body">
+          Let grant recipient users know that the reporting round submission deadline has passed for {{ collection.grant.name }}. This email is sent to all data providers and certifiers for grant recipients that have not yet fully submitted
+          this report.
+        </p>
+        <ul class="govuk-list govuk-list--bullet">
+          <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
+          <li>Date to send overdue email: {{ format_date_short(collection.submission_period_end_date + timedelta(days=1)) }}</li>
+        </ul>
       {% endif %}
 
       <h2 class="govuk-heading-m">How to send emails</h2>
