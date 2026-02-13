@@ -23,7 +23,8 @@
   {% set form = runner.question_form %}
   {% set questionAsPageHeading = not runner.component.guidance_heading and not is_group %}
 
-  <form method="post" novalidate>
+  {% set has_file_upload = questions | selectattr('data_type', 'equalto', enum.question_type.FILE_UPLOAD) | list | length > 0 %}
+  <form method="post" novalidate{% if has_file_upload %}enctype="multipart/form-data"{% endif %}>
     {{ form.csrf_token }}
 
     <span class="govuk-caption-l">{{ runner.question_page_caption }}</span>
@@ -126,6 +127,16 @@
             )
           }}
         {% endif %}
+      {% elif question.data_type == enum.question_type.FILE_UPLOAD %}
+        {{
+          form.render_question(
+            question,
+            params={
+              "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+              "javascript": true
+            }
+          )
+        }}
       {% endif %}
     {% endfor %}
     {{ form.submit }}

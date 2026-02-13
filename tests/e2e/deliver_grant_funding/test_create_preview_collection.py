@@ -967,7 +967,7 @@ def test_setup_grant_and_collection(
 
     # Sense check that the test includes all question types
     assert (
-        len(QuestionDataType) == 9
+        len(QuestionDataType) == 10
         and len(section_2_questions_to_test) == 17
         and len(ManagedExpressionsEnum) == 11
         and len(NumberTypeEnum) == 2

@@ -8,6 +8,7 @@ from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovDateInput,
+    GovFileInput,
     GovRadioInput,
     GovSubmitInput,
     GovTextArea,
@@ -16,7 +17,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 from wtforms import DateField, Field, Form, RadioField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.numeric import DecimalField, IntegerField
-from wtforms.fields.simple import EmailField, StringField, SubmitField
+from wtforms.fields.simple import EmailField, FileField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
@@ -48,6 +49,7 @@ _accepted_fields = (
     | SelectMultipleField
     | DateField
     | DecimalField
+    | FileField
 )
 
 
@@ -77,7 +79,12 @@ class DynamicQuestionForm(FlaskForm):
         #        system (fully serialised+normalised in the submission context, and more raw in the form context).
         # todo: if allowing validations for questions on the same page or supporting optional questions this will
         #       need to consider what happens for expression context evaluations if the answer is being set to None
-        data = {k: v for k, v in self.data.items() if k not in {"csrf_token", "submit"}}
+        data = {}
+        for k, v in self.data.items():
+            if k in {"csrf_token", "submit"}:
+                continue
+            # For file upload fields, extract the filename string rather than the FileStorage object
+            data[k] = v.filename if hasattr(v, "filename") else v
         return data
 
     def validate(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:  # ty: ignore[invalid-method-override]
@@ -298,6 +305,14 @@ def build_question_form(  # noqa: C901
                     format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
                     if not question.approximate_date
                     else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
+                )
+
+            case QuestionDataType.FILE_UPLOAD:
+                field = FileField(
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    widget=GovFileInput(),
+                    validators=[DataRequired(f"Upload the {question.name}")],
                 )
 
             case _:

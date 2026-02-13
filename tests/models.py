@@ -22,6 +22,7 @@ from sqlalchemy.exc import NoResultFound
 from app.common.collections.types import (
     DateAnswer,
     EmailAnswer,
+    FileUploadAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
@@ -436,7 +437,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         form = _FormFactory.create(collection=obj, title="Export test form", slug="export-test-form")
 
         # Assertion to remind us to add more question types here when we start supporting them
-        assert len(QuestionDataType) == 9, "If you have added a new question type, please update this factory."
+        assert len(QuestionDataType) == 10, "If you have added a new question type, please update this factory."
 
         # Create a question of each supported type
         q1 = _QuestionFactory.create(
@@ -484,6 +485,12 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             data_type=QuestionDataType.DATE,
             text="When did you last buy some cheese?",
         )
+        q10 = _QuestionFactory.create(
+            name="Evidence document",
+            form=form,
+            data_type=QuestionDataType.FILE_UPLOAD,
+            text="Upload your evidence document",
+        )
 
         def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
             for _ in range(0, count):
@@ -527,6 +534,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                             answer=datetime.datetime.strptime(faker.Faker().date(), "%Y-%m-%d").date()
                             if use_random_data
                             else datetime.date(2025, 1, 1)
+                        ).get_value_for_submission(),
+                        str(q10.id): FileUploadAnswer(
+                            faker.Faker().file_name() if use_random_data else "evidence.pdf"
                         ).get_value_for_submission(),
                     },
                 )

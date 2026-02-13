@@ -238,6 +238,12 @@ class DateAnswer(SubmissionAnswerBaseModel):
         return self.answer.isoformat() if not self.approximate_date else self.answer.strftime("%B %-Y")
 
 
+class FileUploadAnswer(SubmissionAnswerRootModel[str]):
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/file_upload.html"
+
+
 AllAnswerTypes = Union[
     TextSingleLineAnswer
     | TextMultiLineAnswer
@@ -249,4 +255,5 @@ AllAnswerTypes = Union[
     | SingleChoiceFromListAnswer
     | MultipleChoiceFromListAnswer
     | DateAnswer
+    | FileUploadAnswer
 ]

@@ -23,6 +23,7 @@ from app.common.collections.types import (
     DateAnswer,
     DecimalAnswer,
     EmailAnswer,
+    FileUploadAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
@@ -1187,6 +1188,11 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
             return MultipleChoiceFromListAnswer(choices=choices)
         case QuestionDataType.DATE:
             return DateAnswer(answer=answer, approximate_date=question.approximate_date or False)
+        case QuestionDataType.FILE_UPLOAD:
+            # For now, we store just the filename. When the answer comes from an HTTP form submission,
+            # it will be a FileStorage object; when pre-populated from existing data, it will be a string.
+            filename = answer.filename if hasattr(answer, "filename") else answer
+            return FileUploadAnswer(filename)
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -1213,5 +1219,7 @@ def _deserialise_question_type(question: Question, serialised_data: str | int | 
             return TypeAdapter(MultipleChoiceFromListAnswer).validate_python(serialised_data)
         case QuestionDataType.DATE:
             return TypeAdapter(DateAnswer).validate_python(serialised_data)
+        case QuestionDataType.FILE_UPLOAD:
+            return TypeAdapter(FileUploadAnswer).validate_python(serialised_data)
 
     raise ValueError(f"Could not deserialise data for question type={question.data_type}")
