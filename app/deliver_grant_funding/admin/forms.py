@@ -147,6 +147,8 @@ class PlatformAdminCreateCertifiersForm(FlaskForm):
         for _, _, email_address in certifiers_data:
             try:
                 email_validator.validate_email(email_address, check_deliverability=False, allow_smtputf8=True)
+                if "’" in email_address:
+                    raise email_validator.EmailNotValidError("Email addresses cannot contain smart quotes")
             except Exception:
                 invalid_emails.append(email_address)
 
@@ -238,6 +240,8 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         for _, _, email_address in users_data:
             try:
                 email_validator.validate_email(email_address, check_deliverability=False, allow_smtputf8=True)
+                if "’" in email_address:
+                    raise email_validator.EmailNotValidError("Email addresses cannot contain smart quotes")
             except Exception:
                 invalid_emails.append(email_address)
 
