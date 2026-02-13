@@ -3,7 +3,7 @@ import enum
 import typing
 from collections.abc import Callable
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -422,3 +422,10 @@ class OrganisationData(BaseModel):
 
 class AuditEventType(enum.Enum):
     PLATFORM_ADMIN_DB_EVENT = "platform-admin-db-event"
+
+
+class DataSourceType(enum.StrEnum):
+    CUSTOM = "Custom"
+    STATIC = "Static"
+    GRANT_RECIPIENT = "Grant recipient"
+    PROJECT_LEVEL = "Project level"
