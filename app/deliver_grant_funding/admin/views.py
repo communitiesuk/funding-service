@@ -13,6 +13,7 @@ from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     GrantMustBeLiveError,
     GrantRecipientUsersRequiredError,
+    InvalidUserEmailError,
     StateTransitionError,
 )
 from app.common.data.interfaces.grant_recipients import (
@@ -490,26 +491,29 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             grant_recipient_names_to_ids = {gr.organisation.name: gr.organisation.id for gr in grant_recipients}
             users_data = form.get_normalised_users_data()
 
-            for org_name, full_name, email_address in users_data:
-                org_id = grant_recipient_names_to_ids[org_name]
-                user = upsert_user_by_email(email_address=email_address, name=full_name)
-                add_permissions_to_user(
-                    user, permissions=[RoleEnum.DATA_PROVIDER], organisation_id=org_id, grant_id=grant.id
+            try:
+                for org_name, full_name, email_address in users_data:
+                    org_id = grant_recipient_names_to_ids[org_name]
+                    user = upsert_user_by_email(email_address=email_address, name=full_name)
+                    add_permissions_to_user(
+                        user, permissions=[RoleEnum.DATA_PROVIDER], organisation_id=org_id, grant_id=grant.id
+                    )
+
+                noun = "data provider" if len(users_data) == 1 else "data providers"
+                flash(
+                    f"Successfully set up {len(users_data)} grant recipient {noun}.",
+                    "success",
                 )
 
-            noun = "data provider" if len(users_data) == 1 else "data providers"
-            flash(
-                f"Successfully set up {len(users_data)} grant recipient {noun}.",
-                "success",
-            )
-
-            return redirect(
-                url_for(
-                    "reporting_lifecycle.tasklist",
-                    grant_id=grant.id,
-                    collection_id=collection.id,
+                return redirect(
+                    url_for(
+                        "reporting_lifecycle.tasklist",
+                        grant_id=grant.id,
+                        collection_id=collection.id,
+                    )
                 )
-            )
+            except InvalidUserEmailError as e:
+                form.form_errors.append(e.message)
 
         return self.render(
             "deliver_grant_funding/admin/add-bulk-data-providers.html",

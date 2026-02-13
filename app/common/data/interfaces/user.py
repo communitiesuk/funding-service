@@ -10,7 +10,11 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
-from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_and_rollback_on_exceptions
+from app.common.data.interfaces.exceptions import (
+    InvalidUserEmailError,
+    InvalidUserRoleError,
+    flush_and_rollback_on_exceptions,
+)
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisations
@@ -67,7 +71,7 @@ def set_user_last_logged_in_at_utc(user: User) -> User:
     return user
 
 
-@flush_and_rollback_on_exceptions
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, InvalidUserEmailError)])
 def upsert_user_by_email(
     email_address: str,
     *,
@@ -99,7 +103,7 @@ def upsert_user_by_email(
     return user
 
 
-@flush_and_rollback_on_exceptions
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, InvalidUserEmailError)])
 def upsert_user_by_azure_ad_subject_id(
     azure_ad_subject_id: str,
     *,

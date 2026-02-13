@@ -43,6 +43,35 @@ class DuplicateValueError(Exception):
         self.new_value = integrity_error.params.get(self.field_name, "unknown")  # ty: ignore[no-matching-overload]
 
 
+class InvalidUserEmailError(Exception):
+    model_name: str | None
+    constraint_name: str | None
+    message: str
+
+    constraint_message_map: dict[str, str] = {
+        "ck_email_no_smart_quotes": "Email addresses cannot contain smart quotes",
+    }
+
+    def __init__(self, integrity_error: IntegrityError) -> None:
+        diagnostics = cast(CheckViolation, integrity_error.orig).diag
+        self.model_name = getattr(diagnostics, "table_name", None)
+        self.constraint_name = getattr(diagnostics, "constraint_name", None)
+
+        if self.constraint_name and self.constraint_name in self.constraint_message_map:
+            self.message = self.constraint_message_map[self.constraint_name]
+        else:
+            self.message = str(integrity_error)
+
+        current_app.logger.warning(
+            "User constraint violation %(constraint)s %(message)s | ",
+            dict(
+                constraint=self.constraint_name,
+                message=self.message,
+            ),
+        )
+        super().__init__(self.message)
+
+
 class InvalidUserRoleError(Exception):
     model_name: str | None
     constraint_name: str | None

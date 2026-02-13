@@ -139,6 +139,8 @@ class User(BaseModel):
     def get_id(self) -> str | None:
         return str(self.id)
 
+    __table_args__ = (CheckConstraint("'’' NOT IN email", name="ck_email_no_smart_quotes"),)
+
 
 class UserRole(BaseModel):
     __tablename__ = "user_role"
