@@ -147,8 +147,9 @@ class CollectionType(enum.StrEnum):
 
 
 class ReportAdminEmailTypeEnum(enum.StrEnum):
-    REPORT_OPEN_NOTIFICATION = "report_open_notification"
-    DEADLINE_REMINDER = "deadline_reminder"
+    REPORT_OPEN_NOTIFICATION = "report-open-notification"
+    DEADLINE_REMINDER = "deadline-reminder"
+    REPORT_OVERDUE = "report-overdue"
 
 
 class CollectionStatusEnum(enum.StrEnum):

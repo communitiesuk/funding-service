@@ -813,6 +813,10 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 notify_template_id = current_app.config[
                     "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
                 ]
+            case ReportAdminEmailTypeEnum.REPORT_OVERDUE:
+                if collection.status != CollectionStatusEnum.OPEN or not collection.is_overdue:
+                    return abort(404)
+                notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_OVERDUE_TEMPLATE_ID"]
             case _:
                 return abort(404)
 
@@ -860,7 +864,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     for grant_recipient in grant_recipients
                     for data_provider in grant_recipient.data_providers
                 }
-            case ReportAdminEmailTypeEnum.DEADLINE_REMINDER:
+            case ReportAdminEmailTypeEnum.DEADLINE_REMINDER | ReportAdminEmailTypeEnum.REPORT_OVERDUE:
                 grant_recipients = get_grant_recipients_with_outstanding_submissions_for_collection(
                     grant, collection_id=collection.id, with_data_providers=True, with_certifiers=True
                 )
