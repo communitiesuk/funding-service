@@ -234,6 +234,11 @@
         {% endwith %}
 
         {% set rows = [] %}
+
+        {% with component=group %}
+          {% include 'deliver_grant_funding/partials/_implicit-conditions.html' %}
+        {% endwith %}
+
         {% for condition in group.conditions %}
           {% set managed = condition.managed %}
           {% set depends_on = managed.referenced_question %}

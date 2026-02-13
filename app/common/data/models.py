@@ -453,47 +453,80 @@ class Component(BaseModel):
     def conditions(self) -> list[Expression]:
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.CONDITION]
 
-    @property
-    def full_condition_chain(self) -> list[Expression]:
+    def get_full_condition_chain(
+        self, ignore_parents: bool = False
+    ) -> list[tuple[ConditionsOperator, list[Expression]]]:
         """Returns a list of all of the conditions that this question depends on, eg:
 
         Q1 has no conditions (always asked)
         Q2 depends on Q1
-        Q3 depends on Q2
+        Group 1 (conditional on Q2):
+            Q3
+            Q4 depends on Q3
 
-        Q3.full_condition_chain == [Q3.condition, Q2.condition]
+        Q4.get_full_condition_chain() == [Q4.condition, G1.condition, Q2.condition]
+        Q4.get_full_condition_chain(ignore_parents=True) == [Q4.condition, Q2.condition]
         """
-        visited = set()
         conditions = []
 
-        def _fetch_dependent_conditions(component: Component) -> None:
+        def _fetch_dependent_conditions(component: Component, visited: set[Component]) -> None:
             visited.add(component)
-            conditions.extend(component.conditions)
+
+            if component.conditions:
+                conditions.append((component.conditions_operator, component.conditions))
+
             for ocr in component.owned_component_references:
                 if (
                     ocr.depends_on_component
                     and ocr.depends_on_component != component
                     and ocr.depends_on_component not in visited
                 ):
-                    _fetch_dependent_conditions(ocr.depends_on_component)
+                    _fetch_dependent_conditions(ocr.depends_on_component, visited)
 
-        _fetch_dependent_conditions(self)
+        target_component: Component | None = self
+        while target_component:
+            _fetch_dependent_conditions(target_component, set())
+            target_component = target_component.parent if not ignore_parents else None
 
-        return conditions
+        return list(reversed(conditions))  # starts with farthest parent, ends with this component
+
+    @property
+    def full_condition_chain(self) -> list[tuple[ConditionsOperator, list[Expression]]]:
+        """
+        Returns a list of all explicit groups of conditions that need to be evaluated in order to work out whether
+        this component should be shown or not. This traverses component references as well, so if this component
+        references a conditional component C2, C2's conditions will be included here.
+        """
+        return self.get_full_condition_chain(ignore_parents=False)
 
     @property
     def all_conditional_depended_on_components(self) -> set[Component]:
         """
         Returns a set of all components that this question depends on, walking up the full condition chain.
+
+        This relies on component references, which means that it includes both explicitly-configured conditions (eg
+        managed conditions) and implicit conditions (eg where a question interpolates the answer from another question
+        into its text).
         """
         all_conditional_depended_on_components = {
-            expr.component_references[0].component for expr in self.full_condition_chain if expr.component_references
+            expr.component_references[0].component
+            for _operator, _exprs in self.full_condition_chain
+            for expr in _exprs
+            if expr.component_references
         }
         return all_conditional_depended_on_components
 
     @property
-    def is_conditional(self) -> bool:
-        return len(self.full_condition_chain) > 0
+    def is_self_conditional(self) -> bool:
+        """
+        Returns True if this component only has conditional requirements, either from self-owned
+        conditions or from direct component references on components that are conditional.
+
+        It does *not* check conditions on its parent chain. This is used to show the 'Conditional' tag on the
+        `list questions` page; if we checked parents then every single question inside a conditional group would show
+        the tag, which is not useful.
+        """
+        return len(self.get_full_condition_chain(ignore_parents=True)) > 0
 
     @property
     def validations(self) -> list[Expression]:
