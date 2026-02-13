@@ -596,6 +596,7 @@ def _create_data_source(question: Question, items: list[str]) -> None:
 
 @flush_and_rollback_on_exceptions
 def _update_data_source(question: Question, items: list[str]) -> None:
+    assert question.data_source is not None
     existing_choices_map = {choice.key: choice for choice in question.data_source.items}
     for item in items:
         if slugify(item) in existing_choices_map:
@@ -1393,7 +1394,9 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             cr = ComponentReference(
                 component=expression.question,
                 expression=expression,
-                depends_on_component=referenced_data_source_item.data_source.question,
+                # TODO: This will only work with the current 'CUSTOM' datasources - once we actually implement others
+                # and a datasource can be used by multiple questions, this will need a refactor
+                depends_on_component=referenced_data_source_item.data_source.questions[0],
                 depends_on_data_source_item=referenced_data_source_item,
             )
             db.session.add(cr)

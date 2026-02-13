@@ -53,6 +53,7 @@ from app.common.data.types import (
     AuditEventType,
     CollectionType,
     ConditionsOperator,
+    DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
@@ -784,10 +785,9 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
 
+    id = factory.LazyFunction(uuid4)
+    type = DataSourceType.CUSTOM
     items = factory.RelatedFactoryList(_DataSourceItemFactory, size=3, factory_related_name="data_source")
-
-    question = None
-    question_id = factory.LazyAttribute(lambda o: o.question.id if o.question else None)
 
 
 class _QuestionFactory(SQLAlchemyModelFactory):
@@ -819,9 +819,10 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     )
     data_source = factory.Maybe(
         "needs_data_source",
-        yes_declaration=factory.RelatedFactory(_DataSourceFactory, factory_related_name="question"),
+        yes_declaration=factory.SubFactory(_DataSourceFactory),
         no_declaration=None,
     )
+    data_source_id = factory.LazyAttribute(lambda o: o.data_source.id if o.data_source else None)
     parent = None
     parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)
 
