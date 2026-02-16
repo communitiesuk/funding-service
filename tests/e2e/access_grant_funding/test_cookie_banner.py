@@ -7,9 +7,11 @@ def test_cookie_banner_accepted(page: Page, domain: str):
     fetched_google_tag_manager_requests = []
     page.on(
         "request",
-        lambda request: fetched_google_tag_manager_requests.append(request.url)
-        if "https://www.googletagmanager.com/gtm.js" in request.url
-        else None,
+        lambda request: (
+            fetched_google_tag_manager_requests.append(request.url)
+            if "https://www.googletagmanager.com/gtm.js" in request.url
+            else None
+        ),
     )
 
     request_a_link_page = RequestALinkToSignInPage(page, domain)
@@ -49,9 +51,11 @@ def test_cookie_banner_declined(page: Page, domain: str):
     fetched_google_tag_manager_requests = []
     page.on(
         "request",
-        lambda request: fetched_google_tag_manager_requests.append(request.url)
-        if "https://www.googletagmanager.com/gtm.js" in request.url
-        else None,
+        lambda request: (
+            fetched_google_tag_manager_requests.append(request.url)
+            if "https://www.googletagmanager.com/gtm.js" in request.url
+            else None
+        ),
     )
 
     request_a_link_page = RequestALinkToSignInPage(page, domain)
