@@ -37,7 +37,9 @@ services:
       npm run dev -- --host &
       PYDEVD_DISABLE_FILE_VALIDATION=1 uv run python -m watchdog.watchmedo auto-restart --directory=./app --patterns='*.py' --recursive -- python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --no-reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
-    env_file: .env
+    env_file:
+      - .env
+      - .awslocal.env
     environment:
       FLASK_APP: app
       FLASK_ENV: local
@@ -49,6 +51,7 @@ services:
       WERKZEUG_DEBUG_PIN: off
     depends_on:
       - db
+      - localstack
     networks:
       - ofs
     healthcheck:
@@ -87,6 +90,24 @@ services:
       ofs:
         aliases:
           - sso.communities.gov.localhost
+
+  localstack:
+    image: localstack/localstack:3.7.2
+    env_file: .awslocal.env
+    environment:
+      - SERVICES=s3
+      - PERSISTENCE=1
+      - LS_LOG=warn
+      - USE_SSL=1
+    ports:
+      - "4566:4566" # LocalStack endpoint
+    volumes:
+      - ./docker-localstack:/etc/localstack/init/ready.d
+      - localstack_data:/var/lib/localstack
+    networks:
+      ofs:
+        aliases:
+          - localhost.localstack.cloud
 
 volumes:
   postgres_data:
