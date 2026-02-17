@@ -182,6 +182,9 @@ def create_app() -> Flask:  # noqa: C901
     app = Flask(__name__, static_folder="assets/dist/", static_url_path="/static")
     app.config.from_object(get_settings())
 
+    # note if limiting here or in the wtforms limited the whole file will be seeked, neither prevents large files being uploaded to cause downtime
+    # app.config['MAX_CONTENT_LENGTH'] = 16 * 1000 * 1000
+
     # Initialise extensions
     logging.init_app(app)
     patch_sqlalchemy_lite_async()

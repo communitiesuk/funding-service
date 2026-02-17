@@ -5,6 +5,7 @@ from typing import Any, cast
 
 from flask import current_app
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileSize
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovDateInput,
@@ -17,7 +18,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 from wtforms import DateField, Field, Form, RadioField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.numeric import DecimalField, IntegerField
-from wtforms.fields.simple import EmailField, FileField, StringField, SubmitField
+from wtforms.fields.simple import EmailField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
 from app.common.data.models import Expression, Question
@@ -316,7 +317,12 @@ def build_question_form(  # noqa: C901
                     label=interpolate(text=question.text, context=interpolation_context),
                     description=interpolate(text=question.hint or "", context=interpolation_context),
                     widget=GovFileInput(),
-                    validators=[Optional()] if has_existing_file else [DataRequired(f"Upload the {question.name}")],
+                    validators=[Optional()]
+                    if has_existing_file
+                    else [
+                        DataRequired(f"Select the {question.name}"),
+                        FileSize(max_size=16 * 1024 * 1024, message="The selected file must be smaller than 16MB"),
+                    ],
                 )
 
             case _:

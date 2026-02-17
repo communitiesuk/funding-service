@@ -1,6 +1,8 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "common/macros/status.html" import tasklistSectionStatusTag with context %}
 
 {% macro collection_before(runner, override_back_link=None) %}
@@ -8,13 +10,32 @@
 {% endmacro %}
 
 {% macro collection_question_with_add_another_summary_page(runner) %}
-  {% if runner.add_another_summary_context %}
-    {{ collection_add_another_summary(runner) }}
+  {% if runner.is_clearing %}
+    {{ collection_question_confirm_remove(runner) }}
   {% elif runner.is_removing %}
     {{ collection_add_another_confirm_remove(runner) }}
   {% else %}
-    {{ collection_question(runner) }}
+    {% if runner.add_another_summary_context %}
+      {{ collection_add_another_summary(runner) }}
+    {% else %}
+      {{ collection_question(runner) }}
+    {% endif %}
   {% endif %}
+
+  {# todo: streamline this the "add another summary context" is now overloaded and should just refer to add another context or not #}
+  {# {% if runner.add_another_summary_context or (runner.is_removing and runner.add_another_index is not none) %}
+    {% if not runner.is_removing %}
+      {{ collection_add_another_summary(runner) }}
+    {% else %}
+      {{ collection_add_another_confirm_remove(runner) }}
+    {% endif %}
+  {% else %}
+    {% if not runner.is_removing %}
+      {{ collection_question(runner) }}
+    {% else %}
+      {{ collection_question_confirm_remove(runner) }}
+    {% endif %}
+  {% endif %} #}
 {% endmacro %}
 
 {% macro collection_question(runner) %}
@@ -23,8 +44,9 @@
   {% set form = runner.question_form %}
   {% set questionAsPageHeading = not runner.component.guidance_heading and not is_group %}
 
+  {# todo: change this check but enctype is important #}
   {% set has_file_upload = questions | selectattr('data_type', 'equalto', enum.question_type.FILE_UPLOAD) | list | length > 0 %}
-  <form method="post" novalidate{% if has_file_upload %}enctype="multipart/form-data"{% endif %}>
+  <form method="post" novalidate {% if has_file_upload %}enctype="multipart/form-data"{% endif %}>
     {{ form.csrf_token }}
 
     <span class="govuk-caption-l">{{ runner.question_page_caption }}</span>
@@ -128,13 +150,16 @@
           }}
         {% endif %}
       {% elif question.data_type == enum.question_type.FILE_UPLOAD %}
-        {% set existing_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none) %}
+        {% set existing_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none, safe_outside_index=True) %}
         {% if existing_answer is not none %}
+
+          {# todo: re-doing these headings here doesn't feel right - review if this is the right place #}
           {% if questionAsPageHeading %}
             <h1 class="govuk-heading-l">{{ runner.interpolate(question.text) }}</h1>
           {% else %}
-            <p class="govuk-body govuk-!-font-weight-bold">{{ runner.interpolate(question.text) }}</p>
+            <p class="govuk-label govuk-!-font-weight-bold">{{ runner.interpolate(question.text) }}</p>
           {% endif %}
+          {# "classes": "govuk-!-margin-bottom-12" #}
           {{
             govukSummaryList({
               "rows": [{
@@ -142,15 +167,17 @@
                 "value": {"text": existing_answer.root},
                 "actions": {
                   "items": [{
-                    "href": runner.to_url(enum.form_runner_state.CONFIRM, question=question),
+                    "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, is_clearing=True, add_another_index=runner.add_another_index if runner.add_another_index is not none else none),
                     "text": "Remove",
                     "visuallyHiddenText": question.name,
                     "classes": "govuk-link--no-visited-state"
-                  }]
+                  }],
                 }
-              }]
+              }],
             })
           }}
+
+          <p class="govuk-body">You can remove this file if you need to upload a different one.</p>
         {% else %}
           {{
             form.render_question(
@@ -164,6 +191,29 @@
       {% endif %}
     {% endfor %}
     {{ form.submit }}
+
+    {% if has_file_upload %}
+      {% set upload_guidance %}
+        <p class="govuk-body">You can upload the following file types:</p>
+        <ul class="govuk-list govuk-list--bullet">
+          <li>CSV (.csv)</li>
+          <li>image (.jpeg, .jpg, .png)</li>
+          <li>Microsoft Excel Spreadsheet (.xlsx)</li>
+          <li>Microsoft Word Document (.docx, .doc)</li>
+          <li>PDF (.pdf)</li>
+          <li>text (.json, .odt, .rtf, .txt)</li>
+        </ul>
+        <p class="govuk-body">Your file must be smaller than 16MB.</p>
+      {% endset %}
+
+      {{
+        govukDetails({
+          "summaryText": "What file types can I upload?",
+          "html": upload_guidance,
+          "classes": "govuk-!-margin-top-2"
+        })
+      }}
+    {% endif %}
   </form>
 {% endmacro %}
 
@@ -532,6 +582,41 @@
       }}
     </form>
   {% endif %}
+{% endmacro %}
+
+{% macro collection_question_confirm_remove(runner) %}
+  {# todo: anywhere we're doing questions[0] is probably assuming its the first in the group, get a reliable way of getting the right question #}
+  {% set question = runner.questions[0] %}
+  {% set existing_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none) %}
+
+  {# todo: consider adding the question name or similar in the caption #}
+  <h1 class="govuk-heading-l">Remove your file</h1>
+
+  {# todo: show the file name in inset text similar to gov uk forms #}
+  {# todo: probably deserialise this properly (text view of this answer like in check your answers) #}
+  {{
+    govukInsetText({
+      "text": existing_answer.root
+    })
+  }}
+
+  <form method="post" novalidate>
+    {{ runner.confirm_remove_form.csrf_token }}
+
+    {{
+      runner.confirm_remove_form.confirm_remove(params={
+        "fieldset": {
+          "legend": {
+            "text": "Are you sure you want to remove your file?",
+            "isPageHeading": false,
+            "classes": "govuk-fieldset__legend--m"
+          }
+        }
+      })
+    }}
+
+    {{ runner.confirm_remove_form.submit }}
+  </form>
 {% endmacro %}
 
 {% macro collection_add_another_confirm_remove(runner) %}

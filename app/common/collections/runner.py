@@ -35,6 +35,8 @@ class FormRunner:
 
     url_map: ClassVar[TRunnerUrlMap] = {}
     component: Question | Group | None
+    # todo: refactor to make this clear - this hasn't been needed beacuase we're always iterating over all questions in a group
+    linked_question: Question | None
     questions: list[Question]
 
     def __init__(
@@ -45,6 +47,7 @@ class FormRunner:
         source: FormRunnerState | None = None,
         add_another_index: int | None = None,
         is_removing: bool = False,
+        is_clearing: bool = False,
     ):
         if question and form:
             raise ValueError("Expected only one of question or form")
@@ -54,6 +57,8 @@ class FormRunner:
         self.source = source
         self.add_another_index = add_another_index
         self.is_removing = is_removing
+        self.is_clearing = is_clearing
+        self.linked_question = question
 
         self._valid: bool | None = None
 
@@ -66,6 +71,7 @@ class FormRunner:
         self.add_another_summary_context = bool(
             (question and question.add_another_container) and self.add_another_index is None
         )
+        self.add_another_context = bool(self.add_another_summary_context or self.add_another_index is not None)
 
         if (
             self.add_another_summary_context and question and question.add_another_container
@@ -88,6 +94,9 @@ class FormRunner:
             self.component = question
             self.questions = [self.component] if self.component else []
 
+        # todo don't just do this everywhere
+        self._confirm_remove_form = ConfirmRemoveAddAnotherForm()
+
         if self.component:
             self.form = self.component.form
 
@@ -102,6 +111,7 @@ class FormRunner:
                 # todo: cleanup this chain of logic to make this read more straight
                 #       forwardly now that we have all the moving pieces
                 if self.is_removing:
+                    # todo don't just do this everywhere
                     self._confirm_remove_form = ConfirmRemoveAddAnotherForm()
                 else:
                     existing_data = self.submission.form_data(
@@ -142,6 +152,7 @@ class FormRunner:
         add_another_index: int | None = None,
         grant_recipient_id: UUID | None = None,
         is_removing: bool = False,
+        is_clearing: bool = False,
     ) -> FormRunner:
         if question_id and form_id:
             raise ValueError("Expected only one of question_id or form_id")
@@ -186,6 +197,7 @@ class FormRunner:
             source=source,
             add_another_index=add_another_index,
             is_removing=is_removing,
+            is_clearing=is_clearing,
         )
 
     @property
@@ -225,38 +237,44 @@ class FormRunner:
         return self.add_another_summary_form if self.add_another_summary_context else self.question_form
 
     def save_question_answer(self, user: User) -> None:
-        if not self.component:
+        if not self.component or not self.linked_question:
             raise RuntimeError("Question context not set")
 
-        for question in self.questions:
-            if question.data_type == QuestionDataType.FILE_UPLOAD:
-                file_data = self.question_form.get_answer_to_question(question)
-                has_existing_answer = (
-                    self.submission.cached_get_answer_for_question(
-                        question.id, add_another_index=self.add_another_index
-                    )
-                    is not None
+        if self.is_removing:
+            # only support removing answers for supported question types, for now that is only file uploads
+            # we use linked question because the component will refer to the container
+            if self.linked_question.data_type != QuestionDataType.FILE_UPLOAD:
+                raise ValueError("Can only remove answers for file upload questions")
+
+            if self.confirm_remove_form.validate_on_submit() and self.confirm_remove_form.confirm_remove.data == "yes":
+                # todo: remove the uploaded file as well, warning on failure but allowing the request to progress
+                self.submission.clear_answer_for_question(
+                    self.linked_question,
+                    user,
+                    add_another_index=self.add_another_index if self.add_another_index is not None else None,
                 )
-                if has_existing_answer and not getattr(file_data, "filename", None):
-                    continue
 
-            self.submission.submit_answer_for_question(
-                question.id, self.question_form, user, add_another_index=self.add_another_index
-            )
+        else:
+            for question in self.questions:
+                if question.data_type == QuestionDataType.FILE_UPLOAD:
+                    file_data = self.question_form.get_answer_to_question(question)
+                    has_existing_answer = (
+                        self.submission.cached_get_answer_for_question(
+                            question.id, add_another_index=self.add_another_index, safe_outside_index=True
+                        )
+                        is not None
+                    )
+                    if has_existing_answer and not getattr(file_data, "filename", None):
+                        continue
 
-    def clear_file_upload_answer(self, user: User) -> None:
-        """Clear the answer for a file upload question, allowing the user to upload a new file."""
-        if not self.component or self.component.is_group:
-            raise RuntimeError("Question context not set or is a group")
-
-        question = cast("Question", self.component)
-        if question.data_type != QuestionDataType.FILE_UPLOAD:
-            raise ValueError("Can only clear answers for file upload questions")
-
-        self.submission.clear_answer_for_question(question, user)
+                self.submission.submit_answer_for_question(
+                    question.id, self.question_form, user, add_another_index=self.add_another_index
+                )
 
     def save_add_another(self) -> None:
-        if self.add_another_index is None or not (self.component and self.component.add_another_container):
+        if not self.add_another_summary_context and (
+            self.add_another_index is None or not (self.component and self.component.add_another_container)
+        ):
             raise RuntimeError("Add another context not set")
 
         if self.is_removing:
@@ -325,6 +343,7 @@ class FormRunner:
         source: FormRunnerState | None = None,
         add_another_index: int | None = None,
         is_removing: bool | None = None,
+        is_clearing: bool | None = None,
     ) -> str:
         # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
         return self.url_map[state](
@@ -334,6 +353,7 @@ class FormRunner:
             source,
             add_another_index,
             is_removing,
+            is_clearing,
         )
 
     @property
@@ -346,8 +366,18 @@ class FormRunner:
                 new_index = self.submission.get_count_for_add_another(self.component.add_another_container)
                 return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=new_index)
 
+        if self.is_clearing:
+            return self.to_url(
+                FormRunnerState.QUESTION,
+                question=self.questions[0],
+                add_another_index=self.add_another_index if self.add_another_index is not None else None,
+            )
+
         if self.is_removing and self.component and self.component.add_another_container:
             return self.to_url(FormRunnerState.QUESTION, question=self.questions[0], add_another_index=None)
+
+        # if (not self.add_another_summary_context) and self.component and self.is_removing:
+        #     return self.to_url(FormRunnerState.QUESTION, question=self.questions[0])
 
         # if we're in the context of a question page, decide if we should go to the next question
         # or back to check your answers based on if the integrity checks pass
@@ -410,12 +440,21 @@ class FormRunner:
     def validate_can_show_question_page(self) -> bool:
         # for now we're only validating the question state, there may be integrity
         # checks for check your answers or tasklist in the future
-        if not self.component:
+        if not self.component or not self.linked_question:
             raise ValueError("Question context not set")
 
         if not self.submission.is_component_visible(self.component, self.runner_evaluation_context):
             self._valid = False
         elif self.submission.is_locked_state:
+            self._valid = False
+        elif (
+            self.is_removing
+            and not self.add_another_summary_context
+            and self.submission.cached_get_answer_for_question(
+                question_id=self.linked_question.id, add_another_index=self.add_another_index, safe_outside_index=True
+            )
+            is None
+        ):
             self._valid = False
         else:
             self._valid = True
@@ -433,6 +472,13 @@ class FormRunner:
             return self.to_url(FormRunnerState.TASKLIST)
         elif self.source == FormRunnerState.CHECK_YOUR_ANSWERS:
             return self.to_url(FormRunnerState.CHECK_YOUR_ANSWERS)
+
+        if self.is_clearing:
+            return self.to_url(
+                FormRunnerState.QUESTION,
+                question=self.questions[0],
+                add_another_index=self.add_another_index if self.add_another_index is not None else None,
+            )
 
         if self.component:
             first_question = self.questions[0] if self.component.is_group else self.component
@@ -529,16 +575,28 @@ def add_another_suffix(heading: str, add_another_index: int) -> str:
 
 class DGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index, is_removing: url_for(
+        FormRunnerState.QUESTION: lambda runner,
+        question,
+        _form,
+        source,
+        add_another_index,
+        is_removing,
+        is_clearing: url_for(
             "deliver_grant_funding.ask_a_question",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             question_id=question.id if question else None,
             source=source,
             add_another_index=add_another_index,
-            action="remove" if is_removing else None,
+            action="remove" if is_removing else "clear" if is_clearing else None,
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index, _is_removing: url_for(
+        FormRunnerState.TASKLIST: lambda runner,
+        _question,
+        _form,
+        _source,
+        _add_another_index,
+        _is_removing,
+        _is_clearing: url_for(
             "deliver_grant_funding.submission_tasklist",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
@@ -549,25 +607,26 @@ class DGFFormRunner(FormRunner):
         form,
         source,
         _add_another_index,
-        _is_removing: url_for(
+        _is_removing,
+        _is_clearing: url_for(
             "deliver_grant_funding.check_your_answers",
             grant_id=runner.submission.grant.id,
             submission_id=runner.submission.id,
             form_id=form.id if form else runner.form.id if runner.form else None,
             source=source,
         ),
-        FormRunnerState.CONFIRM: lambda runner, question, _form, _source, _add_another_index, _is_removing: url_for(
-            "deliver_grant_funding.confirm_question",
-            grant_id=runner.submission.grant.id,
-            submission_id=runner.submission.id,
-            question_id=question.id if question else None,
-        ),
     }
 
 
 class AGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index, is_removing: url_for(
+        FormRunnerState.QUESTION: lambda runner,
+        question,
+        _form,
+        source,
+        add_another_index,
+        is_removing,
+        is_clearing: url_for(
             "access_grant_funding.ask_a_question",
             organisation_id=runner.submission.submission.grant_recipient.organisation.id,
             grant_id=runner.submission.submission.grant_recipient.grant.id,
@@ -575,9 +634,15 @@ class AGFFormRunner(FormRunner):
             question_id=question.id if question else None,
             source=source,
             add_another_index=add_another_index,
-            action="remove" if is_removing else None,
+            action="remove" if is_removing else "clear" if is_clearing else None,
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index, _is_removing: url_for(
+        FormRunnerState.TASKLIST: lambda runner,
+        _question,
+        _form,
+        _source,
+        _add_another_index,
+        _is_removing,
+        _is_clearing: url_for(
             "access_grant_funding.tasklist",
             organisation_id=runner.submission.submission.grant_recipient.organisation.id,
             grant_id=runner.submission.submission.grant_recipient.grant.id,
@@ -588,19 +653,13 @@ class AGFFormRunner(FormRunner):
         form,
         source,
         _add_another_index,
-        _is_removing: url_for(
+        _is_removing,
+        _is_clearing: url_for(
             "access_grant_funding.check_your_answers",
             organisation_id=runner.submission.submission.grant_recipient.organisation.id,
             grant_id=runner.submission.submission.grant_recipient.grant.id,
             submission_id=runner.submission.id,
             section_id=form.id if form else runner.form.id if runner.form else None,
             source=source,
-        ),
-        FormRunnerState.CONFIRM: lambda runner, question, _form, _source, _add_another_index, _is_removing: url_for(
-            "access_grant_funding.confirm_question",
-            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
-            grant_id=runner.submission.submission.grant_recipient.grant.id,
-            submission_id=runner.submission.id,
-            question_id=question.id if question else None,
         ),
     }

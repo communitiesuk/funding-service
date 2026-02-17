@@ -49,11 +49,15 @@ def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnVa
     "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"]
 )
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<any('clear'):action>",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>",
     methods=["GET", "POST"],
 )
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>/<any('remove'):action>",
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>/<any('remove', 'clear'):action>",
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
@@ -66,12 +70,17 @@ def ask_a_question(
     action: str | None = None,
 ) -> ResponseReturnValue:
     source = request.args.get("source")
+
+    # request entity too large is triggered by flask_wtf parsing the file from request.files - in order to respond with the runner intact we could
+    # do this parsing and use the standard wtf filefield or we could see if we can clear the values from the request
     runner = DGFFormRunner.load(
         submission_id=submission_id,
         question_id=question_id,
         source=FormRunnerState(source) if source else None,
         add_another_index=add_another_index,
-        is_removing=action == "remove",
+        # todo: don't know if these need to be separated but just to make it work for now
+        is_removing=action == "remove" or action == "clear",
+        is_clearing=action == "clear",
     )
 
     if not runner.validate_can_show_question_page():
@@ -81,12 +90,21 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
-        if runner.is_removing:
+        # this logic isn't right and should be moved into one "save" method called at this level
+        if runner.is_clearing:
+            runner.save_question_answer(interfaces.user.get_current_user())
+        elif runner.is_removing:
             runner.save_add_another()
         elif not runner.add_another_summary_context:
-            # todo: save question answer could aways no-op if theres nothing to save which would make this code
-            #       more straight forward
             runner.save_question_answer(interfaces.user.get_current_user())
+
+        # if runner.add_another_summary_context:
+        #     if runner.is_removing:
+        #         runner.save_add_another()
+        # else:
+        # todo: always call save, it should check this itself and no-op
+        # runner.save_question_answer(interfaces.user.get_current_user())
+
         return redirect(runner.next_url)
 
     is_first_question_in_section_preview = False

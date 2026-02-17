@@ -115,6 +115,10 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/any('remove'):action",
+    methods=["GET", "POST"],
+)
+@access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
     methods=["GET", "POST"],
 )
@@ -151,9 +155,9 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
-        if runner.is_removing:
+        if runner.add_another_summary_context:
             runner.save_add_another()
-        elif not runner.add_another_summary_context:
+        else:
             # todo: always call save, it should check this itself and no-op
             runner.save_question_answer(interfaces.user.get_current_user())
 
