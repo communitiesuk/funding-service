@@ -254,6 +254,13 @@ class _SharedConfig(_BaseConfig):
     ASSETS_VITE_BASE_URL: str = "http://localhost:5173"
     ASSETS_VITE_LIVE_ENABLED: bool = False
 
+    # AWS S3
+    AWS_REGION: str = "eu-west-2"
+    AWS_BUCKET_NAME: str
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
+    AWS_ENDPOINT_OVERRIDE: str | None = None
+
     # Azure Active Directory Config
     AZURE_AD_CLIENT_ID: str
     AZURE_AD_CLIENT_SECRET: str
@@ -352,6 +359,9 @@ class LocalConfig(_SharedConfig):
     GOVUK_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
 
     ASSETS_VITE_LIVE_ENABLED: bool = True
+
+    # AWS S3 - local defaults for localstack
+    AWS_BUCKET_NAME: str = "fs-bucket"
 
 
 class UnitTestConfig(LocalConfig):

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, ClassVar, cast
 from uuid import UUID
 
 from flask import abort, current_app, url_for
+from werkzeug.datastructures import FileStorage
 
 from app.common.collections.forms import (
     AddAnotherSummaryForm,
@@ -236,6 +237,48 @@ class FormRunner:
             return self.confirm_remove_form
         return self.add_another_summary_form if self.add_another_summary_context else self.question_form
 
+    def _build_s3_key(self, question_id: UUID, filename: str) -> str:
+        """Build a unique S3 object key for an uploaded file."""
+        return f"{self.submission.id}/{question_id}/{filename}"
+
+    def _upload_file_to_s3(self, question: Question, file_data: FileStorage) -> None:
+        """Upload a file to S3, logging a warning on failure without blocking the submission."""
+        from app.extensions import s3_service
+
+        if not file_data.filename:
+            return
+
+        key = self._build_s3_key(question.id, file_data.filename)
+        try:
+            s3_service.upload_file(file_data.stream, key)
+        except Exception:
+            current_app.logger.exception(
+                "Failed to upload file to S3: %(key)s",
+                dict(key=key),
+            )
+            raise
+
+    def _delete_file_from_s3(self, question: Question) -> None:
+        """Delete a previously uploaded file from S3, warning on failure."""
+        from app.extensions import s3_service
+
+        existing_answer = self.submission.cached_get_answer_for_question(
+            question.id, add_another_index=self.add_another_index, safe_outside_index=True
+        )
+        if existing_answer is None:
+            return
+
+        filename = str(existing_answer.root)
+        key = self._build_s3_key(question.id, filename)
+        try:
+            s3_service.delete_file(key)
+        except Exception:
+            current_app.logger.warning(
+                "Failed to delete file from S3: %(key)s",
+                dict(key=key),
+                exc_info=True,
+            )
+
     def save_question_answer(self, user: User) -> None:
         if not self.component or not self.linked_question:
             raise RuntimeError("Question context not set")
@@ -247,7 +290,7 @@ class FormRunner:
                 raise ValueError("Can only remove answers for file upload questions")
 
             if self.confirm_remove_form.validate_on_submit() and self.confirm_remove_form.confirm_remove.data == "yes":
-                # todo: remove the uploaded file as well, warning on failure but allowing the request to progress
+                self._delete_file_from_s3(self.linked_question)
                 self.submission.clear_answer_for_question(
                     self.linked_question,
                     user,
@@ -266,6 +309,9 @@ class FormRunner:
                     )
                     if has_existing_answer and not getattr(file_data, "filename", None):
                         continue
+
+                    if isinstance(file_data, FileStorage) and file_data.filename:
+                        self._upload_file_to_s3(question, file_data)
 
                 self.submission.submit_answer_for_question(
                     question.id, self.question_form, user, add_another_index=self.add_another_index

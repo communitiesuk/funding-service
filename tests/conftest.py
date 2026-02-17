@@ -201,3 +201,11 @@ def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Ca
     )
 
     yield calls
+
+
+@pytest.fixture(scope="function")
+def mock_s3_service(mocker: MockerFixture) -> Generator[None, None, None]:
+    mocker.patch("app.services.s3.S3Service.upload_file")
+    mocker.patch("app.services.s3.S3Service.delete_file")
+    mocker.patch("app.services.s3.S3Service.download_file", return_value=b"")
+    yield
