@@ -268,6 +268,8 @@ class Collection(BaseModel):
         cascade="all",
     )
 
+    data_sources: Mapped[list[DataSource]] = relationship("DataSource", back_populates="collection")
+
     def s3_key_prefix(self, submission_mode: SubmissionModeEnum) -> str:
         return f"{current_app.config['SUBMISSION_FILES_PREFIX']}/{submission_mode}/{self.id}"
 
@@ -952,7 +954,7 @@ class DataSource(BaseModel):
         foreign_keys="Component.data_source_id",
     )
     grant: Mapped[Grant | None] = relationship("Grant")
-    collection: Mapped[Collection | None] = relationship("Collection")
+    collection: Mapped[Collection | None] = relationship("Collection", back_populates="data_sources")
     created_by: Mapped[User | None] = relationship("User", foreign_keys=[created_by_id])
     updated_by: Mapped[User | None] = relationship("User", foreign_keys=[updated_by_id])
 

@@ -793,7 +793,21 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     type = DataSourceType.CUSTOM
+    name = None
+    schema = None
     items = factory.RelatedFactoryList(_DataSourceItemFactory, size=3, factory_related_name="data_source")
+
+    grant = None
+    grant_id = factory.LazyAttribute(lambda o: o.grant.id if o.grant else None)
+
+    collection = None
+    collection_id = factory.LazyAttribute(lambda o: o.collection.id if o.collection else None)
+
+    created_by = None
+    created_by_id = factory.LazyAttribute(lambda o: o.created_by.id if o.created_by else None)
+
+    updated_by = None
+    updated_by_id = factory.LazyAttribute(lambda o: o.updated_by.id if o.updated_by else None)
 
 
 class _QuestionFactory(SQLAlchemyModelFactory):
