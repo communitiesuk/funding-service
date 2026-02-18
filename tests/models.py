@@ -54,6 +54,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
+    OrganisationType,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -143,6 +144,7 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
     can_manage_grants = False
 
     mode = OrganisationModeEnum.LIVE
+    type = OrganisationType.CENTRAL_GOVERNMENT
 
 
 class _GrantRecipientFactory(SQLAlchemyModelFactory):
