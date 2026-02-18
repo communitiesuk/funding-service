@@ -428,6 +428,19 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 
         if form.validate_on_submit():
             create_grant_recipients(grant=grant, organisation_ids=form.recipients.data)
+
+            live_organisations = get_organisations(mode=OrganisationModeEnum.LIVE)
+            live_organisation_external_ids = {
+                org.external_id for org in live_organisations if str(org.id) in form.recipients.data
+            }
+
+            test_organisations = get_organisations(mode=OrganisationModeEnum.TEST)
+            test_organisation_ids = [
+                org.id for org in test_organisations if org.external_id in live_organisation_external_ids
+            ]
+            create_grant_recipients(
+                grant=grant, organisation_ids=test_organisation_ids, mode=GrantRecipientModeEnum.TEST
+            )
             flash(f"Created {len(form.recipients.data)} grant recipients.", "success")  # type: ignore[arg-type]
             return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
