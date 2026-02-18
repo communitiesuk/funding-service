@@ -20,6 +20,7 @@ from app.common.data.types import (
     ExpressionType,
     GrantRecipientModeEnum,
     ManagedExpressionsEnum,
+    OrganisationModeEnum,
     QuestionPresentationOptions,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -6558,3 +6559,100 @@ class TestListReportDataSets:
         soup = BeautifulSoup(response.data, "html.parser")
         assert response.status_code == 200
         assert page_has_button(soup, button_text="Upload new data set") is None
+
+
+class TestDownloadGrantRecipientDataSetTemplate:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.download_grant_recipient_data_set_template",
+                grant_id=uuid.uuid4(),
+                report_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    def test_csv_download(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+
+        grant_recipient_1 = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation__external_id="E12345",
+            organisation__name="Rivendell",
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation__external_id="E67890",
+            organisation__name="Lothlorien",
+        )
+        grant_recipient_3 = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation__name="Isengard",
+            organisation__mode=OrganisationModeEnum.TEST,
+        )
+        grant_recipient_4 = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Shire", organisation__external_id=None
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.download_grant_recipient_data_set_template",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert response.mimetype == "text/csv"
+        assert response.content_length > 0
+
+        lines = response.text.splitlines()
+        assert len(lines) == 4  # Header + 3 grant recipients
+
+        header = lines[0]
+        assert "ONS code" in header
+        assert "Grant recipient" in header
+
+        assert grant_recipient_2.organisation.name in lines[1]
+        assert grant_recipient_2.organisation.external_id in lines[1]
+        assert grant_recipient_1.organisation.name in lines[2]
+        assert grant_recipient_1.organisation.external_id in lines[2]
+        assert grant_recipient_4.organisation.name in lines[3]
+
+        # Empty external_id
+        assert lines[3].startswith(",")
+
+        # Test grant recipient organisations excluded
+        assert grant_recipient_3.organisation.name not in response.text
+
+    def test_csv_download_empty_grant_recipients(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.download_grant_recipient_data_set_template",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert response.mimetype == "text/csv"
+
+        lines = response.text.splitlines()
+        assert len(lines) == 1
+
+    def test_csv_download_filename(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.download_grant_recipient_data_set_template",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        content_disposition = response.headers.get("Content-Disposition")
+        assert f"{report.slug}-grant-recipient-data-template.csv" in content_disposition

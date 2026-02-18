@@ -22,7 +22,7 @@
       <p class="govuk-body">Data referenced in the grant form, uploaded as a CSV.</p>
       <p class="govuk-body">
         For uploading grant recipient level data like grant allocation, use the
-        <a class="govuk-link govuk-link-no-visited-state" href="#">grant recipient data upload template (CSV)</a>. Grant
+        <a class="govuk-link govuk-link-no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">grant recipient data upload template (CSV)</a>. Grant
         recipients must be set up for the grant report before using the template and uploading grant recipient level data.
       </p>
 

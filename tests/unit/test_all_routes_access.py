@@ -116,6 +116,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.download_file",
     "deliver_grant_funding.list_report_data_sets",
+    "deliver_grant_funding.download_grant_recipient_data_set_template",
 ]
 
 routes_with_expected_access_grant_funding_logged_in_access = [
