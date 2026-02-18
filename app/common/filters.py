@@ -49,6 +49,26 @@ def format_datetime(value: datetime) -> str:
     return formatted_datetime
 
 
+def format_datetime_short(value: datetime) -> str:
+    """Format a datetime as follows:
+
+    > 22 Feb 2026 at 3:41pm
+
+    If the datetime is exactly on the hour, then minutes will not be included:
+
+    > 22 Feb 2026 at 3pm
+    """
+    fmt = "%-d %b %-Y at %-I:%M%p"
+
+    if value.minute == 0:
+        fmt = "%-d %b %-Y at %-I%p"
+
+    formatted_datetime = value.strftime(fmt)
+    formatted_datetime = formatted_datetime.replace("AM", "am").replace("PM", "pm")
+
+    return formatted_datetime
+
+
 def format_date_range(start: date, end: date) -> str:
     """Format a pair of dates as follows:
 
