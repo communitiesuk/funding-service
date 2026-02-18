@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import textareaNoNewlines from ".";
+import textareaNoNewlines from "./index.js";
 
 describe("textareaNoNewlines", () => {
     let textarea;

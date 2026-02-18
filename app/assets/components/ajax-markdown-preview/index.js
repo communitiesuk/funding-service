@@ -1,4 +1,4 @@
-import debounce from "../utils/debounce";
+import debounce from "../../utils/debounce/index.js";
 
 const store = {
     target: null,

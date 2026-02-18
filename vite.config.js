@@ -13,7 +13,7 @@ export default defineConfig({
                 "app/assets/main.scss",
                 "app/assets/main.js",
                 "app/assets/admin.scss",
-                "app/assets/js/cookie-consent/index.js",
+                "app/assets/components/cookie-consent/index.js",
             ],
             external: [
                 /assets\/fonts\/.*\.(woff|woff2)$/,

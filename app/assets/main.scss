@@ -4,7 +4,7 @@
     $govuk-brand-colour: #00625e
 );
 @use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
-@use "css/context-aware-editor";
+@use "components/context-aware-editor";
 
 .app-\!-no-wrap {
     white-space: nowrap;

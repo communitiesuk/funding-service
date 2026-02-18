@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import contextAwareEditor from ".";
+import contextAwareEditor from "./index.js";
 
 // Mock ResizeObserver for the test environment
 global.ResizeObserver = class ResizeObserver {

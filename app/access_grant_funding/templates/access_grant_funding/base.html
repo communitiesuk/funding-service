@@ -143,7 +143,7 @@
 {% endblock bodyStart %}
 {% block bodyEnd %}
   {{ super() }}
-  <script type="module" src="{{ vite_asset('app/assets/js/cookie-consent/index.js') }}"></script>
+  <script type="module" src="{{ vite_asset('app/assets/components/cookie-consent/index.js') }}"></script>
 {% endblock %}
 {% block footer %}
   {% set grant_id = grant.id if grant is defined else request.view_args.grant_id %}
