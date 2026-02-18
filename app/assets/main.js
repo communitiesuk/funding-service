@@ -1,4 +1,5 @@
 import { initAll } from "govuk-frontend";
+import { initAll as mojInitAll } from "@ministryofjustice/frontend";
 import accessibleAutocomplete from "accessible-autocomplete";
 import { pasteListener } from "./components/paste-html-to-markdown";
 import ajaxMarkdownPreview from "./components/ajax-markdown-preview";
@@ -7,6 +8,7 @@ import contextAwareEditor from "./components/context-aware-editor/index.js";
 import { initSectionNavScroll } from "./components/submission-section-nav/index.js";
 
 initAll();
+mojInitAll();
 initSectionNavScroll();
 
 for (let el of document.querySelectorAll("[data-accessible-autocomplete]")) {
