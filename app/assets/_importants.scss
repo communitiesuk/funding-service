@@ -1,0 +1,8 @@
+@use "govuk";
+
+.app-\!-no-wrap {
+    white-space: nowrap;
+}
+.app-\!-border-top-line {
+    border-top: 1px solid govuk.govuk-colour("mid-grey");
+}

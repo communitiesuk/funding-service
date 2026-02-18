@@ -178,3 +178,20 @@
         margin-top: 0; // Toolbar container handles its own spacing
     }
 }
+
+.app-context-aware--container {
+    margin-bottom: govuk.govuk-spacing(0);
+}
+
+// Position "Reference data" buttons at bottom-right corner of text inputs
+.app-context-aware--button {
+    position: relative;
+    float: right;
+    width: auto;
+    margin: -50px - govuk.govuk-spacing(4) 10px 10px;
+    z-index: 1;
+
+    @include govuk.govuk-media-query($from: tablet) {
+        margin-top: -50px - govuk.govuk-spacing(6);
+    }
+}

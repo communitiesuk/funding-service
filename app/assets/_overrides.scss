@@ -1,0 +1,14 @@
+@use "govuk";
+
+// Temporary: return notification banners to their correct colours. We have set `govuk-brand-colour`, and currently
+// the notification banner uses that as its border colour. This has been confirmed as unintended by the GDS Design System
+// team. See: https://github.com/alphagov/govuk-design-system/issues/4877
+.govuk-notification-banner {
+    border-color: govuk.govuk-colour("blue");
+    background-color: govuk.govuk-colour("blue");
+}
+
+.govuk-notification-banner--success {
+    border-color: govuk.$govuk-success-colour;
+    background-color: govuk.$govuk-success-colour;
+}

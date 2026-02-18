@@ -1,0 +1,17 @@
+@use "govuk";
+
+.app-move-up-down-table__actions {
+    width: 50%;
+}
+
+.app-move-up-down-table__action--disabled {
+    color: govuk.govuk-colour("mid-grey");
+}
+
+.app-move-up-down-table__row:first-child {
+    border-top: 1px solid govuk.govuk-colour("mid-grey");
+}
+
+.move-up-down-link-hidden {
+    visibility: hidden;
+}
