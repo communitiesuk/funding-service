@@ -45,6 +45,7 @@ from app.common.filters import (
     format_date_short,
     format_datetime,
     format_datetime_range,
+    format_datetime_short,
     format_thousands,
     to_ordinal,
 )
@@ -283,6 +284,7 @@ def create_app() -> Flask:  # noqa: C901
             format_date_range=format_date_range,
             format_date_range_short=format_date_range_short,
             format_datetime_range=format_datetime_range,
+            format_datetime_short=format_datetime_short,
             format_thousands=format_thousands,
             timedelta=datetime.timedelta,
             to_ordinal=to_ordinal,

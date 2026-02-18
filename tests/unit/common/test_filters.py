@@ -1,7 +1,7 @@
 import datetime
 
 from app import format_date, format_date_range, format_datetime, format_datetime_range
-from app.common.filters import format_date_range_short
+from app.common.filters import format_date_range_short, format_datetime_short
 
 
 class TestFormatDate:
@@ -57,3 +57,20 @@ class TestFormatDatetimeRange:
             format_datetime_range(datetime.datetime(2025, 1, 1, 9, 15, 0), datetime.datetime(2025, 2, 1, 17, 45, 0))
             == "9:15am on Wednesday 1 January 2025 to 5:45pm on Saturday 1 February 2025"
         )
+
+
+class TestFormatDatetimeShort:
+    def test_datetime_am(self):
+        assert format_datetime_short(datetime.datetime(2025, 1, 1, 1, 0, 0)) == "1 Jan 2025 at 1am"
+
+    def test_datetime_pm(self):
+        assert format_datetime_short(datetime.datetime(2025, 1, 1, 13, 0, 0)) == "1 Jan 2025 at 1pm"
+
+    def test_datetime_minutes(self):
+        assert format_datetime_short(datetime.datetime(2025, 1, 1, 13, 37, 0)) == "1 Jan 2025 at 1:37pm"
+
+    def test_datetime_noon(self):
+        assert format_datetime_short(datetime.datetime(2025, 1, 1, 12, 0, 0)) == "1 Jan 2025 at 12pm"
+
+    def test_datetime_midnight(self):
+        assert format_datetime_short(datetime.datetime(2025, 1, 1, 0, 0, 0)) == "1 Jan 2025 at 12am"
