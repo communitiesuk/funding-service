@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from flask import current_app
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileSize
+from flask_wtf.file import FileAllowed, FileField, FileSize
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovDateInput,
@@ -322,6 +322,14 @@ def build_question_form(  # noqa: C901
                     else [
                         DataRequired(f"Select the {question.name}"),
                         FileSize(max_size=16 * 1024 * 1024, message="The selected file must be smaller than 16MB"),
+                        FileAllowed(
+                            [
+                                extension.replace(".", "")
+                                for ft in question.data_options.file_types_supported
+                                for extension in ft.extensions
+                            ],
+                            message="The selected file type is not supported.",
+                        ),
                     ],
                 )
 

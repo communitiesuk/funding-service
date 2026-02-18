@@ -20,6 +20,7 @@ from app.common.data.types import (
     ComponentType,
     ConditionsOperator,
     ExpressionType,
+    FileUploadTypes,
     GrantRecipientModeEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
@@ -636,6 +637,10 @@ class Question(Component, SafeQidMixin):
     @property
     def number_type(self) -> NumberTypeEnum | None:
         return self.data_options.number_type if self.data_type == QuestionDataType.NUMBER else None
+
+    @property
+    def file_types_supported(self) -> list[FileUploadTypes] | None:
+        return self.data_options.file_types_supported if self.data_type == QuestionDataType.FILE_UPLOAD else None
 
     @property
     def max_decimal_places(self) -> int | None:

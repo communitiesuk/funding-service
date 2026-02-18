@@ -8,7 +8,13 @@ from werkzeug.datastructures import MultiDict
 from wtforms import ValidationError
 
 from app import format_thousands
-from app.common.data.types import NumberTypeEnum, QuestionDataType, QuestionPresentationOptions, RoleEnum
+from app.common.data.types import (
+    FileUploadTypes,
+    NumberTypeEnum,
+    QuestionDataType,
+    QuestionPresentationOptions,
+    RoleEnum,
+)
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
 from app.deliver_grant_funding.forms import (
@@ -287,6 +293,56 @@ class TestQuestionForm:
 
         formdata.add("max_decimal_places", "2")
         form.process(formdata)
+        assert form.validate() is True
+
+    def test_file_types_supported_validated_for_file_upload(self, app):
+        form = QuestionForm(question_type=QuestionDataType.FILE_UPLOAD)
+
+        formdata = MultiDict(
+            [
+                ("text", "Upload a file"),
+                ("hint", ""),
+                ("name", "file_upload"),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {
+            "file_types_supported": ["Select at least one file type"],
+        }
+
+    def test_file_types_supported_valid_with_selections(self, app):
+        form = QuestionForm(question_type=QuestionDataType.FILE_UPLOAD)
+
+        formdata = MultiDict(
+            [
+                ("text", "Upload a file"),
+                ("hint", ""),
+                ("name", "file_upload"),
+                ("file_types_supported", FileUploadTypes.CSV.value),
+                ("file_types_supported", FileUploadTypes.PDF.value),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is True
+
+    def test_file_types_supported_not_validated_for_non_file_upload(self, app):
+        form = QuestionForm(question_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+            ]
+        )
+
+        form.process(formdata)
+
         assert form.validate() is True
 
 

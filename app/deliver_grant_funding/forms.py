@@ -28,6 +28,7 @@ from app.common.data.interfaces.grants import grant_code_exists, grant_name_exis
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
+    FileUploadTypes,
     GroupDisplayOptions,
     MultilineTextInputRows,
     NumberInputWidths,
@@ -423,6 +424,15 @@ class QuestionForm(FlaskForm):
         widget=GovCheckboxInput(),
     )
 
+    # File upload options
+    file_types_supported = SelectMultipleField(
+        "Accepted file types",
+        choices=[(file_type.value, file_type.value) for file_type in FileUploadTypes],
+        widget=GovCheckboxesInput(),
+        validators=[Optional()],
+        default=[file_type.value for file_type in FileUploadTypes],
+    )
+
     submit = SubmitField(widget=GovSubmitInput())
 
     def __init__(
@@ -512,6 +522,10 @@ class QuestionForm(FlaskForm):
 
         if self.number_type.data == NumberTypeEnum.DECIMAL.value:
             self.max_decimal_places.validators = [DataRequired("Enter the maximum number of decimal places")]
+
+        # Only need to validate file upload fields if the question type is FILE_UPLOAD
+        if self._question_type == QuestionDataType.FILE_UPLOAD:
+            self.file_types_supported.validators = [DataRequired("Select at least one file type")]
 
         return super().validate(extra_validators=extra_validators)
 
