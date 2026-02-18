@@ -24,7 +24,16 @@
       })
     }}
   {% elif data_type == enum.question_type.FILE_UPLOAD %}
-
+    {% set hint_items = [] %}
+    {% for item in enum.file_upload_types_enum %}
+      {%
+        do hint_items.append({
+          "hint": {
+            "text": (item.extensions | join(", "))
+          }
+        })
+      %}
+    {% endfor %}
     {{
       form.file_types_supported(
       params={
@@ -36,7 +45,8 @@
               "text":"Accepted file types",
                 "classes": "govuk-!-font-weight-bold"
               },
-            }
+            },
+            "items": hint_items
       })
     }}
   {% endif %}

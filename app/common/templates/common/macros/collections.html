@@ -179,6 +179,31 @@
 
           <p class="govuk-body">You can remove this file if you need to upload a different one.</p>
         {% else %}
+
+
+          {% set upload_guidance %}
+            <p class="govuk-body">You can upload the following file types:</p>
+            <ul class="govuk-list govuk-list--bullet">
+              {% for file_type in question.file_types_supported %}
+                <li>{{ file_type.value }} ({{ file_type.extensions | join(", ") }})</li>
+              {% endfor %}
+            </ul>
+            <p class="govuk-body">Your file must be smaller than 16MB.</p>
+          {% endset %}
+
+          {# {% set hint_guidance %}
+            <div>{{ runner.interpolate(question.hint) }}</div>
+            <div>
+             {{
+            govukDetails({
+              "summaryText": "What file types can I upload?",
+              "html": upload_guidance,
+              "classes": "govuk-!-margin-top-2"
+            })
+          }}
+            </div>
+          {% endset %} #}
+
           {{
             form.render_question(
               question,
@@ -191,6 +216,14 @@
               }
             )
           }}
+
+          {{
+            govukDetails({
+              "summaryText": "What file types can I upload?",
+              "html": upload_guidance,
+              "classes": "govuk-!-margin-top-2"
+            })
+          }}
         {% endif %}
       {% endif %}
     {% endfor %}
@@ -198,7 +231,7 @@
 
     {% if has_file_upload and (questions | length) == 1 %}
       {% set question = questions[0] %}
-      {% set upload_guidance %}
+      {# {% set upload_guidance %}
         <p class="govuk-body">You can upload the following file types:</p>
         <ul class="govuk-list govuk-list--bullet">
           {% for file_type in question.file_types_supported %}
@@ -214,7 +247,7 @@
           "html": upload_guidance,
           "classes": "govuk-!-margin-top-2"
         })
-      }}
+      }} #}
     {% endif %}
   </form>
 {% endmacro %}

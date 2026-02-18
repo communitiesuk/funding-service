@@ -99,7 +99,6 @@
 
         {# Duplicate the submit button, fully hidden, so that the default action for the form is to submit it (rather than add data to a field) #}
         {{ form.submit(params={"classes": "govuk-!-display-none"}) }}
-        {{ questionDataOptions(form, question.data_type, enum) }}
 
         <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
           <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
@@ -118,6 +117,33 @@
           {% endset %}
           {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
         </div>
+
+        {{ questionDataOptions(form, question.data_type, enum) }}
+        {# {% if question.data_type == enum.question_type.FILE_UPLOAD %}
+          {% set hint_items = [] %}
+          {% for item in enum.file_upload_types_enum %}
+            {% do hint_items.append({
+                "hint": {
+                  "text": (item.extensions | join(", "))
+                }
+              }) %}
+          {% endfor %}
+          {{
+            form.file_types_supported(
+            params={
+                    "hint": {
+                      "text": "Grant recipients will be shown and limited to the file types selected"
+                    },
+                    "fieldset": {
+                      "legend": {
+                        "text":"Accepted file types",
+                          "classes": "govuk-!-font-weight-bold"
+                        },
+                    },
+                    "items": hint_items
+            })
+          }}
+        {% endif %} #}
 
         {% if question.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
           {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
