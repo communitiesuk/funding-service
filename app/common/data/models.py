@@ -147,13 +147,13 @@ class Organisation(BaseModel):
     #
     # For local government, this uses the Local Authority District (December 2024) [LAD24] boundaries dataset:
     # https://geoportal.statistics.gov.uk/datasets/6a05f93297cf4a438d08e972099f54b9_0/explore
-    external_id: Mapped[str | None] = mapped_column(unique=True)
-    name: Mapped[CIStr] = mapped_column(unique=True)
+    external_id: Mapped[str | None] = mapped_column(unique=False)
+    name: Mapped[CIStr] = mapped_column(unique=False)
 
     # TODO: switch this to a computed column?
     status: Mapped[OrganisationStatus] = mapped_column(default=OrganisationStatus.ACTIVE)
 
-    type: Mapped[OrganisationType | None]
+    type: Mapped[OrganisationType]
     active_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     retirement_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     can_manage_grants: Mapped[bool] = mapped_column(default=False)
@@ -176,6 +176,8 @@ class Organisation(BaseModel):
             unique=True,
             postgresql_where=can_manage_grants.is_(True),
         ),
+        UniqueConstraint("external_id", "mode", name="uq_organisation_external_id_mode"),
+        UniqueConstraint("name", "mode", name="uq_organisation_name_mode"),
         CheckConstraint("status = 'retired' OR retirement_date IS NULL", name="ck_retirement"),
     )
 
