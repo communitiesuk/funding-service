@@ -1,12 +1,10 @@
-// ideally we wouldn't use a relative import here
-// didn't want to fight the config at the time
-$govuk-new-organisation-colours: true;
-$govuk-assets-path: "/static/assets/";
-$govuk-brand-colour: #00625e;
-
-@import "../../node_modules/govuk-frontend/dist/govuk";
-@import "../../node_modules/accessible-autocomplete";
-@import "./css/context-aware-editor";
+@use "govuk" with (
+    $govuk-new-organisation-colours: true,
+    $govuk-assets-path: "/static/assets/",
+    $govuk-brand-colour: #00625e
+);
+@use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
+@use "css/context-aware-editor";
 
 .app-\!-no-wrap {
     white-space: nowrap;
@@ -29,20 +27,20 @@ $govuk-brand-colour: #00625e;
 }
 
 .app-move-up-down-table__action--disabled {
-    color: govuk-colour("mid-grey");
+    color: govuk.govuk-colour("mid-grey");
 }
 
 .app-move-up-down-table__row:first-child {
-    border-top: 1px solid govuk-colour("mid-grey");
+    border-top: 1px solid govuk.govuk-colour("mid-grey");
 }
 
 .app-\!-border-top-line {
-    border-top: 1px solid govuk-colour("mid-grey");
+    border-top: 1px solid govuk.govuk-colour("mid-grey");
 }
 
 .app-link-button {
-    @include govuk-font(19);
-    color: $govuk-link-colour;
+    @include govuk.govuk-font(19);
+    color: govuk.$govuk-link-colour;
     background: none;
     border: 0;
     padding: 0;
@@ -55,17 +53,17 @@ $govuk-brand-colour: #00625e;
 }
 
 .app-metadata {
-    @include govuk-font(19);
+    @include govuk.govuk-font(19);
 }
 
 .app-metadata__key {
-    @include govuk-typography-weight-bold(5);
+    @include govuk.govuk-typography-weight-bold(5);
 
     display: inline;
 }
 
 .app-metadata__value {
-    @include govuk-responsive-margin(1, "left");
+    @include govuk.govuk-responsive-margin(1, "left");
 
     display: inline-block;
 }
@@ -80,9 +78,9 @@ $govuk-brand-colour: #00625e;
 // Based on the error colour in:
 // https://github.com/alphagov/govuk-frontend/blob/v4.2.0/src/govuk/settings/_colours-applied.scss
 // with :hover and :active variants based on those for links
-$app-destructive-link-colour: $govuk-error-colour;
-$app-destructive-link-hover-colour: govuk-colour("red");
-$app-destructive-link-active-colour: $govuk-text-colour;
+$app-destructive-link-colour: govuk.$govuk-error-colour;
+$app-destructive-link-hover-colour: govuk.govuk-colour("red");
+$app-destructive-link-active-colour: govuk.$govuk-text-colour;
 
 // Extends govuk-link to create a class of link that causes a destructive action
 // Based on styles of link in:
@@ -121,7 +119,7 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 
     &--org-hidden {
         @extend .app-service-navigation__wrapper--sectional;
-        @include govuk-media-query($from: tablet) {
+        @include govuk.govuk-media-query($from: tablet) {
             .govuk-service-navigation__item:last-child {
                 display: none;
             }
@@ -130,7 +128,7 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 
     &--grant-and-org-hidden {
         @extend .app-service-navigation__wrapper--sectional;
-        @include govuk-media-query($from: tablet) {
+        @include govuk.govuk-media-query($from: tablet) {
             .govuk-service-navigation__item:nth-last-child(2) {
                 display: none;
             }
@@ -152,7 +150,7 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 }
 
 .app-test-data-banner {
-    background-color: govuk-colour("orange");
+    background-color: govuk.govuk-colour("orange");
 
     &--container {
         padding: 15px 0;
@@ -160,7 +158,7 @@ $app-destructive-link-active-colour: $govuk-text-colour;
         flex-direction: row;
         align-items: center;
 
-        @include govuk-media-query($until: tablet) {
+        @include govuk.govuk-media-query($until: tablet) {
             flex-direction: column;
             align-items: stretch;
             gap: 10px;
@@ -182,8 +180,8 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 }
 
 .app-test-data-banner--standalone {
-    margin-top: govuk-spacing(2);
-    background-color: govuk-colour("orange");
+    margin-top: govuk.govuk-spacing(2);
+    background-color: govuk.govuk-colour("orange");
     padding: 15px 15px;
 }
 
@@ -202,11 +200,11 @@ $app-destructive-link-active-colour: $govuk-text-colour;
 }
 
 .app-notification-banner--destructive {
-    border-color: $govuk-error-colour;
-    background-color: $govuk-error-colour;
+    border-color: govuk.$govuk-error-colour;
+    background-color: govuk.$govuk-error-colour;
 
     .app-notification-banner__link {
-        @include govuk-link-style-error;
+        @include govuk.govuk-link-style-error;
     }
 }
 
@@ -217,11 +215,11 @@ $inset-nested-rows: 30px;
 }
 
 .app-summary-list-group-row {
-    background-color: govuk-colour("light-grey");
+    background-color: govuk.govuk-colour("light-grey");
 }
 
 .app-summary-list-group-row:first-child {
-    border-top: 1px solid $govuk-border-colour;
+    border-top: 1px solid govuk.$govuk-border-colour;
 }
 
 .app-summary-list-group-row .govuk-summary-list__key {
@@ -229,7 +227,7 @@ $inset-nested-rows: 30px;
 }
 
 .app-summary-list-group-nested {
-    box-shadow: inset 4px 0 0 0 $govuk-border-colour;
+    box-shadow: inset 4px 0 0 0 govuk.$govuk-border-colour;
 }
 
 .app-summary-list-group-nested dt::before {
@@ -245,11 +243,11 @@ $inset-nested-rows: 30px;
 }
 
 .app-summary-list-group-nested--final {
-    border-bottom: 2px solid $govuk-border-colour;
+    border-bottom: 2px solid govuk.$govuk-border-colour;
 }
 
 .app-pre-markdown {
-    @include govuk-font(19);
+    @include govuk.govuk-font(19);
     white-space: pre-line;
     margin-top: 0px;
 }
@@ -258,17 +256,17 @@ $inset-nested-rows: 30px;
 // the notification banner uses that as its border colour. This has been confirmed as unintended by the GDS Design System
 // team. See: https://github.com/alphagov/govuk-design-system/issues/4877
 .govuk-notification-banner {
-    border-color: govuk-colour("blue");
-    background-color: govuk-colour("blue");
+    border-color: govuk.govuk-colour("blue");
+    background-color: govuk.govuk-colour("blue");
 }
 
 .govuk-notification-banner--success {
-    border-color: $govuk-success-colour;
-    background-color: $govuk-success-colour;
+    border-color: govuk.$govuk-success-colour;
+    background-color: govuk.$govuk-success-colour;
 }
 
 .app-context-aware--container {
-    margin-bottom: govuk-spacing(0);
+    margin-bottom: govuk.govuk-spacing(0);
 }
 
 // Position "Reference data" buttons at bottom-right corner of text inputs
@@ -276,22 +274,22 @@ $inset-nested-rows: 30px;
     position: relative;
     float: right;
     width: auto;
-    margin: -50px - govuk-spacing(4) 10px 10px;
+    margin: -50px - govuk.govuk-spacing(4) 10px 10px;
     z-index: 1;
 
-    @include govuk-media-query($from: tablet) {
-        margin-top: -50px - govuk-spacing(6);
+    @include govuk.govuk-media-query($from: tablet) {
+        margin-top: -50px - govuk.govuk-spacing(6);
     }
 }
 
 .app-grants-table--cell-width-200 {
-    @include govuk-media-query($from: desktop) {
+    @include govuk.govuk-media-query($from: desktop) {
         width: 200px;
     }
 }
 
 .app-grants-table--cell-width-300 {
-    @include govuk-media-query($from: desktop) {
+    @include govuk.govuk-media-query($from: desktop) {
         width: 300px;
     }
 }
@@ -308,7 +306,7 @@ $inset-nested-rows: 30px;
         padding-bottom: 0px;
     }
 
-    @include govuk-media-query($until: tablet) {
+    @include govuk.govuk-media-query($until: tablet) {
         .govuk-service-navigation__service-name {
             padding-top: 0px;
         }
@@ -321,7 +319,7 @@ $inset-nested-rows: 30px;
 .app-hide-mobile {
     display: none;
 
-    @include govuk-media-query($from: tablet) {
+    @include govuk.govuk-media-query($from: tablet) {
         display: block;
     }
 }
@@ -331,25 +329,25 @@ $inset-nested-rows: 30px;
 }
 
 .app-section-nav-container {
-    @include govuk-media-query($from: desktop) {
+    @include govuk.govuk-media-query($from: desktop) {
         position: sticky;
-        top: govuk-spacing(2);
+        top: govuk.govuk-spacing(2);
         max-height: 100vh;
         overflow-y: auto;
-        margin-bottom: govuk-spacing(5);
+        margin-bottom: govuk.govuk-spacing(5);
     }
 }
 
 .app-section-content-container {
-    @include govuk-media-query($from: desktop) {
-        border-left: 1px solid $govuk-border-colour;
-        padding-left: govuk-spacing(6);
-        padding-bottom: govuk-spacing(7);
+    @include govuk.govuk-media-query($from: desktop) {
+        border-left: 1px solid govuk.$govuk-border-colour;
+        padding-left: govuk.govuk-spacing(6);
+        padding-bottom: govuk.govuk-spacing(7);
     }
 }
 
 .app-section-nav-list__item {
-    @include govuk-media-query($until: mobile) {
+    @include govuk.govuk-media-query($until: mobile) {
         display: flex;
     }
 
@@ -357,64 +355,64 @@ $inset-nested-rows: 30px;
     a:link,
     a:visited {
         display: block;
-        color: $govuk-link-colour;
+        color: govuk.$govuk-link-colour;
         background-color: inherit;
         text-decoration: none;
-        padding: govuk-spacing(2);
+        padding: govuk.govuk-spacing(2);
         border-left: 4px solid transparent;
         background-color: inherit;
     }
 
     a:hover {
-        color: $govuk-link-hover-colour;
+        color: govuk.$govuk-link-hover-colour;
         text-decoration: underline;
     }
 
     a:focus {
         position: relative;
-        border-color: $govuk-focus-text-colour;
-        color: $govuk-focus-text-colour;
-        background-color: $govuk-focus-colour;
+        border-color: govuk.$govuk-focus-text-colour;
+        color: govuk.$govuk-focus-text-colour;
+        background-color: govuk.$govuk-focus-colour;
     }
 }
 
 .app-section-nav-list__item--active {
     a:link,
     a:visited {
-        border-color: $govuk-link-colour;
-        color: $govuk-link-colour;
+        border-color: govuk.$govuk-link-colour;
+        color: govuk.$govuk-link-colour;
         font-weight: bold;
-        background-color: govuk-colour("light-grey");
+        background-color: govuk.govuk-colour("light-grey");
     }
 
     a:hover {
-        border-color: $govuk-link-hover-colour;
-        color: $govuk-link-hover-colour;
+        border-color: govuk.$govuk-link-hover-colour;
+        color: govuk.$govuk-link-hover-colour;
         text-decoration: none;
     }
 
     a:focus {
-        border-color: $govuk-focus-text-colour;
-        color: $govuk-focus-text-colour;
-        background-color: $govuk-focus-colour;
+        border-color: govuk.$govuk-focus-text-colour;
+        color: govuk.$govuk-focus-text-colour;
+        background-color: govuk.$govuk-focus-colour;
     }
 }
 
 .app-section-nav-list {
-    @include govuk-font(16);
+    @include govuk.govuk-font(16);
 }
 
 .app-full-screen-with-section-nav {
-    @include govuk-media-query($from: desktop) {
+    @include govuk.govuk-media-query($from: desktop) {
         padding-bottom: 0;
     }
 }
 
 .app-print-header {
-    margin-left: govuk-spacing(6);
-    margin-right: govuk-spacing(6);
-    padding-top: govuk-spacing(4);
-    padding-bottom: govuk-spacing(4);
+    margin-left: govuk.govuk-spacing(6);
+    margin-right: govuk.govuk-spacing(6);
+    padding-top: govuk.govuk-spacing(4);
+    padding-bottom: govuk.govuk-spacing(4);
     border-top: 1px solid black;
     border-bottom: 1px solid black;
 }
@@ -433,19 +431,19 @@ $inset-nested-rows: 30px;
 }
 
 .app-dont-page-break {
-    padding-top: govuk-spacing(1);
+    padding-top: govuk.govuk-spacing(1);
     @media print {
         break-inside: avoid;
     }
 }
 
 .app-actions {
-    border-top: 1px solid $govuk-brand-colour;
-    padding-top: govuk-spacing(3);
+    border-top: 1px solid govuk.$govuk-brand-colour;
+    padding-top: govuk.govuk-spacing(3);
 }
 
 .app-button-group--full-width-on-desktop {
-    @include govuk-media-query($from: desktop) {
+    @include govuk.govuk-media-query($from: desktop) {
         .govuk-button {
             width: 100%;
             text-align: center;

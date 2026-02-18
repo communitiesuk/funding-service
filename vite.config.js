@@ -25,10 +25,11 @@ export default defineConfig({
     css: {
         preprocessorOptions: {
             scss: {
+                loadPaths: ["node_modules/govuk-frontend/dist"],
+                quietDeps: true,
                 silenceDeprecations: [
                     "global-builtin",
                     "slash-div",
-                    "import",
                     "color-functions",
                 ],
             },
