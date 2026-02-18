@@ -1,3 +1,4 @@
+import csv
 import io
 import uuid
 from typing import TYPE_CHECKING, Any, cast
@@ -63,6 +64,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
+    OrganisationModeEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -2351,4 +2353,38 @@ def list_report_data_sets(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
 
     return render_template(
         "deliver_grant_funding/reports/list_data_sets.html", grant=report.grant, report=report, form=form
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/template", methods=["GET"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+
+    csv_output = io.StringIO()
+    csv_writer = csv.DictWriter(
+        csv_output,
+        fieldnames=["ONS code", "Grant recipient"],
+    )
+    csv_writer.writeheader()
+    for gr in sorted(grant_recipients, key=lambda gr: gr.organisation.name):
+        if gr.organisation.mode == OrganisationModeEnum.TEST:
+            continue
+        csv_writer.writerow(
+            {
+                "ONS code": gr.organisation.external_id or "",
+                "Grant recipient": gr.organisation.name,
+            }
+        )
+
+    return send_file(
+        io.BytesIO(csv_output.getvalue().encode("utf-8-sig")),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"{report.slug}-grant-recipient-data-template.csv",
+        max_age=0,
     )
