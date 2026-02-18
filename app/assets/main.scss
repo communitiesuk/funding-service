@@ -13,74 +13,13 @@
 @use "components/move-up-down-table";
 @use "components/test-data-banner";
 @use "components/section";
+@use "components/service-navigation";
 @use "components/summary-list";
 
 @use "importants";
+@use "tweaks";  // Tiny CSS snippets to tweak existing components, not worth treating as their own thing
 
 @use "overrides";
-
-// this class will only be applied if GOV.UK Frontend Jinja has set the `.js-enabled` class meaning
-// it could execute JavaScript
-.js-enabled .app-js-hidden {
-    display: none;
-}
-
-.app-left-nav__item > a {
-    display: block;
-    padding: 7px 0;
-    width: 100%;
-}
-
-.app-aligned-header-tag {
-    display: flex;
-    align-items: anchor-center;
-    gap: 0.5em;
-}
-
-.app-service-navigation__wrapper--sectional {
-    flex: 1;
-
-    .govuk-service-navigation__item:last-child {
-        margin-left: auto;
-    }
-
-    &--org-hidden {
-        @extend .app-service-navigation__wrapper--sectional;
-        @include govuk.govuk-media-query($from: tablet) {
-            .govuk-service-navigation__item:last-child {
-                display: none;
-            }
-        }
-    }
-
-    &--grant-and-org-hidden {
-        @extend .app-service-navigation__wrapper--sectional;
-        @include govuk.govuk-media-query($from: tablet) {
-            .govuk-service-navigation__item:nth-last-child(2) {
-                display: none;
-            }
-        }
-    }
-}
-
-.app-tasklist-builder {
-    // extends the existing - want to think this through more
-    .govuk-summary-list__key {
-        font-weight: normal;
-        width: 50%;
-    }
-
-    .govuk-summary-list__row--no-actions::after {
-        // override that keeps the layout consistent when the first row has no actions
-        width: auto;
-    }
-}
-
-.app-pre-markdown {
-    @include govuk.govuk-font(19);
-    white-space: pre-line;
-    margin-top: 0px;
-}
 
 .app-grants-table--cell-width-200 {
     @include govuk.govuk-media-query($from: desktop) {
@@ -91,60 +30,5 @@
 .app-grants-table--cell-width-300 {
     @include govuk.govuk-media-query($from: desktop) {
         width: 300px;
-    }
-}
-
-.app-service-nav-org {
-    border-bottom: none;
-
-    .govuk-service-navigation__service-name {
-        padding-top: 20px;
-        padding-bottom: 0px;
-    }
-    .govuk-service-navigation__item {
-        padding-top: 20px;
-        padding-bottom: 0px;
-    }
-
-    @include govuk.govuk-media-query($until: tablet) {
-        .govuk-service-navigation__service-name {
-            padding-top: 0px;
-        }
-        .govuk-service-navigation__item {
-            padding-top: 0px;
-        }
-    }
-}
-
-.app-hide-mobile {
-    display: none;
-
-    @include govuk.govuk-media-query($from: tablet) {
-        display: block;
-    }
-}
-
-.app-status-tag {
-    max-width: 300px;
-}
-
-.app-dont-page-break {
-    padding-top: govuk.govuk-spacing(1);
-    @media print {
-        break-inside: avoid;
-    }
-}
-
-.app-actions {
-    border-top: 1px solid govuk.$govuk-brand-colour;
-    padding-top: govuk.govuk-spacing(3);
-}
-
-.app-button-group--full-width-on-desktop {
-    @include govuk.govuk-media-query($from: desktop) {
-        .govuk-button {
-            width: 100%;
-            text-align: center;
-        }
     }
 }

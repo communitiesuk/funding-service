@@ -1,0 +1,71 @@
+@use "govuk";
+
+// this class will only be applied if GOV.UK Frontend Jinja has set the `.js-enabled` class meaning
+// it could execute JavaScript
+.js-enabled .app-js-hidden {
+    display: none;
+}
+
+.app-left-nav__item > a {
+    display: block;
+    padding: 7px 0;
+    width: 100%;
+}
+
+.app-aligned-header-tag {
+    display: flex;
+    align-items: anchor-center;
+    gap: 0.5em;
+}
+
+.app-tasklist-builder {
+    // extends the existing - want to think this through more
+    .govuk-summary-list__key {
+        font-weight: normal;
+        width: 50%;
+    }
+
+    .govuk-summary-list__row--no-actions::after {
+        // override that keeps the layout consistent when the first row has no actions
+        width: auto;
+    }
+}
+
+.app-pre-markdown {
+    @include govuk.govuk-font(19);
+    white-space: pre-line;
+    margin-top: 0px;
+}
+
+.app-hide-mobile {
+    display: none;
+
+    @include govuk.govuk-media-query($from: tablet) {
+        display: block;
+    }
+}
+
+.app-status-tag {
+    max-width: 300px;
+}
+
+.app-dont-page-break {
+    padding-top: govuk.govuk-spacing(1);
+    @media print {
+        break-inside: avoid;
+    }
+}
+
+.app-actions {
+    border-top: 1px solid govuk.$govuk-brand-colour;
+    padding-top: govuk.govuk-spacing(3);
+}
+
+.app-button-group--full-width-on-desktop {
+    @include govuk.govuk-media-query($from: desktop) {
+        .govuk-button {
+            width: 100%;
+            text-align: center;
+        }
+    }
+}

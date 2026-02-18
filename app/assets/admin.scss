@@ -1,3 +1,6 @@
+// This file contains CSS that is only used by the platform admin/flask-admin pages and not in the core
+// of Access grant funding or Deliver grant funding.
+
 @use "sass:color";
 @use "govuk/base" as govuk with (
     $govuk-brand-colour: #912b88
