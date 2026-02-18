@@ -4,6 +4,7 @@
     $govuk-brand-colour: #00625e
 );
 @use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
+// TODO: import moj frontend to start using things from there, eg number components and sortable tables
 
 @use "components/accessible-autocomplete-overrides";
 @use "components/context-aware-editor";
@@ -17,18 +18,6 @@
 @use "components/summary-list";
 
 @use "importants";
-@use "tweaks";  // Tiny CSS snippets to tweak existing components, not worth treating as their own thing
+@use "tweaks"; // Tiny CSS snippets to tweak existing components, not worth treating as their own thing
 
 @use "overrides";
-
-.app-grants-table--cell-width-200 {
-    @include govuk.govuk-media-query($from: desktop) {
-        width: 200px;
-    }
-}
-
-.app-grants-table--cell-width-300 {
-    @include govuk.govuk-media-query($from: desktop) {
-        width: 300px;
-    }
-}
