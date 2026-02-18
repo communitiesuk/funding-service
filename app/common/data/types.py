@@ -123,6 +123,16 @@ class SubmissionStatusEnum(enum.StrEnum):
     SUBMITTED = "Submitted"
 
 
+def submission_status_sort_order(status: SubmissionStatusEnum) -> int:
+    return {
+        SubmissionStatusEnum.NOT_STARTED: 0,
+        SubmissionStatusEnum.IN_PROGRESS: 1,
+        SubmissionStatusEnum.READY_TO_SUBMIT: 2,
+        SubmissionStatusEnum.AWAITING_SIGN_OFF: 3,
+        SubmissionStatusEnum.SUBMITTED: 4,
+    }[status]
+
+
 class TasklistSectionStatusEnum(enum.StrEnum):
     CANNOT_START_YET = "Cannot start yet"
     NOT_STARTED = "Not started"
