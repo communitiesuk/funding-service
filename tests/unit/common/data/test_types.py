@@ -1,4 +1,6 @@
-from app import CollectionStatusEnum
+import pytest
+
+from app import CollectionStatusEnum, SubmissionStatusEnum, submission_status_sort_order
 from app.common.data.types import (
     FileUploadTypes,
     MaximumFileSize,
@@ -95,3 +97,10 @@ class TestQuestionDataOptionsPostgresType:
         deserialised = postgres_type.process_result_value(serialised, dialect=None)
         assert deserialised.maximum_file_size == MaximumFileSize.SMALL
         assert deserialised.file_types_supported == [FileUploadTypes.PDF]
+
+
+class TestSubmissionStatusSortOrder:
+    @pytest.mark.parametrize("status", [ss for ss in SubmissionStatusEnum])
+    def test_exhaustive(self, status):
+        """Will throw an error if we add a submission status and don't add a sort order for it; would KeyError"""
+        assert submission_status_sort_order(status) is not None
