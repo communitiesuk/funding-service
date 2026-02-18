@@ -1,8 +1,10 @@
 import datetime
 
+import pytest
+
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
 from app.common.data.models import Organisation
-from app.common.data.types import OrganisationData, OrganisationStatus, OrganisationType
+from app.common.data.types import OrganisationData, OrganisationModeEnum, OrganisationStatus, OrganisationType
 
 
 class TestGetOrganisations:
@@ -51,6 +53,66 @@ class TestGetOrganisations:
 
         assert len(result) == 3
         assert {org.id for org in result} == {grant_managing_org.id, org1.id, org2.id}
+
+    def test_filters_by_ids(self, factories, db_session):
+        org1 = factories.organisation.create(name="Org 1")
+        factories.organisation.create(name="Org 2")
+        org3 = factories.organisation.create(name="Org 3")
+
+        result = get_organisations(with_ids=[org1.id, org3.id])
+
+        assert len(result) == 2
+        assert {org.id for org in result} == {org1.id, org3.id}
+
+    def test_filters_by_external_ids(self, factories, db_session):
+        org1 = factories.organisation.create(name="Org 1", external_id="EXT-001")
+        factories.organisation.create(name="Org 2", external_id="EXT-002")
+        org3 = factories.organisation.create(name="Org 3", external_id="EXT-003")
+
+        result = get_organisations(with_external_ids=["EXT-001", "EXT-003"])
+
+        assert len(result) == 2
+        assert {org.id for org in result} == {org1.id, org3.id}
+
+    def test_raises_when_both_with_ids_and_with_external_ids_specified(self, factories, db_session):
+        org = factories.organisation.create()
+
+        with pytest.raises(ValueError, match="Cannot specify both with_ids and with_external_ids"):
+            get_organisations(with_ids=[org.id], with_external_ids=["EXT-001"])
+
+    def test_with_ids_respects_mode_filter(self, factories, db_session):
+        live_org = factories.organisation.create(name="Live Org", mode=OrganisationModeEnum.LIVE)
+        test_org = factories.organisation.create(name="Test Org", mode=OrganisationModeEnum.TEST)
+
+        result = get_organisations(mode=OrganisationModeEnum.LIVE, with_ids=[live_org.id, test_org.id])
+
+        assert len(result) == 1
+        assert result[0].id == live_org.id
+
+    def test_with_external_ids_respects_mode_filter(self, factories, db_session):
+        factories.organisation.create(name="Live Org", external_id="EXT-001", mode=OrganisationModeEnum.LIVE)
+        test_org = factories.organisation.create(name="Test Org", external_id="EXT-001", mode=OrganisationModeEnum.TEST)
+
+        result = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=["EXT-001"])
+
+        assert len(result) == 1
+        assert result[0].id == test_org.id
+
+    def test_with_ids_returns_empty_when_no_matches(self, factories, db_session):
+        from uuid import uuid4
+
+        factories.organisation.create(name="Org 1")
+
+        result = get_organisations(with_ids=[uuid4()])
+
+        assert result == []
+
+    def test_with_external_ids_returns_empty_when_no_matches(self, factories, db_session):
+        factories.organisation.create(name="Org 1", external_id="EXT-001")
+
+        result = get_organisations(with_external_ids=["NONEXISTENT"])
+
+        assert result == []
 
 
 class TestGetOrganisationCount:

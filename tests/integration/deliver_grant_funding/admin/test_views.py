@@ -1820,7 +1820,7 @@ class TestManageOrganisations:
         assert page_has_error(soup, "The tab-separated data is not valid:")
 
 
-class TestManageGrantRecipients:
+class TestSetupGrantRecipients:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
         [
@@ -1920,7 +1920,13 @@ class TestManageGrantRecipients:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        test_org1 = factories.organisation.create(
+            name="Org 1 (test)", mode=OrganisationModeEnum.TEST, external_id=org1.external_id, can_manage_grants=False
+        )
         org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
+        test_org2 = factories.organisation.create(
+            name="Org 2 (test)", mode=OrganisationModeEnum.TEST, external_id=org1.external_id, can_manage_grants=False
+        )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
@@ -1939,6 +1945,12 @@ class TestManageGrantRecipients:
         recipient_org_ids = {gr.organisation_id for gr in grant_recipients}
         assert org1.id in recipient_org_ids
         assert org2.id in recipient_org_ids
+
+        grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.TEST)
+        assert len(grant_recipients) == 2
+        recipient_org_ids = {gr.organisation_id for gr in grant_recipients}
+        assert test_org1.id in recipient_org_ids
+        assert test_org2.id in recipient_org_ids
 
     def test_post_redirects_to_tasklist(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

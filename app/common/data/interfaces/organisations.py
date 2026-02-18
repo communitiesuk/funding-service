@@ -12,12 +12,24 @@ from app.extensions import db
 
 
 def get_organisations(
-    can_manage_grants: bool | None = None, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+    can_manage_grants: bool | None = None,
+    mode: OrganisationModeEnum = OrganisationModeEnum.LIVE,
+    with_ids: list[UUID] | None = None,
+    with_external_ids: list[str] | None = None,
 ) -> Sequence[Organisation]:
+    if with_ids is not None and with_external_ids is not None:
+        raise ValueError("Cannot specify both with_ids and with_external_ids")
+
     statement = select(Organisation).where(Organisation.mode == mode)
 
     if can_manage_grants is not None:
         statement = statement.where(Organisation.can_manage_grants.is_(can_manage_grants))
+
+    if with_ids:
+        statement = statement.where(Organisation.id.in_(with_ids))
+
+    if with_external_ids:
+        statement = statement.where(Organisation.external_id.in_(with_external_ids))
 
     return db.session.scalars(statement).all()
 
