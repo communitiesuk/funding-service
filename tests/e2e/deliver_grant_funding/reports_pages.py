@@ -1610,27 +1610,6 @@ class SetUpOrganisationsPage:
         return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
-class SetUpTestOrganisationsPage(SetUpOrganisationsPage):
-    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
-        super().__init__(
-            page=page,
-            domain=domain,
-            grant_id=grant_id,
-            collection_id=collection_id,
-            heading=page.get_by_role("heading", name="Set up test organisations"),
-        )
-
-    def navigate(self) -> None:
-        self.page.goto(
-            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/set-up-test-organisations"
-        )
-        expect(self.heading).to_be_visible()
-
-    def click_set_up_organisations(self) -> "AdminReportingLifecycleTasklistPage":
-        self.set_up_button.click()
-        expect(self.page.get_by_text("Created or updated 1 test organisation")).to_be_visible()
-        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
-
 
 class SetUpGrantRecipientsPage:
     def __init__(

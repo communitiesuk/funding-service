@@ -519,28 +519,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             data_providers_by_grant_recipient=data_providers_by_grant_recipient,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-test-organisations", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
-    @auto_commit_after_request
-    def set_up_test_organisations(self, grant_id: UUID, collection_id: UUID) -> Any:
-        grant = get_grant(grant_id)
-        collection = get_collection(collection_id, grant_id=grant_id)
-        form = PlatformAdminBulkCreateOrganisationsForm()
-        if form.validate_on_submit():
-            organisations = form.get_normalised_organisation_data()
-            for org in organisations:
-                org.mode = OrganisationModeEnum.TEST
-            upsert_organisations(organisations)
-            flash(f"Created or updated {len(organisations)} test organisations.", "success")
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
-
-        return self.render(
-            "deliver_grant_funding/admin/set-up-test-organisations.html",
-            form=form,
-            grant=grant,
-            collection=collection,
-            delta_service_desk_url=current_app.config["DELTA_SERVICE_DESK_URL"],
-        )
-
     @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-test-grant-recipients", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def set_up_test_grant_recipients(self, grant_id: UUID, collection_id: UUID) -> Any:

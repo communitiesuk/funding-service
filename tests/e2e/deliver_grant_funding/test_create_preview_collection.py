@@ -72,7 +72,6 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpOrganisationsPage,
     SetUpTestGrantRecipientsPage,
     SetUpTestGrantRecipientUsersPage,
-    SetUpTestOrganisationsPage,
     _reference_data_flow,
 )
 from tests.e2e.helpers import (
@@ -1053,12 +1052,6 @@ def test_setup_grant_and_collection(
 
     reporting_lifecycle_tasklist_page = AdminReportingLifecycleTasklistPage(page, domain, grant_id, collection_id)
     reporting_lifecycle_tasklist_page.navigate()
-    reporting_lifecycle_tasklist_page.click_task("Set up test organisations")
-
-    set_up_test_orgs_page = SetUpTestOrganisationsPage(page, domain, grant_id, collection_id)
-    set_up_test_orgs_page.fill_organisations_tsv_data(tsv_data)
-    set_up_test_orgs_page.click_set_up_organisations()
-
     reporting_lifecycle_tasklist_page.click_task("Set up test grant recipients")
     set_up_grant_recipients_page = SetUpTestGrantRecipientsPage(page, domain, grant_id, collection_id)
     set_up_grant_recipients_page.select_organisation(test_org_name)
