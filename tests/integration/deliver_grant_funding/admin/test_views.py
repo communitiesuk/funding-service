@@ -306,7 +306,7 @@ class TestReportingLifecycleTasklist:
         platform_task_items = platform_task_list.find_all("li", {"class": "govuk-task-list__item"})
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
-        assert len(platform_task_items) == 3
+        assert len(platform_task_items) == 2
         assert len(grant_task_items) == 6
         assert len(report_task_items) == 7
 
@@ -1648,6 +1648,7 @@ class TestManageOrganisations:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         initial_count = get_organisation_count()
+        initial_test_count = get_organisation_count(mode=OrganisationModeEnum.TEST)
 
         tsv_data = (
             "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
@@ -1663,19 +1664,33 @@ class TestManageOrganisations:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Created or updated 2 organisations.")
+        assert page_has_flash(soup, "Created or updated 2 organisations and 2 test organisations.")
 
         assert get_organisation_count() == initial_count + 2
-
-        org1 = db_session.query(Organisation).filter_by(external_id="GB-GOV-123").one()
+        org1 = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
         assert org1.name == "Test Department"
         assert org1.type == OrganisationType.CENTRAL_GOVERNMENT
         assert org1.status == OrganisationStatus.ACTIVE
         assert org1.active_date == datetime.date(2020, 1, 1)
         assert org1.retirement_date is None
 
-        org2 = db_session.query(Organisation).filter_by(external_id="E06000001").one()
+        org2 = db_session.query(Organisation).filter_by(external_id="E06000001", mode=OrganisationModeEnum.LIVE).one()
         assert org2.name == "Test Council"
+        assert org2.type == OrganisationType.UNITARY_AUTHORITY
+        assert org2.status == OrganisationStatus.ACTIVE
+        assert org2.active_date == datetime.date(2021, 6, 15)
+        assert org2.retirement_date is None
+
+        assert get_organisation_count(mode=OrganisationModeEnum.TEST) == initial_test_count + 2
+        org1 = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.TEST).one()
+        assert org1.name == "Test Department (test)"
+        assert org1.type == OrganisationType.CENTRAL_GOVERNMENT
+        assert org1.status == OrganisationStatus.ACTIVE
+        assert org1.active_date == datetime.date(2020, 1, 1)
+        assert org1.retirement_date is None
+
+        org2 = db_session.query(Organisation).filter_by(external_id="E06000001", mode=OrganisationModeEnum.TEST).one()
+        assert org2.name == "Test Council (test)"
         assert org2.type == OrganisationType.UNITARY_AUTHORITY
         assert org2.status == OrganisationStatus.ACTIVE
         assert org2.active_date == datetime.date(2021, 6, 15)
@@ -1707,12 +1722,14 @@ class TestManageOrganisations:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Created or updated 1 organisations.")
+        assert page_has_flash(soup, "Created or updated 2 organisations.")
 
         assert get_organisation_count() == initial_count
 
-        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123").one()
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
         assert org.name == "Updated Name"
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.TEST).one()
+        assert org.name == "Updated Name (test)"
 
     def test_post_creates_retired_organisation(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -1732,7 +1749,10 @@ class TestManageOrganisations:
         )
         assert response.status_code == 200
 
-        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123").one()
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
+        assert org.status == OrganisationStatus.RETIRED
+        assert org.retirement_date == datetime.date(2023, 12, 31)
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.TEST).one()
         assert org.status == OrganisationStatus.RETIRED
         assert org.retirement_date == datetime.date(2023, 12, 31)
 

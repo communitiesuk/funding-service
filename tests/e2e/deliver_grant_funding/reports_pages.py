@@ -1608,7 +1608,6 @@ class SetUpOrganisationsPage:
         return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
-
 class SetUpGrantRecipientsPage:
     def __init__(
         self, page: Page, domain: str, grant_id: str, collection_id: str, heading: Locator | None = None
