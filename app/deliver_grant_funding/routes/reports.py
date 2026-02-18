@@ -2338,3 +2338,17 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
         delete_form=delete_wtform,
     )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def list_report_data_sets(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    form = GenericSubmitForm()
+
+    return render_template(
+        "deliver_grant_funding/reports/list_data_sets.html", grant=report.grant, report=report, form=form
+    )

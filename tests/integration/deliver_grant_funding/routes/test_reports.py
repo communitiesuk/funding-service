@@ -16,6 +16,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.models import Collection, Expression, Form, Group, Question, Submission, SubmissionEvent
 from app.common.data.types import (
     ConditionsOperator,
+    DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
     ManagedExpressionsEnum,
@@ -26,6 +27,7 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
+from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
@@ -6472,3 +6474,83 @@ class TestViewSubmission:
             assert reset_link is None, (
                 f"Reset this submission link should NOT be present for {submission_mode.value} mode"
             )
+
+
+class TestListReportDataSets:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.list_report_data_sets", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_upload",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, can_upload: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        uploader = factories.user.create(name="Bilbo Baggins")
+        uploader_2 = factories.user.create(name="Frodo Baggins")
+        data_source_1 = factories.data_source.create(
+            type=DataSourceType.GRANT_RECIPIENT,
+            name="Allocations Data",
+            schema={},
+            grant=client.grant,
+            collection=report,
+            created_by=uploader,
+            updated_by=None,
+        )
+        data_source_2 = factories.data_source.create(
+            type=DataSourceType.STATIC,
+            name="Themes Data",
+            schema={},
+            grant=client.grant,
+            collection=report,
+            created_by=uploader,
+            updated_by=uploader_2,
+        )
+
+        other_report = factories.collection.create(name="Other Report")
+        data_source_3 = factories.data_source.create(
+            type=DataSourceType.STATIC,
+            name="Other Data",
+            schema={},
+            grant=other_report.grant,
+            collection=other_report,
+        )
+
+        response = client.get(
+            url_for("deliver_grant_funding.list_report_data_sets", grant_id=client.grant.id, report_id=report.id)
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == f"{report.name} Uploaded data sets"
+        assert response.status_code == 200
+        assert page_has_link(soup, link_text=f"{data_source_1.name}") is not None
+        assert page_has_link(soup, link_text=f"{data_source_2.name}") is not None
+        assert uploader.name in soup.text
+        assert uploader_2.name in soup.text
+        assert data_source_3.name not in soup.text
+        assert format_datetime_short(data_source_1.created_at_utc) in soup.text
+        assert format_datetime_short(data_source_1.updated_at_utc) in soup.text
+
+        if not can_upload:
+            assert page_has_button(soup, button_text="Upload new data set") is None
+        else:
+            assert page_has_button(soup, button_text="Upload new data set") is not None
+
+    def test_get_upload_button_not_visible_for_live_report(self, authenticated_org_admin_client, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.OPEN)
+
+        response = authenticated_org_admin_client.get(
+            url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant.id, report_id=report.id)
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        assert page_has_button(soup, button_text="Upload new data set") is None
