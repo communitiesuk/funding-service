@@ -164,7 +164,7 @@
             govukSummaryList({
               "rows": [{
                 "key": {"text": "Your file"},
-                "value": {"text": existing_answer.root},
+                "value": {"text": existing_answer.filename},
                 "actions": {
                   "items": [{
                     "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, is_clearing=True, add_another_index=runner.add_another_index if runner.add_another_index is not none else none),
@@ -183,7 +183,8 @@
             form.render_question(
               question,
               params={
-                "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading}
+                "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+                "javascript": true
               }
             )
           }}
@@ -596,7 +597,7 @@
   {# todo: probably deserialise this properly (text view of this answer like in check your answers) #}
   {{
     govukInsetText({
-      "text": existing_answer.root
+      "text": existing_answer.filename
     })
   }}
 

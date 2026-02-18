@@ -268,8 +268,11 @@ class FormRunner:
         if existing_answer is None:
             return
 
-        filename = str(existing_answer.root)
-        key = self._build_s3_key(question.id, filename)
+        key = (
+            existing_answer.s3_key
+            if hasattr(existing_answer, "s3_key") and existing_answer.s3_key
+            else self._build_s3_key(question.id, str(existing_answer.filename))
+        )
         try:
             s3_service.delete_file(key)
         except Exception:
@@ -299,6 +302,8 @@ class FormRunner:
 
         else:
             for question in self.questions:
+                s3_key: str | None = None
+
                 if question.data_type == QuestionDataType.FILE_UPLOAD:
                     file_data = self.question_form.get_answer_to_question(question)
                     has_existing_answer = (
@@ -312,9 +317,10 @@ class FormRunner:
 
                     if isinstance(file_data, FileStorage) and file_data.filename:
                         self._upload_file_to_s3(question, file_data)
+                        s3_key = self._build_s3_key(question.id, file_data.filename)
 
                 self.submission.submit_answer_for_question(
-                    question.id, self.question_form, user, add_another_index=self.add_another_index
+                    question.id, self.question_form, user, add_another_index=self.add_another_index, s3_key=s3_key
                 )
 
     def save_add_another(self) -> None:
@@ -401,6 +407,13 @@ class FormRunner:
             is_removing,
             is_clearing,
         )
+
+    def file_download_url(self, question: Question) -> str:
+        """Generate the URL for downloading a file uploaded for a question.
+
+        Must be overridden by subclasses that support file downloads.
+        """
+        raise NotImplementedError("Subclasses must implement file_download_url")
 
     @property
     def next_url(self) -> str:
@@ -663,6 +676,14 @@ class DGFFormRunner(FormRunner):
         ),
     }
 
+    def file_download_url(self, question: Question) -> str:
+        return url_for(
+            "deliver_grant_funding.download_file",
+            grant_id=self.submission.grant.id,
+            submission_id=self.submission.id,
+            question_id=question.id,
+        )
+
 
 class AGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
@@ -709,3 +730,12 @@ class AGFFormRunner(FormRunner):
             source=source,
         ),
     }
+
+    def file_download_url(self, question: Question) -> str:
+        return url_for(
+            "access_grant_funding.download_file",
+            organisation_id=self.submission.submission.grant_recipient.organisation.id,
+            grant_id=self.submission.submission.grant_recipient.grant.id,
+            submission_id=self.submission.id,
+            question_id=question.id,
+        )

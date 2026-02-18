@@ -642,7 +642,13 @@ class SubmissionHelper:
         return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
 
     def submit_answer_for_question(
-        self, question_id: UUID, form: DynamicQuestionForm, user: User, *, add_another_index: int | None = None
+        self,
+        question_id: UUID,
+        form: DynamicQuestionForm,
+        user: User,
+        *,
+        add_another_index: int | None = None,
+        s3_key: str | None = None,
     ) -> None:
         if self.is_locked_state:
             raise ValueError(
@@ -654,7 +660,7 @@ class SubmissionHelper:
         current_form = self.get_form_for_question(question_id)
         current_form_statuses = self._statuses_for_all_forms()
 
-        data = _form_data_to_question_type(question, form)
+        data = _form_data_to_question_type(question, form, s3_key=s3_key)
         interfaces.collections.update_submission_data(
             self.submission, question, data, add_another_index=add_another_index
         )
@@ -1182,7 +1188,9 @@ class CollectionHelper:
         return json.dumps(submissions_data)
 
 
-def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -> AllAnswerTypes:
+def _form_data_to_question_type(
+    question: Question, form: DynamicQuestionForm, *, s3_key: str | None = None
+) -> AllAnswerTypes:
     _QuestionModel: type[PydanticBaseModel]
 
     answer = form.get_answer_to_question(question)
@@ -1211,10 +1219,8 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
         case QuestionDataType.DATE:
             return DateAnswer(answer=answer, approximate_date=question.approximate_date or False)
         case QuestionDataType.FILE_UPLOAD:
-            # For now, we store just the filename. When the answer comes from an HTTP form submission,
-            # it will be a FileStorage object; when pre-populated from existing data, it will be a string.
             filename = answer.filename if hasattr(answer, "filename") else answer
-            return FileUploadAnswer(filename)
+            return FileUploadAnswer(filename=filename, s3_key=s3_key or "")
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -1242,6 +1248,9 @@ def _deserialise_question_type(question: Question, serialised_data: str | int | 
         case QuestionDataType.DATE:
             return TypeAdapter(DateAnswer).validate_python(serialised_data)
         case QuestionDataType.FILE_UPLOAD:
+            if isinstance(serialised_data, str):
+                # Legacy format: just the filename string
+                return FileUploadAnswer(filename=serialised_data, s3_key="")
             return TypeAdapter(FileUploadAnswer).validate_python(serialised_data)
 
     raise ValueError(f"Could not deserialise data for question type={question.data_type}")

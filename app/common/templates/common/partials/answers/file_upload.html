@@ -1,1 +1,11 @@
-<span data-testid="answer-{{ question.name }}">{{ answer.root }}</span>
+{# todo: make this always the case it doesn't need to be on the runner #}
+{# todo: it won't only be deliver but this is fine to demonstrate #}
+{% set submission = runner.submission if runner else helper.submission if helper else None %}
+{% set url = url_for("deliver_grant_funding.download_file", grant_id=submission.collection.grant.id, submission_id=submission.id, question_id=question.id) %}
+{# {% if runner is defined and answer.s3_key %} #}
+{% if url %}
+  {# <a href="{{ runner.file_download_url(question) }}" class="govuk-link" data-testid="answer-{{ question.name }}">{{ answer.filename }}</a> #}
+  <a href="{{ url }}" class="govuk-link" data-testid="answer-{{ question.name }}">{{ answer.filename }}</a>
+{% else %}
+  <span data-testid="answer-{{ question.name }}">{{ answer.filename }}</span>
+{% endif %}

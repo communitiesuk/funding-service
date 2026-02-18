@@ -249,7 +249,9 @@ class TestSubmissionHelper:
                     ).get_value_for_submission(),
                     str(q9.id): DateAnswer(answer=date(2003, 2, 1)).get_value_for_submission(),
                     str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
-                    str(q11.id): FileUploadAnswer("evidence.pdf").get_value_for_submission(),
+                    str(q11.id): FileUploadAnswer(
+                        filename="evidence.pdf", s3_key="test-key/evidence.pdf"
+                    ).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -410,7 +412,9 @@ class TestSubmissionHelper:
                     ).get_value_for_submission(),
                     str(q9.id): DateAnswer(answer=date(2000, 1, 1)).get_value_for_submission(),
                     str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
-                    str(q11.id): FileUploadAnswer("evidence.pdf").get_value_for_submission(),
+                    str(q11.id): FileUploadAnswer(
+                        filename="evidence.pdf", s3_key="test-key/evidence.pdf"
+                    ).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)

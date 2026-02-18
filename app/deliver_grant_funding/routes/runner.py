@@ -1,14 +1,16 @@
+from io import BytesIO
 from uuid import UUID
 
-from flask import redirect, render_template, request, session, url_for
+from flask import abort, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.decorators import has_deliver_grant_role
 from app.common.collections.runner import DGFFormRunner
+from app.common.collections.types import FileUploadAnswer
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, RoleEnum
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, s3_service
 
 
 @deliver_grant_funding_blueprint.route(
@@ -156,3 +158,19 @@ def check_your_answers(grant_id: UUID, submission_id: UUID, form_id: UUID) -> Re
             return redirect(runner.next_url)
 
     return render_template("deliver_grant_funding/runner/check_your_answers.html", runner=runner)
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/download/<uuid:question_id>", methods=["GET"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def download_file(grant_id: UUID, submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    runner = DGFFormRunner.load(submission_id=submission_id, question_id=question_id)
+    answer = runner.submission.cached_get_answer_for_question(question_id)
+
+    if not answer or not isinstance(answer, FileUploadAnswer) or not answer.s3_key:
+        abort(404)
+
+    # todo: an option here is to redirect to a one of signed URL to avoid our service proxying all the bytes
+    file_bytes = s3_service.download_file(answer.s3_key)
+    return send_file(BytesIO(file_bytes), download_name=answer.filename, as_attachment=True)

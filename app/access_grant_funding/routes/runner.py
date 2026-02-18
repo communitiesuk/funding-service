@@ -1,17 +1,19 @@
+from io import BytesIO
 from uuid import UUID
 
-from flask import abort, redirect, render_template, request, url_for
+from flask import abort, redirect, render_template, request, send_file, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_access_grant_role
 from app.common.collections.runner import AGFFormRunner
+from app.common.collections.types import FileUploadAnswer
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_submission_by_grant_recipient_collection
 from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, s3_service
 
 
 @access_grant_funding_blueprint.route(
@@ -218,6 +220,28 @@ def check_your_answers(
     return render_template(
         "access_grant_funding/reports/check_your_answers.html", grant_recipient=grant_recipient, runner=runner
     )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/download/<uuid:question_id>",
+    methods=["GET"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def download_file(organisation_id: UUID, grant_id: UUID, submission_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    runner = AGFFormRunner.load(
+        submission_id=submission_id,
+        question_id=question_id,
+        grant_recipient_id=grant_recipient.id,
+    )
+    answer = runner.submission.cached_get_answer_for_question(question_id)
+
+    if not answer or not isinstance(answer, FileUploadAnswer) or not answer.s3_key:
+        abort(404)
+
+    # todo: an option here is to redirect to a one of signed URL to avoid our service proxying all the bytes
+    file_bytes = s3_service.download_file(answer.s3_key)
+    return send_file(BytesIO(file_bytes), download_name=answer.filename, as_attachment=True)
 
 
 @access_grant_funding_blueprint.route(

@@ -536,7 +536,10 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                             else datetime.date(2025, 1, 1)
                         ).get_value_for_submission(),
                         str(q10.id): FileUploadAnswer(
-                            faker.Faker().file_name() if use_random_data else "evidence.pdf"
+                            filename=faker.Faker().file_name() if use_random_data else "evidence.pdf",
+                            s3_key=f"test-key/{faker.Faker().file_name()}"
+                            if use_random_data
+                            else "test-key/evidence.pdf",
                         ).get_value_for_submission(),
                     },
                 )

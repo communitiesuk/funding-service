@@ -238,10 +238,31 @@ class DateAnswer(SubmissionAnswerBaseModel):
         return self.answer.isoformat() if not self.approximate_date else self.answer.strftime("%B %-Y")
 
 
-class FileUploadAnswer(SubmissionAnswerRootModel[str]):
+class FileUploadAnswer(SubmissionAnswerBaseModel):
+    filename: str
+    s3_key: str
+
     @property
     def _render_answer_template(self) -> str:
         return "common/partials/answers/file_upload.html"
+
+    def get_value_for_submission(self) -> dict[str, Any]:
+        return self.model_dump(mode="json")
+
+    def get_value_for_form(self) -> str:
+        return self.filename
+
+    def get_value_for_evaluation(self) -> str:
+        return self.filename
+
+    def get_value_for_interpolation(self) -> str:
+        return self.filename
+
+    def get_value_for_text_export(self) -> str:
+        return self.filename
+
+    def get_value_for_json_export(self) -> dict[str, str]:
+        return {"filename": self.filename, "s3_key": self.s3_key}
 
 
 AllAnswerTypes = Union[
