@@ -31,7 +31,7 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import ComponentType, QuestionDataOptions, QuestionPresentationOptions
+from app.common.data.types import ComponentType, OrganisationModeEnum, QuestionDataOptions, QuestionPresentationOptions
 from app.common.expressions import ExpressionContext
 from app.developers import developers_blueprint
 from app.extensions import db
@@ -468,3 +468,37 @@ def sync_component_references() -> None:
     db.session.commit()
 
     click.echo(f"Done; created {count} component references.")
+
+
+# TODO: remove me after this has been executed in all envs as part of https://github.com/communitiesuk/funding-service/pull/1344
+@developers_blueprint.cli.command(
+    "create-test-organisations", help="Create test organisations based on all live organisations"
+)
+def create_test_organisation_from_live() -> None:
+    click.echo("Creating test organisations based on all live organisations.")
+
+    live_organisations = (
+        db.session.query(Organisation)
+        .where(Organisation.mode == OrganisationModeEnum.LIVE, Organisation.can_manage_grants.is_(False))
+        .all()
+    )
+
+    for organisation in live_organisations:
+        db.session.add(
+            Organisation(
+                external_id=organisation.external_id,
+                name=f"{organisation.name} (test)",
+                status=organisation.status,
+                type=organisation.type,
+                active_date=organisation.active_date,
+                retirement_date=organisation.retirement_date,
+                can_manage_grants=organisation.can_manage_grants,
+                mode=OrganisationModeEnum.TEST,
+            )
+        )
+
+    click.echo(f"Creating {len(live_organisations)} test organisations.")
+
+    db.session.commit()
+
+    click.echo("Done.")
