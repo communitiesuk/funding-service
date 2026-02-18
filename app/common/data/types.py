@@ -418,7 +418,6 @@ class OrganisationData(BaseModel):
     type: OrganisationType
     active_date: datetime.date | None
     retirement_date: datetime.date | None
-    mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
 
 
 class AuditEventType(enum.Enum):

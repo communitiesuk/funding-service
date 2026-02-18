@@ -209,8 +209,13 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         form = PlatformAdminBulkCreateOrganisationsForm()
         if form.validate_on_submit():
             organisations = form.get_normalised_organisation_data()
-            upsert_organisations(organisations)
-            flash(f"Created or updated {len(organisations)} organisations.", "success")
+
+            upsert_organisations(organisations, cascade_to_test_mode_organisations=True)
+
+            flash(
+                f"Created or updated {len(organisations)} organisations and {len(organisations)} test organisations.",
+                "success",
+            )
             return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(

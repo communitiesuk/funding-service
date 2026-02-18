@@ -36,28 +36,39 @@ def get_organisation_count(mode: OrganisationModeEnum = OrganisationModeEnum.LIV
 
 
 @flush_and_rollback_on_exceptions()
-def upsert_organisations(organisations: list[OrganisationData]) -> None:
+def upsert_organisations(
+    organisations: list[OrganisationData], cascade_to_test_mode_organisations: bool = False
+) -> None:
     """Upserts organisations based on their external ID, which as of 27/10/25 is an IATI or LAD24 code."""
     existing_active_orgs = db.session.scalars(
-        select(Organisation.id).where(Organisation.status == OrganisationStatus.ACTIVE)
-    ).all()
-    for org in organisations:
-        values = {
-            "external_id": org.external_id,
-            "name": org.name,
-            "type": org.type,
-            "can_manage_grants": False,
-            "status": OrganisationStatus.ACTIVE if not org.retirement_date else OrganisationStatus.RETIRED,
-            "active_date": org.active_date,
-            "retirement_date": org.retirement_date,
-            "mode": org.mode,
-        }
-        db.session.execute(
-            postgresql_upsert(Organisation)
-            .values(**values)
-            .on_conflict_do_update(index_elements=["external_id"], set_=values),
-            execution_options={"populate_existing": True},
+        select(Organisation.id).where(
+            Organisation.status == OrganisationStatus.ACTIVE, Organisation.can_manage_grants.is_(False)
         )
+    ).all()
+
+    modes = (
+        [OrganisationModeEnum.LIVE]
+        if not cascade_to_test_mode_organisations
+        else [OrganisationModeEnum.LIVE, OrganisationModeEnum.TEST]
+    )
+    for mode in modes:
+        for org in organisations:
+            values = {
+                "external_id": org.external_id,
+                "name": org.name if mode == OrganisationModeEnum.LIVE else f"{org.name} (test)",
+                "type": org.type,
+                "can_manage_grants": False,
+                "status": OrganisationStatus.ACTIVE if not org.retirement_date else OrganisationStatus.RETIRED,
+                "active_date": org.active_date,
+                "retirement_date": org.retirement_date,
+                "mode": mode,
+            }
+            db.session.execute(
+                postgresql_upsert(Organisation)
+                .values(**values)
+                .on_conflict_do_update(index_elements=["external_id", "mode"], set_=values),
+                execution_options={"populate_existing": True},
+            )
 
     db.session.flush()
     db.session.expire_all()
