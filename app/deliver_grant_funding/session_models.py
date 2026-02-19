@@ -3,7 +3,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
+from app.common.data.types import (
+    DataSourceType,
+    ExpressionType,
+    ManagedExpressionsEnum,
+    NumberTypeEnum,
+    QuestionDataType,
+)
 from app.common.expressions import ExpressionContext
 
 
@@ -90,3 +96,22 @@ class AddContextToExpressionsModel(BaseModel):
     data_source: ExpressionContext.ContextSources | None = None
     depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None
+
+
+class DataSetColumnMapping(BaseModel):
+    column_name: str
+    data_type: Literal[QuestionDataType.TEXT_SINGLE_LINE, QuestionDataType.NUMBER]
+    number_type: NumberTypeEnum | None = None
+    prefix: str | None = None
+    suffix: str | None = None
+    max_decimal_places: int | None = None
+
+
+class DataSetUploadSessionModel(BaseModel):
+    name: str
+    data_source_type: DataSourceType
+    grant_recipient_identifier_columns: list[str] = []
+    data_columns: list[str]
+    preview_rows: list[dict[str, str]]
+    all_rows: list[dict[str, str]]
+    column_mappings: list[DataSetColumnMapping] = []
