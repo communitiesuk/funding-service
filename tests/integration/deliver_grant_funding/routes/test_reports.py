@@ -1,3 +1,4 @@
+import io
 import logging
 import uuid
 from datetime import date
@@ -6560,6 +6561,39 @@ class TestListReportDataSets:
         assert response.status_code == 200
         assert page_has_button(soup, button_text="Upload new data set") is None
 
+    def test_post_redirects_and_clears_session_data(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        preview_form = GenericSubmitForm()
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = {
+                "name": "Test Data Set",
+                "is_grant_recipient_data": True,
+                "is_grant_recipient_project_level_data": False,
+                "grant_recipient_identifier_columns": ["ONS code", "Grant recipient"],
+                "data_columns": ["Amount"],
+                "preview_rows": [],
+                "all_rows": [],
+                "column_mappings": [],
+            }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant.id, report_id=report.id),
+            data=preview_form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.upload_data_set",
+            grant_id=grant.id,
+            report_id=report.id,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert session.get("data_set_upload") is None
+
 
 class TestDownloadGrantRecipientDataSetTemplate:
     def test_404(self, authenticated_grant_member_client):
@@ -6656,3 +6690,235 @@ class TestDownloadGrantRecipientDataSetTemplate:
         assert response.status_code == 200
         content_disposition = response.headers.get("Content-Disposition")
         assert f"{report.slug}-grant-recipient-data-template.csv" in content_disposition
+
+
+class TestUploadDataSet:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, client_fixture, can_access, request: FixtureRequest, factories):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant
+        report = factories.collection.create(grant=grant)
+
+        response = client.get(url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id))
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        if can_access:
+            assert response.status_code == 200
+            assert f"{report.name} Upload new data set" in get_h1_text(soup)
+        else:
+            assert response.status_code == 403
+
+    def test_get_repopulates_form_from_session(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = {
+                "name": "Test Data Set",
+                "data_source_type": DataSourceType.PROJECT_LEVEL,
+                "grant_recipient_identifier_columns": ["ONS code", "Grant recipient"],
+                "data_columns": ["Amount"],
+                "preview_rows": [],
+                "all_rows": [],
+                "column_mappings": [],
+            }
+
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+        name_input = soup.find("input", {"name": "name"})
+        assert name_input["value"] == "Test Data Set"
+        assert (
+            soup.find("input", {"name": "data_source_type", "value": DataSourceType.PROJECT_LEVEL}).get("checked")
+            is not None
+        )
+
+    def test_post_valid_csv_redirects_to_map_columns_with_session(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        csv_content = "ONS code,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.GRANT_RECIPIENT,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 302
+        assert (
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id)
+            in response.location
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session_data = session.get("data_set_upload")
+            assert session_data is not None
+            assert session_data["name"] == "Test Data Set"
+            assert session_data["data_source_type"] == DataSourceType.GRANT_RECIPIENT
+            assert session_data["grant_recipient_identifier_columns"] == ["ONS code", "Grant recipient"]
+            assert session_data["data_columns"] == ["Amount"]
+            assert len(session_data["all_rows"]) == 2
+
+    def test_post_missing_required_columns_for_grant_recipient_data(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        csv_content = "Amount,Category\n1000,A\n2000,B"
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.GRANT_RECIPIENT,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        assert "The CSV file must contain the columns: ONS code, Grant recipient" in response.text
+
+    def test_post_missing_name(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        csv_content = "ONS code,Grant recipient,Amount\nE123,Lothlorien,1000"
+        data = {
+            "name": "",
+            "data_source_type": DataSourceType.STATIC,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        assert page_has_error(soup, "Enter the name for this data set")
+
+    def test_post_no_file(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        data = {"name": "Test Data Set", "data_source_type": DataSourceType.GRANT_RECIPIENT}
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        assert page_has_error(soup, "Select a file")
+
+    def test_post_non_csv_file(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.GRANT_RECIPIENT,
+            "file": (io.BytesIO(b"not a csv"), "test.txt"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        assert page_has_error(soup, "The file must be a CSV")
+
+    def test_post_empty_csv(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.STATIC,
+            "file": (io.BytesIO(b""), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        assert page_has_error(soup, "The CSV file must have at least one column")
+
+    def test_post_too_many_rows(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        rows = ["Col1,Col2"] + [f"val{i},val{i}" for i in range(10001)]
+        csv_content = "\n".join(rows)
+        data = {
+            "name": "Test Data Set",
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        assert page_has_error(soup, "The file must contain no more than 10,000 rows")
+
+    def test_post_stores_preview_rows(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        rows = ["Col1,Col2"] + [f"val{i},data{i}" for i in range(10)]
+        csv_content = "\n".join(rows)
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.STATIC,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 302
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            session_data = sess.get("data_set_upload")
+            assert len(session_data["preview_rows"]) == 5  # Only first 5 rows
+            assert len(session_data["all_rows"]) == 10

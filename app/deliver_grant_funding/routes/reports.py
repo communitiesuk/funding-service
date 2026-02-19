@@ -8,6 +8,7 @@ from flask import abort, current_app, flash, g, redirect, render_template, reque
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
 from pydantic import BaseModel, ValidationError
+from werkzeug.datastructures import FileStorage
 from wtforms import Field
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -60,6 +61,7 @@ from app.common.data.types import (
     CollectionType,
     ComponentType,
     ConditionsOperator,
+    DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
     GroupDisplayOptions,
@@ -93,6 +95,7 @@ from app.deliver_grant_funding.forms import (
     SetUpReportForm,
     SubmissionGuidanceForm,
     TestGrantRecipientJourneyForm,
+    UploadDataSetForm,
 )
 from app.deliver_grant_funding.helpers import start_previewing_collection
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
@@ -101,6 +104,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
+    DataSetUploadSessionModel,
 )
 from app.extensions import auto_commit_after_request, notification_service, s3_service
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
@@ -2345,6 +2349,18 @@ def list_report_data_sets(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
 
     form = GenericSubmitForm()
 
+    if form.validate_on_submit():
+        if "data_set_upload" in session:
+            del session["data_set_upload"]
+
+        return redirect(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
     return render_template(
         "deliver_grant_funding/reports/list_data_sets.html", grant=report.grant, report=report, form=form
     )
@@ -2381,4 +2397,93 @@ def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) 
         as_attachment=True,
         download_name=f"{report.slug}-grant-recipient-data-template.csv",
         max_age=0,
+    )
+
+
+def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], list[dict[str, str]]]:
+    file_storage.stream.seek(0)
+    content = file_storage.stream.read().decode("utf-8-sig")
+    file_storage.stream.seek(0)
+
+    reader = csv.DictReader(io.StringIO(content))
+    columns = list(reader.fieldnames or [])
+    rows: list[dict[str, str]] = list(reader)
+
+    return columns, rows
+
+
+def _extract_data_set_data_from_session() -> DataSetUploadSessionModel | None:
+    if session_data := session.get("data_set_upload"):
+        try:
+            upload_data = DataSetUploadSessionModel(**session_data)
+            return upload_data
+        except ValidationError:
+            del session["data_set_upload"]
+            return None
+    return None
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/upload", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    data_set_data = _extract_data_set_data_from_session()
+
+    form = UploadDataSetForm(
+        data={
+            "name": data_set_data.name,
+            "data_source_type": data_set_data.data_source_type,
+        }
+        if data_set_data
+        else None
+    )
+
+    if form.validate_on_submit():
+        columns, rows = _parse_data_set_csv(form.file.data)
+
+        if form.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
+            identifier_columns = ["ONS code", "Grant recipient"]
+            data_columns = [col for col in columns if col not in identifier_columns]
+        else:
+            identifier_columns = []
+            data_columns = columns
+
+        session_data = DataSetUploadSessionModel(
+            name=cast(str, form.name.data),
+            data_source_type=form.data_source_type.data,
+            grant_recipient_identifier_columns=identifier_columns,
+            data_columns=data_columns,
+            preview_rows=rows[:5],
+            all_rows=rows,
+        )
+
+        session["data_set_upload"] = session_data.model_dump(mode="json")
+
+        return redirect(
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/upload_dataset.html", grant=report.grant, report=report, form=form
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-columns", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/map_columns.html",
+        grant=report.grant,
+        report=report,
     )

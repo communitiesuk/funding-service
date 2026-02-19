@@ -1,3 +1,5 @@
+import csv
+import io
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, cast
 from typing import Optional as TOptional
@@ -5,10 +7,12 @@ from uuid import UUID
 
 from flask import current_app
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileAllowed, FileField, FileRequired, FileSize
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovCheckboxesInput,
     GovCheckboxInput,
+    GovFileInput,
     GovRadioInput,
     GovSelect,
     GovSubmitInput,
@@ -28,6 +32,7 @@ from app.common.data.interfaces.grants import grant_code_exists, grant_name_exis
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
+    DataSourceType,
     FileUploadTypes,
     GroupDisplayOptions,
     MaximumFileSize,
@@ -861,3 +866,61 @@ class CollectionSettingsSelectQuestionForm(FlaskForm):
         self.question.choices = [("", "")] + [  # type: ignore[assignment]
             (str(question.id), interpolate(question.text)) for question in form.cached_questions
         ]
+
+
+class UploadDataSetForm(FlaskForm):
+    name = StringField(
+        "Data set name",
+        widget=GovTextInput(),
+        validators=[DataRequired("Enter the name for this data set")],
+    )
+
+    data_source_type = RadioField(
+        "Is this grant recipient level data?",
+        widget=GovRadioInput(),
+        choices=[
+            (DataSourceType.GRANT_RECIPIENT, "Yes, with one row for each grant recipient"),
+            (DataSourceType.PROJECT_LEVEL, "Yes, with more than one row for grant recipients"),
+            (DataSourceType.STATIC, "No"),
+        ],
+    )
+
+    file = FileField(
+        "Upload a file",
+        widget=GovFileInput(),
+        validators=[
+            FileRequired("Select a file"),
+            FileAllowed(["csv"], "The file must be a CSV"),
+            FileSize(max_size=10485760, message="The file must be smaller than 10MB"),
+        ],
+    )
+
+    submit = SubmitField("Continue and map columns", widget=GovSubmitInput())
+
+    def validate_file(self, field: Field) -> None:
+        if not field.data or not hasattr(field.data, "stream"):
+            return
+
+        field.data.stream.seek(0)
+        try:
+            content = field.data.stream.read().decode("utf-8-sig")
+            reader = csv.DictReader(io.StringIO(content))
+            fieldnames = reader.fieldnames or []
+
+            if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
+                raise ValidationError("The CSV file must have at least one column")
+
+            if self.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
+                missing = []
+                if "ONS code" not in fieldnames:
+                    missing.append("ONS code")
+                if "Grant recipient" not in fieldnames:
+                    missing.append("Grant recipient")
+                if missing:
+                    raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
+
+            row_count = sum(1 for _ in reader)
+            if row_count > 10000:
+                raise ValidationError("The file must contain no more than 10,000 rows")
+        finally:
+            field.data.stream.seek(0)
