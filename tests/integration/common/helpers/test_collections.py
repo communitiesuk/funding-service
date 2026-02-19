@@ -13,6 +13,7 @@ from app.common.collections.types import (
     NOT_ASKED,
     DateAnswer,
     DecimalAnswer,
+    FileUploadAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
@@ -142,7 +143,7 @@ class TestSubmissionHelper:
             assert helper.form_data() == {}
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 9, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 10, "Update this test if adding new questions"
 
             form = factories.form.create()
             form_two = factories.form.create(collection=form.collection)
@@ -204,6 +205,11 @@ class TestSubmissionHelper:
                 data_type=QuestionDataType.NUMBER,
                 data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
             )
+            q11 = factories.question.create(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429e"),
+                data_type=QuestionDataType.FILE_UPLOAD,
+            )
 
             submission = factories.submission.create(
                 collection=form.collection,
@@ -220,6 +226,7 @@ class TestSubmissionHelper:
                     ).get_value_for_submission(),
                     str(q9.id): DateAnswer(answer=date(2003, 2, 1)).get_value_for_submission(),
                     str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
+                    str(q11.id): FileUploadAnswer(filename="test-document.pdf").get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -235,6 +242,7 @@ class TestSubmissionHelper:
                 "q_d696aebc49d24170a92fb6ef4299429b": ["cheddar", "stilton"],
                 "q_d696aebc49d24170a92fb6ef4299429c": date(2003, 2, 1),
                 "q_d696aebc49d24170a92fb6ef4299429d": 12.21,
+                # persisted file uploads will not be exposed to form data
             }
 
         def test_with_add_another_groups_no_context(self, factories):
@@ -293,7 +301,7 @@ class TestSubmissionHelper:
             assert helper.cached_evaluation_context == ExpressionContext()
 
         def test_with_submission_data(self, factories):
-            assert len(QuestionDataType) == 9, "Update this test if adding new questions"
+            assert len(QuestionDataType) == 10, "Update this test if adding new questions"
 
             form = factories.form.create()
             form_two = factories.form.create(collection=form.collection)
@@ -358,6 +366,11 @@ class TestSubmissionHelper:
                 data_type=QuestionDataType.NUMBER,
                 data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
             )
+            q11 = factories.question.create(
+                form=form,
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef4299429e"),
+                data_type=QuestionDataType.FILE_UPLOAD,
+            )
 
             submission = factories.submission.create(
                 collection=form.collection,
@@ -374,6 +387,7 @@ class TestSubmissionHelper:
                     ).get_value_for_submission(),
                     str(q9.id): DateAnswer(answer=date(2000, 1, 1)).get_value_for_submission(),
                     str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
+                    str(q11.id): FileUploadAnswer(filename="test-document.pdf").get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -390,6 +404,7 @@ class TestSubmissionHelper:
                     "q_d696aebc49d24170a92fb6ef4299429b": {"cheddar", "stilton"},
                     "q_d696aebc49d24170a92fb6ef4299429c": date(2000, 1, 1),
                     "q_d696aebc49d24170a92fb6ef4299429d": 12.21,
+                    "q_d696aebc49d24170a92fb6ef4299429e": "test-document.pdf",
                 }
             )
 
@@ -1255,6 +1270,7 @@ class TestCollectionHelper:
             "[Export test form] Website address",
             "[Export test form] Favourite cheeses",
             "[Export test form] Last cheese purchase date",
+            "[Export test form] Supporting document",
         ]
         expected_question_data = {}
         for _, submission in c_helper.submission_helpers.items():
@@ -1382,6 +1398,7 @@ class TestCollectionHelper:
             "[Export test form] Website address",
             "[Export test form] Favourite cheeses",
             "[Export test form] Last cheese purchase date",
+            "[Export test form] Supporting document",
         ]
         assert rows[1] == [
             c_helper.submissions[0].reference,
@@ -1401,6 +1418,7 @@ class TestCollectionHelper:
             "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government",
             "Cheddar\nStilton",
             "2025-01-01",
+            "test-document.pdf",
         ]
 
     def test_generate_csv_content_add_another(self, factories):
@@ -1532,6 +1550,7 @@ class TestCollectionHelper:
                                 "Your name": "test name",
                                 "Your quest": "Line 1\r\nline2\r\nline 3",
                                 "Last cheese purchase date": "2025-01-01",
+                                "Supporting document": "test-document.pdf",
                             },
                             "name": "Export test form",
                         }
@@ -1585,6 +1604,7 @@ class TestCollectionHelper:
                                 "Your name": "test name",
                                 "Your quest": "Line 1\r\nline2\r\nline 3",
                                 "Last cheese purchase date": "2025-01-01",
+                                "Supporting document": "test-document.pdf",
                             },
                             "name": "Export test form",
                         }
