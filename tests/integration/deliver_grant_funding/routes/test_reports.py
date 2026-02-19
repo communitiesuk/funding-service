@@ -5978,6 +5978,99 @@ class TestListSubmissions:
         assert "Not started" in tag_texts
 
 
+class TestListSubmissionsMultipleSubmissions:
+    def test_multi_submission_table_shows_submission_display_names(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_member_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="project name",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+        db_session.commit()
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Acme Corp"
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Alpha Project"},
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Beta Project"},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Alpha Project") is not None
+        assert page_has_link(soup, "Beta Project") is not None
+        assert "Acme Corp" in soup.text
+
+    def test_multi_submission_table_uses_question_name_as_column_header(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_member_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="project name",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+        db_session.commit()
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        table_headers = [th.text.strip() for th in soup.select("th")]
+        assert "Project name" in table_headers
+        assert "Grant recipient" in table_headers
+
+    def test_multi_submission_no_submissions_shows_empty_message(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            allow_multiple_submissions=True,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "No submissions found for this monitoring report" in response.text
+
+
 class TestExportReportSubmissions:
     def test_404(self, authenticated_grant_member_client, factories, db_session):
         response = authenticated_grant_member_client.get(
