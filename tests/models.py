@@ -144,6 +144,7 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
 
     id = factory.LazyFunction(uuid4)
+    external_id = factory.Sequence(lambda n: f"ORG-{n:06d}")
     name = factory.Sequence(lambda n: "Organisation %d" % n)
     can_manage_grants = False
 

@@ -448,7 +448,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                         organisation_id=test_organisation.id,
                         grant_id=grant.id,
                     )
-
             flash(f"Created {len(form.recipients.data)} grant recipients.", "success")  # type: ignore[arg-type]
             return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
