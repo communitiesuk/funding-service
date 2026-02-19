@@ -282,6 +282,18 @@ def get_invitations_by_email(email: str, is_usable: bool | None = None) -> Seque
 def claim_invitation(invitation: Invitation, user: User) -> Invitation:
     invitation.claimed_at_utc = func.now()
     invitation.user = user
+
+    # Set new grant team members up as test users for each of the grant's grant recipients
+    if invitation.organisation.can_manage_grants and invitation.grant is not None:
+        if invitation.grant.test_grant_recipients:
+            for test_grant_recipient in invitation.grant.test_grant_recipients:
+                add_permissions_to_user(
+                    user=user,
+                    permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+                    organisation_id=test_grant_recipient.organisation_id,
+                    grant_id=test_grant_recipient.grant_id,
+                )
+
     db.session.add(invitation)
     return invitation
 
@@ -331,6 +343,16 @@ def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant)
         add_permissions_to_user(
             user=existing_user, permissions=[RoleEnum.MEMBER], organisation_id=grant.organisation_id, grant_id=grant.id
         )
+
+        if grant.test_grant_recipients:
+            for test_grant_recipient in grant.test_grant_recipients:
+                add_permissions_to_user(
+                    user=existing_user,
+                    permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+                    organisation_id=test_grant_recipient.organisation_id,
+                    grant_id=grant.id,
+                )
+
     else:
         create_invitation(
             email=email_address, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
