@@ -49,6 +49,21 @@
   {{ govukTag({"text": status, "classes": classMap[status] }) }}
 {% endmacro %}
 
+{% macro multiSubmissionStatusTag(submissions, is_overdue) %}
+  {% if submissions | length == 0 %}
+    {% set multi_status = enum.submission_status.NOT_STARTED %}
+  {% elif submissions | selectattr("status", "equalto", enum.submission_status.SUBMITTED) | list | length == submissions | length %}
+    {% set multi_status = enum.submission_status.SUBMITTED %}
+  {% else %}
+    {% set multi_status = enum.submission_status.IN_PROGRESS %}
+  {% endif %}
+  {% if multi_status == enum.submission_status.SUBMITTED %}
+    <span class="govuk-body govuk-!-margin-bottom-0">{{ submissions | length }} submitted</span>
+  {% else %}
+    {{ submissionStatusTag(multi_status, is_overdue) }}
+  {% endif %}
+{% endmacro %}
+
 {% macro submissionStatusTag(status, is_overdue) %}
   {% set show_without_tag = [ enum.submission_status.SUBMITTED ] %}
   {%
