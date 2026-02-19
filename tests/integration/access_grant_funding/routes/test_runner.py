@@ -128,6 +128,154 @@ class TestRouteToSubmission:
         assert response.location == expected_location
 
 
+class TestStartNewMultipleSubmission:
+    def _create_multi_submission_collection(self, factories, grant):
+        question = factories.question.create(
+            text="What is the project name?",
+            name="project name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            form__collection__grant=grant,
+            form__collection__allow_multiple_submissions=True,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        return collection, question
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_recipient_member_client", False),
+            ("authenticated_grant_recipient_data_provider_client", True),
+        ),
+    )
+    def test_access_control(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
+        collection, question = self._create_multi_submission_collection(factories, grant_recipient.grant)
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "What is the project name?" in soup.text
+
+    def test_get_renders_question_form(self, authenticated_grant_recipient_data_provider_client, factories):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        collection, question = self._create_multi_submission_collection(factories, grant_recipient.grant)
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "What is the project name?" in soup.text
+        assert page_has_button(soup, "Start the report") is not None
+
+    def test_404_when_multiple_submissions_not_enabled(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        collection = factories.collection.create(grant=grant_recipient.grant, allow_multiple_submissions=False)
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_500_when_submission_name_question_not_set(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        collection = factories.collection.create(
+            grant=grant_recipient.grant, allow_multiple_submissions=True, submission_name_question_id=None
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 500
+
+    def test_post_creates_submission_and_redirects_to_tasklist(
+        self, db_session, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        collection, question = self._create_multi_submission_collection(factories, grant_recipient.grant)
+
+        submissions_before = (
+            db_session.query(Submission).where(Submission.grant_recipient_id == grant_recipient.id).all()
+        )
+        assert len(submissions_before) == 0
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            ),
+            data={question.safe_qid: "My project", "submit": "Start the report"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        submissions_after = (
+            db_session.query(Submission).where(Submission.grant_recipient_id == grant_recipient.id).all()
+        )
+        assert len(submissions_after) == 1
+        new_submission = submissions_after[0]
+        assert str(new_submission.id) in response.location
+        assert "tasklist" in response.location
+        assert new_submission.data[str(question.id)] == "My project"
+
+    def test_post_validation_error_redisplays_form(self, authenticated_grant_recipient_data_provider_client, factories):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        collection, question = self._create_multi_submission_collection(factories, grant_recipient.grant)
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            ),
+            data={question.safe_qid: "", "submit": "Start the report"},
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter the project name")
+
+
 class TestTasklist:
     @pytest.mark.parametrize(
         "client_fixture, can_access, can_edit, requires_certification",
