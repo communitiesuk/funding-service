@@ -219,18 +219,11 @@
       {{ govukTaskList({ "idPrefix": "report-tasks", "items": rows, "attributes": {"id": "report-tasks"} }) }}
 
       <h2 class="govuk-heading-m">Testing tasks</h2>
-      <p class="govuk-body">Set up test data to allow grant team members to test the Access grant funding journey.</p>
+      <p class="govuk-body">Set up MHCLG form designers to allow testing the Access grant funding recipient journeys.</p>
       {% set test_rows=[] %}
       {%
         do test_rows.append({
-          "title": {"text": "Set up test grant recipients", "classes": "govuk-link--no-visited-state"},
-          "status": {"html": govukTag({"text": (test_grant_recipients_count|default(0)) ~ (" test grant recipient" if (test_grant_recipients_count|default(0)) == 1 else " test grant recipients"), "classes": "govuk-tag--blue"})},
-          "href": url_for('reporting_lifecycle.set_up_test_grant_recipients', grant_id=grant.id, collection_id=collection.id),
-        })
-      %}
-      {%
-        do test_rows.append({
-          "title": {"text": "Set up test grant recipient users", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Add form designers to test Access grant funding", "classes": "govuk-link--no-visited-state"},
           "status": {"html": govukTag({"text": (test_users_count|default(0)) ~ (" test user" if (test_users_count|default(0)) == 1 else " test users"), "classes": "govuk-tag--blue"})},
           "href": url_for('reporting_lifecycle.set_up_test_grant_recipient_users', grant_id=grant.id, collection_id=collection.id),
         })

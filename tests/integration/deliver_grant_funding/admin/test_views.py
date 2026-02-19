@@ -3773,185 +3773,6 @@ class TestMakeReportLive:
         assert collection.status == CollectionStatusEnum.DRAFT
 
 
-class TestSetUpTestGrantRecipients:
-    @pytest.mark.parametrize(
-        "client_fixture, expected_code",
-        [
-            ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_grant_lifecycle_manager_client", 200),
-            ("authenticated_platform_data_analyst_client", 403),
-            ("authenticated_platform_member_client", 403),
-            ("authenticated_grant_admin_client", 403),
-            ("authenticated_grant_member_client", 403),
-            ("authenticated_no_role_client", 403),
-            ("anonymous_client", 302),
-        ],
-    )
-    def test_set_up_test_grant_recipients_permissions(
-        self, client_fixture, expected_code, request, factories, db_session
-    ):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-
-        client = request.getfixturevalue(client_fixture)
-        response = client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
-        )
-        assert response.status_code == expected_code
-
-    def test_get_set_up_test_grant_recipients_page(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        grant = factories.grant.create(name="Test Grant")
-        collection = factories.collection.create(grant=grant)
-        factories.organisation.create(name="Test Org 1", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-        factories.organisation.create(name="Test Org 2", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-        factories.organisation.create(name="Test Org 3", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Set up test grant recipients"
-
-        select_element = soup.find("select", {"id": "recipients"})
-        assert select_element is not None
-
-        options = select_element.find_all("option")
-        option_texts = [opt.get_text(strip=True) for opt in options]
-
-        assert "Test Org 1" in option_texts
-        assert "Test Org 2" in option_texts
-        assert "Test Org 3" in option_texts
-
-    def test_get_only_shows_test_organisations(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        grant = factories.grant.create(name="Test Grant")
-        collection = factories.collection.create(grant=grant)
-        factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-        factories.organisation.create(name="Live Org", can_manage_grants=False, mode=OrganisationModeEnum.LIVE)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        select_element = soup.find("select", {"id": "recipients"})
-        options = select_element.find_all("option")
-        option_texts = [opt.get_text(strip=True) for opt in options]
-
-        assert "Test Org" in option_texts
-        assert "Live Org" not in option_texts
-
-    def test_get_excludes_grant_managing_organisations(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        from tests.models import _get_grant_managing_organisation
-
-        grant = factories.grant.create(name="Test Grant")
-        collection = factories.collection.create(grant=grant)
-        grant_managing_org = _get_grant_managing_organisation()
-        factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        select_element = soup.find("select", {"id": "recipients"})
-        options = select_element.find_all("option")
-        option_texts = [opt.get_text(strip=True) for opt in options]
-
-        assert grant_managing_org.name not in option_texts
-        assert "Test Org" in option_texts
-
-    def test_get_excludes_existing_test_grant_recipients(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        grant = factories.grant.create(name="Test Grant")
-        collection = factories.collection.create(grant=grant)
-        org1 = factories.organisation.create(name="Test Org 1", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-        factories.organisation.create(name="Test Org 2", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-        factories.grant_recipient.create(grant=grant, organisation=org1, mode=GrantRecipientModeEnum.TEST)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients"
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        select_element = soup.find("select", {"id": "recipients"})
-        options = select_element.find_all("option")
-        option_texts = [opt.get_text(strip=True) for opt in options]
-
-        assert "Test Org 1" not in option_texts
-        assert "Test Org 2" in option_texts
-
-    def test_post_creates_test_grant_recipients(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-        org1 = factories.organisation.create(name="Test Org 1", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-        org2 = factories.organisation.create(name="Test Org 2", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients",
-            data={"recipients": [str(org1.id), str(org2.id)], "submit": "y"},
-            follow_redirects=True,
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Created 2 test grant recipients.")
-
-        from app.common.data.interfaces.grant_recipients import get_grant_recipients
-
-        grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.TEST)
-        assert len(grant_recipients) == 2
-        recipient_org_ids = {gr.organisation_id for gr in grant_recipients}
-        assert org1.id in recipient_org_ids
-        assert org2.id in recipient_org_ids
-        assert all(gr.mode == GrantRecipientModeEnum.TEST for gr in grant_recipients)
-
-    def test_post_redirects_to_tasklist(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-        org = factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients",
-            data={"recipients": [str(org.id)], "submit": "y"},
-            follow_redirects=False,
-        )
-        assert response.status_code == 302
-        assert response.location == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
-
-    def test_post_without_recipients_shows_validation_error(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-        factories.organisation.create(name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipients",
-            data={"recipients": [], "submit": "y"},
-            follow_redirects=False,
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "This field is required.")
-
-
 class TestSetUpTestGrantRecipientUsers:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
@@ -3992,10 +3813,9 @@ class TestSetUpTestGrantRecipientUsers:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Add users to test Access grant funding"
+        assert get_h1_text(soup) == "Add form designers to test Access grant funding"
 
         assert soup.find("select", {"id": "grant_recipient"}) is not None
-        assert soup.find("select", {"id": "user"}) is not None
         assert soup.find("select", {"id": "mhclg_user"}) is not None
 
     def test_get_shows_only_test_grant_recipients(
@@ -4024,49 +3844,6 @@ class TestSetUpTestGrantRecipientUsers:
 
         assert "Test Org" in option_texts
         assert "Live Org" not in option_texts
-
-    def test_post_adds_grant_team_user_as_data_provider(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        from tests.models import _get_grant_managing_organisation
-
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-        test_org = factories.organisation.create(
-            name="Test Org", can_manage_grants=False, mode=OrganisationModeEnum.TEST
-        )
-        grant_recipient = factories.grant_recipient.create(
-            grant=grant, organisation=test_org, mode=GrantRecipientModeEnum.TEST
-        )
-
-        mhclg = _get_grant_managing_organisation()
-        grant_team_user = factories.user.create(name="Grant Team User", email="grant.user@example.com")
-        factories.user_role.create(user=grant_team_user, organisation=mhclg, grant=grant, permissions=[RoleEnum.ADMIN])
-
-        response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users",
-            data={"grant_recipient": str(grant_recipient.id), "user": str(grant_team_user.id), "submit": "y"},
-            follow_redirects=True,
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, f"Added {grant_team_user.name} as a data provider for {test_org.name}")
-
-        db_session.refresh(grant_team_user)
-        data_provider_role = next(
-            (
-                role
-                for role in grant_team_user.roles
-                if role.organisation_id == test_org.id
-                and role.grant_id == grant.id
-                and RoleEnum.DATA_PROVIDER in role.permissions
-            ),
-            None,
-        )
-        assert data_provider_role is not None
-        assert RoleEnum.DATA_PROVIDER in data_provider_role.permissions
-        assert RoleEnum.CERTIFIER in data_provider_role.permissions
 
     def test_post_adds_mhclg_user_as_data_provider(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -4126,12 +3903,12 @@ class TestSetUpTestGrantRecipientUsers:
         )
 
         mhclg = _get_grant_managing_organisation()
-        grant_team_user = factories.user.create(name="Grant Team User", email="grant.user@example.com")
-        factories.user_role.create(user=grant_team_user, organisation=mhclg, grant=grant, permissions=[RoleEnum.ADMIN])
+        mhclg_user = factories.user.create(name="MHCLG User", email="mhclg.user@example.com")
+        factories.user_role.create(user=mhclg_user, organisation=mhclg, grant=None, permissions=[RoleEnum.MEMBER])
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-test-grant-recipient-users",
-            data={"grant_recipient": str(grant_recipient.id), "user": str(grant_team_user.id), "submit": "y"},
+            data={"grant_recipient": str(grant_recipient.id), "mhclg_user": str(mhclg_user.id), "submit": "y"},
             follow_redirects=False,
         )
         assert response.status_code == 302

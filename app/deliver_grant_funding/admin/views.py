@@ -545,32 +545,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             data_providers_by_grant_recipient=data_providers_by_grant_recipient,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-test-grant-recipients", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
-    @auto_commit_after_request
-    def set_up_test_grant_recipients(self, grant_id: UUID, collection_id: UUID) -> Any:
-        grant = get_grant(grant_id)
-        collection = get_collection(collection_id, grant_id=grant_id)
-        organisations = get_organisations(can_manage_grants=False, mode=OrganisationModeEnum.TEST)
-        existing_grant_recipients = get_grant_recipients(grant=grant, mode=GrantRecipientModeEnum.TEST)
-        form = PlatformAdminBulkCreateGrantRecipientsForm(
-            organisations=organisations, existing_grant_recipients=existing_grant_recipients
-        )
-
-        if form.validate_on_submit():
-            create_grant_recipients(
-                grant=grant, organisation_ids=form.recipients.data, mode=GrantRecipientModeEnum.TEST
-            )
-            flash(f"Created {len(form.recipients.data)} test grant recipients.", "success")  # type: ignore[arg-type]
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
-
-        return self.render(
-            "deliver_grant_funding/admin/set-up-test-grant-recipients.html",
-            grant=grant,
-            collection=collection,
-            grant_recipients=existing_grant_recipients,
-            form=form,
-        )
-
     @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-test-grant-recipient-users", methods=["GET", "POST"])  # type: ignore[untyped-decorator]
     @auto_commit_after_request
     def set_up_test_grant_recipient_users(self, grant_id: UUID, collection_id: UUID) -> Any:
@@ -579,9 +553,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 
         # Get TEST grant recipients with their current data providers
         grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, mode=GrantRecipientModeEnum.TEST)
-
-        # Get all Deliver grant funding users who have permissions for this grant
-        grant_team_users = grant.grant_team_users
 
         orgs = get_organisations(can_manage_grants=True)
         if not orgs or len(orgs) > 1:
@@ -595,7 +566,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         # Initialize form with dropdown choices
         form = PlatformAdminAddTestGrantRecipientUserForm(
             grant_recipients=grant_recipients,
-            grant_team_users=grant_team_users,
             mhclg_users=mhclg_users,
         )
 
@@ -603,19 +573,11 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         data_providers_by_grant_recipient = {gr: gr.data_providers for gr in grant_recipients}
 
         if form.validate_on_submit():
-            # Get selected IDs from form
             grant_recipient_id = UUID(form.grant_recipient.data)
-
-            # Find the selected grant recipient to get its organisation_id
             grant_recipient = next(gr for gr in grant_recipients if gr.id == grant_recipient_id)
 
-            # Find the selected user
-            if form.user.data:
-                user_id = UUID(form.user.data)
-                user = next(u for u in grant_team_users if u.id == user_id)
-            else:
-                user_id = UUID(form.mhclg_user.data)
-                user = next(u for u in mhclg_users if u.id == user_id)
+            user_id = UUID(form.mhclg_user.data)
+            user = next(u for u in mhclg_users if u.id == user_id)
 
             # Add DATA_PROVIDER and CERTIFIER permissions
             add_permissions_to_user(
