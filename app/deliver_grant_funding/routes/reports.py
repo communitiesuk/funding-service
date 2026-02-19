@@ -77,6 +77,9 @@ from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
     AddSectionForm,
+    CollectionSettingsForm,
+    CollectionSettingsSelectQuestionForm,
+    CollectionSettingsSelectSectionForm,
     ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
@@ -93,6 +96,7 @@ from app.deliver_grant_funding.helpers import start_previewing_collection
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.deliver_grant_funding.session_models import (
     AddConditionDependsOnSessionModel,
+    AddContextToCollectionMultipleSubmissionsModel,
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
@@ -247,6 +251,176 @@ def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         grant=report.grant,
         report=report,
         form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/configure-multiple-submissions", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def collection_configure_multiple_submissions(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
+
+    session_data = None
+    if raw := session.get("multiple_submissions"):
+        try:
+            session_data = AddContextToCollectionMultipleSubmissionsModel(**raw)
+        except ValidationError:
+            del session["multiple_submissions"]
+
+    if session_data and session_data.collection_id == report.id:
+        form = CollectionSettingsForm(data=session_data.form_data)
+    else:
+        initial_data: dict[str, Any] = {}
+        if report.allow_multiple_submissions:
+            initial_data["allow_multiple_submissions"] = "yes"
+            if report.submission_name_question:
+                initial_data["submission_name"] = f"(({report.submission_name_question.safe_qid}))"
+                initial_data["submission_name_question_id"] = str(report.submission_name_question_id)
+        else:
+            initial_data["allow_multiple_submissions"] = "no"
+        form = CollectionSettingsForm(data=initial_data)
+
+    if form.is_submitted_to_add_context():
+        session["multiple_submissions"] = AddContextToCollectionMultipleSubmissionsModel(
+            collection_id=report.id,
+            form_data=form.get_form_data(),
+        ).model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.configure_multiple_submissions_select_section",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    if form.validate_on_submit():
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), report.id):
+            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
+
+        else:
+            if form.allow_multiple_submissions.data == "no":
+                update_collection(report, allow_multiple_submissions=False)
+            else:
+                update_collection(
+                    report,
+                    allow_multiple_submissions=True,
+                    submission_name_question_id=uuid.UUID(form.submission_name_question_id.data),
+                )
+            session.pop("multiple_submissions", None)
+            return redirect(
+                url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
+            )
+
+    context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(collection=report)
+
+    return render_template(
+        "deliver_grant_funding/reports/configure_multiple_submissions.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+        context_keys_and_labels=context_keys_and_labels,
+    )
+
+
+# TODO: FSPT-1191 - centralise this reference data/session model flow
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/configure-multiple-submissions/select-section",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def configure_multiple_submissions_select_section(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
+
+    raw = session.get("multiple_submissions")
+    if not raw:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    session_data = AddContextToCollectionMultipleSubmissionsModel(**raw)
+
+    wtform = CollectionSettingsSelectSectionForm(collection_forms=report.forms)
+    if wtform.validate_on_submit():
+        session_data.selected_section_id = uuid.UUID(wtform.section.data)
+        session["multiple_submissions"] = session_data.model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.configure_multiple_submissions_select_question",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/configure_multiple_submissions_select_section.html",
+        grant=report.grant,
+        report=report,
+        form=wtform,
+    )
+
+
+# TODO: FSPT-1191 - centralise this reference data/session model flow
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/configure-multiple-submissions/select-question",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def configure_multiple_submissions_select_question(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
+
+    raw = session.get("multiple_submissions")
+    if not raw:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    session_data = AddContextToCollectionMultipleSubmissionsModel(**raw)
+    if not session_data.selected_section_id:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.configure_multiple_submissions_select_section",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    target_form = get_form_by_id(session_data.selected_section_id, with_all_questions=True)
+    wtform = CollectionSettingsSelectQuestionForm(
+        form=target_form,
+        interpolate=SubmissionHelper.get_interpolator(collection=report),
+    )
+
+    if wtform.validate_on_submit():
+        referenced_question = get_question_by_id(UUID(wtform.question.data))
+        session_data.form_data["submission_name"] = f"(({referenced_question.safe_qid}))"
+        session_data.form_data["submission_name_question_id"] = str(referenced_question.id)
+        session["multiple_submissions"] = session_data.model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/configure_multiple_submissions_select_question.html",
+        grant=report.grant,
+        report=report,
+        form=wtform,
+        target_form=target_form,
     )
 
 

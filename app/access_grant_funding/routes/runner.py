@@ -22,6 +22,18 @@ from app.extensions import auto_commit_after_request
 def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+
+    collection = get_collection(collection_id, grant_id=grant_id)
+    if collection.allow_multiple_submissions:
+        return redirect(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                collection_id=collection_id,
+            )
+        )
+
     submission = get_submission_by_grant_recipient_collection(grant_recipient, collection_id)
 
     if not submission:

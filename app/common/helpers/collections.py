@@ -168,6 +168,15 @@ class SubmissionHelper:
         )
 
     @property
+    def display_name(self) -> str:
+        question = self.collection.submission_name_question
+        if question:
+            answer = self.cached_get_answer_for_question(question.id)
+            if answer is not None:
+                return answer.get_value_for_text_export()
+        return self.submission.reference
+
+    @property
     def grant(self) -> Grant:
         return self.collection.grant
 

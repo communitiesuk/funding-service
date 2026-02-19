@@ -119,6 +119,8 @@ def update_collection(  # noqa: C901
     reporting_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     submission_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     submission_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
+    allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
+    submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     if name is not NOT_PROVIDED:
         collection.name = name
@@ -169,6 +171,16 @@ def update_collection(  # noqa: C901
     if collection.reporting_period_end_date and collection.submission_period_start_date:
         if collection.reporting_period_end_date >= collection.submission_period_start_date:
             raise CollectionChronologyError("reporting_period_end_date must be before submission_period_start_date")
+
+    if allow_multiple_submissions is not NOT_PROVIDED:
+        collection.allow_multiple_submissions = allow_multiple_submissions
+        if not allow_multiple_submissions:
+            collection.submission_name_question_id = None
+
+    if submission_name_question_id is not NOT_PROVIDED:
+        if not collection.allow_multiple_submissions:
+            raise ValueError("submission_name_question_id cannot be set when allow_multiple_submissions is not enabled")
+        collection.submission_name_question_id = submission_name_question_id
 
     if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):

@@ -448,6 +448,52 @@ class TestUpdateCollection:
         with pytest.raises(DuplicateValueError):
             update_collection(collection2, name="Collection One")
 
+    def test_update_collection_enable_multiple_submissions(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        updated = update_collection(
+            collection,
+            allow_multiple_submissions=True,
+            submission_name_question_id=question.id,
+        )
+
+        assert updated.allow_multiple_submissions is True
+        assert updated.submission_name_question_id == question.id
+
+    def test_update_collection_disable_multiple_submissions_clears_question(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        collection = question.form.collection
+        collection.allow_multiple_submissions = True
+        collection.submission_name_question_id = question.id
+        db_session.commit()
+
+        updated = update_collection(collection, allow_multiple_submissions=False)
+
+        assert updated.allow_multiple_submissions is False
+        assert updated.submission_name_question_id is None
+
+    def test_update_collection_submission_name_question_raises_when_not_multiple(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        with pytest.raises(ValueError, match="submission_name_question_id cannot be set"):
+            update_collection(
+                collection,
+                allow_multiple_submissions=False,
+                submission_name_question_id=question.id,
+            )
+
+    def test_update_collection_submission_name_question_raises_when_multiple_not_provided(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        with pytest.raises(ValueError, match="submission_name_question_id cannot be set"):
+            update_collection(
+                collection,
+                submission_name_question_id=question.id,
+            )
+
     def test_update_collection_without_arguments(self, db_session, factories):
         collection = factories.collection.create(
             name="Original Name",
