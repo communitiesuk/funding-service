@@ -770,12 +770,13 @@ class TestGrantRecipientJourneyForm(FlaskForm):
         "Select a test organisation:",
         choices=[],
         validators=[DataRequired("Select a test organisation")],
-        widget=GovRadioInput(),
+        # TODO: replace with select-with-search; deprecated accessible autocomplete
+        widget=MHCLGAccessibleAutocomplete(),
     )
 
     def __init__(self, *args: Any, users_test_grant_recipients: list[GrantRecipient], **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.organisation.choices = [
+        self.organisation.choices = [("", "")] + [  # type: ignore[assignment]
             (str(grant_recipient.id), grant_recipient.organisation.name)
             for grant_recipient in users_test_grant_recipients
         ]
