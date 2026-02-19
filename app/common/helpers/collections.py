@@ -12,6 +12,7 @@ from uuid import UUID
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import TypeAdapter
+from werkzeug.datastructures import FileStorage
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.collections.forms import DynamicQuestionForm
@@ -23,6 +24,7 @@ from app.common.collections.types import (
     DateAnswer,
     DecimalAnswer,
     EmailAnswer,
+    FileUploadAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
@@ -183,7 +185,11 @@ class SubmissionHelper:
         form_data: dict[str, Any] = {}
 
         for form in self.collection.forms:
-            for question in form.cached_questions:
+            # file upload form components can never set a default value as we can't refer to the users file system,
+            # the form component will only be shown when there is no answer
+            # filtering this out of the form data stops the serialised answers being processed downstream (instead
+            # of full processed FileStorage objects)
+            for question in [q for q in form.cached_questions if q.data_type != QuestionDataType.FILE_UPLOAD]:
                 # we'll only add add another answers if a context is provided which will be hooked in
                 # with the form runner
                 if not question.add_another_container:
@@ -1184,6 +1190,10 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
             return MultipleChoiceFromListAnswer(choices=choices)
         case QuestionDataType.DATE:
             return DateAnswer(answer=answer, approximate_date=question.approximate_date or False)
+        case QuestionDataType.FILE_UPLOAD:
+            assert isinstance(answer, FileStorage)
+            assert answer.filename is not None
+            return FileUploadAnswer(filename=answer.filename)
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 
@@ -1210,5 +1220,7 @@ def _deserialise_question_type(question: Question, serialised_data: str | int | 
             return TypeAdapter(MultipleChoiceFromListAnswer).validate_python(serialised_data)
         case QuestionDataType.DATE:
             return TypeAdapter(DateAnswer).validate_python(serialised_data)
+        case QuestionDataType.FILE_UPLOAD:
+            return TypeAdapter(FileUploadAnswer).validate_python(serialised_data)
 
     raise ValueError(f"Could not deserialise data for question type={question.data_type}")

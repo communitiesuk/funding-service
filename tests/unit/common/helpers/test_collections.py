@@ -6,7 +6,7 @@ import pytest
 from werkzeug.datastructures import MultiDict
 
 from app.common.collections.forms import build_question_form
-from app.common.collections.types import DecimalAnswer, IntegerAnswer
+from app.common.collections.types import DecimalAnswer, FileUploadAnswer, IntegerAnswer
 from app.common.data.models import ComponentReference
 from app.common.data.types import (
     ComponentVisibilityState,
@@ -1643,6 +1643,12 @@ class TestDeserialiseQuestionType:
         result = _deserialise_question_type(question, {"value": "13.3"})
         assert isinstance(result, DecimalAnswer)
         assert result.value == Decimal("13.3")
+
+    def test_file_upload(self, factories):
+        question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
+        result = _deserialise_question_type(question, {"filename": "report.pdf"})
+        assert isinstance(result, FileUploadAnswer)
+        assert result.filename == "report.pdf"
 
 
 class TestFormDataToQuestionType:
