@@ -213,6 +213,11 @@ class Collection(BaseModel):
     submission_period_start_date: Mapped[datetime.date | None]
     submission_period_end_date: Mapped[datetime.date | None]
     requires_certification: Mapped[bool | None]
+    allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
+    submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
+    submission_name_question: Mapped["Question | None"] = relationship(
+        "Question", foreign_keys=[submission_name_question_id]
+    )
 
     # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
     _submissions: Mapped[list[Submission]] = relationship(
@@ -237,6 +242,10 @@ class Collection(BaseModel):
         CheckConstraint(
             "requires_certification IS NOT NULL OR type != 'MONITORING_REPORT'",
             name="ck_monitoring_certification_not_null",
+        ),
+        CheckConstraint(
+            "submission_name_question_id IS NULL OR allow_multiple_submissions = true",
+            name="ck_submission_name_question_requires_multiple_submissions",
         ),
     )
 

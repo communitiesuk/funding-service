@@ -109,6 +109,13 @@
       {% if can_edit %}
         <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add another section</a>
       {% endif %}
+
+      <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage collection</h2>
+      <ul class="govuk-list govuk-list--spaced">
+        <li>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_multiple_submissions', grant_id=grant.id, report_id=report.id) }}"> Configure multiple submissions </a>
+        </li>
+      </ul>
     </div>
     <div class="govuk-grid-column-one-quarter">
       <div class="app-actions">

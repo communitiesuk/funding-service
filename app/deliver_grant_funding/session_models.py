@@ -90,3 +90,11 @@ class AddContextToExpressionsModel(BaseModel):
     data_source: ExpressionContext.ContextSources | None = None
     depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None
+
+
+# TODO: FSPT-1191 - centralise this reference data/session model flow
+class AddContextToCollectionMultipleSubmissionsModel(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
+    collection_id: UUID
+    form_data: dict[str, Any]
+    selected_section_id: UUID | None = None

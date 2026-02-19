@@ -310,6 +310,118 @@ class TestListReports:
         assert response.status_code == 403
 
 
+class TestListCollectionSubmissions:
+    def test_lists_submissions_for_collection(self, authenticated_grant_recipient_member_client, factories):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            status=CollectionStatusEnum.OPEN,
+        )
+        submission_1 = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        submission_2 = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == collection.name
+        assert submission_1.reference in soup.text
+        assert submission_2.reference in soup.text
+
+    def test_shows_empty_state_when_no_submissions(self, authenticated_grant_recipient_member_client, factories):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            status=CollectionStatusEnum.OPEN,
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You have not started any reports yet." in soup.text
+
+    def test_shows_display_name_from_submission_name_question(
+        self, authenticated_grant_recipient_member_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__status=CollectionStatusEnum.OPEN,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "My custom report name"},
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "My custom report name" in soup.text
+
+    def test_report_list_shows_go_to_reports_link_for_multi_submission_collection(
+        self, authenticated_grant_recipient_member_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant = grant_recipient.grant
+        grant.status = GrantStatusEnum.LIVE
+        factories.collection.create(
+            grant=grant,
+            allow_multiple_submissions=True,
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=date(2025, 1, 1),
+            reporting_period_end_date=date(2025, 3, 31),
+            submission_period_start_date=date(2025, 11, 1),
+            submission_period_end_date=date(2026, 2, 28),
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_reports",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Go to reports") is not None
+
+
 class TestDeclineSignOff:
     def test_decline_certification_post_success(
         self,

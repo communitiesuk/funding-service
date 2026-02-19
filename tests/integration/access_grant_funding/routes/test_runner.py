@@ -81,6 +81,30 @@ class TestRouteToSubmission:
         assert len(submissions) == 1
         assert str(submissions[0].id) in response.location
 
+    def test_route_to_submission_redirects_to_submissions_list_when_multiple_submissions_enabled(
+        self, factories, authenticated_grant_recipient_member_client
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(grant=grant_recipient.grant, allow_multiple_submissions=True)
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_collection_submissions",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
+
     def test_route_to_submission_redirects_to_locked_page_if_locked(
         self, factories, authenticated_grant_recipient_member_client, submission_awaiting_sign_off
     ):
