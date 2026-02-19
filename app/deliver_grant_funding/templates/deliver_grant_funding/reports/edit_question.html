@@ -6,6 +6,7 @@
 {% from "deliver_grant_funding/partials/_advanced_formatting_options.html" import advancedFormattingOptions %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "deliver_grant_funding/partials/_question_data_options.html" import questionDataOptions %}
+{% from "common/govuk/tabs/macro.html" import govukTabs %}
 
 {% set page_title = "Edit question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
@@ -99,138 +100,101 @@
 
         {# Duplicate the submit button, fully hidden, so that the default action for the form is to submit it (rather than add data to a field) #}
         {{ form.submit(params={"classes": "govuk-!-display-none"}) }}
-        {{ questionDataOptions(form, question.data_type, enum) }}
 
-        <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
-          <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
-          {% set addDataButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "text"}) }}
-          {% endset %}
-          {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
-        </div>
+        {% set settings_html %}
+          {{ questionDataOptions(form, question.data_type, enum) }}
 
-        {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
+            {% set addDataButton %}
+              {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "text"}) }}
+            {% endset %}
+            {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
+          </div>
 
-        <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
-          <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
-          {% set addDataButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in question hint</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "hint"}) }}
-          {% endset %}
-          {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
-        </div>
+          {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 
-        {% if question.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
-          {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
+            {% set addDataButton %}
+              {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in question hint</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "hint"}) }}
+            {% endset %}
+            {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
+          </div>
+
+          {% if question.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
+            {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
 
 
-          {% set conditionalHtml %}
-            {{ form.none_of_the_above_item_text }}
-          {% endset %}
-          {{ form.separate_option_if_no_items_match(params={"items": [{"conditional": {"html": conditionalHtml} }]}) }}
-        {% endif %}
+            {% set conditionalHtml %}
+              {{ form.none_of_the_above_item_text }}
+            {% endset %}
+            {{ form.separate_option_if_no_items_match(params={"items": [{"conditional": {"html": conditionalHtml} }]}) }}
+          {% endif %}
 
-        {{ advancedFormattingOptions(form, question.data_type, enum) }}
+          {{ advancedFormattingOptions(form, question.data_type, enum) }}
 
-        <div class="govuk-form-group">
-          <h2 class="govuk-heading-m">Guidance</h2>
-          {% if question.parent and question.parent.same_page %}
-            {# todo: temporary context - to be replaced with something sensible #}
-            <p class="govuk-body">
-              This question is part of a group of questions that are all on the same page. Guidance can be added to the
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=question.parent.id) }}">question group</a>.
-            </p>
-          {% else %}
-            <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
-
-            {% if question.guidance_body %}
-              {% set guidance_text %}
-                <pre class="app-pre-markdown">{{ interpolate(question.guidance_body) }}</pre>
-              {% endset %}
-              {{
-                govukSummaryList({
-                  "rows": [
-                    {"key": {"text": "Page heading"}, "value": {"text": question.guidance_heading}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "page heading"}] } },
-                    {"key": {"text": "Guidance text"}, "value": {"html": guidance_text}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "guidance text"}] } },
-                  ]
-                })
-              }}
+          <div class="govuk-form-group">
+            <h2 class="govuk-heading-m">Guidance</h2>
+            {% if question.parent and question.parent.same_page %}
+              {# todo: temporary context - to be replaced with something sensible #}
+              <p class="govuk-body">
+                This question is part of a group of questions that are all on the same page. Guidance can be added to the
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=question.parent.id) }}">question group</a>.
+              </p>
             {% else %}
-              <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}"> Add guidance </a>
+              <p class="govuk-body">Only add guidance if you need to give a longer explanation of how to answer the question, or to format your content with paragraphs, headings, lists or links.</p>
+
+              {% if question.guidance_body %}
+                {% set guidance_text %}
+                  <pre class="app-pre-markdown">{{ interpolate(question.guidance_body) }}</pre>
+                {% endset %}
+                {{
+                  govukSummaryList({
+                    "rows": [
+                      {"key": {"text": "Page heading"}, "value": {"text": question.guidance_heading}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "page heading"}] } },
+                      {"key": {"text": "Guidance text"}, "value": {"html": guidance_text}, "actions": {"items": [{"href": url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id), "text": "Change", "visuallyHiddenText": "guidance text"}] } },
+                    ]
+                  })
+                }}
+              {% else %}
+                <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.manage_guidance', grant_id=grant.id, question_id=question.id) }}"> Add guidance </a>
+              {% endif %}
             {% endif %}
-          {% endif %}
-        </div>
+          </div>
 
-        <div class="govuk-form-group">
-          <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
-          <p class="govuk-body">Add conditions to only show this question if the grant recipient has answered one of the other questions in a particular way.</p>
+          <div class="govuk-form-group">
+            <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
+            <p class="govuk-body">Add conditions to only show this question if the grant recipient has answered one of the other questions in a particular way.</p>
 
-          {% with component=question %}
-            {% include 'deliver_grant_funding/partials/component-conditions-operator-table.html' %}
-          {% endwith %}
+            {% with component=question %}
+              {% include 'deliver_grant_funding/partials/component-conditions-operator-table.html' %}
+            {% endwith %}
 
-          {% set rows = [] %}
-
-          {% with component=question %}
-            {% include 'deliver_grant_funding/partials/_implicit-conditions.html' %}
-          {% endwith %}
-
-          {% for condition in question.conditions %}
-            {% set managed = condition.managed %}
-            {% set depends_on = managed.referenced_question %}
-
-
-            {% set key_html %}
-              {# todo: would users find it useful to be able to link to the question being depended on from here? #}
-              <span>{{ depends_on.data_reference_label }}</span>
-            {% endset %}
-
-
-            {% set value_html %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=question.id, expression_id=condition.id) }}">
-                <span class="govuk-visually-hidden">Change condition for</span>
-                {{ interpolate(condition.managed.message, with_interpolation_highlighting=True) }}
-              </a>
-            {% endset %}
-            {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
-          {% endfor %}
-
-          {% if rows %}
-            {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
-          {% endif %}
-
-          {{
-            govukButton({
-              "text": "Add condition",
-              "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, component_id=question.id),
-              "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
-            })
-          }}
-        </div>
-        <div class="govuk-form-group">
-          <h2 class="govuk-heading-m">Validations</h2>
-          {% if managed_validation_available %}
-            <p class="govuk-body">Add validations to show an error message to the user if the answer does not meet the requirements. For example, you can add a validation to stop users entering a number over a certain amount.</p>
             {% set rows = [] %}
-            {% for validation in question.validations %}
-              {% set managed = validation.managed %}
 
-              {# TODO: think more about what info to include in this summary list and how to lay it out #}
+            {% with component=question %}
+              {% include 'deliver_grant_funding/partials/_implicit-conditions.html' %}
+            {% endwith %}
+
+            {% for condition in question.conditions %}
+              {% set managed = condition.managed %}
+              {% set depends_on = managed.referenced_question %}
+
+
               {% set key_html %}
-                {{ to_ordinal(loop.index) | capitalize }}
-                <span class="govuk-visually-hidden">validation</span>
+                {# todo: would users find it useful to be able to link to the question being depended on from here? #}
+                <span>{{ depends_on.data_reference_label }}</span>
               {% endset %}
+
+
               {% set value_html %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}" disabled>
-                  <span class="govuk-visually-hidden">Change validation for</span>
-                  {{ interpolate(validation.managed.message, with_interpolation_highlighting=True) }}
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=question.id, expression_id=condition.id) }}">
+                  <span class="govuk-visually-hidden">Change condition for</span>
+                  {{ interpolate(condition.managed.message, with_interpolation_highlighting=True) }}
                 </a>
               {% endset %}
-              {%
-                do rows.append({
-                  "key": { "html": key_html, "classes": "govuk-!-width-one-quarter" },
-                  "value": { "html": value_html },
-                })
-              %}
+              {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
             {% endfor %}
 
             {% if rows %}
@@ -239,14 +203,75 @@
 
             {{
               govukButton({
-                "text": "Add more validation" if question.validations else "Add validation",
-                "href": url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id),
-                "classes": "govuk-button--secondary govuk-!-margin-bottom-3"
+                "text": "Add condition",
+                "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, component_id=question.id),
+                "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
               })
             }}
-          {% else %}
-            <p class="govuk-body">Validations are not available for this question type.</p>
-          {% endif %}
+          </div>
+          <div class="govuk-form-group">
+            <h2 class="govuk-heading-m">Validations</h2>
+            {% if managed_validation_available %}
+              <p class="govuk-body">Add validations to show an error message to the user if the answer does not meet the requirements. For example, you can add a validation to stop users entering a number over a certain amount.</p>
+              {% set rows = [] %}
+              {% for validation in question.validations %}
+                {% set managed = validation.managed %}
+
+                {# TODO: think more about what info to include in this summary list and how to lay it out #}
+                {% set key_html %}
+                  {{ to_ordinal(loop.index) | capitalize }}
+                  <span class="govuk-visually-hidden">validation</span>
+                {% endset %}
+                {% set value_html %}
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}" disabled>
+                    <span class="govuk-visually-hidden">Change validation for</span>
+                    {{ interpolate(validation.managed.message, with_interpolation_highlighting=True) }}
+                  </a>
+                {% endset %}
+                {%
+                  do rows.append({
+                    "key": { "html": key_html, "classes": "govuk-!-width-one-quarter" },
+                    "value": { "html": value_html },
+                  })
+                %}
+              {% endfor %}
+
+              {% if rows %}
+                {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+              {% endif %}
+
+              {{
+                govukButton({
+                  "text": "Add more validation" if question.validations else "Add validation",
+                  "href": url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id),
+                  "classes": "govuk-button--secondary govuk-!-margin-bottom-3"
+                })
+              }}
+            {% else %}
+              <p class="govuk-body">Validations are not available for this question type.</p>
+            {% endif %}
+          </div>
+        {% endset %}
+
+        {% set preview_html %}
+          <div class="app-context-aware-editor__preview-intro">
+            <h2 class="govuk-heading-m">Preview your question below</h2>
+            <p class="govuk-body">Below is a preview of how your question will appear to a grant recipient. Switch to the Preview tab to see updates.</p>
+          </div>
+          <div class="app-context-aware-editor__preview-area" data-question-preview-target="">
+            <p class="govuk-body">Switch to this tab to load a preview of your question.</p>
+          </div>
+        {% endset %}
+
+        <div data-module="ajax-question-preview" data-question-preview-endpoint="{{ url_for('deliver_grant_funding.api.preview_question', collection_id=db_form.collection_id) }}" data-question-data-type="{{ question.data_type.name }}" data-question-id="{{ question.id }}" data-question-form-id="{{ db_form.id }}">
+          {{
+            govukTabs(params={
+              "items": [
+                {"label": "Settings", "id": "settings-question", "panel": {"html": settings_html} },
+                {"label": "Preview", "id": "preview-question", "panel": {"html": preview_html} },
+              ],
+            })
+          }}
         </div>
 
         {{ form.submit(params={"text": "Save", "classes": "govuk-!-margin-top-3"}) }}

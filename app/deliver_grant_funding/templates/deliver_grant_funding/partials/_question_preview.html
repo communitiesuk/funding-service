@@ -1,0 +1,103 @@
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+
+{% set question = runner.component %}
+{% set form = runner.question_form %}
+{% set questionAsPageHeading = not question.guidance_heading %}
+
+{% if form.errors %}
+  {{ govukErrorSummary(wtforms_errors(form)) }}
+{% endif %}
+
+<span class="govuk-caption-l">{{ runner.question_page_caption }}</span>
+{% if runner.question_page_heading %}
+  <h1 class="govuk-heading-l">{{ runner.question_page_heading }}</h1>
+  {{ runner.interpolate(question.guidance_body) | govuk_markdown }}
+{% endif %}
+
+{% if question.data_type == enum.question_type.TEXT_MULTI_LINE %}
+  {{
+    form.render_question(
+      question,
+      params={
+        "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+        "maxwords": question.presentation_options.word_limit,
+        "rows": question.presentation_options.rows,
+      }
+    )
+  }}
+{% elif question.data_type == enum.question_type.TEXT_SINGLE_LINE or question.data_type == enum.question_type.EMAIL or question.data_type == enum.question_type.URL %}
+  {{
+    form.render_question(
+      question,
+      params={
+        "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading}
+      }
+    )
+  }}
+{% elif question.data_type == enum.question_type.NUMBER %}
+  {{
+    form.render_question(
+      question,
+      params={
+        "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+        "inputmode": "numeric",
+        "spellcheck": false,
+        "classes": question.presentation_options.width or '',
+        "prefix": {"text": question.presentation_options.prefix or ''},
+        "suffix": {"text": question.presentation_options.suffix or ''}
+      }
+    )
+  }}
+{% elif question.data_type == enum.question_type.YES_NO %}
+  {{
+    form.render_question(
+      question,
+      params={
+        "fieldset": {"legend": {"text": runner.interpolate(question.text), "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+        "classes": "govuk-radios--inline"
+      }
+    )
+  }}
+{% elif question.data_type == enum.question_type.CHECKBOXES %}
+  {{
+    form.render_question(
+      question,
+      params={
+        "fieldset": {"legend": {"text": runner.interpolate(question.text), "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+      }
+    )
+  }}
+{% elif question.data_type == enum.question_type.DATE %}
+  {{
+    form.render_question(
+      question,
+      params={
+        "fieldset": {"legend": {"text": runner.interpolate(question.text), "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+        "spellcheck": false
+      }
+    )
+  }}
+{% elif question.data_type == enum.question_type.RADIOS %}
+  {% if form.get_question_field(question).widget.is_accessible_autocomplete %}
+    {{
+      form.render_question(
+        question,
+        params={
+          "label": {"classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+          "classes": "govuk-!-width-full"
+        }
+      )
+    }}
+  {% else %}
+    {{
+      form.render_question(
+        question,
+        params={
+          "fieldset": {"legend": {"text": runner.interpolate(question.text), "classes": "govuk-fieldset__legend--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading} },
+        }
+      )
+    }}
+  {% endif %}
+{% endif %}
+
+<button type="button" class="govuk-button govuk-button--secondary" data-check-answer>Check answer</button>

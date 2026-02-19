@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "deliver_grant_funding/partials/_advanced_formatting_options.html" import advancedFormattingOptions %}
 {% from "deliver_grant_funding/partials/_question_data_options.html" import questionDataOptions %}
+{% from "common/govuk/tabs/macro.html" import govukTabs %}
 
 {% set page_title = "Add a question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
@@ -30,37 +31,67 @@
 
         {# Duplicate the submit button, fully hidden, so that the default action for the form is to submit it (rather than add data to a field) #}
         {{ form.submit(params={"classes": "govuk-!-display-none"}) }}
-        {{ questionDataOptions(form, chosen_question_data_type, enum) }}
 
-        <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
-          <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
-          {% set addDataButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "text"}) }}
-          {% endset %}
-          {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
 
-          {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+        {% set settings_html %}
+          {{ questionDataOptions(form, chosen_question_data_type, enum) }}
+
+          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
+            {% set addDataButton %}
+              {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in question name</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "text"}) }}
+            {% endset %}
+            {{ form.text(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
+
+            {{ form.name(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+          </div>
+
+          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
+            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
+            {% set addDataButton %}
+              {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in question hint</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "hint"}) }}
+            {% endset %}
+            {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
+          </div>
+
+          {% if chosen_question_data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
+            {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+
+
+            {% set conditionalHtml %}
+              {{ form.none_of_the_above_item_text }}
+            {% endset %}
+            {{ form.separate_option_if_no_items_match(params={"items": [{"conditional": {"html": conditionalHtml} }]}) }}
+          {% endif %}
+
+          {{ advancedFormattingOptions(form, chosen_question_data_type, enum) }}
+        {% endset %}
+
+
+        {% set preview_html %}
+          <div class="app-context-aware-editor__preview-intro">
+            <h2 class="govuk-heading-m">Preview your question below</h2>
+            <p class="govuk-body">Below is a preview of how your question will appear to a grant recipient. Switch to the Preview tab to see updates.</p>
+          </div>
+          <div class="app-context-aware-editor__preview-area" data-question-preview-target="">
+            <p class="govuk-body">Switch to this tab to load a preview of your question.</p>
+          </div>
+        {% endset %}
+
+        <div
+          data-module="ajax-question-preview"
+          data-question-preview-endpoint="{{ url_for('deliver_grant_funding.api.preview_question', collection_id=collection.id) }}"
+          data-question-data-type="{{ chosen_question_data_type.name }}"
+          data-question-form-id="{{ db_form.id }}">
+          {{
+            govukTabs(params={
+              "items": [
+                {"label": "Settings", "id": "settings-question", "panel": {"html": settings_html} },
+                {"label": "Preview", "id": "preview-question", "panel": {"html": preview_html} },
+              ],
+            })
+          }}
         </div>
-
-        <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
-          <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
-          {% set addDataButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>in question hint</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "hint"}) }}
-          {% endset %}
-          {{ form.hint(params={"label": {"classes": "govuk-!-font-weight-bold"}, "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
-        </div>
-
-        {% if chosen_question_data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
-          {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
-
-
-          {% set conditionalHtml %}
-            {{ form.none_of_the_above_item_text }}
-          {% endset %}
-          {{ form.separate_option_if_no_items_match(params={"items": [{"conditional": {"html": conditionalHtml} }]}) }}
-        {% endif %}
-
-        {{ advancedFormattingOptions(form, chosen_question_data_type, enum) }}
 
         <span class="govuk-button-group">
           {{ form.submit(params={"text": "Add question"}) }}

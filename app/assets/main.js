@@ -2,6 +2,7 @@ import { initAll } from "govuk-frontend";
 import accessibleAutocomplete from "accessible-autocomplete";
 import { pasteListener } from "./js/paste-html-to-markdown";
 import ajaxMarkdownPreview from "./js/ajax-markdown-preview";
+import ajaxQuestionPreview from "./js/ajax-question-preview";
 import textareaNoNewlines from "./js/textarea-no-newlines/index.js";
 import contextAwareEditor from "./js/context-aware-editor/index.js";
 import { initSectionNavScroll } from "./js/submission-section-nav/index.js";
@@ -63,6 +64,12 @@ document
     .querySelectorAll('[data-module="paste-html-bullets-as-markdown"]')
     .forEach((element) => {
         element.addEventListener("paste", pasteListener);
+    });
+
+document
+    .querySelectorAll('[data-module="ajax-question-preview"]')
+    .forEach((element) => {
+        ajaxQuestionPreview(element);
     });
 
 document

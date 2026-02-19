@@ -21,7 +21,7 @@ from wtforms.validators import DataRequired, Email, InputRequired, Optional, Val
 
 from app.common.data.models import Expression, Question
 from app.common.data.types import NumberTypeEnum, QuestionDataType
-from app.common.expressions import ExpressionContext, evaluate, interpolate
+from app.common.expressions import ExpressionContext, UndefinedVariableInExpression, evaluate, interpolate
 from app.common.forms.fields import (
     DecimalWithCommasField,
     IntegerWithCommasField,
@@ -137,11 +137,18 @@ def build_validators(
             if not validation.managed:
                 raise RuntimeError("Support for un-managed validation has not been implemented yet.")
 
-            if not evaluate(expression=validation, context=evaluation_context):
-                emit_metric_count(
-                    MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR, managed_expression=validation.managed
+            try:
+                if not evaluate(expression=validation, context=evaluation_context):
+                    emit_metric_count(
+                        MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR, managed_expression=validation.managed
+                    )
+                    raise ValidationError(interpolate(validation.managed.message, context=interpolation_context))
+            except UndefinedVariableInExpression:
+                current_app.logger.info(
+                    "Skipping validation %(expr_id)s: references undefined variable",
+                    {"expr_id": validation.id},
                 )
-                raise ValidationError(interpolate(validation.managed.message, context=interpolation_context))
+                return
 
             emit_metric_count(
                 MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS, managed_expression=validation.managed

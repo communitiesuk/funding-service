@@ -14,3 +14,12 @@ class PreviewGuidanceSuccessResponse(BaseModel):
 
 class PreviewGuidanceUnauthorisedResponse(BaseModel):
     error: str = "Unauthorised"
+
+
+class PreviewQuestionSuccessResponse(BaseModel):
+    question_html: str | None = None
+    errors: list[str] = Field(default_factory=list)
+
+
+class PreviewQuestionBadRequestResponse(BaseModel):
+    errors: list[str] = Field(default_factory=list)
