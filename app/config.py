@@ -286,7 +286,7 @@ class _SharedConfig(_BaseConfig):
     # Form rendering options
     ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS: int = 20
 
-    MAX_DATA_SOURCE_ITEMS_RADIOS: int = 100
+    MAX_DATA_SOURCE_ITEMS_RADIOS: int = 300
     MAX_DATA_SOURCE_ITEMS_CHECKBOXES: int = 10
 
     # Max number of levels of nested groups
