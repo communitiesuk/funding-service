@@ -44,10 +44,10 @@
 
   {% set table_pending_signin_rows = namespace(items=[]) %}
 
-  {% for invite in grant.invitations if invite.is_usable %}
+  {% for invited_email in invited_emails %}
     {%
       set table_pending_signin_rows.items = table_pending_signin_rows.items + [[
-        {"text": invite.email},
+        {"text": invited_email},
         {"text": "Grant team member"}
       ]]
     %}
