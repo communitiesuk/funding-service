@@ -421,6 +421,40 @@ class TestListCollectionSubmissions:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_link(soup, "Go to reports") is not None
 
+    def test_submission_list_has_start_new_report_link(
+        self, authenticated_grant_recipient_member_client, factories, db_session
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__status=CollectionStatusEnum.OPEN,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        db_session.commit()
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        start_link = page_has_link(soup, "Start a new report")
+        assert start_link is not None
+        assert start_link["href"] == url_for(
+            "access_grant_funding.start_new_multiple_submission",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
+
     def test_submission_list_renders_guidance_as_markdown(self, authenticated_grant_recipient_member_client, factories):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
         collection = factories.collection.create(

@@ -12,12 +12,21 @@
 
 {% block beforeContent %}
   {{ super() }}
-  {{
-    govukBackLink({
-      "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
-      "text": "Back"
-    })
-  }}
+  {% if runner.submission.collection.allow_multiple_submissions %}
+    {{
+      govukBackLink({
+        "href": url_for("access_grant_funding.list_collection_submissions", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=runner.submission.collection_id),
+        "text": "Back"
+      })
+    }}
+  {% else %}
+    {{
+      govukBackLink({
+        "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
+        "text": "Back"
+      })
+    }}
+  {% endif %}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -34,7 +43,12 @@
           }}
         {% endif %}
       {% endwith %}
-      <h1 class="govuk-heading-l">{{ runner.submission.name }}</h1>
+      {% if runner.submission.collection.allow_multiple_submissions %}
+        <span class="govuk-caption-l">{{ runner.submission.name }}</span>
+        <h1 class="govuk-heading-l">{{ runner.submission.display_name }}</h1>
+      {% else %}
+        <h1 class="govuk-heading-l">{{ runner.submission.name }}</h1>
+      {% endif %}
 
       <dl class="app-metadata">
         <dt class="app-metadata__key">Submission deadline:</dt>
