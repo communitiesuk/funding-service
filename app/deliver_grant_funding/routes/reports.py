@@ -90,6 +90,7 @@ from app.deliver_grant_funding.forms import (
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
     SetUpReportForm,
+    SubmissionGuidanceForm,
     TestGrantRecipientJourneyForm,
 )
 from app.deliver_grant_funding.helpers import start_previewing_collection
@@ -421,6 +422,46 @@ def configure_multiple_submissions_select_question(grant_id: UUID, report_id: UU
         report=report,
         form=wtform,
         target_form=target_form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/set-guidance-for-multiple-submissions", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def set_guidance_for_multiple_submissions(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    form = SubmissionGuidanceForm()
+    if not form.is_submitted():
+        form.guidance_body.data = report.submission_guidance
+
+    if form.validate_on_submit():
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), report.id):
+            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
+        else:
+            update_collection(report, submission_guidance=form.guidance_body.data)
+
+            if form.preview.data:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                        grant_id=grant_id,
+                        report_id=report_id,
+                        _anchor="preview-guidance",
+                    )
+                )
+
+            return redirect(
+                url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/set_guidance_for_multiple_submissions.html",
+        grant=report.grant,
+        report=report,
+        form=form,
     )
 
 

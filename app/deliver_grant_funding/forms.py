@@ -814,6 +814,17 @@ class CollectionSettingsSelectSectionForm(FlaskForm):
         self.section.choices = [(str(f.id), f.title) for f in collection_forms]
 
 
+class SubmissionGuidanceForm(FlaskForm):
+    guidance_body = StringField(
+        "Set guidance for multiple submissions",
+        description="Use Markdown if you need to format your guidance content. Formatting help can be found below.",
+        widget=GovTextArea(),
+        filters=[strip_string_if_not_empty],
+    )
+    preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
+    submit = SubmitField("Save guidance", widget=GovSubmitInput())
+
+
 class CollectionSettingsSelectQuestionForm(FlaskForm):
     question = SelectField(
         "Select which question's answer to use as the submission name",

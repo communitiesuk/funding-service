@@ -904,6 +904,108 @@ class TestCollectionSettingsSelectQuestion:
         )
 
 
+class TestSetGuidanceForMultipleSubmissions:
+    def test_get_renders_form(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Set guidance for multiple submissions"
+
+    def test_get_prepopulates_existing_guidance(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_multiple_submissions=True,
+            submission_guidance="Existing guidance content",
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        textarea = soup.find("textarea")
+        assert textarea is not None
+        assert "Existing guidance content" in textarea.text
+
+    def test_post_save_guidance_redirects_to_sections(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"guidance_body": "New guidance content", "submit": "Save guidance"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_report_sections",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            report_id=report.id,
+        )
+        assert report.submission_guidance == "New guidance content"
+
+    def test_post_save_and_preview_redirects_back_with_anchor(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"guidance_body": "Preview this", "preview": "Save and preview guidance"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert "#preview-guidance" in response.location
+        assert report.submission_guidance == "Preview this"
+
+    def test_post_save_empty_guidance_clears_it(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_multiple_submissions=True,
+            submission_guidance="Old guidance",
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"guidance_body": "", "submit": "Save guidance"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert report.submission_guidance is None
+
+
 class TestMoveSection:
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(

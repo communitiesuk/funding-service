@@ -69,6 +69,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.configure_multiple_submissions_select_section",
     "deliver_grant_funding.configure_multiple_submissions_select_question",
     "deliver_grant_funding.collection_configure_multiple_submissions",
+    "deliver_grant_funding.set_guidance_for_multiple_submissions",
 ]
 routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.change_report_name",

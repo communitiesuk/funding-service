@@ -421,6 +421,30 @@ class TestListCollectionSubmissions:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_link(soup, "Go to reports") is not None
 
+    def test_submission_list_renders_guidance_as_markdown(self, authenticated_grant_recipient_member_client, factories):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            status=CollectionStatusEnum.OPEN,
+            submission_guidance="## Getting started\n\nPlease complete a report for each project.",
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        heading = soup.find("h2", string="Getting started")
+        assert heading is not None
+        assert "Please complete a report for each project." in soup.text
+
 
 class TestDeclineSignOff:
     def test_decline_certification_post_success(
