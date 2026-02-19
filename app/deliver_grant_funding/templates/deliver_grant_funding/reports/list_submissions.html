@@ -78,12 +78,15 @@
             {{ grant_recipient.organisation.name }}
           {% endif %}
         {% endset %}
+        {% set status = grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED %}
         {%
           do rows.append([
             {
               "html": link_to_submission,
+              "attributes": { "data-sort-value": grant_recipient.organisation.name | lower }
             }, {
-              "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else report.is_overdue)
+              "html": submissionStatusTag(status, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else report.is_overdue),
+              "attributes": { "data-sort-value": submission_status_sort_order(status) }
             }, {
               "text": format_date_short(grant_recipient_submission_helper.submission.updated_at_utc) if grant_recipient_submission_helper else ''
             }
@@ -106,9 +109,10 @@
       {{
         govukTable({
           "captionClasses": "govuk-table__caption--m",
+          "attributes": { "data-module": "moj-sortable-table" },
           "head": [
-            { "text": "Grant recipient", "classes": "govuk-!-width-one-half" },
-            { "text": "Status" },
+            { "text": "Grant recipient", "classes": "govuk-!-width-one-half", "attributes": { "aria-sort": "ascending" } },
+            { "text": "Status", "attributes": { "aria-sort": "none" } },
             { "text": "Last updated" }
           ],
           "rows": rows

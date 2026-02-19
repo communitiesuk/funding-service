@@ -25,7 +25,11 @@ export default defineConfig({
     css: {
         preprocessorOptions: {
             scss: {
-                loadPaths: ["node_modules/govuk-frontend/dist"],
+                loadPaths: [
+                    "node_modules/govuk-frontend/dist",
+                    "node_modules/@ministryofjustice/frontend",
+                    ".",
+                ],
                 quietDeps: true,
                 silenceDeprecations: [
                     "global-builtin",

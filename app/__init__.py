@@ -33,6 +33,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
     TasklistSectionStatusEnum,
+    submission_status_sort_order,
 )
 from app.common.exceptions import RedirectException
 from app.common.filters import (
@@ -269,6 +270,7 @@ def create_app() -> Flask:  # noqa: C901
     def _jinja_template_context() -> dict[str, Any]:
         return dict(
             cspNonce=app.jinja_env.globals["csp_nonce"](),  # type: ignore[operator]
+            submission_status_sort_order=submission_status_sort_order,
             format_date=format_date,
             format_date_short=format_date_short,
             format_date_approximate=format_date_approximate,
