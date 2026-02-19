@@ -6152,6 +6152,94 @@ class TestExportReportSubmissions:
         assert response.content_length > 0
         assert len(response.json["submissions"]) == 1
 
+    def test_csv_includes_submission_name_for_multiple_submissions(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_member_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="project name",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+        db_session.commit()
+
+        grant_recipient = factories.grant_recipient.create(grant=authenticated_grant_member_client.grant)
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Alpha Project"},
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Beta Project"},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.export_report_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                export_format="csv",
+            )
+        )
+
+        assert response.status_code == 200
+        lines = response.text.splitlines()
+        headers = lines[0].split(",")
+        assert "Submission name" in headers
+        assert len(lines) == 3
+        assert "Alpha Project" in response.text
+        assert "Beta Project" in response.text
+
+    def test_json_includes_name_for_multiple_submissions(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_member_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="project name",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+        db_session.commit()
+
+        grant_recipient = factories.grant_recipient.create(grant=authenticated_grant_member_client.grant)
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Alpha Project"},
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Beta Project"},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.export_report_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                export_format="json",
+            )
+        )
+
+        assert response.status_code == 200
+        submissions = response.json["submissions"]
+        assert len(submissions) == 2
+        names = {s["name"] for s in submissions}
+        assert names == {"Alpha Project", "Beta Project"}
+
 
 class TestViewSubmission:
     def test_404(self, authenticated_grant_member_client):
