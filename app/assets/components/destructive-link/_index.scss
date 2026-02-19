@@ -1,0 +1,46 @@
+@use "govuk";
+
+// Custom colours for our destructive link
+// Based on the error colour in:
+// https://github.com/alphagov/govuk-frontend/blob/v4.2.0/src/govuk/settings/_colours-applied.scss
+// with :hover and :active variants based on those for links
+$app-destructive-link-colour: govuk.$govuk-error-colour;
+$app-destructive-link-hover-colour: govuk.govuk-colour("red");
+$app-destructive-link-active-colour: govuk.$govuk-text-colour;
+
+// Extends govuk-link to create a class of link that causes a destructive action
+// Based on styles of link in:
+// https://github.com/alphagov/govuk-frontend/blob/v4.2.0/src/govuk/helpers/_links.scss
+//
+// Note: all destructive actions must have a confirmation step these links navigate to
+@mixin app-link-style-destructive-no-visited-state {
+    &:link,
+    &:visited {
+        color: $app-destructive-link-colour;
+    }
+
+    &:hover {
+        color: $app-destructive-link-hover-colour;
+    }
+
+    // When focussed, the text colour needs to be darker to ensure that colour
+    // contrast is still acceptable against the focus colour
+    // Activated links are usually focused so this applies to them as well
+    &:active,
+    &:focus {
+        color: $app-destructive-link-active-colour;
+    }
+}
+
+.app-link--destructive {
+    @include app-link-style-destructive-no-visited-state;
+}
+
+.app-notification-banner--destructive {
+    border-color: govuk.$govuk-error-colour;
+    background-color: govuk.$govuk-error-colour;
+
+    .app-notification-banner__link {
+        @include govuk.govuk-link-style-error;
+    }
+}

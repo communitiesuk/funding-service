@@ -1,0 +1,20 @@
+@use "govuk";
+
+.app-\!-no-wrap {
+    white-space: nowrap !important;
+}
+.app-\!-border-top-line {
+    border-top: 1px solid govuk.govuk-colour("mid-grey") !important;
+}
+
+.app-\!-cell-width-200 {
+    @include govuk.govuk-media-query($from: desktop) {
+        width: 200px !important;
+    }
+}
+
+.app-\!-cell-width-300 {
+    @include govuk.govuk-media-query($from: desktop) {
+        width: 300px !important;
+    }
+}

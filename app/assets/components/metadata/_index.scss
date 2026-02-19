@@ -1,0 +1,17 @@
+@use "govuk";
+
+.app-metadata {
+    @include govuk.govuk-font(19);
+}
+
+.app-metadata__key {
+    @include govuk.govuk-typography-weight-bold(5);
+
+    display: inline;
+}
+
+.app-metadata__value {
+    @include govuk.govuk-responsive-margin(1, "left");
+
+    display: inline-block;
+}

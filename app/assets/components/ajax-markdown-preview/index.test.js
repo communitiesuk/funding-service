@@ -3,13 +3,13 @@
  */
 
 import "regenerator-runtime/runtime";
-import ajaxMarkdownPreview from ".";
+import ajaxMarkdownPreview from "./index.js";
 
 import {
     mockFetch,
     mockFetchWithDelay,
     mockFetchWithServerError,
-} from "../../test/test-helpers";
+} from "../../test/test-helpers.js";
 
 let source, target;
 

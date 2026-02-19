@@ -13,7 +13,7 @@ export default defineConfig({
                 "app/assets/main.scss",
                 "app/assets/main.js",
                 "app/assets/admin.scss",
-                "app/assets/js/cookie-consent/index.js",
+                "app/assets/components/cookie-consent/index.js",
             ],
             external: [
                 /assets\/fonts\/.*\.(woff|woff2)$/,
@@ -25,10 +25,11 @@ export default defineConfig({
     css: {
         preprocessorOptions: {
             scss: {
+                loadPaths: ["node_modules/govuk-frontend/dist"],
+                quietDeps: true,
                 silenceDeprecations: [
                     "global-builtin",
                     "slash-div",
-                    "import",
                     "color-functions",
                 ],
             },

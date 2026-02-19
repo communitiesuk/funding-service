@@ -1,0 +1,49 @@
+@use "govuk";
+
+.app-service-navigation__wrapper--sectional {
+    flex: 1;
+
+    .govuk-service-navigation__item:last-child {
+        margin-left: auto;
+    }
+
+    &--org-hidden {
+        @extend .app-service-navigation__wrapper--sectional;
+        @include govuk.govuk-media-query($from: tablet) {
+            .govuk-service-navigation__item:last-child {
+                display: none;
+            }
+        }
+    }
+
+    &--grant-and-org-hidden {
+        @extend .app-service-navigation__wrapper--sectional;
+        @include govuk.govuk-media-query($from: tablet) {
+            .govuk-service-navigation__item:nth-last-child(2) {
+                display: none;
+            }
+        }
+    }
+}
+
+.app-service-nav-org {
+    border-bottom: none;
+
+    .govuk-service-navigation__service-name {
+        padding-top: 20px;
+        padding-bottom: 0px;
+    }
+    .govuk-service-navigation__item {
+        padding-top: 20px;
+        padding-bottom: 0px;
+    }
+
+    @include govuk.govuk-media-query($until: tablet) {
+        .govuk-service-navigation__service-name {
+            padding-top: 0px;
+        }
+        .govuk-service-navigation__item {
+            padding-top: 0px;
+        }
+    }
+}

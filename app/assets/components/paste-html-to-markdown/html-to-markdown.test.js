@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import { htmlToMarkdown } from ".";
+import { htmlToMarkdown } from "./index.js";
 import fs from "fs";
 import path from "path";
 

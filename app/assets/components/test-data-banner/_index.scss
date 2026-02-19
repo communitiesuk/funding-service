@@ -1,0 +1,37 @@
+@use "govuk";
+
+.app-test-data-banner {
+    background-color: govuk.govuk-colour("orange");
+
+    &--container {
+        padding: 15px 0;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        @include govuk.govuk-media-query($until: tablet) {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+    }
+}
+
+.app-test-data-banner__inverse {
+    // https://github.com/alphagov/govuk-frontend/blob/b5884bcede951779c3e166f9bf3420f0e7f4ee4a/packages/govuk-frontend/src/govuk/settings/_colours-palette.scss#L77
+    box-shadow: 0 2px 0 #7a3c1c;
+
+    // a darker button colour because the background contrast is too high
+    color: #b7592a !important;
+}
+
+.app-test-data-banner__tag {
+    color: white;
+    flex-grow: 1;
+}
+
+.app-test-data-banner--standalone {
+    margin-top: govuk.govuk-spacing(2);
+    background-color: govuk.govuk-colour("orange");
+    padding: 15px 15px;
+}

@@ -1,0 +1,81 @@
+@use "govuk";
+
+.app-section-nav-container {
+    @include govuk.govuk-media-query($from: desktop) {
+        position: sticky;
+        top: govuk.govuk-spacing(2);
+        max-height: 100vh;
+        overflow-y: auto;
+        margin-bottom: govuk.govuk-spacing(5);
+    }
+}
+
+.app-section-content-container {
+    @include govuk.govuk-media-query($from: desktop) {
+        border-left: 1px solid govuk.$govuk-border-colour;
+        padding-left: govuk.govuk-spacing(6);
+        padding-bottom: govuk.govuk-spacing(7);
+    }
+}
+
+.app-section-nav-list__item {
+    @include govuk.govuk-media-query($until: mobile) {
+        display: flex;
+    }
+
+    a,
+    a:link,
+    a:visited {
+        display: block;
+        color: govuk.$govuk-link-colour;
+        background-color: inherit;
+        text-decoration: none;
+        padding: govuk.govuk-spacing(2);
+        border-left: 4px solid transparent;
+        background-color: inherit;
+    }
+
+    a:hover {
+        color: govuk.$govuk-link-hover-colour;
+        text-decoration: underline;
+    }
+
+    a:focus {
+        position: relative;
+        border-color: govuk.$govuk-focus-text-colour;
+        color: govuk.$govuk-focus-text-colour;
+        background-color: govuk.$govuk-focus-colour;
+    }
+}
+
+.app-section-nav-list__item--active {
+    a:link,
+    a:visited {
+        border-color: govuk.$govuk-link-colour;
+        color: govuk.$govuk-link-colour;
+        font-weight: bold;
+        background-color: govuk.govuk-colour("light-grey");
+    }
+
+    a:hover {
+        border-color: govuk.$govuk-link-hover-colour;
+        color: govuk.$govuk-link-hover-colour;
+        text-decoration: none;
+    }
+
+    a:focus {
+        border-color: govuk.$govuk-focus-text-colour;
+        color: govuk.$govuk-focus-text-colour;
+        background-color: govuk.$govuk-focus-colour;
+    }
+}
+
+.app-section-nav-list {
+    @include govuk.govuk-font(16);
+}
+
+.app-full-screen-with-section-nav {
+    @include govuk.govuk-media-query($from: desktop) {
+        padding-bottom: 0;
+    }
+}

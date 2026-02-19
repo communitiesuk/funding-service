@@ -1,7 +1,7 @@
 // Adapted from the [Paste HTML to govspeak](https://github.com/alphagov/paste-html-to-govspeak) package.
 
-import htmlToMarkdown from "./html-to-markdown";
-import replaceBulletCharacters from "./replace-bullet-characters";
+import htmlToMarkdown from "./html-to-markdown.js";
+import replaceBulletCharacters from "./replace-bullet-characters.js";
 
 const insertTextAtCursor = (field, contentToInsert) => {
     const selectionStart = field.selectionStart;

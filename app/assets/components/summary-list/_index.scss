@@ -1,0 +1,39 @@
+@use "govuk";
+
+$inset-nested-rows: 30px;
+
+.govuk-summary-list__row dt {
+    padding-left: 5px;
+}
+
+.app-summary-list-group-row {
+    background-color: govuk.govuk-colour("light-grey");
+}
+
+.app-summary-list-group-row:first-child {
+    border-top: 1px solid govuk.$govuk-border-colour;
+}
+
+.app-summary-list-group-row .govuk-summary-list__key {
+    font-weight: bold !important;
+}
+
+.app-summary-list-group-nested {
+    box-shadow: inset 4px 0 0 0 govuk.$govuk-border-colour;
+}
+
+.app-summary-list-group-nested dt::before {
+    content: "—";
+    margin-left: -28px;
+    color: #b1b4b6;
+    font-weight: bold;
+    font-size: 0.7em;
+}
+
+.app-summary-list-group-nested .govuk-summary-list__key {
+    padding-left: $inset-nested-rows;
+}
+
+.app-summary-list-group-nested--final {
+    border-bottom: 2px solid govuk.$govuk-border-colour;
+}

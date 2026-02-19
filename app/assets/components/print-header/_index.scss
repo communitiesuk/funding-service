@@ -1,0 +1,23 @@
+@use "govuk";
+
+.app-print-header {
+    margin-left: govuk.govuk-spacing(6);
+    margin-right: govuk.govuk-spacing(6);
+    padding-top: govuk.govuk-spacing(4);
+    padding-bottom: govuk.govuk-spacing(4);
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+}
+
+.app-print-header-logo {
+    border-left: 3px solid black;
+    padding-left: 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    svg {
+        margin-right: 5px;
+        margin-bottom: 3px;
+    }
+}

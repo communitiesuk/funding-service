@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import replaceBulletCharacters from "./replace-bullet-characters";
+import replaceBulletCharacters from "./replace-bullet-characters.js";
 
 it("converts bullet characters to markdown bullets", () => {
     expect(replaceBulletCharacters("•")).toEqual("* ");

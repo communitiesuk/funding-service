@@ -1,0 +1,15 @@
+@use "govuk";
+
+.app-link-button {
+    @include govuk.govuk-font(19);
+    color: govuk.$govuk-link-colour;
+    background: none;
+    border: 0;
+    padding: 0;
+    text-decoration: underline;
+
+    &:hover {
+        cursor: pointer;
+        text-decoration: none;
+    }
+}

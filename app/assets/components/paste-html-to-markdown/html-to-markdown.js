@@ -1,7 +1,7 @@
 // Adapted from the [Paste HTML to govspeak](https://github.com/alphagov/paste-html-to-govspeak) package
 
 import TurndownService from "turndown";
-import replaceBulletCharacters from "./replace-bullet-characters";
+import replaceBulletCharacters from "./replace-bullet-characters.js";
 
 const service = new TurndownService({
     bulletListMarker: "*",

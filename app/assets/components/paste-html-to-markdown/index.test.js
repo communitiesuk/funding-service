@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import { pasteListener } from ".";
+import { pasteListener } from "./index.js";
 
 let textarea;
 

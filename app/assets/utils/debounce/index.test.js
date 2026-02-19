@@ -1,4 +1,4 @@
-import debounce from ".";
+import debounce from "./index.js";
 
 // Tell Vitest to mock all timeout functions
 vi.useFakeTimers();

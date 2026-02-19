@@ -1,10 +1,10 @@
 import { initAll } from "govuk-frontend";
 import accessibleAutocomplete from "accessible-autocomplete";
-import { pasteListener } from "./js/paste-html-to-markdown";
-import ajaxMarkdownPreview from "./js/ajax-markdown-preview";
-import textareaNoNewlines from "./js/textarea-no-newlines/index.js";
-import contextAwareEditor from "./js/context-aware-editor/index.js";
-import { initSectionNavScroll } from "./js/submission-section-nav/index.js";
+import { pasteListener } from "./components/paste-html-to-markdown";
+import ajaxMarkdownPreview from "./components/ajax-markdown-preview";
+import textareaNoNewlines from "./components/textarea-no-newlines/index.js";
+import contextAwareEditor from "./components/context-aware-editor/index.js";
+import { initSectionNavScroll } from "./components/submission-section-nav/index.js";
 
 initAll();
 initSectionNavScroll();

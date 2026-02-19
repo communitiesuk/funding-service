@@ -1,3 +1,5 @@
+@use "govuk";
+
 // Context Aware Editor Styles
 // Integrates styles for toolbar and reference highlighting
 
@@ -19,38 +21,38 @@
 
         &:focus-within {
             box-shadow: inset 0 0 0 2px;
-            outline: 3px solid $govuk-focus-colour;
+            outline: 3px solid govuk.$govuk-focus-colour;
             outline-offset: 0;
         }
     }
 
     .app-context-aware-editor__toolbar-button-group {
         display: flex;
-        gap: 0 govuk-px-to-rem(1);
+        gap: 0 govuk.govuk-px-to-rem(1);
     }
 
     .app-context-aware-editor__toolbar-button {
-        width: govuk-px-to-rem(40);
-        height: govuk-px-to-rem(40);
+        width: govuk.govuk-px-to-rem(40);
+        height: govuk.govuk-px-to-rem(40);
         background-position: 50% 50%;
         background-repeat: no-repeat;
         background-size: 100% 100%;
         margin: 0;
 
         &--h2 {
-            background-image: url($govuk-images-path + "markdown-editor-h2.svg");
+            background-image: url(govuk.$govuk-images-path + "markdown-editor-h2.svg");
         }
 
         &--bullet-list {
-            background-image: url($govuk-images-path + "markdown-editor-bullet-list.svg");
+            background-image: url(govuk.$govuk-images-path + "markdown-editor-bullet-list.svg");
         }
 
         &--numbered-list {
-            background-image: url($govuk-images-path + "markdown-editor-numbered-list.svg");
+            background-image: url(govuk.$govuk-images-path + "markdown-editor-numbered-list.svg");
         }
 
         &--link {
-            background-image: url($govuk-images-path + "markdown-editor-link.svg");
+            background-image: url(govuk.$govuk-images-path + "markdown-editor-link.svg");
         }
     }
 }
@@ -90,23 +92,23 @@
     z-index: 0;
 
     // Match textarea font exactly
-    @include govuk-font($size: 19, $line-height: 1.25em);
+    @include govuk.govuk-font($size: 19, $line-height: 1.25em);
 }
 
 // Style for valid references
 .app-context-aware-editor--valid-reference {
-    background-color: govuk-colour("yellow");
+    background-color: govuk.govuk-colour("yellow");
     border-radius: 2px;
 }
 
 // Improve text contrast when references are within links
 .govuk-link .app-context-aware-editor--valid-reference {
-    color: govuk-colour("dark-blue");
+    color: govuk.govuk-colour("dark-blue");
 }
 
 // Notification area for screen readers (if needed for toolbar)
 .app-context-aware-editor__notification-area {
-    @include govuk-visually-hidden;
+    @include govuk.govuk-visually-hidden;
 }
 
 // Error message styling
@@ -116,7 +118,7 @@
 
 // Preview styles (from markdown-editor-component)
 .app-context-aware-editor__preview-area {
-    border: 2px solid $govuk-border-colour;
+    border: 2px solid govuk.$govuk-border-colour;
     padding: 30px;
     margin: 0 0 1em;
 }
@@ -130,13 +132,13 @@
 }
 
 .govuk-frontend-supported .app-context-aware-editor__preview-intro {
-    @include govuk-media-query($from: tablet) {
+    @include govuk.govuk-media-query($from: tablet) {
         display: none;
     }
 }
 
 .govuk-frontend-supported .app-context-aware-editor__preview-area {
-    @include govuk-media-query($from: tablet) {
+    @include govuk.govuk-media-query($from: tablet) {
         border: 0;
         padding: 0;
         margin-bottom: 0;
@@ -144,7 +146,7 @@
 }
 
 .govuk-frontend-supported .app-context-aware-editor__edit-link {
-    @include govuk-media-query($from: tablet) {
+    @include govuk.govuk-media-query($from: tablet) {
         display: none;
     }
 }
@@ -174,5 +176,22 @@
 .app-context-aware-editor--wrapper.app-context-aware-editor--with-toolbar {
     .app-context-aware-editor__editor-container {
         margin-top: 0; // Toolbar container handles its own spacing
+    }
+}
+
+.app-context-aware--container {
+    margin-bottom: govuk.govuk-spacing(0);
+}
+
+// Position "Reference data" buttons at bottom-right corner of text inputs
+.app-context-aware--button {
+    position: relative;
+    float: right;
+    width: auto;
+    margin: -50px - govuk.govuk-spacing(4) 10px 10px;
+    z-index: 1;
+
+    @include govuk.govuk-media-query($from: tablet) {
+        margin-top: -50px - govuk.govuk-spacing(6);
     }
 }
