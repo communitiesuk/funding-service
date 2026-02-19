@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 from app import ReportAdminEmailTypeEnum
 from app.common.data.interfaces.organisations import get_organisation_count
-from app.common.data.interfaces.user import get_user_by_email
+from app.common.data.interfaces.user import get_user, get_user_by_email
 from app.common.data.models import Organisation
 from app.common.data.types import (
     CollectionStatusEnum,
@@ -1722,7 +1722,7 @@ class TestManageOrganisations:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Created or updated 2 organisations.")
+        assert page_has_flash(soup, "Created or updated 1 organisations and 1 test organisations.")
 
         assert get_organisation_count() == initial_count
 
@@ -1925,7 +1925,7 @@ class TestSetupGrantRecipients:
         )
         org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
         test_org2 = factories.organisation.create(
-            name="Org 2 (test)", mode=OrganisationModeEnum.TEST, external_id=org1.external_id, can_manage_grants=False
+            name="Org 2 (test)", mode=OrganisationModeEnum.TEST, external_id=org2.external_id, can_manage_grants=False
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
@@ -1951,6 +1951,58 @@ class TestSetupGrantRecipients:
         recipient_org_ids = {gr.organisation_id for gr in grant_recipients}
         assert test_org1.id in recipient_org_ids
         assert test_org2.id in recipient_org_ids
+
+    def test_post_sets_up_grant_team_members_in_test_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
+        test_org1 = factories.organisation.create(
+            name="Org 1 (test)", mode=OrganisationModeEnum.TEST, external_id=org1.external_id, can_manage_grants=False
+        )
+        test_org2 = factories.organisation.create(
+            name="Org 2 (test)", mode=OrganisationModeEnum.TEST, external_id=org2.external_id, can_manage_grants=False
+        )
+        team_member1 = factories.user.create()
+        factories.user_role.create(
+            user=team_member1,
+            organisation=_get_grant_managing_organisation(),
+            grant=grant,
+            permissions=[RoleEnum.MEMBER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
+            data={"recipients": [str(org1.id)], "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        user = get_user(team_member1.id)
+        assert not any(
+            r
+            for r in user.roles
+            if r.organisation == org1
+            and r.grant == grant
+            and RoleEnum.DATA_PROVIDER in r.permissions
+            and RoleEnum.CERTIFIER in r.permissions
+        ), "Should not be added to the live grant recipient organisation"
+        assert any(
+            r
+            for r in user.roles
+            if r.organisation == test_org1
+            and r.grant == grant
+            and RoleEnum.DATA_PROVIDER in r.permissions
+            and RoleEnum.CERTIFIER in r.permissions
+        ), "Should be added to the test grant recipient organisation"
+        assert not any(r for r in user.roles if r.organisation == org2 and r.grant == grant), (
+            "Should not be added to a non-grant-recipient organisation"
+        )
+        assert not any(r for r in user.roles if r.organisation == test_org2 and r.grant == grant), (
+            "Should not be added to a non-grant-recipient test organisation"
+        )
 
     def test_post_redirects_to_tasklist(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

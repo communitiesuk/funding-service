@@ -437,12 +437,24 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             }
 
             test_organisations = get_organisations(mode=OrganisationModeEnum.TEST)
-            test_organisation_ids = [
-                org.id for org in test_organisations if org.external_id in live_organisation_external_ids
-            ]
+            filtered_test_organisations = list(
+                filter(lambda org: org.external_id in live_organisation_external_ids, test_organisations)
+            )
+            test_organisation_ids = [org.id for org in filtered_test_organisations]
             create_grant_recipients(
                 grant=grant, organisation_ids=test_organisation_ids, mode=GrantRecipientModeEnum.TEST
             )
+
+            # Set up grant team members as data providers/certifiers for the test grant recipients
+            for test_organisation in filtered_test_organisations:
+                for grant_team_member in grant.grant_team_users:
+                    add_permissions_to_user(
+                        grant_team_member,
+                        permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+                        organisation_id=test_organisation.id,
+                        grant_id=grant.id,
+                    )
+
             flash(f"Created {len(form.recipients.data)} grant recipients.", "success")  # type: ignore[arg-type]
             return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
