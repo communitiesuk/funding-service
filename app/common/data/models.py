@@ -218,6 +218,7 @@ class Collection(BaseModel):
     submission_name_question: Mapped["Question | None"] = relationship(
         "Question", foreign_keys=[submission_name_question_id]
     )
+    submission_guidance: Mapped[str | None]
 
     # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
     _submissions: Mapped[list[Submission]] = relationship(

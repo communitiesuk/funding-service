@@ -494,6 +494,20 @@ class TestUpdateCollection:
                 submission_name_question_id=question.id,
             )
 
+    def test_update_collection_submission_guidance(self, db_session, factories):
+        collection = factories.collection.create()
+
+        updated = update_collection(collection, submission_guidance="## Some markdown heading")
+
+        assert updated.submission_guidance == "## Some markdown heading"
+
+    def test_update_collection_clear_submission_guidance(self, db_session, factories):
+        collection = factories.collection.create(submission_guidance="Existing guidance")
+
+        updated = update_collection(collection, submission_guidance=None)
+
+        assert updated.submission_guidance is None
+
     def test_update_collection_without_arguments(self, db_session, factories):
         collection = factories.collection.create(
             name="Original Name",

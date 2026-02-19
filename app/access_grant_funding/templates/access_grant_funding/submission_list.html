@@ -12,8 +12,8 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
-      <dl class="app-metadata">
+    <div class="govuk-grid-column-two-thirds">
+      <dl class="app-metadata govuk-!-margin-bottom-6">
         <dt class="app-metadata__key">Submission deadline:</dt>
         <dd class="app-metadata__value" data-testid="submission-status">
           {% if collection.submission_period_end_date %}
@@ -24,8 +24,17 @@
         </dd>
       </dl>
 
+      <div class="govuk-!-margin-bottom-7">
+        {% if collection.submission_guidance %}
+          {{ collection.submission_guidance | govuk_markdown }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
       {% if submission_helpers|length == 0 %}
-        <p class="govuk-body">You have not started any reports yet.</p>
+        <p class="govuk-body govuk-!-margin-bottom-7">You have not started any reports yet.</p>
       {% else %}
         {% set rows=[] %}
         {% for submission_helper in submission_helpers %}
