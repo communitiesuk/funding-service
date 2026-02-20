@@ -3,6 +3,7 @@
     {
       "collections": [
         {
+          "allow_multiple_submissions": false,
           "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "0b264b13-eacd-4ccc-b187-9fcdb23c8c7a",
@@ -17,6 +18,7 @@
           "type": "monitoring report"
         },
         {
+          "allow_multiple_submissions": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -27,6 +29,7 @@
           "type": "monitoring report"
         },
         {
+          "allow_multiple_submissions": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
@@ -41,6 +44,7 @@
           "type": "monitoring report"
         },
         {
+          "allow_multiple_submissions": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "f8b061f2-8f9d-43d3-8ff7-d9da0f8048f5",
@@ -2128,6 +2132,7 @@
     {
       "collections": [
         {
+          "allow_multiple_submissions": false,
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
           "grant_id": "df51f309-718c-4dd4-bd76-0bd6df032e4b",
           "id": "09e8d677-5fce-4081-9434-eefac1348e12",
