@@ -233,6 +233,67 @@ class NumberTypeEnum(enum.StrEnum):
     DECIMAL = "Decimal number"
 
 
+class MaximumFileSize(enum.StrEnum):
+    SMALL = "Small"
+    MEDIUM = "Medium"
+    LARGE = "Large"
+
+    @property
+    def human_readable(self) -> str:
+        return {
+            MaximumFileSize.SMALL: "7MB",
+            MaximumFileSize.MEDIUM: "30MB",
+            MaximumFileSize.LARGE: "100MB",
+        }[self]
+
+    @property
+    def max_bytes(self) -> int:
+        return {
+            MaximumFileSize.SMALL: 7 * 1024 * 1024,
+            MaximumFileSize.MEDIUM: 30 * 1024 * 1024,
+            MaximumFileSize.LARGE: 100 * 1024 * 1024,
+        }[self]
+
+
+class FileUploadTypes(enum.StrEnum):
+    CSV = "CSV"
+    IMAGE = "image"
+    SPREADSHEET = "Microsoft Excel Spreadsheet"
+    DOCUMENT = "Microsoft Word Document"
+    PDF = "PDF"
+    TEXT = "text"
+
+    @property
+    def extensions(self) -> list[str]:
+        return {
+            FileUploadTypes.CSV: [".csv"],
+            FileUploadTypes.IMAGE: [".jpeg", ".jpg", ".png"],
+            FileUploadTypes.SPREADSHEET: [".xlsx"],
+            FileUploadTypes.DOCUMENT: [".docx", ".doc"],
+            FileUploadTypes.PDF: [".pdf"],
+            FileUploadTypes.TEXT: [".json", ".odt", ".rtf", ".txt"],
+        }[self]
+
+    @property
+    def mime_types(self) -> list[str]:
+        return {
+            FileUploadTypes.CSV: ["text/csv"],
+            FileUploadTypes.IMAGE: ["image/jpeg", "image/png"],
+            FileUploadTypes.SPREADSHEET: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+            FileUploadTypes.DOCUMENT: [
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ],
+            FileUploadTypes.PDF: ["application/pdf"],
+            FileUploadTypes.TEXT: [
+                "application/json",
+                "application/vnd.oasis.opendocument.text",
+                "application/rtf",
+                "text/plain",
+            ],
+        }[self]
+
+
 class QuestionPresentationOptions(BaseModel):
     # This is for radios (and maybe checkboxes) question types; the last item will be separated from the rest of the
     # data source items, visually by an 'or' break. It is meant to indicate that Other options are
@@ -294,12 +355,21 @@ class QuestionDataOptions(BaseModel):
     number_type: NumberTypeEnum | None = None
     max_decimal_places: int | None = None
 
+    # file uploads
+    file_types_supported: list[FileUploadTypes] | None = None
+    maximum_file_size: MaximumFileSize | None = None
+
     @staticmethod
     def from_question_form(form: QuestionForm) -> QuestionDataOptions:
         match form._question_type:
             case QuestionDataType.NUMBER:
                 return QuestionDataOptions(
                     number_type=form.number_type.data, max_decimal_places=form.max_decimal_places.data
+                )
+            case QuestionDataType.FILE_UPLOAD:
+                return QuestionDataOptions(
+                    file_types_supported=form.file_types_supported.data,
+                    maximum_file_size=form.maximum_file_size.data,
                 )
             case _:
                 return QuestionDataOptions()
