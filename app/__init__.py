@@ -23,8 +23,10 @@ from app.common.data.types import (
     CollectionStatusEnum,
     ComponentType,
     ExpressionType,
+    FileUploadTypes,
     FormRunnerState,
     GrantStatusEnum,
+    MaximumFileSize,
     NumberTypeEnum,
     OrganisationType,
     QuestionDataType,
@@ -296,6 +298,8 @@ def create_app() -> Flask:  # noqa: C901
                 number_type_enum=NumberTypeEnum,
                 component_type_enum=ComponentType,
                 report_admin_email_type_enum=ReportAdminEmailTypeEnum,
+                file_upload_types_enum=FileUploadTypes,
+                maximum_file_size_enum=MaximumFileSize,
             ),
         )
 

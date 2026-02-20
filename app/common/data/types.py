@@ -233,6 +233,28 @@ class NumberTypeEnum(enum.StrEnum):
     DECIMAL = "Decimal number"
 
 
+class MaximumFileSize(enum.StrEnum):
+    SMALL = "Small"
+    MEDIUM = "Medium"
+    LARGE = "Large"
+
+    @property
+    def human_readable(self) -> str:
+        return {
+            MaximumFileSize.SMALL: "7MB",
+            MaximumFileSize.MEDIUM: "30MB",
+            MaximumFileSize.LARGE: "100MB",
+        }[self]
+
+    @property
+    def max_bytes(self) -> int:
+        return {
+            MaximumFileSize.SMALL: 7 * 1024 * 1024,
+            MaximumFileSize.MEDIUM: 30 * 1024 * 1024,
+            MaximumFileSize.LARGE: 100 * 1024 * 1024,
+        }[self]
+
+
 class FileUploadTypes(enum.StrEnum):
     CSV = "CSV"
     IMAGE = "image"
@@ -335,6 +357,7 @@ class QuestionDataOptions(BaseModel):
 
     # file uploads
     file_types_supported: list[FileUploadTypes] | None = None
+    maximum_file_size: MaximumFileSize | None = None
 
     @staticmethod
     def from_question_form(form: QuestionForm) -> QuestionDataOptions:
@@ -344,7 +367,10 @@ class QuestionDataOptions(BaseModel):
                     number_type=form.number_type.data, max_decimal_places=form.max_decimal_places.data
                 )
             case QuestionDataType.FILE_UPLOAD:
-                return QuestionDataOptions(file_types_supported=form.file_types_supported.data)
+                return QuestionDataOptions(
+                    file_types_supported=form.file_types_supported.data,
+                    maximum_file_size=form.maximum_file_size.data,
+                )
             case _:
                 return QuestionDataOptions()
 

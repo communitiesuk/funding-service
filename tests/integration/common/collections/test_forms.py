@@ -1,3 +1,4 @@
+import io
 import uuid
 from datetime import date
 
@@ -9,7 +10,13 @@ from wtforms.validators import DataRequired
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import create_question
-from app.common.data.types import FileUploadTypes, NumberTypeEnum, QuestionDataOptions, QuestionDataType
+from app.common.data.types import (
+    FileUploadTypes,
+    MaximumFileSize,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionDataType,
+)
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
@@ -355,3 +362,40 @@ def test_file_upload_field_accepts_file_types(factories, supported_types, file_i
     assert valid is will_validate
     if will_validate:
         assert form.get_answer_to_question(question).filename == file_input
+
+
+@pytest.mark.parametrize(
+    "max_file_size, file_byte_length, will_validate",
+    [
+        (MaximumFileSize.SMALL, 7 * 1024 * 1024, True),
+        (MaximumFileSize.SMALL, 7 * 1024 * 1024 + 1, False),
+        (MaximumFileSize.MEDIUM, 30 * 1024 * 1024, True),
+        (MaximumFileSize.MEDIUM, 30 * 1024 * 1024 + 1, False),
+        (MaximumFileSize.LARGE, 100 * 1024 * 1024, True),
+        (MaximumFileSize.LARGE, 100 * 1024 * 1024 + 1, False),
+    ],
+)
+def test_file_upload_field_validates_maximum_file_size(factories, max_file_size, file_byte_length, will_validate):
+    question = factories.question.create(
+        id=uuid.UUID("e4bd98ab-41ef-4d23-b1e5-9c0404891e7a"),
+        data_type=QuestionDataType.FILE_UPLOAD,
+        name="test file",
+        data_options=QuestionDataOptions(
+            file_types_supported=[FileUploadTypes.PDF],
+            maximum_file_size=max_file_size,
+        ),
+    )
+    _FormClass = build_question_form(
+        [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+    )
+    file_storage = FileStorage(
+        stream=io.BytesIO(b"\x00" * file_byte_length),
+        filename="document.pdf",
+    )
+    form = _FormClass(formdata=MultiDict({question.safe_qid: file_storage}))
+    valid = form.validate()
+    assert valid is will_validate
+    if not will_validate:
+        assert (
+            f"The selected file must be smaller than {max_file_size.human_readable}." in form.errors[question.safe_qid]
+        )

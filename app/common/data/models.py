@@ -24,6 +24,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
+    MaximumFileSize,
     NumberTypeEnum,
     OrganisationModeEnum,
     OrganisationStatus,
@@ -697,6 +698,14 @@ class Question(Component, SafeQidMixin):
     def file_types_supported(self) -> list[FileUploadTypes] | None:
         return (
             (self.data_options.file_types_supported or [t for t in FileUploadTypes])
+            if self.data_type == QuestionDataType.FILE_UPLOAD
+            else None
+        )
+
+    @property
+    def maximum_file_size(self) -> MaximumFileSize | None:
+        return (
+            (self.data_options.maximum_file_size or MaximumFileSize.SMALL)
             if self.data_type == QuestionDataType.FILE_UPLOAD
             else None
         )

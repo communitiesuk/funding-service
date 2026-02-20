@@ -130,6 +130,7 @@
           <li>{{ file_type.value }} ({{ file_type.extensions | join(", ") }})</li>
         {% endfor %}
       </ul>
+      <p class="govuk-body">Your file must be smaller than {{ question.maximum_file_size.human_readable }}.</p>
     {% endset %}
     {{
       govukDetails({
