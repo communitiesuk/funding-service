@@ -1863,7 +1863,7 @@ class TestChooseQuestionType:
         (
             ["authenticated_grant_member_client", False, 9],
             ["authenticated_grant_admin_client", True, 9],
-            ["authenticated_platform_admin_client", True, 10]
+            ["authenticated_platform_admin_client", True, 10],
         ),
     )
     def test_get(self, request, client_fixture, can_access, expected_question_types, factories, db_session):
@@ -1872,9 +1872,7 @@ class TestChooseQuestionType:
         report = factories.collection.create(grant=grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
-        response = client.get(
-            url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, form_id=form.id)
-        )
+        response = client.get(url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, form_id=form.id))
 
         if not can_access:
             assert response.status_code == 403
@@ -1882,8 +1880,10 @@ class TestChooseQuestionType:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "What type of question do you need?"
-            
-            assert len(soup.select("input[type=radio]")) == expected_question_types, "Should show an option for each kind of question"
+
+            assert len(soup.select("input[type=radio]")) == expected_question_types, (
+                "Should show an option for each kind of question"
+            )
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")

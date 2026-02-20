@@ -1797,7 +1797,7 @@ class TestUpdateQuestion:
         assert updated_question.name == "Updated Question Name"
         assert updated_question.data_type == QuestionDataType.DATE
         assert updated_question.slug == "updated-question"
-    
+
     def test_file_upload(self, db_session, factories):
         form = factories.form.create()
         question = create_question(
