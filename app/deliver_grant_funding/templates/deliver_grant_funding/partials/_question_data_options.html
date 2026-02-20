@@ -23,5 +23,32 @@
             ]
       })
     }}
+  {% elif data_type == enum.question_type.FILE_UPLOAD %}
+    {% set hint_items = [] %}
+    {% for item in enum.file_upload_types_enum %}
+      {%
+        do hint_items.append({
+          "hint": {
+            "text": (item.extensions | join(", "))
+          }
+        })
+      %}
+    {% endfor %}
+    {{
+      form.file_types_supported(
+          params={
+            "hint": {
+              "text": "Grant recipients will be shown and limited to the file types selected"
+            },
+            "fieldset": {
+              "legend": {
+              "text":"Accepted file types",
+              "classes": "govuk-!-font-weight-bold"
+            },
+          },
+          "items": hint_items
+        }
+      )
+    }}
   {% endif %}
 {% endmacro %}
