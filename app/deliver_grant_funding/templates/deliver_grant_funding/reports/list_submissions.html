@@ -17,6 +17,21 @@
 {% endblock beforeContent %}
 
 {% block content %}
+  {% if delete_all_form %}
+    {% set banner_html %}
+      <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to reset all test submissions?</p>
+      <form method="post" novalidate>
+        {{ delete_all_form.csrf_token }}
+        <div class="govuk-button-group govuk-!-margin-bottom-0">
+          {{ delete_all_form.confirm_deletion(params={"text": "Yes, reset all test submissions", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+          <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=report.id, submission_mode=submission_mode) }}">Cancel</a>
+        </div>
+      </form>
+    {% endset %}
+
+    {{ govukNotificationBanner(params={"role": "alert", "titleText": "Important", "classes": "", "html": banner_html}) }}
+  {% endif %}
+
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.TEST_SUBMISSION_RESET ]) %}
@@ -25,6 +40,29 @@
           {% set user_can_test_grant_recipient_journey = report.grant.test_grant_recipients and report.grant in current_user.access_grants %}
             <h3 class="govuk-notification-banner__heading">Test submission reset</h3>
             <p class="govuk-body">Your team's test submission has been reset.</p>
+
+            {% if user_can_test_grant_recipient_journey %}
+              <p class="govuk-body">
+                To start again you can
+                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=report.grant.id, report_id=report.id) }}"> test the grant recipient journey for this report </a
+                >.
+              </p>
+            {% endif %}
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": test_submission_reset_html,
+              "type":"success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.TEST_SUBMISSIONS_RESET ]) %}
+        {% if flashes %}
+          {% set test_submission_reset_html %}
+          {% set user_can_test_grant_recipient_journey = report.grant.test_grant_recipients and report.grant in current_user.access_grants %}
+            <h3 class="govuk-notification-banner__heading">Test submissions reset</h3>
+            <p class="govuk-body">All test submissions have been reset.</p>
 
             {% if user_can_test_grant_recipient_journey %}
               <p class="govuk-body">
@@ -165,4 +203,15 @@
       {% endif %}
     </div>
   </div>
+
+  {% if submission_mode == enum.submission_mode.TEST %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage test submissions</h2>
+        <ul class="govuk-list govuk-list--spaced">
+          <li><a class="govuk-link govuk-link--no-visited-state" href="?delete_all">Reset all test submissions</a></li>
+        </ul>
+      </div>
+    </div>
+  {% endif %}
 {% endblock content %}

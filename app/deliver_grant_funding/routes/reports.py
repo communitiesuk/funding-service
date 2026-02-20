@@ -42,6 +42,7 @@ from app.common.data.interfaces.collections import (
     raise_if_nested_group_creation_not_valid_here,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
+    reset_all_test_submissions,
     reset_test_submission,
     update_collection,
     update_form,
@@ -2227,11 +2228,31 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>"
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
 def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: SubmissionModeEnum) -> ResponseReturnValue:
     report = interfaces.collections.get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    delete_all_form = GenericConfirmDeletionForm() if "delete_all" in request.args else None
+    if delete_all_form and delete_all_form.validate_on_submit():
+        if submission_mode != SubmissionModeEnum.TEST:
+            raise abort(400)
+
+        reset_all_test_submissions(report)
+
+        flash("All test submissions reset", FlashMessageType.TEST_SUBMISSIONS_RESET)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=grant_id,
+                report_id=report_id,
+                submission_mode=submission_mode,
+            )
+        )
+
     helper = CollectionHelper(collection=report, submission_mode=submission_mode)
 
     return render_template(
@@ -2240,6 +2261,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         report=report,
         helper=helper,
         submission_mode=submission_mode,
+        delete_all_form=delete_all_form if submission_mode == SubmissionModeEnum.TEST else None,
     )
 
 

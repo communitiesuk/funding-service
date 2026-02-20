@@ -50,6 +50,7 @@ from app.common.data.interfaces.collections import (
     raise_if_question_has_any_dependencies,
     remove_add_another_answers_at_index,
     remove_question_expression,
+    reset_all_test_submissions,
     reset_test_submission,
     update_collection,
     update_group,
@@ -4248,3 +4249,43 @@ class TestResetTestSubmission:
         # Attempt to reset a live submission should raise ValueError
         with pytest.raises(ValueError, match="Can only reset submissions in TEST mode"):
             reset_test_submission(collection.live_submissions[0])
+
+
+class TestResetAllTestSubmissions:
+    def test_deletes_all_test_submissions_and_their_events(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__test=3)
+        test_submissions = collection.test_submissions
+        test_submission_ids = [s.id for s in test_submissions]
+
+        for submission in test_submissions:
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+
+        reset_all_test_submissions(collection)
+
+        remaining_submissions = db_session.query(Submission).where(Submission.id.in_(test_submission_ids)).all()
+        remaining_events = (
+            db_session.query(SubmissionEvent).where(SubmissionEvent.submission_id.in_(test_submission_ids)).all()
+        )
+
+        assert len(remaining_submissions) == 0
+        assert len(remaining_events) == 0
+
+    def test_does_not_delete_live_submissions(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__test=2, create_submissions__live=2)
+
+        for submission in collection.test_submissions + collection.live_submissions:
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+
+        live_submission_ids = [s.id for s in collection.live_submissions]
+
+        reset_all_test_submissions(collection)
+
+        remaining_test = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.TEST).all()
+        remaining_live = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.LIVE).all()
+        remaining_live_events = (
+            db_session.query(SubmissionEvent).where(SubmissionEvent.submission_id.in_(live_submission_ids)).all()
+        )
+
+        assert len(remaining_test) == 0
+        assert len(remaining_live) == 2
+        assert len(remaining_live_events) == 2

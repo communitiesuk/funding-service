@@ -5821,6 +5821,164 @@ class TestListSubmissions:
         tag_texts = {tag.text.strip() for tag in submission_tags}
         assert "Not started" in tag_texts
 
+    def test_test_mode_shows_reset_all_link(self, authenticated_grant_member_client, factories, db_session):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_submissions__test=1,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.TEST,
+            )
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert response.status_code == 200
+        assert page_has_link(soup, "Reset all test submissions")
+
+    def test_live_mode_does_not_show_reset_all_link(self, authenticated_grant_member_client, factories, db_session):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_submissions__live=1,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert response.status_code == 200
+        assert not page_has_link(soup, "Reset all test submissions")
+
+    def test_delete_all_query_param_shows_confirmation_banner(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_submissions__test=1,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.TEST,
+                delete_all=True,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "Are you sure you want to reset all test submissions?" in response.text
+
+    def test_post_resets_all_test_submissions(self, authenticated_grant_member_client, factories, db_session):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_submissions__test=3,
+        )
+        test_submission_ids = [s.id for s in report.test_submissions]
+
+        for submission in report.test_submissions:
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+
+        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.TEST,
+                delete_all=True,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        remaining_submissions = db_session.query(Submission).where(Submission.id.in_(test_submission_ids)).all()
+        remaining_events = (
+            db_session.query(SubmissionEvent).where(SubmissionEvent.submission_id.in_(test_submission_ids)).all()
+        )
+        assert len(remaining_submissions) == 0
+        assert len(remaining_events) == 0
+
+    def test_post_redirects_with_flash_message(self, authenticated_grant_member_client, factories, db_session):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_submissions__test=1,
+        )
+
+        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.TEST,
+                delete_all=True,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_submissions",
+            grant_id=authenticated_grant_member_client.grant.id,
+            report_id=report.id,
+            submission_mode=SubmissionModeEnum.TEST,
+        )
+        flashes = get_test_flashes(authenticated_grant_member_client, FlashMessageType.TEST_SUBMISSIONS_RESET)
+        assert flashes == ["All test submissions reset"]
+
+    def test_post_on_live_view_400s_and_does_not_delete_anything(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_submissions__test=2,
+            create_submissions__live=2,
+        )
+        live_submission_ids = [s.id for s in report.live_submissions]
+        test_submission_ids = [s.id for s in report.test_submissions]
+
+        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                delete_all=True,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 400
+
+        remaining_live = db_session.query(Submission).where(Submission.id.in_(live_submission_ids)).all()
+        remaining_test = db_session.query(Submission).where(Submission.id.in_(test_submission_ids)).all()
+
+        assert len(remaining_live) == 2
+        assert len(remaining_test) == 2
+
 
 class TestListSubmissionsMultipleSubmissions:
     def test_multi_submission_table_shows_submission_display_names(
