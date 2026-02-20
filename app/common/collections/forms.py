@@ -5,9 +5,11 @@ from typing import Any, cast
 
 from flask import current_app
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovDateInput,
+    GovFileInput,
     GovRadioInput,
     GovSubmitInput,
     GovTextArea,
@@ -48,6 +50,7 @@ _accepted_fields = (
     | SelectMultipleField
     | DateField
     | DecimalField
+    | FileField
 )
 
 
@@ -114,7 +117,7 @@ class DynamicQuestionForm(FlaskForm):
 
     @classmethod
     def attach_field(cls, question: Question, field: Field) -> None:
-        setattr(cls, question.safe_qid, cast(_accepted_fields, field))
+        setattr(cls, question.safe_qid, cast(_accepted_fields, field))  # type: ignore[valid-type]
 
     def render_question(self, question: Question, params: dict[str, Any] | None = None) -> str:
         return cast(str, getattr(self, question.safe_qid)(params=params))
@@ -163,7 +166,7 @@ def build_question_form(  # noqa: C901
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
-    field: _accepted_fields
+    field: _accepted_fields  # type: ignore[valid-type]
     for question in questions:
         match question.data_type:
             case QuestionDataType.EMAIL:
@@ -298,6 +301,17 @@ def build_question_form(  # noqa: C901
                     format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
                     if not question.approximate_date
                     else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
+                )
+
+            case QuestionDataType.FILE_UPLOAD:
+                field = FileField(
+                    label=interpolate(text=question.text, context=interpolation_context),
+                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    widget=GovFileInput(),
+                    # todo: use file upload question data options to configure file size and supported file types
+                    validators=[
+                        FileRequired(f"Select the {question.name}"),
+                    ],
                 )
 
             case _:

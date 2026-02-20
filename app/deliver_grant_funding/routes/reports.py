@@ -936,6 +936,15 @@ def move_component(grant_id: UUID, component_id: UUID, direction: str) -> Respon
 def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
+
+    # todo: only show file upload option to platform admins until the feature is stable
+    if not AuthorisationHelper.is_platform_admin(user=get_current_user()):
+        wt_form.question_data_type.choices = [
+            (choice[0], choice[1])
+            for choice in wt_form.question_data_type.choices
+            if choice[1] != QuestionDataType.FILE_UPLOAD
+        ]
+
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
 

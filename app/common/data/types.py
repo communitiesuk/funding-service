@@ -89,6 +89,7 @@ class QuestionDataType(enum.StrEnum):
     RADIOS = "Select one from a list (radios)"
     CHECKBOXES = "Select one or more from a list (checkboxes)"
     DATE = "A date"
+    FILE_UPLOAD = "File upload"
 
     @staticmethod
     def coerce(value: Any) -> QuestionDataType:

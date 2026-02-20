@@ -508,6 +508,15 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             QuestionResponse("https://gov.uk"),
         ],
     },
+    "file-upload": {
+        "type": QuestionDataType.FILE_UPLOAD,
+        "text": "Upload a supporting document",
+        "display_text": "Upload a supporting document",
+        "answers": [
+            # ./tests/fixtures/e2e-test-file.txt
+            QuestionResponse("e2e-test-file.txt"),
+        ],
+    },
     "text-single-line-not-shown": {
         "type": QuestionDataType.TEXT_SINGLE_LINE,
         "text": "This question should not be shown",
@@ -967,8 +976,8 @@ def test_setup_grant_and_collection(
 
     # Sense check that the test includes all question types
     assert (
-        len(QuestionDataType) == 9
-        and len(section_2_questions_to_test) == 17
+        len(QuestionDataType) == 10
+        and len(section_2_questions_to_test) == 18
         and len(ManagedExpressionsEnum) == 11
         and len(NumberTypeEnum) == 2
     ), (

@@ -1859,20 +1859,20 @@ class TestChooseQuestionType:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "client_fixture, can_access",
+        "client_fixture, can_access, expected_question_types",
         (
-            ["authenticated_grant_member_client", False],
-            ["authenticated_grant_admin_client", True],
+            ["authenticated_grant_member_client", False, 9],
+            ["authenticated_grant_admin_client", True, 9],
+            ["authenticated_platform_admin_client", True, 10],
         ),
     )
-    def test_get(self, request, client_fixture, can_access, factories, db_session):
+    def test_get(self, request, client_fixture, can_access, expected_question_types, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
+        grant = getattr(client, "grant", None) or factories.grant.create()
+        report = factories.collection.create(grant=grant, name="Test Report")
         form = factories.form.create(collection=report, title="Organisation information")
 
-        response = client.get(
-            url_for("deliver_grant_funding.choose_question_type", grant_id=client.grant.id, form_id=form.id)
-        )
+        response = client.get(url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, form_id=form.id))
 
         if not can_access:
             assert response.status_code == 403
@@ -1881,7 +1881,9 @@ class TestChooseQuestionType:
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "What type of question do you need?"
 
-            assert len(soup.select("input[type=radio]")) == 9, "Should show an option for each kind of question"
+            assert len(soup.select("input[type=radio]")) == expected_question_types, (
+                "Should show an option for each kind of question"
+            )
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -5710,7 +5712,7 @@ class TestViewSubmission:
         soup = BeautifulSoup(response.data, "html.parser")
 
         assert "Export test form" in soup.text
-        assert len(report.forms[0].cached_questions) == 9, "If more questions added, check+update this test"
+        assert len(report.forms[0].cached_questions) == 10, "If more questions added, check+update this test"
 
         assert "What is your name?" in soup.text
         assert "test name" in soup.text
@@ -5740,6 +5742,9 @@ class TestViewSubmission:
 
         assert "When did you last buy some cheese" in soup.text
         assert "1 January 2025" in soup.text
+
+        assert "Upload a supporting document" in soup.text
+        assert "test-document.pdf" in soup.text
 
     def test_get_view_submission_displays_questions_with_add_another(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
