@@ -5,6 +5,7 @@ from flask import render_template_string
 from app.common.collections.runner import FormRunner
 from app.common.data.types import (
     FileUploadTypes,
+    MaximumFileSize,
     QuestionDataOptions,
     QuestionDataType,
 )
@@ -82,7 +83,9 @@ class TestCollectionQuestionMacro:
         question = factories.question.create(
             data_type=QuestionDataType.FILE_UPLOAD,
             text="Test file upload question",
-            data_options=QuestionDataOptions(file_types_supported=supported_file_types),
+            data_options=QuestionDataOptions(
+                file_types_supported=supported_file_types, maximum_file_size=MaximumFileSize.LARGE
+            ),
             form__collection__grant=authenticated_grant_admin_client.grant,
         )
 
@@ -110,3 +113,5 @@ class TestCollectionQuestionMacro:
             assert file_type.value not in page_text
             for extension in file_type.extensions:
                 assert extension not in page_text
+
+        assert "Your file must be smaller than 100MB" in page_text

@@ -26,6 +26,7 @@ from app.common.collections.forms import build_question_form
 from app.common.data.models import Question
 from app.common.data.types import (
     FileUploadTypes,
+    MaximumFileSize,
     NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
@@ -159,7 +160,10 @@ class TestBuildQuestionForm:
             (
                 QuestionDataType.FILE_UPLOAD,
                 QPO(),
-                QDO(file_types_supported=[FileUploadTypes.PDF, FileUploadTypes.IMAGE]),
+                QDO(
+                    file_types_supported=[FileUploadTypes.PDF, FileUploadTypes.IMAGE],
+                    maximum_file_size=MaximumFileSize.SMALL,
+                ),
                 FileField,
                 GovFileInput,
                 [FileRequired, FileAllowed],

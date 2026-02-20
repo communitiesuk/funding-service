@@ -50,5 +50,18 @@
         }
       )
     }}
+
+    {{
+      form.maximum_file_size(
+        params={
+          "fieldset": {
+            "legend": {
+              "text": "Maximum file size",
+              "classes": "govuk-!-font-weight-bold"
+            }
+          }
+        }
+      )
+    }}
   {% endif %}
 {% endmacro %}
