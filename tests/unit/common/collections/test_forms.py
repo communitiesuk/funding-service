@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
-from flask_wtf.file import FileField
+from flask_wtf.file import FileField, FileRequired
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovDateInput,
@@ -150,7 +150,7 @@ class TestBuildQuestionForm:
             (QuestionDataType.URL, QPO(), None, StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
             (QuestionDataType.CHECKBOXES, QPO(), None, SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
             (QuestionDataType.DATE, QPO(), None, DateField, GovDateInput, [DataRequired]),
-            (QuestionDataType.FILE_UPLOAD, QPO(), None, FileField, GovFileInput, [DataRequired]),
+            (QuestionDataType.FILE_UPLOAD, QPO(), None, FileField, GovFileInput, [FileRequired]),
         ),
     )
     def test_expected_field_types(

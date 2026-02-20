@@ -185,11 +185,7 @@ class SubmissionHelper:
         form_data: dict[str, Any] = {}
 
         for form in self.collection.forms:
-            # file upload form components can never set a default value as we can't refer to the users file system,
-            # the form component will only be shown when there is no answer
-            # filtering this out of the form data stops the serialised answers being processed downstream (instead
-            # of full processed FileStorage objects)
-            for question in [q for q in form.cached_questions if q.data_type != QuestionDataType.FILE_UPLOAD]:
+            for question in form.cached_questions:
                 # we'll only add add another answers if a context is provided which will be hooked in
                 # with the form runner
                 if not question.add_another_container:
