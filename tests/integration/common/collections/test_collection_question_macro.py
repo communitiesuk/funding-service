@@ -4,6 +4,8 @@ from flask import render_template_string
 
 from app.common.collections.runner import FormRunner
 from app.common.data.types import (
+    FileUploadTypes,
+    QuestionDataOptions,
     QuestionDataType,
 )
 from app.common.helpers.collections import SubmissionHelper
@@ -70,3 +72,41 @@ class TestCollectionQuestionMacro:
         assert expected_guidance_heading in page_text
         assert expected_guidance_body in page_text
         assert f"(({ref_qid}))" not in page_text
+
+    def test_collection_question_file_upload_shows_supported_files(self, authenticated_grant_admin_client, factories):
+        supported_file_types = [
+            FileUploadTypes.PDF,
+            FileUploadTypes.IMAGE,
+        ]
+        unsupported_file_types = [t for t in FileUploadTypes if t not in supported_file_types]
+        question = factories.question.create(
+            data_type=QuestionDataType.FILE_UPLOAD,
+            text="Test file upload question",
+            data_options=QuestionDataOptions(file_types_supported=supported_file_types),
+            form__collection__grant=authenticated_grant_admin_client.grant,
+        )
+
+        template_content = """
+        {% from "common/macros/collections.html" import collection_question with context %}
+        {{ collection_question(runner) }}
+        """
+        rendered_html = render_template_string(
+            template_content,
+            runner=FormRunner(
+                SubmissionHelper.load(factories.submission.create(collection=question.form.collection).id),
+                question=question,
+            ),
+        )
+
+        soup = BeautifulSoup(rendered_html, "html.parser")
+        page_text = soup.get_text()
+
+        for file_type in supported_file_types:
+            assert file_type.value in page_text
+            for extension in file_type.extensions:
+                assert extension in page_text
+
+        for file_type in unsupported_file_types:
+            assert file_type.value not in page_text
+            for extension in file_type.extensions:
+                assert extension not in page_text

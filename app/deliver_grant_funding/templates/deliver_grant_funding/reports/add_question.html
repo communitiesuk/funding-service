@@ -30,7 +30,6 @@
 
         {# Duplicate the submit button, fully hidden, so that the default action for the form is to submit it (rather than add data to a field) #}
         {{ form.submit(params={"classes": "govuk-!-display-none"}) }}
-        {{ questionDataOptions(form, chosen_question_data_type, enum) }}
 
         <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
           <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
@@ -59,6 +58,8 @@
           {% endset %}
           {{ form.separate_option_if_no_items_match(params={"items": [{"conditional": {"html": conditionalHtml} }]}) }}
         {% endif %}
+
+        {{ questionDataOptions(form, chosen_question_data_type, enum) }}
 
         {{ advancedFormattingOptions(form, chosen_question_data_type, enum) }}
 

@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
-from flask_wtf.file import FileField, FileRequired
+from flask_wtf.file import FileAllowed, FileField, FileRequired
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovDateInput,
@@ -24,7 +24,13 @@ from wtforms.validators import DataRequired, Email, InputRequired
 from app import create_app
 from app.common.collections.forms import build_question_form
 from app.common.data.models import Question
-from app.common.data.types import NumberTypeEnum, QuestionDataOptions, QuestionDataType, QuestionPresentationOptions
+from app.common.data.types import (
+    FileUploadTypes,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionDataType,
+    QuestionPresentationOptions,
+)
 from app.common.expressions import ExpressionContext
 from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import URLWithoutProtocol
@@ -150,7 +156,14 @@ class TestBuildQuestionForm:
             (QuestionDataType.URL, QPO(), None, StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
             (QuestionDataType.CHECKBOXES, QPO(), None, SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
             (QuestionDataType.DATE, QPO(), None, DateField, GovDateInput, [DataRequired]),
-            (QuestionDataType.FILE_UPLOAD, QPO(), None, FileField, GovFileInput, [FileRequired]),
+            (
+                QuestionDataType.FILE_UPLOAD,
+                QPO(),
+                QDO(file_types_supported=[FileUploadTypes.PDF, FileUploadTypes.IMAGE]),
+                FileField,
+                GovFileInput,
+                [FileRequired, FileAllowed],
+            ),
         ),
     )
     def test_expected_field_types(
