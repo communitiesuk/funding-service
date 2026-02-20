@@ -532,9 +532,9 @@ class TestListCollectionSubmissions:
         assert "2 submitted" in soup.text
 
     def test_submission_list_has_start_new_report_link(
-        self, authenticated_grant_recipient_member_client, factories, db_session
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session
     ):
-        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         question = factories.question.create(
             form__collection__grant=grant_recipient.grant,
             form__collection__allow_multiple_submissions=True,
@@ -545,7 +545,7 @@ class TestListCollectionSubmissions:
         collection.submission_name_question_id = question.id
         db_session.commit()
 
-        response = authenticated_grant_recipient_member_client.get(
+        response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.list_collection_submissions",
                 organisation_id=grant_recipient.organisation.id,

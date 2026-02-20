@@ -432,6 +432,8 @@ def configure_multiple_submissions_select_question(grant_id: UUID, report_id: UU
 @auto_commit_after_request
 def set_guidance_for_multiple_submissions(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    if not report.allow_multiple_submissions:
+        return redirect(url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id))
 
     form = SubmissionGuidanceForm()
     if not form.is_submitted():
