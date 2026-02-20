@@ -1210,6 +1210,8 @@ class RunnerQuestionPage(ReportsBasePage):
                 date_to_enter,
                 approx_date=approx_date,
             )
+        elif question_type == QuestionDataType.FILE_UPLOAD:
+            self.page.locator("input[type='file']").set_input_files("./tests/fixtures/e2e-test-file.txt")
         else:
             self.page.get_by_role("textbox", name=question_text).fill(answer)
 
