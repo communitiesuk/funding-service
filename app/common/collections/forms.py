@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from flask import current_app
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField
+from flask_wtf.file import FileField, FileRequired
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovDateInput,
@@ -310,7 +310,7 @@ def build_question_form(  # noqa: C901
                     widget=GovFileInput(),
                     # todo: use file upload question data options to configure file size and supported file types
                     validators=[
-                        DataRequired(f"Select the {question.name}"),
+                        FileRequired(f"Select the {question.name}"),
                     ],
                 )
 
