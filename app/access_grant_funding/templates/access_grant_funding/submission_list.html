@@ -92,7 +92,10 @@
           })
         }}
       {% endif %}
-      {{ govukButton({"text": "Start a new report", "href": url_for('access_grant_funding.start_new_multiple_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=collection.id)}) }}
+
+      {% if can_create_submissions %}
+        {{ govukButton({"text": "Start a new report", "href": url_for('access_grant_funding.start_new_multiple_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=collection.id)}) }}
+      {% endif %}
     </div>
   </div>
 {% endblock %}

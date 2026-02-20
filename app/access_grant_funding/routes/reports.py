@@ -2,7 +2,7 @@ import io
 import os
 from uuid import UUID
 
-from flask import current_app, flash, redirect, render_template, send_file, url_for
+from flask import abort, current_app, flash, redirect, render_template, send_file, url_for
 from flask.typing import ResponseReturnValue
 from playwright.sync_api import sync_playwright
 
@@ -64,6 +64,9 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     user = get_current_user()
     collection = get_collection(collection_id, grant_id=grant_id)
+    if not collection.allow_multiple_submissions:
+        raise abort(404)
+
     submission_mode = get_submission_mode_for_user(user, user_organisation=grant_recipient.organisation)
 
     submission_helpers = [
@@ -80,6 +83,7 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
         collection=collection,
         grant_recipient=grant_recipient,
         submission_helpers=submission_helpers,
+        can_create_submissions=AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user),
     )
 
 
