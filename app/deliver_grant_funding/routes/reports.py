@@ -7,6 +7,7 @@ from uuid import UUID
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
+from markupsafe import escape
 from pydantic import BaseModel, ValidationError
 from werkzeug.datastructures import FileStorage
 from wtforms import Field
@@ -66,6 +67,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
+    NumberTypeEnum,
     OrganisationModeEnum,
     QuestionDataOptions,
     QuestionDataType,
@@ -88,6 +90,7 @@ from app.deliver_grant_funding.forms import (
     GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
     GroupForm,
+    MapDataSetColumnsForm,
     QuestionForm,
     QuestionTypeForm,
     SelectDataSourceQuestionForm,
@@ -2489,8 +2492,74 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
+    data_set_data = _extract_data_set_data_from_session()
+    if not data_set_data:
+        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+
+    form = MapDataSetColumnsForm(data_columns=data_set_data.data_columns)
+
+    if not form.is_submitted() and data_set_data.column_mappings:
+        for idx, mapping in enumerate(data_set_data.column_mappings):
+            form.columns.entries[idx].form.data_type.data = (
+                "TEXT"
+                if mapping.data_type == QuestionDataType.TEXT_SINGLE_LINE
+                else "INTEGER"
+                if mapping.number_type == NumberTypeEnum.INTEGER
+                else "DECIMAL"
+                if mapping.number_type == NumberTypeEnum.DECIMAL
+                else ""
+            )
+
+    if form.validate_on_submit():
+        data_set_data.column_mappings = form.get_column_mappings()
+        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+
+        if form.has_numerical_columns():
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.map_data_set_number_columns",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
+        else:
+            # TODO: Add check for missing data & potential redirect to review issues page in an elif
+            # TODO: Add db saving logic
+            flash(
+                f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                + "<a href='#'>View data set</a>"
+            )
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_report_data_sets",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
+
     return render_template(
         "deliver_grant_funding/reports/data_sets/map_columns.html",
         grant=report.grant,
         report=report,
+        form=form,
+        session_data=data_set_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-number-columns", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    data_set_data = _extract_data_set_data_from_session()
+    if not data_set_data:
+        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/map_number_columns.html",
+        grant=report.grant,
+        report=report,
+        session_data=data_set_data,
     )

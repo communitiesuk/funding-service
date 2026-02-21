@@ -19,7 +19,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field, HiddenField, IntegerField, SelectField, SelectMultipleField
+from wtforms import Field, FieldList, FormField, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, Regexp, ValidationError
@@ -46,6 +46,7 @@ from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
+from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
     from app.common.data.models import Component, Form, GrantRecipient, Group, Question
@@ -932,3 +933,87 @@ class UploadDataSetForm(FlaskForm):
                 raise ValidationError("The file must contain no more than 10,000 rows")
         finally:
             field.data.stream.seek(0)
+
+
+class ColumnDataTypeMappingForm(FlaskForm):
+    # Our template sets the CSRF token for the main MapDataSetColumnsForm, which includes any number of these mini forms
+    # for the individual column select fields. We need to set csrf=False for the mini forms so the POST requests don't
+    # expect a CSRF for every single one, just the main form.
+    class Meta:
+        csrf = False
+
+    column_name = HiddenField()
+    data_type = SelectField(
+        "Data type",
+        choices=[
+            ("", "Select data type"),
+            ("TEXT", "Text"),
+            ("INTEGER", "Whole number"),
+            ("DECIMAL", "Decimal number"),
+        ],
+        validators=[],
+        widget=GovSelect(),
+    )
+
+    def validate_data_type(self, field: Field) -> None:
+        if not field.data or field.data == "":
+            column = self.column_name.data or "this column"
+            raise ValidationError(f"Select a data type for {column}")
+
+
+class MapDataSetColumnsForm(FlaskForm):
+    columns = FieldList(FormField(ColumnDataTypeMappingForm))
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, data_columns: list[str], **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.data_columns = data_columns
+
+        # Column name is a hidden field so would be lost on POST but we need them to give nice error messages so need to
+        # make sure they persist
+        for idx, col in enumerate(data_columns):
+            if idx < len(self.columns.entries):
+                self.columns.entries[idx].form.column_name.data = col
+            else:
+                entry = self.columns.append_entry()
+                entry.form.column_name.data = col
+
+    def get_column_mappings(self) -> list[DataSetColumnMapping]:
+        mappings = []
+        for idx, column in enumerate(self.data_columns):
+            selected_value = self.columns.entries[idx].form.data_type.data
+            match selected_value:
+                case "TEXT":
+                    mapping = DataSetColumnMapping(
+                        column_name=column,
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                    )
+                case "INTEGER":
+                    mapping = DataSetColumnMapping(
+                        column_name=column,
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.INTEGER,
+                    )
+                case "DECIMAL":
+                    mapping = DataSetColumnMapping(
+                        column_name=column,
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.DECIMAL,
+                    )
+                case _:
+                    mapping = DataSetColumnMapping(
+                        column_name=column,
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                    )
+            mappings.append(mapping)
+        return mappings
+
+    def has_numerical_columns(self) -> bool:
+        return any(entry.form.data_type.data in ["DECIMAL", "INTEGER"] for entry in self.columns.entries)
+
+    def get_numerical_columns(self) -> list[str]:
+        return [
+            column
+            for idx, column in enumerate(self.data_columns)
+            if self.columns.entries[idx].form.data_type.data in ["DECIMAL", "INTEGER"]
+        ]

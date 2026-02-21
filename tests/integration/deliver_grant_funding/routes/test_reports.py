@@ -21,6 +21,7 @@ from app.common.data.types import (
     ExpressionType,
     GrantRecipientModeEnum,
     ManagedExpressionsEnum,
+    NumberTypeEnum,
     OrganisationModeEnum,
     QuestionPresentationOptions,
     SubmissionEventType,
@@ -47,6 +48,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
+    DataSetUploadSessionModel,
 )
 from tests.utils import (
     AnyStringMatching,
@@ -56,6 +58,7 @@ from tests.utils import (
     get_test_flashes,
     page_has_button,
     page_has_error,
+    page_has_flash,
     page_has_link,
 )
 
@@ -6943,3 +6946,187 @@ class TestUploadDataSet:
             session_data = sess.get("data_set_upload")
             assert len(session_data["preview_rows"]) == 5  # Only first 5 rows
             assert len(session_data["all_rows"]) == 10
+
+
+class TestMapDataSetColumns:
+    def test_404_for_non_admin(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    def test_get_renders_columns_and_preview(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=["Capital allocation", "Revenue allocation", "Notes"],
+                preview_rows=[
+                    {"Capital allocation": "£1000", "Revenue allocation": "£10000", "Notes": "First"},
+                    {"Capital allocation": "£2000", "Revenue allocation": "£30000", "Notes": "Second"},
+                ],
+                all_rows=[],
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id)
+        )
+        assert response.status_code == 200
+
+        data_set_session_data = session["data_set_upload"]
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert f"Map {data_set_session_data['name']} data columns" in get_h1_text(soup)
+
+        for row in data_set_session_data["preview_rows"]:
+            for col in data_set_session_data["data_columns"]:
+                assert row[col] in soup.text
+        for idx, col in enumerate(data_set_session_data["data_columns"]):
+            assert col in soup.text
+            select = soup.find("select", {"name": f"columns-{idx}-data_type"})
+            assert select is not None
+
+    def test_get_repopulates_form_from_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=[
+                    "Capital allocation",
+                    "Revenue allocation",
+                ],
+                preview_rows=[
+                    {"Capital allocation": "£1000", "Revenue allocation": "£10000"},
+                    {"Capital allocation": "£2000", "Revenue allocation": "£30000"},
+                ],
+                column_mappings=[
+                    {
+                        "column_name": "Capital allocation",
+                        "data_type": QuestionDataType.NUMBER,
+                        "number_type": NumberTypeEnum.INTEGER,
+                    },
+                    {
+                        "column_name": "Revenue allocation",
+                        "data_type": QuestionDataType.NUMBER,
+                        "number_type": NumberTypeEnum.DECIMAL,
+                    },
+                ],
+                all_rows=[],
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id)
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        select_0 = soup.find("select", {"name": "columns-0-data_type"})
+        select_1 = soup.find("select", {"name": "columns-1-data_type"})
+        assert select_0.find("option", {"selected": True})["value"] == "INTEGER"
+        assert select_1.find("option", {"selected": True})["value"] == "DECIMAL"
+
+    def test_get_without_session_redirects_to_upload(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id)
+        )
+        assert response.status_code == 302
+        assert response.location.endswith(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=report.grant.id, report_id=report.id)
+        )
+
+    def test_post_redirects_to_map_number_columns(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=["Capital allocation", "Additional info"],
+                preview_rows=[
+                    {"Capital allocation": "1000", "Additional info": "Some extra details"},
+                    {"Capital allocation": "2000", "Additional info": "Here are some finer details"},
+                ],
+                all_rows=[],
+            ).model_dump(mode="json")
+
+        data = {
+            "columns-0-data_type": "INTEGER",
+            "columns-1-data_type": "TEXT",
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            data=data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location.endswith(
+            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id)
+        )
+
+    def test_post_redirects_to_list_with_success_flash(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=["Area description"],
+                preview_rows=[
+                    {"Area description": "A fine place"},
+                    {"Area description": "A wonderful place"},
+                ],
+                all_rows=[],
+            ).model_dump(mode="json")
+
+        data = {
+            "columns-0-data_type": "TEXT",
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            data=data,
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(
+            soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
+        )
+
+    def test_post_missing_required_field_shows_error(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=[
+                    "Capital allocation",
+                    "Revenue allocation",
+                ],
+                preview_rows=[
+                    {"Capital allocation": "£1000", "Revenue allocation": "£10000"},
+                    {"Capital allocation": "£2000", "Revenue allocation": "£30000"},
+                ],
+                all_rows=[],
+            ).model_dump(mode="json")
+
+        data = {
+            "columns-0-data_type": "",
+            "columns-1-data_type": "INTEGER",
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            data=data,
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, f"Select a data type for {session['data_set_upload']['data_columns'][0]}")

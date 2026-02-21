@@ -1,8 +1,10 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+
 {% set active_item_identifier = "reports" %}
 
-{% set page_title = "Map data set columns" %}
+{% set page_title = "Map " ~ session_data.name ~ " data columns" %}
 
 {% block beforeContent %}
   {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id) %}
@@ -14,9 +16,47 @@
     <div class="govuk-grid-column-full">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ report.name }}</span>
-        Map data set columns
+        Map {{ session_data.name }} data columns
       </h1>
       <p class="govuk-body">Map the data from each column to set its data type and settings in the grant form.</p>
+
+      <form method="POST" novalidate>
+        {{ form.csrf_token }}
+
+        {% set rows = [] %}
+        {% for column in session_data.data_columns %}
+          {% set idx = loop.index0 %}
+          {% set preview_values = [] %}
+          {% for row in session_data.preview_rows %}
+            {% do preview_values.append(row.get(column, "")) %}
+          {% endfor %}
+          {% set preview_html = preview_values | join(', ') %}
+          {% set select_html %}
+            {{ form.columns[idx].form.data_type(params={"label": {"text": "Data type", "classes": "govuk-visually-hidden" }})
+            }}
+          {% endset %}
+          {%
+            do rows.append([
+              {"text": column},
+              {"html": preview_html},
+              {"html": select_html}
+            ])
+          %}
+        {% endfor %}
+
+        {{
+          govukTable({
+            "head": [
+              {"text": "Column name"},
+              {"text": "Example data"},
+              {"text": "Data type"}
+            ],
+            "rows": rows
+          })
+        }}
+
+        {{ form.submit }}
+      </form>
     </div>
   </div>
 {% endblock content %}
