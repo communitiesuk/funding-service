@@ -19,13 +19,26 @@ from app.common.data.models import (
     Submission,
 )
 from app.common.data.models_user import User
+from app.common.data.types import DataSourceType
 from app.extensions import db
 
 
 def delete_grant(grant_id: UUID) -> None:
     # Not optimised; do not lift+shift unedited.
     grant = db.session.query(Grant).where(Grant.id == grant_id).one()
+    data_sources_to_delete = [
+        c.data_source
+        for collection in grant.collections
+        for form in collection.forms
+        for c in form._all_components
+        if hasattr(c, "data_source") and c.data_source and c.data_source.type == DataSourceType.CUSTOM
+    ]
+
     db.session.delete(grant)
+
+    for ds in data_sources_to_delete:
+        db.session.delete(ds)
+
     db.session.flush()
 
 

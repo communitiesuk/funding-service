@@ -19,6 +19,7 @@ from app.common.data.types import (
     CollectionType,
     ComponentType,
     ConditionsOperator,
+    DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
@@ -395,6 +396,7 @@ class Component(BaseModel):
         SqlEnum(ComponentType, name="component_type_enum", validate_strings=True), default=ComponentType.QUESTION
     )
     parent_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"))
+    data_source_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("data_source.id"))
     guidance_heading: Mapped[str | None]
     guidance_body: Mapped[str | None]
     add_another_guidance_body: Mapped[str | None]
@@ -413,8 +415,10 @@ class Component(BaseModel):
     expressions: Mapped[list[Expression]] = relationship(
         "Expression", back_populates="question", cascade="all, delete-orphan", order_by="Expression.created_at_utc"
     )
-    data_source: Mapped[DataSource] = relationship(
-        "DataSource", cascade="all, delete-orphan", back_populates="question"
+    data_source: Mapped[DataSource | None] = relationship(
+        "DataSource",
+        back_populates="questions",
+        foreign_keys=[data_source_id],
     )
     parent: Mapped[Group] = relationship("Component", remote_side="Component.id", back_populates="components")
     components: Mapped[OrderingList[Component]] = relationship(
@@ -606,6 +610,8 @@ class Question(Component, SafeQidMixin):
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
 
+        assert self.data_source is not None
+
         if (
             self.presentation_options is not None
             and self.presentation_options.last_data_source_item_is_distinct_from_others
@@ -629,6 +635,8 @@ class Question(Component, SafeQidMixin):
     def none_of_the_above_item_text(self) -> str | None:
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
+
+        assert self.data_source is not None
 
         if (
             self.presentation_options is not None
@@ -859,8 +867,28 @@ class Expression(BaseModel):
 class DataSource(BaseModel):
     __tablename__ = "data_source"
 
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
-    question: Mapped[Question] = relationship("Question", back_populates="data_source", uselist=False)
+    type: Mapped[DataSourceType] = mapped_column(
+        SqlEnum(DataSourceType, name="data_source_type_enum", validate_strings=True), default=DataSourceType.CUSTOM
+    )
+    name: Mapped[CIStr | None]
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("grant.id"))
+    collection_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("collection.id"))
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
+    updated_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
+    schema: Mapped[dict[str, Any] | None] = mapped_column(
+        mutable_json_type(dbtype=JSONB, nested=True),  # type: ignore[no-untyped-call]
+    )
+    s3_uri: Mapped[str | None]
+
+    questions: Mapped[list[Question]] = relationship(
+        "Question",
+        back_populates="data_source",
+        foreign_keys="Component.data_source_id",
+    )
+    grant: Mapped[Grant | None] = relationship("Grant")
+    collection: Mapped[Collection | None] = relationship("Collection")
+    created_by: Mapped[User | None] = relationship("User", foreign_keys=[created_by_id])
+    updated_by: Mapped[User | None] = relationship("User", foreign_keys=[updated_by_id])
 
     items: Mapped[list[DataSourceItem]] = relationship(
         "DataSourceItem",
@@ -873,7 +901,28 @@ class DataSource(BaseModel):
         cascade="all, save-update, merge",
     )
 
-    __table_args__ = (UniqueConstraint("question_id", name="uq_question_id"),)
+    grant_recipient_items: Mapped[list[DataSourceGrantRecipientItem]] = relationship(
+        "DataSourceGrantRecipientItem",
+        back_populates="data_source",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name", name="uq_data_source_name"),
+        CheckConstraint(
+            (
+                "type = 'CUSTOM' OR "
+                "(name IS NOT NULL AND grant_id IS NOT NULL AND collection_id IS NOT NULL AND schema IS NOT NULL)"
+            ),
+            name="ck_data_source_non_custom_requires_name_grant_collection_and_schema",
+        ),
+        CheckConstraint(
+            "collection_id IS NULL OR grant_id IS NOT NULL",
+            name="ck_data_source_collection_requires_grant",
+        ),
+        Index("ix_data_source_grant_id", "grant_id"),
+        Index("ix_data_source_collection_id", "collection_id"),
+    )
 
 
 class DataSourceItem(BaseModel):
@@ -895,6 +944,29 @@ class DataSourceItem(BaseModel):
     __table_args__ = (
         UniqueConstraint("data_source_id", "order", name="uq_data_source_id_order", deferrable=True),
         UniqueConstraint("data_source_id", "key", name="uq_data_source_id_key"),
+    )
+
+
+class DataSourceGrantRecipientItem(BaseModel):
+    __tablename__ = "data_source_grant_recipient_item"
+
+    data_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source.id"))
+    grant_recipient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant_recipient.id"))
+
+    # For 2D: dict[str, scalar], for 3D: list[dict[str, scalar]]
+    data: Mapped[json_flat_scalars | list[json_flat_scalars]] = mapped_column(
+        mutable_json_type(dbtype=JSONB, nested=True)  # type: ignore[no-untyped-call]
+    )
+
+    data_source: Mapped[DataSource] = relationship("DataSource", back_populates="grant_recipient_items")
+    grant_recipient: Mapped[GrantRecipient] = relationship(
+        "GrantRecipient", back_populates="data_source_grant_recipient_items"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("data_source_id", "grant_recipient_id", name="uq_data_source_grant_recipient"),
+        Index("ix_data_source_grant_recipient_item_data_source_id", "data_source_id"),
+        Index("ix_data_source_grant_recipient_item_grant_recipient_id", "grant_recipient_id"),
     )
 
 
@@ -985,6 +1057,10 @@ class GrantRecipient(BaseModel):
         secondaryjoin=lambda: UserRole.user_id == User.id,
         viewonly=True,
         lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
+    )
+
+    data_source_grant_recipient_items: Mapped[list[DataSourceGrantRecipientItem]] = relationship(
+        "DataSourceGrantRecipientItem", back_populates="grant_recipient"
     )
 
     @property
