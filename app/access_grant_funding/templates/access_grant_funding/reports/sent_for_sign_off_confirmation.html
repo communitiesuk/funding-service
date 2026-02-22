@@ -45,7 +45,14 @@
       </p>
 
       <p class="govuk-body">
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.list_reports', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id) }}">Return to reports</a>
+        {%
+          set back_link = (
+          url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id)
+           if not submission_helper.collection.allow_multiple_submissions else
+           url_for("access_grant_funding.list_collection_submissions", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=submission_helper.collection.id)
+           )
+        %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link }}">Return to reports</a>
       </p>
     </div>
   </div>

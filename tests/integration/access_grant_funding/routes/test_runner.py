@@ -1532,6 +1532,62 @@ class TestConfirmSentForCertification:
         )
         assert response.location == expected_location
 
+    @pytest.mark.parametrize(
+        "allow_multiple_submissions, expected_back_link_route",
+        [
+            (False, "access_grant_funding.list_reports"),
+            (True, "access_grant_funding.list_collection_submissions"),
+        ],
+    )
+    def test_return_to_reports_link_depends_on_allow_multiple_submissions(
+        self,
+        authenticated_grant_recipient_member_client,
+        factories,
+        allow_multiple_submissions,
+        expected_back_link_route,
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=allow_multiple_submissions,
+            form__collection__submission_period_end_date=date(2025, 12, 31),
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Blue"},
+            events=[],
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        factories.submission_event.create(
+            submission=submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.confirm_sent_for_certification",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        back_link = page_has_link(soup, "Return to reports")
+        expected_url_kwargs = {
+            "organisation_id": grant_recipient.organisation.id,
+            "grant_id": grant_recipient.grant.id,
+        }
+        if allow_multiple_submissions:
+            expected_url_kwargs["collection_id"] = question.form.collection.id
+        assert back_link["href"] == url_for(expected_back_link_route, **expected_url_kwargs)
+
 
 class TestRemoveAddAnotherEntry:
     @pytest.mark.parametrize(
