@@ -37,7 +37,7 @@ from app.common.data.interfaces.collections import (
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
     get_submission,
-    get_submission_by_grant_recipient_collection,
+    get_submissions_by_grant_recipient_collection,
     group_name_exists,
     is_component_dependency_order_valid,
     move_component_down,
@@ -674,18 +674,50 @@ def test_get_submission_for_grant_recipient(db_session, factories):
         get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient2.id)
 
 
-def test_get_submission_for_grant_recipient_collection(db_session, factories):
+def test_get_submissions_by_grant_recipient_collection_returns_single_submission(db_session, factories):
+    grant_recipient = factories.grant_recipient.create()
+    collection = factories.collection.create(grant=grant_recipient.grant)
+    submission = factories.submission.create(
+        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+    )
+
+    from_db = get_submissions_by_grant_recipient_collection(
+        grant_recipient=grant_recipient, collection_id=collection.id
+    )
+
+    assert len(from_db) == 1
+    assert from_db[0].id == submission.id
+
+
+def test_get_submissions_by_grant_recipient_collection_returns_multiple_submissions(db_session, factories):
+    grant_recipient = factories.grant_recipient.create()
+    collection = factories.collection.create(grant=grant_recipient.grant)
+    submission_1 = factories.submission.create(
+        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+    )
+    submission_2 = factories.submission.create(
+        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+    )
+
+    from_db = get_submissions_by_grant_recipient_collection(
+        grant_recipient=grant_recipient, collection_id=collection.id
+    )
+
+    assert len(from_db) == 2
+    assert {s.id for s in from_db} == {submission_1.id, submission_2.id}
+
+
+def test_get_submissions_by_grant_recipient_collection_returns_empty_list_for_other_recipient(db_session, factories):
     grant_recipient = factories.grant_recipient.create()
     grant_recipient2 = factories.grant_recipient.create(grant=grant_recipient.grant)
     collection = factories.collection.create(grant=grant_recipient.grant)
     factories.submission.create(collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE)
-    from_db = get_submission_by_grant_recipient_collection(grant_recipient=grant_recipient, collection_id=collection.id)
-    assert from_db is not None
 
-    from_db = get_submission_by_grant_recipient_collection(
+    from_db = get_submissions_by_grant_recipient_collection(
         grant_recipient=grant_recipient2, collection_id=collection.id
     )
-    assert from_db is None
+
+    assert from_db == []
 
 
 def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):

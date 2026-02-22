@@ -368,9 +368,9 @@ def get_all_submissions_with_mode_for_collection(
     return db.session.scalars(stmt).unique().all()
 
 
-def get_submission_by_grant_recipient_collection(
+def get_submissions_by_grant_recipient_collection(
     grant_recipient: GrantRecipient, collection_id: UUID
-) -> Submission | None:
+) -> Sequence[Submission]:
     submission_mode = SubmissionModeEnum(grant_recipient.mode.value)
 
     return db.session.scalars(
@@ -379,7 +379,7 @@ def get_submission_by_grant_recipient_collection(
             Submission.collection_id == collection_id,
             Submission.mode == submission_mode,
         )
-    ).first()
+    ).all()
 
 
 def get_submission(

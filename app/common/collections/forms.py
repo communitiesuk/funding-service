@@ -128,6 +128,9 @@ class DynamicQuestionForm(FlaskForm):
     def get_answer_to_question(self, question: Question) -> Any:
         return getattr(self, question.safe_qid).data
 
+    def attach_error_for_question(self, question: Question, error: str) -> None:
+        getattr(self, question.safe_qid).errors.append(error)
+
 
 def build_validators(
     question: Question, evaluation_context: ExpressionContext, interpolation_context: ExpressionContext

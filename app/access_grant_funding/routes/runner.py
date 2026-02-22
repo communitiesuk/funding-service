@@ -10,7 +10,8 @@ from app.common.auth.decorators import has_access_grant_role
 from app.common.collections.forms import build_question_form
 from app.common.collections.runner import AGFFormRunner
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import get_collection, get_submission_by_grant_recipient_collection
+from app.common.data.interfaces import rollback
+from app.common.data.interfaces.collections import get_collection, get_submissions_by_grant_recipient_collection
 from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.expressions import ExpressionContext, interpolate
 from app.common.helpers.collections import SubmissionHelper
@@ -38,8 +39,11 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
             )
         )
 
-    submission = get_submission_by_grant_recipient_collection(grant_recipient, collection_id)
+    submissions = get_submissions_by_grant_recipient_collection(grant_recipient, collection_id)
+    if len(submissions) > 1:
+        raise abort(500)
 
+    submission = submissions[0] if submissions else None
     if not submission:
         # ensure the collection is part of this grant
         collection = get_collection(collection_id, grant_id=grant_id)
@@ -98,20 +102,29 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
 
     if form.validate_on_submit():
         submission_mode = get_submission_mode_for_user(user, user_organisation=grant_recipient.organisation)
+        existing_submissions = interfaces.collections.get_submissions_by_grant_recipient_collection(
+            grant_recipient=grant_recipient,
+            collection_id=collection_id,
+        )
+        helpers = [SubmissionHelper(s) for s in existing_submissions]
         submission = interfaces.collections.create_submission(
             collection=collection, grant_recipient=grant_recipient, created_by=user, mode=submission_mode
         )
         submission_helper = SubmissionHelper(submission)
         submission_helper.submit_answer_for_question(question.id, form, user)
 
-        return redirect(
-            url_for(
-                "access_grant_funding.tasklist",
-                organisation_id=organisation_id,
-                grant_id=grant_id,
-                submission_id=submission.id,
+        if not any(helper.display_name.lower() == submission_helper.display_name.lower() for helper in helpers):
+            return redirect(
+                url_for(
+                    "access_grant_funding.tasklist",
+                    organisation_id=organisation_id,
+                    grant_id=grant_id,
+                    submission_id=submission.id,
+                )
             )
-        )
+
+        rollback()
+        form.attach_error_for_question(question, f"A submission for “{submission_helper.display_name}” already exists")
 
     return render_template(
         "access_grant_funding/start_new_multiple_submission.html",
