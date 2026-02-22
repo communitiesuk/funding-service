@@ -370,16 +370,27 @@ class TestListReports:
 class TestListCollectionSubmissions:
     def test_lists_submissions_for_collection(self, authenticated_grant_recipient_member_client, factories):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
-        collection = factories.collection.create(
-            grant=grant_recipient.grant,
-            allow_multiple_submissions=True,
-            status=CollectionStatusEnum.OPEN,
+        question = factories.question.create(
+            text="Project name",
+            name="project name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__status=CollectionStatusEnum.OPEN,
         )
-        submission_1 = factories.submission.create(
-            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Alpha"},
         )
-        submission_2 = factories.submission.create(
-            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Beta"},
         )
 
         response = authenticated_grant_recipient_member_client.get(
@@ -394,8 +405,8 @@ class TestListCollectionSubmissions:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == collection.name
-        assert submission_1.reference in soup.text
-        assert submission_2.reference in soup.text
+        assert "Alpha" in soup.text
+        assert "Beta" in soup.text
 
     def test_shows_empty_state_when_no_submissions(self, authenticated_grant_recipient_member_client, factories):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient

@@ -84,7 +84,7 @@
           govukTable(params={
                   "firstCellIsHeader": false,
                   "head":[
-                    {"text": "Report name"},
+                    {"text": (collection.submission_name_question.name[0]|upper + collection.submission_name_question.name[1:])},
                     {"text": "Status"},
                     {"html": actions_html}
                   ],
