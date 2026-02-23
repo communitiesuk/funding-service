@@ -91,6 +91,7 @@ from app.deliver_grant_funding.forms import (
     GroupDisplayOptionsForm,
     GroupForm,
     MapDataSetColumnsForm,
+    MapNumberColumnsForm,
     QuestionForm,
     QuestionTypeForm,
     SelectDataSourceQuestionForm,
@@ -2557,9 +2558,50 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
     if not data_set_data:
         return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
 
+    number_columns = [
+        mapping for mapping in data_set_data.column_mappings if mapping.data_type == QuestionDataType.NUMBER
+    ]
+
+    form = MapNumberColumnsForm(numerical_columns=number_columns)
+
+    if not form.is_submitted() and data_set_data.column_mappings:
+        for idx, mapping in enumerate(number_columns):
+            entry = form.columns.entries[idx].form
+            entry.prefix.data = mapping.prefix or ""
+            entry.suffix.data = mapping.suffix or ""
+            if mapping.number_type == NumberTypeEnum.DECIMAL:
+                entry.max_decimal_places.data = mapping.max_decimal_places if mapping.max_decimal_places else None
+
+    if form.validate_on_submit():
+        settings = form.get_number_column_formatting_options_mappings()
+        for mapping in data_set_data.column_mappings:
+            if mapping.column_name in settings:
+                mapping.prefix = settings[mapping.column_name]["prefix"]
+                mapping.suffix = settings[mapping.column_name]["suffix"]
+                if mapping.number_type == NumberTypeEnum.DECIMAL:
+                    mapping.max_decimal_places = settings[mapping.column_name]["max_decimal_places"]
+        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+
+        # TODO: Add check for missing data & potential redirect to review issues page in an elif
+        # TODO: Add db saving logic
+
+        # This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
+        flash(
+            f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+            + "<a href='#'>View data set</a>"
+        )
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_report_data_sets",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
     return render_template(
         "deliver_grant_funding/reports/data_sets/map_number_columns.html",
         grant=report.grant,
         report=report,
+        form=form,
         session_data=data_set_data,
     )

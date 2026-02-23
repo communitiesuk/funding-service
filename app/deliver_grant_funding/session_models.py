@@ -115,3 +115,10 @@ class DataSetUploadSessionModel(BaseModel):
     preview_rows: list[dict[str, str]]
     all_rows: list[dict[str, str]]
     column_mappings: list[DataSetColumnMapping] = []
+
+    @classmethod
+    def from_session(cls, session_data: dict[str, Any]) -> DataSetUploadSessionModel:
+        return cls.model_validate(session_data)
+
+    def get_column_mapping(self, column_name: str) -> DataSetColumnMapping | None:
+        return next((mapping for mapping in self.column_mappings if mapping.column_name == column_name), None)
