@@ -1264,6 +1264,7 @@ class TestCollectionHelper:
             "[Export test form] Your name",
             "[Export test form] Your quest",
             "[Export test form] Airspeed velocity",
+            "[Export test form] Dog price",
             "[Export test form] Best option",
             "[Export test form] Like cheese",
             "[Export test form] Email address",
@@ -1392,6 +1393,7 @@ class TestCollectionHelper:
             "[Export test form] Your name",
             "[Export test form] Your quest",
             "[Export test form] Airspeed velocity",
+            "[Export test form] Dog price",
             "[Export test form] Best option",
             "[Export test form] Like cheese",
             "[Export test form] Email address",
@@ -1412,6 +1414,7 @@ class TestCollectionHelper:
             "test name",
             "Line 1\r\nline2\r\nline 3",
             "123",
+            "456.78",
             "Option 0",
             "Yes",
             "test@email.com",
@@ -1539,6 +1542,7 @@ class TestCollectionHelper:
                         {
                             "answers": {
                                 "Airspeed velocity": {"value": 123},
+                                "Dog price": {"value": "456.78"},
                                 "Best option": {"key": "key-0", "label": "Option 0"},
                                 "Email address": "test@email.com",
                                 "Favourite cheeses": [
@@ -1593,6 +1597,7 @@ class TestCollectionHelper:
                         {
                             "answers": {
                                 "Airspeed velocity": {"value": 123},
+                                "Dog price": {"value": "456.78"},
                                 "Best option": {"key": "key-0", "label": "Option 0"},
                                 "Email address": "test@email.com",
                                 "Favourite cheeses": [

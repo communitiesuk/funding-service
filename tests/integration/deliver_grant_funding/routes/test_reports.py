@@ -5712,7 +5712,7 @@ class TestViewSubmission:
         soup = BeautifulSoup(response.data, "html.parser")
 
         assert "Export test form" in soup.text
-        assert len(report.forms[0].cached_questions) == 10, "If more questions added, check+update this test"
+        assert len(report.forms[0].cached_questions) == 11, "If more questions added, check+update this test"
 
         assert "What is your name?" in soup.text
         assert "test name" in soup.text
@@ -5722,6 +5722,9 @@ class TestViewSubmission:
 
         assert "What is the airspeed velocity of an unladen swallow?" in soup.text
         assert "123" in soup.text
+
+        assert "How much is that doggy in the window?" in soup.text
+        assert "456.78" in soup.text
 
         assert "What is the best option?" in soup.text
         assert "Option 0" in soup.text
