@@ -1354,6 +1354,32 @@ class TestAskAQuestion:
             assert soup.find("input", {"name": "add_another", "value": "yes"}).get("checked") is None
             assert soup.find("input", {"name": "add_another", "value": "no"}).get("checked") is None
 
+    def test_post_add_first_answer_redirects_to_index_0(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        group = factories.group.create(add_another=True, name="Test groups", text="Test groups")
+        q1 = factories.question.create(form=group.form, parent=group)
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            grant_recipient=grant_recipient,
+            created_by=authenticated_grant_recipient_data_provider_client.user,
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                question_id=q1.id,
+            ),
+            data={"add_another": "yes"},
+        )
+
+        assert response.status_code == 302
+        assert response.location.endswith(f"/{q1.id}/0")
+
     def test_post_ask_a_question_duplicate_submission_name_shows_error(
         self, authenticated_grant_recipient_data_provider_client, factories
     ):

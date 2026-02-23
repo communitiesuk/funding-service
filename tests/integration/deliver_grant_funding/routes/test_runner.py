@@ -681,6 +681,26 @@ class TestAskAQuestion:
             assert soup.find("input", {"name": "add_another", "value": "yes"}).get("checked") is None
             assert soup.find("input", {"name": "add_another", "value": "no"}).get("checked") is None
 
+        def test_post_add_first_answer_redirects_to_index_0(self, authenticated_grant_admin_client, factories):
+            group = factories.group.create(add_another=True, name="Test groups", text="Test groups")
+            q1 = factories.question.create(form=group.form, parent=group)
+            submission = factories.submission.create(
+                collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+            )
+
+            response = authenticated_grant_admin_client.post(
+                url_for(
+                    "deliver_grant_funding.ask_a_question",
+                    grant_id=authenticated_grant_admin_client.grant.id,
+                    submission_id=submission.id,
+                    question_id=q1.id,
+                ),
+                data={"add_another": "yes"},
+            )
+
+            assert response.status_code == 302
+            assert response.location.endswith(f"/{q1.id}/0")
+
 
 class TestCheckYourAnswers:
     @pytest.mark.parametrize(

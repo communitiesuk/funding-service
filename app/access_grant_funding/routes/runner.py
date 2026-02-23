@@ -233,8 +233,9 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
-        success = False
-
+        # todo: review the logic here, almost everything here feels like it should be encapsulated
+        #       in the runner with increasing workarounds here
+        success = True
         if runner.is_removing:
             success = runner.save_add_another()
         elif not runner.add_another_summary_context:
