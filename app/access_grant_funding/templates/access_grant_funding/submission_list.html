@@ -1,0 +1,104 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+{% set page_title = collection.name %}
+{% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+  {{ super() }}
+  {{
+    govukBackLink({
+      "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
+      "text": "Back"
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ collection.name }}</h1>
+
+      {% if collection.submission_guidance %}
+        {{ collection.submission_guidance | govuk_markdown }}
+      {% endif %}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <dl class="app-metadata govuk-!-margin-bottom-6">
+        <dt class="app-metadata__key">Submission deadline:</dt>
+        <dd class="app-metadata__value" data-testid="submission-status">
+          {% if collection.submission_period_end_date %}
+            {{ format_date(collection.submission_period_end_date) }}
+          {% else %}
+            <span>(Dates to be confirmed)</span>
+          {% endif %}
+        </dd>
+      </dl>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% if submission_helpers|length == 0 %}
+        <p class="govuk-body govuk-!-margin-bottom-7">You have not started any reports yet.</p>
+      {% else %}
+        {% set rows=[] %}
+        {% for submission_helper in submission_helpers %}
+          {% set submission_status = submission_helper.status %}
+          {% set submission_status_html %}
+            {{ submissionStatusTag(submission_status, submission_helper.is_overdue) }}
+          {% endset %}
+          {% set action_html %}
+            {% if submission_helper.is_locked_state %}
+              <a
+                class="govuk-link govuk-link--no-visited-state"
+                href="{{ url_for('access_grant_funding.view_locked_report', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission_helper.id) }}">
+                View report
+                <span class="govuk-visually-hidden"> for {{ submission_helper.display_name }} </span>
+              </a>
+            {% else %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.tasklist', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission_helper.id) }}">
+                Continue report
+                <span class="govuk-visually-hidden"> for {{ submission_helper.display_name }} </span>
+              </a>
+            {% endif %}
+          {% endset %}
+          {%
+            do rows.append([
+              {"text": submission_helper.display_name},
+              {"html": submission_status_html},
+              {"html": action_html}
+            ])
+          %}
+        {% endfor %}
+        {% set actions_html %}
+          <span class="govuk-visually-hidden">Actions</span>
+        {% endset %}
+        {{
+          govukTable(params={
+                  "firstCellIsHeader": false,
+                  "head":[
+                    {"text": (collection.submission_name_question.name[0]|upper + collection.submission_name_question.name[1:])},
+                    {"text": "Status"},
+                    {"html": actions_html}
+                  ],
+                  "rows":rows
+          })
+        }}
+      {% endif %}
+
+      {% if can_create_submissions %}
+        {{
+          govukButton({
+          "text": "Start a new report",
+          "classes": "govuk-button--secondary" if submission_helpers|length else "",
+          "href": url_for('access_grant_funding.start_new_multiple_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=collection.id)})
+        }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

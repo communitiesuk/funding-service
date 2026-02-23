@@ -37,7 +37,7 @@ from app.common.data.interfaces.collections import (
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
     get_submission,
-    get_submission_by_grant_recipient_collection,
+    get_submissions_by_grant_recipient_collection,
     group_name_exists,
     is_component_dependency_order_valid,
     move_component_down,
@@ -448,6 +448,118 @@ class TestUpdateCollection:
         with pytest.raises(DuplicateValueError):
             update_collection(collection2, name="Collection One")
 
+    def test_update_collection_enable_multiple_submissions(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        updated = update_collection(
+            collection,
+            allow_multiple_submissions=True,
+            submission_name_question_id=question.id,
+        )
+
+        assert updated.allow_multiple_submissions is True
+        assert updated.submission_name_question_id == question.id
+
+    def test_update_collection_disable_multiple_submissions_clears_question(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        collection = question.form.collection
+        collection.allow_multiple_submissions = True
+        collection.submission_name_question_id = question.id
+        db_session.commit()
+
+        updated = update_collection(collection, allow_multiple_submissions=False)
+
+        assert updated.allow_multiple_submissions is False
+        assert updated.submission_name_question_id is None
+
+    def test_update_collection_submission_name_question_raises_when_not_multiple(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        with pytest.raises(ValueError, match="submission_name_question_id cannot be set"):
+            update_collection(
+                collection,
+                allow_multiple_submissions=False,
+                submission_name_question_id=question.id,
+            )
+
+    def test_update_collection_submission_name_question_raises_when_multiple_not_provided(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        with pytest.raises(ValueError, match="submission_name_question_id cannot be set"):
+            update_collection(
+                collection,
+                submission_name_question_id=question.id,
+            )
+
+    def test_update_collection_disable_multiple_submissions_raises_when_submissions_exist(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        collection = question.form.collection
+        collection.allow_multiple_submissions = True
+        collection.submission_name_question_id = question.id
+        db_session.flush()
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, data={str(question.id): "Project A"}
+        )
+
+        with pytest.raises(ValueError, match="Cannot disable multiple submissions"):
+            update_collection(collection, allow_multiple_submissions=False)
+
+    def test_update_collection_disable_multiple_submissions_allows_preview_submissions(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        collection = question.form.collection
+        collection.allow_multiple_submissions = True
+        collection.submission_name_question_id = question.id
+        db_session.flush()
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.PREVIEW, data={str(question.id): "Project A"}
+        )
+
+        update_collection(collection, allow_multiple_submissions=False)
+
+        assert collection.allow_multiple_submissions is False
+
+    def test_update_collection_disable_multiple_submissions_allowed_when_no_submissions(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        collection = question.form.collection
+        collection.allow_multiple_submissions = True
+        collection.submission_name_question_id = question.id
+        db_session.commit()
+
+        updated = update_collection(collection, allow_multiple_submissions=False)
+
+        assert updated.allow_multiple_submissions is False
+        assert updated.submission_name_question_id is None
+
+    def test_update_collection_submission_name_question_raises_for_nonexistent_id(self, db_session, factories):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+
+        with pytest.raises(ValueError):
+            update_collection(collection, submission_name_question_id=uuid.uuid4())
+
+    def test_update_collection_submission_name_question_raises_for_group(self, db_session, factories):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        group = factories.group.create(form__collection=collection)
+
+        with pytest.raises(ValueError):
+            update_collection(collection, submission_name_question_id=group.id)
+
+    def test_update_collection_submission_guidance(self, db_session, factories):
+        collection = factories.collection.create()
+
+        updated = update_collection(collection, submission_guidance="## Some markdown heading")
+
+        assert updated.submission_guidance == "## Some markdown heading"
+
+    def test_update_collection_clear_submission_guidance(self, db_session, factories):
+        collection = factories.collection.create(submission_guidance="Existing guidance")
+
+        updated = update_collection(collection, submission_guidance=None)
+
+        assert updated.submission_guidance is None
+
     def test_update_collection_without_arguments(self, db_session, factories):
         collection = factories.collection.create(
             name="Original Name",
@@ -614,18 +726,50 @@ def test_get_submission_for_grant_recipient(db_session, factories):
         get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient2.id)
 
 
-def test_get_submission_for_grant_recipient_collection(db_session, factories):
+def test_get_submissions_by_grant_recipient_collection_returns_single_submission(db_session, factories):
+    grant_recipient = factories.grant_recipient.create()
+    collection = factories.collection.create(grant=grant_recipient.grant)
+    submission = factories.submission.create(
+        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+    )
+
+    from_db = get_submissions_by_grant_recipient_collection(
+        grant_recipient=grant_recipient, collection_id=collection.id
+    )
+
+    assert len(from_db) == 1
+    assert from_db[0].id == submission.id
+
+
+def test_get_submissions_by_grant_recipient_collection_returns_multiple_submissions(db_session, factories):
+    grant_recipient = factories.grant_recipient.create()
+    collection = factories.collection.create(grant=grant_recipient.grant)
+    submission_1 = factories.submission.create(
+        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+    )
+    submission_2 = factories.submission.create(
+        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+    )
+
+    from_db = get_submissions_by_grant_recipient_collection(
+        grant_recipient=grant_recipient, collection_id=collection.id
+    )
+
+    assert len(from_db) == 2
+    assert {s.id for s in from_db} == {submission_1.id, submission_2.id}
+
+
+def test_get_submissions_by_grant_recipient_collection_returns_empty_list_for_other_recipient(db_session, factories):
     grant_recipient = factories.grant_recipient.create()
     grant_recipient2 = factories.grant_recipient.create(grant=grant_recipient.grant)
     collection = factories.collection.create(grant=grant_recipient.grant)
     factories.submission.create(collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE)
-    from_db = get_submission_by_grant_recipient_collection(grant_recipient=grant_recipient, collection_id=collection.id)
-    assert from_db is not None
 
-    from_db = get_submission_by_grant_recipient_collection(
+    from_db = get_submissions_by_grant_recipient_collection(
         grant_recipient=grant_recipient2, collection_id=collection.id
     )
-    assert from_db is None
+
+    assert from_db == []
 
 
 def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):

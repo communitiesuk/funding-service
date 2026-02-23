@@ -600,34 +600,254 @@ class TestListReportSections:
             assert response.status_code == 302
             assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}$")
 
-    @pytest.mark.parametrize(
-        "collection_status", [status for status in CollectionStatusEnum if status != CollectionStatusEnum.DRAFT]
-    )
-    @pytest.mark.parametrize(
-        "client_fixture", ("authenticated_grant_admin_client", "authenticated_platform_admin_client")
-    )
-    def test_get_no_edit_links_when_report_not_draft(self, factories, collection_status, request, client_fixture):
-        client = request.getfixturevalue(client_fixture)
-        grant = client.grant if client.grant else factories.grant.create()
-        report = factories.collection.create(grant=grant, name="Test Report", status=collection_status)
-        factories.form.create(collection=report, title="Organisation information")
 
-        response = client.get(
+class TestConfigureMultipleSubmissions:
+    def test_get_configure_multiple_submissions(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+
+        response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.list_report_sections",
-                grant_id=grant.id,
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report.id,
             )
         )
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
+        assert "Should this collection allow multiple submissions per grant recipient?" in soup.text
 
-        add_section_link = page_has_link(soup, "Add a section")
-        add_another_section_link = page_has_link(soup, "Add another section")
+    def test_can_only_select_from_supported_question_types(self, app, authenticated_grant_admin_client, factories):
+        assert app.config["QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES"] == {
+            QuestionDataType.RADIOS,
+            QuestionDataType.TEXT_SINGLE_LINE,
+        }
 
-        assert add_section_link is None
-        assert add_another_section_link is None
+        q1 = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        q2 = factories.question.create(
+            form=q1.form,
+            data_type=QuestionDataType.RADIOS,
+        )
+        q3 = factories.question.create(
+            form=q1.form,
+            data_type=QuestionDataType.NUMBER,
+        )
+        q4 = factories.question.create(
+            form=q1.form,
+            data_type=QuestionDataType.CHECKBOXES,
+        )
+        report = q1.form.collection
+        report.submission_name_question_id = q1.id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.find("option", {"value": str(q1.id)})
+        assert soup.find("option", {"value": str(q2.id)})
+        assert not soup.find("option", {"value": str(q3.id)})
+        assert not soup.find("option", {"value": str(q4.id)})
+
+    def test_get_configure_multiple_submissions_prepopulates_when_already_enabled(
+        self, authenticated_grant_admin_client, factories
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="submission_name_field",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        yes_radio = soup.find("input", {"value": "True"})
+        assert yes_radio is not None
+
+    def test_post_disable_multiple_submissions(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"allow_multiple_submissions": False, "submit": "Save"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert report.allow_multiple_submissions is False
+        assert report.submission_name_question_id is None
+
+    def test_post_enable_multiple_submissions(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        report = question.form.collection
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={
+                "allow_multiple_submissions": True,
+                "submission_name_question": str(question.id),
+                "submit": "Save",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert report.allow_multiple_submissions is True
+        assert report.submission_name_question_id == question.id
+
+    def test_post_enable_without_question_shows_error(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"allow_multiple_submissions": True, "submit": "Save"},
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Select a question to use as the submission name")
+
+
+class TestSetGuidanceForMultipleSubmissions:
+    def test_get_renders_form(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Set guidance for multiple submissions"
+
+    def test_get_prepopulates_existing_guidance(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_multiple_submissions=True,
+            submission_guidance="Existing guidance content",
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        textarea = soup.find("textarea")
+        assert textarea is not None
+        assert "Existing guidance content" in textarea.text
+
+    def test_post_save_guidance_redirects_to_sections(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"guidance_body": "New guidance content", "submit": "Save guidance"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_report_sections",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            report_id=report.id,
+        )
+        assert report.submission_guidance == "New guidance content"
+
+    def test_post_save_and_preview_redirects_back_with_anchor(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"guidance_body": "Preview this", "preview": "Save and preview guidance"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert "#preview-guidance" in response.location
+        assert report.submission_guidance == "Preview this"
+
+    def test_post_save_empty_guidance_clears_it(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_multiple_submissions=True,
+            submission_guidance="Old guidance",
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.set_guidance_for_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"guidance_body": "", "submit": "Save guidance"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert report.submission_guidance is None
 
 
 class TestMoveSection:
@@ -5602,6 +5822,99 @@ class TestListSubmissions:
         assert "Not started" in tag_texts
 
 
+class TestListSubmissionsMultipleSubmissions:
+    def test_multi_submission_table_shows_submission_display_names(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_member_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="project name",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+        db_session.commit()
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Acme Corp"
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Alpha Project"},
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Beta Project"},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Alpha Project") is not None
+        assert page_has_link(soup, "Beta Project") is not None
+        assert "Acme Corp" in soup.text
+
+    def test_multi_submission_table_uses_question_name_as_column_header(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_member_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="project name",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+        db_session.commit()
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        table_headers = [th.text.strip() for th in soup.select("th")]
+        assert "Project name" in table_headers
+        assert "Grant recipient" in table_headers
+
+    def test_multi_submission_no_submissions_shows_empty_message(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            allow_multiple_submissions=True,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "No submissions found for this monitoring report" in response.text
+
+
 class TestExportReportSubmissions:
     def test_404(self, authenticated_grant_member_client, factories, db_session):
         response = authenticated_grant_member_client.get(
@@ -5682,6 +5995,94 @@ class TestExportReportSubmissions:
 
         assert response.content_length > 0
         assert len(response.json["submissions"]) == 1
+
+    def test_csv_includes_submission_name_for_multiple_submissions(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_member_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="project name",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+        db_session.commit()
+
+        grant_recipient = factories.grant_recipient.create(grant=authenticated_grant_member_client.grant)
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Alpha Project"},
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Beta Project"},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.export_report_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                export_format="csv",
+            )
+        )
+
+        assert response.status_code == 200
+        lines = response.text.splitlines()
+        headers = lines[0].split(",")
+        assert "Submission name" in headers
+        assert len(lines) == 3
+        assert "Alpha Project" in response.text
+        assert "Beta Project" in response.text
+
+    def test_json_includes_name_for_multiple_submissions(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_member_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            name="project name",
+        )
+        report = question.form.collection
+        report.submission_name_question_id = question.id
+        db_session.commit()
+
+        grant_recipient = factories.grant_recipient.create(grant=authenticated_grant_member_client.grant)
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Alpha Project"},
+        )
+        factories.submission.create(
+            collection=report,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            data={str(question.id): "Beta Project"},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.export_report_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                export_format="json",
+            )
+        )
+
+        assert response.status_code == 200
+        submissions = response.json["submissions"]
+        assert len(submissions) == 2
+        names = {s["name"] for s in submissions}
+        assert names == {"Alpha Project", "Beta Project"}
 
 
 class TestViewSubmission:

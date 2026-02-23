@@ -168,6 +168,15 @@ class SubmissionHelper:
         )
 
     @property
+    def display_name(self) -> str:
+        question = self.collection.submission_name_question
+        if question:
+            answer = self.cached_get_answer_for_question(question.id)
+            if answer is not None:
+                return answer.get_value_for_text_export()
+        return self.submission.reference
+
+    @property
     def grant(self) -> Grant:
         return self.collection.grant
 
@@ -982,7 +991,9 @@ class CollectionHelper:
     # todo: split this method up into smaller parts that can be individually tested (i.e submission -> CSV row dict)
     def generate_csv_content_for_all_submissions(self) -> str:  # noqa: C901
         metadata_headers = (
-            ["Submission reference", "Grant recipient", "Created by", "Created at"]
+            ["Submission reference", "Grant recipient"]
+            + (["Submission name"] if self.collection.allow_multiple_submissions else [])
+            + ["Created by", "Created at"]
             + (["Certified by", "Certified at"] if self.collection.requires_certification else [])
             + [
                 "Status",
@@ -1056,6 +1067,9 @@ class CollectionHelper:
                     else None
                 )
 
+            if self.collection.allow_multiple_submissions:
+                submission_csv_data["Submission name"] = submission.display_name
+
             visible_questions = submission.all_visible_questions
             cached_contexts: dict[str, ExpressionContext] = {}
             for question, header_string, index in question_headers:
@@ -1100,17 +1114,22 @@ class CollectionHelper:
         for submission in self.submission_helpers.values():
             submission_data: dict[str, Any] = {
                 "reference": submission.reference,
-                "grant_recipient": submission.submission.grant_recipient.organisation.name
-                if submission.submission.grant_recipient
-                else None,
-                "created_by": submission.created_by_email,
-                "created_at_utc": format_datetime(submission.created_at_utc),
-                "status": submission.status,
-                "submitted_at_utc": format_datetime(submission.submitted_at_utc)
-                if submission.submitted_at_utc
-                else None,
-                "sections": [],
+                "grant_recipient": (
+                    submission.submission.grant_recipient.organisation.name
+                    if submission.submission.grant_recipient
+                    else None
+                ),
             }
+
+            if self.collection.allow_multiple_submissions:
+                submission_data["name"] = submission.display_name
+
+            submission_data["created_by"] = submission.created_by_email
+            submission_data["created_at_utc"] = format_datetime(submission.created_at_utc)
+            submission_data["status"] = submission.status
+            submission_data["submitted_at_utc"] = (
+                format_datetime(submission.submitted_at_utc) if submission.submitted_at_utc else None
+            )
 
             if self.collection.requires_certification:
                 submission_data["certified_by"] = (
@@ -1123,6 +1142,8 @@ class CollectionHelper:
                     if submission.events.submission_state.certified_at_utc
                     else None
                 )
+
+            submission_data["sections"] = []
 
             for form in submission.get_ordered_visible_forms():
                 task_data: dict[str, Any] = {"name": form.title, "answers": {}}

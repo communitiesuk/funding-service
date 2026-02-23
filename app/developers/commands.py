@@ -310,15 +310,21 @@ def seed_grants() -> None:  # noqa: C901
             grant_recipient["grant_id"] = uuid.UUID(grant_recipient["grant_id"])
             db.session.add(GrantRecipient(**grant_recipient))
 
+        db.session.flush()
+
         for collection in grant_data["collections"]:
             collection["id"] = uuid.UUID(collection["id"])
             collection = Collection(**collection)
             db.session.add(collection)
 
+        db.session.flush()
+
         for form in grant_data["forms"]:
             form["id"] = uuid.UUID(form["id"])
             form = Form(**form)
             db.session.add(form)
+
+        db.session.flush()
 
         for component in grant_data["questions"]:
             component["id"] = uuid.UUID(component["id"])

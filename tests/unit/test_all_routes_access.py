@@ -66,6 +66,8 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.edit_question_condition",
     "deliver_grant_funding.add_question_validation",
     "deliver_grant_funding.edit_question_validation",
+    "deliver_grant_funding.collection_configure_multiple_submissions",
+    "deliver_grant_funding.set_guidance_for_multiple_submissions",
 ]
 routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.change_report_name",
@@ -131,6 +133,7 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
     "access_grant_funding.tasklist",
     "access_grant_funding.check_your_answers",
     "access_grant_funding.list_reports",
+    "access_grant_funding.list_collection_submissions",
     "access_grant_funding.confirm_sent_for_certification",
     "access_grant_funding.list_grant_team",
     "access_grant_funding.view_locked_report",
@@ -139,6 +142,7 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
 ]
 
 routes_with_expected_access_grant_funding_has_data_provider_role_access = [
+    "access_grant_funding.start_new_multiple_submission",
     "access_grant_funding.ask_a_question",
     "access_grant_funding.confirm_report_submission_direct_submission",
 ]

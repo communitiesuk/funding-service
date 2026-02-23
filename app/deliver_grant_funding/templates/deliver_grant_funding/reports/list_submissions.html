@@ -66,54 +66,103 @@
       </p>
     </div>
     <div class="govuk-grid-column-full">
-      {% set rows=[] %}
-      {% for grant_recipient in helper.grant_recipients | sort(attribute="organisation.name") %}
-        {% set grant_recipient_submission_helper = helper.grant_recipients_submission_helpers[grant_recipient.id] %}
-        {% set link_to_submission %}
-          {% if grant_recipient_submission_helper %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=grant_recipient_submission_helper.submission.id) }}" data-submission-link>
-              {{ grant_recipient.organisation.name }}
+      {% if report.allow_multiple_submissions %}
+        {% set rows=[] %}
+        {% for submission_helper in helper.submission_helpers.values() | sort(attribute="submission.grant_recipient.organisation.name,display_name") %}
+          {% set link_to_submission %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission_helper.submission.id) }}" data-submission-link>
+              {{ submission_helper.display_name }}
             </a>
-          {% else %}
-            {{ grant_recipient.organisation.name }}
-          {% endif %}
-        {% endset %}
-        {%
-          do rows.append([
-            {
-              "html": link_to_submission,
-            }, {
-              "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else report.is_overdue)
-            }, {
-              "text": format_date_short(grant_recipient_submission_helper.submission.updated_at_utc) if grant_recipient_submission_helper else ''
-            }
-          ])
-        %}
-      {% else %}
-        {% set no_collections_text %}
-          <span>No submissions found for this monitoring report</span>
-        {% endset %}
-        {%
-          do rows.append([
-            {
-              "html": no_collections_text,
-              "colspan": 3
-            }
-          ])
-        %}
-      {% endfor %}
+          {% endset %}
+          {%
+            do rows.append([
+              {
+                "html": link_to_submission,
+              }, {
+                "text": submission_helper.submission.grant_recipient.organisation.name,
+              }, {
+                "html": submissionStatusTag(submission_helper.status, submission_helper.is_overdue)
+              }, {
+                "text": format_date_short(submission_helper.submission.updated_at_utc)
+              }
+            ])
+          %}
+        {% else %}
+          {% set no_submissions_text %}
+            <span>No submissions found for this monitoring report</span>
+          {% endset %}
+          {%
+            do rows.append([
+              {
+                "html": no_submissions_text,
+                "colspan": 4
+              }
+            ])
+          %}
+        {% endfor %}
 
-      {{
-        govukTable({
-          "captionClasses": "govuk-table__caption--m",
-          "head": [
-            { "text": "Grant recipient", "classes": "govuk-!-width-one-half" },
-            { "text": "Status" },
-            { "text": "Last updated" }
-          ],
-          "rows": rows
-        })
-      }}
+        {{
+          govukTable({
+            "captionClasses": "govuk-table__caption--m",
+            "head": [
+              { "text": (report.submission_name_question.name[0]|upper + report.submission_name_question.name[1:]) if report.submission_name_question else "Submission", "classes": "govuk-!-width-one-third" },
+              { "text": "Grant recipient" },
+              { "text": "Status" },
+              { "text": "Last updated" }
+            ],
+            "rows": rows
+          })
+        }}
+      {% else %}
+        {% set rows=[] %}
+        {% for grant_recipient in helper.grant_recipients | sort(attribute="organisation.name") %}
+          {% set grant_recipient_submission_helper = helper.grant_recipients_submission_helpers[grant_recipient.id] %}
+          {% set link_to_submission %}
+            {% if grant_recipient_submission_helper %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=grant_recipient_submission_helper.submission.id) }}" data-submission-link>
+                {{ grant_recipient.organisation.name }}
+              </a>
+            {% else %}
+              {{ grant_recipient.organisation.name }}
+            {% endif %}
+          {% endset %}
+          {%
+            do rows.append([
+              {
+                "html": link_to_submission,
+              }, {
+                "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else report.is_overdue)
+              }, {
+                "text": format_date_short(grant_recipient_submission_helper.submission.updated_at_utc) if grant_recipient_submission_helper else ''
+              }
+            ])
+          %}
+        {% else %}
+          {% set no_collections_text %}
+            <span>No submissions found for this monitoring report</span>
+          {% endset %}
+          {%
+            do rows.append([
+              {
+                "html": no_collections_text,
+                "colspan": 3
+              }
+            ])
+          %}
+        {% endfor %}
+
+        {{
+          govukTable({
+            "captionClasses": "govuk-table__caption--m",
+            "head": [
+              { "text": "Grant recipient", "classes": "govuk-!-width-one-half" },
+              { "text": "Status" },
+              { "text": "Last updated" }
+            ],
+            "rows": rows
+          })
+        }}
+      {% endif %}
     </div>
   </div>
 {% endblock content %}

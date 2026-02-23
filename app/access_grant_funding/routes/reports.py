@@ -2,7 +2,7 @@ import io
 import os
 from uuid import UUID
 
-from flask import current_app, flash, redirect, render_template, send_file, url_for
+from flask import abort, current_app, flash, redirect, render_template, send_file, url_for
 from flask.typing import ResponseReturnValue
 from playwright.sync_api import sync_playwright
 
@@ -10,7 +10,7 @@ from app.access_grant_funding.forms import DeclineSignOffForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_access_grant_role
-from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
+from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection, get_collection
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
@@ -52,6 +52,38 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
         grant=grant_recipient.grant,
         submissions=submissions,
         grant_recipient=grant_recipient,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/collection/<uuid:collection_id>/submissions",
+    methods=["GET"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    user = get_current_user()
+    collection = get_collection(collection_id, grant_id=grant_id)
+    if not collection.allow_multiple_submissions:
+        raise abort(404)
+
+    submission_mode = get_submission_mode_for_user(user, user_organisation=grant_recipient.organisation)
+
+    submission_helpers = [
+        SubmissionHelper(submission=submission)
+        for submission in get_all_submissions_with_mode_for_collection(
+            collection_id=collection_id,
+            submission_mode=submission_mode,
+            grant_recipient_ids=[grant_recipient.id],
+        )
+    ]
+
+    return render_template(
+        "access_grant_funding/submission_list.html",
+        collection=collection,
+        grant_recipient=grant_recipient,
+        submission_helpers=submission_helpers,
+        can_create_submissions=AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user),
     )
 
 

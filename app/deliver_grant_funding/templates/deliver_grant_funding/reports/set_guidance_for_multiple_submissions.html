@@ -1,0 +1,68 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "common/govuk/tabs/macro.html" import govukTabs %}
+
+{% set page_title = "Set guidance for multiple submissions" %}
+{% set submit_label = "Set guidance" %}
+{% set active_item_identifier = "reports" %}
+
+{% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id) %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link
+    })
+  }}
+{% endblock beforeContent %}
+
+
+{% set guidance_help %}
+  {% include "common/partials/guidance-help.html" %}
+{% endset %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ page_title }}</h1>
+      <p class="govuk-body">Use guidance to give grant recipients information about what submissions are expected and how to complete them.</p>
+      <form method="post" novalidate class="govuk-!-margin-top-7">
+        {{ form.csrf_token }}
+
+
+        {% set write_guidance_html %}
+          {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": ""} }) }}
+
+          {{ govukDetails(params={"summaryText": "Formatting help", "html": guidance_help}) }}
+          {{ form.preview(params={"classes": "govuk-button--secondary app-context-aware-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
+        {% endset %}
+
+
+        {% set preview_guidance_html %}
+          <div class="app-context-aware-editor__preview-intro">
+            <h2 class="govuk-heading-m">Preview your guidance below</h2>
+            <p class="govuk-body">Below is a preview of how your guidance content will be shown to grant recipients.</p>
+          </div>
+          <div class="app-context-aware-editor__preview-area" data-ajax-markdown-target="">{{ report.submission_guidance | govuk_markdown }}</div>
+        {% endset %}
+
+        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=report.id) }}">
+          {{
+            govukTabs(params={
+              "items": [
+                {"label": "Write guidance", "id": "write-guidance", "panel": {"html": write_guidance_html} },
+                {"label": "Preview guidance", "id": "preview-guidance", "panel": {"html": preview_guidance_html} },
+              ],
+            })
+          }}
+        </div>
+
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}
