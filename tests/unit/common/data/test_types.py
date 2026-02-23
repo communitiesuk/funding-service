@@ -1,4 +1,6 @@
-from app import CollectionStatusEnum
+import pytest
+
+from app import CollectionStatusEnum, SubmissionStatusEnum, submission_status_sort_order
 from app.common.data.types import NumberTypeEnum, QuestionDataOptions, QuestionDataOptionsPostgresType
 
 
@@ -57,3 +59,10 @@ class TestQuestionDataOptionsPostgresType:
         options = QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL)
         data_options = QuestionDataOptionsPostgresType().process_bind_param(options, dialect=None)
         assert data_options == {"number_type": "Decimal number"}
+
+
+class TestSubmissionStatusSortOrder:
+    @pytest.mark.parametrize("status", [ss for ss in SubmissionStatusEnum])
+    def test_exhaustive(self, status):
+        """Will throw an error if we add a submission status and don't add a sort order for it; would KeyError"""
+        assert submission_status_sort_order(status) is not None

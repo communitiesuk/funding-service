@@ -4,7 +4,7 @@
     $govuk-brand-colour: #00625e
 );
 @use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
-// TODO: import moj frontend to start using things from there, eg number components and sortable tables
+@forward "moj/all";
 
 @use "components/accessible-autocomplete-overrides";
 @use "components/context-aware-editor";
