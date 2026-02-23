@@ -617,6 +617,47 @@ class TestConfigureMultipleSubmissions:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Should this collection allow multiple submissions per grant recipient?" in soup.text
 
+    def test_can_only_select_from_supported_question_types(self, app, authenticated_grant_admin_client, factories):
+        assert app.config["QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES"] == {
+            QuestionDataType.RADIOS,
+            QuestionDataType.TEXT_SINGLE_LINE,
+        }
+
+        q1 = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        q2 = factories.question.create(
+            form=q1.form,
+            data_type=QuestionDataType.RADIOS,
+        )
+        q3 = factories.question.create(
+            form=q1.form,
+            data_type=QuestionDataType.NUMBER,
+        )
+        q4 = factories.question.create(
+            form=q1.form,
+            data_type=QuestionDataType.CHECKBOXES,
+        )
+        report = q1.form.collection
+        report.submission_name_question_id = q1.id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.find("option", {"value": str(q1.id)})
+        assert soup.find("option", {"value": str(q2.id)})
+        assert not soup.find("option", {"value": str(q3.id)})
+        assert not soup.find("option", {"value": str(q4.id)})
+
     def test_get_configure_multiple_submissions_prepopulates_when_already_enabled(
         self, authenticated_grant_admin_client, factories
     ):

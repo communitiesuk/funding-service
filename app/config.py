@@ -8,7 +8,7 @@ from flask_talisman.talisman import ONE_YEAR_IN_SECS
 from pydantic import BaseModel, PostgresDsn, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
-from app.common.data.types import OrganisationType
+from app.common.data.types import OrganisationType, QuestionDataType
 from app.types import LogFormats, LogLevels
 
 
@@ -303,6 +303,12 @@ class _SharedConfig(_BaseConfig):
     }
     SEED_SYSTEM_DATA: bool = True
     GRANT_TEAM_RECIPIENT_LIST_SPREADSHEET: str = "https://mhclg.sharepoint.com/:x:/s/FundingServiceOnboarding/EVu_B9_W6OJKvjS8j-Xd_dABBQ0sPGB6vWLNLkoHfrHyHg?e=cG79Bd&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMH0"
+
+    # Collection setup
+    QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES: set[QuestionDataType] = {
+        QuestionDataType.TEXT_SINGLE_LINE,
+        QuestionDataType.RADIOS,
+    }
 
     # Google Analytics
     GOOGLE_TAG_MANAGER_ID: str = "GTM-T8XPM3NL"

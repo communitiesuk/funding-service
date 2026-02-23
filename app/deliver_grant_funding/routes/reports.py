@@ -261,7 +261,12 @@ def collection_configure_multiple_submissions(grant_id: UUID, report_id: UUID) -
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
 
     form = CollectionSettingsForm(
-        questions=[q for form in report.forms for q in form.cached_questions],
+        questions=[
+            q
+            for form in report.forms
+            for q in form.cached_questions
+            if q.data_type in current_app.config["QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES"]
+        ],
         obj=report if request.method == "GET" else None,
     )
     if form.validate_on_submit():
