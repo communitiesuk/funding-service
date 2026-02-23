@@ -11,7 +11,7 @@ from app.common.helpers.collections import SubmissionHelper
 
 class TestCollectionQuestionMacro:
     def test_the_next_test_exhausts_QuestionDataType(self):
-        assert len(QuestionDataType) == 9, (
+        assert len(QuestionDataType) == 10, (
             "If this test breaks, tweak the number and update "
             "`test_collection_question_renders_and_interpolates_text_and_hint_and_guidance` accordingly."
         )

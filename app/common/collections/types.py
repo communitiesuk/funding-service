@@ -238,6 +238,35 @@ class DateAnswer(SubmissionAnswerBaseModel):
         return self.answer.isoformat() if not self.approximate_date else self.answer.strftime("%B %-Y")
 
 
+class FileUploadAnswer(SubmissionAnswerBaseModel):
+    # todo: we'll also store the S3 key and optionally mimetype and size when persisting the file
+    filename: str
+
+    @property
+    def _render_answer_template(self) -> str:
+        return "common/partials/answers/file_upload.html"
+
+    def get_value_for_submission(self) -> dict[str, Any]:
+        return self.model_dump(mode="json")
+
+    def get_value_for_form(self) -> str:
+        return self.filename
+
+    def get_value_for_evaluation(self) -> str:
+        return self.filename
+
+    def get_value_for_interpolation(self) -> str:
+        # todo: when interpolating file upload generating a link to the download file would allow markdown to format it
+        return self.filename
+
+    def get_value_for_text_export(self) -> str:
+        return self.filename
+
+    def get_value_for_json_export(self) -> str:
+        # todo: we can expose more information in the JSON export when persisting more
+        return self.filename
+
+
 AllAnswerTypes = Union[
     TextSingleLineAnswer
     | TextMultiLineAnswer
@@ -249,4 +278,5 @@ AllAnswerTypes = Union[
     | SingleChoiceFromListAnswer
     | MultipleChoiceFromListAnswer
     | DateAnswer
+    | FileUploadAnswer
 ]
