@@ -12,10 +12,11 @@
 @use "components/link-button";
 @use "components/metadata";
 @use "components/move-up-down-table";
-@use "components/test-data-banner";
+@use "components/print-header";
 @use "components/section";
 @use "components/service-navigation";
 @use "components/summary-list";
+@use "components/test-data-banner";
 
 @use "importants";
 @use "tweaks"; // Tiny CSS snippets to tweak existing components, not worth treating as their own thing
