@@ -1,7 +1,7 @@
 import csv
 import io
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -1009,3 +1009,80 @@ class MapDataSetColumnsForm(FlaskForm):
             for idx, column in enumerate(self.data_columns)
             if self.columns.entries[idx].form.data_type.data in ["DECIMAL", "INTEGER"]
         ]
+
+
+class NumberColumnOptionsForm(FlaskForm):
+    class Meta:
+        csrf = False
+
+    column_name = HiddenField()
+    number_type = HiddenField()
+    prefix = StringField(
+        "Prefix (optional)",
+        widget=GovTextInput(),
+        validators=[Optional()],
+        filters=[strip_string_if_not_empty, empty_string_to_none],
+    )
+    suffix = StringField(
+        "Suffix (optional)",
+        widget=GovTextInput(),
+        validators=[Optional()],
+        filters=[strip_string_if_not_empty, empty_string_to_none],
+    )
+    max_decimal_places = IntegerField(
+        "Decimal places",
+        widget=GovTextInput(),
+        validators=[],
+    )
+
+    def validate_prefix(self, field: Field) -> None:
+        if self.prefix.data and self.suffix.data:
+            raise ValidationError("Remove the suffix if you need a prefix")
+
+    def validate_suffix(self, field: Field) -> None:
+        if self.prefix.data and self.suffix.data:
+            raise ValidationError("Remove the prefix if you need a suffix")
+
+    def update_validators(self) -> None:
+        if self.number_type.data == NumberTypeEnum.DECIMAL:
+            self.max_decimal_places.validators = [DataRequired("Enter the maximum number of decimal places")]
+        else:
+            self.max_decimal_places.validators = [Optional()]
+
+    def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+        self.update_validators()
+        return super().validate(extra_validators=extra_validators)
+
+
+class NumberColumnFormattingOptions(TypedDict):
+    prefix: str | None
+    suffix: str | None
+    max_decimal_places: int | None
+
+
+class MapNumberColumnsForm(FlaskForm):
+    columns = FieldList(FormField(NumberColumnOptionsForm))
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, numerical_columns: list[DataSetColumnMapping], **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.numerical_columns = numerical_columns
+        for idx, col in enumerate(numerical_columns):
+            if idx < len(self.columns.entries):
+                self.columns.entries[idx].form.column_name.data = col.column_name
+                self.columns.entries[idx].form.number_type.data = col.number_type
+            else:
+                entry = self.columns.append_entry()
+                entry.form.column_name.data = col.column_name
+                entry.form.number_type.data = col.number_type
+
+    def get_number_column_formatting_options_mappings(self) -> dict[str, NumberColumnFormattingOptions]:
+        settings = {}
+        for idx, col in enumerate(self.numerical_columns):
+            entry = self.columns.entries[idx].form
+            settings[col.column_name] = NumberColumnFormattingOptions(
+                prefix=entry.prefix.data,
+                suffix=entry.suffix.data,
+                max_decimal_places=int(entry.max_decimal_places.data) if entry.max_decimal_places.data else None,
+            )
+        return settings
