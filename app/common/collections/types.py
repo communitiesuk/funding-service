@@ -154,7 +154,18 @@ class _NumberAnswer[T: int | Decimal](SubmissionAnswerBaseModel):
 
 
 IntegerAnswer = _NumberAnswer[int]
-DecimalAnswer = _NumberAnswer[Decimal]
+
+
+class DecimalAnswer(_NumberAnswer[Decimal]):
+    def get_value_for_json_export(self) -> dict[str, str | Decimal]:
+        data: dict[str, str | Decimal] = {"value": f"{self.value:}"}
+
+        if self.prefix:
+            data["prefix"] = self.prefix
+        if self.suffix:
+            data["suffix"] = self.suffix
+
+        return data
 
 
 class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):
