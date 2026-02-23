@@ -181,10 +181,7 @@ def update_collection(  # noqa: C901
             and collection.id is not None
         ):
             if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
-                raise ValueError(
-                    "Cannot disable multiple submissions: submissions already exist for this collection "
-                    "that rely on the submission_name_question_id for their display names."
-                )
+                raise ValueError("Cannot disable multiple submissions: submissions already exist for this collection")
 
         collection.allow_multiple_submissions = allow_multiple_submissions
         if not allow_multiple_submissions:

@@ -766,38 +766,31 @@ class TestGrantRecipientJourneyForm(FlaskForm):
 class CollectionSettingsForm(FlaskForm):
     allow_multiple_submissions = RadioField(
         "Should this collection allow multiple submissions per grant recipient?",
-        choices=[("yes", "Yes"), ("no", "No")],
+        choices=[(True, "Yes"), (False, "No")],
         validators=[DataRequired("Select whether the collection should allow multiple submissions")],
         widget=GovRadioInput(),
     )
-    submission_name = StringField(
-        "Submission name",
-        widget=GovTextArea(),
+    submission_name_question = SelectField(
+        "Which question should be used to uniquely identify each submission?",
+        choices=[],
+        widget=MHCLGAccessibleAutocomplete(),
+        validators=[Optional()],
     )
-    submission_name_question_id = HiddenField()
-    add_context = StringField(widget=GovSubmitInput())
     submit = SubmitField(widget=GovSubmitInput())
 
-    def is_submitted_to_add_context(self) -> bool:
-        return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
+    def __init__(self, questions: list[Question], *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
-    def get_form_data(self) -> dict[str, Any]:
-        return {k: v for k, v in self.data.items() if k not in {"csrf_token", "submit"}}
+        self.submission_name_question.choices = [("", "")] + [(str(q.id), q.text) for q in questions]  # type: ignore[assignment]
 
-    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
-        if self.is_submitted_to_add_context():
-            return True
+        if kwargs["obj"]:
+            self.submission_name_question.data = str(kwargs["obj"].submission_name_question_id)
 
-        if not super().validate(extra_validators=extra_validators):
-            return False
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> Any:
+        if self.allow_multiple_submissions.data == "True":
+            self.submission_name_question.validators = [DataRequired("Select a question to use as the submission name")]
 
-        if self.allow_multiple_submissions.data == "yes" and not self.submission_name_question_id.data:
-            self.submission_name.errors = list(self.submission_name.errors) + [
-                "Select a question to use as the submission name"
-            ]
-            return False
-
-        return True
+        return super().validate(extra_validators)
 
 
 class CollectionSettingsSelectSectionForm(FlaskForm):

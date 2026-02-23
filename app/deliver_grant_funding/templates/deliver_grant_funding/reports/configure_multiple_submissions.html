@@ -18,34 +18,10 @@
     <div class="govuk-grid-column-two-thirds">
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {# Hidden duplicate submit so it's the default form action #}
-        {{ form.submit(params={"classes": "govuk-!-display-none"}) }}
 
 
         {% set submission_name_html %}
-          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}">
-            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ context_keys_and_labels | tojson }}</div>
-            {% set addDataButton %}
-              {{
-                form.add_context(params={
-                    "html": "Reference data <span class='govuk-visually-hidden'>for submission name</span>",
-                    "classes": "govuk-button--secondary app-context-aware--button",
-                    "value": "submission_name"
-                })
-              }}
-            {% endset %}
-            {{
-              form.submission_name(params={
-                "attributes": {
-                    "data-context-aware-editor-target": "",
-                    "readonly": "readonly"
-                },
-                "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton }
-              }
-              })
-            }}
-            {{ form.submission_name_question_id }}
-          </div>
+          {{ form.submission_name_question }}
         {% endset %}
 
         {{
@@ -53,13 +29,13 @@
           "fieldset": {"legend": {"text": form.allow_multiple_submissions.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} },
               "items": [
                 {
-                  "value": "yes",
+                  "value": true,
                   "text": "Yes",
                   "conditional": {
                     "html": submission_name_html
                   }
                 },
-                {"value": "no", "text": "No"}
+                {"value": false, "text": "No"}
               ]
           })
         }}

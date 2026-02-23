@@ -639,7 +639,7 @@ class TestConfigureMultipleSubmissions:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        yes_radio = soup.find("input", {"value": "yes"})
+        yes_radio = soup.find("input", {"value": "True"})
         assert yes_radio is not None
 
     def test_post_disable_multiple_submissions(self, authenticated_grant_admin_client, factories):
@@ -657,7 +657,7 @@ class TestConfigureMultipleSubmissions:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report.id,
             ),
-            data={"allow_multiple_submissions": "no", "submit": "Save"},
+            data={"allow_multiple_submissions": False, "submit": "Save"},
             follow_redirects=False,
         )
 
@@ -679,8 +679,8 @@ class TestConfigureMultipleSubmissions:
                 report_id=report.id,
             ),
             data={
-                "allow_multiple_submissions": "yes",
-                "submission_name_question_id": str(question.id),
+                "allow_multiple_submissions": True,
+                "submission_name_question": str(question.id),
                 "submit": "Save",
             },
             follow_redirects=False,
@@ -699,209 +699,12 @@ class TestConfigureMultipleSubmissions:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report.id,
             ),
-            data={"allow_multiple_submissions": "yes", "submit": "Save"},
+            data={"allow_multiple_submissions": True, "submit": "Save"},
         )
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Select a question to use as the submission name")
-
-    def test_post_add_context_redirects_to_select_section(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.collection_configure_multiple_submissions",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            ),
-            data={"add_context": "submission_name"},
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "deliver_grant_funding.configure_multiple_submissions_select_section",
-            grant_id=authenticated_grant_admin_client.grant.id,
-            report_id=report.id,
-        )
-
-
-class TestCollectionSettingsSelectSection:
-    def test_get_select_section(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        factories.form.create(collection=report, title="Section One")
-        factories.form.create(collection=report, title="Section Two")
-
-        with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["multiple_submissions"] = {
-                "collection_id": str(report.id),
-                "form_data": {"allow_multiple_submissions": "yes"},
-            }
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.configure_multiple_submissions_select_section",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert "Section One" in soup.text
-        assert "Section Two" in soup.text
-
-    def test_redirects_without_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.configure_multiple_submissions_select_section",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            ),
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "deliver_grant_funding.collection_configure_multiple_submissions",
-            grant_id=authenticated_grant_admin_client.grant.id,
-            report_id=report.id,
-        )
-
-    def test_post_select_section_redirects_to_select_question(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Section One")
-
-        with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["multiple_submissions"] = {
-                "collection_id": str(report.id),
-                "form_data": {"allow_multiple_submissions": "yes"},
-            }
-
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.configure_multiple_submissions_select_section",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            ),
-            data={"section": str(form.id), "submit": "Select section"},
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "deliver_grant_funding.configure_multiple_submissions_select_question",
-            grant_id=authenticated_grant_admin_client.grant.id,
-            report_id=report.id,
-        )
-
-
-class TestCollectionSettingsSelectQuestion:
-    def test_get_select_question(self, authenticated_grant_admin_client, factories):
-        question = factories.question.create(
-            form__collection__grant=authenticated_grant_admin_client.grant,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            text="What is the project name?",
-        )
-        report = question.form.collection
-
-        with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["multiple_submissions"] = {
-                "collection_id": str(report.id),
-                "form_data": {"allow_multiple_submissions": "yes"},
-                "selected_section_id": str(question.form.id),
-            }
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.configure_multiple_submissions_select_question",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert "What is the project name?" in soup.text
-
-    def test_redirects_without_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.configure_multiple_submissions_select_question",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            ),
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "deliver_grant_funding.collection_configure_multiple_submissions",
-            grant_id=authenticated_grant_admin_client.grant.id,
-            report_id=report.id,
-        )
-
-    def test_redirects_without_selected_section(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-
-        with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["multiple_submissions"] = {
-                "collection_id": str(report.id),
-                "form_data": {"allow_multiple_submissions": "yes"},
-            }
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.configure_multiple_submissions_select_question",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            ),
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "deliver_grant_funding.configure_multiple_submissions_select_section",
-            grant_id=authenticated_grant_admin_client.grant.id,
-            report_id=report.id,
-        )
-
-    def test_post_select_question_redirects_to_settings(self, authenticated_grant_admin_client, factories):
-        question = factories.question.create(
-            form__collection__grant=authenticated_grant_admin_client.grant,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            text="What is the project name?",
-        )
-        report = question.form.collection
-
-        with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["multiple_submissions"] = {
-                "collection_id": str(report.id),
-                "form_data": {"allow_multiple_submissions": "yes"},
-                "selected_section_id": str(question.form.id),
-            }
-
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.configure_multiple_submissions_select_question",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-            ),
-            data={"question": str(question.id), "submit": "Reference data"},
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "deliver_grant_funding.collection_configure_multiple_submissions",
-            grant_id=authenticated_grant_admin_client.grant.id,
-            report_id=report.id,
-        )
 
 
 class TestSetGuidanceForMultipleSubmissions:

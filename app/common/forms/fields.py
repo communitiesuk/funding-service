@@ -58,7 +58,7 @@ class MHCLGAccessibleAutocomplete(GovSelect):
 
     def __call__(self, field: Field, **kwargs: Any) -> Any:
         # Set `data-accessible-autocomplete` on select field, which our JS will pick up and enhance automatically.
-        params = kwargs.get("params", {})
+        params = kwargs.setdefault("params", {})
         attributes = params.get("attributes", {})
         attributes.setdefault("data-accessible-autocomplete", "1")
 

@@ -66,8 +66,6 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.edit_question_condition",
     "deliver_grant_funding.add_question_validation",
     "deliver_grant_funding.edit_question_validation",
-    "deliver_grant_funding.configure_multiple_submissions_select_section",
-    "deliver_grant_funding.configure_multiple_submissions_select_question",
     "deliver_grant_funding.collection_configure_multiple_submissions",
     "deliver_grant_funding.set_guidance_for_multiple_submissions",
 ]
