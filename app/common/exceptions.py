@@ -38,3 +38,8 @@ class SubmissionValidationFailed(ValueError):
             f"{failed_questions_markup}<br>"
             f"If you need help, contact our support desk."
         )
+
+
+class SubmissionAnswerConflict(ValueError):
+    def __init__(self, message: str) -> None:
+        self.message = message

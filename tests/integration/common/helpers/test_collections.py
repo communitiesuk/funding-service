@@ -35,6 +35,7 @@ from app.common.data.types import (
     SubmissionStatusEnum,
     TasklistSectionStatusEnum,
 )
+from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan
 from app.common.filters import format_datetime
@@ -128,6 +129,128 @@ class TestSubmissionHelper:
                 "Could not submit answer for question_id=[a-z0-9-]+ "
                 "because submission id=[a-z0-9-]+ is already submitted."
             )
+
+        def test_submit_duplicate_submission_name_raises_conflict(self, db_session, factories):
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                form__collection__allow_multiple_submissions=True,
+            )
+            collection = question.form.collection
+            collection.submission_name_question_id = question.id
+            db_session.flush()
+
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                data={str(question.id): "Alpha"},
+            )
+            new_submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                data={},
+            )
+            helper = SubmissionHelper(new_submission)
+
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="Alpha"
+            )
+
+            with pytest.raises(SubmissionAnswerConflict, match="already exists"):
+                helper.submit_answer_for_question(question.id, form, new_submission.created_by)
+
+        def test_submit_duplicate_submission_name_is_case_insensitive(self, db_session, factories):
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                form__collection__allow_multiple_submissions=True,
+            )
+            collection = question.form.collection
+            collection.submission_name_question_id = question.id
+            db_session.flush()
+
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                data={str(question.id): "Alpha"},
+            )
+            new_submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                data={},
+            )
+            helper = SubmissionHelper(new_submission)
+
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="alpha"
+            )
+
+            with pytest.raises(SubmissionAnswerConflict, match="already exists"):
+                helper.submit_answer_for_question(question.id, form, new_submission.created_by)
+
+        def test_submit_unique_submission_name_succeeds(self, db_session, factories):
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                form__collection__allow_multiple_submissions=True,
+            )
+            collection = question.form.collection
+            collection.submission_name_question_id = question.id
+            db_session.flush()
+
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                data={str(question.id): "Alpha"},
+            )
+            new_submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                data={},
+            )
+            helper = SubmissionHelper(new_submission)
+
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="Beta"
+            )
+
+            helper.submit_answer_for_question(question.id, form, new_submission.created_by)
+            assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Beta")
+
+        def test_submit_same_name_on_own_submission_succeeds(self, db_session, factories):
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                form__collection__allow_multiple_submissions=True,
+            )
+            collection = question.form.collection
+            collection.submission_name_question_id = question.id
+            db_session.flush()
+
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                data={str(question.id): "Alpha"},
+            )
+            helper = SubmissionHelper(submission)
+
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="Alpha"
+            )
+
+            helper.submit_answer_for_question(question.id, form, submission.created_by)
+            assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
 
     class TestFormData:
         def test_no_submission_data(self, factories):

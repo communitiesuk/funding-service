@@ -326,7 +326,7 @@ class TestStartNewMultipleSubmission:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "A submission for “My project” already exists")
+        assert page_has_error(soup, "Another submission for “My project” already exists")
 
         submissions = db_session.query(Submission).where(Submission.grant_recipient_id == grant_recipient.id).all()
         assert len(submissions) == 1
@@ -355,7 +355,7 @@ class TestStartNewMultipleSubmission:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "A submission for “my project” already exists")
+        assert page_has_error(soup, "Another submission for “my project” already exists")
 
     def test_post_unique_name_succeeds_when_other_submissions_exist(
         self, db_session, authenticated_grant_recipient_data_provider_client, factories
@@ -1353,6 +1353,86 @@ class TestAskAQuestion:
             assert "govuk-!-display-none" not in soup.find("div", {"class": "govuk-radios"}).get("class")
             assert soup.find("input", {"name": "add_another", "value": "yes"}).get("checked") is None
             assert soup.find("input", {"name": "add_another", "value": "no"}).get("checked") is None
+
+    def test_post_ask_a_question_duplicate_submission_name_shows_error(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            text="Project name",
+            name="project name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Alpha"},
+        )
+        new_submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={},
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=new_submission.id,
+                question_id=question.id,
+            ),
+            data={"submit": "y", question.safe_qid: "Alpha"},
+        )
+
+        assert response.status_code == 200
+        assert "Another submission for “Alpha” already exists" in response.text
+
+    def test_post_ask_a_question_unique_submission_name_redirects(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            text="Project name",
+            name="project name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Alpha"},
+        )
+        new_submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={},
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=new_submission.id,
+                question_id=question.id,
+            ),
+            data={"submit": "y", question.safe_qid: "Beta"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
 
 
 class TestCheckYourAnswers:

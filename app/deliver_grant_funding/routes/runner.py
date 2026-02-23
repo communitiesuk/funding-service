@@ -81,13 +81,16 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
+        success = False
         if runner.is_removing:
-            runner.save_add_another()
+            success = runner.save_add_another()
         elif not runner.add_another_summary_context:
             # todo: save question answer could aways no-op if theres nothing to save which would make this code
             #       more straight forward
-            runner.save_question_answer(interfaces.user.get_current_user())
-        return redirect(runner.next_url)
+            success = runner.save_question_answer(interfaces.user.get_current_user())
+
+        if success:
+            return redirect(runner.next_url)
 
     is_first_question_in_section_preview = False
     if session.get("test_submission_form_id", None):
