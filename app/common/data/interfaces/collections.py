@@ -6,7 +6,7 @@ from uuid import UUID
 
 from flask import current_app
 from sqlalchemy import and_, delete, or_, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.collections.types import AllAnswerTypes
@@ -174,6 +174,18 @@ def update_collection(  # noqa: C901
             raise CollectionChronologyError("reporting_period_end_date must be before submission_period_start_date")
 
     if allow_multiple_submissions is not NOT_PROVIDED:
+        if (
+            not allow_multiple_submissions
+            and collection.allow_multiple_submissions
+            and collection.submission_name_question_id is not None
+            and collection.id is not None
+        ):
+            if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
+                raise ValueError(
+                    "Cannot disable multiple submissions: submissions already exist for this collection "
+                    "that rely on the submission_name_question_id for their display names."
+                )
+
         collection.allow_multiple_submissions = allow_multiple_submissions
         if not allow_multiple_submissions:
             collection.submission_name_question_id = None
@@ -181,6 +193,17 @@ def update_collection(  # noqa: C901
     if submission_name_question_id is not NOT_PROVIDED:
         if not collection.allow_multiple_submissions:
             raise ValueError("submission_name_question_id cannot be set when allow_multiple_submissions is not enabled")
+
+        try:
+            if (
+                submission_name_question_id
+                and not (submission_name_question := get_question_by_id(submission_name_question_id))
+                or not submission_name_question.is_question
+            ):
+                raise ValueError("submission_name_question_id must be a question ID")
+        except NoResultFound as e:
+            raise ValueError("submission_name_question_id must be a question ID") from e
+
         collection.submission_name_question_id = submission_name_question_id
 
     if submission_guidance is not NOT_PROVIDED:
