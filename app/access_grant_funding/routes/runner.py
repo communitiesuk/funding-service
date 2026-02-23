@@ -13,6 +13,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces import rollback
 from app.common.data.interfaces.collections import get_collection, get_submissions_by_grant_recipient_collection
 from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
+from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext, interpolate
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_mode import get_submission_mode_for_user
@@ -104,18 +105,18 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
 
     if form.validate_on_submit():
         submission_mode = get_submission_mode_for_user(user, user_organisation=grant_recipient.organisation)
-        existing_submissions = interfaces.collections.get_submissions_by_grant_recipient_collection(
-            grant_recipient=grant_recipient,
-            collection_id=collection_id,
-        )
-        helpers = [SubmissionHelper(s) for s in existing_submissions]
         submission = interfaces.collections.create_submission(
             collection=collection, grant_recipient=grant_recipient, created_by=user, mode=submission_mode
         )
         submission_helper = SubmissionHelper(submission)
-        submission_helper.submit_answer_for_question(question.id, form, user)
 
-        if not any(helper.display_name.lower() == submission_helper.display_name.lower() for helper in helpers):
+        try:
+            submission_helper.submit_answer_for_question(question.id, form, user)
+        except SubmissionAnswerConflict as e:
+            rollback()  # TODO: ideally handle this more gracefully, but for now reusing the logic in
+            # `submit_answer_for_question` feels more reliable
+            form.attach_error_for_question(question, e.message)
+        else:
             return redirect(
                 url_for(
                     "access_grant_funding.tasklist",
@@ -124,9 +125,6 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
                     submission_id=submission.id,
                 )
             )
-
-        rollback()
-        form.attach_error_for_question(question, f"A submission for “{submission_helper.display_name}” already exists")
 
     return render_template(
         "access_grant_funding/start_new_multiple_submission.html",
@@ -235,13 +233,16 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
+        success = False
+
         if runner.is_removing:
-            runner.save_add_another()
+            success = runner.save_add_another()
         elif not runner.add_another_summary_context:
             # todo: always call save, it should check this itself and no-op
-            runner.save_question_answer(interfaces.user.get_current_user())
+            success = runner.save_question_answer(interfaces.user.get_current_user())
 
-        return redirect(runner.next_url)
+        if success:
+            return redirect(runner.next_url)
 
     return render_template(
         "access_grant_funding/reports/ask_a_question.html", grant_recipient=grant_recipient, runner=runner

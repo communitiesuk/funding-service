@@ -13,7 +13,7 @@ from app.common.collections.forms import (
 from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, TasklistSectionStatusEnum, TRunnerUrlMap
-from app.common.exceptions import RedirectException, SubmissionValidationFailed
+from app.common.exceptions import RedirectException, SubmissionAnswerConflict, SubmissionValidationFailed
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
@@ -224,16 +224,24 @@ class FormRunner:
             return self.confirm_remove_form
         return self.add_another_summary_form if self.add_another_summary_context else self.question_form
 
-    def save_question_answer(self, user: User) -> None:
+    def save_question_answer(self, user: User) -> bool:
         if not self.component:
             raise RuntimeError("Question context not set")
 
+        error = False
         for question in self.questions:
-            self.submission.submit_answer_for_question(
-                question.id, self.question_form, user, add_another_index=self.add_another_index
-            )
+            try:
+                self.submission.submit_answer_for_question(
+                    question.id, self.question_form, user, add_another_index=self.add_another_index
+                )
+            except SubmissionAnswerConflict as e:
+                self.question_form.attach_error_for_question(question, e.message)
+                error = True
 
-    def save_add_another(self) -> None:
+        # Return true if successful
+        return not error
+
+    def save_add_another(self) -> bool:
         if self.add_another_index is None or not (self.component and self.component.add_another_container):
             raise RuntimeError("Add another context not set")
 
@@ -245,6 +253,9 @@ class FormRunner:
                         add_another_container=self.component.add_another_container,
                         add_another_index=self.add_another_index,
                     )
+
+        # Returns True if it was successful; at the moment this cannot fail (vs `save_question_answer`)
+        return True
 
     def interpolate(self, text: str, *, context: ExpressionContext | None = None) -> str:
         return interpolate(text, context=context or self.runner_interpolation_context)
