@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from app.common.collections.runner import FormRunner
-from app.common.collections.types import TextSingleLineAnswer
+from app.common.collections.types import FileUploadAnswer, TextSingleLineAnswer
 from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan
@@ -209,6 +209,24 @@ class TestFormRunner:
         runner.validate_can_show_question_page()
         assert runner.next_url == "mock_check_answers_url"
 
+    def test_next_url_returns_to_the_same_question_when_clearing_answer(self, factories):
+        question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
+        submission = factories.submission.build(
+            collection=question.form.collection,
+            data={str(question.id): FileUploadAnswer(filename="text_file.txt").get_value_for_submission()},
+        )
+        helper = SubmissionHelper(submission)
+
+        question_mock = Mock(side_effect=lambda r, q, f, s, i, rm: f"mock_question_url_{str(q.id)}")
+
+        class MappedFormRunner(FormRunner):
+            url_map = {
+                FormRunnerState.QUESTION: question_mock,
+            }
+
+        runner = MappedFormRunner(submission=helper, question=question, is_clearing=True)
+        assert runner.validate_can_show_question_page() and runner.next_url == f"mock_question_url_{str(question.id)}"
+
     def test_back_url(self, factories):
         question = factories.question.build()
         second_question = factories.question.build(form=question.form)
@@ -258,6 +276,24 @@ class TestFormRunner:
 
         # similarly the back question should be the question before the group of same page
         assert runner.validate_can_show_question_page() and runner.back_url == f"mock_question_url_{str(q1.id)}"
+
+    def test_back_url_returns_to_the_same_question_when_clearing_answer(self, factories):
+        question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
+        submission = factories.submission.build(
+            collection=question.form.collection,
+            data={str(question.id): FileUploadAnswer(filename="text_file.txt").get_value_for_submission()},
+        )
+        helper = SubmissionHelper(submission)
+
+        question_mock = Mock(side_effect=lambda r, q, f, s, i, rm: f"mock_question_url_{str(q.id)}")
+
+        class MappedFormRunner(FormRunner):
+            url_map = {
+                FormRunnerState.QUESTION: question_mock,
+            }
+
+        runner = MappedFormRunner(submission=helper, question=question, is_clearing=True)
+        assert runner.validate_can_show_question_page() and runner.back_url == f"mock_question_url_{str(question.id)}"
 
     class TestUrlConfig:
         @pytest.mark.parametrize("runner_class", FormRunner.__subclasses__())

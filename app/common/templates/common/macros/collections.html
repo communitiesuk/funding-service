@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 {% from "common/macros/status.html" import tasklistSectionStatusTag with context %}
 
 {% macro collection_before(runner, override_back_link=None) %}
@@ -13,6 +14,8 @@
     {{ collection_add_another_summary(runner) }}
   {% elif runner.is_removing %}
     {{ collection_add_another_confirm_remove(runner) }}
+  {% elif runner.is_clearing %}
+    {{ collection_question_confirm_remove(runner) }}
   {% else %}
     {{ collection_question(runner) }}
   {% endif %}
@@ -109,35 +112,62 @@
       }}
     {% endif %}
   {% elif question.data_type == enum.question_type.FILE_UPLOAD %}
-    {{
-      form.render_question(
-        question,
-        params={
-          "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
-          "attributes": {
-            "accept": (question.file_types_supported | sum(attribute='mime_types', start=[]) | join(',')) if question.file_types_supported else None
-          },
-          "javascript": true,
-        }
-      )
-    }}
+    {% set existing_file_upload_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none, allow_new_index=true) %}
+
+    {% if existing_file_upload_answer %}
+      {% if questionAsPageHeading %}
+        <h1 class="govuk-heading-l">{{ runner.interpolate(question.text) }}</h1>
+      {% else %}
+        <label class="govuk-label govuk-label--s govuk-!-margin-bottom-4">{{ runner.interpolate(question.text) }}</label>
+      {% endif %}
+      {{
+        govukSummaryList({
+          "rows": [{
+            "key": { "text": "Your file" },
+            "value": { "text": existing_file_upload_answer.filename },
+            "actions": {
+              "items": [{
+                "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, add_another_index=runner.add_another_index if runner.add_another_index is not none else none, action="clear"),
+                "text": "Remove",
+                "visuallyHiddenText": "your uploaded file for " ~ question.name,
+                "classes": "govuk-link--no-visited-state"
+              }]
+            }
+          }]
+        })
+      }}
+      <p class="govuk-body">You can remove this file if you need to upload a different one.</p>
+    {% else %}
+      {{
+        form.render_question(
+          question,
+          params={
+            "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+            "attributes": {
+              "accept": (question.file_types_supported | sum(attribute='mime_types', start=[]) | join(',')) if question.file_types_supported else None
+            },
+            "javascript": true,
+          }
+        )
+      }}
 
 
-    {% set upload_guidance %}
-      <p class="govuk-body">You can upload the following file types:</p>
-      <ul class="govuk-list govuk-list--bullet">
-        {% for file_type in question.file_types_supported %}
-          <li>{{ file_type.value }} ({{ file_type.extensions | join(", ") }})</li>
-        {% endfor %}
-      </ul>
-      <p class="govuk-body">Your file must be smaller than {{ question.maximum_file_size.human_readable }}.</p>
-    {% endset %}
-    {{
-      govukDetails({
-        "summaryText": "What file types can I upload?",
-        "html": upload_guidance,
-      })
-    }}
+      {% set upload_guidance %}
+        <p class="govuk-body">You can upload the following file types:</p>
+        <ul class="govuk-list govuk-list--bullet">
+          {% for file_type in question.file_types_supported %}
+            <li>{{ file_type.value }} ({{ file_type.extensions | join(", ") }})</li>
+          {% endfor %}
+        </ul>
+        <p class="govuk-body">Your file must be smaller than {{ question.maximum_file_size.human_readable }}.</p>
+      {% endset %}
+      {{
+        govukDetails({
+          "summaryText": "What file types can I upload?",
+          "html": upload_guidance,
+        })
+      }}
+    {% endif %}
   {% endif %}
 {% endmacro %}
 
@@ -476,7 +506,7 @@
       {% endif %}
       {%
         do actions.append({
-          "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i, is_removing=True),
+          "href": runner.to_url(enum.form_runner_state.QUESTION, question=runner.questions[0], add_another_index=i, action="remove"),
           "text": "Remove",
           "visuallyHiddenText": entry_hidden_description,
           "classes": "govuk-link--no-visited-state"
@@ -555,6 +585,37 @@
             "text": heading,
             "isPageHeading": true,
             "classes": "govuk-fieldset__legend--l"
+          }
+        }
+      })
+    }}
+
+    {{ runner.confirm_remove_form.submit }}
+  </form>
+{% endmacro %}
+
+{% macro collection_question_confirm_remove(runner) %}
+  {% set question = runner.linked_question %}
+  {% set existing_file_upload_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none) %}
+
+  <h1 class="govuk-heading-l">Remove your file</h1>
+
+  {{
+    govukInsetText({
+      "text": existing_file_upload_answer.filename
+    })
+  }}
+
+  <form method="post" novalidate>
+    {{ runner.confirm_remove_form.csrf_token }}
+
+    {{
+      runner.confirm_remove_form.confirm_remove(params={
+        "fieldset": {
+          "legend": {
+            "text": "Are you sure you want to remove your file?",
+            "isPageHeading": false,
+            "classes": "govuk-fieldset__legend--m"
           }
         }
       })

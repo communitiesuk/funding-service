@@ -625,7 +625,7 @@ class SubmissionHelper:
                 )
 
     def _get_answer_for_question(
-        self, question_id: UUID, add_another_index: int | None = None
+        self, question_id: UUID, add_another_index: int | None = None, allow_new_index: bool = False
     ) -> AllAnswerTypes | None:
         question = self.get_question(question_id)
 
@@ -635,6 +635,8 @@ class SubmissionHelper:
             if self.submission.data.get(str(question.add_another_container.id)) is None or add_another_index >= len(
                 self.submission.data.get(str(question.add_another_container.id), [])
             ):
+                if allow_new_index:
+                    return None
                 # we raise here instead of returning None as the consuming code should never ask for an answer to an
                 # add another entry that doesn't exist
                 raise ValueError("no add another entry exists at this index")
