@@ -49,6 +49,7 @@ from app.common.data.interfaces.collections import (
     raise_if_nested_group_creation_not_valid_here,
     raise_if_question_has_any_dependencies,
     remove_add_another_answers_at_index,
+    remove_question_answer,
     remove_question_expression,
     reset_all_test_submissions,
     reset_test_submission,
@@ -4108,6 +4109,95 @@ class TestAddAnother:
         with pytest.raises(ValueError) as e:
             remove_add_another_answers_at_index(submission, add_another_group, -1)
         assert str(e.value) == "Cannot remove answers at index -1 as there are only 0 existing answers"
+
+
+class TestRemoveQuestionAnswer:
+    def test_remove_question_answer_for_file_upload(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)
+        question_two = factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        submission = factories.submission.create(
+            collection=question.form.collection,
+            data={str(question.id): {"filename": "test-document.pdf"}, str(question_two.id): "Some text answer"},
+        )
+
+        assert str(question.id) in submission.data
+        assert str(question_two.id) in submission.data
+
+        updated_submission = remove_question_answer(submission, question)
+
+        assert str(question.id) not in updated_submission.data
+        assert str(question_two.id) in updated_submission.data
+
+    def test_remove_question_answer_when_no_answer_exists(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)
+        submission = factories.submission.create(collection=question.form.collection)
+
+        assert str(question.id) not in submission.data
+
+        updated_submission = remove_question_answer(submission, question)
+
+        assert str(question.id) not in updated_submission.data
+
+    def test_remove_question_answer_only_supported_for_file_upload(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        submission = factories.submission.create(
+            collection=question.form.collection,
+            data={str(question.id): "User submitted data"},
+        )
+
+        with pytest.raises(ValueError) as e:
+            remove_question_answer(submission, question)
+        assert (
+            str(e.value)
+            == "Removing answers is currently only supported for questions where an explicit remove is required"
+        )
+
+    def test_remove_question_answer_within_add_another_group(self, db_session, factories):
+        form = factories.form.create()
+        group = factories.group.create(form=form, add_another=True)
+        question = factories.question.create(form=form, parent=group, data_type=QuestionDataType.FILE_UPLOAD)
+        question2 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        submission = factories.submission.create(
+            collection=form.collection,
+            data={
+                str(group.id): [
+                    {str(question.id): {"filename": "file0.pdf"}, str(question2.id): "Entry 0"},
+                    {str(question.id): {"filename": "file1.pdf"}, str(question2.id): "Entry 1"},
+                ]
+            },
+        )
+
+        updated_submission = remove_question_answer(submission, question, add_another_index=1)
+
+        updated_entries = updated_submission.data[str(group.id)]
+        assert len(updated_entries) == 2
+
+        assert updated_entries[0][str(question.id)] == {"filename": "file0.pdf"}
+        assert updated_entries[0][str(question2.id)] == "Entry 0"
+
+        assert str(question.id) not in updated_entries[1]
+        assert updated_entries[1][str(question2.id)] == "Entry 1"
+
+    def test_remove_question_answer_within_add_another_validates_index(self, db_session, factories):
+        form = factories.form.create()
+        group = factories.group.create(form=form, add_another=True)
+        question = factories.question.create(form=form, parent=group, data_type=QuestionDataType.FILE_UPLOAD)
+        submission = factories.submission.create(
+            collection=form.collection,
+            data={
+                str(group.id): [
+                    {str(question.id): {"filename": "file0.pdf"}},
+                ]
+            },
+        )
+
+        with pytest.raises(ValueError) as e:
+            remove_question_answer(submission, question, add_another_index=1)
+        assert str(e.value) == "Cannot clear answers at index 1 as there are only 1 existing answers"
+
+        with pytest.raises(ValueError) as e:
+            remove_question_answer(submission, question, add_another_index=-1)
+        assert str(e.value) == "Cannot clear answers at index -1 as there are only 1 existing answers"
 
 
 class TestGetSubmissions:

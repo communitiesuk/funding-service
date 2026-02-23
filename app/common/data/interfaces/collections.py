@@ -306,6 +306,29 @@ def remove_add_another_answers_at_index(
 
 
 @flush_and_rollback_on_exceptions
+def remove_question_answer(
+    submission: Submission, question: Question, add_another_index: int | None = None
+) -> Submission:
+    if question.data_type not in [QuestionDataType.FILE_UPLOAD]:
+        raise ValueError(
+            "Removing answers is currently only supported for questions where an explicit remove is required"
+        )
+
+    data = submission.data
+    if add_another_index is not None and question.add_another_container:
+        existing_answers = submission.data.get(str(question.add_another_container.id), [])
+        if add_another_index < 0 or add_another_index >= len(existing_answers):
+            raise ValueError(
+                f"Cannot clear answers at index {add_another_index} as there are "
+                f"only {len(existing_answers)} existing answers"
+            )
+        data = existing_answers[add_another_index]
+
+    data.pop(str(question.id), None)
+    return submission
+
+
+@flush_and_rollback_on_exceptions
 def update_submission_data(
     submission: Submission, question: Question, data: AllAnswerTypes, add_another_index: int | None = None
 ) -> Submission:

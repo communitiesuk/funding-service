@@ -239,13 +239,13 @@ class FormRunner:
         if not self.component:
             raise RuntimeError("Question context not set")
 
-        if self.is_clearing:
+        if self.is_clearing and self.linked_question:
             if self.confirm_remove_form.validate_on_submit():
                 if self.confirm_remove_form.confirm_remove.data == "yes":
-                    # todo: interface will reject if trying to clear an answer that isn't a file upload
-                    #       for now
-                    raise NotImplementedError("Clearing question answers is not yet implemented")
-            return True
+                    self.submission.remove_answer_for_question(
+                        question_id=self.linked_question.id, add_another_index=self.add_another_index
+                    )
+                    return True
         else:
             error = False
             for question in self.questions:
