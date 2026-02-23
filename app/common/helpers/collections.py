@@ -668,23 +668,24 @@ class SubmissionHelper:
                     "A multi-submission collection cannot have an add-another question as its submission name"
                 )
 
-            multi_submissions = interfaces.collections.get_submissions_by_grant_recipient_collection(
-                self.submission.grant_recipient, self.collection.id
-            )
+            if self.submission.grant_recipient and self.submission.mode != SubmissionModeEnum.PREVIEW:
+                multi_submissions = interfaces.collections.get_submissions_by_grant_recipient_collection(
+                    self.submission.grant_recipient, self.collection.id
+                )
 
-            answer = data.get_value_for_text_export()
-            other_answers = [
-                SubmissionHelper(s).cached_get_answer_for_question(question_id)
-                for s in multi_submissions
-                if s != self.submission
-            ]
+                answer = data.get_value_for_text_export()
+                other_answers = [
+                    SubmissionHelper(s).cached_get_answer_for_question(question_id)
+                    for s in multi_submissions
+                    if s != self.submission
+                ]
 
-            if any(
-                (other_answer.get_value_for_text_export().lower() == data.get_value_for_text_export().lower())
-                for other_answer in other_answers
-                if other_answer
-            ):
-                raise SubmissionAnswerConflict(f"Another submission for “{answer}” already exists")
+                if any(
+                    (other_answer.get_value_for_text_export().lower() == data.get_value_for_text_export().lower())
+                    for other_answer in other_answers
+                    if other_answer
+                ):
+                    raise SubmissionAnswerConflict(f"Another submission for “{answer}” already exists")
 
         interfaces.collections.update_submission_data(
             self.submission, question, data, add_another_index=add_another_index
