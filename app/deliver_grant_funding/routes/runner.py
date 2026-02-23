@@ -81,7 +81,7 @@ def ask_a_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
-        success = False
+        success = True
         if runner.is_removing:
             success = runner.save_add_another()
         elif not runner.add_another_summary_context:
