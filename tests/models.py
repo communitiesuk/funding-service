@@ -8,6 +8,7 @@ for transactional isolation.
 """
 
 import datetime
+import decimal
 import random
 import secrets
 from typing import Any, cast
@@ -21,6 +22,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.common.collections.types import (
     DateAnswer,
+    DecimalAnswer,
     EmailAnswer,
     FileUploadAnswer,
     IntegerAnswer,
@@ -54,6 +56,7 @@ from app.common.data.types import (
     ExpressionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
+    NumberTypeEnum,
     OrganisationModeEnum,
     QuestionDataOptions,
     QuestionDataType,
@@ -450,7 +453,15 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             name="Airspeed velocity",
             form=form,
             data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
             text="What is the airspeed velocity of an unladen swallow?",
+        )
+        q3a = _QuestionFactory.create(
+            name="Dog price",
+            form=form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
+            text="How much is that doggy in the window?",
         )
         q4 = _QuestionFactory.create(
             form=form,
@@ -509,6 +520,13 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                         ).get_value_for_submission(),
                         str(q3.id): IntegerAnswer(
                             value=(faker.Faker().random_number(2) if use_random_data else 123)
+                        ).get_value_for_submission(),
+                        str(q3a.id): DecimalAnswer(
+                            value=(
+                                decimal.Decimal(f"{faker.Faker().random_number(2)}.{faker.Faker().random_number(2)}")
+                                if use_random_data
+                                else decimal.Decimal("456.78")
+                            )
                         ).get_value_for_submission(),
                         str(q4.id): SingleChoiceFromListAnswer(
                             key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
