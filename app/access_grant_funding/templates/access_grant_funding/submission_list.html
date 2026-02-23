@@ -21,6 +21,10 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">{{ collection.name }}</h1>
+
+      {% if collection.submission_guidance %}
+        {{ collection.submission_guidance | govuk_markdown }}
+      {% endif %}
     </div>
   </div>
   <div class="govuk-grid-row">
@@ -35,12 +39,6 @@
           {% endif %}
         </dd>
       </dl>
-
-      <div class="govuk-!-margin-bottom-7">
-        {% if collection.submission_guidance %}
-          {{ collection.submission_guidance | govuk_markdown }}
-        {% endif %}
-      </div>
     </div>
   </div>
   <div class="govuk-grid-row">
@@ -94,7 +92,12 @@
       {% endif %}
 
       {% if can_create_submissions %}
-        {{ govukButton({"text": "Start a new report", "href": url_for('access_grant_funding.start_new_multiple_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=collection.id)}) }}
+        {{
+          govukButton({
+          "text": "Start a new report",
+          "classes": "govuk-button--secondary" if submission_helpers|length else "",
+          "href": url_for('access_grant_funding.start_new_multiple_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=collection.id)})
+        }}
       {% endif %}
     </div>
   </div>

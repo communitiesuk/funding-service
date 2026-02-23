@@ -117,17 +117,21 @@ class TestRouteToSubmission:
             collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
         )
 
-        response = authenticated_grant_recipient_member_client.get(
-            url_for(
-                "access_grant_funding.route_to_submission",
-                organisation_id=grant_recipient.organisation.id,
-                grant_id=grant_recipient.grant.id,
-                collection_id=collection.id,
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                f"Multiple submissions found for collection {collection.id} and grant recipient {grant_recipient.id}"
             ),
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 500
+        ):
+            authenticated_grant_recipient_member_client.get(
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_id=collection.id,
+                ),
+                follow_redirects=False,
+            )
 
     def test_route_to_submission_redirects_to_locked_page_if_locked(
         self, factories, authenticated_grant_recipient_member_client, submission_awaiting_sign_off
@@ -237,16 +241,15 @@ class TestStartNewMultipleSubmission:
             grant=grant_recipient.grant, allow_multiple_submissions=True, submission_name_question_id=None
         )
 
-        response = authenticated_grant_recipient_data_provider_client.get(
-            url_for(
-                "access_grant_funding.start_new_multiple_submission",
-                organisation_id=grant_recipient.organisation.id,
-                grant_id=grant_recipient.grant.id,
-                collection_id=collection.id,
+        with pytest.raises(RuntimeError, match=f"Collection {collection.id} does not have a submission name question"):
+            authenticated_grant_recipient_data_provider_client.get(
+                url_for(
+                    "access_grant_funding.start_new_multiple_submission",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_id=collection.id,
+                ),
             )
-        )
-
-        assert response.status_code == 500
 
     def test_post_creates_submission_and_redirects_to_tasklist(
         self, db_session, authenticated_grant_recipient_data_provider_client, factories

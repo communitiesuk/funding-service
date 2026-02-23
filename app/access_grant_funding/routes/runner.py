@@ -41,7 +41,9 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
 
     submissions = get_submissions_by_grant_recipient_collection(grant_recipient, collection_id)
     if len(submissions) > 1:
-        raise abort(500)
+        raise RuntimeError(
+            f"Multiple submissions found for collection {collection_id} and grant recipient {grant_recipient.id}"
+        )
 
     submission = submissions[0] if submissions else None
     if not submission:
@@ -89,7 +91,7 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
     if not collection.allow_multiple_submissions:
         raise abort(404)
     elif question is None:
-        raise abort(500)
+        raise RuntimeError(f"Collection {collection_id} does not have a submission name question")
 
     evaluation_context = ExpressionContext.build_expression_context(collection=collection, mode="evaluation")
     interpolation_context = ExpressionContext.build_expression_context(collection=collection, mode="interpolation")
