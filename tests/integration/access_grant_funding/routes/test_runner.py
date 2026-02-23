@@ -5,6 +5,7 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
+from app.common.collections.types import FileUploadAnswer
 from app.common.data.models import Submission
 from app.common.data.types import (
     ExpressionType,
@@ -1145,6 +1146,47 @@ class TestAskAQuestion:
             question_id=question_2.id,
         )
         assert response.location == expected_location
+
+    def test_post_ask_a_question_clears_file_upload_answer(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            text="Upload a file",
+            data_type=QuestionDataType.FILE_UPLOAD,
+            form__collection__grant=grant_recipient.grant,
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        submission.data = {str(question.id): FileUploadAnswer(filename="test.pdf").get_value_for_submission()}
+
+        assert submission.data.get(str(question.id)) is not None
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+                action="clear",
+            ),
+            data={"confirm_remove": "yes"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        expected_location = url_for(
+            "access_grant_funding.ask_a_question",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submission.id,
+            question_id=question.id,
+        )
+        # we returned back to the same quesiton
+        assert response.location == expected_location
+
+        assert submission.data.get(str(question.id)) is None
 
     def test_question_without_guidance_uses_question_as_heading(
         self, authenticated_grant_recipient_data_provider_client, factories

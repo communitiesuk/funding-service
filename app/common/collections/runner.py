@@ -13,10 +13,8 @@ from app.common.collections.forms import (
 )
 from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
-from app.common.data.types import FormRunnerState, TasklistSectionStatusEnum, TRunnerUrlMap
-from app.common.exceptions import RedirectException, SubmissionAnswerConflict, SubmissionValidationFailed
 from app.common.data.types import FormRunnerState, QuestionDataType, TasklistSectionStatusEnum, TRunnerUrlMap
-from app.common.exceptions import RedirectException, SubmissionValidationFailed
+from app.common.exceptions import RedirectException, SubmissionAnswerConflict, SubmissionValidationFailed
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
@@ -68,7 +66,7 @@ class FormRunner:
         self._question_form: DynamicQuestionForm | None = None
         self._check_your_answers_form: CheckYourAnswersForm | None = None
         self._add_another_summary_form: AddAnotherSummaryForm | None = None
-        self._confirm_remove_form: ConfirmRemoveAddAnotherForm | None = None
+        self._confirm_remove_form: ConfirmRemoveAddAnotherForm | ConfirmClearQuestionAnswerForm | None = None
 
         self.add_another_summary_context = bool(
             (question and question.add_another_container) and self.add_another_index is None
@@ -222,7 +220,7 @@ class FormRunner:
         return self._add_another_summary_form
 
     @property
-    def confirm_remove_form(self) -> ConfirmRemoveAddAnotherForm:
+    def confirm_remove_form(self) -> ConfirmRemoveAddAnotherForm | ConfirmClearQuestionAnswerForm:
         if not self.component or not self._confirm_remove_form:
             raise RuntimeError("Confirm remove context not set")
         return self._confirm_remove_form
@@ -230,7 +228,7 @@ class FormRunner:
     @property
     def question_with_add_another_summary_form(
         self,
-    ) -> DynamicQuestionForm | AddAnotherSummaryForm | ConfirmRemoveAddAnotherForm:
+    ) -> DynamicQuestionForm | AddAnotherSummaryForm | ConfirmRemoveAddAnotherForm | ConfirmClearQuestionAnswerForm:
         if self.is_removing or self.is_clearing:
             return self.confirm_remove_form
         return self.add_another_summary_form if self.add_another_summary_context else self.question_form
@@ -245,7 +243,7 @@ class FormRunner:
                     self.submission.remove_answer_for_question(
                         question_id=self.linked_question.id, add_another_index=self.add_another_index
                     )
-                    return True
+            return True
         else:
             error = False
             for question in self.questions:
@@ -256,7 +254,7 @@ class FormRunner:
                     # file uploads have to be explicitly removed and so do not re-submit when navigating
                     # "Save and continue" with an existing file
                     continue
-                
+
                 try:
                     self.submission.submit_answer_for_question(
                         question.id, self.question_form, user, add_another_index=self.add_another_index
