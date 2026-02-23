@@ -6,7 +6,7 @@ import pytest
 def _get_decorators(func):
     try:
         src = inspect.getsource(func)
-    except (OSError, TypeError):
+    except OSError, TypeError:
         return []
     lines = src.splitlines()
     return [line.strip() for line in lines if line.strip().startswith("@")]

@@ -356,7 +356,7 @@ def interpolate(
             value = _evaluate_expression_with_context(expr, context)
             if with_interpolation_highlighting:
                 return f'<span class="app-context-aware-editor--valid-reference">{escape(value)}</span>'
-        except (UndefinedVariableInExpression, DisallowedExpression):
+        except UndefinedVariableInExpression, DisallowedExpression:
             value = matchobj.group(0)
 
         return str(value)

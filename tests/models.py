@@ -720,9 +720,11 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
     reference = factory.LazyAttribute(lambda o: generate_submission_reference(o.collection))
 
     grant_recipient = factory.LazyAttribute(
-        lambda o: _GrantRecipientFactory.build(grant=o.collection.grant if o.collection else None)
-        if o.mode != SubmissionModeEnum.PREVIEW
-        else None
+        lambda o: (
+            _GrantRecipientFactory.build(grant=o.collection.grant if o.collection else None)
+            if o.mode != SubmissionModeEnum.PREVIEW
+            else None
+        )
     )
     grant_recipient_id = factory.LazyAttribute(lambda o: o.grant_recipient.id if o.grant_recipient else None)
 
