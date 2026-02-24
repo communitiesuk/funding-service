@@ -147,7 +147,7 @@ class Organisation(BaseModel):
     #
     # For local government, this uses the Local Authority District (December 2024) [LAD24] boundaries dataset:
     # https://geoportal.statistics.gov.uk/datasets/6a05f93297cf4a438d08e972099f54b9_0/explore
-    external_id: Mapped[str | None] = mapped_column(unique=False)
+    external_id: Mapped[str]
     name: Mapped[CIStr] = mapped_column(unique=False)
 
     # TODO: switch this to a computed column?

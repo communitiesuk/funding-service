@@ -118,8 +118,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         grant_override_certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=grant_id))
 
         # Test entity counts
-        test_organisations_count = get_organisation_count(mode=OrganisationModeEnum.TEST)
-        test_grant_recipients_count = get_grant_recipients_count(grant=grant, mode=GrantRecipientModeEnum.TEST)
         test_users_count = get_grant_recipient_data_providers_count(grant=grant, mode=GrantRecipientModeEnum.TEST)
 
         return self.render(
@@ -131,8 +129,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             grant_recipients_count=grant_recipients_count,
             grant_recipient_users_count=grant_recipient_users_count,
             grant_override_certifiers_count=grant_override_certifiers_count,
-            test_organisations_count=test_organisations_count,
-            test_grant_recipients_count=test_grant_recipients_count,
             test_users_count=test_users_count,
         )
 
@@ -432,7 +428,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             live_organisations = get_organisations(mode=OrganisationModeEnum.LIVE, with_ids=form.recipients.data)
             test_organisations = get_organisations(
                 mode=OrganisationModeEnum.TEST,
-                with_external_ids=list(set(org.external_id for org in live_organisations)),  # type: ignore
+                with_external_ids=list(set(org.external_id for org in live_organisations)),
             )
             test_organisation_ids = [org.id for org in test_organisations]
             create_grant_recipients(

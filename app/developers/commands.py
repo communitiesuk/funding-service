@@ -503,7 +503,7 @@ def create_test_organisation_from_live(commit: bool) -> None:
 
     created = 0
     for organisation in live_organisations:
-        if get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=[organisation.external_id]):  # type: ignore
+        if get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=[organisation.external_id]):
             continue
 
         created += 1
