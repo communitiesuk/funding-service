@@ -128,7 +128,11 @@ class TestCollectionQuestionMacro:
         submission = factories.submission.create(
             collection=question.form.collection,
             created_by=authenticated_grant_admin_client.user,
-            data={str(question.id): FileUploadAnswer(filename="test-file.pdf").get_value_for_submission()},
+            data={
+                str(question.id): FileUploadAnswer(
+                    filename="test-file.pdf", size=0, mime_type="application/pdf"
+                ).get_value_for_submission()
+            },
         )
 
         template_content = """

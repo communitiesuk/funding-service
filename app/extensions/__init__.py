@@ -10,11 +10,13 @@ from app.extensions.auto_commit_after_request import AutoCommitAfterRequestExten
 from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExtension
 from app.services.notify import NotificationService
+from app.services.s3 import S3Service
 
 db = SQLAlchemy(engine_options={"echo": False})
 auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
 notification_service = NotificationService()
+s3_service = S3Service()
 talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
 login_manager = LoginManager()
@@ -44,6 +46,7 @@ __all__ = [
     "migrate",
     "toolbar",
     "notification_service",
+    "s3_service",
     "talisman",
     "flask_assets_vite",
     "login_manager",

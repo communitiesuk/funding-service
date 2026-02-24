@@ -1,14 +1,17 @@
+from io import BytesIO
 from uuid import UUID
 
-from flask import redirect, render_template, request, session, url_for
+from flask import abort, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.auth.decorators import has_deliver_grant_role
 from app.common.collections.runner import DGFFormRunner
+from app.common.collections.types import FileUploadAnswer
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, RoleEnum
+from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, s3_service
 
 
 @deliver_grant_funding_blueprint.route(
@@ -137,3 +140,28 @@ def check_your_answers(grant_id: UUID, submission_id: UUID, form_id: UUID) -> Re
             return redirect(runner.next_url)
 
     return render_template("deliver_grant_funding/runner/check_your_answers.html", runner=runner)
+
+
+# todo: decide if this should be a K:V lookup for a simplified file key or if it should lookup the
+# question like other pages
+@deliver_grant_funding_blueprint.route(
+    "/download/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET"]
+)
+@deliver_grant_funding_blueprint.route(
+    "/download/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>",
+    methods=["GET"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def download_file(
+    grant_id: UUID,
+    submission_id: UUID,
+    question_id: UUID,
+    add_another_index: int | None = None,
+) -> ResponseReturnValue:
+    submission = SubmissionHelper.load(submission_id=submission_id)
+    data = submission.cached_get_answer_for_question(question_id=question_id, add_another_index=add_another_index)
+    if not data or not isinstance(data, FileUploadAnswer) or not data.key:
+        abort(404)
+    # return redirect(s3_service.generate_and_give_access_to_url(answer=data))
+    file_bytes = s3_service.download_file(key=data.key)
+    return send_file(BytesIO(file_bytes), download_name=data.filename, as_attachment=True)

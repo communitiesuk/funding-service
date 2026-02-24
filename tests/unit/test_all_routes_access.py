@@ -114,6 +114,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.view_submission",
     "deliver_grant_funding.export_report_submissions",
     "deliver_grant_funding.add_user_to_grant",
+    "deliver_grant_funding.download_file",
 ]
 
 routes_with_expected_access_grant_funding_logged_in_access = [
@@ -139,6 +140,7 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
     "access_grant_funding.view_locked_report",
     "access_grant_funding.export_report_pdf",
     "access_grant_funding.submitted_confirmation",
+    "access_grant_funding.download_file",
 ]
 
 routes_with_expected_access_grant_funding_has_data_provider_role_access = [

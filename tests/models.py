@@ -578,7 +578,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                         str(q10.id): FileUploadAnswer(
                             filename=faker.Faker().file_name(extension="pdf")
                             if use_random_data
-                            else "test-document.pdf"
+                            else "test-document.pdf",
+                            size=0,
+                            mime_type="application/pdf",
                         ).get_value_for_submission(),
                     },
                 )

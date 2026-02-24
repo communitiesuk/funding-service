@@ -213,7 +213,11 @@ class TestFormRunner:
         question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
         submission = factories.submission.build(
             collection=question.form.collection,
-            data={str(question.id): FileUploadAnswer(filename="text_file.txt").get_value_for_submission()},
+            data={
+                str(question.id): FileUploadAnswer(
+                    filename="text_file.txt", size=0, mime_type="text/plain"
+                ).get_value_for_submission()
+            },
         )
         helper = SubmissionHelper(submission)
 
@@ -281,7 +285,11 @@ class TestFormRunner:
         question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
         submission = factories.submission.build(
             collection=question.form.collection,
-            data={str(question.id): FileUploadAnswer(filename="text_file.txt").get_value_for_submission()},
+            data={
+                str(question.id): FileUploadAnswer(
+                    filename="text_file.txt", size=0, mime_type="text/plain"
+                ).get_value_for_submission()
+            },
         )
         helper = SubmissionHelper(submission)
 

@@ -1,2 +1,14 @@
-{# todo: link to file when the file is persisted #}
-<span data-testid="answer-{{ question.name }}">{{ answer.filename }}</span>
+{# todo: option to only present the link when the file has been virus scanned #}
+<span data-testid="answer-{{ question.name }}">
+  {% set submission = runner.submission if runner else helper %}
+
+  {# move getting the download url to submission helper - require the submission helper #}
+  {% if is_deliver_grant_funding() %}
+    {% set url = url_for('deliver_grant_funding.download_file', grant_id=submission.collection.grant.id, submission_id=submission.id, question_id=question.id, add_another_index=add_another_index) %}
+  {% else %}
+    {% set grant_recipient = submission.submission.grant_recipient %}
+    {% set url = url_for('access_grant_funding.download_file', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission.id, question_id=question.id, add_another_index=add_another_index) %}
+  {% endif %}
+
+  <a class="govuk-link govuk-link--no-visited-state" href="{{ url }}"> {{ answer.filename }} </a>
+</span>

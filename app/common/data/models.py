@@ -263,6 +263,9 @@ class Collection(BaseModel):
         cascade="all",
     )
 
+    def s3_key_prefix(self, submission_mode: SubmissionModeEnum) -> str:
+        return f"{submission_mode}/{self.id}"
+
     __table_args__ = (
         UniqueConstraint("name", "grant_id", name="uq_collection_name_grant_id"),
         CheckConstraint(
@@ -326,6 +329,10 @@ class Submission(BaseModel):
     )
     created_by: Mapped[User] = relationship("User", back_populates="submissions")
     grant_recipient: Mapped[GrantRecipient] = relationship("GrantRecipient", back_populates="submissions")
+
+    @property
+    def s3_key_prefix(self) -> str:
+        return f"{self.mode}/{self.collection_id}/{self.id}"
 
     __table_args__ = (
         CheckConstraint(

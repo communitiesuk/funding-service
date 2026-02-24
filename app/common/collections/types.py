@@ -250,8 +250,15 @@ class DateAnswer(SubmissionAnswerBaseModel):
 
 
 class FileUploadAnswer(SubmissionAnswerBaseModel):
-    # todo: we'll also store the S3 key and optionally mimetype and size when persisting the file
     filename: str
+    key: str | None = None
+    size: int
+    mime_type: str
+    # for now we'll only track if it has been scanned for viruses and will clear the answer if it
+    # failed the check, this will allow us to not enable downloads until we've scanned the file
+    # but in the future we may choose to not delete the answer and store the check here to show
+    # represent the check in the UI
+    scanned_for_viruses: bool = False
 
     @property
     def _render_answer_template(self) -> str:

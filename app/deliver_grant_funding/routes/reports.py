@@ -100,7 +100,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
 )
-from app.extensions import auto_commit_after_request, notification_service
+from app.extensions import auto_commit_after_request, notification_service, s3_service
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
@@ -2242,6 +2242,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         if submission_mode != SubmissionModeEnum.TEST:
             raise abort(400)
 
+        s3_service.delete_prefix(report.s3_key_prefix(submission_mode=submission_mode))
         reset_all_test_submissions(report)
 
         flash("All test submissions reset", FlashMessageType.TEST_SUBMISSIONS_RESET)
@@ -2319,6 +2320,7 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
         if delete_wtform.validate_on_submit():
+            s3_service.delete_prefix(helper.s3_key_prefix)
             reset_test_submission(helper.submission)
 
             flash("Submission reset", FlashMessageType.TEST_SUBMISSION_RESET)

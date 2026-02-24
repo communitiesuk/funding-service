@@ -514,7 +514,7 @@ class TestAskAQuestion:
         assert response.location == expected_location
 
     def test_post_ask_a_question_skips_for_existing_file_upload_answer_add_another_context(
-        self, authenticated_grant_admin_client, factories
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
         group = factories.group.create(
@@ -555,6 +555,8 @@ class TestAskAQuestion:
         )
         assert response.location == expected_location
 
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
+
         # response correctly checks the now persisted answer and allows skipping
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -576,8 +578,11 @@ class TestAskAQuestion:
         )
         assert response.location == expected_location
 
+        # no more files have been uploaded
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
+
     def test_post_ask_a_question_clears_file_upload_answer(
-        self, authenticated_grant_recipient_data_provider_client, factories
+        self, authenticated_grant_recipient_data_provider_client, factories, mock_s3_service_calls
     ):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         question = factories.question.create(
@@ -588,7 +593,11 @@ class TestAskAQuestion:
         submission = factories.submission.create(
             collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
         )
-        submission.data = {str(question.id): FileUploadAnswer(filename="test.pdf").get_value_for_submission()}
+        submission.data = {
+            str(question.id): FileUploadAnswer(
+                filename="test.pdf", size=0, mime_type="application/pdf", key="an-s3-key"
+            ).get_value_for_submission()
+        }
 
         assert submission.data.get(str(question.id)) is not None
 
@@ -616,6 +625,8 @@ class TestAskAQuestion:
         assert response.location == expected_location
 
         assert submission.data.get(str(question.id)) is None
+
+        assert len(mock_s3_service_calls.delete_file_calls) == 1
 
     def test_question_without_guidance_uses_question_as_heading(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(
