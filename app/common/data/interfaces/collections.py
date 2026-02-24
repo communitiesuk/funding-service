@@ -1596,6 +1596,20 @@ def reset_test_submission(submission: Submission) -> None:
 
 
 @flush_and_rollback_on_exceptions
+def reset_all_test_submissions(collection: Collection) -> None:
+    submission_ids = db.session.scalars(
+        select(Submission.id).where(
+            Submission.collection_id == collection.id,
+            Submission.mode == SubmissionModeEnum.TEST,
+        )
+    ).all()
+
+    if submission_ids:
+        db.session.execute(delete(SubmissionEvent).where(SubmissionEvent.submission_id.in_(submission_ids)))
+        db.session.execute(delete(Submission).where(Submission.id.in_(submission_ids)))
+
+
+@flush_and_rollback_on_exceptions
 def delete_collection_preview_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
     # We're trying to rely less on ORM relationships and cascades in delete queries so here we explicitly delete all
     # SubmissionEvents related to the `created_by_user`'s test submissions for that collection, and then
