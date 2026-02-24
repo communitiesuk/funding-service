@@ -20,9 +20,11 @@ from app.common.data.types import (
     ComponentType,
     ConditionsOperator,
     ExpressionType,
+    FileUploadTypes,
     GrantRecipientModeEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
+    MaximumFileSize,
     NumberTypeEnum,
     OrganisationModeEnum,
     OrganisationStatus,
@@ -691,6 +693,22 @@ class Question(Component, SafeQidMixin):
     @property
     def approximate_date(self) -> bool | None:
         return self.presentation_options.approximate_date if self.data_type == QuestionDataType.DATE else None
+
+    @property
+    def file_types_supported(self) -> list[FileUploadTypes] | None:
+        return (
+            (self.data_options.file_types_supported or [t for t in FileUploadTypes])
+            if self.data_type == QuestionDataType.FILE_UPLOAD
+            else None
+        )
+
+    @property
+    def maximum_file_size(self) -> MaximumFileSize | None:
+        return (
+            (self.data_options.maximum_file_size or MaximumFileSize.SMALL)
+            if self.data_type == QuestionDataType.FILE_UPLOAD
+            else None
+        )
 
     # END: Helper properties for populating `QuestionForm` instances
 

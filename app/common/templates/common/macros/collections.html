@@ -1,6 +1,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "common/macros/status.html" import tasklistSectionStatusTag with context %}
 
 {% macro collection_before(runner, override_back_link=None) %}
@@ -113,11 +114,30 @@
         question,
         params={
           "label": {"classes": "govuk-label--l" if questionAsPageHeading else "govuk-!-font-weight-bold", "isPageHeading": questionAsPageHeading},
+          "attributes": {
+            "accept": (question.file_types_supported | sum(attribute='mime_types', start=[]) | join(',')) if question.file_types_supported else None
+          },
           "javascript": true,
         }
       )
     }}
-    {# todo: add details component with information on supported file size and types #}
+
+
+    {% set upload_guidance %}
+      <p class="govuk-body">You can upload the following file types:</p>
+      <ul class="govuk-list govuk-list--bullet">
+        {% for file_type in question.file_types_supported %}
+          <li>{{ file_type.value }} ({{ file_type.extensions | join(", ") }})</li>
+        {% endfor %}
+      </ul>
+      <p class="govuk-body">Your file must be smaller than {{ question.maximum_file_size.human_readable }}.</p>
+    {% endset %}
+    {{
+      govukDetails({
+        "summaryText": "What file types can I upload?",
+        "html": upload_guidance,
+      })
+    }}
   {% endif %}
 {% endmacro %}
 
