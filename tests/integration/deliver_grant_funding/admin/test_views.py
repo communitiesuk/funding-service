@@ -1941,7 +1941,7 @@ class TestSetupGrantRecipients:
         assert org2.id in recipient_org_ids
 
         test_grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.TEST)
-        assert len(grant_recipients) == 2
+        assert len(test_grant_recipients) == 2
         test_recipient_org_ids = {gr.organisation_id for gr in test_grant_recipients}
         assert org1.matching_test_organisation.id in test_recipient_org_ids
         assert org2.matching_test_organisation.id in test_recipient_org_ids

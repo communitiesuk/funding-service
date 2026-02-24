@@ -70,14 +70,11 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpDataProvidersPage,
     SetUpGrantRecipientsPage,
     SetUpOrganisationsPage,
-    SetUpTestGrantRecipientsPage,
-    SetUpTestGrantRecipientUsersPage,
     _reference_data_flow,
 )
 from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
     delete_grant_through_admin,
-    delete_test_org_through_admin,
 )
 
 
@@ -1042,32 +1039,12 @@ def test_setup_grant_and_collection(
     switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER, grant_team_email)
     switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
 
-    # Set up test organisation via admin for test grant recipient journey
-    test_org_name = f"E2E Test Org {grant_name_uuid[:8]}"
-    test_org_external_id = f"E2E-TEST-{grant_name_uuid[:8].upper()}"
-    tsv_data = (
-        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
-        f"{test_org_external_id}\t{test_org_name}\tCentral Government\t\t\n"
-    )
-
     reporting_lifecycle_tasklist_page = AdminReportingLifecycleTasklistPage(page, domain, grant_id, collection_id)
-    reporting_lifecycle_tasklist_page.navigate()
-    reporting_lifecycle_tasklist_page.click_task("Set up test grant recipients")
-    set_up_grant_recipients_page = SetUpTestGrantRecipientsPage(page, domain, grant_id, collection_id)
-    set_up_grant_recipients_page.select_organisation(test_org_name)
-    set_up_grant_recipients_page.click_set_up_grant_recipients()
-
-    reporting_lifecycle_tasklist_page.click_task("Set up test grant recipient users")
-    set_up_users_page = SetUpTestGrantRecipientUsersPage(page, domain, grant_id, collection_id)
-    set_up_users_page.select_test_grant_recipient(test_org_name)
-    set_up_users_page.select_grant_team_member(grant_team_email)
-    set_up_users_page.click_add_user()
-
     reporting_lifecycle_tasklist_page.navigate()
     reporting_lifecycle_tasklist_page.click_task("Set up organisations")
 
-    # TODO make a new organisation and then remove at the end
-    org_name = "MHCLG Funding Service Test Organisation"
+    # TODO seed our e2e test organisation; note a shadow test org will be created automatically
+    org_name = "End-to-End Testing Organisation"
     user_name = "MHCLG Test User"
     user_email = "fsd-post-award@levellingup.gov.uk"
     tsv_data = (
@@ -1135,8 +1112,8 @@ def test_setup_grant_and_collection(
         "grant_team_email": grant_team_email,
         "first_section_name": first_section_name,
         "second_section_name": second_section_name,
-        "test_org_name": test_org_name,
-        "test_org_external_id": test_org_external_id,
+        "test_org_name": f"{org_name} (test)",
+        "test_org_external_id": "MHCLG-TEST-ORG",
         "grant_recipient_org": org_name,
         "grant_recipient_user_name": user_name,
         "grant_recipient_user_email": user_email,
@@ -1293,5 +1270,4 @@ def test_zzz_cleanup_grant(
     delete_grant_recipient_through_admin(
         page, domain, _shared_setup_data["grant_name_uuid"], expected_grant_recipients_matching_search=2
     )
-    delete_test_org_through_admin(page, domain, _shared_setup_data["test_org_external_id"])
     delete_grant_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])

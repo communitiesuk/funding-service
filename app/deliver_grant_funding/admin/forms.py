@@ -303,6 +303,7 @@ class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
         "MHCLG users",
         choices=[],
         widget=GovSelectWithSearch(),
+        validators=[DataRequired("Select an MHCLG user")],
     )
 
     submit = SubmitField("Add user", widget=GovSubmitInput())
