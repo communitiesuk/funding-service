@@ -101,7 +101,11 @@ from app.deliver_grant_funding.forms import (
     TestGrantRecipientJourneyForm,
     UploadDataSetForm,
 )
-from app.deliver_grant_funding.helpers import start_previewing_collection
+from app.deliver_grant_funding.helpers import (
+    start_previewing_collection,
+    validate_data_set,
+    validate_data_set_grant_recipients,
+)
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.deliver_grant_funding.session_models import (
     AddConditionDependsOnSessionModel,
@@ -2452,6 +2456,8 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         else None,
     )
 
+    gr_errors: list[str] = []
+
     if form.validate_on_submit():
         columns, rows = _parse_data_set_csv(form.file.data)
 
@@ -2473,6 +2479,18 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 
         session["data_set_upload"] = session_data.model_dump(mode="json")
 
+        if form.data_source_type.data != DataSourceType.STATIC:
+            grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+            gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients)
+            if gr_errors:
+                return render_template(
+                    "deliver_grant_funding/reports/data_sets/upload_dataset.html",
+                    grant=report.grant,
+                    report=report,
+                    form=form,
+                    gr_errors=gr_errors,
+                )
+
         return redirect(
             url_for(
                 "deliver_grant_funding.map_data_set_columns",
@@ -2482,7 +2500,11 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         )
 
     return render_template(
-        "deliver_grant_funding/reports/data_sets/upload_dataset.html", grant=report.grant, report=report, form=form
+        "deliver_grant_funding/reports/data_sets/upload_dataset.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+        gr_errors=gr_errors,
     )
 
 
@@ -2523,13 +2545,24 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                     report_id=report_id,
                 )
             )
+
+        validation_result = validate_data_set(data_set_data)
+
+        if validation_result.has_blocking_errors or validation_result.has_missing_data:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.check_data_set_errors",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
         else:
-            # TODO: Add check for missing data & potential redirect to review issues page in an elif
-            # TODO: Add db saving logic
+            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash here
             flash(
                 f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
                 + "<a href='#'>View data set</a>"
             )
+            # TODO: Add db saving logic
             return redirect(
                 url_for(
                     "deliver_grant_funding.list_report_data_sets",
@@ -2582,14 +2615,57 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
                     mapping.max_decimal_places = settings[mapping.column_name]["max_decimal_places"]
         session["data_set_upload"] = data_set_data.model_dump(mode="json")
 
-        # TODO: Add check for missing data & potential redirect to review issues page in an elif
-        # TODO: Add db saving logic
+        validation_result = validate_data_set(data_set_data)
+        if validation_result.has_blocking_errors or validation_result.has_missing_data:
+            return redirect(
+                url_for("deliver_grant_funding.check_data_set_errors", grant_id=grant_id, report_id=report_id)
+            )
+        else:
+            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
+            flash(
+                f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                + "<a href='#'>View data set</a>"
+            )
+            # TODO: Add db saving logic
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_report_data_sets",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
 
-        # This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/map_number_columns.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+        session_data=data_set_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/check-errors", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    data_set_data = _extract_data_set_data_from_session()
+    if not data_set_data:
+        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+
+    validation_result = validate_data_set(data_set_data)
+
+    form = GenericSubmitForm()
+
+    if form.validate_on_submit() and not validation_result.has_blocking_errors:
+        # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
         flash(
             f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
             + "<a href='#'>View data set</a>"
         )
+        # TODO: Add db saving logic
         return redirect(
             url_for(
                 "deliver_grant_funding.list_report_data_sets",
@@ -2599,9 +2675,10 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
         )
 
     return render_template(
-        "deliver_grant_funding/reports/data_sets/map_number_columns.html",
+        "deliver_grant_funding/reports/data_sets/data_set_issues.html",
         grant=report.grant,
         report=report,
-        form=form,
         session_data=data_set_data,
+        form=form,
+        validation_result=validation_result,
     )

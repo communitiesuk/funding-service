@@ -12,6 +12,18 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
+      {% if gr_errors %}
+        {% set error_list = [] %}
+        {% for error in gr_errors %}
+          {% do error_list.append({"text": error, "href": "#file"}) %}
+        {% endfor %}
+        {{
+          govukErrorSummary({
+            "titleText": "There is a problem",
+            "errorList": error_list
+          })
+        }}
+      {% endif %}
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ report.name }}</span>
         Upload new data set

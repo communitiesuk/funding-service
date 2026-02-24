@@ -6751,6 +6751,8 @@ class TestUploadDataSet:
     def test_post_valid_csv_redirects_to_map_columns_with_session(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Rivendell")
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Lothlorien")
 
         csv_content = "ONS code,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
         data = {
@@ -6766,9 +6768,8 @@ class TestUploadDataSet:
         )
 
         assert response.status_code == 302
-        assert (
+        assert response.location == (
             url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id)
-            in response.location
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -6824,6 +6825,37 @@ class TestUploadDataSet:
 
         assert response.status_code == 200
         assert "The CSV file must contain the columns: ONS code, Grant recipient" in response.text
+
+    def test_post_raises_errors_for_incorrect_grant_recipient_data(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
+
+        csv_content = (
+            "ONS code,Grant recipient,Amount,Category\nE123,Lothlorien,1000,A"
+            + "\nE123,Rogue,1000,A\nE789,Mordor,1000,A"
+        )
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.GRANT_RECIPIENT,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "ONS code 'E123' already appears in the data set")
+        assert page_has_error(soup, "Grant recipient 'Rogue' not found in grant recipients")
+        assert page_has_error(soup, "ONS code 'E789' not found in grant recipients")
+        assert page_has_error(soup, "Grant recipient 'Mordor' not found in grant recipients")
+        assert page_has_error(soup, "Grant recipient with ONS code 'E456' is missing from the CSV")
+        assert page_has_error(soup, "Grant recipient 'Numenor' is missing from the CSV")
 
     def test_post_missing_name(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
@@ -7100,6 +7132,42 @@ class TestMapDataSetColumns:
             soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
         )
 
+    def test_post_redirects_to_data_set_errors(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.PROJECT_LEVEL,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=["Area description"],
+                preview_rows=[
+                    {"Area description": "A fine place"},
+                    {"Area description": "A wonderful place"},
+                ],
+                all_rows=[
+                    {"ONS code": "E123", "Grant recipient": "Lothlorien", "Area description": ""},
+                    {"ONS code": "E123", "Grant recipient": "Lothlorien", "Area description": ""},
+                ],
+            ).model_dump(mode="json")
+
+        data = {
+            "columns-0-data_type": "TEXT",
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            data=data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            url_for(
+                "deliver_grant_funding.check_data_set_errors",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
     def test_post_missing_required_field_shows_error(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -7271,7 +7339,7 @@ class TestMapDataSetNumberColumns:
             "columns-0-max_decimal_places": "2",
             "columns-1-prefix": "",
             "columns-1-suffix": "km",
-            "submit": "Continue",
+            "submit": "y",
         }
 
         response = authenticated_grant_admin_client.post(
@@ -7295,6 +7363,45 @@ class TestMapDataSetNumberColumns:
             assert capital.max_decimal_places == 2
             assert revenue.suffix == "km"
             assert revenue.max_decimal_places is None
+
+    def test_post_redirects_to_data_set_errors(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=["Capital allocation"],
+                preview_rows=[{"ONS code": "E123", "Grant recipient": "Org", "Capital allocation": "not a number"}],
+                column_mappings=[
+                    DataSetColumnMapping(
+                        column_name="Capital allocation",
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.INTEGER,
+                    ),
+                ],
+                all_rows=[{"ONS code": "E123", "Grant recipient": "Lothlorien", "Capital allocation": "not a number"}],
+            ).model_dump(mode="json")
+
+        data = {
+            "columns-0-prefix": "£",
+            "columns-0-suffix": "",
+            "columns-0-max_decimal_places": "",
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id),
+            data=data,
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            url_for(
+                "deliver_grant_funding.check_data_set_errors",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
 
     def test_post_shows_errors(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
@@ -7332,7 +7439,7 @@ class TestMapDataSetNumberColumns:
             "columns-0-max_decimal_places": "",
             "columns-1-prefix": "",
             "columns-1-suffix": "",
-            "submit": "Continue",
+            "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
             url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id),
@@ -7343,3 +7450,159 @@ class TestMapDataSetNumberColumns:
         assert page_has_error(soup, "Remove the suffix if you need a prefix")
         assert page_has_error(soup, "Remove the prefix if you need a suffix")
         assert page_has_error(soup, "Enter the maximum number of decimal places")
+
+
+class TestCheckDataSetErrors:
+    def test_404_for_non_admin(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.check_data_set_errors", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    def test_get_check_data_set_errors_shows_errors(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=["Capital allocation", "Revenue allocation"],
+                preview_rows=[
+                    {
+                        "ONS code": grant_recipient.organisation.external_id,
+                        "Grant recipient": grant_recipient.organisation.name,
+                        "Capital allocation": "not a number",
+                        "Revenue allocation": "$2000.1234",
+                    },
+                    {
+                        "ONS code": grant_recipient_2.organisation.external_id,
+                        "Grant recipient": grant_recipient_2.organisation.name,
+                        "Capital allocation": "",
+                        "Revenue allocation": "",
+                    },
+                ],
+                column_mappings=[
+                    DataSetColumnMapping(
+                        column_name="Capital allocation",
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.INTEGER,
+                    ),
+                    DataSetColumnMapping(
+                        column_name="Revenue allocation",
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.DECIMAL,
+                        prefix="£",
+                        max_decimal_places=2,
+                    ),
+                ],
+                all_rows=[
+                    {
+                        "ONS code": grant_recipient.organisation.external_id,
+                        "Grant recipient": grant_recipient.organisation.name,
+                        "Capital allocation": "not a number",
+                        "Revenue allocation": "$2000",
+                    },
+                    {
+                        "ONS code": grant_recipient_2.organisation.external_id,
+                        "Grant recipient": grant_recipient_2.organisation.name,
+                        "Capital allocation": "",
+                        "Revenue allocation": "2000.1234",
+                    },
+                ],
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.check_data_set_errors", grant_id=report.grant.id, report_id=report.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "must be a whole number")
+        assert page_has_error(soup, "must be a decimal number")
+        assert page_has_error(soup, "too many decimal places")
+        table_errors = [tag.text for tag in soup.find_all("span", class_="govuk-tag govuk-tag--red")]
+        assert "Incorrect data type" in table_errors
+        missing_data = [tag.text for tag in soup.find_all("span", class_="govuk-tag govuk-tag--yellow")]
+        assert "Data missing" in missing_data
+
+    def test_post_redirects(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
+                data_columns=["Capital allocation", "Revenue allocation"],
+                preview_rows=[
+                    {
+                        "ONS code": grant_recipient.organisation.external_id,
+                        "Grant recipient": grant_recipient.organisation.name,
+                        "Capital allocation": "",
+                        "Revenue allocation": "",
+                    },
+                    {
+                        "ONS code": grant_recipient_2.organisation.external_id,
+                        "Grant recipient": grant_recipient_2.organisation.name,
+                        "Capital allocation": "",
+                        "Revenue allocation": "£200.00",
+                    },
+                ],
+                column_mappings=[
+                    DataSetColumnMapping(
+                        column_name="Capital allocation",
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.INTEGER,
+                    ),
+                    DataSetColumnMapping(
+                        column_name="Revenue allocation",
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.DECIMAL,
+                        prefix="£",
+                        max_decimal_places=2,
+                    ),
+                ],
+                all_rows=[
+                    {
+                        "ONS code": grant_recipient.organisation.external_id,
+                        "Grant recipient": grant_recipient.organisation.name,
+                        "Capital allocation": "",
+                        "Revenue allocation": "",
+                    },
+                    {
+                        "ONS code": grant_recipient_2.organisation.external_id,
+                        "Grant recipient": grant_recipient_2.organisation.name,
+                        "Capital allocation": "",
+                        "Revenue allocation": "£200.00",
+                    },
+                ],
+            ).model_dump(mode="json")
+
+        data = {
+            "submit": "y",
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.check_data_set_errors", grant_id=report.grant.id, report_id=report.id),
+            data=data,
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(
+            soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
+        )
