@@ -12,8 +12,15 @@ from sqlalchemy.exc import NoResultFound
 
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.collections import _validate_and_sync_component_references
+from app.common.data.interfaces.grant_recipients import (
+    create_grant_recipients,
+    get_grant_recipient,
+    get_grant_recipients,
+)
 from app.common.data.interfaces.grants import get_all_grants
+from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.interfaces.temporary import delete_grant
+from app.common.data.interfaces.user import add_permissions_to_user
 from app.common.data.models import (
     Collection,
     Component,
@@ -31,7 +38,14 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import ComponentType, OrganisationModeEnum, QuestionDataOptions, QuestionPresentationOptions
+from app.common.data.types import (
+    ComponentType,
+    GrantRecipientModeEnum,
+    OrganisationModeEnum,
+    QuestionDataOptions,
+    QuestionPresentationOptions,
+    RoleEnum,
+)
 from app.common.expressions import ExpressionContext
 from app.developers import developers_blueprint
 from app.extensions import db
@@ -474,7 +488,11 @@ def sync_component_references() -> None:
 @developers_blueprint.cli.command(
     "create-test-organisations", help="Create test organisations based on all live organisations"
 )
-def create_test_organisation_from_live() -> None:
+@click.option("--commit", is_flag=True, help="Actually commit changes proposed by this command; defaults to a dry run")
+def create_test_organisation_from_live(commit: bool) -> None:
+    if not commit:
+        click.echo("Dry run:")
+
     click.echo("Creating test organisations based on all live organisations.")
 
     live_organisations = (
@@ -483,7 +501,12 @@ def create_test_organisation_from_live() -> None:
         .all()
     )
 
+    created = 0
     for organisation in live_organisations:
+        if get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=[organisation.external_id]):  # type: ignore
+            continue
+
+        created += 1
         db.session.add(
             Organisation(
                 external_id=organisation.external_id,
@@ -496,9 +519,69 @@ def create_test_organisation_from_live() -> None:
                 mode=OrganisationModeEnum.TEST,
             )
         )
+        click.echo(f" -> Created test organisation for {organisation.name}")
 
-    click.echo(f"Creating {len(live_organisations)} test organisations.")
+    if commit:
+        db.session.commit()
+        click.echo(f"\nDone. Created {created} test organisations.")
+    else:
+        click.echo(f"\nDry run complete. Would create {created} test organisations.")
 
-    db.session.commit()
 
-    click.echo("Done.")
+@developers_blueprint.cli.command(
+    "sync-test-grant-recipients", help="Create test grant recipients for all live grant recipients"
+)
+@click.option("--commit", is_flag=True, help="Actually commit changes proposed by this command; defaults to a dry run")
+def sync_test_grant_recipients(commit: bool) -> None:
+    if not commit:
+        click.echo("Dry run:")
+
+    click.echo("Syncing test grant recipients for all live grant recipients.")
+
+    grants = get_all_grants()
+    created = 0
+    for grant in grants:
+        click.echo(f"\nProcessing {grant.name} ({grant.id})")
+
+        live_grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.LIVE)
+
+        for live_grant_recipient in live_grant_recipients:
+            matching_test_organisation = live_grant_recipient.organisation.matching_test_organisation
+            if not matching_test_organisation:
+                click.echo(
+                    f" -> WARNING: No test organisation found for "
+                    f"live organisation {live_grant_recipient.organisation.name}"
+                )
+                continue
+
+            try:
+                get_grant_recipient(live_grant_recipient.grant_id, matching_test_organisation.id)
+
+                # The test grant recipient already exists; continue
+                click.echo(f" -> Test grant recipient already exists for {live_grant_recipient.organisation.name}")
+                continue
+            except NoResultFound:
+                # We need to create it
+                created += 1
+                pass
+
+            create_grant_recipients(grant, [matching_test_organisation.id], mode=GrantRecipientModeEnum.TEST)
+
+            click.echo(
+                f" -> Created test grant recipient for live organisation {live_grant_recipient.organisation.name}"
+            )
+
+            for grant_team_user in grant.grant_team_users:
+                add_permissions_to_user(
+                    grant_team_user,
+                    organisation_id=matching_test_organisation.id,
+                    grant_id=grant.id,
+                    permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+                )
+                click.echo(f" -> Adding test grant recipient permissions for {grant_team_user.email}")
+
+    if commit:
+        db.session.commit()
+        click.echo(f"\nDone. Created {created} test grant recipients.")
+    else:
+        click.echo(f"\nDry run complete. Would create {created} test grant recipients.")
