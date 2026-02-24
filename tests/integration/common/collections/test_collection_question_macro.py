@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from flask import render_template_string
 
 from app.common.collections.runner import FormRunner
+from app.common.collections.types import FileUploadAnswer
 from app.common.data.types import (
     FileUploadTypes,
     MaximumFileSize,
@@ -10,6 +11,7 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.helpers.collections import SubmissionHelper
+from tests.utils import get_h1_text
 
 
 class TestCollectionQuestionMacro:
@@ -115,3 +117,32 @@ class TestCollectionQuestionMacro:
                 assert extension not in page_text
 
         assert "Your file must be smaller than 100MB" in page_text
+
+    def test_collection_question_clear_answer(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            data_type=QuestionDataType.FILE_UPLOAD,
+            text="Test question",
+            form__collection__grant=authenticated_grant_admin_client.grant,
+        )
+
+        submission = factories.submission.create(
+            collection=question.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            data={str(question.id): FileUploadAnswer(filename="test-file.pdf").get_value_for_submission()},
+        )
+
+        template_content = """
+        {%
+            from "common/macros/collections.html"
+            import collection_question_with_add_another_summary_page with context
+        %}
+        {{ collection_question_with_add_another_summary_page(runner) }}
+        """
+        rendered_html = render_template_string(
+            template_content,
+            runner=FormRunner(SubmissionHelper.load(submission.id), question=question, is_clearing=True),
+        )
+
+        soup = BeautifulSoup(rendered_html, "html.parser")
+        assert get_h1_text(soup) == "Remove your file"
+        assert "Are you sure you want to remove your file?" in soup.get_text()

@@ -284,6 +284,35 @@ class TestSubmissionHelper:
             helper.submit_answer_for_question(question.id, form, preview_submission.created_by)
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
 
+    class TestRemoveAnswerForQuestion:
+        def test_remove_answer_for_file_upload_question_and_clears_cache(self, db_session, factories):
+            question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                data={str(question.id): {"filename": "test-document.pdf"}},
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.cached_get_answer_for_question(question.id) == FileUploadAnswer(filename="test-document.pdf")
+
+            helper.remove_answer_for_question(question.id)
+
+            assert helper.cached_get_answer_for_question(question.id) is None
+
+        def test_cannot_remove_answer_on_submitted_submission(self, db_session, factories, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+            question = submission_submitted.collection.forms[0].cached_questions[0]
+
+            with pytest.raises(ValueError) as e:
+                helper.remove_answer_for_question(question.id)
+
+            assert str(e.value) == AnyStringMatching(
+                "Could not remove answer for question_id=[a-z0-9-]+ "
+                "because submission id=[a-z0-9-]+ is already submitted."
+            )
+
     class TestFormData:
         def test_no_submission_data(self, factories):
             form = factories.form.create()

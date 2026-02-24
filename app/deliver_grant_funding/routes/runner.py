@@ -49,11 +49,15 @@ def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnVa
     "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>", methods=["GET", "POST"]
 )
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<any('clear'):action>",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>",
     methods=["GET", "POST"],
 )
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>/<any('remove'):action>",
+    "/grant/<uuid:grant_id>/submissions/<uuid:submission_id>/<uuid:question_id>/<int:add_another_index>/<any('remove', 'clear'):action>",  # noqa: E501
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
@@ -72,6 +76,7 @@ def ask_a_question(
         source=FormRunnerState(source) if source else None,
         add_another_index=add_another_index,
         is_removing=action == "remove",
+        is_clearing=action == "clear",
     )
 
     if not runner.validate_can_show_question_page():

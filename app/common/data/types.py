@@ -28,7 +28,7 @@ TRunnerUrlMap = dict[
             Optional["Form"],
             Optional["FormRunnerState"],
             Optional[int],
-            Optional[bool],
+            Optional[str],
         ],
         str,
     ],

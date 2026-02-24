@@ -625,7 +625,7 @@ class SubmissionHelper:
                 )
 
     def _get_answer_for_question(
-        self, question_id: UUID, add_another_index: int | None = None
+        self, question_id: UUID, add_another_index: int | None = None, allow_new_index: bool = False
     ) -> AllAnswerTypes | None:
         question = self.get_question(question_id)
 
@@ -635,6 +635,8 @@ class SubmissionHelper:
             if self.submission.data.get(str(question.add_another_container.id)) is None or add_another_index >= len(
                 self.submission.data.get(str(question.add_another_container.id), [])
             ):
+                if allow_new_index:
+                    return None
                 # we raise here instead of returning None as the consuming code should never ask for an answer to an
                 # add another entry that doesn't exist
                 raise ValueError("no add another entry exists at this index")
@@ -700,6 +702,20 @@ class SubmissionHelper:
         self.cached_get_ordered_visible_questions.cache_clear()
 
         self._emit_submission_events_for_forms_reset_to_in_progress(current_form, current_form_statuses, user)
+
+    def remove_answer_for_question(self, question_id: UUID, *, add_another_index: int | None = None) -> None:
+        if self.is_locked_state:
+            raise ValueError(
+                f"Could not remove answer for question_id={question_id} "
+                f"because submission id={self.id} is already submitted."
+            )
+
+        question = self.get_question(question_id)
+        interfaces.collections.remove_question_answer(self.submission, question, add_another_index=add_another_index)
+        self.cached_get_answer_for_question.cache_clear()
+        self.cached_get_all_questions_are_answered_for_form.cache_clear()
+        del self.cached_evaluation_context
+        self.cached_get_ordered_visible_questions.cache_clear()
 
     def submit(self, user: User) -> None:
         if self.is_submitted:

@@ -197,11 +197,15 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<any('clear'):action>",
+    methods=["GET", "POST"],
+)
+@access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>/<any('remove'):action>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>/<any('remove', 'clear'):action>",  # noqa: E501
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
@@ -224,6 +228,7 @@ def ask_a_question(
         add_another_index=add_another_index,
         grant_recipient_id=grant_recipient.id,
         is_removing=action == "remove",
+        is_clearing=action == "clear",
     )
 
     if not runner.validate_can_show_question_page():
