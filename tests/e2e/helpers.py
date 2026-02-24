@@ -38,18 +38,6 @@ def delete_grant_recipient_through_admin(
     page.locator("button:has-text('Confirm delete')").click()
 
 
-def delete_test_org_through_admin(page: Page, domain: str, search: str) -> None:
-    query = urlencode(query=dict(search=search))
-    page.goto(f"{domain}/deliver/admin/organisation/?{query}")
-
-    orgs = page.get_by_role("link", name=re.compile(search)).all()
-    assert len(orgs) == 1
-    page.check("#select-all")
-    page.locator("button:has-text('Actions')").click()
-    page.locator("button:has-text('Delete (1 selected)')").click()
-    page.locator("button:has-text('Confirm delete')").click()
-
-
 def delete_grant_through_admin(page: Page, domain: str, search: str) -> None:
     query = urlencode(query=dict(search=search))
     page.goto(f"{domain}/deliver/admin/grant/?{query}")

@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import RoleEnum
+from app.common.data.types import GrantRecipientModeEnum, OrganisationModeEnum, RoleEnum
 from tests.integration.utils import TimeFreezer
 
 freeze_time_format = TimeFreezer.time_format
@@ -423,6 +423,80 @@ class TestInvitations:
         assert claimed_invitation.user == user
 
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
+    def test_claim_invitation_adds_test_grant_recipient_roles(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        mhclg = _get_grant_managing_organisation()
+        grant = factories.grant.create(organisation=mhclg)
+        test_recipient_org = factories.organisation.create(can_manage_grants=False, mode=OrganisationModeEnum.TEST)
+        test_grant_recipient = factories.grant_recipient.create(
+            grant=grant, organisation=test_recipient_org, mode=GrantRecipientModeEnum.TEST
+        )
+
+        user = factories.user.create(email="new_user@email.com")
+        invitation = factories.invitation.create(
+            organisation=mhclg, grant=grant, permissions=[RoleEnum.MEMBER], email="new_user@email.com"
+        )
+
+        interfaces.user.claim_invitation(invitation, user)
+
+        test_recipient_role = interfaces.user.get_user_role(user, test_recipient_org.id, test_grant_recipient.grant_id)
+        assert test_recipient_role is not None
+        assert RoleEnum.DATA_PROVIDER in test_recipient_role.permissions
+        assert RoleEnum.CERTIFIER in test_recipient_role.permissions
+
+    @pytest.mark.freeze_time("2025-10-01 12:00:00")
+    def test_claim_invitation_skips_test_roles_for_non_grant_managing_org(self, db_session, factories):
+        non_managing_org = factories.organisation.create(can_manage_grants=False)
+        grant = factories.grant.create(organisation=non_managing_org)
+        test_recipient_org = factories.organisation.create(can_manage_grants=False, mode=OrganisationModeEnum.TEST)
+        factories.grant_recipient.create(grant=grant, organisation=test_recipient_org, mode=GrantRecipientModeEnum.TEST)
+
+        user = factories.user.create(email="new_user@email.com")
+        invitation = factories.invitation.create(
+            organisation=non_managing_org, grant=grant, permissions=[RoleEnum.MEMBER], email="new_user@email.com"
+        )
+
+        interfaces.user.claim_invitation(invitation, user)
+
+        test_recipient_role = interfaces.user.get_user_role(user, test_recipient_org.id, grant.id)
+        assert test_recipient_role is None
+
+    @pytest.mark.freeze_time("2025-10-01 12:00:00")
+    def test_claim_invitation_skips_test_roles_when_no_grant(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        mhclg = _get_grant_managing_organisation()
+
+        user = factories.user.create(email="new_user@email.com")
+        invitation = factories.invitation.create(
+            organisation=mhclg, grant=None, permissions=[RoleEnum.MEMBER], email="new_user@email.com"
+        )
+
+        interfaces.user.claim_invitation(invitation, user)
+
+        assert len(user.roles) == 0
+
+    @pytest.mark.freeze_time("2025-10-01 12:00:00")
+    def test_claim_invitation_skips_test_roles_when_no_test_grant_recipients(self, db_session, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        mhclg = _get_grant_managing_organisation()
+        grant = factories.grant.create(organisation=mhclg)
+        live_recipient_org = factories.organisation.create(can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=live_recipient_org, mode=GrantRecipientModeEnum.LIVE)
+
+        user = factories.user.create(email="new_user@email.com")
+        invitation = factories.invitation.create(
+            organisation=mhclg, grant=grant, permissions=[RoleEnum.MEMBER], email="new_user@email.com"
+        )
+
+        interfaces.user.claim_invitation(invitation, user)
+
+        test_recipient_role = interfaces.user.get_user_role(user, live_recipient_org.id, grant.id)
+        assert test_recipient_role is None
+
+    @pytest.mark.freeze_time("2025-10-01 12:00:00")
     def test_get_invitations_by_email(self, db_session, factories) -> None:
         grants = factories.grant.create_batch(5)
 
@@ -513,6 +587,41 @@ class TestInvitations:
         assert (
             len(user.roles) == 1 and user.roles[0].grant_id == grant.id and RoleEnum.MEMBER in user.roles[0].permissions
         )
+
+    def test_grant_member_add_role_or_create_invitation_adds_test_grant_recipient_roles(
+        self, db_session, factories
+    ) -> None:
+        grant = factories.grant.create()
+        test_recipient_org = factories.organisation.create(can_manage_grants=False, mode=OrganisationModeEnum.TEST)
+        test_grant_recipient = factories.grant_recipient.create(
+            grant=grant, organisation=test_recipient_org, mode=GrantRecipientModeEnum.TEST
+        )
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
+
+        grant_team_role = interfaces.user.get_user_role(user, grant.organisation_id, grant.id)
+        assert grant_team_role is not None
+        assert RoleEnum.MEMBER in grant_team_role.permissions
+
+        test_recipient_role = interfaces.user.get_user_role(user, test_recipient_org.id, test_grant_recipient.grant_id)
+        assert test_recipient_role is not None
+        assert RoleEnum.DATA_PROVIDER in test_recipient_role.permissions
+        assert RoleEnum.CERTIFIER in test_recipient_role.permissions
+
+    def test_grant_member_add_role_or_create_invitation_skips_test_roles_when_no_test_recipients(
+        self, db_session, factories
+    ) -> None:
+        grant = factories.grant.create()
+        live_recipient_org = factories.organisation.create(can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=live_recipient_org, mode=GrantRecipientModeEnum.LIVE)
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
+
+        assert len(user.roles) == 1
+        assert user.roles[0].grant_id == grant.id
+        assert RoleEnum.MEMBER in user.roles[0].permissions
 
     def test_grant_member_add_role_or_create_invitation_creates_invitation(self, db_session, factories) -> None:
         grant = factories.grant.create()

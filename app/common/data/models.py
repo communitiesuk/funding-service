@@ -9,7 +9,7 @@ from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, and
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
-from sqlalchemy.orm import Mapped, column_property, foreign, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, foreign, mapped_column, relationship, remote
 from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
@@ -147,13 +147,13 @@ class Organisation(BaseModel):
     #
     # For local government, this uses the Local Authority District (December 2024) [LAD24] boundaries dataset:
     # https://geoportal.statistics.gov.uk/datasets/6a05f93297cf4a438d08e972099f54b9_0/explore
-    external_id: Mapped[str | None] = mapped_column(unique=True)
-    name: Mapped[CIStr] = mapped_column(unique=True)
+    external_id: Mapped[str]
+    name: Mapped[CIStr] = mapped_column(unique=False)
 
     # TODO: switch this to a computed column?
     status: Mapped[OrganisationStatus] = mapped_column(default=OrganisationStatus.ACTIVE)
 
-    type: Mapped[OrganisationType | None]
+    type: Mapped[OrganisationType]
     active_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     retirement_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     can_manage_grants: Mapped[bool] = mapped_column(default=False)
@@ -163,6 +163,27 @@ class Organisation(BaseModel):
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
     )
     grants: Mapped[list[Grant]] = relationship("Grant", back_populates="organisation")
+
+    matching_test_organisation: Mapped["Organisation | None"] = relationship(
+        "Organisation",
+        primaryjoin=lambda: and_(
+            Organisation.id != remote(Organisation.id),
+            foreign(Organisation.external_id) == remote(Organisation.external_id),
+            remote(Organisation.mode) == OrganisationModeEnum.TEST,
+        ),
+        uselist=False,
+        viewonly=True,
+    )
+    matching_live_organisation: Mapped["Organisation | None"] = relationship(
+        "Organisation",
+        primaryjoin=lambda: and_(
+            Organisation.id != remote(Organisation.id),
+            foreign(Organisation.external_id) == remote(Organisation.external_id),
+            remote(Organisation.mode) == OrganisationModeEnum.LIVE,
+        ),
+        uselist=False,
+        viewonly=True,
+    )
 
     __table_args__ = (
         # NOTE: make it so that only a single organisation can manage grants in the platform at the moment. When we come
@@ -176,6 +197,8 @@ class Organisation(BaseModel):
             unique=True,
             postgresql_where=can_manage_grants.is_(True),
         ),
+        UniqueConstraint("external_id", "mode", name="uq_organisation_external_id_mode"),
+        UniqueConstraint("name", "mode", name="uq_organisation_name_mode"),
         CheckConstraint("status = 'retired' OR retirement_date IS NULL", name="ck_retirement"),
     )
 

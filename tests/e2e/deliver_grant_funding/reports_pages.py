@@ -224,12 +224,19 @@ class DeliverTestGrantRecipientJourneyPage(ReportsBasePage):
         self.collection_name = collection_name
         self.start_button = self.page.get_by_role("button", name="Start test submission journey")
 
+        self.test_organisation_combobox = self.page.locator(
+            "[class='autocomplete__wrapper']", has=self.page.locator("#organisation")
+        ).get_by_role("combobox")
+
     def navigate(self) -> None:
         self.page.goto(f"{self.domain}/deliver/grant/{self.grant_id}/reports/{self.collection_id}")
         expect(self.heading).to_be_visible()
 
     def select_test_organisation(self, org_name: str) -> None:
-        self.page.get_by_role("radio", name=org_name).check()
+        expect(self.test_organisation_combobox).to_be_visible()
+        self.test_organisation_combobox.click()
+        self.test_organisation_combobox.fill(org_name)
+        self.test_organisation_combobox.press("Enter")
 
     def click_start_test_journey(self) -> None:
         self.start_button.click()
@@ -1610,28 +1617,6 @@ class SetUpOrganisationsPage:
         return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
-class SetUpTestOrganisationsPage(SetUpOrganisationsPage):
-    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
-        super().__init__(
-            page=page,
-            domain=domain,
-            grant_id=grant_id,
-            collection_id=collection_id,
-            heading=page.get_by_role("heading", name="Set up test organisations"),
-        )
-
-    def navigate(self) -> None:
-        self.page.goto(
-            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/set-up-test-organisations"
-        )
-        expect(self.heading).to_be_visible()
-
-    def click_set_up_organisations(self) -> "AdminReportingLifecycleTasklistPage":
-        self.set_up_button.click()
-        expect(self.page.get_by_text("Created or updated 1 test organisation")).to_be_visible()
-        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
-
-
 class SetUpGrantRecipientsPage:
     def __init__(
         self, page: Page, domain: str, grant_id: str, collection_id: str, heading: Locator | None = None
@@ -1658,18 +1643,6 @@ class SetUpGrantRecipientsPage:
         return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
-class SetUpTestGrantRecipientsPage(SetUpGrantRecipientsPage):
-    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
-        super().__init__(
-            page, domain, grant_id, collection_id, page.get_by_role("heading", name="Set up test grant recipients")
-        )
-
-    def click_set_up_grant_recipients(self) -> "AdminReportingLifecycleTasklistPage":
-        self.set_up_button.click()
-        expect(self.page.get_by_text("Created 1 test grant recipient")).to_be_visible()
-        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
-
-
 class SetUpTestGrantRecipientUsersPage:
     def __init__(
         self,
@@ -1682,15 +1655,15 @@ class SetUpTestGrantRecipientUsersPage:
         self.domain = domain
         self.grant_id = grant_id
         self.collection_id = collection_id
-        self.heading = page.get_by_role("heading", name="Add users to test Access grant funding")
+        self.heading = page.get_by_role("heading", name="Add form designers to test Access grant funding")
 
         self.test_grant_recipient_combobox = page.locator(
             ".choices", has=page.locator(".choices__input#grant_recipient")
         )
         expect(self.test_grant_recipient_combobox).to_be_visible()
 
-        self.grant_team_members_combobox = page.locator(".choices", has=page.locator(".choices__input#user"))
-        expect(self.grant_team_members_combobox).to_be_visible()
+        self.mhclg_users_combobox = page.locator(".choices", has=page.locator(".choices__input#mhclg_user"))
+        expect(self.mhclg_users_combobox).to_be_visible()
 
         self.add_user_button = page.get_by_role("button", name="Add user")
 
@@ -1698,8 +1671,8 @@ class SetUpTestGrantRecipientUsersPage:
         self.test_grant_recipient_combobox.click()
         self.page.get_by_role("option", name=org_name).click()
 
-    def select_grant_team_member(self, email_pattern: str) -> None:
-        self.grant_team_members_combobox.click()
+    def select_mhclg_user(self, email_pattern: str) -> None:
+        self.mhclg_users_combobox.click()
         self.page.get_by_role("option", name=re.compile(email_pattern)).click()
 
     def click_add_user(self) -> None:

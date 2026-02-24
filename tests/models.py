@@ -58,6 +58,7 @@ from app.common.data.types import (
     GrantStatusEnum,
     NumberTypeEnum,
     OrganisationModeEnum,
+    OrganisationType,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -143,10 +144,31 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
 
     id = factory.LazyFunction(uuid4)
+    external_id = factory.Sequence(lambda n: f"ORG-{n:06d}")
     name = factory.Sequence(lambda n: "Organisation %d" % n)
     can_manage_grants = False
 
     mode = OrganisationModeEnum.LIVE
+    type = OrganisationType.CENTRAL_GOVERNMENT
+
+    @factory.post_generation  # type: ignore[untyped-decorator]
+    def with_matching_test_org(self, create: bool, extracted: bool, **kwargs: Any) -> None:
+        if not extracted or self.mode != OrganisationModeEnum.LIVE:
+            return
+
+        test_org = _OrganisationFactory.build(
+            external_id=self.external_id,
+            name=f"{self.name} (test)",
+            status=self.status,  # type: ignore[attr-defined]
+            type=self.type,
+            active_date=self.active_date,  # type: ignore[attr-defined]
+            retirement_date=self.retirement_date,  # type: ignore[attr-defined]
+            can_manage_grants=self.can_manage_grants,
+            mode=OrganisationModeEnum.TEST,
+        )
+        if create:
+            db.session.add(test_org)
+            db.session.commit()
 
 
 class _GrantRecipientFactory(SQLAlchemyModelFactory):

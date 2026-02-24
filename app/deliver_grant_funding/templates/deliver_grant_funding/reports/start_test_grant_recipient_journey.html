@@ -44,16 +44,7 @@
         {% if test_grant_recipients %}
           <form method="post" novalidate>
             {{ form.csrf_token }}
-            {{
-              form.organisation(params={
-                "fieldset": {
-                    "legend": {
-                      "text": "Select a test organisation:",
-                      "classes": "govuk-fieldset__legend--s"
-                    }
-                  }
-              })
-            }}
+            {{ form.organisation(params={ "label": { "text": "Select a test organisation:", "classes": "govuk-label--s" } }) }}
 
             <div class="govuk-form-group">{{ form.submit }}</div>
           </form>
