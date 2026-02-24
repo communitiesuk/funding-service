@@ -1251,9 +1251,15 @@
       "grant_recipients": [
         {
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
-          "id": "90d37138-29a8-48d7-9acf-42fc810460a3",
+          "id": "4058b3cf-e06c-4c5a-ba36-fe14c9dc0765",
           "mode": "test",
           "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799"
+        },
+        {
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "7aa70608-4bd7-4326-bf6a-74010d30f696",
+          "mode": "live",
+          "organisation_id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510"
         }
       ],
       "questions": [
@@ -4001,6 +4007,15 @@
     {
       "can_manage_grants": false,
       "external_id": "T0001",
+      "id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
+      "mode": "live",
+      "name": "Ministry of Testing",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
+      "can_manage_grants": false,
+      "external_id": "T0001",
       "id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
       "mode": "test",
       "name": "Ministry of Testing (test)",
@@ -4014,9 +4029,9 @@
       "id": "302870e9-0bc8-42a5-8ace-1b8f09a72d7e",
       "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
       "permissions": [
-        "member",
+        "certifier",
         "data-provider",
-        "certifier"
+        "member"
       ],
       "user_id": "62ee98f5-cf10-4848-95a4-5b6280529046"
     },
@@ -4066,12 +4081,32 @@
     },
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
-      "id": "97e2a8fe-31ec-459a-b6cc-d3287c2e07e0",
+      "id": "20204015-1f1e-466a-a459-6b87b6c163fa",
       "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
       "permissions": [
         "member",
         "data-provider",
         "certifier"
+      ],
+      "user_id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "05b39720-7f6e-4db9-b983-de44e22c19c3",
+      "organisation_id": "<UUID:GB-GOV-27>",
+      "permissions": [
+        "member"
+      ],
+      "user_id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "97e2a8fe-31ec-459a-b6cc-d3287c2e07e0",
+      "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
+      "permissions": [
+        "certifier",
+        "data-provider",
+        "member"
       ],
       "user_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb"
     },
@@ -4113,6 +4148,12 @@
       "id": "62ee98f5-cf10-4848-95a4-5b6280529046",
       "last_logged_in_at_utc": "Thu, 03 Jul 2025 14:37:06 GMT",
       "name": "Darin Lewis"
+    },
+    {
+      "email": "fsd-post-award@levellingup.gov.uk",
+      "id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe",
+      "last_logged_in_at_utc": "Wed, 07 Jan 2026 17:19:59 GMT",
+      "name": "MHCLG Test User"
     },
     {
       "azure_ad_subject_id": "baf97a91d41d4a5690488c56c4c10558",
