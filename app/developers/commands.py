@@ -1,17 +1,26 @@
+import csv
 import hashlib
 import json
 import uuid
+from collections import defaultdict
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, TextIO, TypedDict, cast
+from uuid import UUID
 
 import click
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy import delete, inspect, or_, select
 from sqlalchemy.exc import NoResultFound
+from werkzeug.datastructures import MultiDict
 
+from app.common.collections.forms import build_question_form
 from app.common.data.base import BaseModel
-from app.common.data.interfaces.collections import _validate_and_sync_component_references
+from app.common.data.interfaces.collections import (
+    _validate_and_sync_component_references,
+    create_submission,
+    get_collection,
+)
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipients,
     get_grant_recipient,
@@ -20,7 +29,7 @@ from app.common.data.interfaces.grant_recipients import (
 from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.interfaces.temporary import delete_grant
-from app.common.data.interfaces.user import add_permissions_to_user
+from app.common.data.interfaces.user import add_permissions_to_user, get_user_by_email
 from app.common.data.models import (
     Collection,
     Component,
@@ -45,8 +54,12 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionModeEnum,
 )
+from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext
+from app.common.helpers.collections import SubmissionHelper
+from app.common.utils import slugify
 from app.developers import developers_blueprint
 from app.extensions import db
 
@@ -585,3 +598,125 @@ def sync_test_grant_recipients(commit: bool) -> None:
         click.echo(f"\nDone. Created {created} test grant recipients.")
     else:
         click.echo(f"\nDry run complete. Would create {created} test grant recipients.")
+
+
+@developers_blueprint.cli.command(
+    "create-multi-submissions",
+    help="Force creation of multiple submissions for grant recipients",
+)
+@click.option(
+    "--collection_id",
+    type=UUID,
+    required=True,
+    help="The collection to create submissions for",
+)
+@click.option(
+    "--mode",
+    type=click.Choice(GrantRecipientModeEnum, case_sensitive=False),
+    required=True,
+    help="Whether to create submissions for LIVE or TEST grant recipients",
+)
+@click.option(
+    "--file",
+    type=click.File("r"),
+    required=True,
+    help="Filepath to the CSV to ingest",
+)
+@click.option(
+    "--service_user_email_address",
+    required=True,
+    help="Email address of service user to use for creating submissions",
+)
+@click.option("--commit", help="Commit changes to the database", is_flag=True)
+def create_multi_submissions(  # noqa: C901
+    collection_id: UUID, mode: GrantRecipientModeEnum, file: TextIO, service_user_email_address: str, commit: bool
+) -> None:
+    """Create submissions for a specific collection and set of grant recipients
+
+    Takes a CSV mapping external organisation IDs to submissions that need to exist.
+
+    Existing submissions with the same name will be skipped.
+    """
+    if not commit:
+        click.echo("Dry run:")
+
+    # Read and group CSV rows by organisation_external_id
+    rows_by_org: dict[str, list[str]] = defaultdict(list)
+    for row in csv.DictReader(file):
+        rows_by_org[row["organisation_external_id"]].append(row["submission_name"])
+
+    # Load collection with full schema
+    collection = get_collection(collection_id, with_full_schema=True)
+    if not collection.allow_multiple_submissions:
+        click.echo(f"ERROR: Collection {collection.name} does not allow multiple submissions.")
+        return
+
+    question = collection.submission_name_question
+    if not question:
+        click.echo("ERROR: Collection does not have a submission name question configured.")
+        return
+
+    # Get grant recipients for this collection's grant
+    grant_recipients = get_grant_recipients(collection.grant, mode=mode, with_organisations=True)
+    gr_by_org_ext_id = {gr.organisation.external_id: gr for gr in grant_recipients}
+
+    # Validate CSV against grant recipients
+    csv_org_ids = set(rows_by_org.keys())
+    gr_org_ids = set(gr_by_org_ext_id.keys())
+
+    missing_from_csv = gr_org_ids - csv_org_ids
+    if missing_from_csv:
+        click.echo(
+            f"WARNING: {len(missing_from_csv)} grant recipient(s) not in CSV: {', '.join(sorted(missing_from_csv))}"
+        )
+
+    extra_in_csv = csv_org_ids - gr_org_ids
+    if extra_in_csv:
+        click.echo(
+            f"WARNING: {len(extra_in_csv)} CSV org(s) not matching any grant recipient: "
+            f"{', '.join(sorted(extra_in_csv))}"
+        )
+
+    orgs_to_process = csv_org_ids & gr_org_ids
+
+    # Build shared resources
+    evaluation_context = ExpressionContext.build_expression_context(collection, mode="evaluation")
+    interpolation_context = ExpressionContext.build_expression_context(collection, mode="interpolation")
+    user = get_user_by_email(service_user_email_address)
+    if not user:
+        click.echo(f"ERROR: Could not find user {service_user_email_address}")
+        return
+
+    submission_mode = SubmissionModeEnum(mode.value)
+    form_cls = build_question_form([question], evaluation_context, interpolation_context)
+
+    created = 0
+    skipped = 0
+    for org_ext_id in sorted(orgs_to_process):
+        grant_recipient = gr_by_org_ext_id[org_ext_id]
+        click.echo(f"\nProcessing {grant_recipient.organisation.name} ({org_ext_id})")
+
+        for answer in rows_by_org[org_ext_id]:
+            # Convert to data source item key format for questions that read from a data source.
+            if collection.submission_name_question and collection.submission_name_question.data_source:
+                answer = slugify(answer)
+
+            savepoint = db.session.begin_nested()
+            try:
+                submission = create_submission(
+                    collection=collection, created_by=user, mode=submission_mode, grant_recipient=grant_recipient
+                )
+                form = form_cls(formdata=MultiDict({question.safe_qid: answer}), meta={"csrf": False})
+                SubmissionHelper(submission).submit_answer_for_question(question.id, form, user)
+                created += 1
+                click.echo(f"  -> Created submission '{answer}'")
+            except SubmissionAnswerConflict:
+                savepoint.rollback()
+                skipped += 1
+                click.echo(f"  -> Skipping '{answer}' (already exists)")
+
+    if commit:
+        db.session.commit()
+        click.echo(f"\nDone. Created {created} submissions, skipped {skipped}.")
+    else:
+        click.echo(f"\nDry run complete. Would create {created} submissions, would skip {skipped}.")
