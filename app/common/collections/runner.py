@@ -37,6 +37,10 @@ class FormRunner:
     url_map: ClassVar[TRunnerUrlMap] = {}
     component: Question | Group | None
     questions: list[Question]
+
+    # when we set self.component we either set it to be the question directly or the entire group of questions
+    # if we're on a same page group. We store a reference to the originally linked question in case we need
+    # to do an action on the question rather than the group (i.e clear the questions answer)
     linked_question: Question | None
 
     def __init__(
@@ -249,7 +253,10 @@ class FormRunner:
             for question in self.questions:
                 if (
                     question.data_type == QuestionDataType.FILE_UPLOAD
-                    and self.runner_evaluation_context.get(question.safe_qid) is not None
+                    and self.submission.cached_get_answer_for_question(
+                        question.id, add_another_index=self.add_another_index
+                    )
+                    is not None
                 ):
                     # file uploads have to be explicitly removed and so do not re-submit when navigating
                     # "Save and continue" with an existing file

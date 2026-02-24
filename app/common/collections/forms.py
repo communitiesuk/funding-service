@@ -309,6 +309,10 @@ def build_question_form(  # noqa: C901
             case QuestionDataType.FILE_UPLOAD:
                 assert question.file_types_supported is not None
                 assert question.maximum_file_size is not None
+                # todo: swap out using the evaluation context to checking on the submission helper for an
+                #       answer specifically. The evaluation context is built by the form runner with the
+                #       add another context in mind so should be accurate but as this isn't the intended use
+                #       there's nothing stopping this functionality from drifting unexpectedly
                 has_existing_file = evaluation_context.get(question.safe_qid) is not None
                 field = FileField(
                     label=interpolate(text=question.text, context=interpolation_context),
