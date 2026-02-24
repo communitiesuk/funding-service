@@ -4,7 +4,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from app import ReportAdminEmailTypeEnum
-from app.common.data.interfaces.organisations import get_organisation_count
+from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
 from app.common.data.interfaces.user import get_user, get_user_by_email
 from app.common.data.models import Organisation
 from app.common.data.types import (
@@ -1919,14 +1919,8 @@ class TestSetupGrantRecipients:
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
-        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
-        factories.organisation.create(
-            name="Org 1 (test)", mode=OrganisationModeEnum.TEST, external_id=org1.external_id, can_manage_grants=False
-        )
-        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
-        factories.organisation.create(
-            name="Org 2 (test)", mode=OrganisationModeEnum.TEST, external_id=org2.external_id, can_manage_grants=False
-        )
+        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False, with_matching_test_org=True)
+        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False, with_matching_test_org=True)
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
@@ -1947,7 +1941,7 @@ class TestSetupGrantRecipients:
         assert org2.id in recipient_org_ids
 
         test_grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.TEST)
-        assert len(test_grant_recipients) == 2
+        assert len(grant_recipients) == 2
         test_recipient_org_ids = {gr.organisation_id for gr in test_grant_recipients}
         assert org1.matching_test_organisation.id in test_recipient_org_ids
         assert org2.matching_test_organisation.id in test_recipient_org_ids
@@ -1957,14 +1951,10 @@ class TestSetupGrantRecipients:
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
-        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
-        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
-        test_org1 = factories.organisation.create(
-            name="Org 1 (test)", mode=OrganisationModeEnum.TEST, external_id=org1.external_id, can_manage_grants=False
-        )
-        test_org2 = factories.organisation.create(
-            name="Org 2 (test)", mode=OrganisationModeEnum.TEST, external_id=org2.external_id, can_manage_grants=False
-        )
+        org1 = factories.organisation.create(name="Org 1", can_manage_grants=False, with_matching_test_org=True)
+        test_org1 = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=[org1.external_id])[0]
+        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False, with_matching_test_org=True)
+        test_org2 = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=[org2.external_id])[0]
         team_member1 = factories.user.create()
         factories.user_role.create(
             user=team_member1,

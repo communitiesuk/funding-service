@@ -90,8 +90,9 @@ class TestGetOrganisations:
         assert result[0].id == live_org.id
 
     def test_with_external_ids_respects_mode_filter(self, factories, db_session):
-        live_org = factories.organisation.create(name="Live Org", external_id="EXT-001", mode=OrganisationModeEnum.LIVE)
-        factories.organisation.create(name="Test Org", external_id="EXT-001", mode=OrganisationModeEnum.TEST)
+        live_org = factories.organisation.create(
+            name="Live Org", external_id="EXT-001", mode=OrganisationModeEnum.LIVE, with_matching_test_org=True
+        )
 
         result = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=["EXT-001"])
 
