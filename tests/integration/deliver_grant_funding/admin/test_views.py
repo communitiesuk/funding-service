@@ -1920,11 +1920,11 @@ class TestSetupGrantRecipients:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
-        test_org1 = factories.organisation.create(
+        factories.organisation.create(
             name="Org 1 (test)", mode=OrganisationModeEnum.TEST, external_id=org1.external_id, can_manage_grants=False
         )
         org2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
-        test_org2 = factories.organisation.create(
+        factories.organisation.create(
             name="Org 2 (test)", mode=OrganisationModeEnum.TEST, external_id=org2.external_id, can_manage_grants=False
         )
 
@@ -1946,11 +1946,11 @@ class TestSetupGrantRecipients:
         assert org1.id in recipient_org_ids
         assert org2.id in recipient_org_ids
 
-        grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.TEST)
-        assert len(grant_recipients) == 2
-        recipient_org_ids = {gr.organisation_id for gr in grant_recipients}
-        assert test_org1.id in recipient_org_ids
-        assert test_org2.id in recipient_org_ids
+        test_grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.TEST)
+        assert len(test_grant_recipients) == 2
+        test_recipient_org_ids = {gr.organisation_id for gr in test_grant_recipients}
+        assert org1.matching_test_organisation.id in test_recipient_org_ids
+        assert org2.matching_test_organisation.id in test_recipient_org_ids
 
     def test_post_sets_up_grant_team_members_in_test_grant_recipients(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

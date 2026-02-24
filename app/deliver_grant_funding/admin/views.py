@@ -432,7 +432,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             live_organisations = get_organisations(mode=OrganisationModeEnum.LIVE, with_ids=form.recipients.data)
             test_organisations = get_organisations(
                 mode=OrganisationModeEnum.TEST,
-                with_external_ids=list(set(org.external_id for org in live_organisations)),
+                with_external_ids=list(set(org.external_id for org in live_organisations)),  # type: ignore
             )
             test_organisation_ids = [org.id for org in test_organisations]
             create_grant_recipients(

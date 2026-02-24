@@ -9,7 +9,7 @@ from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, and
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
-from sqlalchemy.orm import Mapped, column_property, foreign, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, foreign, mapped_column, relationship, remote
 from sqlalchemy_json import mutable_json_type
 
 from app.common.data.base import BaseModel, CIStr
@@ -163,6 +163,27 @@ class Organisation(BaseModel):
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
     )
     grants: Mapped[list[Grant]] = relationship("Grant", back_populates="organisation")
+
+    matching_test_organisation: Mapped["Organisation | None"] = relationship(
+        "Organisation",
+        primaryjoin=lambda: and_(
+            Organisation.id != remote(Organisation.id),
+            foreign(Organisation.external_id) == remote(Organisation.external_id),
+            remote(Organisation.mode) == OrganisationModeEnum.TEST,
+        ),
+        uselist=False,
+        viewonly=True,
+    )
+    matching_live_organisation: Mapped["Organisation | None"] = relationship(
+        "Organisation",
+        primaryjoin=lambda: and_(
+            Organisation.id != remote(Organisation.id),
+            foreign(Organisation.external_id) == remote(Organisation.external_id),
+            remote(Organisation.mode) == OrganisationModeEnum.LIVE,
+        ),
+        uselist=False,
+        viewonly=True,
+    )
 
     __table_args__ = (
         # NOTE: make it so that only a single organisation can manage grants in the platform at the moment. When we come
