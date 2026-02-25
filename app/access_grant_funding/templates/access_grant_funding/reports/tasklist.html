@@ -5,7 +5,7 @@
 {% extends "access_grant_funding/base.html" %}
 
 {# todo: move the suffix to the base template and call super #}
-{% set page_title = runner.submission.name ~ " - " ~ grant_recipient.grant.name %}
+{% set page_title = runner.submission.long_collection_name ~ " - " ~ grant_recipient.grant.name %}
 
 {% set form = runner.tasklist_form %}
 {% set active_item_identifier = "reports" %}
@@ -43,12 +43,8 @@
           }}
         {% endif %}
       {% endwith %}
-      {% if runner.submission.collection.allow_multiple_submissions %}
-        <span class="govuk-caption-l">{{ runner.submission.name }}</span>
-        <h1 class="govuk-heading-l">{{ runner.submission.submission_name }}</h1>
-      {% else %}
-        <h1 class="govuk-heading-l">{{ runner.submission.name }}</h1>
-      {% endif %}
+
+      <h1 class="govuk-heading-l">{{ runner.submission.long_collection_name }}</h1>
 
       <dl class="app-metadata">
         <dt class="app-metadata__key">Submission deadline:</dt>

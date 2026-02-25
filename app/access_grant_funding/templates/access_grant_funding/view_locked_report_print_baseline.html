@@ -2,7 +2,7 @@
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 
-{% set page_title = submission.name if submission.is_submitted else "Review report: " ~ submission.name %}
+{% set page_title = submission.long_collection_name if submission.is_submitted else "Review report: " ~ submission.long_collection_name %}
 {% set show_section_numbers = false %}
 
 {% set assetPath = vite_asset("assets", external=True) %}
@@ -23,7 +23,7 @@
       margin-top: 1cm;
       @top-left {
         margin-left: 0.7cm;
-        content: "{{ submission.collection.grant.name }} - {{ submission.collection.name }}";
+        content: "{{ submission.collection.grant.name }} - {{ submission.long_collection_name }}";
       }
     }
   </style>

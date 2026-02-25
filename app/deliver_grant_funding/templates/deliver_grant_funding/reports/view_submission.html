@@ -5,7 +5,7 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% set page_title = "Submission - " ~ helper.submission.collection.name %}
+{% set page_title = "Submission - " ~ helper.submission.long_collection_name %}
 {% set active_item_identifier = "reports" %}
 
 {% block beforeContent %}

@@ -47,7 +47,7 @@
         <p class="govuk-body govuk-!-margin-bottom-7">You have not started any reports yet.</p>
       {% else %}
         {% set rows=[] %}
-        {% for submission_helper in submission_helpers %}
+        {% for submission_helper in submission_helpers|sort(attribute="submission_name") %}
           {% set submission_status = submission_helper.status %}
           {% set submission_status_html %}
             {{ submissionStatusTag(submission_status, submission_helper.is_overdue) }}
