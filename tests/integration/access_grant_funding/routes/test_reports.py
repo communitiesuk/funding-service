@@ -429,7 +429,7 @@ class TestListCollectionSubmissions:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "You have not started any reports yet." in soup.text
 
-    def test_shows_display_name_from_submission_name_question(
+    def test_shows_submission_name_from_submission_name_question(
         self, authenticated_grant_recipient_member_client, factories
     ):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient

@@ -75,7 +75,7 @@ class TestCreateMultiSubmissions:
         submissions = (
             db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().all()
         )
-        display_names = {SubmissionHelper(s).display_name for s in submissions}
+        display_names = {SubmissionHelper(s).submission_name for s in submissions}
         assert display_names == {"Alpha", "Beta"}
 
         assert "Created submission 'Alpha'" in output
@@ -188,7 +188,7 @@ class TestCreateMultiSubmissions:
         submissions = (
             db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().all()
         )
-        display_names = {SubmissionHelper(s).display_name for s in submissions}
+        display_names = {SubmissionHelper(s).submission_name for s in submissions}
         assert display_names == {"Alpha"}
 
     def test_aborts_when_no_submission_name_question(self, db_session, factories, system_user, capsys):
@@ -259,7 +259,7 @@ class TestCreateMultiSubmissions:
         submissions = (
             db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().all()
         )
-        display_names = {SubmissionHelper(s).display_name for s in submissions}
+        display_names = {SubmissionHelper(s).submission_name for s in submissions}
         assert display_names == {"Alpha", "Beta", "Gamma"}
 
         assert "Created 3 submissions" in output

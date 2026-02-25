@@ -169,7 +169,7 @@ class SubmissionHelper:
         )
 
     @property
-    def display_name(self) -> str:
+    def submission_name(self) -> str:
         question = self.collection.submission_name_question
         if question:
             answer = self.cached_get_answer_for_question(question.id)
@@ -1111,7 +1111,7 @@ class CollectionHelper:
                 )
 
             if self.collection.allow_multiple_submissions:
-                submission_csv_data["Submission name"] = submission.display_name
+                submission_csv_data["Submission name"] = submission.submission_name
 
             visible_questions = submission.all_visible_questions
             cached_contexts: dict[str, ExpressionContext] = {}
@@ -1165,7 +1165,7 @@ class CollectionHelper:
             }
 
             if self.collection.allow_multiple_submissions:
-                submission_data["name"] = submission.display_name
+                submission_data["name"] = submission.submission_name
 
             submission_data["created_by"] = submission.created_by_email
             submission_data["created_at_utc"] = format_datetime(submission.created_at_utc)

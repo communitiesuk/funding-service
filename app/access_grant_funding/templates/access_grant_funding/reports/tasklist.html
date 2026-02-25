@@ -45,7 +45,7 @@
       {% endwith %}
       {% if runner.submission.collection.allow_multiple_submissions %}
         <span class="govuk-caption-l">{{ runner.submission.name }}</span>
-        <h1 class="govuk-heading-l">{{ runner.submission.display_name }}</h1>
+        <h1 class="govuk-heading-l">{{ runner.submission.submission_name }}</h1>
       {% else %}
         <h1 class="govuk-heading-l">{{ runner.submission.name }}</h1>
       {% endif %}
