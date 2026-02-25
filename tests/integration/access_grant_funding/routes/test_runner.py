@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from io import BytesIO
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -1144,6 +1145,71 @@ class TestAskAQuestion:
             grant_id=grant_recipient.grant.id,
             submission_id=submission.id,
             question_id=question_2.id,
+        )
+        assert response.location == expected_location
+
+    def test_post_ask_a_question_skips_for_existing_file_upload_answer_add_another_context(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        group = factories.group.create(
+            add_another=True,
+            form__collection__grant=grant_recipient.grant,
+        )
+        question = factories.question.create(
+            text="Upload a file",
+            data_type=QuestionDataType.FILE_UPLOAD,
+            parent=group,
+            form=group.form,
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+
+        # response correctly checks non existing add another 0 index and requires the file
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+                add_another_index=0,
+            ),
+            data={"submit": "y", question.safe_qid: (BytesIO(b"file content"), "test.pdf")},
+            content_type="multipart/form-data",
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        expected_location = url_for(
+            "access_grant_funding.ask_a_question",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submission.id,
+            question_id=question.id,
+        )
+        assert response.location == expected_location
+
+        # response correctly checks the now persisted answer and allows skipping
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+                add_another_index=0,
+            ),
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        expected_location = url_for(
+            "access_grant_funding.ask_a_question",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submission.id,
+            question_id=question.id,
         )
         assert response.location == expected_location
 

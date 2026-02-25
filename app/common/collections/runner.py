@@ -254,7 +254,7 @@ class FormRunner:
                 if (
                     question.data_type == QuestionDataType.FILE_UPLOAD
                     and self.submission.cached_get_answer_for_question(
-                        question.id, add_another_index=self.add_another_index
+                        question.id, add_another_index=self.add_another_index, allow_new_index=True
                     )
                     is not None
                 ):
