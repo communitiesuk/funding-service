@@ -38,7 +38,11 @@ from app.types import TRadioItem
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
-    from app.common.expressions.forms import CustomExpressionForm, _ManagedExpressionForm
+    from app.common.expressions.forms import (
+        ContextAwareAbstractExpressionForm,
+        CustomExpressionForm,
+        _ManagedExpressionForm,
+    )
 
 
 class AbstractExpression(BaseModel, SafeQidMixin):
@@ -202,7 +206,7 @@ class ManagedExpression(AbstractExpression):
 
     @staticmethod
     @abc.abstractmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> ManagedExpression:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> ManagedExpression:
         """
         A hook used by `build_managed_expression_form`. If this managed expression type has been selected during form
         submission, this hook will be called. It should pull data from the form and use that to instantiate and return
@@ -321,7 +325,7 @@ class GreaterThan(ManagedExpression):
 
     @staticmethod
     def build_from_form(
-        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+        form: ContextAwareAbstractExpressionForm, question: Question, expression: TOptional[Expression] = None
     ) -> GreaterThan:
         return GreaterThan(
             question_id=question.id,
@@ -419,7 +423,7 @@ class LessThan(ManagedExpression):
         form.less_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> LessThan:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> LessThan:
         return LessThan(
             question_id=question.id,
             maximum_value=form.less_than_value.data if not form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
@@ -566,7 +570,7 @@ class Between(ManagedExpression):
         )
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> Between:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> Between:
         return Between(
             question_id=question.id,
             minimum_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
@@ -646,7 +650,7 @@ class AnyOf(BaseDataSourceManagedExpression):
         ]
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> AnyOf:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> AnyOf:
         item_labels = {choice.key: choice.label for choice in question.data_source.items}
 
         items = [TRadioItem(key=key, label=item_labels[key]) for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
@@ -692,7 +696,7 @@ class IsYes(ManagedExpression):
         pass
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsYes:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> IsYes:
         return IsYes(question_id=question.id)
 
 
@@ -728,7 +732,7 @@ class IsNo(ManagedExpression):
         pass
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsNo:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> IsNo:
         return IsNo(question_id=question.id)
 
 
@@ -778,7 +782,7 @@ class Specifically(BaseDataSourceManagedExpression):
         pass
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> Specifically:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> Specifically:
         item_labels = {item.key: item.label for item in question.data_source.items}
         selected_key = form.specifically.data  # ty: ignore[unresolved-attribute]
         item: TRadioItem = {"key": selected_key, "label": item_labels[selected_key]}
@@ -883,7 +887,7 @@ class IsBefore(ManagedExpression):
         form.latest_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsBefore:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> IsBefore:
         return IsBefore(
             question_id=question.id,
             latest_value=form.latest_value.data if not form.latest_expression.data else None,  # ty: ignore[unresolved-attribute]
@@ -997,7 +1001,7 @@ class IsAfter(ManagedExpression):
         form.earliest_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsAfter:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> IsAfter:
         return IsAfter(
             question_id=question.id,
             earliest_value=form.earliest_value.data if not form.earliest_expression.data else None,  # ty: ignore[unresolved-attribute]
@@ -1177,7 +1181,7 @@ class BetweenDates(ManagedExpression):
         )
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> BetweenDates:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> BetweenDates:
         return BetweenDates(
             question_id=question.id,
             earliest_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
@@ -1256,7 +1260,7 @@ class UKPostcode(ManagedExpression):
         pass
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> UKPostcode:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> UKPostcode:
         return UKPostcode(question_id=question.id)
 
 
@@ -1298,7 +1302,8 @@ class Custom(AbstractExpression):
         return self.custom_message
 
     @staticmethod
-    def build_from_form(form: CustomExpressionForm, question: Question) -> Custom:
+    def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> Custom:
+        assert isinstance(form, CustomExpressionForm)
         return Custom(
             question_id=question.id,
             custom_expression=form.custom_expression.data,  # type:ignore[arg-type]
