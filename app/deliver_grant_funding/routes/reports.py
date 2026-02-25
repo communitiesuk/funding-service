@@ -1188,7 +1188,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             field_with_error = getattr(wt_form, e.field_name)
             field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
         except DependencyOrderException as e:
-            field_with_error = wt_form[e.field_name]
+            field_with_error = getattr(wt_form, e.field_name)  # type:ignore[arg-type]
             field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
     return render_template(
         "deliver_grant_funding/reports/add_question.html",
@@ -2097,10 +2097,15 @@ def _validate_custom_error_message_syntax(
         _find_and_validate_references(
             component, field.data, expression_context, field.name, allow_reference_to_self=True
         )
+        return True
     except InvalidReferenceInExpression as e:
         field.errors.append(f"{e.bad_reference} is not a valid reference")  # type:ignore[attr-defined]
-        return False
-    return True
+
+    except DependencyOrderException as e:
+        field.errors.append(  # type:ignore[attr-defined]
+            f"{field.label.text} cannot reference {e.depends_on_question.name} as it appears in the wrong order."
+        )
+    return False
 
 
 def _validate_custom_expression_syntax(
