@@ -4,7 +4,7 @@
 {% set title_text = "Report signed off and submitted" if submission_helper.collection.requires_certification else "Report submitted" %}
 
 {# todo: move the suffix to the base template and call super #}
-{% set page_title = title_text ~ " - " ~ submission_helper.name ~ " - " ~ grant_recipient.grant.name %}
+{% set page_title = title_text ~ " - " ~ submission_helper.long_collection_name ~ " - " ~ grant_recipient.grant.name %}
 
 {% set active_item_identifier = "reports" %}
 
@@ -14,7 +14,7 @@
       {% set reference_html %}
         Report
         <br />
-        <strong>{{ submission_helper.collection.name }} for {{ submission_helper.collection.grant.name }}</strong>
+        <strong>{{ submission_helper.long_collection_name }} for {{ submission_helper.collection.grant.name }}</strong>
         <br />
         <br />Your reference number
         <br />
@@ -35,7 +35,7 @@
       </p>
       <h2 class="govuk-heading-m">What happens next</h2>
 
-      <p class="govuk-body">Your {{ submission_helper.collection.name }} report for {{ grant_recipient.grant.name }} has been submitted to the {{ submission_helper.collection.grant.organisation.name }}.</p>
+      <p class="govuk-body">Your {{ submission_helper.long_collection_name }} report for {{ grant_recipient.grant.name }} has been submitted to the {{ submission_helper.collection.grant.organisation.name }}.</p>
 
       <p class="govuk-body">
         {% set feedback_link = config.GRANT_RECIPIENT_CERTIFIER_FEEDBACK_URL if submission_helper.collection.requires_certification else config.GRANT_RECIPIENT_GENERAL_FEEDBACK_URL %}

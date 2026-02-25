@@ -185,6 +185,7 @@ def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> Respo
             email_address=user.email,
             collection=report,
             grant_recipient=grant_recipient,
+            submission_helpers=[SubmissionHelper(s) for s in grant_recipient.submissions if s.collection == report],
         )
         flash(
             "We emailed you a link to test the grant recipient journey.",

@@ -3,7 +3,7 @@
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 
-{% set page_title = submission.name if submission.is_submitted else ("Review report: " ~ submission.name) %}
+{% set page_title = submission.long_collection_name if submission.is_submitted else ("Review report: " ~ submission.long_collection_name) %}
 
 {% set mainClasses = "app-full-screen-with-section-nav" %}
 

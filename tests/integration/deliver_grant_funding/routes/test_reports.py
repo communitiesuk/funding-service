@@ -5981,7 +5981,7 @@ class TestListSubmissions:
 
 
 class TestListSubmissionsMultipleSubmissions:
-    def test_multi_submission_table_shows_submission_display_names(
+    def test_multi_submission_table_shows_submission_submission_name(
         self, authenticated_grant_member_client, factories, db_session
     ):
         question = factories.question.create(

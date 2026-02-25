@@ -47,7 +47,7 @@
         <p class="govuk-body govuk-!-margin-bottom-7">You have not started any reports yet.</p>
       {% else %}
         {% set rows=[] %}
-        {% for submission_helper in submission_helpers %}
+        {% for submission_helper in submission_helpers|sort(attribute="submission_name") %}
           {% set submission_status = submission_helper.status %}
           {% set submission_status_html %}
             {{ submissionStatusTag(submission_status, submission_helper.is_overdue) }}
@@ -58,18 +58,18 @@
                 class="govuk-link govuk-link--no-visited-state"
                 href="{{ url_for('access_grant_funding.view_locked_report', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission_helper.id) }}">
                 View report
-                <span class="govuk-visually-hidden"> for {{ submission_helper.display_name }} </span>
+                <span class="govuk-visually-hidden"> for {{ submission_helper.submission_name }} </span>
               </a>
             {% else %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.tasklist', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission_helper.id) }}">
                 Continue report
-                <span class="govuk-visually-hidden"> for {{ submission_helper.display_name }} </span>
+                <span class="govuk-visually-hidden"> for {{ submission_helper.submission_name }} </span>
               </a>
             {% endif %}
           {% endset %}
           {%
             do rows.append([
-              {"text": submission_helper.display_name},
+              {"text": submission_helper.submission_name},
               {"html": submission_status_html},
               {"html": action_html}
             ])

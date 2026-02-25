@@ -194,6 +194,8 @@ class TestNotificationService:
                             "report_deadline": "Wednesday 31 December 2025",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/collection/{collection.id}",
+                            "allows_multiple_submissions": "no",
+                            "submissions": "",
                         },
                     }
                 )
@@ -204,6 +206,7 @@ class TestNotificationService:
             email_address=email_address,
             collection=collection,
             grant_recipient=grant_recipient,
+            submission_helpers=[],
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
@@ -243,7 +246,7 @@ class TestNotificationService:
             json={"id": "00000000-0000-0000-0000-000000000000"},
         )
         resp = notification_service.send_access_submission_sent_for_certification_confirmation(
-            submission=submission, email_address="test@communities.gov.uk"
+            submission_helper=SubmissionHelper(submission), email_address="test@communities.gov.uk"
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
@@ -288,7 +291,9 @@ class TestNotificationService:
             json={"id": "00000000-0000-0000-0000-000000000000"},
         )
         resp = notification_service.send_access_submission_ready_to_certify(
-            submission=submission, email_address="test@communities.gov.uk", submitted_by=submitted_by_user
+            submission_helper=SubmissionHelper(submission),
+            email_address="test@communities.gov.uk",
+            submitted_by=submitted_by_user,
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1

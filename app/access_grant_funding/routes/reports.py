@@ -177,7 +177,7 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
         io.BytesIO(pdf_bytes),
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"{submission.collection.grant.name} - {submission.collection.name}.pdf",
+        download_name=f"{submission.collection.grant.name} - {submission.long_collection_name}.pdf",
         max_age=0,
     )
 
@@ -230,7 +230,7 @@ def decline_report(
 
         flash(
             {  # type:ignore [arg-type]
-                "collection_name": submission_helper.collection.name,
+                "collection_name": submission_helper.long_collection_name,
                 "grant_name": submission_helper.grant.name,
                 "sent_for_certification_by": submission_helper.sent_for_certification_by.name
                 if submission_helper.sent_for_certification_by

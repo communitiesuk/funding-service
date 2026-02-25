@@ -169,13 +169,31 @@ class SubmissionHelper:
         )
 
     @property
-    def display_name(self) -> str:
+    def submission_name(self) -> str:
+        """
+        For submissions in a multi-submission collection, this provides a name for the submission based on a provided
+        answer.
+
+        For non-multi-submission collection we just return the submission's generated reference.
+        """
         question = self.collection.submission_name_question
         if question:
             answer = self.cached_get_answer_for_question(question.id)
             if answer is not None:
                 return answer.get_value_for_text_export()
         return self.submission.reference
+
+    @property
+    def long_collection_name(self) -> str:
+        """
+        Returns the name of the collection with, for multi-submission collections, the submission name.
+
+        This helps provides enough context on Access grant funding as to what report they're working with.
+        """
+        if not self.submission.collection.allow_multiple_submissions:
+            return self.submission.collection.name
+
+        return f"{self.submission.collection.name} - {self.submission_name}"
 
     @property
     def grant(self) -> Grant:
@@ -789,13 +807,13 @@ class SubmissionHelper:
             if not self.is_preview:
                 for data_provider in self.submission.grant_recipient.data_providers:
                     notification_service.send_access_submission_sent_for_certification_confirmation(
-                        data_provider.email, submission=self.submission
+                        data_provider.email, submission_helper=self
                     )
                 for certifier in self.submission.grant_recipient.certifiers:
                     assert self.sent_for_certification_by is not None
                     notification_service.send_access_submission_ready_to_certify(
                         certifier.email,
-                        submission=self.submission,
+                        submission_helper=self,
                         submitted_by=self.sent_for_certification_by,
                     )
         else:
@@ -1111,7 +1129,7 @@ class CollectionHelper:
                 )
 
             if self.collection.allow_multiple_submissions:
-                submission_csv_data["Submission name"] = submission.display_name
+                submission_csv_data["Submission name"] = submission.submission_name
 
             visible_questions = submission.all_visible_questions
             cached_contexts: dict[str, ExpressionContext] = {}
@@ -1165,7 +1183,7 @@ class CollectionHelper:
             }
 
             if self.collection.allow_multiple_submissions:
-                submission_data["name"] = submission.display_name
+                submission_data["name"] = submission.submission_name
 
             submission_data["created_by"] = submission.created_by_email
             submission_data["created_at_utc"] = format_datetime(submission.created_at_utc)
