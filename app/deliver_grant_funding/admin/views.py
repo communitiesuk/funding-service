@@ -47,6 +47,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.filters import format_date
+from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminAddSingleDataProviderForm,
     PlatformAdminAddTestGrantRecipientUserForm,
@@ -479,6 +480,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     email_address=user.email,
                     collection=collection,
                     grant_recipient=grant_recipient,
+                    submission_helpers=[
+                        SubmissionHelper(s) for s in grant_recipient.submissions if s.collection == collection
+                    ],
                 )
                 flash(f"Successfully added {user.name} as a data provider and sent notification email.", "success")
             else:
@@ -812,6 +816,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 "grant_report_url",
                 "is_test_data",
                 "requires_certification",
+                "allows_multiple_submissions",
+                "submissions",
+                "unsubmitted_submissions",
             ],
         )
         csv_writer.writeheader()
@@ -847,7 +854,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 collection_id=collection.id,
                 _external=True,
             )
+            submissions = [SubmissionHelper(s) for s in grant_recipient.submissions if s.collection == collection]
 
+            # WARN: this needs to tie up with the generated data from the Notification service
             csv_writer.writerow(
                 {
                     "email_address": email_recipient.email,
@@ -858,6 +867,23 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     "grant_report_url": grant_report_url,
                     "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
                     "requires_certification": "yes" if collection.requires_certification else "no",
+                    "allows_multiple_submissions": (
+                        "yes" if collection.allow_multiple_submissions else "no"  # TODO: update key names
+                    ),
+                    "submissions": "\n".join(sorted(f"* {submission.submission_name}" for submission in submissions))
+                    if collection.allow_multiple_submissions
+                    else "",
+                    "unsubmitted_submissions": "\n".join(
+                        sorted(
+                            (
+                                f"* {submission.submission_name}"
+                                for submission in submissions
+                                if not submission.is_submitted
+                            )
+                        )
+                    )
+                    if collection.allow_multiple_submissions
+                    else "",
                 }
             )
 

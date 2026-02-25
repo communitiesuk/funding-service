@@ -1,4 +1,6 @@
+import csv
 import datetime
+import io
 
 import pytest
 from bs4 import BeautifulSoup
@@ -14,6 +16,7 @@ from app.common.data.types import (
     OrganisationModeEnum,
     OrganisationStatus,
     OrganisationType,
+    QuestionDataType,
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -1046,13 +1049,18 @@ class TestSendEmailsToRecipients:
         lines = response.text.splitlines()
         assert len(lines) == 4
 
-        header = lines[0]
-        assert "email_address" in header
-        assert "grant_name" in header
-        assert "report_name" in header
-        assert "report_deadline" in header
-        assert "grant_report_url" in header
-        assert "requires_certification" in header
+        header = lines[0].split(",")
+        assert "email_address" == header[0]
+        assert "grant_name" == header[1]
+        assert "organisation_name" == header[2]
+        assert "report_name" == header[3]
+        assert "report_deadline" == header[4]
+        assert "grant_report_url" == header[5]
+        assert "is_test_data" == header[6]
+        assert "requires_certification" == header[7]
+        assert "allows_multiple_submissions" == header[8]
+        assert "submissions" == header[9]
+        assert "unsubmitted_submissions" == header[10]
 
         assert "user1@org1.example.com" in lines[1]
         assert "user2@org1.example.com" in lines[2]
@@ -1063,6 +1071,7 @@ class TestSendEmailsToRecipients:
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
+        assert all(line.endswith("no,,") for line in lines[1:])
 
     def test_download_csv_format_and_content_deadline_reminder(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -1170,13 +1179,18 @@ class TestSendEmailsToRecipients:
         lines = response.text.splitlines()
         assert len(lines) == 4
 
-        header = lines[0]
-        assert "email_address" in header
-        assert "grant_name" in header
-        assert "report_name" in header
-        assert "report_deadline" in header
-        assert "grant_report_url" in header
-        assert "requires_certification" in header
+        header = lines[0].split(",")
+        assert "email_address" == header[0]
+        assert "grant_name" == header[1]
+        assert "organisation_name" == header[2]
+        assert "report_name" == header[3]
+        assert "report_deadline" == header[4]
+        assert "grant_report_url" == header[5]
+        assert "is_test_data" == header[6]
+        assert "requires_certification" == header[7]
+        assert "allows_multiple_submissions" == header[8]
+        assert "submissions" == header[9]
+        assert "unsubmitted_submissions" == header[10]
 
         assert "user3@org2.example.com" not in response.text
         assert "user4@org2.example.com" not in response.text
@@ -1189,6 +1203,82 @@ class TestSendEmailsToRecipients:
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
+        assert all(line.endswith("no,,") for line in lines[1:])
+
+    def test_download_csv_multi_submission_collection(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            allow_multiple_submissions=True,
+            reporting_period_start_date=datetime.date(2025, 1, 1),
+            reporting_period_end_date=datetime.date(2025, 3, 31),
+            submission_period_start_date=datetime.date(2025, 4, 1),
+            submission_period_end_date=datetime.date(2025, 4, 30),
+        )
+        question = factories.question.create(
+            form__collection=collection,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection.submission_name_question_id = question.id
+        db_session.commit()
+
+        org = factories.organisation.create(name="Organisation 1", can_manage_grants=False)
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        user = factories.user.create(email="user1@org1.example.com")
+        factories.user_role.create(
+            user=user, organisation=org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
+
+        submitted_submission = factories.submission.create(
+            mode=SubmissionModeEnum.LIVE,
+            collection=collection,
+            data={str(question.id): "Area Alpha"},
+            created_by=user,
+            grant_recipient=grant_recipient,
+        )
+        factories.submission_event.create(
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            submission=submitted_submission,
+            related_entity_id=question.form.id,
+            created_by=user,
+        )
+        factories.submission_event.create(
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            submission=submitted_submission,
+            created_by=user,
+        )
+        assert SubmissionHelper(submitted_submission).is_submitted
+
+        factories.submission.create(
+            mode=SubmissionModeEnum.LIVE,
+            collection=collection,
+            data={str(question.id): "Area Bravo"},
+            created_by=user,
+            grant_recipient=grant_recipient,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
+        )
+
+        assert response.status_code == 200
+
+        reader = csv.DictReader(io.StringIO(response.text))
+        rows = list(reader)
+        assert len(rows) == 1
+
+        row = rows[0]
+        assert row["email_address"] == "user1@org1.example.com"
+        assert row["allows_multiple_submissions"] == "yes"
+        assert "* Area Alpha" in row["submissions"]
+        assert "* Area Bravo" in row["submissions"]
+        assert "* Area Bravo" in row["unsubmitted_submissions"]
+        assert "* Area Alpha" not in row["unsubmitted_submissions"]
 
 
 class TestSetUpCertifiers:

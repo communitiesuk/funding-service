@@ -12,7 +12,7 @@ from app.common.data.types import GrantRecipientModeEnum
 from app.common.filters import format_date, format_datetime
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission
+    from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
     from app.common.data.models_user import User
     from app.common.helpers.collections import SubmissionHelper
 
@@ -127,7 +127,12 @@ class NotificationService:
         )
 
     def send_access_report_opened(
-        self, email_address: str, *, collection: Collection, grant_recipient: GrantRecipient
+        self,
+        email_address: str,
+        *,
+        collection: Collection,
+        grant_recipient: GrantRecipient,
+        submission_helpers: list[SubmissionHelper],
     ) -> Notification:
         personalisation = {
             "grant_name": grant_recipient.grant.name,
@@ -145,7 +150,15 @@ class NotificationService:
                 _external=True,
             ),
             "organisation_name": grant_recipient.organisation.name,
+            "allows_multiple_submissions": "yes" if collection.allow_multiple_submissions else "no",
+            "submissions": "",
         }
+
+        if collection.allow_multiple_submissions:
+            personalisation["submissions"] = "\n".join(
+                sorted(f"* {submission_helper.submission_name}" for submission_helper in submission_helpers)
+            )
+
         return self._send_email(
             email_address,
             current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"],
@@ -153,14 +166,16 @@ class NotificationService:
         )
 
     def send_access_submission_sent_for_certification_confirmation(
-        self, email_address: str, *, submission: Submission
+        self, email_address: str, *, submission_helper: SubmissionHelper
     ) -> Notification:
+        submission = submission_helper.submission
+
         return self._send_email(
             email_address,
             current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_SENT_FOR_CERTIFICATION_CONFIRMATION_TEMPLATE_ID"],
             personalisation={
                 "grant_name": submission.collection.grant.name,
-                "report_name": submission.collection.name,
+                "report_name": submission_helper.long_collection_name,
                 "organisation_name": submission.grant_recipient.organisation.name,
                 "reference": submission.reference,
                 "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
@@ -175,16 +190,18 @@ class NotificationService:
         )
 
     def send_access_submission_ready_to_certify(
-        self, email_address: str, *, submission: Submission, submitted_by: User
+        self, email_address: str, *, submission_helper: SubmissionHelper, submitted_by: User
     ) -> Notification:
+        submission = submission_helper.submission
+
         personalisation = {
             "grant_name": submission.collection.grant.name,
             "report_submitter": submitted_by.name,
-            "report_name": submission.collection.name,
+            "report_name": submission_helper.long_collection_name,
             "report_deadline": format_date(submission.collection.submission_period_end_date)
             if submission.collection.submission_period_end_date
             else "(Dates to be confirmed)",
-            "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+            "is_test_data": ("yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
             "grant_report_url": url_for(
                 "access_grant_funding.view_locked_report",
                 organisation_id=submission.grant_recipient.organisation.id,
@@ -224,7 +241,7 @@ class NotificationService:
             "certifier_name": submission_helper.declined_by.name
             if submission_helper.declined_by
             else "(Certifier not known)",
-            "report_name": submission_helper.collection.name,
+            "report_name": submission_helper.long_collection_name,
             "certifier_comments": submission_helper.events.submission_state.declined_reason,
             "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
             if submission_helper.collection.submission_period_end_date
@@ -270,7 +287,7 @@ class NotificationService:
             "certifier_name": submission_helper.declined_by.name
             if submission_helper.declined_by
             else "(Certifier not known)",
-            "report_name": submission_helper.collection.name,
+            "report_name": submission_helper.long_collection_name,
             "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
             if submission_helper.collection.submission_period_end_date
             else "(Dates to be confirmed)",
@@ -325,7 +342,7 @@ class NotificationService:
             "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
             "submitter_name": submitter_name,
             "certifier_name": certifier_name,
-            "report_name": submission_helper.collection.name,
+            "report_name": submission_helper.long_collection_name,
             "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
             "reference": submission_helper.reference,
             "date_submitted": format_datetime(submission_helper.submitted_at_utc)
