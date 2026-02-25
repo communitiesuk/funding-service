@@ -4,7 +4,13 @@ from sqlalchemy.exc import IntegrityError
 
 from app import QuestionDataType
 from app.common.data.models import ComponentReference, Expression, Group
-from app.common.data.types import ExpressionType, QuestionPresentationOptions, RoleEnum, SubmissionModeEnum
+from app.common.data.types import (
+    ExpressionType,
+    GrantRecipientModeEnum,
+    QuestionPresentationOptions,
+    RoleEnum,
+    SubmissionModeEnum,
+)
 from app.common.expressions.managed import GreaterThan, Specifically
 
 
@@ -593,6 +599,15 @@ class TestGrantRecipientModel:
             )
 
         assert grant_recipient.certifier_names == expected
+
+    def test_grant_recipient_submission_mode(self, factories):
+        live_grant_recipient = factories.grant_recipient.create(mode=GrantRecipientModeEnum.LIVE)
+        test_grant_recipient = factories.grant_recipient.create(mode=GrantRecipientModeEnum.TEST)
+
+        assert len(GrantRecipientModeEnum) == 2
+        assert len(SubmissionModeEnum) == 3
+        assert live_grant_recipient.submission_mode == SubmissionModeEnum.LIVE
+        assert test_grant_recipient.submission_mode == SubmissionModeEnum.TEST
 
 
 class TestComponentReferenceModel:

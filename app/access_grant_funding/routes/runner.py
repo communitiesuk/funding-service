@@ -18,7 +18,6 @@ from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext, interpolate
 from app.common.helpers.collections import SubmissionHelper
-from app.common.helpers.submission_mode import get_submission_mode_for_user
 from app.extensions import auto_commit_after_request, s3_service
 
 
@@ -106,9 +105,11 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
     form = form_cls()
 
     if form.validate_on_submit():
-        submission_mode = get_submission_mode_for_user(user, user_organisation=grant_recipient.organisation)
         submission = interfaces.collections.create_submission(
-            collection=collection, grant_recipient=grant_recipient, created_by=user, mode=submission_mode
+            collection=collection,
+            grant_recipient=grant_recipient,
+            created_by=user,
+            mode=grant_recipient.submission_mode,
         )
         submission_helper = SubmissionHelper(submission)
 

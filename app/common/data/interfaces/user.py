@@ -284,7 +284,7 @@ def claim_invitation(invitation: Invitation, user: User) -> Invitation:
     invitation.user = user
 
     # Set new grant team members up as test users for each of the grant's grant recipients
-    if invitation.organisation.can_manage_grants and invitation.grant is not None:
+    if invitation.organisation and invitation.organisation.can_manage_grants and invitation.grant is not None:
         if invitation.grant.test_grant_recipients:
             for test_grant_recipient in invitation.grant.test_grant_recipients:
                 add_permissions_to_user(

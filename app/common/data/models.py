@@ -1075,3 +1075,7 @@ class GrantRecipient(BaseModel):
             return "Your certifier"
 
         return comma_join_items(names, join_word="or")
+
+    @property
+    def submission_mode(self) -> SubmissionModeEnum:
+        return SubmissionModeEnum(self.mode.value)

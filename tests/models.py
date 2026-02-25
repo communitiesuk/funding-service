@@ -92,7 +92,9 @@ def _get_grant_managing_organisation() -> Organisation:
         org = db.session.query(Organisation).where(Organisation.can_manage_grants.is_(True)).one()
         return org
     except NoResultFound:
-        org = Organisation(name="MHCLG", can_manage_grants=True)
+        org = Organisation(
+            name="MHCLG", can_manage_grants=True, external_id="GB-GOV-27", type=OrganisationType.CENTRAL_GOVERNMENT
+        )
         db.session.add(org)
         db.session.commit()
         return org
