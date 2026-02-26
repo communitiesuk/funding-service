@@ -235,6 +235,34 @@ class TestStartNewMultipleSubmission:
 
         assert response.status_code == 404
 
+    @pytest.mark.parametrize("multiple_submissions_are_managed_by_service", [True, False])
+    def test_404_when_multiple_submissions_are_managed_by_service(
+        self, authenticated_grant_recipient_data_provider_client, factories, multiple_submissions_are_managed_by_service
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        if multiple_submissions_are_managed_by_service:
+            assert response.status_code == 404
+        else:
+            assert response.status_code == 200
+
     def test_500_when_submission_name_question_not_set(
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
