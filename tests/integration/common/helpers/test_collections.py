@@ -289,11 +289,13 @@ class TestSubmissionHelper:
             question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)
             submission = factories.submission.create(
                 collection=question.form.collection,
-                data={str(question.id): {"filename": "test-document.pdf"}},
+                data={str(question.id): {"filename": "test-document.pdf", "size": 0, "mime_type": "application/pdf"}},
             )
             helper = SubmissionHelper(submission)
 
-            assert helper.cached_get_answer_for_question(question.id) == FileUploadAnswer(filename="test-document.pdf")
+            assert helper.cached_get_answer_for_question(question.id) == FileUploadAnswer(
+                filename="test-document.pdf", size=0, mime_type="application/pdf", scanned_for_viruses=False, key=None
+            )
 
             helper.remove_answer_for_question(question.id)
 
@@ -410,7 +412,9 @@ class TestSubmissionHelper:
                     ).get_value_for_submission(),
                     str(q9.id): DateAnswer(answer=date(2003, 2, 1)).get_value_for_submission(),
                     str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
-                    str(q11.id): FileUploadAnswer(filename="test-document.pdf").get_value_for_submission(),
+                    str(q11.id): FileUploadAnswer(
+                        filename="test-document.pdf", size=0, mime_type="application/pdf"
+                    ).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)
@@ -571,7 +575,9 @@ class TestSubmissionHelper:
                     ).get_value_for_submission(),
                     str(q9.id): DateAnswer(answer=date(2000, 1, 1)).get_value_for_submission(),
                     str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
-                    str(q11.id): FileUploadAnswer(filename="test-document.pdf").get_value_for_submission(),
+                    str(q11.id): FileUploadAnswer(
+                        filename="test-document.pdf", size=0, mime_type="application/pdf"
+                    ).get_value_for_submission(),
                 },
             )
             helper = SubmissionHelper(submission)

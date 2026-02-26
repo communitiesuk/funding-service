@@ -61,6 +61,7 @@ from app.extensions import (
     notification_service,
     record_sqlalchemy_queries,
     register_signals,
+    s3_service,
     talisman,
     toolbar,
 )
@@ -201,6 +202,7 @@ def create_app() -> Flask:  # noqa: C901
     if toolbar:
         toolbar.init_app(app)
     notification_service.init_app(app)
+    s3_service.init_app(app)
     talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
     login_manager.init_app(app)
     register_signals(app)
@@ -262,6 +264,9 @@ def create_app() -> Flask:  # noqa: C901
     def get_google_tag_manager_id() -> str:
         return str(current_app.config["GOOGLE_TAG_MANAGER_ID"])
 
+    def is_deliver_grant_funding() -> bool:
+        return request.blueprint == "deliver_grant_funding"
+
     def get_current_env_name() -> str:
         return str(current_app.config["FLASK_ENV"].value)
 
@@ -283,6 +288,7 @@ def create_app() -> Flask:  # noqa: C901
             to_ordinal=to_ordinal,
             get_google_tag_manager_id=get_google_tag_manager_id,
             get_current_env_name=get_current_env_name,
+            is_deliver_grant_funding=is_deliver_grant_funding,
             enum=dict(
                 submission_mode=SubmissionModeEnum,
                 flash_message_type=FlashMessageType,

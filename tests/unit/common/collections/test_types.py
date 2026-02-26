@@ -79,7 +79,17 @@ class TestSubmissionAnswerBaseModels:
                 {"answer": datetime.date(2023, 10, 1), "approximate_date": True},
                 {"answer": "2023-10-01", "approximate_date": True},
             ),
-            (FileUploadAnswer, {"filename": "report.pdf"}, {"filename": "report.pdf"}),
+            (
+                FileUploadAnswer,
+                {"filename": "report.pdf", "size": 0, "mime_type": "application/pdf"},
+                {
+                    "filename": "report.pdf",
+                    "size": 0,
+                    "mime_type": "application/pdf",
+                    "scanned_for_viruses": False,
+                    "key": None,
+                },
+            ),
         ),
     )
     def test_get_value_for_submission(self, model, data, submission_data):
@@ -91,7 +101,7 @@ class TestSubmissionAnswerBaseModels:
             (IntegerAnswer, {"value": 50}, 50),
             (DecimalAnswer, {"value": Decimal("50.123456")}, Decimal("50.123456")),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),
-            (FileUploadAnswer, {"filename": "report.pdf"}, "report.pdf"),
+            (FileUploadAnswer, {"filename": "report.pdf", "size": 0, "mime_type": "application/pdf"}, "report.pdf"),
         ),
     )
     def test_get_value_for_form(self, model, data, form_value):
@@ -103,7 +113,7 @@ class TestSubmissionAnswerBaseModels:
             (IntegerAnswer, {"value": 50}, 50),
             (DecimalAnswer, {"value": Decimal("50.123456")}, Decimal("50.123456")),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "key"),
-            (FileUploadAnswer, {"filename": "report.pdf"}, "report.pdf"),
+            (FileUploadAnswer, {"filename": "report.pdf", "size": 0, "mime_type": "application/pdf"}, "report.pdf"),
         ),
     )
     def test_get_value_for_evaluation(self, model, data, evaluation_value):
@@ -119,7 +129,7 @@ class TestSubmissionAnswerBaseModels:
             (DecimalAnswer, {"value": Decimal("12350.12"), "prefix": "£"}, "£12,350.12"),
             (DecimalAnswer, {"value": Decimal("1002350.12"), "suffix": "kgs"}, "1,002,350.12kgs"),
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "label"),
-            (FileUploadAnswer, {"filename": "report.pdf"}, "report.pdf"),
+            (FileUploadAnswer, {"filename": "report.pdf", "size": 0, "mime_type": "application/pdf"}, "report.pdf"),
         ),
     )
     def test_get_value_for_interpolation(self, model, data, interpolation_value):
@@ -137,7 +147,7 @@ class TestSubmissionAnswerBaseModels:
             (SingleChoiceFromListAnswer, {"key": "key", "label": "label"}, "label"),
             (DateAnswer, {"answer": datetime.date(2023, 10, 5), "approximate_date": False}, "2023-10-05"),
             (DateAnswer, {"answer": datetime.date(2023, 10, 1), "approximate_date": True}, "October 2023"),
-            (FileUploadAnswer, {"filename": "report.pdf"}, "report.pdf"),
+            (FileUploadAnswer, {"filename": "report.pdf", "size": 0, "mime_type": "application/pdf"}, "report.pdf"),
         ),
     )
     def test_get_value_for_text_export(self, model, data, text_export_value):
@@ -163,7 +173,7 @@ class TestSubmissionAnswerBaseModels:
             (SingleChoiceFromListAnswer, {"key": "key1", "label": "label1"}, {"key": "key1", "label": "label1"}),
             (DateAnswer, {"answer": datetime.date(2023, 10, 5), "approximate_date": False}, "2023-10-05"),
             (DateAnswer, {"answer": datetime.date(2023, 10, 1), "approximate_date": True}, "October 2023"),
-            (FileUploadAnswer, {"filename": "report.pdf"}, "report.pdf"),
+            (FileUploadAnswer, {"filename": "report.pdf", "size": 0, "mime_type": "application/pdf"}, "report.pdf"),
         ),
     )
     def test_get_value_for_json_export(self, model, data, json_export_value):

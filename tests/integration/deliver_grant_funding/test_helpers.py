@@ -9,7 +9,7 @@ from app.deliver_grant_funding.helpers import start_previewing_collection
 from tests.utils import AnyStringMatching
 
 
-def test_start_previewing_collection(authenticated_grant_admin_client, db_session, factories):
+def test_start_previewing_collection(authenticated_grant_admin_client, db_session, factories, mock_s3_service_calls):
     user = authenticated_grant_admin_client.user
     collection = factories.collection.create(create_completed_submissions_each_question_type__preview=1)
 
@@ -32,6 +32,7 @@ def test_start_previewing_collection(authenticated_grant_admin_client, db_sessio
     test_submissions_from_db = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.PREVIEW).all()
     assert len(test_submissions_from_db) == 1
     assert test_submissions_from_db[0].id is not old_preview_submissions_from_db[0].id
+    assert len(mock_s3_service_calls.delete_prefix_calls) == 1
 
     # When passing a form, test that old submissions are deleted and you get redirected to the specific
     # ask a question preview
@@ -49,3 +50,4 @@ def test_start_previewing_collection(authenticated_grant_admin_client, db_sessio
         old_preview_submissions_from_db[0].id,
         test_submissions_from_db[0].id,
     ]
+    assert len(mock_s3_service_calls.delete_prefix_calls) == 2

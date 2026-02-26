@@ -1646,7 +1646,9 @@ class TestDeserialiseQuestionType:
 
     def test_file_upload(self, factories):
         question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
-        result = _deserialise_question_type(question, {"filename": "report.pdf"})
+        result = _deserialise_question_type(
+            question, {"filename": "report.pdf", "size": 0, "mime_type": "application/pdf"}
+        )
         assert isinstance(result, FileUploadAnswer)
         assert result.filename == "report.pdf"
 

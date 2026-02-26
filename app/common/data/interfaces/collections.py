@@ -425,6 +425,18 @@ def get_submissions_by_grant_recipient_collection(
     ).all()
 
 
+def get_submissions_by_user(
+    user: User, collection_id: UUID, submission_mode: SubmissionModeEnum
+) -> Sequence[Submission]:
+    return db.session.scalars(
+        select(Submission).where(
+            Submission.created_by_id == user.id,
+            Submission.collection_id == collection_id,
+            Submission.mode == submission_mode,
+        )
+    ).all()
+
+
 def get_submission(
     submission_id: UUID, *, with_full_schema: bool = False, grant_recipient_id: UUID | None = None
 ) -> Submission:

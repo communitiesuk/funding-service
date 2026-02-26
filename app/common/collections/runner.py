@@ -11,6 +11,7 @@ from app.common.collections.forms import (
     ConfirmRemoveAddAnotherForm,
     build_question_form,
 )
+from app.common.collections.types import FileUploadAnswer
 from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, QuestionDataType, TasklistSectionStatusEnum, TRunnerUrlMap
@@ -18,6 +19,7 @@ from app.common.exceptions import RedirectException, SubmissionAnswerConflict, S
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.extensions import s3_service
 
 if TYPE_CHECKING:
     from app.common.collections.forms import DynamicQuestionForm
@@ -280,6 +282,14 @@ class FormRunner:
         if self.is_removing:
             if self.confirm_remove_form.validate_on_submit():
                 if self.confirm_remove_form.confirm_remove.data == "yes":
+                    # todo: this probably doesn't belong here, submission helper should wrap this
+                    for question in cast("Group", self.component.add_another_container).cached_questions:
+                        if question.data_type == QuestionDataType.FILE_UPLOAD:
+                            answer = self.submission.cached_get_answer_for_question(
+                                question.id, add_another_index=self.add_another_index
+                            )
+                            if isinstance(answer, FileUploadAnswer) and answer.key:
+                                s3_service.delete_file(answer.key)
                     interfaces.collections.remove_add_another_answers_at_index(
                         submission=self.submission.submission,
                         add_another_container=self.component.add_another_container,

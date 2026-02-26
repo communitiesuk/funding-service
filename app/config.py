@@ -124,6 +124,8 @@ class _SharedConfig(_BaseConfig):
     SERVER_NAME: str
     SEND_FILE_MAX_AGE_DEFAULT: int = 31536000
 
+    AWS_S3_BUCKET_NAME: str
+
     # Basic auth
     BASIC_AUTH_ENABLED: bool = False
     BASIC_AUTH_USERNAME: str = ""
@@ -360,6 +362,8 @@ class LocalConfig(_SharedConfig):
 
     ASSETS_VITE_LIVE_ENABLED: bool = True
 
+    AWS_S3_BUCKET_NAME: str = "local-bucket"
+
 
 class UnitTestConfig(LocalConfig):
     """
@@ -377,6 +381,8 @@ class UnitTestConfig(LocalConfig):
     GOVUK_NOTIFY_DISABLE: bool = False  # We want to test the real code paths
 
     SEED_SYSTEM_DATA: bool = False
+
+    AWS_S3_BUCKET_NAME: str = "test-bucket"
 
 
 class DevConfig(_SharedConfig):

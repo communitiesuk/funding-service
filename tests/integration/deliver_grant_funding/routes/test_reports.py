@@ -5883,7 +5883,9 @@ class TestListSubmissions:
         assert response.status_code == 200
         assert "Are you sure you want to reset all test submissions?" in response.text
 
-    def test_post_resets_all_test_submissions(self, authenticated_grant_member_client, factories, db_session):
+    def test_post_resets_all_test_submissions(
+        self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
+    ):
         report = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
@@ -5915,8 +5917,11 @@ class TestListSubmissions:
         )
         assert len(remaining_submissions) == 0
         assert len(remaining_events) == 0
+        assert len(mock_s3_service_calls.delete_prefix_calls) == 1
 
-    def test_post_redirects_with_flash_message(self, authenticated_grant_member_client, factories, db_session):
+    def test_post_redirects_with_flash_message(
+        self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
+    ):
         report = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
@@ -5945,9 +5950,10 @@ class TestListSubmissions:
         )
         flashes = get_test_flashes(authenticated_grant_member_client, FlashMessageType.TEST_SUBMISSIONS_RESET)
         assert flashes == ["All test submissions reset"]
+        assert len(mock_s3_service_calls.delete_prefix_calls) == 1
 
     def test_post_on_live_view_400s_and_does_not_delete_anything(
-        self, authenticated_grant_member_client, factories, db_session
+        self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
     ):
         report = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
@@ -5978,6 +5984,8 @@ class TestListSubmissions:
 
         assert len(remaining_live) == 2
         assert len(remaining_test) == 2
+
+        assert len(mock_s3_service_calls.all_calls) == 0
 
 
 class TestListSubmissionsMultipleSubmissions:
@@ -6349,7 +6357,7 @@ class TestViewSubmission:
         )
 
     def test_post_view_submission_resets_test_submission(
-        self, authenticated_grant_member_client, factories, db_session
+        self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
     ):
         report = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
@@ -6393,6 +6401,7 @@ class TestViewSubmission:
 
         assert len(submissions_from_db) == 0
         assert len(events_from_db) == 0
+        assert len(mock_s3_service_calls.delete_prefix_calls) == 1
 
     @pytest.mark.parametrize(
         "submission_mode, should_show_reset_link",

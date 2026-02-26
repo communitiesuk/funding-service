@@ -201,3 +201,55 @@ def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Ca
     )
 
     yield calls
+
+
+class MockS3ServiceCalls:
+    def __init__(self) -> None:
+        self.upload_file_calls: list[_Call] = []
+        self.download_file_calls: list[_Call] = []
+        self.delete_file_calls: list[_Call] = []
+        self.delete_prefix_calls: list[_Call] = []
+
+    @property
+    def all_calls(self) -> list[_Call]:
+        return self.upload_file_calls + self.download_file_calls + self.delete_file_calls + self.delete_prefix_calls
+
+
+@pytest.fixture(scope="function")
+def mock_s3_service_calls(mocker: MockerFixture) -> Generator[MockS3ServiceCalls, None, None]:
+    tracker = MockS3ServiceCalls()
+
+    def _track_upload_file(*args, **kwargs):  # type: ignore[no-untyped-def]
+        tracker.upload_file_calls.append(mocker.call(*args, **kwargs))
+        return None
+
+    def _track_download_file(*args, **kwargs):  # type: ignore[no-untyped-def]
+        tracker.download_file_calls.append(mocker.call(*args, **kwargs))
+        return b"mocked file content"
+
+    def _track_delete_file(*args, **kwargs):  # type: ignore[no-untyped-def]
+        tracker.delete_file_calls.append(mocker.call(*args, **kwargs))
+        return None
+
+    def _track_delete_prefix(*args, **kwargs):  # type: ignore[no-untyped-def]
+        tracker.delete_prefix_calls.append(mocker.call(*args, **kwargs))
+        return None
+
+    mocker.patch(
+        "app.services.s3.S3Service.upload_file",
+        side_effect=_track_upload_file,
+    )
+    mocker.patch(
+        "app.services.s3.S3Service.download_file",
+        side_effect=_track_download_file,
+    )
+    mocker.patch(
+        "app.services.s3.S3Service.delete_file",
+        side_effect=_track_delete_file,
+    )
+    mocker.patch(
+        "app.services.s3.S3Service.delete_prefix",
+        side_effect=_track_delete_prefix,
+    )
+
+    yield tracker

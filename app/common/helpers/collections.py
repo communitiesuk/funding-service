@@ -13,6 +13,7 @@ from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import TypeAdapter
 from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.collections.forms import DynamicQuestionForm
@@ -62,7 +63,7 @@ from app.common.expressions import (
 )
 from app.common.filters import format_datetime
 from app.common.helpers.submission_events import SubmissionEventHelper
-from app.extensions import notification_service
+from app.extensions import notification_service, s3_service
 
 if TYPE_CHECKING:
     from app.common.data.models import (
@@ -362,6 +363,16 @@ class SubmissionHelper:
             raise ValueError(
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
+
+    @property
+    def s3_key_prefix(self) -> str:
+        return f"{self.submission.mode}/{self.collection.id}/{self.submission.id}"
+
+    def format_s3_key(self, question_id: uuid.UUID, add_another_index: int | None = None) -> str:
+        key = f"{self.s3_key_prefix}/{question_id}"
+        if add_another_index is not None:
+            key += f"/{add_another_index}"
+        return key
 
     def _get_all_questions_are_answered_for_form(self, form: Form) -> FormQuestionsAnswered:
         question_answer_status = []
@@ -707,9 +718,20 @@ class SubmissionHelper:
                 ):
                     raise SubmissionAnswerConflict(f"Another submission for “{answer}” already exists")
 
+        if question.data_type == QuestionDataType.FILE_UPLOAD:
+            key = self.format_s3_key(question_id, add_another_index)
+            file_storage = cast(FileStorage, form.get_answer_to_question(question))
+            # ensure the file stream is at the beginning, it may have changed during validation or serialisation
+            # todo: check the implications of this being off and remove if unnecessary
+            file_storage.stream.seek(0)
+            s3_service.upload_file(file_storage, key)
+            assert isinstance(data, FileUploadAnswer)
+            data.key = key
+
         interfaces.collections.update_submission_data(
             self.submission, question, data, add_another_index=add_another_index
         )
+
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         del self.cached_evaluation_context
@@ -729,6 +751,12 @@ class SubmissionHelper:
             )
 
         question = self.get_question(question_id)
+
+        if question.data_type == QuestionDataType.FILE_UPLOAD:
+            answer = self.cached_get_answer_for_question(question_id, add_another_index=add_another_index)
+            if isinstance(answer, FileUploadAnswer) and answer.key:
+                s3_service.delete_file(answer.key)
+
         interfaces.collections.remove_question_answer(self.submission, question, add_another_index=add_another_index)
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
@@ -1271,7 +1299,13 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
         case QuestionDataType.FILE_UPLOAD:
             assert isinstance(answer, FileStorage)
             assert answer.filename is not None
-            return FileUploadAnswer(filename=answer.filename)
+            return FileUploadAnswer(
+                filename=secure_filename(answer.filename),
+                # todo: we'll probably have to seek through the file to find this
+                #       which will have been done during validation which is an unfortunate duplication
+                size=answer.content_length,
+                mime_type=answer.mimetype,
+            )
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
 

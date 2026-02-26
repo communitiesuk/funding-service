@@ -36,6 +36,8 @@ dependencies = [
     "xgovuk-flask-admin==0.1.7",
     "flask-admin==2.0.2",
     "playwright==1.58.0",
+    "boto3==1.42.51",
+    "types-boto3[s3]==1.42.51",
 ]
 
 [dependency-groups]
@@ -60,8 +62,6 @@ dev = [
     "html5lib==1.1",
     "types-html5lib==1.1.11.20251117",
     "types-pytz==2025.2.0.20251108",
-    "boto3==1.42.51",
-    "types-boto3==1.42.51",
     "freezegun==1.5.5",
     "import-linter==2.10",
     "pytest==9.0.2",
