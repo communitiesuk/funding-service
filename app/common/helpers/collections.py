@@ -272,7 +272,7 @@ class SubmissionHelper:
             and not submission_state.is_submitted
         ):
             return SubmissionStatusEnum.READY_TO_SUBMIT
-        elif {TasklistSectionStatusEnum.NOT_STARTED} == form_statuses:
+        elif form_statuses <= {TasklistSectionStatusEnum.NOT_STARTED, TasklistSectionStatusEnum.NOT_NEEDED}:
             return SubmissionStatusEnum.NOT_STARTED
         else:
             return SubmissionStatusEnum.IN_PROGRESS
