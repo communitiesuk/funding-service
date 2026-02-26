@@ -720,9 +720,11 @@ class SubmissionHelper:
 
         if question.data_type == QuestionDataType.FILE_UPLOAD:
             key = self.format_s3_key(question_id, add_another_index)
-            file_storage = form.get_answer_to_question(question)
+            file_storage = cast(FileStorage, form.get_answer_to_question(question))
+            # ensure the file stream is at the beginning, it may have changed during validation or serialisation
+            # todo: check the implications of this being off and remove if unnecessary
+            file_storage.stream.seek(0)
             s3_service.upload_file(file_storage, key)
-
             assert isinstance(data, FileUploadAnswer)
             data.key = key
 
