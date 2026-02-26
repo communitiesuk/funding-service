@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
     from app.common.expressions.forms import (
         ContextAwareAbstractExpressionForm,
-        CustomExpressionForm,
         _ManagedExpressionForm,
     )
 
@@ -1300,6 +1299,8 @@ class Custom(ManagedExpression):
 
     @staticmethod
     def build_from_form(form: ContextAwareAbstractExpressionForm, question: Question) -> Custom:
+        from app.common.expressions.forms import CustomExpressionForm
+
         assert isinstance(form, CustomExpressionForm)
         return Custom(
             question_id=question.id,

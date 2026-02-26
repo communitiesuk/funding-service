@@ -1403,8 +1403,7 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             expression_context=expression_context,
             field_name="custom_expression",
             allow_reference_to_self=True,
-            target_expression_type=expression.type_,
-            target_expression_name=ManagedExpressionsEnum.CUSTOM,
+            is_custom_expression=True,
         )
         custom_references.update(
             _find_and_validate_references(
@@ -1412,7 +1411,7 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
                 value=managed.custom_message,
                 expression_context=expression_context,
                 field_name="custom_message",
-                allow_reference_to_self=True,
+                allow_reference_to_self=False,
             )
         )
         referenced_question_ids = [ref for c, ref in custom_references]
@@ -1467,14 +1466,24 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
     expression.component_references = references
 
 
+def _validate_dependent_question_data_type_for_expression(
+    target_expression_name: ManagedExpressionsEnum, data_type_a: QuestionDataType, data_type_b: QuestionDataType
+) -> bool:
+    match target_expression_name:
+        case ManagedExpressionsEnum.CUSTOM:
+            return data_type_a == data_type_b
+
+        case _:
+            return True
+
+
 def _find_and_validate_references(
     component: Component,
     value: str,
     expression_context: ExpressionContext,
     field_name: str,
     allow_reference_to_self: bool = False,
-    target_expression_name: Optional[ManagedExpressionsEnum] = None,
-    target_expression_type: Optional[ExpressionType] = None,
+    is_custom_expression: bool = False,
 ) -> set[tuple[UUID, UUID]]:
     references_to_set_up: set[tuple[UUID, UUID]] = set()
     for match in INTERPOLATE_REGEX.finditer(value):
@@ -1501,11 +1510,10 @@ def _find_and_validate_references(
         if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
             question = db.session.get_one(Question, question_id)
 
-            if (
-                target_expression_name
-                and target_expression_type
-                and not validate_dependent_question_data_type_for_expression(
-                    target_expression_name, target_expression_type, question.data_type
+            if is_custom_expression and (
+                not component.data_type
+                or not _validate_dependent_question_data_type_for_expression(
+                    ManagedExpressionsEnum.CUSTOM, component.data_type, question.data_type
                 )
             ):
                 raise IncompatibleDataTypeException(
