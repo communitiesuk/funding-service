@@ -69,6 +69,7 @@ from app.common.data.interfaces.exceptions import (
 from app.common.data.models import (
     Collection,
     ComponentReference,
+    DataSource,
     DataSourceItem,
     Expression,
     Form,
@@ -3371,6 +3372,18 @@ class TestDeleteCollection:
         with pytest.raises(ValueError):
             delete_collection(collection)
 
+    def test_delete_collection_cascades_data_sources(self, db_session, factories):
+        collection = factories.collection.create()
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form, data_type=QuestionDataType.RADIOS)
+
+        delete_collection(collection)
+
+        assert db_session.get(Collection, collection.id) is None
+        assert db_session.get(DataSource, question.data_source.id) is None
+        for item in question.data_source.items:
+            assert db_session.get(DataSourceItem, item.id) is None
+
 
 class TestDeleteForm:
     def test_delete(self, db_session, factories):
@@ -3397,6 +3410,17 @@ class TestDeleteForm:
 
         assert [f.order for f in collection.forms] == [0, 1, 2, 3]
         assert collection.forms == [forms[0], forms[1], forms[3], forms[4]]
+
+    def test_delete_form_with_data_sources(self, db_session, factories):
+        form = factories.form.create()
+        question = factories.question.create(form=form, data_type=QuestionDataType.RADIOS)
+
+        delete_form(form)
+
+        assert db_session.get(Form, form.id) is None
+        assert db_session.get(DataSource, question.data_source.id) is None
+        for item in question.data_source.items:
+            assert db_session.get(DataSourceItem, item.id) is None
 
 
 class TestDeleteQuestion:
@@ -3463,6 +3487,17 @@ class TestDeleteQuestion:
 
         assert db_session.get(Question, questions[2].id) is None
         assert db_session.get(Question, questions[0].id) is not None
+
+    def test_delete_question_with_data_source(self, db_session, factories):
+        form = factories.form.create()
+        question = factories.question.create(form=form, data_type=QuestionDataType.RADIOS)
+
+        delete_question(question)
+
+        assert db_session.get(Question, question.id) is None
+        assert db_session.get(DataSource, question.data_source.id) is None
+        for item in question.data_source.items:
+            assert db_session.get(DataSourceItem, item.id) is None
 
 
 class TestDeleteCollectionSubmissions:

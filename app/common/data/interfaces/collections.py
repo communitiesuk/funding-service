@@ -43,6 +43,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
     ConditionsOperator,
+    DataSourceType,
     ExpressionType,
     GrantStatusEnum,
     QuestionDataOptions,
@@ -591,8 +592,7 @@ def update_form(form: Form, *, title: str) -> Form:
 
 @flush_and_rollback_on_exceptions
 def _create_data_source(question: Question, items: list[str]) -> None:
-    data_source = DataSource(id=uuid.uuid4(), question_id=question.id)
-    db.session.add(data_source)
+    data_source = DataSource(id=uuid.uuid4())
 
     if len({slugify(item) for item in items}) != len(items):
         # If this error occurs, it's probably because QuestionForm does not check for duplication between the
@@ -604,10 +604,16 @@ def _create_data_source(question: Question, items: list[str]) -> None:
     for choice in items:
         data_source_items.append(DataSourceItem(data_source_id=data_source.id, key=slugify(choice), label=choice))
     data_source.items = data_source_items
+    question.data_source = data_source
+
+    # Now that data_sources can be created without being linked to questions, it seems safer to only add the data_source
+    # to the session after the relationship with a question has been set, to avoid orphaned data_sources
+    db.session.add(data_source)
 
 
 @flush_and_rollback_on_exceptions
 def _update_data_source(question: Question, items: list[str]) -> None:
+    assert question.data_source is not None
     existing_choices_map = {choice.key: choice for choice in question.data_source.items}
     for item in items:
         if slugify(item) in existing_choices_map:
@@ -1405,7 +1411,9 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             cr = ComponentReference(
                 component=expression.question,
                 expression=expression,
-                depends_on_component=referenced_data_source_item.data_source.question,
+                # TODO: This will only work with the current 'CUSTOM' datasources - once we actually implement others
+                # and a datasource can be used by multiple questions, this will need a refactor
+                depends_on_component=referenced_data_source_item.data_source.questions[0],
                 depends_on_data_source_item=referenced_data_source_item,
             )
             db.session.add(cr)
@@ -1600,12 +1608,22 @@ def delete_collection(collection: Collection) -> None:
         db.session.rollback()
         raise ValueError("Cannot delete collection with live submissions")
 
+    data_sources_to_delete = [c.data_source for form in collection.forms for c in form._all_components if c.data_source]
+
     db.session.delete(collection)
+
+    for ds in data_sources_to_delete:
+        db.session.delete(ds)
 
 
 @flush_and_rollback_on_exceptions
 def delete_form(form: Form) -> None:
+    data_sources_to_delete = [
+        c.data_source for c in form._all_components if c.data_source and c.data_source.type == DataSourceType.CUSTOM
+    ]
     db.session.delete(form)
+    for ds in data_sources_to_delete:
+        db.session.delete(ds)
     form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # type: ignore[assignment]
     form.collection.forms.reorder()  # Force all other forms to update their `order` attribute
     db.session.execute(text("SET CONSTRAINTS uq_form_order_collection DEFERRED"))
@@ -1614,6 +1632,8 @@ def delete_form(form: Form) -> None:
 @flush_and_rollback_on_exceptions
 def delete_question(question: Question | Group) -> None:
     raise_if_question_has_any_dependencies(question)
+    if question.data_source and question.data_source.type == DataSourceType.CUSTOM:
+        db.session.delete(question.data_source)
     db.session.delete(question)
     if question in question.container.components:
         question.container.components.remove(question)
