@@ -2081,8 +2081,8 @@ class TestChooseQuestionType:
     @pytest.mark.parametrize(
         "client_fixture, can_access, expected_question_types",
         (
-            ["authenticated_grant_member_client", False, 9],
-            ["authenticated_grant_admin_client", True, 9],
+            ["authenticated_grant_member_client", False, 10],
+            ["authenticated_grant_admin_client", True, 10],
             ["authenticated_platform_admin_client", True, 10],
         ),
     )
