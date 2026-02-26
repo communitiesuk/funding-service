@@ -6462,3 +6462,24 @@ class TestValidateCustomExpressionSyntax:
         assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
         assert len(field.errors) == 1
         assert f"Invalid syntax in expression: {test_expression}" in [str(msg).strip() for msg in field.errors]
+
+    def test_invalid_expression_bad_operator(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < 2**3"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert "Operator Pow() does not exist" in [str(msg).strip() for msg in field.errors]

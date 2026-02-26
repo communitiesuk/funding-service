@@ -2156,6 +2156,10 @@ def _validate_custom_expression_syntax(
         field.errors.append(f"This function is not available: {e.func_name}")  # type:ignore[attr-defined]
     except SyntaxError as e:
         field.errors.append(f"Invalid syntax in expression: {e.text}")  # type:ignore[attr-defined]
+    except simpleeval.OperatorNotDefined as e:
+        # TODO: This prints the ast node name (eg. Pow()) rather than the actual operator (eg. **)
+        field.errors.append(f"Operator {e.attr} does not exist")  # type:ignore[attr-defined]
+
     return False
 
 
