@@ -5,7 +5,7 @@
 
 {% set active_item_identifier = "reports" %}
 {% if expression %}
-  {% set heading = "Edit a custom validation " %}
+  {% set heading = "Edit a custom validation" %}
   {% set submit_label = "Save custom validation" %}
   {% set back_link_href= url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) %}
 {% else %}

@@ -3853,6 +3853,8 @@ class TestValidateAndSyncComponentReferences:
         text_question = factories.question.create()
         hint_question = factories.question.create(form=text_question.form)
         guidance_body_question = factories.question.create(form=text_question.form)
+
+        add_another_guidance_body_question = factories.question.create(form=text_question.form)
         dependent_question = factories.question.create(
             form=text_question.form,
             text=f"Reference to (({text_question.safe_qid}))",
@@ -3879,6 +3881,7 @@ class TestValidateAndSyncComponentReferences:
             text_question,
             hint_question,
             guidance_body_question,
+            add_another_guidance_body_question,
         }
 
     def test_handles_multiple_interpolations(self, db_session, factories):
@@ -4515,12 +4518,7 @@ class TestFindAndValidateReferences:
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
         with pytest.raises(InvalidReferenceInExpression) as e:
             _find_and_validate_references(
-                q3,
-                value,
-                context,
-                "custom expression",
-                allow_reference_to_self=True,
-                is_custom_expression=True,
+                q3, value, context, "custom expression", allow_reference_to_self=True, is_custom_expression=True
             )
         assert "Reference is not valid" in str(e)
         assert e.value.field_name == "custom expression"

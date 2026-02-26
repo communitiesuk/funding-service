@@ -1488,8 +1488,8 @@ def _find_and_validate_references(
     allow_reference_to_self: bool = False,
     is_custom_expression: bool = False,
     include_duplicates: bool = False,
-) -> set[tuple[UUID, UUID]] | list[tuple[UUID, UUID]]:
-    references_to_set_up: list[tuple[UUID, UUID]] = list()
+) -> set[tuple[UUID, UUID]]:
+    references_to_set_up: set[tuple[UUID, UUID]] = set()
     for match in INTERPOLATE_REGEX.finditer(value):
         wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
 
