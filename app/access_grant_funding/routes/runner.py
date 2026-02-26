@@ -339,4 +339,4 @@ def download_file(
         abort(404)
     # return redirect(s3_service.generate_and_give_access_to_url(answer=data))
     file_bytes = s3_service.download_file(key=data.key)
-    return send_file(BytesIO(file_bytes), download_name=data.filename, as_attachment=True)
+    return send_file(BytesIO(file_bytes), download_name=data.filename, as_attachment=True, max_age=0)
