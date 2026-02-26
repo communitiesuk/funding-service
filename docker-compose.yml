@@ -51,6 +51,7 @@ services:
       WERKZEUG_DEBUG_PIN: off
     depends_on:
       - db
+      - localstack
     networks:
       - ofs
     healthcheck:
@@ -102,7 +103,6 @@ services:
     ports:
       - "4566:4566"
     volumes:
-      # - "/var/run/docker.sock:/var/run/docker.sock"
       - ./docker-localstack:/etc/localstack/init/ready.d
       - localstack_data:/var/lib/localstack
     networks:
