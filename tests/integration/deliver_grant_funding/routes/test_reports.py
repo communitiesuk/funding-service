@@ -41,6 +41,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SetUpReportForm,
 )
+from app.deliver_grant_funding.routes.reports import _validate_custom_expression_syntax
 from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
@@ -4740,7 +4741,7 @@ class TestAddCustomQuestionValidation:
         assert len(q3.expressions) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "Expression cannot reference Later question name as it appears in the wrong order.",
+            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
         )
 
     def test_post_error_in_message(self, authenticated_platform_admin_client, factories, db_session):
@@ -4822,11 +4823,11 @@ class TestAddCustomQuestionValidation:
         assert len(q3.expressions) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "This function is not available: sum.",
+            "This function is not available: sum",
         )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "Message cannot reference Later question name as it appears in the wrong order.",
+            "Message cannot reference Later question name as it appears in the wrong order",
         )
 
     def test_post_to_add_context(self, authenticated_platform_admin_client, factories, db_session):
@@ -5020,11 +5021,11 @@ class TestEditCustomQuestionValidation:
         assert len(expression.component_references) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "This function is not available: sum.",
+            "This function is not available: sum",
         )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "Message cannot reference Later question name as it appears in the wrong order.",
+            "Message cannot reference Later question name as it appears in the wrong order",
         )
 
     def test_post_to_add_context(self, authenticated_platform_admin_client, factories, db_session):
@@ -6285,3 +6286,179 @@ class TestViewSubmission:
             assert reset_link is None, (
                 f"Reset this submission link should NOT be present for {submission_mode.value} mode"
             )
+
+
+class TestValidateCustomExpressionSyntax:
+    def test_valid_expression(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is True
+        assert len(field.errors) == 0
+
+    def test_invalid_expression_out_of_order(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q1.safe_qid})) < (({q2.safe_qid})) + (({q3.safe_qid}))"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q1, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert f"{q1.name} cannot reference {q2.name} as it appears in the wrong order" in field.errors
+
+    def test_invalid_expression_bad_reference(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + ((some_bad_ref))"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert "((some_bad_ref)) is not a valid reference" in field.errors
+
+    def test_invalid_expression_reference_missing_from_context(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert f"(({q1.safe_qid})) is not a valid reference" in field.errors
+
+    def test_invalid_expression_incompatible_data_type(self, factories, mocker):
+        db_form = factories.form.create()
+        q1 = factories.question.create(form=db_form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+        q2, q3 = factories.question.create_batch(
+            2,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert f"{q1.name} is of an incompatible data type" in field.errors
+
+    def test_invalid_expression_name_not_defined(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext()
+        # mock the call the find_and_validate_references as it will raise an exception due to references not being there
+        # but we want to test an error at evaluation time instead
+        mocker.patch(
+            "app.deliver_grant_funding.routes.reports._find_and_validate_references",
+            return_value=[(q3.id, q3.id), (q3.id, q2.id)],
+        )
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert f"This name is not defined: {q1.safe_qid}" in field.errors
+
+    def test_invalid_expression_unavailable_function(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < sum( (({q2.safe_qid})), (({q1.safe_qid})) )"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert "This function is not available: sum" in field.errors
+
+    def test_invalid_expression_bad_syntax(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < hello there"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert f"Invalid syntax in expression: {test_expression}" in [str(msg).strip() for msg in field.errors]

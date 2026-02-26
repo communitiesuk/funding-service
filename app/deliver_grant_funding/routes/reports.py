@@ -2103,13 +2103,13 @@ def _validate_custom_error_message_syntax(
 
     except DependencyOrderException as e:
         field.errors.append(  # type:ignore[attr-defined]
-            f"{field.label.text} cannot reference {e.depends_on_question.name} as it appears in the wrong order."
+            f"{field.label.text} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
         )
     return False
 
 
 def _validate_custom_expression_syntax(
-    component: Component, expression_context: ExpressionContext, field: wtforms.Field
+    component: Component, expression_context: ExpressionContext, field: wtforms.Field, expression_type: ExpressionType
 ) -> bool:
     """Badly named function that finds all the references in a custom expression, checks they are valid in the
     relevant expression context, and adds the first error it encounters to the field's errors.
@@ -2120,7 +2120,12 @@ def _validate_custom_expression_syntax(
     expression_statement = field.data
     try:
         items_in_expression = _find_and_validate_references(
-            component, expression_statement, expression_context, field.name, allow_reference_to_self=True
+            component,
+            expression_statement,
+            expression_context,
+            field.name,
+            allow_reference_to_self=True,
+            is_custom_expression=True,
         )
         names = {}
         for _, ref_q_uuid in items_in_expression:
@@ -2133,20 +2138,22 @@ def _validate_custom_expression_syntax(
         evaluator.eval(expression_statement)  # type: ignore[no-untyped-call]
         return True
     # TODO review error message wording
+    # TODO do we want to put some of these in sentry so we can see what sort of validation errors are triggered to
+    #  help write guidance in the future?
     except DependencyOrderException as e:
         field.errors.append(  # type:ignore[attr-defined]
-            f"{field.label.text} cannot reference {e.depends_on_question.name} as it appears in the wrong order."
+            f"{component.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
         )
     except InvalidReferenceInExpression as e:
         field.errors.append(f"{e.bad_reference} is not a valid reference")  # type:ignore[attr-defined]
     except IncompatibleDataTypeException as e:
         field.errors.append(f"{e.depends_on_question.name} is of an incompatible data type")  # type:ignore[attr-defined]
     except simpleeval.NameNotDefined as e:
-        field.errors.append(f"This name is not defined: {e.name}. ")  # type:ignore[attr-defined]
+        field.errors.append(f"This name is not defined: {e.name}")  # type:ignore[attr-defined]
     except simpleeval.FeatureNotAvailable:
         field.errors.append("You can't do this ")  # type:ignore[attr-defined]
     except simpleeval.FunctionNotDefined as e:
-        field.errors.append(f"This function is not available: {e.func_name}. ")  # type:ignore[attr-defined]
+        field.errors.append(f"This function is not available: {e.func_name}")  # type:ignore[attr-defined]
     except SyntaxError as e:
         field.errors.append(f"Invalid syntax in expression: {e.text}")  # type:ignore[attr-defined]
     return False
@@ -2194,6 +2201,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
             question,
             expression_context,
             form.custom_expression,
+            expression_type=ExpressionType.VALIDATION,
         )
         valid_custom_message = _validate_custom_error_message_syntax(question, expression_context, form.custom_message)
         if valid_custom_expression and valid_custom_message:
@@ -2291,6 +2299,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
             question,
             expression_context,
             form.custom_expression,
+            expression_type=ExpressionType.VALIDATION,
         )
         valid_custom_message = _validate_custom_error_message_syntax(question, expression_context, form.custom_message)
         if valid_custom_expression and valid_custom_message:

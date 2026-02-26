@@ -3372,7 +3372,7 @@ class TestValidateAndSyncExpressionReferences:
             Custom(
                 question_id=q3.id,
                 custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
-                custom_message=f"(({q3.safe_qid})) must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
+                custom_message=f"The answer must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
                 f" and a random reference to (({q0.safe_qid}))",
             ),
             ExpressionType.VALIDATION,
@@ -4157,8 +4157,7 @@ class TestFindAndValidateReferences:
             context,
             "custom expression",
             allow_reference_to_self=True,
-            target_expression_type=ExpressionType.VALIDATION,
-            target_expression_name=ManagedExpressionsEnum.CUSTOM,
+            is_custom_expression=True,
         )
         assert len(result) == 3
         assert (q3.id, q1.id) in result
@@ -4177,8 +4176,7 @@ class TestFindAndValidateReferences:
                 context,
                 "custom expression",
                 allow_reference_to_self=True,
-                target_expression_type=ExpressionType.VALIDATION,
-                target_expression_name=ManagedExpressionsEnum.CUSTOM,
+                is_custom_expression=True,
             )
         assert "Reference is not valid" in str(e)
         assert e.value.depends_on_question.id == q3.id
@@ -4191,13 +4189,7 @@ class TestFindAndValidateReferences:
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
         with pytest.raises(InvalidReferenceInExpression) as e:
             _find_and_validate_references(
-                q3,
-                value,
-                context,
-                "custom expression",
-                allow_reference_to_self=True,
-                target_expression_type=ExpressionType.VALIDATION,
-                target_expression_name=ManagedExpressionsEnum.CUSTOM,
+                q3, value, context, "custom expression", allow_reference_to_self=True, is_custom_expression=True
             )
         assert "Reference is not valid" in str(e)
         assert e.value.field_name == "custom expression"
@@ -4216,8 +4208,7 @@ class TestFindAndValidateReferences:
                 context,
                 "custom expression",
                 allow_reference_to_self=True,
-                target_expression_type=ExpressionType.VALIDATION,
-                target_expression_name=ManagedExpressionsEnum.CUSTOM,
+                is_custom_expression=True,
             )
         assert "Reference is not valid due to incompatible data types" in str(e)
         assert e.value.field_name == "custom expression"
