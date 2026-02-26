@@ -81,13 +81,27 @@
           </div>
           {% set helpHtml %}
             <div class="govuk-body">
+              <p class="govuk-body">You need to write an equation to validate this question. One side of the equation must reference 'this question', and it must result in a True or False answer.</p>
+              <p class="govuk-body">For example, if this question was called 'Total revenue spending':</p>
+              <p class="govuk-inset-text">
+                <span class="app-context-aware-editor--valid-reference">((Total revenue spending))</span> &le; <span class="app-context-aware-editor--valid-reference">((Total budget))</span> -
+                <span class="app-context-aware-editor--valid-reference">((Total capital spending))</span>
+              </p>
               The following operations are available:
-              <ul class="govuk-list">
-                <li><span class="govuk-!-font-weight-bold">+</span> plus</li>
-                <li><span class="govuk-!-font-weight-bold">-</span> minus</li>
-                <li><span class="govuk-!-font-weight-bold">*</span> multiply</li>
-                <li><span class="govuk-!-font-weight-bold">/</span> divide</li>
-              </ul>
+              {{
+                govukSummaryList({
+                "rows": [
+                  {"key": {"text": "+"}, "value": {"html": "Add two things<br/>1 + 2 → 3"
+              }},
+              {"key": {"text": "-"}, "value": {"html": "Subtract two things<br />100 - 1 → 99"}}, {"key": {"text": "*"}, "value": {"html": "Multiple two things<br />5 * 7 → 35"}}, {"key": {"text": "/"}, "value": {"html": "Divide on thing by
+              another<br />100 / 5 → 20"}}, {"key": {"text": "%"}, "value": {"html": "Calculate the remainder of one thing divided by another<br />15 % 4 → 3"}}, ], }) }} The following comparators are available:
+              {{
+                govukSummaryList({
+                "rows": [
+                  {"key": {"text": "=="}, "value": {"html": "Is equal to<br/>19 == 20 → False"
+              }},
+              {"key": {"html": "&lt;"}, "value": {"html": "Is less than<br />1 &lt; 4 → True"}}, {"key": {"html": "&gt;"}, "value": {"html": "Is greater than<br />1 &gt; 4 → False"}}, {"key": {"html": "&lt;="}, "value": {"html": "Is less
+              than or equal to<br />4 &le; 4 → True"}}, {"key": {"html": "&gt;="}, "value": {"html": "Is greater than or equal to<br />5 &ge; 4 → True"}} ], }) }}
             </div>
           {% endset %}
           {{

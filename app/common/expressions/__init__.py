@@ -284,7 +284,14 @@ class ExpressionContext(ChainMap[str, Any]):
 def get_safe_evaluator(
     names: Any, required_functions: dict[str, Callable[[Any], Any] | type[Any]]
 ) -> simpleeval.SimpleEval:
-    evaluator = simpleeval.EvalWithCompoundTypes(names=names, functions=required_functions)  # type: ignore[no-untyped-call]
+    evaluator = simpleeval.EvalWithCompoundTypes(
+        names=names,
+        functions=required_functions,
+    )  # type: ignore[no-untyped-call]
+
+    # restrict to a subset of binary operators so eg. & (bitwise and) is not allowed
+    for disallowed_op in [ast.RShift, ast.LShift, ast.BitXor, ast.BitOr, ast.BitAnd, ast.Invert, ast.Pow]:
+        evaluator.operators.pop(disallowed_op)
 
     # Remove all nodes except those we explicitly allowlist
     evaluator.nodes = {
@@ -295,7 +302,6 @@ def get_safe_evaluator(
             ast.UnaryOp,
             ast.Expr,
             ast.Name,
-            ast.BinOp,
             ast.BoolOp,
             ast.Compare,
             ast.Subscript,
@@ -304,6 +310,7 @@ def get_safe_evaluator(
             ast.Constant,
             ast.Call,
             ast.Set,
+            ast.BinOp,
         }
     }
     return evaluator
@@ -330,7 +337,7 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
         result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message) from e
-    except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined) as e:
+    except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined, simpleeval.OperatorNotDefined) as e:
         raise DisallowedExpression("Expression is using unsafe/unsupported features") from e
 
     return result
