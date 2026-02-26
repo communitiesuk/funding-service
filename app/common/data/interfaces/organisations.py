@@ -25,10 +25,10 @@ def get_organisations(
     if can_manage_grants is not None:
         statement = statement.where(Organisation.can_manage_grants.is_(can_manage_grants))
 
-    if with_ids:
+    if with_ids is not None:
         statement = statement.where(Organisation.id.in_(with_ids))
 
-    if with_external_ids:
+    if with_external_ids is not None:
         statement = statement.where(Organisation.external_id.in_(with_external_ids))
 
     return db.session.scalars(statement).all()

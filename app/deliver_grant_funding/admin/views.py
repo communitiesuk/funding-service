@@ -445,7 +445,15 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                         organisation_id=test_organisation.id,
                         grant_id=grant.id,
                     )
-            flash(f"Created {len(form.recipients.data)} grant recipients.", "success")  # type: ignore[arg-type]
+            flash(
+                (
+                    f"Created {len(form.recipients.data)} grant recipients"  # type: ignore[arg-type]
+                    f" and {len(form.recipients.data)} test grant recipients. "  # type: ignore[arg-type]
+                    f"All existing grant team members have been"
+                    f" set up as data providers/certifiers for the test grant recipients."
+                ),
+                "success",
+            )
             return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
@@ -854,7 +862,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 collection_id=collection.id,
                 _external=True,
             )
-            submissions = [SubmissionHelper(s) for s in grant_recipient.submissions if s.collection == collection]
+            submissions = [SubmissionHelper(s) for s in grant_recipient.submissions if s.collection_id == collection.id]
 
             # WARN: this needs to tie up with the generated data from the Notification service
             csv_writer.writerow(

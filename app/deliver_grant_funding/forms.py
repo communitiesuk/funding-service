@@ -766,7 +766,7 @@ class PreviewGuidanceForm(FlaskForm):
 
 
 class TestGrantRecipientJourneyForm(FlaskForm):
-    organisation = RadioField(
+    organisation = SelectField(
         "Select a test organisation:",
         choices=[],
         validators=[DataRequired("Select a test organisation")],

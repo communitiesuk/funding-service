@@ -17,7 +17,6 @@ from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
 from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.common.helpers.submission_mode import get_submission_mode_for_user
 from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
 
@@ -29,7 +28,6 @@ from app.types import FlashMessageType
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     user = get_current_user()
-    submission_mode = get_submission_mode_for_user(user, user_organisation=grant_recipient.organisation)
 
     # TODO refactor when we persist the collection status and/or implement multiple rounds
     submissions = []
@@ -39,7 +37,7 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
                 SubmissionHelper(submission=submission)
                 for submission in get_all_submissions_with_mode_for_collection(
                     collection_id=report.id,
-                    submission_mode=submission_mode,
+                    submission_mode=grant_recipient.submission_mode,
                     grant_recipient_ids=[grant_recipient.id],
                 )
             ]
@@ -67,13 +65,11 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
     if not collection.allow_multiple_submissions:
         raise abort(404)
 
-    submission_mode = get_submission_mode_for_user(user, user_organisation=grant_recipient.organisation)
-
     submission_helpers = [
         SubmissionHelper(submission=submission)
         for submission in get_all_submissions_with_mode_for_collection(
             collection_id=collection_id,
-            submission_mode=submission_mode,
+            submission_mode=grant_recipient.submission_mode,
             grant_recipient_ids=[grant_recipient.id],
         )
     ]

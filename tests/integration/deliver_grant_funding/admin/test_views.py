@@ -2020,7 +2020,13 @@ class TestSetupGrantRecipients:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Created 2 grant recipients.")
+        assert page_has_flash(
+            soup,
+            (
+                "Created 2 grant recipients and 2 test grant recipients. All existing grant team members have been"
+                " set up as data providers/certifiers for the test grant recipients."
+            ),
+        )
 
         from app.common.data.interfaces.grant_recipients import get_grant_recipients
 
