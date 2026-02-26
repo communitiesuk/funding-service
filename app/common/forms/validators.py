@@ -1,5 +1,5 @@
 import re
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from email_validator import EmailNotValidError, validate_email
 from flask import current_app
@@ -10,6 +10,10 @@ from wtforms.form import BaseForm
 from wtforms.validators import Email, HostnameValidation, Regexp, ValidationError
 
 from app.common.data import interfaces
+
+# from app.common.data.interfaces.collections import _find_and_validate_references
+if TYPE_CHECKING:
+    pass
 from app.common.forms.fields import DecimalWithCommasField
 
 

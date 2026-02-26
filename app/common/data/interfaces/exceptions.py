@@ -1,11 +1,12 @@
 from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import Any, cast, overload
+from typing import Any, Optional, Protocol, cast, overload
 
 from flask import current_app
 from psycopg.errors import CheckViolation, UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
+from app.common.data.models import Component
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
@@ -85,6 +86,45 @@ class InvalidReferenceInExpression(Exception):
         self.message = message
         self.field_name = field_name
         self.bad_reference = bad_reference
+
+
+class InvalidReferencedDataTypeInExpression(Exception):
+    def __init__(self, message: str, field_name: str, component: Component, depends_on_component: Component):
+        super().__init__(message)
+        self.message = message
+        self.field_name = field_name
+        self.question = component
+        self.depends_on_question = depends_on_component
+
+
+class FlashableException(Protocol):
+    def as_flash_context(self) -> dict[str, str | bool]: ...
+
+
+class DependencyOrderException(Exception, FlashableException):
+    def __init__(
+        self, message: str, component: Component, depends_on_component: Component, field_name: Optional[str] = None
+    ):
+        super().__init__(message)
+        self.message = message
+        self.question = component
+        self.depends_on_question = depends_on_component
+        self.field_name = field_name
+
+    def as_flash_context(self) -> dict[str, str | bool]:
+        return {
+            "message": self.message,
+            "grant_id": str(self.question.form.collection.grant_id),  # Required for URL routing
+            "question_id": str(self.question.id),
+            "question_text": self.question.text,
+            "question_is_group": self.question.is_group,
+            # currently you can't depend on the outcome to a generic component (like a group)
+            # so question continues to make sense here - we should review that naming if that
+            # functionality changes
+            "depends_on_question_id": str(self.depends_on_question.id),
+            "depends_on_question_text": self.depends_on_question.text,
+            "depends_on_question_is_group": self.depends_on_question.is_group,
+        }
 
 
 @overload

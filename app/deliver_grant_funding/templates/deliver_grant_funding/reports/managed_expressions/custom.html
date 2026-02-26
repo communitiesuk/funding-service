@@ -1,29 +1,67 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+
 {% set active_item_identifier = "reports" %}
+{% if expression %}
+  {% set heading = "Edit a custom validation expression" %}
+  {% set submit_label = "Save expression" %}
+  {% set back_link_href= url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) %}
+{% else %}
+  {% set heading =  "Add a custom validation expression" %}
+  {% set submit_label = "Add expression" %}
+  {% set back_link_href= url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id) %}
+{% endif %}
 
 {% block pageTitle %}
   Add validation - {{ question.name }} - Deliver grant funding
 {% endblock pageTitle %}
 
 {% block beforeContent %}
-  {{ govukBackLink({ "text": "Back", "href": url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id) }) }}
+  {{ govukBackLink({ "text": "Back", "href": back_link_href }) }}
 {% endblock beforeContent %}
 
 {% block content %}
-  {% set heading = "Edit a custom validation expression" if expression else "Add a custom validation expression" %}
-  {% set submit_label = "Save expression" if expression else "Add expression" %}
-
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% if confirm_deletion_form %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this validation?</p>
+          <form method="post" novalidate>
+            {{ confirm_deletion_form.csrf_token }}
+
+            <span class="govuk-button-group">
+              {{ confirm_deletion_form.confirm_deletion(params={"text": "Yes, delete this validation", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.edit_custom_question_validation', grant_id=grant.id, question_id=question.id,expression_id=expression.id) }}"
+                >Cancel</a
+              >
+            </span>
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "", "html": banner_html}) }}
+      {% endif %}
       <h1 class="govuk-heading-l">{{ heading }}</h1>
+
+      {{
+        govukSummaryList({
+          "rows": [
+            {"key": {"text": "Section"}, "value": {"text": question.form.title} },
+            {"key": {"text": "Question"}, "value": {"text": interpolate(question.text, with_interpolation_highlighting=True)} },
+          ],
+          "classes": "app-!-border-top-line"
+        })
+      }}
       <form method="post" novalidate>
+        {{ form.csrf_token }}
         <div class="govuk-form-group">
           {% set addDataToExpressionButton %}
-            {{ form.add_context_expression(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-6", "value": "custom_expression"}) }}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-6", "value": "custom_expression"}) }}
           {% endset %}
           {% set addDataToMessageButton %}
-            {{ form.add_context_message(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_message"}) }}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_message"}) }}
           {% endset %}
 
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
@@ -40,6 +78,23 @@
               })
             }}
           </div>
+          {% set helpHtml %}
+            <div class="govuk-body">
+              The following operations are available:
+              <ul class="govuk-list">
+                <li><span class="govuk-!-font-weight-bold">+</span> plus</li>
+                <li><span class="govuk-!-font-weight-bold">-</span> minus</li>
+                <li><span class="govuk-!-font-weight-bold">*</span> multiply</li>
+                <li><span class="govuk-!-font-weight-bold">/</span> divide</li>
+              </ul>
+            </div>
+          {% endset %}
+          {{
+            govukDetails({
+              "summaryText": "Calculations help",
+              "html": helpHtml
+            })
+          }}
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
             <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
             {{
@@ -59,4 +114,16 @@
       </form>
     </div>
   </div>
+  {% if expression %}
+    <div class="govuk-grid-row govuk-!-margin-top-7">
+      <div class="govuk-grid-column-two-thirds">
+        <h2 class="govuk-heading-m">Manage validation</h2>
+        <p class="govuk-body">
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_custom_question_validation', grant_id=grant.id, question_id=question.id, expression_id=expression.id, delete='') }}"
+            >Delete validation</a
+          >
+        </p>
+      </div>
+    </div>
+  {% endif %}
 {% endblock content %}
