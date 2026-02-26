@@ -705,6 +705,7 @@ class SubmissionHelper:
                 )
 
                 answer = data.get_value_for_text_export()
+                current_answer = self.cached_get_answer_for_question(question_id)
                 other_answers = [
                     SubmissionHelper(s).cached_get_answer_for_question(question_id)
                     for s in multi_submissions
@@ -717,6 +718,16 @@ class SubmissionHelper:
                     if other_answer
                 ):
                     raise SubmissionAnswerConflict(f"Another submission for “{answer}” already exists")
+
+                if (
+                    self.collection.multiple_submissions_are_managed_by_service
+                    and current_answer is not None
+                    and current_answer != data
+                ):
+                    raise RuntimeError(
+                        f"The answer to the submission name question cannot be changed in managed multi-submission "
+                        f"collections (submission_id={self.id}, question_id={question_id})"
+                    )
 
         if question.data_type == QuestionDataType.FILE_UPLOAD:
             key = self.format_s3_key(question_id, add_another_index)
