@@ -168,6 +168,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "created_by.email": "Created by",
         "created_at_utc": "Created at",
         "type.value": "Type",
+        "allow_multiple_submissions": "Allow multiple submissions",
+        "multiple_submissions_are_managed_by_service": "Allow managed submissions only",
     }
 
     form_columns = [
