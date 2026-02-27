@@ -33,10 +33,15 @@ def _make_csv(rows: list[tuple[str, str]]) -> io.StringIO:
 @pytest.fixture()
 def collection_with_submission_name(db_session, factories):
     question = factories.question.create(
-        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        data_type=QuestionDataType.RADIOS,
         form__collection__allow_multiple_submissions=True,
         form__collection__multiple_submissions_are_managed_by_service=True,
+        data_source__items=[],
     )
+    question.data_source.items = [
+        factories.data_source_item.create(data_source=question.data_source, key=key, label=label)
+        for key, label in [("alpha", "Alpha"), ("beta", "Beta"), ("charlie", "Charlie"), ("gamma", "Gamma")]
+    ]
     collection = question.form.collection
     collection.submission_name_question_id = question.id
     db_session.flush()
@@ -80,8 +85,8 @@ class TestCreateMultiSubmissions:
         submission_names = {SubmissionHelper(s).submission_name for s in submissions}
         assert submission_names == {"Alpha", "Beta"}
 
-        assert "Created submission 'Alpha'" in output
-        assert "Created submission 'Beta'" in output
+        assert "Created submission 'alpha'" in output
+        assert "Created submission 'beta'" in output
         assert "Created 2 submissions" in output
 
         commit_spy.assert_called()
@@ -101,7 +106,7 @@ class TestCreateMultiSubmissions:
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Alpha"},
+            data={str(question.id): {"key": "alpha", "label": "Alpha"}},
         )
 
         csv_file = _make_csv([("ORG-001", "Alpha"), ("ORG-001", "Beta")])
@@ -121,8 +126,8 @@ class TestCreateMultiSubmissions:
         )
         assert len(submissions) == 2
 
-        assert "Skipping 'Alpha'" in output
-        assert "Created submission 'Beta'" in output
+        assert "Skipping 'alpha'" in output
+        assert "Created submission 'beta'" in output
 
     def test_dry_run_does_not_commit(
         self, db_session, factories, collection_with_submission_name, system_user, capsys, mocker
@@ -324,7 +329,7 @@ class TestCreateMultiSubmissions:
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Alpha"},
+            data={str(question.id): {"key": "alpha", "label": "Alpha"}},
         )
 
         csv_file = _make_csv([("ORG-001", "Alpha"), ("ORG-001", "Beta")])
@@ -369,7 +374,7 @@ class TestCreateMultiSubmissions:
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Alpha", str(q2.id): "Other answer"},
+            data={str(question.id): {"key": "alpha", "label": "Alpha"}, str(q2.id): "Other answer"},
         )
 
         csv_file = _make_csv([("ORG-001", "Alpha")])
