@@ -20,6 +20,7 @@ from app.common.data.interfaces.collections import (
     _validate_and_sync_component_references,
     create_submission,
     get_collection,
+    get_submissions_by_grant_recipient_collection,
 )
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipients,
@@ -696,13 +697,19 @@ def create_multi_submissions(  # noqa: C901
         grant_recipient = gr_by_org_ext_id[org_ext_id]
         click.echo(f"\nProcessing {grant_recipient.organisation.name} ({org_ext_id})")
 
-        for answer in rows_by_org[org_ext_id]:
+        for raw_answer in rows_by_org[org_ext_id]:
             # Convert to data source item key format for questions that read from a data source.
             if collection.submission_name_question and collection.submission_name_question.data_source:
-                answer = slugify(answer)
+                answer = slugify(raw_answer)
+            else:
+                answer = raw_answer
 
             savepoint = db.session.begin_nested()
             try:
+                # NOTE: `create_submission` emits metrics even in dry-run/no-commit mode. Need to let data analysts
+                #       know about this discrepancy each time we run. Ideally we'd be able to delay metric emission
+                #       until the `db.commit` succeeds (for most metrics).
+
                 submission = create_submission(
                     collection=collection, created_by=user, mode=submission_mode, grant_recipient=grant_recipient
                 )
@@ -714,6 +721,16 @@ def create_multi_submissions(  # noqa: C901
                 savepoint.rollback()
                 skipped += 1
                 click.echo(f"  -> Skipping '{answer}' (already exists)")
+
+            # Whether or not we created a submission, we may need to 'backfill' section completeness.
+            # If the submission name question is the only question in its section, mark it as complete.
+            if question.form.cached_questions == [question]:
+                helpers = [
+                    SubmissionHelper(s)
+                    for s in get_submissions_by_grant_recipient_collection(grant_recipient, collection.id)
+                ]
+                helper = next(h for h in helpers if h.submission_name == raw_answer)
+                helper.toggle_form_completed(question.form, user, is_complete=True)
 
     if commit:
         db.session.commit()
