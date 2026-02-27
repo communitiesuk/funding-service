@@ -82,5 +82,5 @@
     {% set submit_text="Continue to submit" %}
   {% endif %}
 
-  {{ collection_tasklist(runner, submit_text, before_submission=before_submission, has_permission_to_edit=authorisation_helper.is_access_grant_data_provider(runner.submission.grant.id, runner.submission.submission.grant_recipient.organisation_id, current_user)) }}
+  {{ collection_tasklist(runner, submit_text, before_submission=before_submission) }}
 {% endblock content %}

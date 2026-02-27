@@ -14,8 +14,6 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
-      {{ collection_check_your_answers(runner, has_permission_to_edit=authorisation_helper.is_access_grant_data_provider(runner.submission.grant.id, runner.submission.submission.grant_recipient.organisation_id, current_user)) }}
-    </div>
+    <div class="govuk-grid-column-full">{{ collection_check_your_answers(runner) }}</div>
   </div>
 {% endblock content %}
