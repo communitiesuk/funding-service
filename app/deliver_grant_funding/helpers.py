@@ -24,7 +24,7 @@ def start_previewing_collection(collection: Collection, form: Form | None = None
         user, collection_id=collection.id, submission_mode=SubmissionModeEnum.PREVIEW
     ):
         helper = SubmissionHelper(submission)
-        s3_service.delete_prefix(helper.s3_key_prefix)
+        s3_service.delete_prefix(helper.submission.s3_key_prefix)
 
     delete_collection_preview_submissions_created_by_user(collection=collection, created_by_user=user)
     submission = create_submission(collection=collection, created_by=user, mode=SubmissionModeEnum.PREVIEW)

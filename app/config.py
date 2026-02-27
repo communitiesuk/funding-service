@@ -125,6 +125,7 @@ class _SharedConfig(_BaseConfig):
     SEND_FILE_MAX_AGE_DEFAULT: int = 31536000
 
     AWS_S3_BUCKET_NAME: str
+    SUBMISSION_FILES_PREFIX: str = "uploaded-submission-files"
 
     # Basic auth
     BASIC_AUTH_ENABLED: bool = False

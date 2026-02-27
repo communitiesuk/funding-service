@@ -5918,6 +5918,7 @@ class TestListSubmissions:
         assert len(remaining_submissions) == 0
         assert len(remaining_events) == 0
         assert len(mock_s3_service_calls.delete_prefix_calls) == 1
+        assert mock_s3_service_calls.delete_prefix_calls[0].args[0] == f"uploaded-submission-files/test/{report.id}"
 
     def test_post_redirects_with_flash_message(
         self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls

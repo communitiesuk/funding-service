@@ -268,7 +268,7 @@ class Collection(BaseModel):
     )
 
     def s3_key_prefix(self, submission_mode: SubmissionModeEnum) -> str:
-        return f"{submission_mode}/{self.id}"
+        return f"{current_app.config['SUBMISSION_FILES_PREFIX']}/{submission_mode}/{self.id}"
 
     __table_args__ = (
         UniqueConstraint("name", "grant_id", name="uq_collection_name_grant_id"),
@@ -340,7 +340,7 @@ class Submission(BaseModel):
 
     @property
     def s3_key_prefix(self) -> str:
-        return f"{self.mode}/{self.collection_id}/{self.id}"
+        return f"{current_app.config['SUBMISSION_FILES_PREFIX']}/{self.mode}/{self.collection_id}/{self.id}"
 
     __table_args__ = (
         CheckConstraint(

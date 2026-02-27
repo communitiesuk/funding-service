@@ -2320,7 +2320,7 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
         if delete_wtform.validate_on_submit():
-            s3_service.delete_prefix(helper.s3_key_prefix)
+            s3_service.delete_prefix(helper.submission.s3_key_prefix)
             reset_test_submission(helper.submission)
 
             flash("Submission reset", FlashMessageType.TEST_SUBMISSION_RESET)
