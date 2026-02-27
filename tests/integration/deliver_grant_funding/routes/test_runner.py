@@ -530,7 +530,7 @@ class TestAskAQuestion:
         submission = factories.submission.create(
             collection=question.form.collection,
             created_by=authenticated_grant_admin_client.user,
-            mode=SubmissionModeEnum.LIVE,
+            mode=SubmissionModeEnum.PREVIEW,
         )
 
         # response correctly checks non existing add another 0 index and requires the file
@@ -558,7 +558,7 @@ class TestAskAQuestion:
         assert len(mock_s3_service_calls.upload_file_calls) == 1
         assert (
             mock_s3_service_calls.upload_file_calls[0].args[1]
-            == f"uploaded-submission-files/live/{submission.collection_id}/{submission.id}/{question.id}/0"
+            == f"uploaded-submission-files/preview/{submission.collection_id}/{submission.id}/{question.id}/0"
         )
 
         # response correctly checks the now persisted answer and allows skipping

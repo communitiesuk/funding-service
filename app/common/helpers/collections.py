@@ -370,10 +370,25 @@ class SubmissionHelper:
             key += f"/{add_another_index}"
         return key
 
+    def answer_to_question_is_managed_by_service(self, question: Question) -> bool:
+        if not self.collection.allow_multiple_submissions:
+            return False
+
+        if not self.collection.multiple_submissions_are_managed_by_service:
+            return False
+
+        if self.collection.submission_name_question_id is None:
+            return False
+
+        return self.collection.submission_name_question_id == question.id
+
     def _get_all_questions_are_answered_for_form(self, form: Form) -> FormQuestionsAnswered:
         question_answer_status = []
 
         for question in form.cached_questions:
+            if self.answer_to_question_is_managed_by_service(question):
+                continue
+
             if question.add_another_container:
                 number_of_add_another_entries = self.get_count_for_add_another(question.add_another_container)
                 if number_of_add_another_entries == 0:
