@@ -2234,8 +2234,8 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         if submission_mode != SubmissionModeEnum.TEST:
             raise abort(400)
 
-        s3_service.delete_prefix(report.s3_key_prefix(submission_mode=submission_mode))
         reset_all_test_submissions(report)
+        s3_service.delete_prefix(report.s3_key_prefix(submission_mode=submission_mode))
 
         flash("All test submissions reset", FlashMessageType.TEST_SUBMISSIONS_RESET)
         return redirect(
@@ -2312,8 +2312,8 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
         if delete_wtform.validate_on_submit():
-            s3_service.delete_prefix(helper.submission.s3_key_prefix)
             reset_test_submission(helper.submission)
+            s3_service.delete_prefix(helper.submission.s3_key_prefix)
 
             flash("Submission reset", FlashMessageType.TEST_SUBMISSION_RESET)
             return redirect(

@@ -312,23 +312,92 @@ class TestSubmissionHelper:
                 helper.submit_answer_for_question(question.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
+    
+    class TestRemoveEntryForAddAnother:
+        def test_remove_entry_for_add_another(self, db_session, factories):
+            collection = factories.collection.create(
+                create_completed_submissions_add_another_nested_group__test=1,
+                create_completed_submissions_add_another_nested_group__use_random_data=False,
+                create_completed_submissions_add_another_nested_group__number_of_add_another_answers=2,
+            )
+            questions = collection.forms[0].cached_questions
+            helper = SubmissionHelper(collection.test_submissions[0])
+
+            add_another_container = questions[2].add_another_container
+
+            assert len(helper.submission.data[str(add_another_container.id)]) == 2
+
+            helper.remove_entry_for_add_another(add_another_container, 0)
+
+            assert len(helper.submission.data[str(add_another_container.id)]) == 1
+
+        def test_remove_entry_for_add_another_clears_file_uploads(self, db_session, factories, mock_s3_service_calls):
+            collection = factories.collection.create(
+                create_completed_submissions_add_another_nested_group__test=1,
+                create_completed_submissions_add_another_nested_group__use_random_data=False,
+                create_completed_submissions_add_another_nested_group__number_of_add_another_answers=2,
+            )
+            questions = collection.forms[0].cached_questions
+            add_another_container = questions[2].add_another_container
+            file_upload = factories.question.create(
+                form=collection.forms[0],
+                data_type=QuestionDataType.FILE_UPLOAD,
+                parent=add_another_container,
+            )
+            collection.test_submissions[0].data[str(add_another_container.id)] = [
+                {
+                    str(file_upload.id): {
+                        "filename": "test-document.pdf",
+                        "size": 0,
+                        "mime_type": "application/pdf",
+                        "key": f"an-s3-key-{i}",
+                    }
+                }
+                for i in range(2)
+            ]
+
+            helper = SubmissionHelper(collection.test_submissions[0])
+
+            assert len(helper.submission.data[str(add_another_container.id)]) == 2
+
+            helper.remove_entry_for_add_another(add_another_container, 0)
+
+            assert len(helper.submission.data[str(add_another_container.id)]) == 1
+
+            assert len(mock_s3_service_calls.delete_file_calls) == 1
+            assert mock_s3_service_calls.delete_file_calls[0].args[0] == "an-s3-key-0"
 
     class TestRemoveAnswerForQuestion:
-        def test_remove_answer_for_file_upload_question_and_clears_cache(self, db_session, factories):
+        def test_remove_answer_for_file_upload_question_and_clears_cache(
+            self, db_session, factories, mock_s3_service_calls
+        ):
             question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)
             submission = factories.submission.create(
                 collection=question.form.collection,
-                data={str(question.id): {"filename": "test-document.pdf", "size": 0, "mime_type": "application/pdf"}},
+                data={
+                    str(question.id): {
+                        "filename": "test-document.pdf",
+                        "size": 0,
+                        "mime_type": "application/pdf",
+                        "key": "an-s3-key",
+                    }
+                },
             )
             helper = SubmissionHelper(submission)
 
             assert helper.cached_get_answer_for_question(question.id) == FileUploadAnswer(
-                filename="test-document.pdf", size=0, mime_type="application/pdf", scanned_for_viruses=False, key=None
+                filename="test-document.pdf",
+                size=0,
+                mime_type="application/pdf",
+                scanned_for_viruses=False,
+                key="an-s3-key",
             )
 
             helper.remove_answer_for_question(question.id)
 
             assert helper.cached_get_answer_for_question(question.id) is None
+            assert len(mock_s3_service_calls.delete_file_calls) == 1
+            assert mock_s3_service_calls.delete_file_calls[0].args[0] == "an-s3-key"
 
         def test_cannot_remove_answer_on_submitted_submission(self, db_session, factories, submission_submitted):
             helper = SubmissionHelper(submission_submitted)
