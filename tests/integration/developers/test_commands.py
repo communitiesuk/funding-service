@@ -8,6 +8,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     QuestionDataType,
     SubmissionModeEnum,
+    TasklistSectionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.developers.commands import create_multi_submissions
@@ -264,3 +265,127 @@ class TestCreateMultiSubmissions:
         assert submission_names == {"Alpha", "Beta", "Gamma"}
 
         assert "Created 3 submissions" in output
+
+    @pytest.mark.parametrize("has_other_questions", [True, False])
+    def test_marks_submission_name_section_as_complete_if_only_question_in_section(
+        self, db_session, factories, collection_with_submission_name, system_user, capsys, has_other_questions
+    ):
+        collection = collection_with_submission_name
+        question = collection.submission_name_question
+
+        if has_other_questions:
+            factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        org = factories.organisation.create(external_id="ORG-001")
+        factories.grant_recipient.create(
+            mode=GrantRecipientModeEnum.LIVE,
+            grant=collection.grant,
+            organisation=org,
+        )
+
+        csv_file = _make_csv([("ORG-001", "Alpha")])
+
+        _create_multi_submissions(
+            collection_id=collection.id,
+            mode=GrantRecipientModeEnum.LIVE,
+            file=csv_file,
+            service_user_email_address=system_user.email,
+            commit=True,
+        )
+
+        submissions = (
+            db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().all()
+        )
+        assert len(submissions) == 1
+
+        helper = SubmissionHelper(submissions[0])
+        if has_other_questions:
+            assert helper.get_status_for_form(question.form) != TasklistSectionStatusEnum.COMPLETED
+        else:
+            assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
+
+    @pytest.mark.parametrize("has_other_questions", [True, False])
+    def test_marks_submission_name_section_as_complete_if_only_question_in_section_for_existing_submissions(
+        self, db_session, factories, collection_with_submission_name, system_user, capsys, has_other_questions
+    ):
+        collection = collection_with_submission_name
+        question = collection.submission_name_question
+
+        if has_other_questions:
+            factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        org = factories.organisation.create(external_id="ORG-001")
+        grant_recipient = factories.grant_recipient.create(
+            mode=GrantRecipientModeEnum.LIVE,
+            grant=collection.grant,
+            organisation=org,
+        )
+        factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Alpha"},
+        )
+
+        csv_file = _make_csv([("ORG-001", "Alpha"), ("ORG-001", "Beta")])
+
+        _create_multi_submissions(
+            collection_id=collection.id,
+            mode=GrantRecipientModeEnum.LIVE,
+            file=csv_file,
+            service_user_email_address=system_user.email,
+            commit=True,
+        )
+
+        submissions = (
+            db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().all()
+        )
+        assert len(submissions) == 2
+
+        for submission in submissions:
+            helper = SubmissionHelper(submission)
+            if has_other_questions:
+                assert helper.cached_get_all_questions_are_answered_for_form(question.form).all_answered is False
+                assert helper.get_status_for_form(question.form) != TasklistSectionStatusEnum.COMPLETED
+            else:
+                assert helper.cached_get_all_questions_are_answered_for_form(question.form).all_answered is True
+                assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
+
+    def test_does_not_mark_submission_section_as_complete_if_existing_submission_with_other_questions_all_answered(
+        self, db_session, factories, collection_with_submission_name, system_user, capsys
+    ):
+        collection = collection_with_submission_name
+        question = collection.submission_name_question
+
+        q2 = factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        org = factories.organisation.create(external_id="ORG-001")
+        grant_recipient = factories.grant_recipient.create(
+            mode=GrantRecipientModeEnum.LIVE,
+            grant=collection.grant,
+            organisation=org,
+        )
+        factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Alpha", str(q2.id): "Other answer"},
+        )
+
+        csv_file = _make_csv([("ORG-001", "Alpha")])
+
+        _create_multi_submissions(
+            collection_id=collection.id,
+            mode=GrantRecipientModeEnum.LIVE,
+            file=csv_file,
+            service_user_email_address=system_user.email,
+            commit=True,
+        )
+
+        submission = (
+            db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().one()
+        )
+
+        helper = SubmissionHelper(submission)
+        assert helper.cached_get_all_questions_are_answered_for_form(question.form).all_answered is True
+        assert helper.get_status_for_form(question.form) != TasklistSectionStatusEnum.COMPLETED
