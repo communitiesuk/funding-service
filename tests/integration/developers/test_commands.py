@@ -34,6 +34,7 @@ def collection_with_submission_name(db_session, factories):
     question = factories.question.create(
         data_type=QuestionDataType.TEXT_SINGLE_LINE,
         form__collection__allow_multiple_submissions=True,
+        form__collection__multiple_submissions_are_managed_by_service=True,
     )
     collection = question.form.collection
     collection.submission_name_question_id = question.id

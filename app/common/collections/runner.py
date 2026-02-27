@@ -15,7 +15,11 @@ from app.common.collections.types import FileUploadAnswer
 from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.types import FormRunnerState, QuestionDataType, TasklistSectionStatusEnum, TRunnerUrlMap
-from app.common.exceptions import RedirectException, SubmissionAnswerConflict, SubmissionValidationFailed
+from app.common.exceptions import (
+    RedirectException,
+    SubmissionAnswerConflict,
+    SubmissionValidationFailed,
+)
 from app.common.expressions import interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
@@ -230,6 +234,18 @@ class FormRunner:
         if not self.component or not self._confirm_remove_form:
             raise RuntimeError("Confirm remove context not set")
         return self._confirm_remove_form
+
+    def answer_to_question_is_managed_by_service(self, question: Question) -> bool:
+        if not self.submission.collection.allow_multiple_submissions:
+            return False
+
+        if not self.submission.collection.multiple_submissions_are_managed_by_service:
+            return False
+
+        if self.submission.collection.submission_name_question_id is None:
+            return False
+
+        return self.submission.collection.submission_name_question_id == question.id
 
     @property
     def question_with_add_another_summary_form(
@@ -463,6 +479,10 @@ class FormRunner:
 
         if self._valid:
             if not self.submission.can_start_form(self.component.form):
+                self._valid = False
+
+        if self._valid:
+            if self.component.is_question and self.answer_to_question_is_managed_by_service(self.component):  # type: ignore[arg-type]
                 self._valid = False
 
         return self._valid

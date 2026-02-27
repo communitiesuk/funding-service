@@ -90,7 +90,7 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
 
     collection = get_collection(collection_id, grant_id=grant_id, with_full_schema=True)
     question = collection.submission_name_question
-    if not collection.allow_multiple_submissions:
+    if not collection.allow_multiple_submissions or collection.multiple_submissions_are_managed_by_service:
         raise abort(404)
     elif question is None:
         raise RuntimeError(f"Collection {collection_id} does not have a submission name question")

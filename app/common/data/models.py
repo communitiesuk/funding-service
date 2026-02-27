@@ -245,6 +245,10 @@ class Collection(BaseModel):
     )
     submission_guidance: Mapped[str | None]
 
+    # Prevents grant recipients from creating their own submissions in a multi-submission collection; where we set this
+    # to be true, we need to generate the initial submissions for them.
+    multiple_submissions_are_managed_by_service: Mapped[bool] = mapped_column(default=False)
+
     # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
     _submissions: Mapped[list[Submission]] = relationship(
         "Submission",
@@ -275,6 +279,10 @@ class Collection(BaseModel):
         CheckConstraint(
             "submission_name_question_id IS NULL OR allow_multiple_submissions = true",
             name="ck_submission_name_question_requires_multiple_submissions",
+        ),
+        CheckConstraint(
+            "multiple_submissions_are_managed_by_service = false OR allow_multiple_submissions = true",
+            name="ck_multiple_submissions_are_managed_by_service",
         ),
     )
 

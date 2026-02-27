@@ -79,7 +79,10 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
         collection=collection,
         grant_recipient=grant_recipient,
         submission_helpers=submission_helpers,
-        can_create_submissions=AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user),
+        can_create_submissions=(
+            not collection.multiple_submissions_are_managed_by_service
+            and AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
+        ),
     )
 
 

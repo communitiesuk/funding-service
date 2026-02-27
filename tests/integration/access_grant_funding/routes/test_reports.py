@@ -633,6 +633,39 @@ class TestListCollectionSubmissions:
             collection_id=collection.id,
         )
 
+    @pytest.mark.parametrize("multiple_submissions_are_managed_by_service", [True, False])
+    def test_submission_list_hides_start_new_report_when_managed_by_service(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+        db_session,
+        multiple_submissions_are_managed_by_service,
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
+            form__collection__status=CollectionStatusEnum.OPEN,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        db_session.commit()
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert bool(page_has_link(soup, "Start a new report")) is not multiple_submissions_are_managed_by_service
+
     def test_submission_list_renders_guidance_as_markdown(self, authenticated_grant_recipient_member_client, factories):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
         collection = factories.collection.create(

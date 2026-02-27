@@ -284,6 +284,35 @@ class TestSubmissionHelper:
             helper.submit_answer_for_question(question.id, form, preview_submission.created_by)
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
 
+        def test_submit_changed_answer_raises_for_managed_submission_name(self, db_session, factories):
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                form__collection__allow_multiple_submissions=True,
+                form__collection__multiple_submissions_are_managed_by_service=True,
+            )
+            collection = question.form.collection
+            collection.submission_name_question_id = question.id
+            db_session.flush()
+
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                data={str(question.id): "Alpha"},
+            )
+            helper = SubmissionHelper(submission)
+
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="Beta"
+            )
+
+            with pytest.raises(RuntimeError, match="cannot be changed"):
+                helper.submit_answer_for_question(question.id, form, submission.created_by)
+
+            assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
+
     class TestRemoveAnswerForQuestion:
         def test_remove_answer_for_file_upload_question_and_clears_cache(self, db_session, factories):
             question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)

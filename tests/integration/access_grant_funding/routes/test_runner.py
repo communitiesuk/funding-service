@@ -235,6 +235,34 @@ class TestStartNewMultipleSubmission:
 
         assert response.status_code == 404
 
+    @pytest.mark.parametrize("multiple_submissions_are_managed_by_service", [True, False])
+    def test_404_when_multiple_submissions_are_managed_by_service(
+        self, authenticated_grant_recipient_data_provider_client, factories, multiple_submissions_are_managed_by_service
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        if multiple_submissions_are_managed_by_service:
+            assert response.status_code == 404
+        else:
+            assert response.status_code == 200
+
     def test_500_when_submission_name_question_not_set(
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
@@ -1579,6 +1607,85 @@ class TestAskAQuestion:
 
         assert response.status_code == 302
 
+    @pytest.mark.parametrize("multiple_submissions_are_managed_by_service", [True, False])
+    def test_get_question_page_redirects_for_managed_submission_name_question(
+        self,
+        multiple_submissions_are_managed_by_service,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            text="Project name",
+            name="project name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Alpha"},
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+            ),
+            follow_redirects=False,
+        )
+
+        if multiple_submissions_are_managed_by_service:
+            assert response.status_code == 302
+        else:
+            assert response.status_code == 200
+
+    def test_post_question_redirects_for_managed_submission_name_question(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            text="Project name",
+            name="project name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__multiple_submissions_are_managed_by_service=True,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Alpha"},
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.post(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                question_id=question.id,
+            ),
+            data={"submit": "y", question.safe_qid: "Beta"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert submission.data[str(question.id)] == "Alpha"
+
 
 class TestCheckYourAnswers:
     @pytest.mark.parametrize(
@@ -1760,6 +1867,50 @@ class TestCheckYourAnswers:
                 submission_id=submission.id,
             )
             assert response.location == expected_location
+
+    @pytest.mark.parametrize("multiple_submissions_are_managed_by_service", [True, False])
+    def test_check_your_answers_hides_change_link_for_managed_submission_name_question(
+        self,
+        multiple_submissions_are_managed_by_service,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            text="Project name",
+            name="project name",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            form__collection__grant=grant_recipient.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            data={str(question.id): "Alpha"},
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.check_your_answers",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+                section_id=question.form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        change_link = page_has_link(soup, "Change")
+        if multiple_submissions_are_managed_by_service:
+            assert change_link is None
+        else:
+            assert change_link is not None
 
 
 class TestConfirmSentForCertification:

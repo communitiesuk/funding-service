@@ -168,6 +168,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "created_by.email": "Created by",
         "created_at_utc": "Created at",
         "type.value": "Type",
+        "allow_multiple_submissions": "Allow multiple submissions",
+        "multiple_submissions_are_managed_by_service": "Allow managed submissions only",
     }
 
     form_columns = [
@@ -180,6 +182,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "reporting_period_end_date",
         "submission_period_start_date",
         "submission_period_end_date",
+        "allow_multiple_submissions",
+        "multiple_submissions_are_managed_by_service",
     ]
 
     def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # type: ignore[override]
