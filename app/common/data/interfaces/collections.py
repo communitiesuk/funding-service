@@ -302,10 +302,6 @@ def remove_add_another_answers_at_index(
 
     existing_answers.pop(add_another_index)
     submission.data[str(add_another_container.id)] = existing_answers
-
-    # we flush the result to the database so that any rollbacks are triggered and raised
-    # before executing further logic that could change state (i.e removing files)
-    db.session.flush()
     return submission
 
 
@@ -1632,7 +1628,6 @@ def reset_test_submission(submission: Submission) -> None:
 
     db.session.execute(delete(SubmissionEvent).where(SubmissionEvent.submission_id == submission.id))
     db.session.execute(delete(Submission).where(Submission.id == submission.id))
-    db.session.flush()
 
 
 @flush_and_rollback_on_exceptions
@@ -1647,8 +1642,6 @@ def reset_all_test_submissions(collection: Collection) -> None:
     if submission_ids:
         db.session.execute(delete(SubmissionEvent).where(SubmissionEvent.submission_id.in_(submission_ids)))
         db.session.execute(delete(Submission).where(Submission.id.in_(submission_ids)))
-
-    db.session.flush()
 
 
 @flush_and_rollback_on_exceptions
@@ -1672,7 +1665,3 @@ def delete_collection_preview_submissions_created_by_user(collection: Collection
             Submission.id.in_(submission_ids),
         )
     )
-
-    # we flush the result to the database so that any rollbacks are
-    # triggered and raised before executing further logic that could change state (i.e removing files)
-    db.session.flush()

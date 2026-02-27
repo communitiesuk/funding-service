@@ -6404,7 +6404,7 @@ class TestViewSubmission:
         assert len(events_from_db) == 0
         assert len(mock_s3_service_calls.delete_prefix_calls) == 1
         assert mock_s3_service_calls.delete_prefix_calls[0].args[0] == (
-            f"test/{test_submission.collection.id}/{test_submission_id}"
+            f"uploaded-submission-files/test/{test_submission.collection.id}/{test_submission_id}"
         )
 
     @pytest.mark.parametrize(
