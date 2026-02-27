@@ -235,18 +235,6 @@ class FormRunner:
             raise RuntimeError("Confirm remove context not set")
         return self._confirm_remove_form
 
-    def answer_to_question_is_managed_by_service(self, question: Question) -> bool:
-        if not self.submission.collection.allow_multiple_submissions:
-            return False
-
-        if not self.submission.collection.multiple_submissions_are_managed_by_service:
-            return False
-
-        if self.submission.collection.submission_name_question_id is None:
-            return False
-
-        return self.submission.collection.submission_name_question_id == question.id
-
     @property
     def question_with_add_another_summary_form(
         self,
@@ -482,7 +470,7 @@ class FormRunner:
                 self._valid = False
 
         if self._valid:
-            if self.component.is_question and self.answer_to_question_is_managed_by_service(self.component):  # type: ignore[arg-type]
+            if self.component.is_question and self.submission.answer_to_question_is_managed_by_service(self.component):  # type: ignore[arg-type]
                 self._valid = False
 
         return self._valid
