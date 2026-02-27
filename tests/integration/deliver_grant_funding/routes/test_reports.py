@@ -658,6 +658,39 @@ class TestConfigureMultipleSubmissions:
         assert not soup.find("option", {"value": str(q3.id)})
         assert not soup.find("option", {"value": str(q4.id)})
 
+    def test_cant_select_add_another_questions_of_valid_data_type(
+        self, app, authenticated_grant_admin_client, factories
+    ):
+        group = factories.group.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            add_another=True,
+        )
+        q1 = factories.question.create(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            parent=group,
+        )
+        q2 = factories.question.create(
+            form=q1.form,
+            data_type=QuestionDataType.RADIOS,
+            parent=group,
+        )
+        report = q1.form.collection
+        report.submission_name_question_id = q1.id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_multiple_submissions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not soup.find("option", {"value": str(q1.id)})
+        assert not soup.find("option", {"value": str(q2.id)})
+
     def test_get_configure_multiple_submissions_prepopulates_when_already_enabled(
         self, authenticated_grant_admin_client, factories
     ):

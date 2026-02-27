@@ -268,6 +268,7 @@ def collection_configure_multiple_submissions(grant_id: UUID, report_id: UUID) -
             for form in report.forms
             for q in form.cached_questions
             if q.data_type in current_app.config["QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES"]
+            and not q.add_another_container
         ],
         obj=report if request.method == "GET" else None,
     )
