@@ -774,6 +774,11 @@ class SubmissionHelper:
         for key in keys_to_delete:
             s3_service.delete_file(key)
 
+        self.cached_get_answer_for_question.cache_clear()
+        self.cached_get_all_questions_are_answered_for_form.cache_clear()
+        del self.cached_evaluation_context
+        self.cached_get_ordered_visible_questions.cache_clear()
+
     def remove_answer_for_question(self, question_id: UUID, *, add_another_index: int | None = None) -> None:
         if self.is_locked_state:
             raise ValueError(

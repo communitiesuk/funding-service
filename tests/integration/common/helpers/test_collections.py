@@ -312,7 +312,7 @@ class TestSubmissionHelper:
                 helper.submit_answer_for_question(question.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
-    
+
     class TestRemoveEntryForAddAnother:
         def test_remove_entry_for_add_another(self, db_session, factories):
             collection = factories.collection.create(
