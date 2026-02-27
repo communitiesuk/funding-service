@@ -621,13 +621,13 @@ class SubmissionHelper:
     def get_first_question_for_form(self, form: Form) -> Question | None:
         questions = self.cached_get_ordered_visible_questions(form)
         if questions:
-            return questions[0]
+            return next(filter(lambda q: not self.answer_to_question_is_managed_by_service(q), questions))
         return None
 
     def get_last_question_for_form(self, form: Form) -> Question | None:
         questions = self.cached_get_ordered_visible_questions(form)
         if questions:
-            return questions[-1]
+            return next(filter(lambda q: not self.answer_to_question_is_managed_by_service(q), reversed(questions)))
         return None
 
     def get_form_for_question(self, question_id: UUID) -> Form:
@@ -979,7 +979,9 @@ class SubmissionHelper:
         question_iterator = iter(questions)
         for question in question_iterator:
             if question.id == current_question_id:
-                return next(question_iterator, None)
+                return next(
+                    filter(lambda q: not self.answer_to_question_is_managed_by_service(q), question_iterator), None
+                )
 
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
@@ -1005,7 +1007,9 @@ class SubmissionHelper:
         question_iterator = iter(reversed(questions))
         for question in question_iterator:
             if question.id == current_question_id:
-                return next(question_iterator, None)
+                return next(
+                    filter(lambda q: not self.answer_to_question_is_managed_by_service(q), question_iterator), None
+                )
 
         raise ValueError(f"Could not find a question with id={current_question_id} in collection={self.collection}")
 
