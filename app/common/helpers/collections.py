@@ -364,12 +364,8 @@ class SubmissionHelper:
                 f"Could not find a question with id={question_id} in collection={self.collection.id}"
             ) from e
 
-    @property
-    def s3_key_prefix(self) -> str:
-        return f"{self.submission.mode}/{self.collection.id}/{self.submission.id}"
-
     def format_s3_key(self, question_id: uuid.UUID, add_another_index: int | None = None) -> str:
-        key = f"{self.s3_key_prefix}/{question_id}"
+        key = f"{self.submission.s3_key_prefix}/{question_id}"
         if add_another_index is not None:
             key += f"/{add_another_index}"
         return key

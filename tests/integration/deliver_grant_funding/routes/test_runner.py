@@ -556,6 +556,10 @@ class TestAskAQuestion:
         assert response.location == expected_location
 
         assert len(mock_s3_service_calls.upload_file_calls) == 1
+        assert (
+            mock_s3_service_calls.upload_file_calls[0].args[1]
+            == f"uploaded-submission-files/live/{submission.collection_id}/{submission.id}/{question.id}/0"
+        )
 
         # response correctly checks the now persisted answer and allows skipping
         response = authenticated_grant_admin_client.post(
