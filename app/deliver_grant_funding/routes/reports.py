@@ -1032,14 +1032,6 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
 
-    # todo: only show file upload option to platform admins until the feature is stable
-    if not AuthorisationHelper.is_platform_admin(user=get_current_user()):
-        wt_form.question_data_type.choices = [
-            (choice[0], choice[1])
-            for choice in wt_form.question_data_type.choices
-            if choice[1] != QuestionDataType.FILE_UPLOAD
-        ]
-
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
 
@@ -2242,8 +2234,8 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         if submission_mode != SubmissionModeEnum.TEST:
             raise abort(400)
 
-        s3_service.delete_prefix(report.s3_key_prefix(submission_mode=submission_mode))
         reset_all_test_submissions(report)
+        s3_service.delete_prefix(report.s3_key_prefix(submission_mode=submission_mode))
 
         flash("All test submissions reset", FlashMessageType.TEST_SUBMISSIONS_RESET)
         return redirect(
@@ -2320,8 +2312,8 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
         if delete_wtform.validate_on_submit():
-            s3_service.delete_prefix(helper.submission.s3_key_prefix)
             reset_test_submission(helper.submission)
+            s3_service.delete_prefix(helper.submission.s3_key_prefix)
 
             flash("Submission reset", FlashMessageType.TEST_SUBMISSION_RESET)
             return redirect(

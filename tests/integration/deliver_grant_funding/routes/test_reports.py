@@ -2081,8 +2081,8 @@ class TestChooseQuestionType:
     @pytest.mark.parametrize(
         "client_fixture, can_access, expected_question_types",
         (
-            ["authenticated_grant_member_client", False, 9],
-            ["authenticated_grant_admin_client", True, 9],
+            ["authenticated_grant_member_client", False, 10],
+            ["authenticated_grant_admin_client", True, 10],
             ["authenticated_platform_admin_client", True, 10],
         ),
     )
@@ -6403,6 +6403,9 @@ class TestViewSubmission:
         assert len(submissions_from_db) == 0
         assert len(events_from_db) == 0
         assert len(mock_s3_service_calls.delete_prefix_calls) == 1
+        assert mock_s3_service_calls.delete_prefix_calls[0].args[0] == (
+            f"uploaded-submission-files/test/{test_submission.collection.id}/{test_submission_id}"
+        )
 
     @pytest.mark.parametrize(
         "submission_mode, should_show_reset_link",

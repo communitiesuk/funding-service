@@ -33,6 +33,7 @@ def test_start_previewing_collection(authenticated_grant_admin_client, db_sessio
     assert len(test_submissions_from_db) == 1
     assert test_submissions_from_db[0].id is not old_preview_submissions_from_db[0].id
     assert len(mock_s3_service_calls.delete_prefix_calls) == 1
+    assert str(old_preview_submissions_from_db[0].id) in mock_s3_service_calls.delete_prefix_calls[0].args[0]
 
     # When passing a form, test that old submissions are deleted and you get redirected to the specific
     # ask a question preview
@@ -51,3 +52,4 @@ def test_start_previewing_collection(authenticated_grant_admin_client, db_sessio
         test_submissions_from_db[0].id,
     ]
     assert len(mock_s3_service_calls.delete_prefix_calls) == 2
+    assert str(test_submissions_from_db[0].id) in mock_s3_service_calls.delete_prefix_calls[1].args[0]

@@ -750,6 +750,35 @@ class SubmissionHelper:
 
         self._emit_submission_events_for_forms_reset_to_in_progress(current_form, current_form_statuses, user)
 
+    def remove_entry_for_add_another(self, add_another_container: Group, add_another_index: int) -> None:
+        if self.is_locked_state:
+            raise ValueError(
+                f"Could not remove entry for add another id={add_another_container.id} "
+                f"because submission id={self.id} is already submitted."
+            )
+
+        keys_to_delete = [
+            answer.key
+            for question in add_another_container.cached_questions
+            if question.data_type == QuestionDataType.FILE_UPLOAD
+            and (answer := self.cached_get_answer_for_question(question.id, add_another_index=add_another_index))
+            and isinstance(answer, FileUploadAnswer)
+            and answer.key
+        ]
+        interfaces.collections.remove_add_another_answers_at_index(
+            submission=self.submission,
+            add_another_container=add_another_container,
+            add_another_index=add_another_index,
+        )
+
+        for key in keys_to_delete:
+            s3_service.delete_file(key)
+
+        self.cached_get_answer_for_question.cache_clear()
+        self.cached_get_all_questions_are_answered_for_form.cache_clear()
+        del self.cached_evaluation_context
+        self.cached_get_ordered_visible_questions.cache_clear()
+
     def remove_answer_for_question(self, question_id: UUID, *, add_another_index: int | None = None) -> None:
         if self.is_locked_state:
             raise ValueError(
@@ -759,12 +788,17 @@ class SubmissionHelper:
 
         question = self.get_question(question_id)
 
+        keys_to_delete = []
         if question.data_type == QuestionDataType.FILE_UPLOAD:
             answer = self.cached_get_answer_for_question(question_id, add_another_index=add_another_index)
             if isinstance(answer, FileUploadAnswer) and answer.key:
-                s3_service.delete_file(answer.key)
+                keys_to_delete.append(answer.key)
 
         interfaces.collections.remove_question_answer(self.submission, question, add_another_index=add_another_index)
+
+        for key in keys_to_delete:
+            s3_service.delete_file(key)
+
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         del self.cached_evaluation_context
