@@ -182,9 +182,16 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "reporting_period_end_date",
         "submission_period_start_date",
         "submission_period_end_date",
+        "submission_guidance",
         "allow_multiple_submissions",
         "multiple_submissions_are_managed_by_service",
     ]
+
+    form_args = {
+        "submission_guidance": {
+            "widget": GovTextArea(),
+        },
+    }
 
     def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # type: ignore[override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
