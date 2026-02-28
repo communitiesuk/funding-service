@@ -66,7 +66,7 @@ dev = [
     "import-linter==2.10",
     "pytest==9.0.2",
     "pytest-playwright==0.7.2",
-    "ty==0.0.14",
+    "ty==0.0.18",
     "watchdog[watchmedo]==6.0.0",
 ]
 
