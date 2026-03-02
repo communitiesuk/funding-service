@@ -1386,6 +1386,7 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             allow_reference_to_self=True,
             is_custom_expression=True,
         )
+        custom_references = set(custom_references)
         custom_references.update(
             _find_and_validate_references(
                 component=expression.question,

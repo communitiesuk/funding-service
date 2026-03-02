@@ -3860,6 +3860,7 @@ class TestValidateAndSyncComponentReferences:
             text=f"Reference to (({text_question.safe_qid}))",
             hint=f"Reference to (({hint_question.safe_qid}))",
             guidance_body=f"Reference to (({guidance_body_question.safe_qid}))",
+            add_another_guidance_body=f"Reference to (({add_another_guidance_body_question.safe_qid}))",
         )
 
         # The factories create component references automatically; this will generally be the desirable behaviour
