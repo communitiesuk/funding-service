@@ -1405,7 +1405,7 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             allow_reference_to_self=True,
             is_custom_expression=True,
         )
-        custom_references.update(
+        set(custom_references).update(
             _find_and_validate_references(
                 component=expression.question,
                 value=managed.custom_message,
@@ -1484,8 +1484,9 @@ def _find_and_validate_references(
     field_name: str,
     allow_reference_to_self: bool = False,
     is_custom_expression: bool = False,
-) -> set[tuple[UUID, UUID]]:
-    references_to_set_up: set[tuple[UUID, UUID]] = set()
+    include_duplicates: bool = False,
+) -> set[tuple[UUID, UUID]] | list[tuple[UUID, UUID]]:
+    references_to_set_up: list[tuple[UUID, UUID]] = list()
     for match in INTERPOLATE_REGEX.finditer(value):
         wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
 
@@ -1542,8 +1543,8 @@ def _find_and_validate_references(
                             bad_reference=wrapped_ref,
                         )
 
-            references_to_set_up.add((component.id, question.id))
-    return references_to_set_up
+            references_to_set_up.append((component.id, question.id))
+    return references_to_set_up if include_duplicates else set(references_to_set_up)
 
 
 def _validate_and_sync_component_references(component: Component, expression_context: ExpressionContext) -> None:  # noqa: C901
