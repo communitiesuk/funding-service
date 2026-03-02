@@ -5057,7 +5057,7 @@ class TestAddCustomQuestionValidation:
 
         form = CustomExpressionForm(
             data={
-                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q3.safe_qid}))) ",
+                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q2.safe_qid}))) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q4.safe_qid}))",
             }
@@ -5253,7 +5253,7 @@ class TestEditCustomQuestionValidation:
         assert len(expression.component_references) == 0
         form = CustomExpressionForm(
             data={
-                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q3.safe_qid}))) ",
+                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q2.safe_qid}))) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q4.safe_qid}))",
             }
@@ -7075,3 +7075,95 @@ class TestValidateCustomExpressionSyntax:
         assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
         assert len(field.errors) == 1
         assert f"Invalid syntax in expression: {test_expression}" in [str(msg).strip() for msg in field.errors]
+
+    def test_invalid_expression_bad_operator(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < 2**3"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert "Operator Pow() does not exist" in [str(msg).strip() for msg in field.errors]
+
+    def test_invalid_expression_multiple_references_to_self(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = (
+            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({q3.safe_qid})) + "
+            f"(({q3.safe_qid})) + (({q3.safe_qid}))"
+        )
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert "The expression must include exactly one reference to this question" in [
+            str(msg).strip() for msg in field.errors
+        ]
+
+    def test_invalid_expression_no_references_to_self(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q2.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert "The expression must include exactly one reference to this question" in [
+            str(msg).strip() for msg in field.errors
+        ]
+
+    def test_invalid_expression_does_not_evaluate_to_true_or_false(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) + (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+
+        assert len(field.errors) == 1
+        assert "The expression must evaluate to true or false" in [str(msg).strip() for msg in field.errors]

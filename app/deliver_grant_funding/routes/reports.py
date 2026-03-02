@@ -2205,7 +2205,7 @@ def _validate_custom_error_message_syntax(
     return False
 
 
-def _validate_custom_expression_syntax(
+def _validate_custom_expression_syntax(  # noqa: C901
     component: Component, expression_context: ExpressionContext, field: wtforms.Field, expression_type: ExpressionType
 ) -> bool:
     """Badly named function that finds all the references in a custom expression, checks they are valid in the
@@ -2215,24 +2215,38 @@ def _validate_custom_expression_syntax(
     because it needs an expression context to properly validate the references.
     """
     expression_statement = field.data
+    if expression_type == ExpressionType.VALIDATION and not component.is_question:
+        field.errors.append("Only questions can have validations")  # type:ignore[attr-defined]
+        return False
     try:
         items_in_expression = _find_and_validate_references(
             component,
             expression_statement,
             expression_context,
             field.name,
-            allow_reference_to_self=True,
+            # allow references to self in validations but not conditions
+            allow_reference_to_self=expression_type == ExpressionType.VALIDATION,
             is_custom_expression=True,
+            include_duplicates=expression_type == ExpressionType.VALIDATION,
         )
+        if (
+            expression_type == ExpressionType.VALIDATION
+            and len([ref_q_uuid for _, ref_q_uuid in items_in_expression if ref_q_uuid == component.id]) != 1
+        ):
+            field.errors.append("The expression must include exactly one reference to this question")  # type:ignore[attr-defined]
+            return False
         names = {}
-        for _, ref_q_uuid in items_in_expression:
+        for _, ref_q_uuid in set(items_in_expression):
             # assume these are numbers as we can't do custom expressions unless using the number data
             # type but we could check this
-            # Also assumes the references are all questions but this will changes with ref data etc
+            # Also assumes the references are all questions but this will change with ref data etc
             names[f"q_{ref_q_uuid.hex}"] = 1
         evaluator = get_safe_evaluator(names=names, required_functions={})
 
-        evaluator.eval(expression_statement)  # type: ignore[no-untyped-call]
+        result = evaluator.eval(expression_statement)  # type: ignore[no-untyped-call]
+        if not isinstance(result, bool):
+            field.errors.append("The expression must evaluate to true or false")  # type:ignore[attr-defined]
+            return False
         return True
     # TODO review error message wording
     # TODO do we want to put some of these in sentry so we can see what sort of validation errors are triggered to
@@ -2253,6 +2267,9 @@ def _validate_custom_expression_syntax(
         field.errors.append(f"This function is not available: {e.func_name}")  # type:ignore[attr-defined]
     except SyntaxError as e:
         field.errors.append(f"Invalid syntax in expression: {e.text}")  # type:ignore[attr-defined]
+    except simpleeval.OperatorNotDefined as e:
+        # TODO: This prints the ast node name (eg. Pow()) rather than the actual operator (eg. **)
+        field.errors.append(f"Operator {e.attr} does not exist")  # type:ignore[attr-defined]
     return False
 
 
