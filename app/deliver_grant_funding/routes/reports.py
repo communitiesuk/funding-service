@@ -52,6 +52,7 @@ from app.common.data.interfaces.collections import (
     update_group,
     update_question,
 )
+from app.common.data.interfaces.data_sets import create_uploaded_data_source
 from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
     InvalidReferenceInExpression,
@@ -2641,8 +2642,10 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/check-errors", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
 def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session()
     if not data_set_data:
@@ -2658,7 +2661,15 @@ def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
             f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
             + "<a href='#'>View data set</a>"
         )
-        # TODO: Add db saving logic
+        create_uploaded_data_source(
+            name=data_set_data.name,
+            data_source_type=data_set_data.data_source_type,
+            grant_id=grant_id,
+            collection_id=report.id,
+            column_mappings=data_set_data.column_mappings,
+            all_rows=data_set_data.all_rows,
+            user=user,
+        )
         return redirect(
             url_for(
                 "deliver_grant_funding.list_report_data_sets",
