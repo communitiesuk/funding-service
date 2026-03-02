@@ -14,7 +14,17 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     add_question_validation,
 )
-from app.common.data.models import Collection, Expression, Form, Group, Question, Submission, SubmissionEvent
+from app.common.data.models import (
+    Collection,
+    DataSource,
+    DataSourceOrganisationItem,
+    Expression,
+    Form,
+    Group,
+    Question,
+    Submission,
+    SubmissionEvent,
+)
 from app.common.data.types import (
     ConditionsOperator,
     DataSourceType,
@@ -7532,7 +7542,7 @@ class TestCheckDataSetErrors:
         missing_data = [tag.text for tag in soup.find_all("span", class_="govuk-tag govuk-tag--yellow")]
         assert "Data missing" in missing_data
 
-    def test_post_redirects(self, authenticated_grant_admin_client, factories):
+    def test_post_redirects(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
@@ -7606,3 +7616,27 @@ class TestCheckDataSetErrors:
         assert page_has_flash(
             soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
         )
+
+        data_sources = db_session.query(DataSource).all()
+
+        assert len(data_sources) == 1
+        data_source = data_sources[0]
+
+        assert data_source.name == session["data_set_upload"]["name"]
+        assert data_source.type == DataSourceType.GRANT_RECIPIENT
+        assert data_source.grant_id == authenticated_grant_admin_client.grant.id
+        assert data_source.schema is not None
+        assert "capital-allocation" in data_source.schema
+        assert "revenue-allocation" in data_source.schema
+        assert data_source.schema["revenue-allocation"]["presentation_options"]["prefix"] == "£"
+
+        org_items = (
+            db_session.query(DataSourceOrganisationItem)
+            .filter_by(data_source_id=data_source.id)
+            .order_by(DataSourceOrganisationItem.external_id)
+            .all()
+        )
+        assert len(org_items) == 2
+        assert org_items[0].external_id == grant_recipient.organisation.external_id
+        assert org_items[1].external_id == grant_recipient_2.organisation.external_id
+        assert org_items[1].data["revenue-allocation"] == "200.00"

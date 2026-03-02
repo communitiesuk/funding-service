@@ -6,7 +6,7 @@ from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 from sqlalchemy import TypeDecorator
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -429,3 +429,14 @@ class DataSourceType(enum.StrEnum):
     STATIC = "Static"
     GRANT_RECIPIENT = "Grant recipient"
     PROJECT_LEVEL = "Project level"
+
+
+class DataSourceSchemaColumn(BaseModel):
+    data_type: Literal[QuestionDataType.TEXT_SINGLE_LINE, QuestionDataType.NUMBER]
+    presentation_options: QuestionPresentationOptions
+    data_options: QuestionDataOptions
+    original_column_name: str
+
+
+class DataSourceSchema(RootModel[dict[str, DataSourceSchemaColumn]]):
+    pass
