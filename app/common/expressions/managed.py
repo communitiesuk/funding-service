@@ -1273,7 +1273,7 @@ def get_managed_expression(expression: Expression) -> ManagedExpression:
 @register_managed_expression
 class Custom(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CUSTOM
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
         "deliver_grant_funding/reports/managed_expressions/custom.html"

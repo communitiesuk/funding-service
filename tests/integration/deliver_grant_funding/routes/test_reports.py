@@ -6899,7 +6899,7 @@ class TestViewSubmission:
 
 
 class TestValidateCustomExpressionSyntax:
-    def test_valid_expression(self, factories, mocker):
+    def test_valid_expression_same_section(self, factories, mocker):
         db_form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(
             3,
@@ -6915,6 +6915,37 @@ class TestValidateCustomExpressionSyntax:
         field.errors = []
 
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is True
+        assert len(field.errors) == 0
+
+    def test_valid_expression_previous_section(self, factories, mocker):
+        db_form_0 = factories.form.create()
+        previous_question = factories.question.create(
+            form=db_form_0,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        db_form = factories.form.create(collection=db_form_0.collection)
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = (
+            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({previous_question.safe_qid}))"
+        )
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(
+            submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, previous_question.safe_qid: 44}
+        )
 
         assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is True
         assert len(field.errors) == 0
@@ -6939,6 +6970,38 @@ class TestValidateCustomExpressionSyntax:
         assert _validate_custom_expression_syntax(q1, expr_context, field, ExpressionType.VALIDATION) is False
         assert len(field.errors) == 1
         assert f"{q1.name} cannot reference {q2.name} as it appears in the wrong order" in field.errors
+
+    def test_invalid_expression_forms_out_of_order(self, factories, mocker):
+        db_form_0 = factories.form.create()
+        db_form = factories.form.create(collection=db_form_0.collection)
+        later_form_question = factories.question.create(
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form_0,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = (
+            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({later_form_question.safe_qid}))"
+        )
+
+        field = mocker.MagicMock()
+        field.data = test_expression
+        field.errors = []
+
+        expr_context = ExpressionContext(
+            submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, later_form_question.safe_qid: 55}
+        )
+
+        assert _validate_custom_expression_syntax(q3, expr_context, field, ExpressionType.VALIDATION) is False
+        assert len(field.errors) == 1
+        assert f"{q3.name} cannot reference {later_form_question.name} as it appears in the wrong order" in field.errors
 
     def test_invalid_expression_bad_reference(self, factories, mocker):
         db_form = factories.form.create()

@@ -1,8 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
-from typing import TYPE_CHECKING, Any, Literal, Never, Optional, Unpack, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
@@ -58,7 +57,6 @@ from app.common.data.types import (
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
 from app.common.expressions.managed import BaseDataSourceManagedExpression, Custom
-from app.common.expressions.registry import validate_dependent_question_data_type_for_expression
 from app.common.forms.helpers import questions_in_same_add_another_container
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
 from app.common.qid import SafeQidMixin
@@ -1372,11 +1370,7 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
     if not expression.is_managed:
         raise NotImplementedError("Cannot handle un-managed expressions yet")
 
-    # TODO: When an expression can target multiple questions, this will need refactoring to support that.
     references: list[ComponentReference] = []
-
-    if not expression.is_managed:
-        raise ValueError("Cannot handle un-managed expressions yet")
 
     managed = expression.managed
     if isinstance(managed, BaseDataSourceManagedExpression):
@@ -1405,7 +1399,8 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             allow_reference_to_self=True,
             is_custom_expression=True,
         )
-        set(custom_references).update(
+        custom_references = set(custom_references)
+        custom_references.update(
             _find_and_validate_references(
                 component=expression.question,
                 value=managed.custom_message,
@@ -1565,7 +1560,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
         _validate_and_sync_expression_references(expression, expression_context)
 
     references_to_set_up: set[tuple[UUID, UUID]] = set()
-    field_names = ["text", "hint", "guidance_body","add_another_guidance_body"]
+    field_names = ["text", "hint", "guidance_body", "add_another_guidance_body"]
     for field_name in field_names:
         value = getattr(component, field_name)
         if value is None:
