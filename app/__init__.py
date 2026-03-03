@@ -22,6 +22,7 @@ from app.common.data.interfaces.system import seed_system_data
 from app.common.data.types import (
     CollectionStatusEnum,
     ComponentType,
+    DataSourceType,
     ExpressionType,
     FileUploadTypes,
     FormRunnerState,
@@ -308,6 +309,7 @@ def create_app() -> Flask:  # noqa: C901
                 report_admin_email_type_enum=ReportAdminEmailTypeEnum,
                 file_upload_types_enum=FileUploadTypes,
                 maximum_file_size_enum=MaximumFileSize,
+                data_source_type_enum=DataSourceType,
             ),
         )
 

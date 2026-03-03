@@ -1,3 +1,8 @@
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.models_user import User
@@ -13,6 +18,23 @@ from app.common.data.types import (
 from app.common.utils import slugify
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 from app.extensions import db
+
+
+def get_data_source(
+    data_source_id: uuid.UUID,
+    *,
+    with_organisation_items: bool = False,
+    with_data_source_items: bool = False,
+) -> DataSource:
+    stmt = select(DataSource).where(DataSource.id == data_source_id)
+
+    if with_organisation_items:
+        stmt = stmt.options(selectinload(DataSource.organisation_items))
+
+    if with_data_source_items:
+        stmt = stmt.options(selectinload(DataSource.items))
+
+    return db.session.execute(stmt).scalar_one()
 
 
 def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMapping]) -> DataSourceSchema:
@@ -154,3 +176,9 @@ def create_uploaded_data_source(
             raise ValueError(f"Unsupported data source type: {data_source_type}")
 
     return data_source
+
+
+@flush_and_rollback_on_exceptions
+def delete_data_source(data_source: DataSource) -> None:
+    # TODO: Add guardrails against deleting datasource where it's been used in a reference
+    db.session.delete(data_source)

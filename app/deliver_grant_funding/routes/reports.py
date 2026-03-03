@@ -52,7 +52,7 @@ from app.common.data.interfaces.collections import (
     update_group,
     update_question,
 )
-from app.common.data.interfaces.data_sets import create_uploaded_data_source
+from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
 from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
     InvalidReferenceInExpression,
@@ -2659,7 +2659,7 @@ def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
         # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
         flash(
             f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
-            + "<a href='#'>View data set</a>"
+            + "<a href='{#}'>View data set</a>"
         )
         create_uploaded_data_source(
             name=data_set_data.name,
@@ -2685,4 +2685,59 @@ def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
         session_data=data_set_data,
         form=form,
         validation_result=validation_result,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>",
+    methods=["GET"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    data_source = get_data_source(data_source_id, with_organisation_items=True, with_data_source_items=True)
+
+    grant_recipient_name_by_external_id: dict[str, str] = {}
+    if data_source.type in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
+        all_grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+        grant_recipient_name_by_external_id = {
+            gr.organisation.external_id: gr.organisation.name
+            for gr in all_grant_recipients
+            if gr.organisation.mode == OrganisationModeEnum.LIVE
+        }
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/view_data_set.html",
+        grant=report.grant,
+        report=report,
+        data_source=data_source,
+        grant_recipient_name_by_external_id=grant_recipient_name_by_external_id,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>/delete",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def confirm_delete_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    data_source = get_data_source(data_source_id)
+
+    form = GenericConfirmDeletionForm()
+
+    if form.validate_on_submit() and form.confirm_deletion.data:
+        name = data_source.name
+        delete_data_source(data_source)
+        flash(f"'{name}' data set has been deleted.")
+        return redirect(url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant_id, report_id=report_id))
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/delete_data_set.html",
+        grant=report.grant,
+        report=report,
+        data_source=data_source,
+        form=form,
     )

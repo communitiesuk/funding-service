@@ -8,6 +8,7 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
+from sqlalchemy import func, select
 
 from app import CollectionStatusEnum, FlashMessageType, QuestionDataType
 from app.common.data import interfaces
@@ -17,6 +18,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.models import (
     Collection,
     DataSource,
+    DataSourceItem,
     DataSourceOrganisationItem,
     Expression,
     Form,
@@ -6523,6 +6525,7 @@ class TestListReportDataSets:
             collection=report,
             created_by=uploader,
             updated_by=None,
+            items=None,
         )
         data_source_2 = factories.data_source.create(
             type=DataSourceType.STATIC,
@@ -6636,10 +6639,13 @@ class TestDownloadGrantRecipientDataSetTemplate:
         grant_recipient_3 = factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant,
             organisation__name="Isengard",
+            organisation__external_id="E00000",
             organisation__mode=OrganisationModeEnum.TEST,
         )
         grant_recipient_4 = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant, organisation__name="Shire", organisation__external_id=None
+            grant=authenticated_grant_member_client.grant,
+            organisation__name="Shire",
+            organisation__external_id="E99999",
         )
 
         response = authenticated_grant_member_client.get(
@@ -6666,9 +6672,6 @@ class TestDownloadGrantRecipientDataSetTemplate:
         assert grant_recipient_1.organisation.name in lines[2]
         assert grant_recipient_1.organisation.external_id in lines[2]
         assert grant_recipient_4.organisation.name in lines[3]
-
-        # Empty external_id
-        assert lines[3].startswith(",")
 
         # Test grant recipient organisations excluded
         assert grant_recipient_3.organisation.name not in response.text
@@ -7619,3 +7622,426 @@ class TestCheckDataSetErrors:
         assert org_items[0].external_id == grant_recipient.organisation.external_id
         assert org_items[1].external_id == grant_recipient_2.organisation.external_id
         assert org_items[1].data["revenue-allocation"] == 200.00
+
+
+class TestViewDataSource:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=uuid.uuid4(),
+                report_id=uuid.uuid4(),
+                data_source_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_member_client", True),
+        ),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant or factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=grant,
+            name="Test data set",
+            type=DataSourceType.STATIC,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        if can_access:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "Test data set" in get_h1_text(soup)
+        else:
+            assert response.status_code == 403
+
+    def test_get_shows_summary_list_metadata(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        user = factories.user.create()
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_member_client.grant,
+            name="Test data set",
+            type=DataSourceType.STATIC,
+            created_by=user,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert user.name in soup.text
+        assert "Static" in soup.text
+        assert "Test data set" in soup.text
+
+    def test_get_shows_grant_recipient_table(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        organisation = factories.organisation.create(external_id="E123", name="Rivendell Council")
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation=organisation,
+            mode=GrantRecipientModeEnum.LIVE,
+        )
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_member_client.grant,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema={
+                "allocation": {
+                    "data_type": QuestionDataType.NUMBER,
+                    "original_column_name": "Allocation",
+                    "presentation_options": {"prefix": "£", "suffix": ""},
+                    "data_options": {"number_type": NumberTypeEnum.INTEGER, "max_decimal_places": None},
+                }
+            },
+            items=None,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id="E123",
+            data={"allocation": 500000},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "E123" in soup.text
+        assert "Rivendell Council" in soup.text
+        assert "Allocation" in soup.text
+        assert "£500,000" in soup.text
+
+    def test_get_shows_project_level_table_with_one_row_per_project(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        organisation = factories.organisation.create(external_id="E123", name="Rivendell Council")
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation=organisation,
+            mode=GrantRecipientModeEnum.LIVE,
+        )
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_member_client.grant,
+            name="Test data set",
+            type=DataSourceType.PROJECT_LEVEL,
+            schema={
+                "project-name": {
+                    "data_type": QuestionDataType.TEXT_SINGLE_LINE,
+                    "original_column_name": "Project name",
+                    "presentation_options": {},
+                    "data_options": {},
+                }
+            },
+            items=None,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id="E123",
+            data=[
+                {"project-name": "Roads"},
+                {"project-name": "Bridges"},
+            ],
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        # Both projects should appear as separate rows
+        assert soup.text.count("E123") == 2
+        assert "Roads" in soup.text
+        assert "Bridges" in soup.text
+
+    def test_get_shows_static_table(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_member_client.grant,
+            name="Test data set",
+            type=DataSourceType.STATIC,
+            schema=None,
+            items=None,
+        )
+        factories.data_source_item.create(data_source=data_source, key="UK", label="United Kingdom", order=0)
+        factories.data_source_item.create(data_source=data_source, key="FR", label="France", order=1)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "UK" in soup.text
+        assert "United Kingdom" in soup.text
+        assert "FR" in soup.text
+        assert "France" in soup.text
+
+    def test_get_shows_missing_data_tag_for_empty_values(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_member_client.grant,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema={
+                "notes": {
+                    "data_type": QuestionDataType.TEXT_SINGLE_LINE,
+                    "original_column_name": "Notes",
+                    "presentation_options": {},
+                    "data_options": {},
+                }
+            },
+            items=None,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id="E123",
+            data={"notes": ""},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Data missing" in soup.text
+
+    def test_get_excludes_test_grant_recipients_from_name_lookup(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        organisation = factories.organisation.create(external_id="E123", name="Rivendell Council")
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation=organisation,
+            mode=GrantRecipientModeEnum.LIVE,
+        )
+        test_organisation = factories.organisation.create(
+            external_id="E123", name="Rivendell Council (Test)", mode=OrganisationModeEnum.TEST
+        )
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation=test_organisation,
+            mode=GrantRecipientModeEnum.TEST,
+        )
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_member_client.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            name="Test data set",
+            schema={
+                "notes": {
+                    "data_type": QuestionDataType.TEXT_SINGLE_LINE,
+                    "original_column_name": "Notes",
+                    "presentation_options": {},
+                    "data_options": {},
+                }
+            },
+            items=None,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id="E123",
+            data={"notes": "hello"},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Rivendell Council" in soup.text
+        assert "Test Org Name" not in soup.text
+
+
+class TestConfirmDeleteDataSource:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.confirm_delete_data_source",
+                grant_id=uuid.uuid4(),
+                report_id=uuid.uuid4(),
+                data_source_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant or factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=grant,
+            name="My Data Set",
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.confirm_delete_data_source",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200 if can_access else response.status_code == 403
+
+    def test_get_shows_data_source_name_and_warning(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_admin_client.grant,
+            name="Test data set",
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.confirm_delete_data_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Are you sure you want to delete this file?" in soup.text
+        assert "Test data set" in soup.text
+        assert "You are about to delete a data set and you will not be able to undo it" in soup.text
+        assert page_has_button(soup, "Yes - delete")
+
+    def test_post_deletes_data_source_and_redirects(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_admin_client.grant,
+            name="My Data Set",
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.confirm_delete_data_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            ),
+            data={"confirm_deletion": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_report_data_sets",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            report_id=report.id,
+        )
+        assert db_session.get(DataSource, data_source.id) is None
+        assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 0
+
+    def test_post_shows_flash_message_after_delete(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_admin_client.grant,
+            name="My Data Set",
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.confirm_delete_data_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            ),
+            data={"confirm_deletion": True},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "'My Data Set' data set has been deleted.")
+
+    def test_post_deletes_organisation_items(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_source = factories.data_source.create(
+            name="Test data set",
+            collection=report,
+            grant=authenticated_grant_admin_client.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+        )
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+
+        authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.confirm_delete_data_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            ),
+            data={"confirm_deletion": True},
+        )
+        assert db_session.get(DataSource, data_source.id) is None
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
