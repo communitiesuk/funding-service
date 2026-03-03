@@ -59,10 +59,10 @@
         {{ form.csrf_token }}
         <div class="govuk-form-group">
           {% set addDataToExpressionButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-6", "value": "custom_expression"}) }}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
           {% endset %}
           {% set addDataToMessageButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_message"}) }}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_message"}) }}
           {% endset %}
 
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
@@ -70,7 +70,6 @@
             {{
               form.custom_expression(params={
               "label": {"classes": "govuk-!-font-weight-bold"},
-                "classes": "govuk-!-margin-bottom-0",
                 "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
                 "formGroup": {
                   "classes": "app-context-aware--container",
@@ -87,21 +86,22 @@
                 <span class="app-context-aware-editor--valid-reference">((Total revenue spending))</span> &le; <span class="app-context-aware-editor--valid-reference">((Total budget))</span> -
                 <span class="app-context-aware-editor--valid-reference">((Total capital spending))</span>
               </p>
-              The following operations are available:
+              <p>The following operations are available:</p>
               {{
                 govukSummaryList({
                 "rows": [
                   {"key": {"text": "+"}, "value": {"html": "Add two things<br/>1 + 2 → 3"
               }},
-              {"key": {"text": "-"}, "value": {"html": "Subtract two things<br />100 - 1 → 99"}}, {"key": {"text": "*"}, "value": {"html": "Multiple two things<br />5 * 7 → 35"}}, {"key": {"text": "/"}, "value": {"html": "Divide on thing by
-              another<br />100 / 5 → 20"}}, {"key": {"text": "%"}, "value": {"html": "Calculate the remainder of one thing divided by another<br />15 % 4 → 3"}}, ], }) }} The following comparators are available:
+              {"key": {"text": "-"}, "value": {"html": "Subtract two things<br />100 - 1 → 99"}}, {"key": {"text": "*"}, "value": {"html": "Multiply two things<br />5 * 7 → 35"}}, {"key": {"text": "/"}, "value": {"html": "Divide one thing
+              by another<br />100 / 5 → 20"}}, {"key": {"text": "%"}, "value": {"html": "Calculate the remainder of one thing divided by another<br />15 % 4 → 3"}} ] }) }}
+              <p>The following comparators are available:</p>
               {{
                 govukSummaryList({
                 "rows": [
                   {"key": {"text": "=="}, "value": {"html": "Is equal to<br/>19 == 20 → False"
               }},
               {"key": {"html": "&lt;"}, "value": {"html": "Is less than<br />1 &lt; 4 → True"}}, {"key": {"html": "&gt;"}, "value": {"html": "Is greater than<br />1 &gt; 4 → False"}}, {"key": {"html": "&lt;="}, "value": {"html": "Is less
-              than or equal to<br />4 &le; 4 → True"}}, {"key": {"html": "&gt;="}, "value": {"html": "Is greater than or equal to<br />5 &ge; 4 → True"}} ], }) }}
+              than or equal to<br />4 &le; 4 → True"}}, {"key": {"html": "&gt;="}, "value": {"html": "Is greater than or equal to<br />5 &ge; 4 → True"}} ] }) }}
             </div>
           {% endset %}
           {{
@@ -115,7 +115,6 @@
             {{
               form.custom_message(params={
               "label": {"classes": "govuk-!-font-weight-bold"},
-                "classes": "govuk-!-margin-bottom-0",
                 "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
                 "formGroup": {
                   "classes": "app-context-aware--container",
