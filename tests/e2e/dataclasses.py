@@ -62,6 +62,9 @@ class E2EManagedExpression:
     # Note this assumes you're only referencing one question's answer in an expression, if two are needed for
     # Between/BetweenDates then this will need updating
     context_source: DataReferenceConfig | None = None
+    # TODO this is so that we can reference multiple fields in an expression.
+    #  Need to refactor this class so we aren't duplicating where we put references
+    expression_references: dict[str, DataReferenceConfig] | None = dataclasses.field(default_factory=dict)
 
 
 class QuestionDict(TypedDict):

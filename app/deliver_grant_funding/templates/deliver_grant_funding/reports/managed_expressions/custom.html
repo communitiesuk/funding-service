@@ -7,11 +7,11 @@
 {% set active_item_identifier = "reports" %}
 {% if expression %}
   {% set heading = "Edit a custom validation expression" %}
-  {% set submit_label = "Save expression" %}
+  {% set submit_label = "Save validation" %}
   {% set back_link_href= url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) %}
 {% else %}
   {% set heading =  "Add a custom validation expression" %}
-  {% set submit_label = "Add expression" %}
+  {% set submit_label = "Add validation" %}
   {% set back_link_href= url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id) %}
 {% endif %}
 
