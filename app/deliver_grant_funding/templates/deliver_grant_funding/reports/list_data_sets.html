@@ -45,15 +45,13 @@
         {% set rows = [] %}
         {% for data_set in report.data_sources %}
           {% set data_set_name_html %}
-            <a href="#">{{ data_set.name }}</a>
+            <a class="govuk-link govuk-link-no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, report_id=report.id, data_source_id=data_set.id) }}">{{ data_set.name }}</a>
           {% endset %}
           {% do rows.append([{"html": data_set_name_html}, {"text": format_datetime_short(data_set.updated_at_utc if data_set.updated_at_utc else data_set.created_at_utc)}, {"text": data_set.updated_by.name if data_set.updated_by else data_set.created_by.name}]) %}
         {% endfor %}
 
         {{
           govukTable({
-              "captionClasses": "govuk-table__caption--m",
-              "firstCellIsHeader": false,
               "head": [{"text": "Data set"}, {"text": "Time and date"}, {"text": "Uploaded by"}],
               "rows": rows
           })

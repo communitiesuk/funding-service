@@ -1,6 +1,10 @@
-import pytest
+import uuid
 
-from app.common.data.interfaces.data_sets import create_uploaded_data_source
+import pytest
+from sqlalchemy import func, select
+from sqlalchemy.orm.exc import NoResultFound
+
+from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
@@ -578,3 +582,104 @@ class TestCreateUploadedDataSourceSchemaOptions:
 
         assert "capital-allocation" in data_source.schema
         assert "Capital Allocation (£)" not in data_source.schema
+
+
+class TestGetDataSource:
+    def test_get_data_source(self, db_session, factories):
+        data_source = factories.data_source.create()
+        from_db = get_data_source(data_source.id)
+        assert from_db is not None
+        assert from_db.id == data_source.id
+
+    def test_get_data_source_not_found(self, db_session):
+        with pytest.raises(NoResultFound):
+            get_data_source(uuid.uuid4())
+
+    def test_get_data_source_with_organisation_items(self, db_session, factories, track_sql_queries):
+        data_source = factories.data_source.create(items=None)
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+        db_session.expire_all()
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+
+        with track_sql_queries() as queries:
+            items = from_db.organisation_items
+            assert len(items) == 2
+
+        assert len(queries) == 0
+
+    def test_get_data_source_with_data_source_items(self, db_session, factories, track_sql_queries):
+        data_source = factories.data_source.create()
+        db_session.expire_all()
+
+        from_db = get_data_source(data_source.id, with_data_source_items=True)
+
+        with track_sql_queries() as queries:
+            items = from_db.items
+            assert len(items) == 3
+
+        assert len(queries) == 0
+
+    def test_get_data_source_with_both_flags(self, db_session, factories, track_sql_queries):
+        data_source = factories.data_source.create(items=None)
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+        db_session.expire_all()
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True, with_data_source_items=True)
+
+        with track_sql_queries() as queries:
+            assert len(from_db.organisation_items) == 1
+            assert len(from_db.items) == 0
+
+        assert len(queries) == 0
+
+    def test_get_data_source_without_flags_does_not_eagerly_load_items(self, db_session, factories, track_sql_queries):
+        data_source = factories.data_source.create(items=None)
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+        db_session.expire_all()
+
+        get_data_source(data_source.id)
+
+        with track_sql_queries() as queries:
+            _ = db_session.get(DataSource, data_source.id).organisation_items
+        assert len(queries) > 0
+
+
+class TestDeleteDataSource:
+    def test_delete_data_source(self, db_session, factories):
+        data_source = factories.data_source.create()
+        assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 3
+
+        delete_data_source(data_source)
+        db_session.flush()
+
+        assert db_session.get(DataSource, data_source.id) is None
+        assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 0
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
+
+    def test_delete_data_source_cascades_organisation_items(self, db_session, factories):
+        data_source = factories.data_source.create(items=None)
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+
+        delete_data_source(data_source)
+        db_session.flush()
+
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
+
+    def test_delete_only_deletes_target_data_source(self, db_session, factories):
+        data_source_1 = factories.data_source.create(items=None)
+        data_source_2 = factories.data_source.create(items=None)
+        org_item_1 = factories.data_source_organisation_item.create(data_source=data_source_1, external_id="E123")
+        org_item_2 = factories.data_source_organisation_item.create(data_source=data_source_2, external_id="E456")
+
+        delete_data_source(data_source_1)
+        db_session.flush()
+
+        assert db_session.get(DataSource, data_source_1.id) is None
+        assert db_session.get(DataSource, data_source_2.id) is not None
+
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 1
+        assert db_session.get(DataSourceOrganisationItem, org_item_1.id) is None
+        assert db_session.get(DataSourceOrganisationItem, org_item_2.id) is not None

@@ -72,6 +72,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.map_data_set_columns",
     "deliver_grant_funding.map_data_set_number_columns",
     "deliver_grant_funding.check_data_set_errors",
+    "deliver_grant_funding.confirm_delete_data_source",
 ]
 routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.change_report_name",
@@ -121,6 +122,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.download_file",
     "deliver_grant_funding.list_report_data_sets",
     "deliver_grant_funding.download_grant_recipient_data_set_template",
+    "deliver_grant_funding.view_data_source",
 ]
 
 routes_with_expected_access_grant_funding_logged_in_access = [

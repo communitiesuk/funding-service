@@ -34,6 +34,7 @@ from app.common.data.models import (
     Collection,
     DataSource,
     DataSourceItem,
+    DataSourceOrganisationItem,
     Expression,
     Form,
     Grant,
@@ -768,6 +769,20 @@ class _FormFactory(SQLAlchemyModelFactory):
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)
 
 
+class _DataSourceOrganisationItemFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = DataSourceOrganisationItem
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+
+    data = factory.LazyFunction(dict)
+    external_id = factory.LazyFunction(_required)
+    data_source_id = factory.LazyAttribute(lambda o: o.data_source.id)
+    data_source = None
+
+
 class _DataSourceItemFactory(SQLAlchemyModelFactory):
     class Meta:
         model = DataSourceItem
@@ -793,6 +808,13 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
     name = None
     schema = None
     items = factory.RelatedFactoryList(_DataSourceItemFactory, size=3, factory_related_name="data_source")
+    # No organisation items are created by default - tests which need them should create them explicitly and set the
+    # items size to 0
+    organisation_items = factory.RelatedFactoryList(
+        _DataSourceOrganisationItemFactory,
+        size=0,
+        factory_related_name="data_source",
+    )
 
     grant = None
     grant_id = factory.LazyAttribute(lambda o: o.grant.id if o.grant else None)
