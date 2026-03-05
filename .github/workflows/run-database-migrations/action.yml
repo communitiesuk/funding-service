@@ -6,7 +6,7 @@ runs:
     - name: Set up Python
       uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
       with:
-        python-version: 3.14.2
+        python-version: 3.14.3
 
     - name: Install uv
       uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7
