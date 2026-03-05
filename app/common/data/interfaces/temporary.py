@@ -11,7 +11,7 @@ The only place that should import from here is the `app.developers` package.
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.common.data.models import (
     Collection,
@@ -24,6 +24,11 @@ from app.extensions import db
 
 def delete_grant(grant_id: UUID) -> None:
     # Not optimised; do not lift+shift unedited.
+    db.session.execute(
+        update(Collection)
+        .where(Collection.grant_id == grant_id, Collection.submission_name_question_id.is_not(None))
+        .values(submission_name_question_id=None)
+    )
     grant = db.session.query(Grant).where(Grant.id == grant_id).one()
     db.session.delete(grant)
     db.session.flush()
