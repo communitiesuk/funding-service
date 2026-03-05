@@ -4,6 +4,7 @@ from uuid import UUID
 
 from flask import abort, current_app, url_for
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.collections.forms import (
     AddAnotherSummaryForm,
     CheckYourAnswersForm,
@@ -14,7 +15,14 @@ from app.common.collections.forms import (
 from app.common.collections.types import FileUploadAnswer
 from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
-from app.common.data.types import FormRunnerState, QuestionDataType, TasklistSectionStatusEnum, TRunnerUrlMap
+from app.common.data.interfaces.user import get_current_user
+from app.common.data.types import (
+    FormRunnerState,
+    QuestionDataType,
+    SubmissionModeEnum,
+    TasklistSectionStatusEnum,
+    TRunnerUrlMap,
+)
 from app.common.exceptions import (
     RedirectException,
     SubmissionAnswerConflict,
@@ -235,17 +243,26 @@ class FormRunner:
             raise RuntimeError("Confirm remove context not set")
         return self._confirm_remove_form
 
-    def answer_to_question_is_managed_by_service(self, question: Question) -> bool:
-        if not self.submission.collection.allow_multiple_submissions:
+    @property
+    def can_edit(self) -> bool:
+        if self.submission.is_locked_state:
             return False
 
-        if not self.submission.collection.multiple_submissions_are_managed_by_service:
+        if self.submission.submission.mode != SubmissionModeEnum.PREVIEW:
+            return AuthorisationHelper.is_access_grant_data_provider(
+                self.submission.grant.id, self.submission.submission.grant_recipient.organisation_id, get_current_user()
+            )
+
+        return True
+
+    def can_edit_question(self, question: Question) -> bool:
+        if not self.can_edit:
             return False
 
-        if self.submission.collection.submission_name_question_id is None:
+        if self.submission.answer_to_question_is_managed_by_service(question):
             return False
 
-        return self.submission.collection.submission_name_question_id == question.id
+        return True
 
     @property
     def question_with_add_another_summary_form(
@@ -482,7 +499,7 @@ class FormRunner:
                 self._valid = False
 
         if self._valid:
-            if self.component.is_question and self.answer_to_question_is_managed_by_service(self.component):  # type: ignore[arg-type]
+            if self.component.is_question and not self.can_edit_question(self.component):  # type: ignore[arg-type]
                 self._valid = False
 
         return self._valid
