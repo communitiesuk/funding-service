@@ -1,3 +1,4 @@
+import csv
 import io
 import uuid
 from typing import TYPE_CHECKING, Any, cast
@@ -6,7 +7,9 @@ from uuid import UUID
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
+from markupsafe import escape
 from pydantic import BaseModel, ValidationError
+from werkzeug.datastructures import FileStorage
 from wtforms import Field
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -49,6 +52,7 @@ from app.common.data.interfaces.collections import (
     update_group,
     update_question,
 )
+from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
 from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
     InvalidReferenceInExpression,
@@ -59,10 +63,13 @@ from app.common.data.types import (
     CollectionType,
     ComponentType,
     ConditionsOperator,
+    DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
+    NumberTypeEnum,
+    OrganisationModeEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -84,6 +91,8 @@ from app.deliver_grant_funding.forms import (
     GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
     GroupForm,
+    MapDataSetColumnsForm,
+    MapNumberColumnsForm,
     QuestionForm,
     QuestionTypeForm,
     SelectDataSourceQuestionForm,
@@ -91,14 +100,20 @@ from app.deliver_grant_funding.forms import (
     SetUpReportForm,
     SubmissionGuidanceForm,
     TestGrantRecipientJourneyForm,
+    UploadDataSetForm,
 )
-from app.deliver_grant_funding.helpers import start_previewing_collection
+from app.deliver_grant_funding.helpers import (
+    start_previewing_collection,
+    validate_data_set,
+    validate_data_set_grant_recipients,
+)
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.deliver_grant_funding.session_models import (
     AddConditionDependsOnSessionModel,
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
+    DataSetUploadSessionModel,
 )
 from app.extensions import auto_commit_after_request, notification_service, s3_service
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
@@ -2331,4 +2346,436 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         helper=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
         delete_form=delete_wtform,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def list_report_data_sets(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    form = GenericSubmitForm()
+
+    if form.validate_on_submit():
+        if "data_set_upload" in session:
+            del session["data_set_upload"]
+
+        return redirect(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/list_data_sets.html", grant=report.grant, report=report, form=form
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/template", methods=["GET"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+
+    csv_output = io.StringIO()
+    csv_writer = csv.DictWriter(
+        csv_output,
+        fieldnames=["ONS code", "Grant recipient"],
+    )
+    csv_writer.writeheader()
+    for gr in sorted(grant_recipients, key=lambda gr: gr.organisation.name):
+        if gr.organisation.mode == OrganisationModeEnum.TEST:
+            continue
+        csv_writer.writerow(
+            {
+                "ONS code": gr.organisation.external_id or "",
+                "Grant recipient": gr.organisation.name,
+            }
+        )
+
+    return send_file(
+        io.BytesIO(csv_output.getvalue().encode("utf-8-sig")),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"{report.slug}-grant-recipient-data-template.csv",
+        max_age=0,
+    )
+
+
+def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], list[dict[str, str]]]:
+    file_storage.stream.seek(0)
+    content = file_storage.stream.read().decode("utf-8-sig")
+    file_storage.stream.seek(0)
+
+    reader = csv.DictReader(io.StringIO(content))
+    columns = list(reader.fieldnames or [])
+    rows: list[dict[str, str]] = list(reader)
+
+    return columns, rows
+
+
+def _extract_data_set_data_from_session() -> DataSetUploadSessionModel | None:
+    if session_data := session.get("data_set_upload"):
+        try:
+            upload_data = DataSetUploadSessionModel(**session_data)
+            return upload_data
+        except ValidationError:
+            del session["data_set_upload"]
+            return None
+    return None
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/upload", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    data_set_data = _extract_data_set_data_from_session()
+
+    form = UploadDataSetForm(
+        data={
+            "name": data_set_data.name,
+            "data_source_type": data_set_data.data_source_type,
+        }
+        if data_set_data
+        else None
+    )
+
+    gr_errors: list[str] = []
+
+    if form.validate_on_submit():
+        columns, rows = _parse_data_set_csv(form.file.data)
+
+        if form.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
+            identifier_columns = ["ONS code", "Grant recipient"]
+            data_columns = [col for col in columns if col not in identifier_columns]
+        else:
+            identifier_columns = []
+            data_columns = columns
+
+        session_data = DataSetUploadSessionModel(
+            name=cast(str, form.name.data),
+            data_source_type=form.data_source_type.data,
+            grant_recipient_identifier_columns=identifier_columns,
+            data_columns=data_columns,
+            preview_rows=rows[:5],
+            all_rows=rows,
+        )
+
+        session["data_set_upload"] = session_data.model_dump(mode="json")
+
+        if form.data_source_type.data != DataSourceType.STATIC:
+            grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+            gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients)
+            if gr_errors:
+                return render_template(
+                    "deliver_grant_funding/reports/data_sets/upload_dataset.html",
+                    grant=report.grant,
+                    report=report,
+                    form=form,
+                    gr_errors=gr_errors,
+                )
+
+        return redirect(
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/upload_dataset.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+        gr_errors=gr_errors,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-columns", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    user = get_current_user()
+
+    data_set_data = _extract_data_set_data_from_session()
+    if not data_set_data:
+        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+
+    form = MapDataSetColumnsForm(data_columns=data_set_data.data_columns)
+
+    if not form.is_submitted() and data_set_data.column_mappings:
+        for idx, mapping in enumerate(data_set_data.column_mappings):
+            form.columns.entries[idx].form.data_type.data = (
+                "TEXT"
+                if mapping.data_type == QuestionDataType.TEXT_SINGLE_LINE
+                else "INTEGER"
+                if mapping.number_type == NumberTypeEnum.INTEGER
+                else "DECIMAL"
+                if mapping.number_type == NumberTypeEnum.DECIMAL
+                else ""
+            )
+
+    if form.validate_on_submit():
+        data_set_data.column_mappings = form.get_column_mappings()
+        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+
+        if form.has_numerical_columns():
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.map_data_set_number_columns",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
+
+        validation_result = validate_data_set(data_set_data)
+
+        if validation_result.has_blocking_errors or validation_result.has_missing_data:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.check_data_set_errors",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
+        else:
+            data_source = create_uploaded_data_source(
+                name=data_set_data.name,
+                data_source_type=data_set_data.data_source_type,
+                grant_id=grant_id,
+                collection_id=report.id,
+                column_mappings=data_set_data.column_mappings,
+                all_rows=data_set_data.all_rows,
+                user=user,
+            )
+            data_source_url = url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant_id,
+                report_id=report_id,
+                data_source_id=data_source.id,
+            )
+            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
+            flash(
+                f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+            )
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_report_data_sets",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/map_columns.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+        session_data=data_set_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-number-columns", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    user = get_current_user()
+
+    data_set_data = _extract_data_set_data_from_session()
+    if not data_set_data:
+        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+
+    number_columns = [
+        mapping for mapping in data_set_data.column_mappings if mapping.data_type == QuestionDataType.NUMBER
+    ]
+
+    form = MapNumberColumnsForm(numerical_columns=number_columns)
+
+    if not form.is_submitted() and data_set_data.column_mappings:
+        for idx, mapping in enumerate(number_columns):
+            entry = form.columns.entries[idx].form
+            entry.prefix.data = mapping.prefix or ""
+            entry.suffix.data = mapping.suffix or ""
+            if mapping.number_type == NumberTypeEnum.DECIMAL:
+                entry.max_decimal_places.data = mapping.max_decimal_places if mapping.max_decimal_places else None
+
+    if form.validate_on_submit():
+        settings = form.get_number_column_formatting_options_mappings()
+        for mapping in data_set_data.column_mappings:
+            if mapping.column_name in settings:
+                mapping.prefix = settings[mapping.column_name]["prefix"]
+                mapping.suffix = settings[mapping.column_name]["suffix"]
+                if mapping.number_type == NumberTypeEnum.DECIMAL:
+                    mapping.max_decimal_places = settings[mapping.column_name]["max_decimal_places"]
+        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+
+        validation_result = validate_data_set(data_set_data)
+        if validation_result.has_blocking_errors or validation_result.has_missing_data:
+            return redirect(
+                url_for("deliver_grant_funding.check_data_set_errors", grant_id=grant_id, report_id=report_id)
+            )
+        else:
+            data_source = create_uploaded_data_source(
+                name=data_set_data.name,
+                data_source_type=data_set_data.data_source_type,
+                grant_id=grant_id,
+                collection_id=report.id,
+                column_mappings=data_set_data.column_mappings,
+                all_rows=data_set_data.all_rows,
+                user=user,
+            )
+            data_source_url = url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant_id,
+                report_id=report_id,
+                data_source_id=data_source.id,
+            )
+            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
+            flash(
+                f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+            )
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_report_data_sets",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/map_number_columns.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+        session_data=data_set_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/check-errors", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    user = get_current_user()
+
+    data_set_data = _extract_data_set_data_from_session()
+    if not data_set_data:
+        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+
+    validation_result = validate_data_set(data_set_data)
+
+    form = GenericSubmitForm()
+
+    if form.validate_on_submit() and not validation_result.has_blocking_errors:
+        data_source = create_uploaded_data_source(
+            name=data_set_data.name,
+            data_source_type=data_set_data.data_source_type,
+            grant_id=grant_id,
+            collection_id=report.id,
+            column_mappings=data_set_data.column_mappings,
+            all_rows=data_set_data.all_rows,
+            user=user,
+        )
+        data_source_url = url_for(
+            "deliver_grant_funding.view_data_source",
+            grant_id=grant_id,
+            report_id=report_id,
+            data_source_id=data_source.id,
+        )
+        # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
+        flash(
+            f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+            + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+        )
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_report_data_sets",
+                grant_id=grant_id,
+                report_id=report_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/data_set_issues.html",
+        grant=report.grant,
+        report=report,
+        session_data=data_set_data,
+        form=form,
+        validation_result=validation_result,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>",
+    methods=["GET"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    data_source = get_data_source(data_source_id, with_organisation_items=True, with_data_source_items=True)
+
+    grant_recipient_name_by_external_id: dict[str, str] = {}
+    if data_source.type in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
+        all_grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+        grant_recipient_name_by_external_id = {
+            gr.organisation.external_id: gr.organisation.name
+            for gr in all_grant_recipients
+            if gr.organisation.mode == OrganisationModeEnum.LIVE
+        }
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/view_data_set.html",
+        grant=report.grant,
+        report=report,
+        data_source=data_source,
+        grant_recipient_name_by_external_id=grant_recipient_name_by_external_id,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>/delete",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def confirm_delete_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    data_source = get_data_source(data_source_id)
+
+    form = GenericConfirmDeletionForm()
+
+    if form.validate_on_submit() and form.confirm_deletion.data:
+        name = data_source.name
+        delete_data_source(data_source)
+        flash(f"'{name}' data set has been deleted.")
+        return redirect(url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant_id, report_id=report_id))
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/delete_data_set.html",
+        grant=report.grant,
+        report=report,
+        data_source=data_source,
+        form=form,
     )

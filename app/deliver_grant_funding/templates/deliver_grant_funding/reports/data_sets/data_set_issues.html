@@ -1,0 +1,100 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/warning-text/macro.html" import govukWarningText %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+
+{% set active_item_identifier = "reports" %}
+
+{% set page_title = "Check " ~ session_data.name ~ " data set issues" %}
+
+{% set is_static = session_data.data_source_type == enum.data_source_type_enum.STATIC %}
+
+{% block beforeContent %}
+  {% if is_static %}
+    {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id) %}
+  {% else %}
+    {% set back_link = url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=grant.id, report_id=report.id) %}
+  {% endif %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% if validation_result.blocking_errors %}
+        {% set error_list = [] %}
+        {% for error in validation_result.blocking_errors %}
+          {% do error_list.append({"text": error, "href": "#"}) %}
+        {% endfor %}
+        {{
+          govukErrorSummary({
+            "titleText": "There is a problem",
+            "errorList": error_list
+          })
+        }}
+      {% endif %}
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ report.name }}</span>
+        Check {{ session_data.name }} data set issues
+      </h1>
+      {{ govukWarningText({"text": "There are issues with the data set."}) }}
+
+      {% if is_static %}
+        {% set table_head = [{"text": "Row"}] %}
+      {% else %}
+        {% set table_head = [{"text": "Row"}, {"text": "External ID"}, {"text": "Grant recipient"}] %}
+      {% endif %}
+      {% for column in session_data.data_columns %}
+        {% do table_head.append({"text": column}) %}
+      {% endfor %}
+
+      {% set cell_errors_by_row = validation_result.cell_errors_by_row %}
+      {% set rows = [] %}
+      {% for row in session_data.all_rows %}
+        {% set idx = loop.index0 %}
+        {% set row_cell_errors = cell_errors_by_row.get(idx, {}) %}
+
+        {% if is_static %}
+          {% set row_cells = [{"text": loop.index}] %}
+        {% else %}
+          {%
+            set row_cells = [
+              {"text": loop.index},
+              {"text": row.get("ONS code", "")},
+              {"text": row.get("Grant recipient")}
+            ]
+          %}
+        {% endif %}
+
+        {% for column in session_data.data_columns %}
+          {% set val = row.get(column, "") %}
+          {% set cell_error = row_cell_errors.get(column) %}
+
+          {% if cell_error %}
+            {% if cell_error.original_value %}
+              {% set cell_html %}{{ cell_error.original_value }}<br /><span class="govuk-tag govuk-tag--red">{{ cell_error.table_message }}</span>{% endset %}
+            {% else %}
+              {% set cell_html %}<span class="govuk-tag govuk-tag--red">{{ cell_error.table_message }}</span>{% endset %}
+            {% endif %}
+            {% do row_cells.append({"html": cell_html}) %}
+          {% elif not val %}
+            {% do row_cells.append({"html": "<span class='govuk-tag govuk-tag--yellow'>Data missing</span>"}) %}
+          {% else %}
+            {% do row_cells.append({"text": val}) %}
+          {% endif %}
+        {% endfor %}
+        {% do rows.append(row_cells) %}
+      {% endfor %}
+
+      {{ govukTable({"head": table_head, "rows": rows}) }}
+
+      <form method="POST" novalidate>
+        <div class="govuk-button-group">
+          {{ form.csrf_token }}
+          {{ form.submit(params={"text": "Continue and upload data set" }) }}
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

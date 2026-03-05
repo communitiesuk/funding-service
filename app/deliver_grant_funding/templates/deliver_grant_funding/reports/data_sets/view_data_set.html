@@ -1,0 +1,141 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "deliver_grant_funding/macros/data_sets.html" import render_data_cell %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{% set active_item_identifier = "reports" %}
+{% set page_title = data_source.name %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant.id, report_id=report.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ report.name }}</span>
+        {{ data_source.name }}
+      </h1>
+
+      {%
+        set summary_rows = [
+          {
+            "key": {"text": "Data level"},
+            "value": {"text": data_source.type.value}
+          },
+          {
+            "key": {"text": "Uploaded by"},
+            "value": {"text": data_source.created_by.name if data_source.created_by else "Unknown"}
+          },
+          {
+            "key": {"text": "Date and time uploaded"},
+            "value": {"text": format_datetime_short(data_source.created_at_utc) if data_source.created_at_utc else "Unknown"}
+          },
+          {
+            "key": {"text": "Uploaded data set"},
+            "value": {
+              "html": data_source.name ~ "<br><a class='govuk-link' href='#'>Download data set (CSV)</a>"
+            }
+          }
+        ]
+      %}
+
+      {{ govukSummaryList({"rows": summary_rows}) }}
+
+      {% if authorisation_helper.can_edit_collection(current_user, report.id) %}
+        <div class="govuk-button-group">
+          <a class="govuk-button govuk-button--warning" href="{{ url_for("deliver_grant_funding.confirm_delete_data_source", grant_id=grant.id, report_id=report.id, data_source_id=data_source.id) }}">Delete data set</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="govuk-grid-column-full">
+      <h2 class="govuk-heading-m">Data columns</h2>
+
+      {% if data_source.type == enum.data_source_type_enum.STATIC %}
+
+        {%
+          set head = [
+            {"text": "Key"},
+            {"text": "Value"}
+          ]
+        %}
+        {% set rows = [] %}
+        {% for item in data_source.items %}
+          {%
+            set key_cell = {"text": item.key} if item.key
+            else {"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}
+          %}
+          {%
+            set val_cell = {"text": item.label} if item.label
+            else {"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}
+          %}
+          {% do rows.append([key_cell, val_cell]) %}
+        {% endfor %}
+        {{ govukTable({"head": head, "rows": rows}) }}
+      {% elif data_source.type == enum.data_source_type_enum.GRANT_RECIPIENT %}
+        {%
+          set head = [
+            {"text": "External ID"},
+            {"text": "Grant recipient"}
+          ]
+        %}
+        {% for slug, col_schema in data_source.schema.items() %}
+          {% do head.append({"text": col_schema.get("original_column_name", slug)}) %}
+        {% endfor %}
+
+        {% set rows = [] %}
+        {% for item in data_source.organisation_items %}
+          {% set gr_name = grant_recipient_name_by_external_id.get(item.external_id, item.external_id) %}
+          {%
+            set row = [
+              {"text": item.external_id},
+              {"text": gr_name}
+            ]
+          %}
+          {% for slug, col_schema in data_source.schema.items() %}
+            {% do row.append({"html": render_data_cell(item.data.get(slug), col_schema, format_thousands, enum)}) %}
+          {% endfor %}
+          {% do rows.append(row) %}
+        {% endfor %}
+        {{ govukTable({"head": head, "rows": rows}) }}
+      {% elif data_source.type == enum.data_source_type_enum.PROJECT_LEVEL %}
+        {%
+          set head = [
+            {"text": "External ID"},
+            {"text": "Grant recipient"}
+          ]
+        %}
+        {% for slug, col_schema in data_source.schema.items() %}
+          {% do head.append({"text": col_schema.get("original_column_name", slug)}) %}
+        {% endfor %}
+
+        {% set rows = [] %}
+        {% for item in data_source.organisation_items %}
+          {% set gr_name = grant_recipient_name_by_external_id.get(item.external_id, item.external_id) %}
+          {% for blob in item.data %}
+            {%
+              set row = [
+                {"text": item.external_id},
+                {"text": gr_name}
+              ]
+            %}
+            {% for slug, col_schema in data_source.schema.items() %}
+              {% do row.append({"html": render_data_cell(blob.get(slug), col_schema, format_thousands, enum)}) %}
+            {% endfor %}
+            {% do rows.append(row) %}
+          {% endfor %}
+        {% endfor %}
+        {{ govukTable({"head": head, "rows": rows}) }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

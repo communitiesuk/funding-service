@@ -1,21 +1,25 @@
+import csv
+import io
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
 from flask import current_app
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileAllowed, FileField, FileRequired, FileSize
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovCheckboxesInput,
     GovCheckboxInput,
+    GovFileInput,
     GovRadioInput,
     GovSelect,
     GovSubmitInput,
     GovTextArea,
     GovTextInput,
 )
-from wtforms import Field, HiddenField, IntegerField, SelectField, SelectMultipleField
+from wtforms import Field, FieldList, FormField, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional, Regexp, ValidationError
@@ -28,6 +32,7 @@ from app.common.data.interfaces.grants import grant_code_exists, grant_name_exis
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
+    DataSourceType,
     FileUploadTypes,
     GroupDisplayOptions,
     MaximumFileSize,
@@ -41,6 +46,7 @@ from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
+from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
     from app.common.data.models import Component, Form, GrantRecipient, Group, Question
@@ -861,3 +867,222 @@ class CollectionSettingsSelectQuestionForm(FlaskForm):
         self.question.choices = [("", "")] + [  # type: ignore[assignment]
             (str(question.id), interpolate(question.text)) for question in form.cached_questions
         ]
+
+
+class UploadDataSetForm(FlaskForm):
+    name = StringField(
+        "Data set name",
+        widget=GovTextInput(),
+        validators=[DataRequired("Enter the name for this data set")],
+    )
+
+    data_source_type = RadioField(
+        "Is this grant recipient level data?",
+        widget=GovRadioInput(),
+        choices=[
+            (DataSourceType.GRANT_RECIPIENT, "Yes, with one row for each grant recipient"),
+            (DataSourceType.PROJECT_LEVEL, "Yes, with more than one row for grant recipients"),
+            (DataSourceType.STATIC, "No"),
+        ],
+    )
+
+    file = FileField(
+        "Upload a file",
+        widget=GovFileInput(),
+        validators=[
+            FileRequired("Select a file"),
+            FileAllowed(["csv"], "The file must be a CSV"),
+            FileSize(max_size=10485760, message="The file must be smaller than 10MB"),
+        ],
+    )
+
+    submit = SubmitField("Continue and map columns", widget=GovSubmitInput())
+
+    def validate_file(self, field: Field) -> None:
+        if not field.data or not hasattr(field.data, "stream"):
+            return
+
+        field.data.stream.seek(0)
+        try:
+            content = field.data.stream.read().decode("utf-8-sig")
+            reader = csv.DictReader(io.StringIO(content))
+            fieldnames = reader.fieldnames or []
+
+            if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
+                raise ValidationError("The CSV file must have at least one column")
+
+            if self.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
+                missing = []
+                if "ONS code" not in fieldnames:
+                    missing.append("ONS code")
+                if "Grant recipient" not in fieldnames:
+                    missing.append("Grant recipient")
+                if missing:
+                    raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
+
+            row_count = sum(1 for _ in reader)
+            if row_count > 10000:
+                raise ValidationError("The file must contain no more than 10,000 rows")
+        finally:
+            field.data.stream.seek(0)
+
+
+class ColumnDataTypeMappingForm(FlaskForm):
+    # Our template sets the CSRF token for the main MapDataSetColumnsForm, which includes any number of these mini forms
+    # for the individual column select fields. We need to set csrf=False for the mini forms so the POST requests don't
+    # expect a CSRF for every single one, just the main form.
+    class Meta:
+        csrf = False
+
+    column_name = HiddenField()
+    data_type = SelectField(
+        "Data type",
+        choices=[
+            ("", "Select data type"),
+            ("TEXT", "Text"),
+            ("INTEGER", "Whole number"),
+            ("DECIMAL", "Decimal number"),
+        ],
+        validators=[],
+        widget=GovSelect(),
+    )
+
+    def validate_data_type(self, field: Field) -> None:
+        if not field.data or field.data == "":
+            column = self.column_name.data or "this column"
+            raise ValidationError(f"Select a data type for {column}")
+
+
+class MapDataSetColumnsForm(FlaskForm):
+    columns = FieldList(FormField(ColumnDataTypeMappingForm))
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, data_columns: list[str], **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.data_columns = data_columns
+
+        # Column name is a hidden field so would be lost on POST but we need them to give nice error messages so need to
+        # make sure they persist
+        for idx, col in enumerate(data_columns):
+            if idx < len(self.columns.entries):
+                self.columns.entries[idx].form.column_name.data = col
+            else:
+                entry = self.columns.append_entry()
+                entry.form.column_name.data = col
+
+    def get_column_mappings(self) -> list[DataSetColumnMapping]:
+        mappings = []
+        for idx, column in enumerate(self.data_columns):
+            selected_value = self.columns.entries[idx].form.data_type.data
+            match selected_value:
+                case "TEXT":
+                    mapping = DataSetColumnMapping(
+                        column_name=column,
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                    )
+                case "INTEGER":
+                    mapping = DataSetColumnMapping(
+                        column_name=column,
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.INTEGER,
+                    )
+                case "DECIMAL":
+                    mapping = DataSetColumnMapping(
+                        column_name=column,
+                        data_type=QuestionDataType.NUMBER,
+                        number_type=NumberTypeEnum.DECIMAL,
+                    )
+                case _:
+                    mapping = DataSetColumnMapping(
+                        column_name=column,
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                    )
+            mappings.append(mapping)
+        return mappings
+
+    def has_numerical_columns(self) -> bool:
+        return any(entry.form.data_type.data in ["DECIMAL", "INTEGER"] for entry in self.columns.entries)
+
+    def get_numerical_columns(self) -> list[str]:
+        return [
+            column
+            for idx, column in enumerate(self.data_columns)
+            if self.columns.entries[idx].form.data_type.data in ["DECIMAL", "INTEGER"]
+        ]
+
+
+class NumberColumnOptionsForm(FlaskForm):
+    class Meta:
+        csrf = False
+
+    column_name = HiddenField()
+    number_type = HiddenField()
+    prefix = StringField(
+        "Prefix (optional)",
+        widget=GovTextInput(),
+        validators=[Optional()],
+        filters=[strip_string_if_not_empty, empty_string_to_none],
+    )
+    suffix = StringField(
+        "Suffix (optional)",
+        widget=GovTextInput(),
+        validators=[Optional()],
+        filters=[strip_string_if_not_empty, empty_string_to_none],
+    )
+    max_decimal_places = IntegerField(
+        "Decimal places",
+        widget=GovTextInput(),
+        validators=[],
+    )
+
+    def validate_prefix(self, field: Field) -> None:
+        if self.prefix.data and self.suffix.data:
+            raise ValidationError("Remove the suffix if you need a prefix")
+
+    def validate_suffix(self, field: Field) -> None:
+        if self.prefix.data and self.suffix.data:
+            raise ValidationError("Remove the prefix if you need a suffix")
+
+    def update_validators(self) -> None:
+        if self.number_type.data == NumberTypeEnum.DECIMAL:
+            self.max_decimal_places.validators = [DataRequired("Enter the maximum number of decimal places")]
+        else:
+            self.max_decimal_places.validators = [Optional()]
+
+    def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+        self.update_validators()
+        return super().validate(extra_validators=extra_validators)
+
+
+class NumberColumnFormattingOptions(TypedDict):
+    prefix: str | None
+    suffix: str | None
+    max_decimal_places: int | None
+
+
+class MapNumberColumnsForm(FlaskForm):
+    columns = FieldList(FormField(NumberColumnOptionsForm))
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, numerical_columns: list[DataSetColumnMapping], **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.numerical_columns = numerical_columns
+        for idx, col in enumerate(numerical_columns):
+            if idx < len(self.columns.entries):
+                self.columns.entries[idx].form.column_name.data = col.column_name
+                self.columns.entries[idx].form.number_type.data = col.number_type
+            else:
+                entry = self.columns.append_entry()
+                entry.form.column_name.data = col.column_name
+                entry.form.number_type.data = col.number_type
+
+    def get_number_column_formatting_options_mappings(self) -> dict[str, NumberColumnFormattingOptions]:
+        settings = {}
+        for idx, col in enumerate(self.numerical_columns):
+            entry = self.columns.entries[idx].form
+            settings[col.column_name] = NumberColumnFormattingOptions(
+                prefix=entry.prefix.data,
+                suffix=entry.suffix.data,
+                max_decimal_places=int(entry.max_decimal_places.data) if entry.max_decimal_places.data else None,
+            )
+        return settings

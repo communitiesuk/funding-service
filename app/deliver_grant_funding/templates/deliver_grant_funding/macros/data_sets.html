@@ -1,0 +1,19 @@
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{#
+  Render a single data cell for the view data set table, handling missing data and number formatting.
+  col_schema is a dict from data_source.schema.
+  value is the stored value (str, int or None/empty).
+#}
+{% macro render_data_cell(value, col_schema, format_thousands, enum) %}
+  {% if value is none or value == "" %}
+    {{ govukTag({"text": "Data missing", "classes": "govuk-tag govuk-tag--yellow"}) }}
+  {% elif col_schema.get("data_type") == enum.question_type.NUMBER %}
+    {% set presentation = col_schema.get("presentation_options") %}
+    {% set prefix = presentation.prefix if presentation else "" %}
+    {% set suffix = presentation.suffix if presentation else "" %}
+    {{ prefix ~ format_thousands(value) ~ suffix }}
+  {% else -%}
+    {{ value }}
+  {% endif %}
+{% endmacro %}

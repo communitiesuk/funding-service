@@ -642,6 +642,8 @@ class AnyOf(BaseDataSourceManagedExpression):
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> AnyOf:
+        assert question.data_source is not None
+
         item_labels = {choice.key: choice.label for choice in question.data_source.items}
 
         items = [TRadioItem(key=key, label=item_labels[key]) for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
@@ -774,6 +776,8 @@ class Specifically(BaseDataSourceManagedExpression):
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> Specifically:
+        assert question.data_source is not None
+
         item_labels = {item.key: item.label for item in question.data_source.items}
         selected_key = form.specifically.data  # ty: ignore[unresolved-attribute]
         item: TRadioItem = {"key": selected_key, "label": item_labels[selected_key]}

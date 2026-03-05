@@ -37,6 +37,7 @@ from app.common.data.models import (
     Collection,
     DataSource,
     DataSourceItem,
+    DataSourceOrganisationItem,
     Expression,
     Form,
     Grant,
@@ -53,6 +54,7 @@ from app.common.data.types import (
     AuditEventType,
     CollectionType,
     ConditionsOperator,
+    DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
@@ -770,6 +772,20 @@ class _FormFactory(SQLAlchemyModelFactory):
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)
 
 
+class _DataSourceOrganisationItemFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = DataSourceOrganisationItem
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+
+    data = factory.LazyFunction(dict)
+    external_id = factory.LazyFunction(_required)
+    data_source_id = factory.LazyAttribute(lambda o: o.data_source.id)
+    data_source = None
+
+
 class _DataSourceItemFactory(SQLAlchemyModelFactory):
     class Meta:
         model = DataSourceItem
@@ -790,10 +806,30 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
 
+    id = factory.LazyFunction(uuid4)
+    type = DataSourceType.CUSTOM
+    name = None
+    schema = None
     items = factory.RelatedFactoryList(_DataSourceItemFactory, size=3, factory_related_name="data_source")
+    # No organisation items are created by default - tests which need them should create them explicitly and set the
+    # items size to 0
+    organisation_items = factory.RelatedFactoryList(
+        _DataSourceOrganisationItemFactory,
+        size=0,
+        factory_related_name="data_source",
+    )
 
-    question = None
-    question_id = factory.LazyAttribute(lambda o: o.question.id if o.question else None)
+    grant = None
+    grant_id = factory.LazyAttribute(lambda o: o.grant.id if o.grant else None)
+
+    collection = None
+    collection_id = factory.LazyAttribute(lambda o: o.collection.id if o.collection else None)
+
+    created_by = None
+    created_by_id = factory.LazyAttribute(lambda o: o.created_by.id if o.created_by else None)
+
+    updated_by = None
+    updated_by_id = factory.LazyAttribute(lambda o: o.updated_by.id if o.updated_by else None)
 
 
 class _QuestionFactory(SQLAlchemyModelFactory):
@@ -825,9 +861,10 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     )
     data_source = factory.Maybe(
         "needs_data_source",
-        yes_declaration=factory.RelatedFactory(_DataSourceFactory, factory_related_name="question"),
+        yes_declaration=factory.SubFactory(_DataSourceFactory),
         no_declaration=None,
     )
+    data_source_id = factory.LazyAttribute(lambda o: o.data_source.id if o.data_source else None)
     parent = None
     parent_id = factory.LazyAttribute(lambda o: o.parent.id if o.parent else None)
 
