@@ -2513,8 +2513,10 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-columns", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
 def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session()
     if not data_set_data:
@@ -2558,12 +2560,26 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 )
             )
         else:
-            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash here
+            data_source = create_uploaded_data_source(
+                name=data_set_data.name,
+                data_source_type=data_set_data.data_source_type,
+                grant_id=grant_id,
+                collection_id=report.id,
+                column_mappings=data_set_data.column_mappings,
+                all_rows=data_set_data.all_rows,
+                user=user,
+            )
+            data_source_url = url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant_id,
+                report_id=report_id,
+                data_source_id=data_source.id,
+            )
+            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
             flash(
                 f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
-                + "<a href='#'>View data set</a>"
+                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
             )
-            # TODO: Add db saving logic
             return redirect(
                 url_for(
                     "deliver_grant_funding.list_report_data_sets",
@@ -2585,8 +2601,10 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-number-columns", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
 def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session()
     if not data_set_data:
@@ -2622,12 +2640,26 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
                 url_for("deliver_grant_funding.check_data_set_errors", grant_id=grant_id, report_id=report_id)
             )
         else:
+            data_source = create_uploaded_data_source(
+                name=data_set_data.name,
+                data_source_type=data_set_data.data_source_type,
+                grant_id=grant_id,
+                collection_id=report.id,
+                column_mappings=data_set_data.column_mappings,
+                all_rows=data_set_data.all_rows,
+                user=user,
+            )
+            data_source_url = url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant_id,
+                report_id=report_id,
+                data_source_id=data_source.id,
+            )
             # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
             flash(
                 f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
-                + "<a href='#'>View data set</a>"
+                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
             )
-            # TODO: Add db saving logic
             return redirect(
                 url_for(
                     "deliver_grant_funding.list_report_data_sets",
@@ -2663,12 +2695,7 @@ def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
     form = GenericSubmitForm()
 
     if form.validate_on_submit() and not validation_result.has_blocking_errors:
-        # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
-        flash(
-            f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
-            + "<a href='{#}'>View data set</a>"
-        )
-        create_uploaded_data_source(
+        data_source = create_uploaded_data_source(
             name=data_set_data.name,
             data_source_type=data_set_data.data_source_type,
             grant_id=grant_id,
@@ -2676,6 +2703,17 @@ def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
             column_mappings=data_set_data.column_mappings,
             all_rows=data_set_data.all_rows,
             user=user,
+        )
+        data_source_url = url_for(
+            "deliver_grant_funding.view_data_source",
+            grant_id=grant_id,
+            report_id=report_id,
+            data_source_id=data_source.id,
+        )
+        # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
+        flash(
+            f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+            + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
         )
         return redirect(
             url_for(
