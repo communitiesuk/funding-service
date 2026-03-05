@@ -56,3 +56,8 @@ down:
 .PHONY: clean-down
 clean-down:
 	docker compose down --remove-orphans --rmi all --volumes
+
+.PHONY: clean-db
+clean-db:
+	docker compose down
+	docker volume rm funding-service_postgres_data
