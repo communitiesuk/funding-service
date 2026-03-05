@@ -16,8 +16,9 @@
     <div class="govuk-grid-column-two-thirds">
       {% with flashes = get_flashed_messages() %}
         {% if flashes %}
+          {% set action = "deleted" if "deleted" in flashes[0] else "uploaded" %}
           {% set user_add_success_message %}
-            <h3 class="govuk-notification-banner__heading">Data set uploaded</h3>
+            <h3 class="govuk-notification-banner__heading">Data set {{ action }}</h3>
             <p class="govuk-body">{{ flashes[0]| safe }}</p>
           {% endset %}
           {{

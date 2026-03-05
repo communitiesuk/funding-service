@@ -7094,8 +7094,17 @@ class TestMapDataSetColumns:
             url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id)
         )
 
-    def test_post_redirects_to_list_with_success_flash(self, authenticated_grant_admin_client, factories):
+    def test_post_no_errors_creates_datasource_and_redirects(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+        )
+
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
@@ -7106,7 +7115,18 @@ class TestMapDataSetColumns:
                     {"Area description": "A fine place"},
                     {"Area description": "A wonderful place"},
                 ],
-                all_rows=[],
+                all_rows=[
+                    {
+                        "Grant recipient": grant_recipient.organisation.name,
+                        "ONS code": grant_recipient.organisation.external_id,
+                        "Area description": "A fine place",
+                    },
+                    {
+                        "Grant recipient": grant_recipient_2.organisation.name,
+                        "ONS code": grant_recipient_2.organisation.external_id,
+                        "Area description": "A wonderful place",
+                    },
+                ],
             ).model_dump(mode="json")
 
         data = {
@@ -7124,7 +7144,11 @@ class TestMapDataSetColumns:
             soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
         )
 
-    def test_post_redirects_to_data_set_errors(self, authenticated_grant_admin_client, factories):
+        assert authenticated_grant_admin_client.user.name in soup.text
+        assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
+
+    def test_post_with_errors_redirects_to_data_set_errors(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
@@ -7294,8 +7318,16 @@ class TestMapDataSetNumberColumns:
         assert soup.find("input", {"name": "columns-0-max_decimal_places"})["value"] == "2"
         assert soup.find("input", {"name": "columns-1-suffix"})["value"] == "km"
 
-    def test_post_updates_session_and_redirects(self, authenticated_grant_admin_client, factories):
+    def test_post_no_errors_creates_datasource_and_redirects(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+        )
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
@@ -7322,15 +7354,30 @@ class TestMapDataSetNumberColumns:
                         data_type=QuestionDataType.TEXT_SINGLE_LINE,
                     ),
                 ],
-                all_rows=[],
+                all_rows=[
+                    {
+                        "Grant recipient": grant_recipient.organisation.name,
+                        "ONS code": grant_recipient.organisation.external_id,
+                        "Capital allocation": "£1000",
+                        "Revenue allocation": "£10000",
+                        "Additional info": "Some text",
+                    },
+                    {
+                        "Grant recipient": grant_recipient_2.organisation.name,
+                        "ONS code": grant_recipient_2.organisation.external_id,
+                        "Capital allocation": "£2000",
+                        "Revenue allocation": "£30000",
+                        "Additional info": "Some text",
+                    },
+                ],
             ).model_dump(mode="json")
 
         data = {
             "columns-0-prefix": "£",
             "columns-0-suffix": "",
             "columns-0-max_decimal_places": "2",
-            "columns-1-prefix": "",
-            "columns-1-suffix": "km",
+            "columns-1-prefix": "£",
+            "columns-1-suffix": "",
             "submit": "y",
         }
 
@@ -7345,6 +7392,9 @@ class TestMapDataSetNumberColumns:
         assert page_has_flash(
             soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
         )
+        assert authenticated_grant_admin_client.user.name in soup.text
+        assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
 
         with authenticated_grant_admin_client.session_transaction() as updated_session:
             session_data = DataSetUploadSessionModel.from_session(updated_session["data_set_upload"])
@@ -7353,7 +7403,7 @@ class TestMapDataSetNumberColumns:
 
             assert capital.prefix == "£"
             assert capital.max_decimal_places == 2
-            assert revenue.suffix == "km"
+            assert revenue.prefix == "£"
             assert revenue.max_decimal_places is None
 
     def test_post_redirects_to_data_set_errors(self, authenticated_grant_admin_client, factories):
