@@ -92,7 +92,7 @@ services:
           - sso.communities.gov.localhost
 
   localstack:
-    image: localstack/localstack:4.14.0 # Community edition 2026-02-26
+    image: localstack/localstack:4.14.0@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a # Community edition 2026-02-26
     env_file: .awslocal.env
     environment:
       - SERVICES=s3
