@@ -876,7 +876,10 @@ class Expression(BaseModel):
             "type",
             "question_id",
             "managed_name",
-            postgresql_where=f"type = '{ExpressionType.VALIDATION.value}'::expression_type_enum",
+            postgresql_where=(
+                f"type = '{ExpressionType.VALIDATION.value}'::expression_type_enum AND managed_name IS NOT NULL "
+                f"AND managed_name != '{ManagedExpressionsEnum.CUSTOM.value}'::managed_expression_enum"
+            ),
             unique=True,
         ),
         Index(
@@ -885,7 +888,10 @@ class Expression(BaseModel):
             "question_id",
             "managed_name",
             text("(context ->> 'question_id')"),
-            postgresql_where=f"type = '{ExpressionType.CONDITION.value}'::expression_type_enum",
+            postgresql_where=(
+                f"type = '{ExpressionType.CONDITION.value}'::expression_type_enum AND managed_name IS NOT NULL "
+                f"AND managed_name != '{ManagedExpressionsEnum.CUSTOM.value}'::managed_expression_enum"
+            ),
             unique=True,
         ),
     )
