@@ -1397,29 +1397,11 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
     if not expression.is_managed:
         raise ValueError("Cannot handle un-managed expressions yet")
 
-    # TODO deal with custom
-    managed = expression.managed
-    if isinstance(managed, BaseDataSourceManagedExpression):
-        referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
-            managed_expression=managed
-        )
-
-        # TODO: Support data sources that are independent of components(questions), eg when we have platform-level
-        #       data sources.
-        for referenced_data_source_item in referenced_data_source_items:
-            cr = ComponentReference(
-                component=expression.question,
-                expression=expression,
-                depends_on_component=referenced_data_source_item.data_source.question,
-                depends_on_data_source_item=referenced_data_source_item,
-            )
-            db.session.add(cr)
-            references.append(cr)
-        referenced_question_ids = managed.expression_referenced_question_ids
-    elif isinstance(managed, Custom):
+    actual_expression = expression.expresion_impl
+    if expression.is_custom:
         custom_references = _find_and_validate_references(
             component=expression.question,
-            value=managed.custom_expression,
+            value=actual_expression.custom_expression,
             expression_context=expression_context,
             field_name="custom expression",
             allow_reference_to_self=True,
@@ -1427,39 +1409,59 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
         custom_references.update(
             _find_and_validate_references(
                 component=expression.question,
-                value=managed.custom_message,
+                value=actual_expression.custom_message,
                 expression_context=expression_context,
                 field_name="custom message",
                 allow_reference_to_self=False,
             )
         )
-        referenced_question_ids = set([ref for c, ref in expression_references])
-        # TODO get references from custom message as well
+        referenced_question_ids = set([ref for c, ref in custom_references])
     else:
-        # Creates a reference from the expression's question to itself so that we can't delete a question with an
-        # expression without deleting the expression first
-        cr = ComponentReference(
-            depends_on_component=expression.managed.referenced_question,
-            component=expression.question,
-            expression=expression,
-        )
-        db.session.add(cr)
-        references.append(cr)
-        referenced_question_ids = managed.expression_referenced_question_ids
+        managed = expression.managed
+        if isinstance(managed, BaseDataSourceManagedExpression):
+            referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
+                managed_expression=managed
+            )
+
+            # TODO: Support data sources that are independent of components(questions), eg when we have platform-level
+            #       data sources.
+            for referenced_data_source_item in referenced_data_source_items:
+                cr = ComponentReference(
+                    component=expression.question,
+                    expression=expression,
+                    depends_on_component=referenced_data_source_item.data_source.question,
+                    depends_on_data_source_item=referenced_data_source_item,
+                )
+                db.session.add(cr)
+                references.append(cr)
+            referenced_question_ids = managed.expression_referenced_question_ids
+        else:
+            # Creates a reference from the expression's question to itself so that we can't delete a question with an
+            # expression without deleting the expression first
+            cr = ComponentReference(
+                depends_on_component=expression.managed.referenced_question,
+                component=expression.question,
+                expression=expression,
+            )
+            db.session.add(cr)
+            references.append(cr)
+            referenced_question_ids = managed.expression_referenced_question_ids
 
     for referenced_question_id in set(referenced_question_ids):
         referenced_question = get_question_by_id(referenced_question_id)
 
         if not is_component_dependency_order_valid(
-            managed.referenced_question, referenced_question, allow_reference_to_self=isinstance(managed, Custom)
+            actual_expression.referenced_question,
+            referenced_question,
+            allow_reference_to_self=isinstance(managed, Custom),
         ):
             raise DependencyOrderException(
                 "Cannot add a managed expression that references a later question",
-                managed.referenced_question,
+                actual_expression.referenced_question,
                 referenced_question,
             )
 
-        if referenced_question.data_type != managed.referenced_question.data_type:
+        if referenced_question.data_type != actual_expression.referenced_question.data_type:
             raise IncompatibleDataTypeException(
                 "Expression cannot reference question of incompatible data type",
                 managed.referenced_question,
@@ -1467,11 +1469,11 @@ def _validate_and_sync_expression_references(expression: Expression, expression_
             )
 
         if referenced_question.add_another_container and not questions_in_same_add_another_container(
-            managed.referenced_question, referenced_question
+            actual_expression.referenced_question, referenced_question
         ):
             raise AddAnotherDependencyException(
                 "Cannot add managed condition that depends on an add another question",
-                managed.referenced_question,
+                actual_expression.referenced_question,
                 referenced_question,
             )
 
