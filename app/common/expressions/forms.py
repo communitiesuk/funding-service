@@ -1,9 +1,10 @@
+import abc
 from typing import TYPE_CHECKING, Any
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea
 from markupsafe import Markup
-from wtforms import RadioField, SubmitField
+from wtforms import RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired
 
 from app.common.data.models import Expression, Question
@@ -18,27 +19,10 @@ if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
 
 
-class _ManagedExpressionForm(FlaskForm):
-    _managed_expressions: list[type[ManagedExpression]]
-    _referenced_question: Question
-    type: RadioField
-
-    def get_managed_expression_radio_conditional_items(self) -> list[dict[str, dict[str, Markup]]]:
-        items = []
-        for _managed_expression in self._managed_expressions:
-            # format the radio items for `govuk-frontend-wtf` macro syntax
-            items.append(
-                {
-                    "conditional": {
-                        "html": _managed_expression.concatenate_all_wtf_fields_html(
-                            self, referenced_question=self._referenced_question
-                        )
-                    }
-                }
-            )
-        return items
-
-    def is_submitted_to_add_context(self) -> bool:
+class ContextAwareAbstractExpressionForm(FlaskForm):
+    def is_submitted_to_add_context(
+        self,
+    ) -> bool:
         """Check if user clicked any managed expression Reference Data button"""
         add_context_field = self._fields.get("add_context")
         return bool(
@@ -47,6 +31,31 @@ class _ManagedExpressionForm(FlaskForm):
             and hasattr(add_context_field, "data")
             and add_context_field.data
         )
+
+    @abc.abstractmethod
+    def get_expression_form_data(self) -> dict[str, Any]: ...
+
+
+class _ManagedExpressionForm(ContextAwareAbstractExpressionForm):
+    _managed_expressions: list[type[ManagedExpression]]
+    _referenced_question: Question
+    type: RadioField
+
+    def get_managed_expression_radio_conditional_items(self) -> list[dict[str, dict[str, Markup]]]:
+        items = []
+        for _managed_expression in self._managed_expressions:
+            if _managed_expression.name != ManagedExpressionsEnum.CUSTOM.value:
+                # format the radio items for `govuk-frontend-wtf` macro syntax
+                items.append(
+                    {
+                        "conditional": {
+                            "html": _managed_expression.concatenate_all_wtf_fields_html(
+                                self, referenced_question=self._referenced_question
+                            )
+                        }
+                    }
+                )
+        return items
 
     def is_submitted_to_remove_context(self) -> bool:
         """Check if user clicked any managed expression Remove Data button"""
@@ -85,7 +94,9 @@ class _ManagedExpressionForm(FlaskForm):
 
 
 def build_managed_expression_form(  # noqa: C901
-    type_: ExpressionType, referenced_question: Question, expression: Expression | None = None
+    type_: ExpressionType,
+    referenced_question: Question,
+    expression: Expression | None = None,
 ) -> type[_ManagedExpressionForm] | None:
     """
     For a given question, generate a FlaskForm that will allow a user to select one of its managed expressions.
@@ -117,15 +128,18 @@ def build_managed_expression_form(  # noqa: C901
         _managed_expressions = managed_expressions
 
         type = RadioField(
-            choices=[(managed_expression.name, managed_expression.name) for managed_expression in managed_expressions],
+            choices=[
+                (managed_expression.name, managed_expression.name)
+                for managed_expression in managed_expressions
+                if managed_expression.name != ManagedExpressionsEnum.CUSTOM.value
+            ],
             default=expression.managed_name if expression else None,
             validators=[DataRequired(type_validation_message)],
             widget=GovRadioInput(),
         )
-
         submit = SubmitField("Add validation", widget=GovSubmitInput())
 
-    for managed_expression in managed_expressions:
+    for managed_expression in [me for me in managed_expressions if me.name != ManagedExpressionsEnum.CUSTOM.value]:
         pass_expression = expression and expression.managed_name == managed_expression.name
         for field_name, field in managed_expression.get_form_fields(
             expression=expression if pass_expression else None, referenced_question=referenced_question
@@ -133,3 +147,32 @@ def build_managed_expression_form(  # noqa: C901
             setattr(ManagedExpressionForm, field_name, field)
 
     return ManagedExpressionForm
+
+
+class CustomExpressionForm(ContextAwareAbstractExpressionForm):
+    custom_expression = StringField(
+        "Expression",
+        description="The user's answer will be checked against this expression and must be true for the user "
+        "to continue, you can include reference data.",
+        widget=GovTextArea(),
+        validators=[DataRequired()],
+    )
+    custom_message = StringField(
+        "Message",
+        description="Shown to the user if the answer is not valid",
+        widget=GovTextArea(),
+        validators=[DataRequired()],
+    )
+    add_context = StringField(
+        "Reference data",
+        widget=GovSubmitInput(),
+    )
+    submit = SubmitField("Add validation", widget=GovSubmitInput())
+
+    def get_expression_form_data(self) -> dict[str, Any]:
+        data = {
+            "custom_expression": self.custom_expression.data,
+            "custom_message": self.custom_message.data,
+            "add_context": self.add_context.data,
+        }
+        return data

@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
@@ -12,7 +12,9 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
+    DependencyOrderException,
     DuplicateValueError,
+    FlashableException,
     GrantMustBeLiveError,
     GrantRecipientUsersRequiredError,
     InvalidReferenceInExpression,
@@ -45,6 +47,7 @@ from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
     GrantStatusEnum,
+    ManagedExpressionsEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -53,7 +56,7 @@ from app.common.data.types import (
 )
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
-from app.common.expressions.managed import BaseDataSourceManagedExpression
+from app.common.expressions.managed import BaseDataSourceManagedExpression, Custom
 from app.common.forms.helpers import questions_in_same_add_another_container
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
 from app.common.qid import SafeQidMixin
@@ -788,33 +791,6 @@ def get_component_by_id(component_id: UUID) -> Component:
     return db.session.get_one(Component, component_id)
 
 
-class FlashableException(Protocol):
-    def as_flash_context(self) -> dict[str, str | bool]: ...
-
-
-class DependencyOrderException(Exception, FlashableException):
-    def __init__(self, message: str, component: Component, depends_on_component: Component):
-        super().__init__(message)
-        self.message = message
-        self.question = component
-        self.depends_on_question = depends_on_component
-
-    def as_flash_context(self) -> dict[str, str | bool]:
-        return {
-            "message": self.message,
-            "grant_id": str(self.question.form.collection.grant_id),  # Required for URL routing
-            "question_id": str(self.question.id),
-            "question_text": self.question.text,
-            "question_is_group": self.question.is_group,
-            # currently you can't depend on the outcome to a generic component (like a group)
-            # so question continues to make sense here - we should review that naming if that
-            # functionality changes
-            "depends_on_question_id": str(self.depends_on_question.id),
-            "depends_on_question_text": self.depends_on_question.text,
-            "depends_on_question_is_group": self.depends_on_question.is_group,
-        }
-
-
 class SectionDependencyOrderException(Exception, FlashableException):
     def __init__(self, message: str, form: Form, depends_on_form: Form):
         super().__init__(message)
@@ -834,11 +810,14 @@ class SectionDependencyOrderException(Exception, FlashableException):
 
 
 class IncompatibleDataTypeException(Exception):
-    def __init__(self, message: str, component: Component, depends_on_component: Component):
+    def __init__(
+        self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
+    ):
         super().__init__(message)
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
+        self.field_name = field_name
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -1030,7 +1009,9 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
 
 
 # todo: persisting global order (depth + order) of components would help short circuit a lot of these checks
-def is_component_dependency_order_valid(component: Component, depends_on_component: Component) -> bool:
+def is_component_dependency_order_valid(
+    component: Component, depends_on_component: Component, allow_reference_to_self: bool = False
+) -> bool:
     # fetching the entire schema means whatever is calling this doesn't have to worry about
     # guaranteeing lazy loading performance behaviour
     form = get_form_by_id(component.form_id, with_all_questions=True)
@@ -1042,6 +1023,8 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
     if not dependency_is_same_form:
         return False
 
+    if allow_reference_to_self:
+        return form.cached_all_components.index(component) >= form.cached_all_components.index(depends_on_component)
     return form.cached_all_components.index(component) > form.cached_all_components.index(depends_on_component)
 
 
@@ -1383,15 +1366,11 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
-def _validate_and_sync_expression_references(expression: Expression) -> None:
+def _validate_and_sync_expression_references(expression: Expression, expression_context: ExpressionContext) -> None:
     if not expression.is_managed:
         raise NotImplementedError("Cannot handle un-managed expressions yet")
 
-    # TODO: When an expression can target multiple questions, this will need refactoring to support that.
     references: list[ComponentReference] = []
-
-    if not expression.is_managed:
-        raise ValueError("Cannot handle un-managed expressions yet")
 
     managed = expression.managed
     if isinstance(managed, BaseDataSourceManagedExpression):
@@ -1399,7 +1378,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             managed_expression=managed
         )
 
-        # TODO: Support data sources that are independent of components(questions), eg when ee have platform-level
+        # TODO: Support data sources that are independent of components(questions), eg when we have platform-level
         #       data sources.
         for referenced_data_source_item in referenced_data_source_items:
             cr = ComponentReference(
@@ -1410,7 +1389,30 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             )
             db.session.add(cr)
             references.append(cr)
+        referenced_question_ids = managed.expression_referenced_question_ids
+    elif isinstance(managed, Custom):
+        custom_references = _find_and_validate_references(
+            component=expression.question,
+            value=managed.custom_expression,
+            expression_context=expression_context,
+            field_name="custom_expression",
+            allow_reference_to_self=True,
+            is_custom_expression=True,
+        )
+        custom_references = set(custom_references)
+        custom_references.update(
+            _find_and_validate_references(
+                component=expression.question,
+                value=managed.custom_message,
+                expression_context=expression_context,
+                field_name="custom_message",
+                allow_reference_to_self=False,
+            )
+        )
+        referenced_question_ids = [ref for c, ref in custom_references]
     else:
+        # Creates a reference from the expression's question to itself so that we can't delete a question with an
+        # expression without deleting the expression first
         cr = ComponentReference(
             depends_on_component=expression.managed.referenced_question,
             component=expression.question,
@@ -1418,11 +1420,14 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
         )
         db.session.add(cr)
         references.append(cr)
+        referenced_question_ids = managed.expression_referenced_question_ids
 
-    for referenced_question_id in managed.expression_referenced_question_ids:
+    for referenced_question_id in set(referenced_question_ids):
         referenced_question = get_question_by_id(referenced_question_id)
 
-        if not is_component_dependency_order_valid(managed.referenced_question, referenced_question):
+        if not is_component_dependency_order_valid(
+            managed.referenced_question, referenced_question, allow_reference_to_self=isinstance(managed, Custom)
+        ):
             raise DependencyOrderException(
                 "Cannot add a managed expression that references a later question",
                 managed.referenced_question,
@@ -1456,6 +1461,87 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
     expression.component_references = references
 
 
+def _validate_dependent_question_data_type_for_expression(
+    target_expression_name: ManagedExpressionsEnum, data_type_a: QuestionDataType, data_type_b: QuestionDataType
+) -> bool:
+    match target_expression_name:
+        case ManagedExpressionsEnum.CUSTOM:
+            return data_type_a == data_type_b
+
+        case _:
+            return True
+
+
+def _find_and_validate_references(
+    component: Component,
+    value: str,
+    expression_context: ExpressionContext,
+    field_name: str,
+    allow_reference_to_self: bool = False,
+    is_custom_expression: bool = False,
+    include_duplicates: bool = False,
+) -> set[tuple[UUID, UUID]] | list[tuple[UUID, UUID]]:
+    references_to_set_up: list[tuple[UUID, UUID]] = list()
+    for match in INTERPOLATE_REGEX.finditer(value):
+        wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
+
+        if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
+            raise InvalidReferenceInExpression(
+                f"Reference is not valid: {wrapped_ref}",
+                field_name=field_name,
+                bad_reference=wrapped_ref,
+            )
+
+        # TODO: When we allow complex references (eg not just a single reference but some combination of references
+        #       such as `q_id1 + q_id2`) then this logic will need to handle that.
+        if not expression_context.is_valid_reference(inner_ref):
+            raise InvalidReferenceInExpression(
+                f"Reference is not valid: {wrapped_ref}",
+                field_name=field_name,
+                bad_reference=wrapped_ref,
+            )
+
+        # If `is_valid_reference` above is True, then we know that we have a QID that points to a question in the
+        # same collection - but not necessarily the same form or the right data type
+        if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
+            question = db.session.get_one(Question, question_id)
+
+            if is_custom_expression and (
+                not component.data_type
+                or not _validate_dependent_question_data_type_for_expression(
+                    ManagedExpressionsEnum.CUSTOM, component.data_type, question.data_type
+                )
+            ):
+                raise IncompatibleDataTypeException(
+                    f"Reference is not valid due to incompatible data types: {wrapped_ref}",
+                    component=component,
+                    depends_on_component=question,
+                    field_name=field_name,
+                )
+
+            if not is_component_dependency_order_valid(component, question, allow_reference_to_self):
+                raise DependencyOrderException(
+                    f"Reference is not valid: {wrapped_ref}", component=component, depends_on_component=question
+                )
+
+                if (
+                    question.parent
+                    and component.parent
+                    and question.parent.is_group
+                    and component.parent.is_group
+                    and question.parent.id == component.parent.id
+                ):
+                    if question.parent.same_page:
+                        raise InvalidReferenceInExpression(
+                            f"Reference is not valid: {wrapped_ref}",
+                            field_name=field_name,
+                            bad_reference=wrapped_ref,
+                        )
+
+            references_to_set_up.append((component.id, question.id))
+    return references_to_set_up if include_duplicates else set(references_to_set_up)
+
+
 def _validate_and_sync_component_references(component: Component, expression_context: ExpressionContext) -> None:  # noqa: C901
     """Scan the given component for references to another component in its text, hint, and guidance.
 
@@ -1471,7 +1557,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
     db.session.execute(delete(ComponentReference).where(ComponentReference.component == component))
 
     for expression in component.expressions:
-        _validate_and_sync_expression_references(expression)
+        _validate_and_sync_expression_references(expression, expression_context)
 
     references_to_set_up: set[tuple[UUID, UUID]] = set()
     field_names = ["text", "hint", "guidance_body", "add_another_guidance_body"]
@@ -1480,58 +1566,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
         if value is None:
             continue
 
-        for match in INTERPOLATE_REGEX.finditer(value):
-            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
-
-            if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
-                raise InvalidReferenceInExpression(
-                    f"Reference is not valid: {wrapped_ref}",
-                    field_name=field_name,
-                    bad_reference=wrapped_ref,
-                )
-
-            # TODO: When we allow complex references (eg not just a single reference but some combination of references
-            #       such as `q_id1 + q_id2`) then this logic will need to handle that.
-            if not expression_context.is_valid_reference(inner_ref):
-                raise InvalidReferenceInExpression(
-                    f"Reference is not valid: {wrapped_ref}",
-                    field_name=field_name,
-                    bad_reference=wrapped_ref,
-                )
-
-            # If `is_valid_reference` above is True, then we know that we have a QID that points to a question in the
-            # same collection - but not necessarily the same form.
-            if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
-                question = db.session.get_one(Question, question_id)
-                if question.form.order > component.form.order:
-                    raise InvalidReferenceInExpression(
-                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
-                    )
-
-                if question.form_id == component.form_id:
-                    # Prevent manually injecting a reference to a question that appears later in the same form
-                    if question.form.global_component_index(question) >= question.form.global_component_index(
-                        component
-                    ):
-                        raise InvalidReferenceInExpression(
-                            f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
-                        )
-
-                    if (
-                        question.parent
-                        and component.parent
-                        and question.parent.is_group
-                        and component.parent.is_group
-                        and question.parent.id == component.parent.id
-                    ):
-                        if question.parent.same_page:
-                            raise InvalidReferenceInExpression(
-                                f"Reference is not valid: {wrapped_ref}",
-                                field_name=field_name,
-                                bad_reference=wrapped_ref,
-                            )
-
-                references_to_set_up.add((component.id, question.id))
+        references_to_set_up.update(_find_and_validate_references(component, value, expression_context, field_name))
 
     for component_id, depends_on_component_id in references_to_set_up:
         db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))
@@ -1558,7 +1593,9 @@ def add_component_condition(component: Component, user: User, managed_expression
     expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
     component.expressions.append(expression)
 
-    _validate_and_sync_expression_references(expression)
+    _validate_and_sync_expression_references(
+        expression, ExpressionContext.build_expression_context(component.form.collection, "interpolation", component)
+    )
 
     if component.parent and component.parent.same_page:
         raise_if_group_questions_depend_on_each_other(component.parent)
@@ -1570,7 +1607,9 @@ def add_component_condition(component: Component, user: User, managed_expression
 def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
     expression = Expression.from_managed(managed_expression, ExpressionType.VALIDATION, user)
     question.expressions.append(expression)
-    _validate_and_sync_expression_references(expression)
+    _validate_and_sync_expression_references(
+        expression, ExpressionContext.build_expression_context(question.form.collection, "interpolation", question)
+    )
     return question
 
 
@@ -1590,7 +1629,12 @@ def update_question_expression(expression: Expression, managed_expression: Manag
     expression.context = managed_expression.model_dump(mode="json")
     expression.managed_name = managed_expression._key
 
-    _validate_and_sync_expression_references(expression)
+    _validate_and_sync_expression_references(
+        expression,
+        ExpressionContext.build_expression_context(
+            expression.question.form.collection, mode="interpolation", expression_context_end_point=expression.question
+        ),
+    )  # ExpressionContext(expression_context=expression.context))
     return expression
 
 

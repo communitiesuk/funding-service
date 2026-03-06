@@ -21,10 +21,10 @@ class TestInternalEvaluateExpressionWithContext:
     @pytest.mark.parametrize(
         "expression, expected_result",
         (
-            # ast.UnaryOp
-            (Expression(statement="not 1"), False),
             # ast.Expr / ast.Constant
             (Expression(statement="1"), 1),
+            # ast.UnaryOp
+            (Expression(statement="not 1"), False),
             # ast.Name
             (Expression(statement="variable", context={"variable": True}), True),
             # ast.BinOp
@@ -38,6 +38,7 @@ class TestInternalEvaluateExpressionWithContext:
             # ast.Compare
             (Expression(statement="10 > 1"), True),
             (Expression(statement="10 == 1"), False),
+            (Expression(statement="10 != 1"), True),
             (Expression(statement="10 <= 1"), False),
             (Expression(statement="True"), True),
             (Expression(statement="False"), False),
@@ -108,6 +109,8 @@ class TestInternalEvaluateExpressionWithContext:
             (Expression(statement="1 if True else 2")),  # ast.IfExp
             (Expression(statement="f'hi'")),  # ast.JoinedStr
             (Expression(statement="f'{var}'", context={"var": 1})),  # ast.JoinedStr
+            # No longer allowed when we restrict operators for custom expressions:
+            (Expression(statement="x&y", context={"x": 1, "y": 1})),  # Bitwise AND
         ),
     )
     def test_disallowed_expressions(self, expression):

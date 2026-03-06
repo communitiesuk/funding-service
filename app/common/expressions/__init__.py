@@ -3,7 +3,7 @@ import enum
 import re
 from collections import ChainMap
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Literal, cast, overload
 
 import simpleeval
 from markupsafe import Markup, escape
@@ -64,6 +64,7 @@ class ExpressionContext(ChainMap[str, Any]):
         PREVIOUS_SECTION = "A question in a previous section"
         PREVIOUS_COLLECTION = "A question in a previous collection"
         DATASET = "An uploaded dataset"
+        THIS_QUESTION = "This question"
 
     def __init__(
         self,
@@ -173,9 +174,8 @@ class ExpressionContext(ChainMap[str, Any]):
     ) -> ExpressionContext:
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
-        assert len(ExpressionContext.ContextSources) == 4, (
-            "When defining a new source of context for expressions, "
-            "update this method and the ContextSourceChoices enum"
+        assert len(ExpressionContext.ContextSources) == 5, (
+            "When defining a new source of context for expressions, update this method"
         )
 
         if submission_helper and submission_helper.collection.id != collection.id:
@@ -281,6 +281,41 @@ class ExpressionContext(ChainMap[str, Any]):
         return hash(id(self))
 
 
+def get_safe_evaluator(
+    names: Any, required_functions: dict[str, Callable[[Any], Any] | type[Any]]
+) -> simpleeval.SimpleEval:
+    evaluator = simpleeval.EvalWithCompoundTypes(
+        names=names,
+        functions=required_functions,
+    )  # type: ignore[no-untyped-call]
+
+    # restrict to a subset of binary operators so eg. & (bitwise and) is not allowed
+    for disallowed_op in [ast.RShift, ast.LShift, ast.BitXor, ast.BitOr, ast.BitAnd, ast.Invert, ast.Pow]:
+        evaluator.operators.pop(disallowed_op)
+
+    # Remove all nodes except those we explicitly allowlist
+    evaluator.nodes = {
+        ast_expr: ast_fn
+        for ast_expr, ast_fn in evaluator.nodes.items()  # ty: ignore[possibly-missing-attribute]
+        if ast_expr
+        in {
+            ast.UnaryOp,
+            ast.Expr,
+            ast.Name,
+            ast.BoolOp,
+            ast.Compare,
+            ast.Subscript,
+            ast.Attribute,
+            ast.Slice,
+            ast.Constant,
+            ast.Call,
+            ast.Set,
+            ast.BinOp,
+        }
+    }
+    return evaluator
+
+
 def _evaluate_expression_with_context(expression: Expression, context: ExpressionContext | None = None) -> Any:
     """
     The base evaluator to use for handling all expressions.
@@ -296,34 +331,13 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
         context = ExpressionContext()
     context.expression_context = expression.context or {}
 
-    evaluator = simpleeval.EvalWithCompoundTypes(names=context, functions=expression.required_functions)  # type: ignore[no-untyped-call]
-
-    # Remove all nodes except those we explicitly allowlist
-    evaluator.nodes = {
-        ast_expr: ast_fn
-        for ast_expr, ast_fn in evaluator.nodes.items()  # ty: ignore[possibly-missing-attribute]
-        if ast_expr
-        in {
-            ast.UnaryOp,
-            ast.Expr,
-            ast.Name,
-            ast.BinOp,
-            ast.BoolOp,
-            ast.Compare,
-            ast.Subscript,
-            ast.Attribute,
-            ast.Slice,
-            ast.Constant,
-            ast.Call,
-            ast.Set,
-        }
-    }
+    evaluator = get_safe_evaluator(context, expression.required_functions)
 
     try:
         result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message) from e
-    except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined) as e:
+    except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined, simpleeval.OperatorNotDefined) as e:
         raise DisallowedExpression("Expression is using unsafe/unsupported features") from e
 
     return result
