@@ -1393,6 +1393,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
     if not expression.is_managed:
         raise ValueError("Cannot handle un-managed expressions yet")
 
+    # TODO deal with custom
     managed = expression.managed
     if isinstance(managed, BaseDataSourceManagedExpression):
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(

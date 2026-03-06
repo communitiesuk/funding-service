@@ -41,13 +41,9 @@ if TYPE_CHECKING:
     from app.common.expressions.forms import _ManagedExpressionForm
 
 
-class ManagedExpression(BaseModel, SafeQidMixin):
+class AbstractExpression(BaseModel, SafeQidMixin):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
     name: ClassVar[ManagedExpressionsEnum]
-    supported_condition_data_types: ClassVar[set[QuestionDataType]]
-    supported_validator_data_types: ClassVar[set[QuestionDataType]]
-    managed_expression_form_template: ClassVar[str | None]
-
     _key: ManagedExpressionsEnum
     question_id: UUID
 
@@ -63,7 +59,6 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     @property
     @abc.abstractmethod
     def message(self) -> str: ...
-
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type]:
         """
@@ -94,6 +89,22 @@ class ManagedExpression(BaseModel, SafeQidMixin):
         #       questions only have one or two managed expressions but in the future we should probably
         #       optimise this to fetch the full schema once and then re-use that throughout these helpers
         return get_question_by_id(self.question_id)
+
+    @classmethod
+    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
+        data = {
+            k: v
+            for k, v in add_context_data.expression_form_data.items()
+            if k != "add_context" and k != "remove_context"
+        }
+
+        return data
+
+
+class ManagedExpression(AbstractExpression):
+    supported_condition_data_types: ClassVar[set[QuestionDataType]]
+    supported_validator_data_types: ClassVar[set[QuestionDataType]]
+    managed_expression_form_template: ClassVar[str | None]
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
@@ -202,16 +213,6 @@ class ManagedExpression(BaseModel, SafeQidMixin):
                 )
         """
         ...
-
-    @classmethod
-    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
-        data = {
-            k: v
-            for k, v in add_context_data.expression_form_data.items()
-            if k != "add_context" and k != "remove_context"
-        }
-
-        return data
 
 
 class BottomOfRangeIsLower:
@@ -1265,3 +1266,39 @@ def get_managed_expression(expression: Expression) -> ManagedExpression:
     #       blob? We need to have hardlink references between expressions and the radio items they rely on first (this
     #       would be done in FSPT-673).
     return ExpressionType.validate_python(expression.context)
+
+
+def get_managed_or_custom_expression(expression: Expression) -> AbstractExpression:
+    if expression.is_custom:
+        return TypeAdapter(Custom).validate_python(expression.context)
+    return get_managed_expression(expression)
+
+
+class Custom(AbstractExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CUSTOM
+    _key: ManagedExpressionsEnum = name
+
+    custom_expression: str
+    custom_message: str
+
+    @property
+    def description(self) -> str:
+        return "Custom expression"
+
+    @property
+    def statement(self) -> str:
+        return self.custom_expression
+
+    @property
+    def message(self) -> str:
+        return self.custom_message
+
+    @staticmethod
+    def build_from_form(
+        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+    ) -> Custom:
+        return Custom(
+            question_id=question.id,
+            custom_expression=form.custom_expression.data,  # ty: ignore[unresolved-attribute]
+            custom_message=form.custom_message.data,  # ty: ignore[unresolved-attribute]
+        )

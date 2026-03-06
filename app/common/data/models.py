@@ -38,7 +38,7 @@ from app.common.data.types import (
     json_flat_scalars,
     json_scalars,
 )
-from app.common.expressions.managed import get_managed_expression
+from app.common.expressions.managed import AbstractExpression, get_managed_expression, get_managed_or_custom_expression
 from app.common.qid import SafeQidMixin
 from app.common.utils import comma_join_items
 
@@ -895,13 +895,21 @@ class Expression(BaseModel):
         return bool(self.managed_name)
 
     @property
+    def is_custom(self) -> bool:
+        return bool(self.managed_name == ManagedExpressionsEnum.CUSTOM)
+
+    @property
     def managed(self) -> ManagedExpression:
         return get_managed_expression(self)
+
+    @property
+    def expression_impl(self) -> AbstractExpression:
+        return get_managed_or_custom_expression(self)
 
     @classmethod
     def from_managed(
         cls,
-        managed_expression: "ManagedExpression",
+        managed_expression: "AbstractExpression",
         expression_type: ExpressionType,
         created_by: "User",
     ) -> "Expression":
@@ -915,8 +923,8 @@ class Expression(BaseModel):
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
-        if self.managed_name:
-            return self.managed.required_functions
+        if self.is_managed:
+            return self.expression_impl.required_functions
 
         # In future, make this return a default list of functions for non-managed expressions
         return {}

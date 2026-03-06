@@ -6,7 +6,7 @@ from uuid import UUID
 from flask import current_app
 from sentry_sdk import metrics
 
-from app.common.expressions.managed import ManagedExpression
+from app.common.expressions.managed import AbstractExpression, ManagedExpression
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Submission
@@ -60,7 +60,7 @@ def _get_event_attributes(
     submission: Submission | None = None,
     collection: Collection | None = None,
     grant: Grant | None = None,
-    managed_expression: ManagedExpression | None = None,
+    managed_expression: AbstractExpression | None = None,
     custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
 ) -> dict[str, str | int | UUID]:
     attributes: dict[str, str | int | UUID] = (
