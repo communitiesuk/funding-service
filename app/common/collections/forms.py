@@ -140,7 +140,7 @@ def build_validators(
     for _validation in question.validations:
 
         def run_validation(form: Form, field: Field, validation: Expression) -> None:
-            if not validation.managed:
+            if not validation.is_managed:
                 raise RuntimeError("Support for un-managed validation has not been implemented yet.")
 
             if not evaluate(expression=validation, context=evaluation_context):

@@ -34,6 +34,18 @@
         },
         {
           "allow_multiple_submissions": false,
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "322d94b1-a6fd-4f14-85c8-fd1a1ab784c7",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "Calculations",
+          "requires_certification": true,
+          "slug": "calculations",
+          "status": "Draft",
+          "type": "monitoring report"
+        },
+        {
+          "allow_multiple_submissions": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -1235,6 +1247,13 @@
           "title": "Outputs and outcomes"
         },
         {
+          "collection_id": "322d94b1-a6fd-4f14-85c8-fd1a1ab784c7",
+          "id": "290c5148-a74f-4b53-94b8-6fdc55b52350",
+          "order": 0,
+          "slug": "first-section",
+          "title": "First Section"
+        },
+        {
           "collection_id": "12aec68d-f89c-430e-ba66-9e2f43459fc0",
           "id": "2a11349b-5bab-4704-a763-5d6a3bbb0c2b",
           "order": 0,
@@ -1303,6 +1322,13 @@
           "order": 1,
           "slug": "park",
           "title": "Park"
+        },
+        {
+          "collection_id": "322d94b1-a6fd-4f14-85c8-fd1a1ab784c7",
+          "id": "d8cafcc6-09ba-4a41-bf7d-4ec83a787d30",
+          "order": 1,
+          "slug": "validations",
+          "title": "Validations"
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -1436,6 +1462,25 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "d8cafcc6-09ba-4a41-bf7d-4ec83a787d30",
+          "hint": "",
+          "id": "1539a731-41eb-4bb1-b28c-def1afe89ff2",
+          "name": "Actual wheels of cheddar",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-wheels-of-cheddar-did-you-use",
+          "text": "How many wheels of cheddar did you use?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Single line of text",
           "form_id": "e34e4d79-6b02-4b08-b719-412c026a7c20",
@@ -1480,6 +1525,25 @@
           },
           "slug": "what-was-the-most-popular-type-of-cheese-in-this-period",
           "text": "What was the most popular type of cheese in this period?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "d8cafcc6-09ba-4a41-bf7d-4ec83a787d30",
+          "hint": "",
+          "id": "1b975abe-23a9-41e8-b9c1-a1c6cd11a5b9",
+          "name": "Actual wheels of Brie",
+          "order": 1,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-wheels-of-brie-did-you-actually-use",
+          "text": "How many wheels of Brie did you actually use?",
           "type": "QUESTION"
         },
         {
@@ -1739,6 +1803,25 @@
           },
           "slug": "how-are-you-managing-the-risk-to-life",
           "text": "How are you managing the risk to life?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "d8cafcc6-09ba-4a41-bf7d-4ec83a787d30",
+          "hint": "",
+          "id": "6bb1f862-618e-4413-9063-4b5601399db4",
+          "name": "Actual total wheels",
+          "order": 2,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-the-total-number-of-wheels-of-cheese-you-actually-used",
+          "text": "What is the total number of wheels of cheese you actually used?",
           "type": "QUESTION"
         },
         {
@@ -2245,6 +2328,25 @@
           },
           "slug": "what-is-the-principle-risk-category",
           "text": "What is the principle risk category?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "290c5148-a74f-4b53-94b8-6fdc55b52350",
+          "hint": "",
+          "id": "fd812eed-41e1-4da0-aae1-6ba141ef1e78",
+          "name": "Planned number of cheese wheels",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-wheels-of-cheese-do-you-plan-to-use",
+          "text": "How many wheels of cheese do you plan to use?",
           "type": "QUESTION"
         }
       ]

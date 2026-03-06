@@ -5,12 +5,20 @@ import pytest
 
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
+from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionDataType,
+)
 from app.common.expressions import evaluate
+from app.common.expressions.forms import CustomExpressionForm
 from app.common.expressions.managed import (
     AnyOf,
     Between,
     BetweenDates,
+    Custom,
     GreaterThan,
     IsAfter,
     IsBefore,
@@ -753,3 +761,52 @@ class TestUKPostcodeExpression:
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
         expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result
+
+
+class TestCustomExpression:
+    @pytest.mark.parametrize(
+        " expression, expected_result",
+        [
+            ("(({q1})) + (({q2})) <= (({q3}))", True),
+            ("(({q1})) + (({q2})) < (({q3}))", False),
+            ("(({q1})) * (({q2})) > (({q3}))", True),
+            ("(({q1})) * 8 >= (({q3}))", True),
+        ],
+    )
+    def test_evaluate(self, expression, expected_result, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        expr = Custom(
+            question_id=q3.id,
+            custom_expression=expression.format(q1=q1.safe_qid, q2=q2.safe_qid, q3=q3.safe_qid),
+            custom_message="a message",
+        )
+        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, user)
+        expression.context = {
+            q1.safe_qid: 10,
+            q2.safe_qid: 20,
+            q3.safe_qid: 30,
+            "question_id": expr.question_id,
+            "custom_expression": expr.custom_expression,
+            "custom_message": expr.custom_message,
+        }
+
+    def test_build_from_form(self, factories):
+        question = factories.question.build()
+        form = CustomExpressionForm()
+        form.custom_expression.data = "some expression"
+        form.custom_message.data = "a message"
+        result = Custom.build_from_form(
+            form=form,
+            question=question,
+        )
+        assert isinstance(result, Custom)
+        assert result.question_id == question.id
+        assert result.custom_expression == "some expression"
+        assert result.custom_message == "a message"

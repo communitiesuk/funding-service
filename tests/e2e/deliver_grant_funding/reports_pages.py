@@ -28,6 +28,7 @@ from app.common.expressions.managed import (
     Specifically,
 )
 from tests.e2e.dataclasses import DataReferenceConfig, GuidanceText
+from tests.e2e.helpers import get_context_aware_textbox_locator_by_name, wait_for_context_aware_textarea_to_be_ready
 
 if TYPE_CHECKING:
     from tests.e2e.deliver_grant_funding.pages import GrantTeamPage, SSOSignInPage
@@ -37,6 +38,8 @@ def _reference_data_flow(select_data_source_page: SelectDataSourcePage, context_
     select_data_source_page.select_data_source(context_source.data_source)
 
     match context_source.data_source:
+        case ExpressionContext.ContextSources.THIS_QUESTION:
+            pass
         case (
             ExpressionContext.ContextSources.SECTION
             | ExpressionContext.ContextSources.PREVIOUS_SECTION
@@ -641,10 +644,7 @@ class AddGuidancePage(ReportsBasePage):
         self.bulleted_list_button = self.page.get_by_role("button", name="Add a bulleted list")
         self.numbered_list_button = self.page.get_by_role("button", name="Add a numbered list")
         self.guidance_heading_textbox = self.page.get_by_role("textbox", name="Give your page a heading")
-        self.guidance_body_textbox = self.page.locator(
-            ".app-context-aware-editor__editor-container",
-            has=self.page.get_by_role("textbox", name="Add guidance text"),
-        ).get_by_role("textbox", name="Add guidance text")
+        self.guidance_body_textbox = get_context_aware_textbox_locator_by_name(page, name="Add guidance text")
 
     def fill_guidance_heading(self, text: str) -> None:
         self.guidance_heading_textbox.fill(text)
@@ -757,6 +757,70 @@ class AddGuidancePage(ReportsBasePage):
         self.click_write_guidance_tab()
 
 
+class CreateCustomExpressionPage(ReportsBasePage):
+    add_validation_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Create a custom validation"),
+        )
+        self.report_name = report_name
+        self.section_name = section_name
+        self.add_validation_button = self.page.get_by_role("button", name="Add custom validation")
+
+        self.custom_expression_textarea = get_context_aware_textbox_locator_by_name(page, "Add an equation")
+        self.add_data_to_expression_button = self.page.get_by_role("button", name="Reference data for expression")
+
+        self.custom_message_textarea = get_context_aware_textbox_locator_by_name(page, name="Message")
+        self.add_data_to_message_button = self.page.get_by_role("button", name="Reference data for message")
+
+    def _fill_custom_field(
+        self, field: Locator, reference_data_btn: Locator, value: str, references: dict[str, DataReferenceConfig]
+    ) -> None:
+        parts_of_expression = value.split(" ")
+        for part in parts_of_expression:
+            if part.startswith("((") and part.endswith("))"):
+                reference_key = part[2:-2]
+                context_source = references.get(reference_key)
+                if context_source:
+                    reference_data_btn.click()
+                    _reference_data_flow(SelectDataSourcePage(self.page, self.domain, self.grant_name), context_source)
+                else:
+                    raise ValueError(f"No data reference found for key: {reference_key}")
+            else:
+                existing_content = field.input_value() or ""
+                field.fill(f"{existing_content} {part}")
+
+    def configure_custom_expression(
+        self, expression: str, expression_references: dict[str, DataReferenceConfig]
+    ) -> None:
+        wait_for_context_aware_textarea_to_be_ready(self.page, "custom_expression")
+        self._fill_custom_field(
+            self.custom_expression_textarea, self.add_data_to_expression_button, expression, expression_references
+        )
+
+    def configure_custom_message(self, expression: str, message_references: dict[str, DataReferenceConfig]) -> None:
+        wait_for_context_aware_textarea_to_be_ready(self.page, "custom_message")
+        self._fill_custom_field(
+            self.custom_message_textarea, self.add_data_to_message_button, expression, message_references
+        )
+
+    def click_create_custom_validation_expression(self) -> "EditQuestionPage":
+        self.add_validation_button.click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
+
+
 class AddValidationPage(ReportsBasePage):
     add_validation_button: Locator
 
@@ -814,6 +878,16 @@ class AddValidationPage(ReportsBasePage):
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
+
+    def click_create_custom_expression(self) -> "CreateCustomExpressionPage":
+        self.page.get_by_role("button", name="Create a custom validation").click()
+        return CreateCustomExpressionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+        )
 
 
 class AddConditionPage(ReportsBasePage):
@@ -1037,7 +1111,7 @@ class SelectDataSourcePage(ReportsBasePage):
 
     def select_data_source(
         self, data_source: ExpressionContext.ContextSources
-    ) -> SelectDataSourceQuestionPage | SelectDataSourceSectionPage:
+    ) -> SelectDataSourceQuestionPage | SelectDataSourceSectionPage | None:
         self.page.get_by_role("radio", name=data_source.value).click()
         self.page.get_by_role("button", name="Select data source").click()
 
@@ -1048,9 +1122,11 @@ class SelectDataSourcePage(ReportsBasePage):
             case ExpressionContext.ContextSources.PREVIOUS_SECTION:
                 return SelectDataSourceSectionPage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
-            case ExpressionContext.ContextSources.PREVIOUS_COLLECTION:
-                pass
+            case ExpressionContext.ContextSources.THIS_QUESTION:
+                return None
 
+            case (ExpressionContext.ContextSources.PREVIOUS_COLLECTION, _):
+                pass
         raise NotImplementedError(f"Unexpected data source: {data_source}")
 
 
