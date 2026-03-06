@@ -1,5 +1,8 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from 'govuk_frontend_jinja/components/summary-list/macro.html' import govukSummaryList %}
+
 {% set active_item_identifier = "reports" %}
 
 {% block pageTitle %}
@@ -11,8 +14,8 @@
 {% endblock beforeContent %}
 
 {% block content %}
-  {% set heading = "Edit a custom validation expression" if expression else "Add a custom validation expression" %}
-  {% set submit_label = "Save expression" if expression else "Add expression" %}
+  {% set heading = "Edit a custom validation" if expression else "Create a custom validation" %}
+  {% set submit_label = "Save custom validation" if expression else "Add custom validation" %}
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -20,17 +23,18 @@
       <form method="post" novalidate>
         <div class="govuk-form-group">
           {% set addDataToExpressionButton %}
-            {{ form.add_context_expression(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
           {% endset %}
           {% set addDataToMessageButton %}
-            {{ form.add_context_message(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_message"}) }}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_message"}) }}
           {% endset %}
 
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
             <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
             {{
               form.custom_expression(params={
-              "label": {"classes": "govuk-!-font-weight-bold"},
+              "hint":{"text":"Write an equation that defines what a valid answer would be. The equation must start with referencing this question, before specifying what the answer should be."},
+              "label": {"classes": "govuk-!-font-weight-bold", "text":"Add an equation"},
                 "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
                 "formGroup": {
                   "classes": "app-context-aware--container",
@@ -39,6 +43,38 @@
               })
             }}
           </div>
+          {% set helpHtml %}
+            <p class="govuk-body"></p>
+            <p class="govuk-body">Use an equation to define what a valid answer would be for this question.</p>
+
+            <p class="govuk-body">For example, if this question asks for the total spend and the answer should equal previous answers for capital spend plus revenue spend, the equation would be:</p>
+            <p class="govuk-body">
+              <span class="app-context-aware-editor--valid-reference">((total spend)</span> == <span class="app-context-aware-editor--valid-reference">((capital spend))</span> +
+              <span class="app-context-aware-editor--valid-reference">((revenue spend))</span>
+            </p>
+
+            <p class="govuk-body">If the total spend answer does not pass the validation, the user will need to correct their answers to continue.</p>
+
+            <h3 class="govuk-heading-s">Equation symbols</h3>
+            {{
+              govukSummaryList({
+                "rows": [
+                    {
+                      "key": {"text": "+"},
+                      "value": {"text": "Add two numbers"}
+                    },
+              {"key": {"text": "-"}, "value": {"text": "Subtract a number from another number"
+            }},
+            {"key": {"text": "*"}, "value": {"text": "Multiple two numbers"}}, {"key": {"text": "/"}, "value": {"text": "Divide one number by another number"}}, {"key": {"text": "=="}, "value": {"text": "Is equal to"}}, {"key": {"html":
+            "&lt;"}, "value": {"text": "Is less than"}}, {"key": {"html": "&gt;"}, "value": {"text": "Is greater than"}}, {"key": {"html": "&lt;="}, "value": {"text": "Is less than or equal to"}}, {"key": {"html": "&gt;="}, "value":
+            {"text": "Is greater than or equal to"}} ], }) }}
+          {% endset %}
+          {{
+            govukDetails({
+              "summaryText": "Calculations help",
+              "html": helpHtml
+            })
+          }}
           <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
             <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
             {{

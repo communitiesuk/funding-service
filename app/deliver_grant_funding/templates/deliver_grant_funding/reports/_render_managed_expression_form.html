@@ -22,7 +22,7 @@
       {% if ff_show_custom_expression_option %}
         {{
           govukButton({
-            "text": "Create a custom expression",
+            "text": "Create a custom validation",
             "classes": "govuk-button--secondary",
             "href": url_for("deliver_grant_funding.add_custom_question_validation", grant_id=grant_id, question_id=question_id)
           })
