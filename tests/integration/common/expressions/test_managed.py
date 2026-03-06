@@ -7,10 +7,12 @@ from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import evaluate
+from app.common.expressions.forms import CustomExpressionForm
 from app.common.expressions.managed import (
     AnyOf,
     Between,
     BetweenDates,
+    Custom,
     GreaterThan,
     IsAfter,
     IsBefore,
@@ -753,3 +755,25 @@ class TestUKPostcodeExpression:
         expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
         expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result
+
+
+class TestCustomExpression:
+    def test_expression_referenced_question_ids(self):
+        with pytest.raises(NotImplementedError):
+            _ = Custom(
+                question_id=uuid.uuid4(), custom_expression="some expression", custom_message="a message"
+            ).expression_referenced_question_ids
+
+    def test_build_from_form(self, factories):
+        question = factories.question.build()
+        form = CustomExpressionForm()
+        form.custom_expression.data = "some expression"
+        form.custom_message.data = "a message"
+        result = Custom.build_from_form(
+            form=form,
+            question=question,
+        )
+        assert isinstance(result, Custom)
+        assert result.question_id == question.id
+        assert result.custom_expression == "some expression"
+        assert result.custom_message == "a message"

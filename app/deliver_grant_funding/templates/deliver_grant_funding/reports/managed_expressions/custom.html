@@ -1,0 +1,62 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% set active_item_identifier = "reports" %}
+
+{% block pageTitle %}
+  Add validation - {{ question.name }} - Deliver grant funding
+{% endblock pageTitle %}
+
+{% block beforeContent %}
+  {{ govukBackLink({ "text": "Back", "href": url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id) }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  {% set heading = "Edit a custom validation expression" if expression else "Add a custom validation expression" %}
+  {% set submit_label = "Save expression" if expression else "Add expression" %}
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ heading }}</h1>
+      <form method="post" novalidate>
+        <div class="govuk-form-group">
+          {% set addDataToExpressionButton %}
+            {{ form.add_context_expression(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-6", "value": "custom_expression"}) }}
+          {% endset %}
+          {% set addDataToMessageButton %}
+            {{ form.add_context_message(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary govuk-!-margin-bottom-0", "value": "custom_message"}) }}
+          {% endset %}
+
+          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
+            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+            {{
+              form.custom_expression(params={
+              "label": {"classes": "govuk-!-font-weight-bold"},
+                "classes": "govuk-!-margin-bottom-0",
+                "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
+                "formGroup": {
+                  "classes": "app-context-aware--container",
+                  "afterInput": {"html": addDataToExpressionButton}
+                }
+              })
+            }}
+          </div>
+          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
+            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+            {{
+              form.custom_message(params={
+              "label": {"classes": "govuk-!-font-weight-bold"},
+                "classes": "govuk-!-margin-bottom-0",
+                "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
+                "formGroup": {
+                  "classes": "app-context-aware--container",
+                  "afterInput": {"html": addDataToMessageButton}
+                }
+              })
+            }}
+          </div>
+          {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

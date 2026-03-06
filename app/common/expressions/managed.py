@@ -1265,3 +1265,57 @@ def get_managed_expression(expression: Expression) -> ManagedExpression:
     #       blob? We need to have hardlink references between expressions and the radio items they rely on first (this
     #       would be done in FSPT-673).
     return ExpressionType.validate_python(expression.context)
+
+
+@register_managed_expression
+class Custom(ManagedExpression):
+    name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.CUSTOM
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = set()
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
+    managed_expression_form_template: ClassVar[str | None] = (
+        "deliver_grant_funding/reports/managed_expressions/custom.html"
+    )
+
+    _key: ManagedExpressionsEnum = name
+
+    question_id: UUID
+    custom_expression: str
+    custom_message: str
+
+    @property
+    def description(self) -> str:
+        return "Custom expression"
+
+    @property
+    def statement(self) -> str:
+        return self.custom_expression
+
+    @property
+    def message(self) -> str:
+        return self.custom_message
+
+    @property
+    def expression_referenced_question_ids(self) -> list[UUID]:
+        raise NotImplementedError("Custom expression does not implement this - use expression_referenced_items instead")
+
+    @staticmethod
+    def build_from_form(
+        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+    ) -> Custom:
+        return Custom(
+            question_id=question.id,
+            custom_expression=form.custom_expression.data,  # ty: ignore[unresolved-attribute]
+            custom_message=form.custom_message.data,  # ty: ignore[unresolved-attribute]
+        )
+
+    # TODO these don't make sense as we have a static custom expression form - at what point do we change the hierarchy?
+    @staticmethod
+    def get_form_fields(
+        referenced_question: Question,
+        expression: TOptional[Expression] = None,
+    ) -> dict[str, Field]:
+        return {}
+
+    @staticmethod
+    def update_validators(form: _ManagedExpressionForm) -> None:
+        pass
