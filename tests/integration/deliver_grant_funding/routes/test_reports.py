@@ -944,10 +944,8 @@ class TestMoveSection:
         factories.question.create(
             form=forms[1],
             expressions=[
-                Expression.from_managed(
-                    IsYes(question_id=q1.id),
-                    ExpressionType.CONDITION,
-                    authenticated_grant_admin_client.user,
+                Expression.from_evaluatable_expression(
+                    IsYes(question_id=q1.id), ExpressionType.CONDITION, authenticated_grant_admin_client.user
                 )
             ],
         )
@@ -1146,7 +1144,7 @@ class TestChangeGroupDisplayOptions:
             form=db_form,
             parent=db_group,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(question_id=db_question1.id, minimum_value=1000), ExpressionType.CONDITION, db_user
                 )
             ],
@@ -1779,7 +1777,7 @@ class TestListGroupQuestions:
             form=form,
             order=1,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(question_id=question.id, minimum_value=1000), ExpressionType.CONDITION, user
                 )
             ],
@@ -3447,7 +3445,7 @@ class TestEditQuestion:
             hint="Dependent question hint",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     AnyOf(
                         question_id=q1.id,
                         items=[
@@ -3521,10 +3519,8 @@ class TestEditQuestion:
             hint="Dependent question hint",
             data_type=QuestionDataType.NUMBER,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=100),
-                    ExpressionType.CONDITION,
-                    factories.user.create(),
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1.id, minimum_value=100), ExpressionType.CONDITION, factories.user.create()
                 )
             ],
         )

@@ -1420,10 +1420,8 @@ class TestFormResetOnAnswerChange:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
             order=1,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q_a.id, minimum_value=50),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q_a.id, minimum_value=50), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -1473,10 +1471,8 @@ class TestFormResetOnAnswerChange:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
             order=1,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q_a.id, minimum_value=50),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q_a.id, minimum_value=50), ExpressionType.CONDITION, user
                 )
             ],
         )

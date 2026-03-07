@@ -637,10 +637,8 @@ class TestComponentReferenceModel:
         factories.question.create(
             form=q1.form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -658,10 +656,8 @@ class TestComponentReferenceModel:
         q2 = factories.question.create(
             form=q1.form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -677,7 +673,7 @@ class TestComponentReferenceModel:
         factories.question.create(
             form=q1.form,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     Specifically(
                         question_id=q1.id,
                         item={
@@ -704,7 +700,7 @@ class TestComponentReferenceModel:
         q2 = factories.question.create(
             form=q1.form,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     Specifically(
                         question_id=q1.id,
                         item={

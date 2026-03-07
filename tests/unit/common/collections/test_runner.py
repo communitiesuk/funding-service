@@ -70,7 +70,7 @@ class TestFormRunner:
             parent=group,
             form=group.form,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(question_id=q0.id, minimum_value=100), ExpressionType.CONDITION, user
                 )
             ],

@@ -38,7 +38,10 @@ from app.common.data.types import (
     json_flat_scalars,
     json_scalars,
 )
-from app.common.expressions.managed import get_managed_expression
+from app.common.expressions.managed import (
+    EvaluatableExpression,
+    get_managed_expression,
+)
 from app.common.qid import SafeQidMixin
 from app.common.utils import comma_join_items
 
@@ -905,18 +908,15 @@ class Expression(BaseModel):
         return not self.is_managed
 
     @classmethod
-    def from_managed(
-        cls,
-        managed_expression: "ManagedExpression",
-        expression_type: ExpressionType,
-        created_by: "User",
+    def from_evaluatable_expression(
+        cls, evaluatable_expression: "EvaluatableExpression", expression_type: ExpressionType, created_by: "User"
     ) -> "Expression":
         return Expression(
-            statement=managed_expression.statement,
-            context=managed_expression.model_dump(mode="json"),
+            statement=evaluatable_expression.statement,
+            context=evaluatable_expression.model_dump(mode="json"),
             created_by=created_by,
             type_=expression_type,
-            managed_name=managed_expression._key,
+            managed_name=evaluatable_expression._key,
         )
 
     @property

@@ -31,7 +31,7 @@ class TestBaseManagedExpression:
         question = factories.question.create(
             form=depends_on_question.form,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(question_id=depends_on_question.id, minimum_value=1000), ExpressionType.CONDITION, user
                 )
             ],
@@ -106,7 +106,7 @@ class TestGreaterThanExpression:
     def test_evaluate(self, minimum_value, inclusive, answer, expected_result, factories):
         user = factories.user.build()
         expr = GreaterThan(question_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive)
-        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
             expr.safe_qid: answer,
             "minimum_value": expr.minimum_value,
@@ -145,7 +145,7 @@ class TestGreaterThanExpression:
             minimum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: minimum_value,
             target_question.safe_qid: answer,
@@ -189,7 +189,7 @@ class TestLessThanExpression:
     def test_evaluate(self, maximum_value, inclusive, answer, expected_result, factories):
         user = factories.user.build()
         expr = LessThan(question_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive)
-        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
             expr.safe_qid: answer,
             "maximum_value": expr.maximum_value,
@@ -227,7 +227,7 @@ class TestLessThanExpression:
             maximum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: maximum_value,
             target_question.safe_qid: answer,
@@ -287,7 +287,7 @@ class TestBetweenExpression:
             maximum_value=maximum_value,
             maximum_inclusive=maximum_inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, factories.user.build())
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, factories.user.build())
         expression.context = {
             expr.safe_qid: answer,
             "maximum_value": expr.maximum_value,
@@ -348,7 +348,7 @@ class TestBetweenExpression:
             maximum_expression=f"(({referenced_question.safe_qid}))",
             maximum_inclusive=maximum_inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: maximum_value,
             target_question.safe_qid: answer,
@@ -455,7 +455,7 @@ class TestIsBeforeExpression:
     def test_evaluate(self, inclusive, answer, expected_result, factories):
         user = factories.user.create()
         expr = IsBefore(question_id=uuid.uuid4(), latest_value=self.maximum_value, inclusive=inclusive)
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {expr.safe_qid: answer, "latest_value": expr.latest_value, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result
 
@@ -478,7 +478,7 @@ class TestIsBeforeExpression:
             latest_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: self.maximum_value,
             target_question.safe_qid: answer,
@@ -532,7 +532,7 @@ class TestIsAfterExpression:
     def test_evaluate(self, inclusive, answer, expected_result, factories):
         user = factories.user.create()
         expr = IsAfter(question_id=uuid.uuid4(), earliest_value=self.min_value, inclusive=inclusive)
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             expr.safe_qid: answer,
             "earliest_value": expr.earliest_value,
@@ -559,7 +559,7 @@ class TestIsAfterExpression:
             earliest_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: self.min_value,
             target_question.safe_qid: answer,
@@ -629,7 +629,7 @@ class TestIsBetweenDatesExpression:
             earliest_inclusive=earliest_inc,
             latest_inclusive=latest_inc,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             expr.safe_qid: answer,
             "earliest_value": expr.earliest_value,
@@ -670,7 +670,7 @@ class TestIsBetweenDatesExpression:
             earliest_inclusive=earliest_inc,
             latest_inclusive=latest_inc,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: self.max_value,
             target_question.safe_qid: answer,
@@ -750,6 +750,6 @@ class TestUKPostcodeExpression:
     def test_evaluate(self, answer, expected_result, factories):
         user = factories.user.create()
         expr = UKPostcode(question_id=uuid.uuid4())
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result

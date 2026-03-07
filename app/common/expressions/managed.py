@@ -46,6 +46,8 @@ class EvaluatableExpression(BaseModel, SafeQidMixin):
     name: ClassVar[ManagedExpressionsEnum | Literal["CUSTOM"]]
     question_id: UUID
 
+    _key: ManagedExpressionsEnum
+
     @property
     @abc.abstractmethod
     def statement(self) -> str:
@@ -65,8 +67,6 @@ class ManagedExpression(EvaluatableExpression):
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
     supported_validator_data_types: ClassVar[set[QuestionDataType]]
     managed_expression_form_template: ClassVar[str | None]
-
-    _key: ManagedExpressionsEnum
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type]:

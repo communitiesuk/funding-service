@@ -1127,10 +1127,8 @@ class TestUpdateGroup:
             form=form,
             parent=group,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=100),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1.id, minimum_value=100), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -1156,10 +1154,8 @@ class TestUpdateGroup:
             form=form,
             parent=group,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=100),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1.id, minimum_value=100), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2161,10 +2157,8 @@ class TestMoveComponent:
         q3 = factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q2.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q2.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2223,10 +2217,8 @@ class TestMoveComponent:
         group = factories.group.create(
             form=form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q2.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q2.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2258,10 +2250,8 @@ class TestMoveComponent:
             form=form,
             parent=group,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2285,10 +2275,8 @@ class TestMoveComponent:
         q2 = factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=nested_q1.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=nested_q1.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2314,10 +2302,8 @@ class TestMoveComponent:
             form=form,
             parent=group2,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=nested_q1.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=nested_q1.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2344,10 +2330,8 @@ class TestNestedGroupDependencies:
         factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
             parent=child_group,
@@ -2377,10 +2361,8 @@ class TestNestedGroupDependencies:
             form=form,
             parent=parent_group,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2409,10 +2391,8 @@ class TestNestedGroupDependencies:
             form=form,
             parent=parent_group,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2431,10 +2411,8 @@ class TestNestedGroupDependencies:
         q1_in_child_group = factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000), ExpressionType.CONDITION, user
                 )
             ],
             parent=child_group,
@@ -2464,10 +2442,8 @@ class TestDependencyExceptionHelpers:
         q2 = factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=1000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1.id, minimum_value=1000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2487,10 +2463,8 @@ class TestDependencyExceptionHelpers:
         q2 = factories.question.create(
             form=form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=nested_question.id, minimum_value=1000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=nested_question.id, minimum_value=1000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -2513,10 +2487,8 @@ class TestDependencyExceptionHelpers:
             parent=group,
             form=form,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=q1.id, minimum_value=1000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=q1.id, minimum_value=1000), ExpressionType.CONDITION, user
                 )
             ],
         )
@@ -3247,10 +3219,8 @@ class TestExpressions:
         question = factories.question.create(
             id=qid,
             expressions=[
-                Expression.from_managed(
-                    GreaterThan(question_id=qid, minimum_value=3000),
-                    ExpressionType.CONDITION,
-                    user,
+                Expression.from_evaluatable_expression(
+                    GreaterThan(question_id=qid, minimum_value=3000), ExpressionType.CONDITION, user
                 ),
             ],
         )
@@ -3524,10 +3494,8 @@ class TestValidateAndSyncExpressionReferences:
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         dependent_question = factories.question.create(form=referenced_question.form)
 
-        expression = Expression.from_managed(
-            GreaterThan(question_id=referenced_question.id, minimum_value=100),
-            ExpressionType.CONDITION,
-            user,
+        expression = Expression.from_evaluatable_expression(
+            GreaterThan(question_id=referenced_question.id, minimum_value=100), ExpressionType.CONDITION, user
         )
         dependent_question.expressions.append(expression)
         db_session.add(expression)
@@ -3566,7 +3534,7 @@ class TestValidateAndSyncExpressionReferences:
         dependent_question = factories.question.create(form=referenced_question.form)
 
         managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
-        expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
         dependent_question.expressions.append(expression)
         db_session.add(expression)
 
@@ -3601,7 +3569,7 @@ class TestValidateAndSyncExpressionReferences:
                 "label": referenced_question.data_source.items[0].label,
             },
         )
-        expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
         dependent_question.expressions.append(expression)
         db_session.add(expression)
         assert len(expression.component_references) == 0
@@ -3619,7 +3587,7 @@ class TestValidateAndSyncExpressionReferences:
         depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form)
 
-        expression = Expression.from_managed(
+        expression = Expression.from_evaluatable_expression(
             Between(
                 question_id=depends_on_question.id,
                 minimum_value=None,
@@ -3655,7 +3623,7 @@ class TestValidateAndSyncExpressionReferences:
         target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
-        expression = Expression.from_managed(
+        expression = Expression.from_evaluatable_expression(
             Between(
                 question_id=target_question.id,
                 minimum_value=None,
@@ -3685,7 +3653,7 @@ class TestValidateAndSyncExpressionReferences:
         second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.DATE)
         target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
-        expression = Expression.from_managed(
+        expression = Expression.from_evaluatable_expression(
             Between(
                 question_id=target_question.id,
                 minimum_value=None,
@@ -3717,7 +3685,7 @@ class TestValidateAndSyncExpressionReferences:
         second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
-        expression = Expression.from_managed(
+        expression = Expression.from_evaluatable_expression(
             Between(
                 question_id=target_question.id,
                 minimum_value=None,
@@ -3749,7 +3717,7 @@ class TestValidateAndSyncExpressionReferences:
         second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, add_another=True)
 
-        expression = Expression.from_managed(
+        expression = Expression.from_evaluatable_expression(
             Between(
                 question_id=target_question.id,
                 minimum_value=None,
@@ -3833,7 +3801,7 @@ class TestValidateAndSyncComponentReferences:
         dependent_question = factories.question.create(form=referenced_question.form)
 
         managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
-        expression = Expression.from_managed(managed_expression, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
         dependent_question.expressions.append(expression)
         db_session.add(expression)
         db_session.flush()

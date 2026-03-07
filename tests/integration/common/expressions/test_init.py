@@ -108,7 +108,7 @@ class TestEvaluatingManagedExpressions:
         question = factories.question.create(
             form=q0.form,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(question_id=q0.id, minimum_value=3000, number_type=NumberTypeEnum.INTEGER),
                     ExpressionType.CONDITION,
                     user,
@@ -128,7 +128,7 @@ class TestEvaluatingManagedExpressions:
         question = factories.question.create(
             form=q0.form,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(
                         question_id=q0.id, minimum_value=Decimal("3000.01"), number_type=NumberTypeEnum.DECIMAL
                     ),
@@ -164,7 +164,7 @@ class TestEvaluatingManagedExpressions:
             form=q0.form,
             data_type=QuestionDataType.NUMBER,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(
                         question_id=qid,
                         minimum_value=None,
@@ -199,7 +199,7 @@ class TestEvaluatingManagedExpressions:
             id=qid,
             form=q0.form,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     BetweenDates(
                         question_id=qid,
                         earliest_value=None,
