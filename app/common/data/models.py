@@ -896,7 +896,13 @@ class Expression(BaseModel):
 
     @property
     def managed(self) -> ManagedExpression:
-        return get_managed_expression(self)
+        if self.is_managed:
+            return get_managed_expression(self)
+        raise ValueError("This expression is not a managed expression and does not have a managed definition")
+
+    @property
+    def is_custom(self) -> bool:
+        return not self.is_managed
 
     @classmethod
     def from_managed(
