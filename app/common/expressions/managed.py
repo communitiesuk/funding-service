@@ -4,7 +4,7 @@ import decimal
 import re
 from collections.abc import Callable
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 from typing import Optional as TOptional
 
 # Define any "managed" expressions that can be applied to common conditions or validations
@@ -41,14 +41,9 @@ if TYPE_CHECKING:
     from app.common.expressions.forms import _ManagedExpressionForm
 
 
-class ManagedExpression(BaseModel, SafeQidMixin):
+class EvaluatableExpression(BaseModel, SafeQidMixin):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
-    name: ClassVar[ManagedExpressionsEnum]
-    supported_condition_data_types: ClassVar[set[QuestionDataType]]
-    supported_validator_data_types: ClassVar[set[QuestionDataType]]
-    managed_expression_form_template: ClassVar[str | None]
-
-    _key: ManagedExpressionsEnum
+    name: ClassVar[ManagedExpressionsEnum | Literal["CUSTOM"]]
     question_id: UUID
 
     @property
@@ -63,6 +58,15 @@ class ManagedExpression(BaseModel, SafeQidMixin):
     @property
     @abc.abstractmethod
     def message(self) -> str: ...
+
+
+class ManagedExpression(EvaluatableExpression):
+    name: ClassVar[ManagedExpressionsEnum]
+    supported_condition_data_types: ClassVar[set[QuestionDataType]]
+    supported_validator_data_types: ClassVar[set[QuestionDataType]]
+    managed_expression_form_template: ClassVar[str | None]
+
+    _key: ManagedExpressionsEnum
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type]:
