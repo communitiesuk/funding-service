@@ -11,6 +11,7 @@ from app.common.expressions.managed import (
     AnyOf,
     Between,
     BetweenDates,
+    CustomExpression,
     GreaterThan,
     IsAfter,
     IsBefore,
@@ -753,3 +754,35 @@ class TestUKPostcodeExpression:
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result
+
+
+class TestCustomExpression:
+    def test_create_custom_expression(self, factories, db_session):
+        user = factories.user.create()
+        question = factories.question.create()
+        expr = CustomExpression(
+            question_id=question.id, custom_expression="(({question_id})) > 5", custom_message="Failed validation"
+        )
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
+        # db_session.add(expression)
+        question.expressions.append(expression)
+        db_session.commit()
+
+        from_db = db_session.query(Expression).filter_by(id=expression.id).one()
+        assert from_db.statement == expr.statement
+        assert from_db.type_ == ExpressionType.VALIDATION
+        assert from_db.created_by_id == user.id
+        assert from_db.is_custom is True
+        assert from_db.is_managed is False
+        assert from_db.managed_name is None
+        with pytest.raises(ValueError):
+            _ = from_db.managed
+        assert from_db.custom is not None
+        assert from_db.custom.custom_expression == expr.custom_expression
+        assert from_db.custom.custom_message == expr.custom_message
+        assert from_db.context == {
+            "question_id": str(expr.question_id),
+            "custom_expression": "(({question_id})) > 5",
+            "custom_message": "Failed validation",
+            "custom_description": "Custom calculation",
+        }
