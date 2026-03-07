@@ -286,7 +286,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             data_type=QuestionDataType.NUMBER,
             text="What size pack of teabags do you usually buy?",
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(question_id=q1.id, minimum_value=30), ExpressionType.CONDITION, _UserFactory.create()
                 )
             ],
@@ -351,7 +351,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             data_type=QuestionDataType.YES_NO,
             text="Do you buy teabags in bulk?",
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(question_id=q1.id, minimum_value=30), ExpressionType.CONDITION, _UserFactory.create()
                 )
             ],
@@ -374,7 +374,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             text="What is your favourite brand of teabags (Other)?",
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     AnyOf(
                         question_id=q4.id,
                         items=[
@@ -400,7 +400,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             text="What is your type of cheese (Other)?",
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     Specifically(
                         question_id=q4.id,
                         item=cast(
