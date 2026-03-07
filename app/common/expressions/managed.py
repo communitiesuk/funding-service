@@ -46,7 +46,7 @@ class EvaluatableExpression(BaseModel, SafeQidMixin):
     name: ClassVar[ManagedExpressionsEnum | Literal["CUSTOM"]]
     question_id: UUID
 
-    _key: ManagedExpressionsEnum
+    _key: ManagedExpressionsEnum | None
 
     @property
     @abc.abstractmethod
@@ -62,11 +62,34 @@ class EvaluatableExpression(BaseModel, SafeQidMixin):
     def message(self) -> str: ...
 
 
+class CustomExpression(EvaluatableExpression):
+    name: ClassVar[Literal["CUSTOM"]] = "CUSTOM"
+    _key: None = None
+    custom_expression: str
+    custom_message: str
+    custom_description: str = (
+        "Custom calculation"  # This will be customisable when we allow creating reusable calculations
+    )
+
+    @property
+    def statement(self) -> str:
+        return self.custom_expression
+
+    @property
+    def description(self) -> str:
+        return self.custom_description
+
+    @property
+    def message(self) -> str:
+        return self.custom_message
+
+
 class ManagedExpression(EvaluatableExpression):
     name: ClassVar[ManagedExpressionsEnum]
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
     supported_validator_data_types: ClassVar[set[QuestionDataType]]
     managed_expression_form_template: ClassVar[str | None]
+    _key: ManagedExpressionsEnum
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type]:
@@ -1268,4 +1291,13 @@ def get_managed_expression(expression: Expression) -> ManagedExpression:
     # TODO: for AnyOf, do we want to pull the list of items from the DB rather than denormalising into the `context`
     #       blob? We need to have hardlink references between expressions and the radio items they rely on first (this
     #       would be done in FSPT-673).
+    return ExpressionType.validate_python(expression.context)
+
+
+def get_custom_expression(expression: Expression) -> CustomExpression:
+    if not expression.is_custom:
+        raise ValueError(f"Expression {expression.id} is not a custom expression.")
+
+    ExpressionType = TypeAdapter(CustomExpression)
+
     return ExpressionType.validate_python(expression.context)

@@ -39,7 +39,9 @@ from app.common.data.types import (
     json_scalars,
 )
 from app.common.expressions.managed import (
+    CustomExpression,
     EvaluatableExpression,
+    get_custom_expression,
     get_managed_expression,
 )
 from app.common.qid import SafeQidMixin
@@ -902,6 +904,12 @@ class Expression(BaseModel):
         if self.is_managed:
             return get_managed_expression(self)
         raise ValueError("This expression is not a managed expression and does not have a managed definition")
+
+    @property
+    def custom(self) -> CustomExpression:
+        if self.is_custom:
+            return get_custom_expression(self)
+        raise ValueError("This expression is not a custom expression and does not have a custom definition")
 
     @property
     def is_custom(self) -> bool:
