@@ -249,6 +249,10 @@ class GreaterThan(ManagedExpression):
         )
 
     @property
+    def reference_aware_fields(self) -> set[str]:
+        return {"minimum_expression"}
+
+    @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         if self.minimum_expression:
             if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
@@ -356,6 +360,10 @@ class LessThan(ManagedExpression):
             if question_id := self.safe_qid_to_id(self.maximum_expression.strip("() ")):
                 return [question_id]
         return []
+
+    @property
+    def reference_aware_fields(self) -> set[str]:
+        return {"maximum_expression"}
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -470,6 +478,10 @@ class Between(ManagedExpression):
                 referenced_ids.append(question_id)
 
         return referenced_ids
+
+    @property
+    def reference_aware_fields(self) -> set[str]:
+        return {"minimum_expression", "maximum_expression"}
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -819,6 +831,10 @@ class IsBefore(ManagedExpression):
                 return [question_id]
         return []
 
+    @property
+    def reference_aware_fields(self) -> set[str]:
+        return {"latest_expression"}
+
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
         return {
@@ -932,6 +948,10 @@ class IsAfter(ManagedExpression):
             if question_id := self.safe_qid_to_id(self.earliest_expression.strip("() ")):
                 return [question_id]
         return []
+
+    @property
+    def reference_aware_fields(self) -> set[str]:
+        return {"earliest_expression"}
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -1077,6 +1097,10 @@ class BetweenDates(ManagedExpression):
                 referenced_ids.append(question_id)
 
         return referenced_ids
+
+    @property
+    def reference_aware_fields(self) -> set[str]:
+        return {"earliest_expression", "latest_expression"}
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
