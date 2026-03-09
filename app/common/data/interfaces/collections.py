@@ -799,11 +799,14 @@ class FlashableException(Protocol):
 
 
 class DependencyOrderException(Exception, FlashableException):
-    def __init__(self, message: str, component: Component, depends_on_component: Component):
+    def __init__(
+        self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
+    ):
         super().__init__(message)
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
+        self.field_name = field_name
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -1401,6 +1404,19 @@ def _find_references_in_expression(
     return references
 
 
+def components_in_same_group_and_on_same_page(component1: Component, component2: Component) -> bool:
+    # got parents
+    if not component1.parent or not component2.parent:
+        return False
+    # parents are groups
+    if not component1.parent.is_group or not component2.parent.is_group:
+        return False
+    # parents are the same
+    if component1.parent.id != component2.parent.id:
+        return False
+    return component1.parent.same_page is True
+
+
 def _validate_reference(
     wrapped_reference: str,
     attached_to_component: Component | None,
@@ -1572,33 +1588,17 @@ def _validate_and_sync_component_references(component: Component, expression_con
             # same collection - but not necessarily the same form.
             if question_id := SafeQidMixin.safe_qid_to_id(reference):
                 question = db.session.get_one(Question, question_id)
-                if question.form.order > component.form.order:
-                    raise InvalidReferenceInExpression(
-                        f"Reference is not valid: {reference}", field_name=field_name, bad_reference=reference
+                if not is_component_dependency_order_valid(component, question):
+                    raise DependencyOrderException(
+                        "Cannot reference a later question", component, question, field_name=field_name
                     )
 
-                if question.form_id == component.form_id:
-                    # Prevent manually injecting a reference to a question that appears later in the same form
-                    if question.form.global_component_index(question) >= question.form.global_component_index(
-                        component
-                    ):
-                        raise InvalidReferenceInExpression(
-                            f"Reference is not valid: {reference}", field_name=field_name, bad_reference=reference
-                        )
-
-                    if (
-                        question.parent
-                        and component.parent
-                        and question.parent.is_group
-                        and component.parent.is_group
-                        and question.parent.id == component.parent.id
-                    ):
-                        if question.parent.same_page:
-                            raise InvalidReferenceInExpression(
-                                f"Reference is not valid: {reference}",
-                                field_name=field_name,
-                                bad_reference=reference,
-                            )
+                if components_in_same_group_and_on_same_page(component, question):
+                    raise InvalidReferenceInExpression(
+                        f"Reference is not valid: {reference}",
+                        field_name=field_name,
+                        bad_reference=reference,
+                    )
 
                 references_to_set_up.add((component.id, question.id))
 

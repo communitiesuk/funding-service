@@ -1659,6 +1659,9 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
             field_with_error.errors.append(e.message)
+        except DependencyOrderException as e:
+            field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
+            field_with_error.errors.append(e.message)
         except DataSourceItemReferenceDependencyException as e:
             for flash_context in e.as_flash_contexts():
                 flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]

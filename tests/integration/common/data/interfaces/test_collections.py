@@ -21,6 +21,7 @@ from app.common.data.interfaces.collections import (
     add_component_condition,
     add_question_validation,
     add_submission_event,
+    components_in_same_group_and_on_same_page,
     create_collection,
     create_form,
     create_group,
@@ -3542,6 +3543,17 @@ class TestReferenceValidation:
         references = _find_references_in_expression(expression)
         assert references == expected_references
 
+    def test_components_in_same_group_and_on_same_page(self, factories):
+        group = factories.group.create(
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        q1 = factories.question.create(form=group.form, parent=group, data_type=QuestionDataType.NUMBER)
+        q2 = factories.question.create(form=group.form, parent=group, data_type=QuestionDataType.NUMBER)
+        q3 = factories.question.create(form=group.form, data_type=QuestionDataType.NUMBER)
+
+        assert components_in_same_group_and_on_same_page(q1, q2) is True
+        assert components_in_same_group_and_on_same_page(q1, q3) is False
+
 
 class TestValidateAndSyncExpressionReferences:
     def test_creates_component_reference_for_managed_expression(self, db_session, factories):
@@ -3879,7 +3891,7 @@ class TestValidateAndSyncComponentReferences:
         referenced_question = factories.question.create(form=dependent_question.form, data_type=QuestionDataType.NUMBER)
         dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
 
-        with pytest.raises(InvalidReferenceInExpression):
+        with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(
@@ -3891,7 +3903,7 @@ class TestValidateAndSyncComponentReferences:
         question = factories.question.create()
         question.text = f"Reference to (({question.safe_qid}))"
 
-        with pytest.raises(InvalidReferenceInExpression):
+        with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
                 question,
                 ExpressionContext.build_expression_context(collection=question.form.collection, mode="interpolation"),
@@ -4025,7 +4037,7 @@ class TestValidateAndSyncComponentReferences:
         dependent_question = factories.question.create(form=earlier_form)
         dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
 
-        with pytest.raises(InvalidReferenceInExpression):
+        with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
                 dependent_question,
                 ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
