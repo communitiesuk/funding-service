@@ -88,6 +88,10 @@ class Grant(BaseModel):
         return [collection for collection in self.collections if collection.type == CollectionType.MONITORING_REPORT]
 
     @property
+    def applications(self) -> list[Collection]:
+        return [collection for collection in self.collections if collection.type == CollectionType.APPLICATION]
+
+    @property
     def test_grant_recipients(self) -> list[GrantRecipient]:
         return [
             grant_recipient

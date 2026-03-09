@@ -39,7 +39,8 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.grant_change_description",
     "deliver_grant_funding.grant_change_contact",
     "deliver_grant_funding.set_up_report",
-    "deliver_grant_funding.change_report_name",
+    "deliver_grant_funding.set_up_application",
+    "deliver_grant_funding.change_collection_name",
     "deliver_grant_funding.add_section",
     "deliver_grant_funding.change_form_name",
     "deliver_grant_funding.change_group_name",
@@ -70,7 +71,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.set_guidance_for_multiple_submissions",
 ]
 routes_with_expected_collection_is_editable_decorator = [
-    "deliver_grant_funding.change_report_name",
+    "deliver_grant_funding.change_collection_name",
     "deliver_grant_funding.add_section",
     "deliver_grant_funding.move_section",
     "deliver_grant_funding.change_form_name",
@@ -103,7 +104,8 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_users_for_grant",
     "deliver_grant_funding.grant_details",
     "deliver_grant_funding.list_reports",
-    "deliver_grant_funding.list_report_sections",
+    "deliver_grant_funding.list_applications",
+    "deliver_grant_funding.list_collection_sections",
     "deliver_grant_funding.start_test_grant_recipient_journey",
     "deliver_grant_funding.list_section_questions",
     "deliver_grant_funding.list_group_questions",
@@ -112,7 +114,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.check_your_answers",
     "deliver_grant_funding.list_submissions",
     "deliver_grant_funding.view_submission",
-    "deliver_grant_funding.export_report_submissions",
+    "deliver_grant_funding.export_submissions",
     "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.download_file",
 ]

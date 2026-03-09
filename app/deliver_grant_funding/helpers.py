@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from flask import redirect, session, url_for
@@ -9,12 +10,57 @@ from app.common.data.interfaces.collections import (
     delete_collection_preview_submissions_created_by_user,
     get_submissions_by_user,
 )
-from app.common.data.types import SubmissionModeEnum
+from app.common.data.types import CollectionType, SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
 from app.extensions import s3_service
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Form
+
+
+@dataclass(frozen=True)
+class CollectionTypeConfig:
+    """Display configuration for a collection type, used to adapt routes and templates."""
+
+    collection_type: CollectionType
+    singular_name: str  # "report", "application"
+    plural_name: str  # "reports", "applications"
+    title_name: str  # "Reports", "Applications"
+    setup_label: str  # "monitoring report", "application"
+    list_route: str  # "deliver_grant_funding.list_reports"
+    setup_route: str  # "deliver_grant_funding.set_up_report"
+    active_nav_item: str  # "reports", "applications"
+    has_reporting_period: bool
+
+
+COLLECTION_TYPE_CONFIGS: dict[CollectionType, CollectionTypeConfig] = {
+    CollectionType.MONITORING_REPORT: CollectionTypeConfig(
+        collection_type=CollectionType.MONITORING_REPORT,
+        singular_name="report",
+        plural_name="reports",
+        title_name="Reports",
+        setup_label="monitoring report",
+        list_route="deliver_grant_funding.list_reports",
+        setup_route="deliver_grant_funding.set_up_report",
+        active_nav_item="reports",
+        has_reporting_period=True,
+    ),
+    CollectionType.APPLICATION: CollectionTypeConfig(
+        collection_type=CollectionType.APPLICATION,
+        singular_name="application",
+        plural_name="applications",
+        title_name="Applications",
+        setup_label="application",
+        list_route="deliver_grant_funding.list_applications",
+        setup_route="deliver_grant_funding.set_up_application",
+        active_nav_item="applications",
+        has_reporting_period=False,
+    ),
+}
+
+
+def get_collection_type_config(collection_type: CollectionType) -> CollectionTypeConfig:
+    return COLLECTION_TYPE_CONFIGS[collection_type]
 
 
 def start_previewing_collection(collection: Collection, form: Form | None = None) -> ResponseReturnValue:

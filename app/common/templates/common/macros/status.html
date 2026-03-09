@@ -31,9 +31,9 @@
 
 {% macro grantStatusDescription(grant) %}
   {% if grant.status == enum.grant_status.DRAFT %}
-    Reports cannot be published until the grant is live.
-  {% elif grant.status == enum.grant_status.LIVE and grant.reports | selectattr('status', 'equalto', enum.collection_status.OPEN) | list | length == 0 %}
-    There are no reports live.
+    Collections cannot be published until the grant is live. {# todo: make this more specific to the type of collection thats being viewed - this is a temporary workaround #}
+  {% elif grant.status == enum.grant_status.LIVE and (grant.reports or grant.applications) | selectattr('status', 'equalto', enum.collection_status.OPEN) | list | length == 0 %}
+    There are no collections live.
   {% endif %}
 {% endmacro %}
 

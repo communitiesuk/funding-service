@@ -1004,8 +1004,8 @@ def test_setup_grant_and_collection(
     # Add a first task and a questions/question group
     add_section_page = grant_reports_page.click_add_section(report_name=new_report_name, grant_name=new_grant_name)
 
-    # Extract collection_id from URL (e.g., /grant/<uuid>/reports/<uuid>/sections)
-    collection_id = extract_uuid_from_url(page.url, r"/report/(?P<uuid>[a-f0-9-]+)")
+    # Extract collection_id from URL (e.g., /grant/<uuid>/collection/<uuid>/add-section)
+    collection_id = extract_uuid_from_url(page.url, r"/collection/(?P<uuid>[a-f0-9-]+)")
 
     first_section_name = "E2E first task - grouped questions"
     add_section_page.fill_in_section_name(first_section_name)

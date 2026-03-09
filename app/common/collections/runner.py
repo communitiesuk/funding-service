@@ -188,9 +188,9 @@ class FormRunner:
                 )
                 raise RedirectException(
                     url_for(
-                        "deliver_grant_funding.list_report_sections",
+                        "deliver_grant_funding.list_collection_sections",
                         grant_id=submission.collection.grant_id,
-                        report_id=submission.collection_id,
+                        collection_id=submission.collection_id,
                     )
                 )
 

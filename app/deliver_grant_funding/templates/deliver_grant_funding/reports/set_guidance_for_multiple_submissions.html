@@ -5,10 +5,10 @@
 
 {% set page_title = "Set guidance for multiple submissions" %}
 {% set submit_label = "Set guidance" %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
 
 {% block beforeContent %}
-  {% set back_link = url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id) %}
+  {% set back_link = url_for("deliver_grant_funding.list_collection_sections", grant_id=grant.id, collection_id=report.id) %}
   {{
     govukBackLink({
         "text": "Back",
@@ -60,7 +60,7 @@
 
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_id=report.id) }}">Cancel</a>
         </div>
       </form>
     </div>

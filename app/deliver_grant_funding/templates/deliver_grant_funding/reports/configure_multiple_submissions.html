@@ -2,13 +2,13 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set page_title = "Configure multiple submissions - " ~ report.name %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
 
 {% block beforeContent %}
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id),
+      "href": url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_id=report.id),
     })
   }}
 {% endblock %}
@@ -42,7 +42,7 @@
 
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Save"}) }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_id=report.id) }}">Cancel</a>
         </div>
       </form>
     </div>

@@ -229,7 +229,9 @@ class DeliverTestGrantRecipientJourneyPage(ReportsBasePage):
         ).get_by_role("combobox")
 
     def navigate(self) -> None:
-        self.page.goto(f"{self.domain}/deliver/grant/{self.grant_id}/reports/{self.collection_id}")
+        self.page.goto(
+            f"{self.domain}/deliver/grant/{self.grant_id}/collection/{self.collection_id}/test-grant-recipient-journey"
+        )
         expect(self.heading).to_be_visible()
 
     def select_test_organisation(self, org_name: str) -> None:
@@ -1265,7 +1267,7 @@ class SubmissionsListPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"{report_name} Monitoring Reports"),
+            heading=page.get_by_role("heading", name=f"{report_name} Reports"),
         )
         self.report_name = report_name
 

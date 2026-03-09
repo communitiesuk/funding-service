@@ -7,13 +7,13 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submissions - " ~ report.name %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
 
 {% block beforeContent %}
   {% if helper.is_test_mode %}
     {{ mhclgInlinePageTestDataBanner("Test submissions") }}
   {% endif %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":"Submissions"}) }}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, collection_config=collection_config, this_page_breadcrumb_item={"text":"Submissions"}) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -24,7 +24,7 @@
         {{ delete_all_form.csrf_token }}
         <div class="govuk-button-group govuk-!-margin-bottom-0">
           {{ delete_all_form.confirm_deletion(params={"text": "Yes, reset all test submissions", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
-          <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=report.id, submission_mode=submission_mode) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_id=report.id, submission_mode=submission_mode) }}">Cancel</a>
         </div>
       </form>
     {% endset %}
@@ -44,7 +44,8 @@
             {% if user_can_test_grant_recipient_journey %}
               <p class="govuk-body">
                 To start again you can
-                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=report.grant.id, report_id=report.id) }}"> test the grant recipient journey for this report </a
+                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=report.grant.id, collection_id=report.id) }}">
+                  test the grant recipient journey for this {{ collection_config.singular_name }} </a
                 >.
               </p>
             {% endif %}
@@ -67,7 +68,8 @@
             {% if user_can_test_grant_recipient_journey %}
               <p class="govuk-body">
                 To start again you can
-                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=report.grant.id, report_id=report.id) }}"> test the grant recipient journey for this report </a
+                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=report.grant.id, collection_id=report.id) }}">
+                  test the grant recipient journey for this {{ collection_config.singular_name }} </a
                 >.
               </p>
             {% endif %}
@@ -83,21 +85,21 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ report.name }}</span>
-        Monitoring reports
+        {{ collection_config.title_name }}
       </h1>
-      <p class="govuk-body">View the information that has been provided by grant recipients in their monitoring reports.</p>
+      <p class="govuk-body">View the information that has been provided by grant recipients in their {{ collection_config.plural_name }}.</p>
       <p class="govuk-body">
         {{
           govukButton({
             "text": "Export as CSV",
-            "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='csv'),
+            "href": url_for("deliver_grant_funding.export_submissions", grant_id=grant.id, collection_id=report.id, submission_mode=submission_mode, export_format='csv'),
             "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
           })
         }}
         {{
           govukButton({
             "text": "Export as JSON",
-            "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='json'),
+            "href": url_for("deliver_grant_funding.export_submissions", grant_id=grant.id, collection_id=report.id, submission_mode=submission_mode, export_format='json'),
             "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
           })
         }}
@@ -127,7 +129,7 @@
           %}
         {% else %}
           {% set no_submissions_text %}
-            <span>No submissions found for this monitoring report</span>
+            <span>No submissions found for this {{ collection_config.setup_label }}</span>
           {% endset %}
           {%
             do rows.append([
@@ -177,7 +179,7 @@
           %}
         {% else %}
           {% set no_collections_text %}
-            <span>No submissions found for this monitoring report</span>
+            <span>No submissions found for this {{ collection_config.setup_label }}</span>
           {% endset %}
           {%
             do rows.append([

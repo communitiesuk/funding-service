@@ -703,6 +703,16 @@ class SetUpReportForm(FlaskForm):
     submit = SubmitField("Continue and set up report", widget=GovSubmitInput())
 
 
+class SetUpApplicationForm(FlaskForm):
+    name = StringField(
+        "What is the name of the application?",
+        widget=GovTextInput(),
+        validators=[DataRequired("Enter a name for the application")],
+    )
+
+    submit = SubmitField("Continue and set up application", widget=GovSubmitInput())
+
+
 class AddSectionForm(FlaskForm):
     title = StringField(
         "Section name",

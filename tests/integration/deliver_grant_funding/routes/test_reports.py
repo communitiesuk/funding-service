@@ -113,19 +113,19 @@ class TestListReports:
         test_submission_links = page_has_link(soup, "0 test submissions")
         assert test_submission_links is not None
         assert test_submission_links.get("href") == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/test"
+            r"/deliver/grant/[a-z0-9-]{36}/collection/[a-z0-9-]{36}/submissions/test"
         )
 
         live_submissions_links = page_has_link(soup, "0 live submissions")
         assert live_submissions_links is not None
         assert live_submissions_links.get("href") == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/live"
+            r"/deliver/grant/[a-z0-9-]{36}/collection/[a-z0-9-]{36}/submissions/live"
         )
 
         expected_links = [
             ("Add another monitoring report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/set-up-report")),
-            ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-section")),
-            ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/change-name")),
+            ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/collection/[a-z0-9-]{36}/add-section")),
+            ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/collection/[a-z0-9-]{36}/change-name")),
             ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports\?delete")),
         ]
         for expected_link in expected_links:
@@ -141,9 +141,9 @@ class TestListReports:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.change_report_name",
+                "deliver_grant_funding.change_collection_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             )
         )
 
@@ -287,7 +287,7 @@ class TestSetUpReport:
 class TestChangeReportName:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.change_report_name", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for("deliver_grant_funding.change_collection_name", grant_id=uuid.uuid4(), collection_id=uuid.uuid4())
         )
         assert response.status_code == 404
 
@@ -303,7 +303,7 @@ class TestChangeReportName:
         report = factories.collection.create(grant=client.grant, name="Test Report")
 
         response = client.get(
-            url_for("deliver_grant_funding.change_report_name", grant_id=client.grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.change_collection_name", grant_id=client.grant.id, collection_id=report.id)
         )
 
         if not can_access:
@@ -319,9 +319,9 @@ class TestChangeReportName:
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.change_report_name",
+                "deliver_grant_funding.change_collection_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 delete="",
             )
         )
@@ -345,7 +345,7 @@ class TestChangeReportName:
 
         form = SetUpReportForm(data={"name": "Updated Name"})
         response = client.post(
-            url_for("deliver_grant_funding.change_report_name", grant_id=client.grant.id, report_id=report.id),
+            url_for("deliver_grant_funding.change_collection_name", grant_id=client.grant.id, collection_id=report.id),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -366,9 +366,9 @@ class TestChangeReportName:
         form = SetUpReportForm(data={"name": "Existing Report"})
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.change_report_name",
+                "deliver_grant_funding.change_collection_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report2.id,
+                collection_id=report2.id,
             ),
             data=get_form_data(form),
         )
@@ -385,9 +385,9 @@ class TestChangeReportName:
         form = SetUpReportForm(data={"name": "Updated Name"})
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.change_report_name",
+                "deliver_grant_funding.change_collection_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 delete="",
             ),
             data=get_form_data(form),
@@ -405,7 +405,7 @@ class TestChangeReportName:
 class TestAddSection:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.add_section", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for("deliver_grant_funding.add_section", grant_id=uuid.uuid4(), collection_id=uuid.uuid4())
         )
         assert response.status_code == 404
 
@@ -421,7 +421,7 @@ class TestAddSection:
         report = factories.collection.create(grant=client.grant)
 
         response = client.get(
-            url_for("deliver_grant_funding.add_section", grant_id=client.grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.add_section", grant_id=client.grant.id, collection_id=report.id)
         )
 
         if not can_access:
@@ -444,7 +444,7 @@ class TestAddSection:
 
         form = AddSectionForm(data={"title": "Organisation information"})
         response = client.post(
-            url_for("deliver_grant_funding.add_section", grant_id=client.grant.id, report_id=report.id),
+            url_for("deliver_grant_funding.add_section", grant_id=client.grant.id, collection_id=report.id),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -453,7 +453,7 @@ class TestAddSection:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}$")
+            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/collection/[a-z0-9-]{36}$")
 
             assert len(report.forms) == 1
             assert report.forms[0].title == "Organisation information"
@@ -467,7 +467,7 @@ class TestAddSection:
             url_for(
                 "deliver_grant_funding.add_section",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             ),
             data=get_form_data(form),
         )
@@ -480,7 +480,7 @@ class TestAddSection:
 class TestListReportSections:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for("deliver_grant_funding.list_collection_sections", grant_id=uuid.uuid4(), collection_id=uuid.uuid4())
         )
         assert response.status_code == 404
 
@@ -496,7 +496,7 @@ class TestListReportSections:
         report = factories.collection.create(grant=client.grant, name="Test Report")
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.list_collection_sections", grant_id=client.grant.id, collection_id=report.id)
         )
 
         assert response.status_code == 200
@@ -507,7 +507,7 @@ class TestListReportSections:
         assert (add_section_link is not None) is can_edit
 
         if add_section_link:
-            expected_href = AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-section")
+            expected_href = AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/collection/[a-z0-9-]{36}/add-section")
             assert add_section_link.get("href") == expected_href
 
     @pytest.mark.parametrize(
@@ -523,7 +523,7 @@ class TestListReportSections:
         factories.form.create(collection=report, title="Organisation information")
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.list_collection_sections", grant_id=client.grant.id, collection_id=report.id)
         )
 
         assert response.status_code == 200
@@ -554,7 +554,7 @@ class TestListReportSections:
         factories.submission.create(collection=report, mode=SubmissionModeEnum.PREVIEW, created_by=preview_user)
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.list_collection_sections", grant_id=client.grant.id, collection_id=report.id)
         )
 
         assert response.status_code == 200
@@ -589,7 +589,7 @@ class TestListReportSections:
 
         form = GenericSubmitForm()
         response = client.post(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id),
+            url_for("deliver_grant_funding.list_collection_sections", grant_id=grant.id, collection_id=report.id),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -609,7 +609,7 @@ class TestConfigureMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             )
         )
 
@@ -647,7 +647,7 @@ class TestConfigureMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             )
         )
 
@@ -682,7 +682,7 @@ class TestConfigureMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             )
         )
 
@@ -707,7 +707,7 @@ class TestConfigureMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             )
         )
 
@@ -729,7 +729,7 @@ class TestConfigureMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             ),
             data={"allow_multiple_submissions": False, "submit": "Save"},
             follow_redirects=False,
@@ -750,7 +750,7 @@ class TestConfigureMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             ),
             data={
                 "allow_multiple_submissions": True,
@@ -771,7 +771,7 @@ class TestConfigureMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             ),
             data={"allow_multiple_submissions": True, "submit": "Save"},
         )
@@ -791,7 +791,7 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             )
         )
 
@@ -810,7 +810,7 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             )
         )
 
@@ -829,7 +829,7 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             ),
             data={"guidance_body": "New guidance content", "submit": "Save guidance"},
             follow_redirects=False,
@@ -837,9 +837,9 @@ class TestSetGuidanceForMultipleSubmissions:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "deliver_grant_funding.list_report_sections",
+            "deliver_grant_funding.list_collection_sections",
             grant_id=authenticated_grant_admin_client.grant.id,
-            report_id=report.id,
+            collection_id=report.id,
         )
         assert report.submission_guidance == "New guidance content"
 
@@ -852,7 +852,7 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             ),
             data={"guidance_body": "Preview this", "preview": "Save and preview guidance"},
             follow_redirects=False,
@@ -873,7 +873,7 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
             ),
             data={"guidance_body": "", "submit": "Save guidance"},
             follow_redirects=False,
@@ -5725,7 +5725,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=uuid.uuid4(),
-                report_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
@@ -5738,7 +5738,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
@@ -5777,7 +5777,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
@@ -5785,7 +5785,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -5831,7 +5831,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -5865,7 +5865,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
@@ -5885,7 +5885,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -5907,7 +5907,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 delete_all=True,
             )
@@ -5934,7 +5934,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 delete_all=True,
             ),
@@ -5967,7 +5967,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 delete_all=True,
             ),
@@ -5979,7 +5979,7 @@ class TestListSubmissions:
         assert response.location == url_for(
             "deliver_grant_funding.list_submissions",
             grant_id=authenticated_grant_member_client.grant.id,
-            report_id=report.id,
+            collection_id=report.id,
             submission_mode=SubmissionModeEnum.TEST,
         )
         flashes = get_test_flashes(authenticated_grant_member_client, FlashMessageType.TEST_SUBMISSIONS_RESET)
@@ -6003,7 +6003,7 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 delete_all=True,
             ),
@@ -6055,7 +6055,7 @@ class TestListSubmissionsMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -6083,7 +6083,7 @@ class TestListSubmissionsMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -6106,7 +6106,7 @@ class TestListSubmissionsMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -6119,9 +6119,9 @@ class TestExportReportSubmissions:
     def test_404(self, authenticated_grant_member_client, factories, db_session):
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_submissions",
                 grant_id=uuid.uuid4(),
-                report_id=uuid.uuid4(),
+                collection_id=uuid.uuid4(),
                 submission_mode=SubmissionModeEnum.TEST,
                 export_format="csv",
             )
@@ -6138,9 +6138,9 @@ class TestExportReportSubmissions:
         )
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 export_format="zip",
             )
@@ -6157,9 +6157,9 @@ class TestExportReportSubmissions:
         )
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 export_format="csv",
             )
@@ -6183,9 +6183,9 @@ class TestExportReportSubmissions:
         )
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 export_format="json",
             )
@@ -6225,9 +6225,9 @@ class TestExportReportSubmissions:
 
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 export_format="csv",
             )
@@ -6270,9 +6270,9 @@ class TestExportReportSubmissions:
 
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_id=report.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 export_format="json",
             )
@@ -6424,7 +6424,7 @@ class TestViewSubmission:
         assert response.location == url_for(
             "deliver_grant_funding.list_submissions",
             grant_id=authenticated_grant_member_client.grant.id,
-            report_id=report.id,
+            collection_id=report.id,
             submission_mode=SubmissionModeEnum.TEST,
         )
 
