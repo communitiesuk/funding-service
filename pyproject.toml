@@ -16,11 +16,11 @@ dependencies = [
     "flask-wtf==1.2.2",
     "govuk-frontend-jinja==3.10.0",
     "govuk-frontend-wtf==3.2.0",
-    "psycopg==3.3.2",
+    "psycopg==3.3.3",
     "pydantic==2.12.5",
     "pydantic-settings==2.12.0",
     "python-json-logger==4.0.0",
-    "sqlalchemy==2.0.46",
+    "sqlalchemy==2.0.47",
     "wtforms[email]==3.2.1",
     "notifications-python-client==10.0.1",
     "flask-talisman==1.1.0",
@@ -36,7 +36,7 @@ dependencies = [
     "xgovuk-flask-admin==0.1.7",
     "flask-admin==2.0.2",
     "playwright==1.58.0",
-    "boto3==1.42.51",
+    "boto3==1.42.59",
     "types-boto3[s3]==1.42.59",
 ]
 
