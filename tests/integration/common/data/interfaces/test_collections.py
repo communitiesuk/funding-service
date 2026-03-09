@@ -15,6 +15,7 @@ from app.common.data.interfaces.collections import (
     IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
+    _find_references_in_expression,
     _validate_and_sync_component_references,
     _validate_and_sync_expression_references,
     add_component_condition,
@@ -3521,6 +3522,25 @@ class TestDeleteCollectionSubmissions:
 
         for submission in preview_submissions_from_db:
             assert submission.created_by is not user
+
+
+class TestReferenceValidation:
+    @pytest.mark.parametrize(
+        "expression, expected_references",
+        [
+            ("((q1)) + ((q2))", {"((q1))", "((q2))"}),
+            ("((q1)) + 5", {"((q1))"}),
+            ("5 + 10", set()),
+            ("((q1)) + ((q2)) + ((q3))", {"((q1))", "((q2))", "((q3))"}),
+            ("((q1)) + ((q2)) + ((q1))", {"((q1))", "((q2))"}),  # Duplicate references should only be returned once
+            ["((q1)) + (not a ref)", {"((q1))"}],
+            ["((q1)) + (not a ref))", {"((q1))"}],
+            ["((q1)) + ((not a ref)", {"((q1))"}],
+        ],
+    )
+    def test_find_references_in_expression(self, expression, expected_references):
+        references = _find_references_in_expression(expression)
+        assert references == expected_references
 
 
 class TestValidateAndSyncExpressionReferences:

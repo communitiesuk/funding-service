@@ -768,12 +768,11 @@ class TestCustomExpression:
         question = factories.question.create()
         expr = CustomExpression(custom_expression="(({question_id})) > 5", custom_message="Failed validation")
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
-        # db_session.add(expression)
         question.expressions.append(expression)
         db_session.commit()
 
         from_db = db_session.query(Expression).filter_by(id=expression.id).one()
-        assert from_db.statement == expr.statement
+        assert from_db.statement == expr.custom_expression
         assert from_db.type_ == ExpressionType.VALIDATION
         assert from_db.created_by_id == user.id
         assert from_db.is_custom is True

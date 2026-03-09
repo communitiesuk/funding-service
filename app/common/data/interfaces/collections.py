@@ -840,11 +840,14 @@ class SectionDependencyOrderException(Exception, FlashableException):
 
 
 class IncompatibleDataTypeException(Exception):
-    def __init__(self, message: str, component: Component, depends_on_component: Component):
+    def __init__(
+        self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
+    ):
         super().__init__(message)
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
+        self.field_name = field_name
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -1389,6 +1392,73 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
+def _find_references_in_expression(
+    value: str,
+) -> set[str]:
+    references: set[str] = set()
+    for match in INTERPOLATE_REGEX.finditer(value):
+        references.add(match.group(0))
+    return references
+
+
+def _validate_reference(
+    wrapped_reference: str,
+    attached_to_component: Component | None,
+    expression_context: ExpressionContext,
+    expression_type: ExpressionType | None,  # None if it's not an expression, eg. guidance text
+    field_name_for_error_message: str,
+    validation_reason: str = "",
+) -> str:
+    unwrapped_ref = wrapped_reference.strip("() ")
+    if ALLOWED_INTERPOLATION_REGEX.search(unwrapped_ref) is not None:
+        raise InvalidReferenceInExpression(
+            f"Reference is not valid: {wrapped_reference}",
+            field_name=field_name_for_error_message,
+            bad_reference=wrapped_reference,
+        )
+    if not attached_to_component:
+        # TODO change this once we can create expressions to reuse, before they are attached to a component
+        raise NotImplementedError("Cannot handle un-attached references yet")
+
+    if expression_type == ExpressionType.VALIDATION and not attached_to_component.is_question:
+        # TODO change this once we can attach validation to a question group
+        #  or an auto calculation to a whole section
+        raise NotImplementedError("Cannot handle validation expressions attached to non-question components yet")
+
+    if not unwrapped_ref:
+        raise InvalidReferenceInExpression(
+            f"Reference is not valid: {wrapped_reference}",
+            field_name=field_name_for_error_message,
+            bad_reference=wrapped_reference,
+        )
+
+    # Check the reference is valid in this expression context
+    if not expression_context.is_valid_reference(unwrapped_ref):
+        raise InvalidReferenceInExpression(
+            f"Reference is not valid: {wrapped_reference}",
+            field_name=field_name_for_error_message,
+            bad_reference=wrapped_reference,
+        )
+
+    # If it's a question, check it is of the right data type
+    if question_id := SafeQidMixin.safe_qid_to_id(unwrapped_ref):
+        question = db.session.get_one(Question, question_id)
+
+        if expression_type == ExpressionType.VALIDATION and not attached_to_component.data_type == question.data_type:
+            raise IncompatibleDataTypeException(
+                f"Reference is not valid due to incompatible data types: {wrapped_reference}",
+                component=attached_to_component,
+                depends_on_component=question,
+                field_name=field_name_for_error_message,
+            )
+    else:
+        # TODO implement this once we can reference other things, eg. data uploads
+        raise NotImplementedError(
+            f"Reference is not a valid question ID: {wrapped_reference}",
+        )
+    return unwrapped_ref
+
+
 def _validate_and_sync_expression_references(expression: Expression) -> None:
     if not expression.is_managed:
         raise NotImplementedError("Cannot handle un-managed expressions yet")
@@ -1488,32 +1558,23 @@ def _validate_and_sync_component_references(component: Component, expression_con
         if value is None:
             continue
 
-        for match in INTERPOLATE_REGEX.finditer(value):
-            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
-
-            if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
-                raise InvalidReferenceInExpression(
-                    f"Reference is not valid: {wrapped_ref}",
-                    field_name=field_name,
-                    bad_reference=wrapped_ref,
-                )
-
-            # TODO: When we allow complex references (eg not just a single reference but some combination of references
-            #       such as `q_id1 + q_id2`) then this logic will need to handle that.
-            if not expression_context.is_valid_reference(inner_ref):
-                raise InvalidReferenceInExpression(
-                    f"Reference is not valid: {wrapped_ref}",
-                    field_name=field_name,
-                    bad_reference=wrapped_ref,
-                )
+        unvalidated_references: set[str] = _find_references_in_expression(value)
+        for wrapped_reference in unvalidated_references:
+            reference = _validate_reference(
+                wrapped_reference=wrapped_reference,
+                attached_to_component=component,
+                expression_context=expression_context,
+                expression_type=None,
+                field_name_for_error_message=field_name,
+            )
 
             # If `is_valid_reference` above is True, then we know that we have a QID that points to a question in the
             # same collection - but not necessarily the same form.
-            if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
+            if question_id := SafeQidMixin.safe_qid_to_id(reference):
                 question = db.session.get_one(Question, question_id)
                 if question.form.order > component.form.order:
                     raise InvalidReferenceInExpression(
-                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
+                        f"Reference is not valid: {reference}", field_name=field_name, bad_reference=reference
                     )
 
                 if question.form_id == component.form_id:
@@ -1522,7 +1583,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
                         component
                     ):
                         raise InvalidReferenceInExpression(
-                            f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
+                            f"Reference is not valid: {reference}", field_name=field_name, bad_reference=reference
                         )
 
                     if (
@@ -1534,9 +1595,9 @@ def _validate_and_sync_component_references(component: Component, expression_con
                     ):
                         if question.parent.same_page:
                             raise InvalidReferenceInExpression(
-                                f"Reference is not valid: {wrapped_ref}",
+                                f"Reference is not valid: {reference}",
                                 field_name=field_name,
-                                bad_reference=wrapped_ref,
+                                bad_reference=reference,
                             )
 
                 references_to_set_up.add((component.id, question.id))
