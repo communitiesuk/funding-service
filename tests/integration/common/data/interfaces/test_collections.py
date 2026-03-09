@@ -3866,6 +3866,39 @@ class TestValidateAndSyncExpressionReferences:
         with pytest.raises(AddAnotherDependencyException):
             _validate_and_sync_expression_references(expression)
 
+    def test_raises_add_another_exception_referencing_from_outside_group(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        group = factories.group.create(add_another=True, form=form)
+        first_referenced_question = factories.question.create(
+            parent=group, form=form, data_type=QuestionDataType.NUMBER
+        )
+        second_referenced_question = factories.question.create(
+            parent=group, form=form, data_type=QuestionDataType.NUMBER
+        )
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            GreaterThan(
+                question_id=second_referenced_question.id,
+                minimum_value=None,
+                minimum_expression=f"(({first_referenced_question.safe_qid}))",
+            ),
+            ExpressionType.CONDITION,
+            user,
+        )
+        target_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        if hasattr(form, "cached_all_components"):
+            del form.cached_all_components
+
+        with pytest.raises(AddAnotherDependencyException):
+            _validate_and_sync_expression_references(expression)
+
 
 class TestValidateAndSyncComponentReferences:
     def test_creates_references_for_supported_fields(self, db_session, factories):
