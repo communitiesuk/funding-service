@@ -121,7 +121,7 @@
               }, {
                 "html": submissionStatusTag(submission_helper.status, submission_helper.is_overdue)
               }, {
-                "text": format_date_short(submission_helper.submission.updated_at_utc)
+                "text": format_date_short(submission_helper.last_updated_at_utc)
               }
             ])
           %}
@@ -171,7 +171,7 @@
               }, {
                 "html": submissionStatusTag(grant_recipient_submission_helper.status if grant_recipient_submission_helper else enum.submission_status.NOT_STARTED, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else report.is_overdue)
               }, {
-                "text": format_date_short(grant_recipient_submission_helper.submission.updated_at_utc) if grant_recipient_submission_helper else ''
+                "text": format_date_short(grant_recipient_submission_helper.last_updated_at_utc) if grant_recipient_submission_helper else ''
               }
             ])
           %}

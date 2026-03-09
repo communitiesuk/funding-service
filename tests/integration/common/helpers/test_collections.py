@@ -1289,6 +1289,57 @@ class TestSubmissionHelper:
             # TODO should we change the decline function to send emails for consistency with submit/certify
             assert len(mock_notification_service_calls) == 0
 
+    class TestLastUpdatedAt:
+        @pytest.mark.freeze_time("2026-03-09 12:00:00")
+        def test_last_updated_at_utc_returns_last_submission_event_utc(
+            self, factories, submission_ready_to_submit, data_provider_user, certifier_user
+        ):
+            helper = SubmissionHelper(submission_ready_to_submit)
+            submission_event = factories.submission_event.create(
+                submission=submission_ready_to_submit,
+                event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+                created_by=data_provider_user,
+                created_at_utc=datetime(2026, 4, 12, 0, 0, 0),
+            )
+            assert helper.submitted_at_utc is None
+            assert helper.certified_at_utc is None
+            assert helper.sent_for_certification_at_utc == submission_event.created_at_utc
+            assert helper.last_updated_at_utc == submission_event.created_at_utc
+
+            decline_event = factories.submission_event.create(
+                submission=submission_ready_to_submit,
+                event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+                created_by=certifier_user,
+                created_at_utc=datetime(2026, 4, 13, 0, 0, 0),
+            )
+            assert helper.submitted_at_utc is None
+            assert helper.certified_at_utc is None
+            assert helper.sent_for_certification_at_utc == submission_event.created_at_utc
+            assert helper.last_updated_at_utc == decline_event.created_at_utc
+
+            submission_time = datetime(2026, 4, 14, 0, 0, 0)
+            factories.submission_event.create(
+                submission=submission_ready_to_submit,
+                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                created_by=certifier_user,
+                created_at_utc=submission_time,
+            )
+            factories.submission_event.create(
+                submission=submission_ready_to_submit,
+                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                created_by=certifier_user,
+                created_at_utc=submission_time,
+            )
+            assert helper.certified_at_utc == submission_time
+            assert helper.submitted_at_utc == submission_time
+            assert helper.last_updated_at_utc == submission_time
+
+        def test_last_updated_at_utc_returns_updated_at_when_no_submission_events(self, submission_in_progress):
+            helper = SubmissionHelper(submission_in_progress)
+            assert helper.submitted_at_utc is None
+            assert helper.certified_at_utc is None
+            assert helper.last_updated_at_utc == helper.submission.updated_at_utc
+
 
 class TestFormResetOnAnswerChange:
     def test_same_section_reset_when_completed(self, db_session, factories):

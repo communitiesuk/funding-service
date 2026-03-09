@@ -169,6 +169,13 @@ class SubmissionEventHelper:
     def events(self) -> list[SubmissionEvent]:
         return sorted(self.submission.events, key=lambda x: x.created_at_utc, reverse=False)
 
+    @property
+    def latest_event_utc(self) -> datetime | None:
+        events = self.events
+        if not events:
+            return None
+        return max(e.created_at_utc for e in events)
+
     def form_state(self, form_id: UUID) -> FormState:
         return FormState(**self._reduce([e for e in self.events if e.related_entity_id == form_id]))
 

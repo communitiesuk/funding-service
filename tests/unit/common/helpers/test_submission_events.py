@@ -135,3 +135,36 @@ class TestSubmissionEventHelper:
             assert events.submission_state.submitted_at_utc == datetime(2025, 11, 25, 0, 0, 0)
             assert events.submission_state.sent_for_certification_by == user
             assert events.submission_state.sent_for_certification_at_utc == datetime(2025, 11, 24, 0, 0, 0)
+
+    class TestLatestEventUTC:
+        def test_latest_event_utc_returns_latest_event(self, factories):
+            form = factories.form.build()
+            user = factories.user.build()
+            submission = factories.submission.build(
+                collection=form.collection,
+            )
+            submission.events = [
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION),
+                    created_at_utc=datetime(2025, 11, 24, 0, 0, 0),
+                ),
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER),
+                    created_at_utc=datetime(2025, 11, 24, 11, 0, 0),
+                ),
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SUBMITTED),
+                    created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
+                ),
+            ]
+            events = SubmissionEventHelper(submission)
+            assert events.latest_event_utc == datetime(2025, 11, 25, 0, 0, 0)
