@@ -30,6 +30,10 @@ class CustomExpression(EvaluatableExpression):
     def message(self) -> str:
         return self.custom_message
 
+    @property
+    def reference_aware_fields(self) -> set[str]:
+        return {"custom_expression", "custom_message"}
+
 
 def get_custom_expression(expression: Expression) -> CustomExpression:
     if not expression.is_custom:
