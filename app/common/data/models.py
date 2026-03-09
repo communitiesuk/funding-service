@@ -38,10 +38,9 @@ from app.common.data.types import (
     json_flat_scalars,
     json_scalars,
 )
+from app.common.expressions import EvaluatableExpression
+from app.common.expressions.custom import CustomExpression, get_custom_expression
 from app.common.expressions.managed import (
-    CustomExpression,
-    EvaluatableExpression,
-    get_custom_expression,
     get_managed_expression,
 )
 from app.common.qid import SafeQidMixin
