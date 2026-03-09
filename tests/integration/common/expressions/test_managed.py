@@ -7,11 +7,11 @@ from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import evaluate
+from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import (
     AnyOf,
     Between,
     BetweenDates,
-    CustomExpression,
     GreaterThan,
     IsAfter,
     IsBefore,
