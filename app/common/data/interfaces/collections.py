@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
 
 from flask import current_app
@@ -52,7 +52,12 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.data.utils import generate_submission_reference
-from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
+from app.common.expressions import (
+    ALLOWED_INTERPOLATION_REGEX,
+    INTERPOLATE_REGEX,
+    EvaluatableExpression,
+    ExpressionContext,
+)
 from app.common.expressions.managed import BaseDataSourceManagedExpression, ManagedExpression
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
@@ -1549,7 +1554,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
         if expression.type_ == ExpressionType.CONDITION:
             # validate the referenced question - the one that is compared against the expression
             valid_reference = _validate_reference(
-                wrapped_reference=f"(({expr_impl.referenced_question.safe_qid}))",
+                wrapped_reference=f"(({expr_impl.referenced_question.safe_qid}))",  # ty:ignore[possibly-missing-attribute]
                 attached_to_component=expression.question,
                 expression_context=ExpressionContext.build_expression_context(
                     expression.question.form.collection, "interpolation", None, None
@@ -1559,7 +1564,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
                 question_to_test=None,
             )
 
-        referenced_questions.add(expr_impl.referenced_question)
+        referenced_questions.add(expr_impl.referenced_question)  # ty:ignore[possibly-missing-attribute]
 
     for field in expr_impl.reference_aware_fields:
         field_value = getattr(expr_impl, field)
@@ -1653,8 +1658,10 @@ def add_component_condition(component: Component, user: User, managed_expression
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
-    expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.VALIDATION, user)
+def add_question_validation(
+    question: Question, user: User, evaluatable_expression: "EvaluatableExpression"
+) -> Question:
+    expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.VALIDATION, user)
     question.expressions.append(expression)
     _validate_and_sync_expression_references(expression)
     return question
@@ -1671,10 +1678,10 @@ def remove_question_expression(question: Component, expression: Expression) -> C
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def update_question_expression(expression: Expression, managed_expression: ManagedExpression) -> Expression:
-    expression.statement = managed_expression.statement
-    expression.context = managed_expression.model_dump(mode="json")
-    expression.managed_name = managed_expression._key
+def update_question_expression(expression: Expression, evaluatable_expression: ManagedExpression) -> Expression:
+    expression.statement = evaluatable_expression.statement
+    expression.context = evaluatable_expression.model_dump(mode="json")
+    expression.managed_name = evaluatable_expression._key
 
     _validate_and_sync_expression_references(expression)
     return expression

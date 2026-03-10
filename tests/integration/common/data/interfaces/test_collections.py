@@ -1266,8 +1266,8 @@ class TestUpdateGroup:
         )
         add_question_validation(
             question=q2,
-            managed_expression=GreaterThan(question_id=q1.id, minimum_value=100),
             user=factories.user.create(),
+            evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
         )
 
         with pytest.raises(AddAnotherDependencyException) as e:
@@ -1284,8 +1284,8 @@ class TestUpdateGroup:
         q2 = factories.question.create(form=group.form, parent=group)
         add_question_validation(
             question=q2,
-            managed_expression=GreaterThan(question_id=q1.id, minimum_value=100),
             user=factories.user.create(),
+            evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
         )
 
         update_group(group, expression_context=ExpressionContext(), add_another=True)
@@ -2999,6 +2999,29 @@ class TestExpressions:
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
 
+    def test_add_question_condition_custom(self, db_session, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expr = CustomExpression(
+            custom_expression=f"(({q1.safe_qid})) > (({q2.safe_qid}))", custom_message="Failed condition"
+        )
+
+        add_component_condition(q3, user, custom_expr)
+
+        # check the serialisation and deserialisation is as expected
+        from_db = get_question_by_id(q3.id)
+
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type_ == ExpressionType.CONDITION
+        assert from_db.expressions[0].statement == f"(({q1.safe_qid})) > (({q2.safe_qid}))"
+
+        # check the serialised context lines up with the values in the managed expression
+        assert from_db.expressions[0].managed_name is None
+        assert from_db.expressions[0].is_custom
+
     def test_add_condition_raises_if_same_page(self, db_session, factories):
         group = factories.group.create(
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
@@ -3130,6 +3153,30 @@ class TestExpressions:
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
+    def test_add_question_validation_custom(self, db_session, factories):
+        form = factories.form.create()
+        q1, q2 = factories.question.create_batch(2, form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expression = CustomExpression(
+            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid}))",
+            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
+        )
+
+        add_question_validation(q2, user, custom_expression)
+
+        # check the serialisation and deserialisation is as expected
+        from_db = get_question_by_id(q2.id)
+
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type_ == ExpressionType.VALIDATION
+        assert from_db.expressions[0].statement == f"(({q2.safe_qid})) >= (({q1.safe_qid}))"
+
+        # check the serialised context lines up with the values in the managed expression
+        assert from_db.expressions[0].is_managed is False
+        assert from_db.expressions[0].is_custom is True
+
     def test_update_expression(self, db_session, factories):
         q0 = factories.question.create()
         question = factories.question.create(form=q0.form)
@@ -3143,6 +3190,28 @@ class TestExpressions:
         update_question_expression(question.expressions[0], updated_expression)
 
         assert question.expressions[0].statement == f"{q0.safe_qid} > Decimal('5000')"
+
+    def test_update_expression_custom(self, db_session, factories):
+        form = factories.form.create()
+        q1, q2 = factories.question.create_batch(2, form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expression = CustomExpression(
+            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid}))",
+            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
+        )
+
+        add_question_validation(q2, user, custom_expression)
+
+        updated_expression = CustomExpression(
+            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid})) + 6",
+            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid})) + 6",
+        )
+
+        update_question_expression(q2.expressions[0], updated_expression)
+
+        assert q2.expressions[0].statement == f"(({q2.safe_qid})) >= (({q1.safe_qid})) + 6"
 
     def test_update_anyof_expression(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
@@ -4701,3 +4770,18 @@ class TestValidateReference:
                 )
                 == q1.safe_qid
             )
+class TestAddQuestionValidationCustomExpression:
+    def test_create_custom_validation_expression_valid(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+        user = factories.user.create()
+        custom_expr = CustomExpression(
+            custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+            custom_message="Q3 must be less than Q1+Q2",
+        )
+
+        collections.add_question_validation(question=q3, user=user, evaluatable_expression=custom_expr)
+
+        q3_from_db = get_question_by_id(q3.id)
+        assert len(q3_from_db.expressions) == 1
+        assert len(q3_from_db.owned_component_references) == 3
