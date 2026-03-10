@@ -171,7 +171,7 @@ class TestEvaluatingManagedExpressions:
                         minimum_expression=f"(({q0.safe_qid}))",
                         number_type=NumberTypeEnum.INTEGER,
                     ),
-                    ExpressionType.CONDITION,
+                    ExpressionType.VALIDATION,
                     user,
                 )  # Double brackets should be ignored by the evaluation engine
             ],
@@ -207,7 +207,7 @@ class TestEvaluatingManagedExpressions:
                         earliest_expression=f"(({q0.safe_qid}))",
                         latest_expression=f"(({q1.safe_qid}))",
                     ),
-                    ExpressionType.CONDITION,
+                    ExpressionType.VALIDATION,
                     user,
                 )  # Double brackets should be ignored by the evaluation engine
             ],

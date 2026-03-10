@@ -1154,14 +1154,15 @@ class TestUpdateGroup:
         )
         user = factories.user.create()
         q1 = factories.question.create(form=form, parent=group)
-        _ = factories.question.create(
+        q2 = factories.question.create(
             form=form,
             parent=group,
-            expressions=[
-                Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=100), ExpressionType.CONDITION, user
-                )
-            ],
+        )
+
+        q2.expressions.append(
+            Expression.from_evaluatable_expression(
+                GreaterThan(question_id=q1.id, minimum_value=100), ExpressionType.CONDITION, user
+            )
         )
 
         update_group(
@@ -3007,7 +3008,7 @@ class TestExpressions:
 
         managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
 
-        with pytest.raises(DependencyOrderException):
+        with pytest.raises(InvalidReferenceInExpression):
             add_component_condition(q1, user, managed_expression)
 
         # check that the ORM has been rolled back and invalidated any changes from the interface
@@ -3078,7 +3079,7 @@ class TestExpressions:
 
         with pytest.raises(DependencyOrderException) as e:
             add_component_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
-        assert str(e.value) == "Cannot add managed condition that depends on a later question"
+        assert str(e.value) == "Cannot reference a later question"
 
     def test_add_question_condition_blocks_on_add_another_question(self, db_session, factories):
         user = factories.user.create()
@@ -3087,7 +3088,7 @@ class TestExpressions:
 
         with pytest.raises(AddAnotherDependencyException) as e:
             add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
-        assert str(e.value) == "Cannot add managed condition that depends on an add another question"
+        assert str(e.value) == "A question cannot depend on an add another question from a different add another group"
 
     def test_add_question_condition_blocks_on_add_another_question_outside_group(self, db_session, factories):
         user = factories.user.create()
@@ -3097,7 +3098,7 @@ class TestExpressions:
 
         with pytest.raises(AddAnotherDependencyException) as e:
             add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
-        assert str(e.value) == "Cannot add managed condition that depends on an add another question"
+        assert str(e.value) == "A question cannot depend on an add another question from a different add another group"
 
     def test_add_question_condition_succeeds_add_another_question_inside_same_group(self, db_session, factories):
         user = factories.user.create()
@@ -3224,7 +3225,7 @@ class TestExpressions:
             id=qid,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=qid, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(question_id=qid, minimum_value=3000), ExpressionType.VALIDATION, user
                 ),
             ],
         )
@@ -3775,7 +3776,7 @@ class TestValidateAndSyncExpressionReferences:
         )
         second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
-
+        conditional_question = factories.question.create(form=form)
         expression = Expression.from_evaluatable_expression(
             Between(
                 question_id=target_question.id,
@@ -3787,7 +3788,7 @@ class TestValidateAndSyncExpressionReferences:
             ExpressionType.CONDITION,
             user,
         )
-        target_question.expressions.append(expression)
+        conditional_question.expressions.append(expression)
         db_session.add(expression)
         db_session.flush()
 
@@ -3808,6 +3809,7 @@ class TestValidateAndSyncExpressionReferences:
         second_referenced_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, add_another=True)
 
+        conditional_question = factories.question.create(form=form)
         expression = Expression.from_evaluatable_expression(
             Between(
                 question_id=target_question.id,
@@ -3819,7 +3821,7 @@ class TestValidateAndSyncExpressionReferences:
             ExpressionType.CONDITION,
             user,
         )
-        target_question.expressions.append(expression)
+        conditional_question.expressions.append(expression)
         db_session.add(expression)
         db_session.flush()
 
