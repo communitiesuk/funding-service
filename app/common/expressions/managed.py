@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
 class ManagedExpression(EvaluatableExpression):
     name: ClassVar[ManagedExpressionsEnum]
+    question_id: UUID
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
     supported_validator_data_types: ClassVar[set[QuestionDataType]]
     managed_expression_form_template: ClassVar[str | None]
