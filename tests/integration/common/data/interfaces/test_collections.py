@@ -99,6 +99,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
 from app.common.forms.helpers import components_in_valid_add_another_combination
 
@@ -3605,23 +3606,6 @@ class TestValidateAndSyncExpressionReferences:
         assert reference.expression == expression
         assert reference.depends_on_component == referenced_question
 
-    def test_raises_not_implemented_for_unmanaged_expression(self, db_session, factories):
-        user = factories.user.create()
-        question = factories.question.create()
-
-        expression = Expression(
-            statement="1 + 1",
-            context={},
-            created_by=user,
-            type_=ExpressionType.CONDITION,
-            managed_name=None,
-        )
-        question.expressions.append(expression)
-        db_session.add(expression)
-
-        with pytest.raises(NotImplementedError):
-            _validate_and_sync_expression_references(expression)
-
     def test_replaces_existing_component_references(self, db_session, factories):
         user = factories.user.create()
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
@@ -3900,6 +3884,36 @@ class TestValidateAndSyncExpressionReferences:
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_and_sync_expression_references(expression)
+
+    def test_creates_component_references_for_custom_expression(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        q0, q1, q2, q3 = factories.question.create_batch(4, form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            CustomExpression(
+                custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+                custom_message=f"The answer must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
+                f" and a random reference to (({q0.safe_qid}))",
+            ),
+            ExpressionType.VALIDATION,
+            user,
+        )
+        q3.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+
+        assert len(expression.component_references) == 4
+
+        assert all(ref.component == q3 for ref in expression.component_references)
+        assert all(ref.expression == expression for ref in expression.component_references)
+        assert all(ref.depends_on_component in {q0, q1, q2, q3} for ref in expression.component_references)
+
+
 
 
 class TestValidateAndSyncComponentReferences:
