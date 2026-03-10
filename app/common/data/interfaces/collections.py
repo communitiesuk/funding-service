@@ -53,7 +53,7 @@ from app.common.data.types import (
 )
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
-from app.common.expressions.managed import BaseDataSourceManagedExpression
+from app.common.expressions.managed import BaseDataSourceManagedExpression, ManagedExpression
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
@@ -1521,16 +1521,17 @@ def _validate_reference(  # noqa:C901
 
 
 def _validate_and_sync_expression_references(expression: Expression) -> None:
-    if not expression.is_managed:
-        raise NotImplementedError("Cannot handle un-managed expressions yet")
+    if expression.is_managed:
+        expr_impl = expression.managed
+    else:
+        expr_impl = expression.custom
 
-    # TODO: When an expression can target multiple questions, this will need refactoring to support that.
+    referenced_questions = set()
     references: list[ComponentReference] = []
 
-    managed = expression.managed
-    if isinstance(managed, BaseDataSourceManagedExpression):
+    if isinstance(expr_impl, BaseDataSourceManagedExpression):
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
-            managed_expression=managed
+            managed_expression=expr_impl
         )
 
         # TODO: Support data sources that are independent of components(questions), eg when ee have platform-level
@@ -1544,11 +1545,11 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             )
             db.session.add(cr)
             references.append(cr)
-    else:
+    elif expression.is_managed:
         if expression.type_ == ExpressionType.CONDITION:
             # validate the referenced question - the one that is compared against the expression
             valid_reference = _validate_reference(
-                wrapped_reference=f"(({managed.referenced_question.safe_qid}))",
+                wrapped_reference=f"(({expr_impl.referenced_question.safe_qid}))",
                 attached_to_component=expression.question,
                 expression_context=ExpressionContext.build_expression_context(
                     expression.question.form.collection, "interpolation", None, None
@@ -1558,16 +1559,10 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
                 question_to_test=None,
             )
 
-        cr = ComponentReference(
-            depends_on_component=expression.managed.referenced_question,
-            component=expression.question,
-            expression=expression,
-        )
-        db.session.add(cr)
-        references.append(cr)
+        referenced_questions.add(expr_impl.referenced_question)
 
-    for field in managed.reference_aware_fields:
-        field_value = getattr(managed, field)
+    for field in expr_impl.reference_aware_fields:
+        field_value = getattr(expr_impl, field)
         if not field_value:
             continue
         unvalidated_references = _find_references_in_expression(field_value)
@@ -1580,17 +1575,20 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
                 ),
                 expression_type=expression.type_,
                 field_name_for_error_message=field,
-                question_to_test=managed.referenced_question,
+                question_to_test=expr_impl.referenced_question if expression.is_managed else None,  # ty:ignore[possibly-missing-attribute]
             )
 
             referenced_question = get_question_by_id(SafeQidMixin.safe_qid_to_id(valid_reference))  # type:ignore[arg-type]
-            cr = ComponentReference(
-                component=expression.question,
-                expression=expression,
-                depends_on_component=referenced_question,
-            )
-            db.session.add(cr)
-            references.append(cr)
+            referenced_questions.add(referenced_question)
+
+    for referenced_question in referenced_questions:
+        cr = ComponentReference(
+            component=expression.question,
+            expression=expression,
+            depends_on_component=referenced_question,
+        )
+        db.session.add(cr)
+        references.append(cr)
 
     expression.component_references = references
 
