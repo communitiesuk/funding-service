@@ -46,7 +46,7 @@ class InvalidEvaluationResult(ManagedExpressionError):
 class EvaluatableExpression(BaseModel, SafeQidMixin):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
     name: ClassVar[ManagedExpressionsEnum | Literal["CUSTOM"]]
-    question_id: UUID
+    question_id: UUID | None = None
 
     _key: ManagedExpressionsEnum | None
 

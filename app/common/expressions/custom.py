@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 class CustomExpression(EvaluatableExpression):
     name: ClassVar[Literal["CUSTOM"]] = "CUSTOM"
+    question_id: None = None
     _key: None = None
     custom_expression: str
     custom_message: str

@@ -5,7 +5,13 @@ import pytest
 
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
+from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionDataType,
+)
 from app.common.expressions import evaluate
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import (
@@ -760,9 +766,7 @@ class TestCustomExpression:
     def test_create_custom_expression(self, factories, db_session):
         user = factories.user.create()
         question = factories.question.create()
-        expr = CustomExpression(
-            question_id=question.id, custom_expression="(({question_id})) > 5", custom_message="Failed validation"
-        )
+        expr = CustomExpression(custom_expression="(({question_id})) > 5", custom_message="Failed validation")
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         # db_session.add(expression)
         question.expressions.append(expression)
@@ -781,8 +785,40 @@ class TestCustomExpression:
         assert from_db.custom.custom_expression == expr.custom_expression
         assert from_db.custom.custom_message == expr.custom_message
         assert from_db.context == {
-            "question_id": str(expr.question_id),
+            "question_id": None,
             "custom_expression": "(({question_id})) > 5",
             "custom_message": "Failed validation",
             "custom_description": "Custom calculation",
+        }
+
+    @pytest.mark.parametrize(
+        " expression, expected_result",
+        [
+            ("(({q1})) + (({q2})) <= (({q3}))", True),
+            ("(({q1})) + (({q2})) < (({q3}))", False),
+            ("(({q1})) * (({q2})) > (({q3}))", True),
+            ("(({q1})) * 8 >= (({q3}))", True),
+        ],
+    )
+    def test_evaluate(self, expression, expected_result, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        expr = CustomExpression(
+            custom_expression=expression.format(q1=q1.safe_qid, q2=q2.safe_qid, q3=q3.safe_qid),
+            custom_message="a message",
+        )
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
+        expression.context = {
+            q1.safe_qid: 10,
+            q2.safe_qid: 20,
+            q3.safe_qid: 30,
+            "question_id": expr.question_id,
+            "custom_expression": expr.custom_expression,
+            "custom_message": expr.custom_message,
         }
