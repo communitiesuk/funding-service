@@ -1,8 +1,10 @@
+import csv
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
+import email_validator
 from flask import current_app
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
@@ -871,3 +873,65 @@ class CollectionSettingsSelectQuestionForm(FlaskForm):
         self.question.choices = [("", "")] + [  # type: ignore[assignment]
             (str(question.id), interpolate(question.text)) for question in form.cached_questions
         ]
+
+
+class SetUpGrantRecipientsForm(FlaskForm):
+    users_data = TextAreaField(
+        "Grant recipients and data providers TSV data",
+        default="organisation-name\tfull-name\temail-address\n",
+        validators=[DataRequired()],
+        widget=GovTextArea(),
+    )
+    submit = SubmitField("Set up grant recipients", widget=GovSubmitInput())
+
+    def __init__(self, organisation_names_to_ids: dict[str, UUID]) -> None:
+        super().__init__()
+        self.organisation_names_to_ids = organisation_names_to_ids
+
+    def validate_users_data(self, field: TextAreaField) -> None:
+        assert field.data
+
+        if field.data.splitlines()[0] != "organisation-name\tfull-name\temail-address":
+            field.errors.append(  # type: ignore[attr-defined]
+                "The header row must be exactly: organisation-name\tfull-name\temail-address"
+            )
+            return
+
+        try:
+            users_data = self.get_normalised_users_data()
+        except Exception as e:
+            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # type: ignore[attr-defined]
+            return
+
+        invalid_orgs = []
+        for org_name, *_ in users_data:
+            if org_name not in self.organisation_names_to_ids:
+                invalid_orgs.append(org_name)
+
+        if invalid_orgs:
+            unique_invalid_orgs = sorted(set(invalid_orgs))
+            for org_name in unique_invalid_orgs:
+                field.errors.append(  # type: ignore[attr-defined]
+                    f"Organisation '{org_name}' does not exist in the system."
+                )
+
+        invalid_emails = []
+        for _, _, email_address in users_data:
+            try:
+                email_validator.validate_email(email_address, check_deliverability=False, allow_smtputf8=True)
+                if "\u2019" in email_address or "\u2018" in email_address:
+                    raise email_validator.EmailNotValidError("Email addresses cannot contain smart quotes")
+            except Exception:
+                invalid_emails.append(email_address)
+
+        if invalid_emails:
+            field.errors.append(  # type: ignore[attr-defined]
+                f"Invalid email address(es): {', '.join(invalid_emails)}"
+            )
+
+    def get_normalised_users_data(self) -> list[tuple[str, str, str]]:
+        assert self.users_data.data
+        users_data = self.users_data.data
+        tsv_reader = csv.reader(users_data.splitlines(), delimiter="\t")
+        _ = next(tsv_reader)  # Skip the header
+        return [(row[0], row[1], row[2]) for row in tsv_reader]

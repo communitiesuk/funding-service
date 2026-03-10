@@ -10,6 +10,7 @@ from app.common.data.models_user import User, UserRole
 from app.common.data.types import (
     ACTIVE_GRANT_RECIPIENT_STATUSES,
     GrantRecipientModeEnum,
+    GrantRecipientStatus,
     RoleEnum,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -104,12 +105,18 @@ def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = Gran
 
 @flush_and_rollback_on_exceptions()
 def create_grant_recipients(
-    grant: Grant, organisation_ids: list[uuid.UUID], mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE
+    grant: Grant,
+    organisation_ids: list[uuid.UUID],
+    mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
+    status: GrantRecipientStatus | None = None,
 ) -> None:
     grant_recipients = []
 
     for organisation_id in organisation_ids:
-        grant_recipients.append(GrantRecipient(grant_id=grant.id, organisation_id=organisation_id, mode=mode))
+        kwargs: dict[str, object] = {"grant_id": grant.id, "organisation_id": organisation_id, "mode": mode}
+        if status is not None:
+            kwargs["status"] = status
+        grant_recipients.append(GrantRecipient(**kwargs))
 
     db.session.add_all(grant_recipients)
 

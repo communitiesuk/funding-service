@@ -42,7 +42,7 @@
           {{
             govukButton({
               "text": "Set up direct award grant recipients",
-              "href": "#",
+              "href": url_for("deliver_grant_funding.set_up_awarded_recipients", grant_id=grant.id),
               "classes": "govuk-button--secondary",
             })
           }}
@@ -50,7 +50,7 @@
           {{
             govukButton({
               "text": "Set up allocated grant recipients",
-              "href": "#",
+              "href": url_for("deliver_grant_funding.set_up_allocated_recipients", grant_id=grant.id),
               "classes": "govuk-button--secondary",
             })
           }}
