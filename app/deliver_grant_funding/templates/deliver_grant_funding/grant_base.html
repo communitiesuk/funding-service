@@ -5,16 +5,16 @@
 {%
   set nav_items = [
       {
+        "text": "Recipients",
+        "key": "recipients",
+        "href": url_for("deliver_grant_funding.list_recipients", grant_id=grant.id),
+        "current": active_item_identifier == "recipients"
+      },
+      {
           "text": "Reports",
           "key": "reports",
           "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id),
           "current": active_item_identifier == "reports"
-      },
-      {
-          "text": "Applications",
-          "key": "applications",
-          "href": url_for("deliver_grant_funding.list_applications", grant_id=grant.id),
-          "current": active_item_identifier == "applications"
       },
       {
           "text": "Team",

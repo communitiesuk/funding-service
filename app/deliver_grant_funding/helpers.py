@@ -30,6 +30,7 @@ class CollectionTypeConfig:
     list_route: str  # "deliver_grant_funding.list_reports"
     setup_route: str  # "deliver_grant_funding.set_up_report"
     active_nav_item: str  # "reports", "applications"
+    active_sub_nav_item: str | None  # "reports", "allocation", "applications", or None if no sub nav
     has_reporting_period: bool
 
 
@@ -43,6 +44,7 @@ COLLECTION_TYPE_CONFIGS: dict[CollectionType, CollectionTypeConfig] = {
         list_route="deliver_grant_funding.list_reports",
         setup_route="deliver_grant_funding.set_up_report",
         active_nav_item="reports",
+        active_sub_nav_item=None,
         has_reporting_period=True,
     ),
     CollectionType.APPLICATION: CollectionTypeConfig(
@@ -53,7 +55,8 @@ COLLECTION_TYPE_CONFIGS: dict[CollectionType, CollectionTypeConfig] = {
         setup_label="application",
         list_route="deliver_grant_funding.list_applications",
         setup_route="deliver_grant_funding.set_up_application",
-        active_nav_item="applications",
+        active_nav_item="recipients",
+        active_sub_nav_item="applications",
         has_reporting_period=False,
     ),
 }

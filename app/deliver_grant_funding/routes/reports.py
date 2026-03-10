@@ -523,6 +523,7 @@ def add_section(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, grant_id=grant_id)
+    collection_config = get_collection_type_config(db_form.collection.type)
 
     if db_form.collection.live_submissions:
         # Prevent changes to the section if it has any live submissions; this is very coarse layer of protection. We
@@ -555,6 +556,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/reports/change_form_name.html",
         grant=db_form.collection.grant,
         db_form=db_form,
+        collection_config=collection_config,
         form=form,
     )
 
@@ -567,6 +569,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
+    collection_config = get_collection_type_config(db_group.form.collection.type)
 
     form = GroupForm(obj=db_group)
     if form.validate_on_submit():
@@ -594,6 +597,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
+        collection_config=collection_config,
         form=form,
     )
 
@@ -606,6 +610,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 @auto_commit_after_request
 def change_conditions_operator(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
+    collection_config = get_collection_type_config(component.form.collection.type)
 
     form = ConditionsOperatorForm(obj=component)
     if form.validate_on_submit():
@@ -652,6 +657,7 @@ def change_conditions_operator(grant_id: UUID, component_id: UUID) -> ResponseRe
         grant=component.form.collection.grant,
         component=component,
         db_form=component.form,
+        collection_config=collection_config,
         form=form,
         interpolate=SubmissionHelper.get_interpolator(collection=component.form.collection),
     )
@@ -665,6 +671,7 @@ def change_conditions_operator(grant_id: UUID, component_id: UUID) -> ResponseRe
 @auto_commit_after_request
 def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
+    collection_config = get_collection_type_config(db_group.form.collection.type)
 
     form = GroupDisplayOptionsForm(
         show_questions_on_the_same_page=GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
@@ -706,6 +713,7 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
+        collection_config=collection_config,
         form=form,
     )
 
@@ -718,6 +726,7 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
 @auto_commit_after_request
 def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
+    collection_config = get_collection_type_config(db_group.form.collection.type)
     form = GroupAddAnotherSummaryForm(group=db_group)
 
     if form.validate_on_submit():
@@ -743,6 +752,7 @@ def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> Response
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
+        collection_config=collection_config,
         form=form,
     )
 
@@ -755,6 +765,7 @@ def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> Response
 @auto_commit_after_request
 def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     db_group = get_group_by_id(group_id)
+    collection_config = get_collection_type_config(db_group.form.collection.type)
 
     form = GroupAddAnotherOptionsForm(question_group_is_add_another="yes" if db_group.add_another else "no")
     if form.validate_on_submit():
@@ -798,6 +809,7 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
+        collection_config=collection_config,
         form=form,
     )
 
@@ -809,6 +821,7 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
 @auto_commit_after_request
 def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, grant_id=grant_id, with_all_questions=True)
+    collection_config = get_collection_type_config(db_form.collection.type)
 
     preview_form = GenericSubmitForm()
     if preview_form.validate_on_submit() and preview_form.submit.data:
@@ -847,6 +860,7 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
         db_form=db_form,
         delete_form=delete_wtform,
         form=preview_form,
+        collection_config=collection_config,
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
     )
 
@@ -858,6 +872,7 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
 @auto_commit_after_request
 def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     group = get_group_by_id(group_id)
+    collection_config = get_collection_type_config(group.form.collection.type)
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
@@ -889,6 +904,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         db_form=group.form,
         delete_form=delete_wtform,
         group=group,
+        collection_config=collection_config,
         interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
     )
 
@@ -914,6 +930,7 @@ class AddQuestionGroup(BaseModel):
 @auto_commit_after_request
 def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
+    collection_config = get_collection_type_config(form.collection.type)
     group_name = request.args.get("name", None)
 
     parent_id = request.args.get("parent_id", None)
@@ -946,6 +963,7 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
         "deliver_grant_funding/reports/add_question_group_name.html",
         grant=form.collection.grant,
         db_form=form,
+        collection_config=collection_config,
         form=wt_form,
         parent=parent,
     )
@@ -960,6 +978,7 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
 @auto_commit_after_request
 def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
+    collection_config = get_collection_type_config(form.collection.type)
 
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
@@ -1006,6 +1025,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
         grant=form.collection.grant,
         db_form=form,
         group_name=add_question_group.group_name,
+        collection_config=collection_config,
         form=wt_form,
         parent=parent,
         skip_add_another=skip_add_another,
@@ -1022,6 +1042,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
 @auto_commit_after_request
 def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
+    collection_config = get_collection_type_config(form.collection.type)
 
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
@@ -1070,6 +1091,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
         grant=form.collection.grant,
         db_form=form,
         group_name=add_question_group.group_name,
+        collection_config=collection_config,
         form=wt_form,
         parent=parent,
         interpolate=SubmissionHelper.get_interpolator(collection=form.collection),
@@ -1111,6 +1133,7 @@ def move_component(grant_id: UUID, component_id: UUID, direction: str) -> Respon
 @collection_is_editable()
 def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    collection_config = get_collection_type_config(db_form.collection.type)
     wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
 
     parent_id = request.args.get("parent_id", None)
@@ -1136,6 +1159,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/reports/choose_question_type.html",
         grant=db_form.collection.grant,
         db_form=db_form,
+        collection_config=collection_config,
         form=wt_form,
         parent=parent,
     )
@@ -1295,6 +1319,7 @@ def _handle_remove_context_for_expression_forms(
 @auto_commit_after_request
 def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
+    collection_config = get_collection_type_config(form.collection.type)
     question_data_type_arg = request.args.get("question_data_type", QuestionDataType.TEXT_SINGLE_LINE.name)
     question_data_type_enum = QuestionDataType.coerce(question_data_type_arg)
     raw_parent_id = request.args.get("parent_id", None)
@@ -1359,6 +1384,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/reports/add_question.html",
         grant=form.collection.grant,
         collection=form.collection,
+        collection_config=collection_config,
         db_form=form,
         chosen_question_data_type=question_data_type_enum,
         form=wt_form,
@@ -1374,6 +1400,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 @collection_is_editable()
 def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    collection_config = get_collection_type_config(db_form.collection.type)
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
         return abort(400)
@@ -1420,6 +1447,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/reports/select_context_source.html",
         grant=db_form.collection.grant,
         db_form=db_form,
+        collection_config=collection_config,
         form=wtform,
         add_context_data=add_context_data,
     )
@@ -1441,6 +1469,7 @@ def select_context_source_collection(grant_id: UUID, form_id: UUID) -> ResponseR
 @collection_is_editable()
 def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    collection_config = get_collection_type_config(db_form.collection.type)
 
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
@@ -1465,6 +1494,7 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
         "deliver_grant_funding/reports/select_context_source_section.html",
         grant=db_form.collection.grant,
         db_form=db_form,
+        collection_config=collection_config,
         form=wtform,
         add_context_data=add_context_data,
     )
@@ -1477,6 +1507,7 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
 @collection_is_editable()
 def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:  # noqa: C901
     db_form = get_form_by_id(form_id)
+    collection_config = get_collection_type_config(db_form.collection.type)
 
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
@@ -1603,6 +1634,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         "deliver_grant_funding/reports/select_context_source_question.html",
         grant=db_form.collection.grant,
         db_form=db_form,
+        collection_config=collection_config,
         form=wtform,
         add_context_data=add_context_data,
     )
@@ -1622,6 +1654,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
     #        'add question' flow that question record doesn't exist yet. We'd need to cache info about
     #        validation+conditions that need to be added to the question, when the question itself is created.
     question = get_question_by_id(question_id=question_id)
+    collection_config = get_collection_type_config(question.form.collection.type)
 
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToComponentSessionModel, question_id=question_id
@@ -1732,6 +1765,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
         "deliver_grant_funding/reports/edit_question.html",
         grant=question.form.collection.grant,
         db_form=question.form,
+        collection_config=collection_config,
         question=question,
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
@@ -1751,6 +1785,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 @auto_commit_after_request
 def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     group = get_component_by_id(component_id=group_id)
+    collection_config = get_collection_type_config(group.form.collection.type)
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToComponentGuidanceSessionModel, question_id=group_id
     )
@@ -1807,6 +1842,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
         "deliver_grant_funding/reports/manage_add_another_guidance.html",
         grant=group.form.collection.grant,
         question=group,
+        collection_config=collection_config,
         form=form,
         interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
         context_keys_and_labels=ExpressionContext.get_context_keys_and_labels(
@@ -1823,6 +1859,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
 @auto_commit_after_request
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_component_by_id(component_id=question_id)
+    collection_config = get_collection_type_config(question.form.collection.type)
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToComponentGuidanceSessionModel, question_id=question_id
     )
@@ -1894,6 +1931,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
         "deliver_grant_funding/reports/manage_guidance.html",
         grant=question.form.collection.grant,
         question=question,
+        collection_config=collection_config,
         form=form,
         interpolate=SubmissionHelper.get_interpolator(collection=question.form.collection),
         context_keys_and_labels=ExpressionContext.get_context_keys_and_labels(
@@ -1910,6 +1948,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 @collection_is_editable()
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
+    collection_config = get_collection_type_config(component.form.collection.type)
 
     form = FlaskForm()
 
@@ -1932,6 +1971,7 @@ def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -
         "deliver_grant_funding/reports/add_question_condition_select_question.html",
         component=component,
         grant=component.form.collection.grant,
+        collection_config=collection_config,
         form=form,
         interpolate=SubmissionHelper.get_interpolator(component.form.collection),
     )
@@ -1946,6 +1986,7 @@ def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -
 @auto_commit_after_request
 def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
+    collection_config = get_collection_type_config(component.form.collection.type)
     depends_on_question = get_question_by_id(depends_on_question_id)
 
     add_context_data = _extract_add_context_data_from_session(
@@ -2021,6 +2062,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
         component=component,
         depends_on_question=depends_on_question,
         grant=component.form.collection.grant,
+        collection_config=collection_config,
         form=form,
         QuestionDataType=QuestionDataType,
         interpolate=SubmissionHelper.get_interpolator(component.form.collection),
@@ -2037,6 +2079,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
 def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
     component = expression.question
+    collection_config = get_collection_type_config(component.form.collection.type)
     depends_on_question = expression.managed.referenced_question
 
     return_url = (
@@ -2114,6 +2157,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
         component=component,
         grant=component.form.collection.grant,
+        collection_config=collection_config,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,
@@ -2132,6 +2176,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
 @auto_commit_after_request
 def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_question_by_id(question_id)
+    collection_config = get_collection_type_config(question.form.collection.type)
 
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToExpressionsModel, question_id=question.id
@@ -2195,6 +2240,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         "deliver_grant_funding/reports/manage_question_validation.html",
         question=question,
         grant=question.form.collection.grant,
+        collection_config=collection_config,
         form=form,
         QuestionDataType=QuestionDataType,
         interpolate=SubmissionHelper.get_interpolator(question.form.collection),
@@ -2211,6 +2257,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
 def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
     question = expression.question
+    collection_config = get_collection_type_config(question.form.collection.type)
 
     confirm_deletion_form = GenericConfirmDeletionForm()
     if (
@@ -2293,6 +2340,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         "deliver_grant_funding/reports/manage_question_validation.html",
         question=question,
         grant=question.form.collection.grant,
+        collection_config=collection_config,
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,

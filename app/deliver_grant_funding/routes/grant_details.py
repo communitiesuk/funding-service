@@ -115,3 +115,18 @@ def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
         back_link_href=url_for("deliver_grant_funding.grant_details", grant_id=grant_id),
         grant=grant,
     )
+
+
+# todo: move these out into a recipients.py file
+@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/recipients", methods=["GET"])
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def list_recipients(grant_id: UUID) -> ResponseReturnValue:
+    grant = interfaces.grants.get_grant(grant_id)
+
+    return render_template(
+        "deliver_grant_funding/recipients/list_recipients.html",
+        grant=grant,
+        grant_recipients=get_grant_recipients(
+            grant, with_data_providers=True, with_certifiers=True, with_organisations=True
+        ),
+    )

@@ -1,4 +1,9 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
@@ -9,6 +14,7 @@
 
 {% set page_title = report.name %}
 {% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 {% set can_edit = authorisation_helper.can_edit_collection(current_user, report.id) %}
 
 {# this does kick off one more request to the database - we could revisit making this check more concise #}

@@ -1,11 +1,17 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "deliver_grant_funding/macros/question_table.html" import question_table %}
 
 {% set page_title = db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 {% set can_edit = authorisation_helper.can_edit_collection(current_user, db_form.collection_id) %}
 
 {% block beforeContent %}

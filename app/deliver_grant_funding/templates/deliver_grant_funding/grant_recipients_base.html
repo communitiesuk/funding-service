@@ -1,0 +1,66 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set cspNonce = csp_nonce() %}
+
+{%
+  set side_nav_items = [
+      {
+        "text": "Grant recipients",
+        "key": "awarded",
+        "href": url_for("deliver_grant_funding.list_recipients", grant_id=grant.id),
+        "current": active_sub_item_identifier == "awarded"
+      },
+      {
+          "text": "Applications",
+          "key": "applications",
+          "href": url_for("deliver_grant_funding.list_applications", grant_id=grant.id),
+          "current": active_sub_item_identifier == "applications"
+      },
+  ]
+%}
+
+{# todo: this shouldn't be a complete override of base but we should work out how its just an extension #}
+{# i.e if you've set a list property for side nav then it splits it and shows a side nav #}
+{% block main %}
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T8XPM3NL" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+  <div>
+    <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
+      {# {% block beforeContent %}{% endblock %} #}
+      <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
+        {% block mainWrapper %}
+          <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
+            {% block errorSummary %}
+              <div class="govuk-grid-row">
+                <div class="govuk-grid-column-two-thirds">
+                  {% if form is defined and form.errors %}
+                    {{ govukErrorSummary(wtforms_errors(form)) }}
+                  {% endif %}
+                </div>
+              </div>
+            {% endblock errorSummary %}
+
+            <div class="govuk-grid-row">
+              {# todo: this doesn't need a full quarter we could shorten this #}
+              <div class="govuk-grid-column-one-quarter">
+                <ul class="govuk-list" role="navigation" aria-label="Grant recipients sub navigation">
+                  {% for item in side_nav_items %}
+                    <li class="app-left-nav__item">
+                      <a href="{{ item.href }}" class="{{ 'govuk-link govuk-link--no-visited-state govuk-link--no-underline ' + ('govuk-!-font-weight-bold' if item.current else '') }}">{{ item.text }}</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+              <div class="govuk-grid-column-three-quarters">
+                {% block beforeContent %}{% endblock %}
+                {% block content %}
+                {% endblock content %}
+              </div>
+            </div>
+          </main>
+        {% endblock mainWrapper %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

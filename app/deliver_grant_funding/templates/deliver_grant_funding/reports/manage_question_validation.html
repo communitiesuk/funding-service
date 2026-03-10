@@ -1,10 +1,16 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/reports/_render_managed_expression_form.html" import render_managed_expression_form %}
 
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 
 {% block pageTitle %}
   Add validation - {{ question.name }} - Deliver grant funding
@@ -19,7 +25,7 @@
   {% set submit_label = "Save validation" if expression else "Add validation" %}
 
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       {% if confirm_deletion_form %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this validation?</p>
@@ -57,7 +63,7 @@
 
         {% if expression %}
           <div class="govuk-grid-row govuk-!-margin-top-7">
-            <div class="govuk-grid-column-two-thirds">
+            <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
               <h2 class="govuk-heading-m">Manage validation</h2>
               <p class="govuk-body">
                 <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=expression.id, delete='') }}"

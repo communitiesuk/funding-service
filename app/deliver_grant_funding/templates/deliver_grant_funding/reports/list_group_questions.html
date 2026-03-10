@@ -1,4 +1,9 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
@@ -8,7 +13,8 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 
 {% set page_title = group.name ~ " - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 {% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
 
 {% block beforeContent %}
@@ -27,7 +33,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.NESTED_GROUP_ERROR.value]) %}
         {% if flashes %}
           {% for error in flashes %}
@@ -63,7 +69,7 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Question group settings</h2>
 
       {% set change_add_another_html %}
@@ -120,7 +126,7 @@
   </div>
   {% if group.add_another %}
     <div class="govuk-grid-row">
-      <div class="govuk-grid-column-two-thirds">
+      <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
         <h2 class="govuk-heading-m govuk-!-margin-top-5">Add another settings</h2>
         <p class="govuk-body">Customise the add another summary page by selecting how each response to this question group should be summarised or providing guidance on answering this question group multiple times.</p>
 
@@ -201,7 +207,7 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       {% if group.same_page %}
         <div class="govuk-body govuk-form-group">
           <h2 class="govuk-heading-m govuk-!-margin-top-5">Guidance</h2>

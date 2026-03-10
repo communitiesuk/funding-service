@@ -1,9 +1,15 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "deliver_grant_funding/macros/group_nesting_error_banner.html" import group_nesting_error_banner %}
 
 {% set page_title = "Add a question group - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 
 {% block beforeContent %}
   {{
@@ -16,7 +22,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.NESTED_GROUP_ERROR.value]) %}
         {% if flashes %}
           {% for error in flashes %}

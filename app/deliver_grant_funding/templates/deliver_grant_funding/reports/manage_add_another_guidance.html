@@ -1,11 +1,17 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "common/govuk/tabs/macro.html" import govukTabs %}
 
 {% set page_title = "Add another summary page guidance" if not question.add_another_guidance_body else "Edit add another summary page guidance" %}
 {% set submit_label = "Add guidance" if not question.add_another_guidance_body else "Update guidance" %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 
 {% block beforeContent %}
   {% set back_link = url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=question.id) %}
@@ -24,7 +30,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       <span class="govuk-caption-l">{{ interpolate(question.text) }}</span>
       <h2 class="govuk-heading-l">{{ page_title }}</h2>
       <p class="govuk-body">Use guidance if you need to:</p>

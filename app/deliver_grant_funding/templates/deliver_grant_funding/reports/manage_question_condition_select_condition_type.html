@@ -1,9 +1,15 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/reports/_render_managed_expression_form.html" import render_managed_expression_form %}
 
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 
 {% set is_editing = expression %}
 {% set heading = "Edit condition" if is_editing else "Add a condition" %}
@@ -25,7 +31,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       {% if confirm_deletion_form %}
         {% set banner_html %}
           <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this condition?</p>
@@ -56,7 +62,7 @@
 
       {% if expression %}
         <div class="govuk-grid-row govuk-!-margin-top-7">
-          <div class="govuk-grid-column-two-thirds">
+          <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
             <h2 class="govuk-heading-m">Manage condition</h2>
             <p class="govuk-body">
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, expression_id=expression.id, delete='') }}">Delete condition</a>

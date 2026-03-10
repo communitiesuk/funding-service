@@ -1,9 +1,15 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set page_title = "Change when to show " ~ ("question group" if component.is_group else "question") ~ " - " ~ component.name %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 
 {% block beforeContent %}
   {% if component.is_group %}
@@ -21,7 +27,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       <span class="govuk-caption-l">{{ grant.name }}</span>
       <h1 class="govuk-heading-l">When should this {{ "question group" if component.is_group else "question" }} be shown?</h1>
       <p class="govuk-body">This {{ "question group" if component.is_group else "question" }} has {{ component.conditions|length }} conditions. Choose whether all or any of them need to match.</p>

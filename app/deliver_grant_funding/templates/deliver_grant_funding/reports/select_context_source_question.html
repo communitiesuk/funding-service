@@ -1,10 +1,16 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "deliver_grant_funding/macros/select_context_source_header_caption.html" import context_source_heading_caption %}
 {% from "deliver_grant_funding/macros/select_context_source_return_url.html" import context_source_return_url %}
 
 {% set page_title = "Select a question - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 {% set back_url = url_for("deliver_grant_funding.select_context_source", grant_id=grant.id, form_id=db_form.id) %}
 
 {# Set heading caption and cancel button to for what initiated the `add data` flow #}
@@ -22,7 +28,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       {% if form.question.choices | length > 0 %}
         <span class="govuk-caption-l">Question {{ heading_caption }}</span>
 

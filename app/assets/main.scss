@@ -22,3 +22,15 @@
 @use "tweaks"; // Tiny CSS snippets to tweak existing components, not worth treating as their own thing
 
 @use "overrides";
+
+.app-grid-fixed-left-nav {
+    width: 150px;
+    float: left;
+}
+
+.app-left-nav__item > a {
+    @include govuk.govuk-font(19);
+    display: block;
+    padding: 7px 0;
+    width: 100%;
+}

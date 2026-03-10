@@ -1,4 +1,9 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "common/govuk/tabs/macro.html" import govukTabs %}
@@ -6,6 +11,7 @@
 {% set page_title = "Set guidance for multiple submissions" %}
 {% set submit_label = "Set guidance" %}
 {% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 
 {% block beforeContent %}
   {% set back_link = url_for("deliver_grant_funding.list_collection_sections", grant_id=grant.id, collection_id=report.id) %}

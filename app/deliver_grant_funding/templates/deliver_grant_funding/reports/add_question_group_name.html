@@ -1,8 +1,14 @@
-{% extends "deliver_grant_funding/grant_base.html" %}
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set page_title = "Add a question group - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 {% set link = url_for("deliver_grant_funding.list_section_questions", grant_id=grant.id, form_id=db_form.id) if not parent else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=parent.id) %}
 
 {% block beforeContent %}
@@ -16,7 +22,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       <span class="govuk-caption-l">{{ grant.name }}</span>
       <h1 class="govuk-heading-l">What is the name of the question group?</h1>
       <p class="govuk-body">Use question groups to show or hide related questions together or show questions on the same page.</p>
