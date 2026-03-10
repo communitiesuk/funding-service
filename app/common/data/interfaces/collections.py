@@ -57,7 +57,6 @@ from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGE
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
-    questions_in_same_add_another_container,
 )
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
 from app.common.qid import SafeQidMixin
@@ -1547,9 +1546,19 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             db.session.add(cr)
             references.append(cr)
     else:
-        # TODO Do we want to keep this behaviour? It means we can't delete a question with an expression that
-        #  references something other than a data source without manually deleting that expression first.
-        #  But if it does reference a data source, it can be deleted so is inconsistent
+        if expression.type_ == ExpressionType.CONDITION:
+            # validate the referenced question - the one that is compared against the expression
+            valid_reference = _validate_reference(
+                wrapped_reference=f"(({managed.referenced_question.safe_qid}))",
+                attached_to_component=expression.question,
+                expression_context=ExpressionContext.build_expression_context(
+                    expression.question.form.collection, "interpolation", None, None
+                ),
+                expression_type=expression.type_,
+                field_name_for_error_message="depends_on_the_answer_to",
+                question_to_test=None,
+            )
+
         cr = ComponentReference(
             depends_on_component=expression.managed.referenced_question,
             component=expression.question,
@@ -1635,22 +1644,6 @@ def _validate_and_sync_component_references(component: Component, expression_con
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def add_component_condition(component: Component, user: User, managed_expression: ManagedExpression) -> Component:
-    if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
-        raise DependencyOrderException(
-            "Cannot add managed condition that depends on a later question",
-            component,
-            managed_expression.referenced_question,
-        )
-
-    if managed_expression.referenced_question.add_another_container and not questions_in_same_add_another_container(
-        component, managed_expression.referenced_question
-    ):
-        raise AddAnotherDependencyException(
-            "Cannot add managed condition that depends on an add another question",
-            component,
-            managed_expression.referenced_question,
-        )
-
     expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
     component.expressions.append(expression)
 
