@@ -1,6 +1,3 @@
-# mypy: disable-error-code="no-untyped-call"
-# FactoryBoy doesn't have typing on its functions yet, so we disable that type check for this file only.
-
 """
 A module containing FactoryBoy definitions for our DB models. Do not use these classes directly - they should be
 accessed through fixtures such as `grant_factory`, which can ensure the Flask app and DB are properly instrumented
