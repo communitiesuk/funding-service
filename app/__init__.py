@@ -25,6 +25,7 @@ from app.common.data.types import (
     ExpressionType,
     FileUploadTypes,
     FormRunnerState,
+    GrantRecipientStatus,
     GrantStatusEnum,
     MaximumFileSize,
     NumberTypeEnum,
@@ -306,6 +307,7 @@ def create_app() -> Flask:  # noqa: C901
                 report_admin_email_type_enum=ReportAdminEmailTypeEnum,
                 file_upload_types_enum=FileUploadTypes,
                 maximum_file_size_enum=MaximumFileSize,
+                grant_recipient_status=GrantRecipientStatus,
             ),
         )
 

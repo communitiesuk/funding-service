@@ -136,6 +136,40 @@ class Grant(BaseModel):
         return self.get_access_reports_for_user(user=None)
 
     @property
+    def award_collections(self) -> list[Collection]:
+        return [collection for collection in self.collections if collection.type != CollectionType.MONITORING_REPORT]
+
+    def get_access_award_collections_for_user(
+        self, user: User | None = None, *, user_organisation: Organisation | None = None
+    ) -> list[Collection]:
+        """Get non-monitoring-report collections visible to Access users.
+
+        Args:
+            user: Current user. If a Deliver user testing Access, returns all award collections.
+                  If None or regular Access user, returns only OPEN/CLOSED collections.
+
+        Returns:
+            List of Collection objects sorted by status and submission end date.
+        """
+        from app.common.auth.authorisation_helper import AuthorisationHelper
+
+        if user and AuthorisationHelper.is_deliver_user_testing_access(user, user_organisation=user_organisation):
+            return sorted(
+                self.award_collections,
+                key=lambda c: (c.status, c.submission_period_end_date or datetime.date.max),
+            )
+
+        access_collections = [
+            collection
+            for collection in self.award_collections
+            if collection.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED]
+        ]
+        return sorted(
+            access_collections,
+            key=lambda c: (c.status, c.submission_period_end_date or datetime.date.max),
+        )
+
+    @property
     def can_go_live(self) -> bool:
         return bool(
             self.privacy_policy_markdown is not None

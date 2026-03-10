@@ -82,6 +82,18 @@
   {% endif %}
 {% endmacro %}
 
+{% macro grantRecipientStatusTag(status) %}
+  {%
+    set classMap = {
+        enum.grant_recipient_status.APPLYING: "govuk-tag--blue",
+        enum.grant_recipient_status.ALLOCATED: "govuk-tag--blue",
+        enum.grant_recipient_status.AWARDED: "govuk-tag--green",
+        enum.grant_recipient_status.DECLINED: "govuk-tag--red",
+    }
+  %}
+  {{ govukTag({"text": status | title, "classes": classMap[status] }) }}
+{% endmacro %}
+
 {% macro submissionStatusAction(status) %}
   {%
     set textMap = {
