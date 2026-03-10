@@ -1413,7 +1413,8 @@ def components_in_same_group_and_on_same_page(component1: Component, component2:
     return component1.parent.same_page is True
 
 
-def _validate_reference(
+# TODO separate out more checks into little functions
+def _validate_reference(  # noqa:C901
     wrapped_reference: str,
     attached_to_component: Component | None,
     expression_context: ExpressionContext,
@@ -1483,12 +1484,18 @@ def _validate_reference(
                 field_name=field_name_for_error_message,
             )
         if not is_component_dependency_order_valid(attached_to_component, referenced_question):
-            raise DependencyOrderException(
-                "Cannot reference a later question",
-                attached_to_component,
-                referenced_question,
-                field_name=field_name_for_error_message,
-            )
+            # Can't think of a better way right now for a custom validation expression to reference itself
+            if not (
+                expression_type == ExpressionType.VALIDATION
+                and field_name_for_error_message == "custom_expression"
+                and referenced_question == attached_to_component
+            ):
+                raise DependencyOrderException(
+                    "Cannot reference a later question",
+                    attached_to_component,
+                    referenced_question,
+                    field_name=field_name_for_error_message,
+                )
 
         if components_in_same_group_and_on_same_page(attached_to_component, referenced_question):
             raise InvalidReferenceInExpression(
