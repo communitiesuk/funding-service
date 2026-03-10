@@ -4571,6 +4571,24 @@ class TestValidateReference:
                 question_to_test=None,
             )
 
+    def test_validate_reference_valid_reference_to_self(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+
+        expression_context = ExpressionContext.build_expression_context(form.collection, "interpolation", None, None)
+
+        assert (
+            _validate_reference(
+                wrapped_reference=f"(({q2.safe_qid}))",
+                attached_to_component=q2,
+                expression_context=expression_context,
+                expression_type=ExpressionType.VALIDATION,
+                field_name_for_error_message="custom_expression",
+                question_to_test=None,
+            )
+            == q2.safe_qid
+        )
+
     def test_custom_expression_bad_order(self, factories):
         form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
