@@ -38,7 +38,6 @@ from app.common.data.types import (
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan
-from app.common.filters import format_datetime
 from app.common.helpers.collections import (
     CollectionHelper,
     SubmissionAuthorisationError,
@@ -1578,6 +1577,7 @@ class TestCollectionHelper:
         assert live_collection_helper.submission_mode == SubmissionModeEnum.LIVE
         assert len(live_collection_helper.submissions) == 3
 
+    @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_check_correct_rows_for_multiple_simple_submissions_every_question_type(
         self, factories
     ):
@@ -1625,12 +1625,13 @@ class TestCollectionHelper:
             submission_ref = line["Submission reference"]
             s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
-            assert line["Created at"] == format_datetime(s_helper.created_at_utc)
+            assert line["Created at"] == "2025-03-01 13:30:00"
             for header, value in expected_question_data[submission_ref].items():
                 assert line[header] == value
 
         assert len(rows) == num_test_submissions
 
+    @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_skipped_questions(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
@@ -1655,7 +1656,7 @@ class TestCollectionHelper:
             submission_ref = line["Submission reference"]
             s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
-            assert line["Created at"] == format_datetime(s_helper.created_at_utc)
+            assert line["Created at"] == "2025-03-01 13:30:00"
             number_of_cups_of_tea = line["[Export test form] Number of cups of tea"]
             if number_of_cups_of_tea == "40":
                 assert line["[Export test form] Tea bag pack size"] == "80"
@@ -1707,6 +1708,7 @@ class TestCollectionHelper:
             else:
                 pytest.fail("Unexpected number of cups of tea value: {number_of_cups_of_tea}")
 
+    @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_all_question_types_appear_correctly_in_csv_row(self, factories):
         factories.data_source_item.reset_sequence()
         collection = factories.collection.create(
@@ -1745,7 +1747,7 @@ class TestCollectionHelper:
             c_helper.submissions[0].reference,
             c_helper.submissions[0].grant_recipient.organisation.name,
             c_helper.submissions[0].created_by.email,
-            format_datetime(c_helper.submissions[0].created_at_utc),
+            "2025-03-01 13:30:00",
             "",
             "",
             "In progress",
@@ -1763,6 +1765,7 @@ class TestCollectionHelper:
             "test-document.pdf",
         ]
 
+    @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_add_another(self, factories):
         factories.data_source_item.reset_sequence()
         collection = factories.collection.create(
@@ -1802,7 +1805,7 @@ class TestCollectionHelper:
             c_helper.submissions[0].reference,
             c_helper.submissions[0].grant_recipient.organisation.name,
             c_helper.submissions[0].created_by.email,
-            format_datetime(c_helper.submissions[0].created_at_utc),
+            "2025-03-01 13:30:00",
             "",
             "",
             "In progress",
@@ -1902,6 +1905,7 @@ class TestCollectionHelper:
             ]
         }
 
+    @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_json_content_for_all_submissions_all_question_types_appear_correctly_live(
         self, factories, db_session
     ):
@@ -1924,10 +1928,10 @@ class TestCollectionHelper:
         assert submissions == {
             "submissions": [
                 {
-                    "created_at_utc": mock.ANY,
+                    "created_at_utc": "2025-03-01 13:30:00",
                     "created_by": mock.ANY,
                     "certified_by": "certifier@test.com",
-                    "certified_at_utc": "12am on Monday 1 December 2025",
+                    "certified_at_utc": "2025-12-01 00:00:00",
                     "grant_recipient": AnyStringMatching(r"Organisation \d+"),
                     "reference": mock.ANY,
                     "status": "In progress",
