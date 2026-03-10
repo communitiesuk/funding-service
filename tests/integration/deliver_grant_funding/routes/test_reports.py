@@ -1370,8 +1370,8 @@ class TestChangeGroupAddAnotherOptions:
 
         add_question_validation(
             question=db_question,
-            managed_expression=GreaterThan(question_id=group_question.id, minimum_value=100),
             user=factories.user.create(),
+            evaluatable_expression=GreaterThan(question_id=group_question.id, minimum_value=100),
         )
 
         assert db_group.add_another is False
