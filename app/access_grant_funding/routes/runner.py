@@ -5,6 +5,7 @@ from uuid import UUID
 from flask import abort, redirect, render_template, request, send_file, url_for
 from flask.typing import ResponseReturnValue
 
+from app.access_grant_funding.helpers import get_access_collection_context
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_access_grant_role
@@ -129,6 +130,7 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
                 )
             )
 
+    collection_context = get_access_collection_context(collection.type)
     return render_template(
         "access_grant_funding/start_new_multiple_submission.html",
         collection=collection,
@@ -136,6 +138,7 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
         form=form,
         grant_recipient=grant_recipient,
         interpolator=partial(interpolate, context=interpolation_context),
+        collection_context=collection_context,
     )
 
 
@@ -192,7 +195,13 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
             )
 
     # if complete_submission failed, the runner has appended errors to the form which will show to the user
-    return render_template("access_grant_funding/reports/tasklist.html", grant_recipient=grant_recipient, runner=runner)
+    collection_context = get_access_collection_context(runner.submission.collection.type)
+    return render_template(
+        "access_grant_funding/reports/tasklist.html",
+        grant_recipient=grant_recipient,
+        runner=runner,
+        collection_context=collection_context,
+    )
 
 
 @access_grant_funding_blueprint.route(
@@ -253,8 +262,12 @@ def ask_a_question(
         if success:
             return redirect(runner.next_url)
 
+    collection_context = get_access_collection_context(runner.submission.collection.type)
     return render_template(
-        "access_grant_funding/reports/ask_a_question.html", grant_recipient=grant_recipient, runner=runner
+        "access_grant_funding/reports/ask_a_question.html",
+        grant_recipient=grant_recipient,
+        runner=runner,
+        collection_context=collection_context,
     )
 
 
@@ -286,8 +299,12 @@ def check_your_answers(
         else:
             return abort(403, description="Access denied")
 
+    collection_context = get_access_collection_context(runner.submission.collection.type)
     return render_template(
-        "access_grant_funding/reports/check_your_answers.html", grant_recipient=grant_recipient, runner=runner
+        "access_grant_funding/reports/check_your_answers.html",
+        grant_recipient=grant_recipient,
+        runner=runner,
+        collection_context=collection_context,
     )
 
 
@@ -312,6 +329,7 @@ def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submis
         "access_grant_funding/reports/sent_for_sign_off_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
+        collection_context=get_access_collection_context(submission_helper.collection.type),
     )
 
 

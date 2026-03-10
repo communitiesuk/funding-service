@@ -3,7 +3,7 @@
 {% from "common/macros/collections.html" import collection_render_single_question with context %}
 
 {% set page_title = question.text ~ " - " ~ collection.name %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection_context.active_nav_item %}
 
 {% block beforeContent %}
   {{ super() }}
@@ -24,7 +24,7 @@
         <span class="govuk-caption-l">{{ collection.name }}</span>
         {{ collection_render_single_question(form, question, interpolator, questionAsPageHeading=true) }}
 
-        {{ form.submit(params={"text": "Start the report"}) }}
+        {{ form.submit(params={"text": "Start the " ~ collection_context.singular_name}) }}
       </form>
     </div>
   </div>

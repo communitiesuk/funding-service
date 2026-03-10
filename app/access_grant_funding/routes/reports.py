@@ -7,13 +7,14 @@ from flask.typing import ResponseReturnValue
 from playwright.sync_api import sync_playwright
 
 from app.access_grant_funding.forms import DeclineSignOffForm
+from app.access_grant_funding.helpers import get_access_collection_context
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_access_grant_role
 from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection, get_collection
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
+from app.common.data.types import RoleEnum, SubmissionStatusEnum
 from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
@@ -83,6 +84,7 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
             not collection.multiple_submissions_are_managed_by_service
             and AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
         ),
+        collection_context=get_access_collection_context(collection.type),
     )
 
 
@@ -99,9 +101,8 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
     if not submission.is_locked_state:
         # note we're not redirecting to the route to submission as you might have been directed from
         # there, go somewhere we know will load consistently and the user can step back in
-        return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
-        )
+        collection_context = get_access_collection_context(submission.collection.type)
+        return redirect(url_for(collection_context.list_route, organisation_id=organisation_id, grant_id=grant_id))
 
     form = GenericSubmitForm()
 
@@ -121,6 +122,7 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
         submission=submission,
         form=form,
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
+        collection_context=get_access_collection_context(submission.collection.type),
     )
 
 
@@ -196,9 +198,7 @@ def decline_report(
 
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
-    if not (
-        submission_helper.is_awaiting_sign_off and submission_helper.collection.type == CollectionType.MONITORING_REPORT
-    ):
+    if not submission_helper.is_awaiting_sign_off:
         return redirect(
             url_for(
                 "access_grant_funding.route_to_submission",
@@ -207,6 +207,8 @@ def decline_report(
                 collection_id=submission_helper.collection_id,
             )
         )
+
+    collection_context = get_access_collection_context(submission_helper.collection.type)
 
     form = DeclineSignOffForm()
     if form.validate_on_submit():
@@ -235,18 +237,18 @@ def decline_report(
                 if submission_helper.sent_for_certification_by
                 else "the submitter",
                 "collection_id": submission_helper.collection.id,
+                "singular_name": collection_context.singular_name,
             },
             FlashMessageType.SUBMISSION_SIGN_OFF_DECLINED,
         )
-        return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
-        )
+        return redirect(url_for(collection_context.list_route, organisation_id=organisation_id, grant_id=grant_id))
 
     return render_template(
         "access_grant_funding/decline_report.html",
         submission=submission_helper,
         grant_recipient=grant_recipient,
         form=form,
+        collection_context=collection_context,
     )
 
 
@@ -268,9 +270,8 @@ def confirm_report_submission_with_certify(
             "Confirm certify and submit loaded incorrectly by %(user_id)s for submission %(submission_id)s",
             extra={"user_id": user.id, "submission_id": submission_id},
         )
-        return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
-        )
+        collection_context = get_access_collection_context(submission_helper.collection.type)
+        return redirect(url_for(collection_context.list_route, organisation_id=organisation_id, grant_id=grant_id))
 
     form = GenericSubmitForm()
 
@@ -304,6 +305,7 @@ def confirm_report_submission_with_certify(
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
         form=form,
+        collection_context=get_access_collection_context(submission_helper.collection.type),
     )
 
 
@@ -325,9 +327,8 @@ def confirm_report_submission_direct_submission(
             "Confirm submit loaded incorrectly by %(user_id)s for submission %(submission_id)s",
             extra={"user_id": user.id, "submission_id": submission_id},
         )
-        return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
-        )
+        collection_context = get_access_collection_context(submission_helper.collection.type)
+        return redirect(url_for(collection_context.list_route, organisation_id=organisation_id, grant_id=grant_id))
 
     form = GenericSubmitForm()
 
@@ -359,6 +360,7 @@ def confirm_report_submission_direct_submission(
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
         form=form,
+        collection_context=get_access_collection_context(submission_helper.collection.type),
     )
 
 
@@ -385,12 +387,12 @@ def submitted_confirmation(organisation_id: UUID, grant_id: UUID, submission_id:
     ):
         # note we're not redirecting to the route to submission as you might have been directed from
         # there, go somewhere we know will load consistently and the user can step back in
-        return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
-        )
+        collection_context = get_access_collection_context(submission_helper.collection.type)
+        return redirect(url_for(collection_context.list_route, organisation_id=organisation_id, grant_id=grant_id))
 
     return render_template(
         "access_grant_funding/reports/submitted_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
+        collection_context=get_access_collection_context(submission_helper.collection.type),
     )

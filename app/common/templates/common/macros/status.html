@@ -94,14 +94,14 @@
   {{ govukTag({"text": status | title, "classes": classMap[status] }) }}
 {% endmacro %}
 
-{% macro submissionStatusAction(status) %}
+{% macro submissionStatusAction(status, singular_name="report") %}
   {%
     set textMap = {
-        enum.submission_status.NOT_STARTED: "Start report",
-        enum.submission_status.IN_PROGRESS: "Continue report",
-        enum.submission_status.READY_TO_SUBMIT: "View report",
-        enum.submission_status.AWAITING_SIGN_OFF: "View report",
-        enum.submission_status.SUBMITTED: "View report",
+        enum.submission_status.NOT_STARTED: "Start " ~ singular_name,
+        enum.submission_status.IN_PROGRESS: "Continue " ~ singular_name,
+        enum.submission_status.READY_TO_SUBMIT: "View " ~ singular_name,
+        enum.submission_status.AWAITING_SIGN_OFF: "View " ~ singular_name,
+        enum.submission_status.SUBMITTED: "View " ~ singular_name,
     }
   %}
   {{ textMap[status] }}

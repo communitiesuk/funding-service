@@ -5,12 +5,35 @@
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/status.html" import multiSubmissionStatusTag with context %}
 {% from "common/macros/status.html" import submissionStatusAction with context %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
 {% set page_title = "Award" %}
 {% set active_item_identifier = "award" %}
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_SIGN_OFF_DECLINED]) %}
+        {% if flashes %}
+          {% set submission_declined_html %}
+            <h3 class="govuk-notification-banner__heading">{{ flashes[0]["singular_name"] | title }} declined</h3>
+            <p class="govuk-body">
+              {{ flashes[0]["collection_name"] }} {{ flashes[0]["singular_name"] }} for {{ flashes[0]["grant_name"] }} sign off declined and sent back to {{ flashes[0]["sent_for_certification_by"] }}.
+              <a
+                class="govuk-notification-banner__link"
+                href="{{ url_for('access_grant_funding.route_to_submission', grant_id=grant_recipient.grant_id, organisation_id=grant_recipient.organisation_id, collection_id=flashes[0]['collection_id']) }}">
+                View {{ flashes[0]["singular_name"] }}
+              </a>
+            </p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": submission_declined_html,
+              "type": "success",
+              "titleText": "Confirmed"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
       <h1 class="govuk-heading-l">{{ grant_recipient.organisation.name }}</h1>
       {{
         govukSummaryList({
@@ -78,7 +101,7 @@
               <a
                 class="govuk-link govuk-link--no-visited-state"
                 href="{{ url_for('access_grant_funding.route_to_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=collection.id) }}">
-                {{ submissionStatusAction(submission_status) }}
+                {{ submissionStatusAction(submission_status, collection.type) }}
                 <span class="govuk-visually-hidden"> for {{ collection_name }} </span>
               </a>
             {% endset %}
