@@ -375,7 +375,7 @@ class QuestionDataOptions(BaseModel):
                 return QuestionDataOptions()
 
 
-class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
+class QuestionOptionsPostgresType(TypeDecorator):
     impl = JSONB
 
     cache_ok = False
@@ -391,7 +391,7 @@ class QuestionOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
         return QuestionPresentationOptions(**value)
 
 
-class QuestionDataOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
+class QuestionDataOptionsPostgresType(TypeDecorator):
     impl = JSONB
 
     cache_ok = False

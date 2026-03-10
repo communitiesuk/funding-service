@@ -81,7 +81,7 @@ class PlatformAdminModelView(XGovukModelView):
     def on_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:
         if not is_created:
             g.audit_event = create_database_model_change_for_update(model, get_current_user())
-        return super().on_model_change(form, model, is_created)  # type: ignore[no-any-return]
+        return super().on_model_change(form, model, is_created)
 
     def after_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:
         """This is called after flask-admin has committed the changes; when we track an audit event, that event
@@ -96,11 +96,11 @@ class PlatformAdminModelView(XGovukModelView):
             track_audit_event(self.session, pending_event, user)
             self.session.commit()
 
-        return super().after_model_change(form, model, is_created)  # type: ignore[no-any-return]
+        return super().after_model_change(form, model, is_created)
 
     def on_model_delete(self, model: BaseModel) -> None:
         g.audit_event = create_database_model_change_for_delete(model, get_current_user())
-        return super().on_model_delete(model)  # type: ignore[no-any-return]
+        return super().on_model_delete(model)
 
     def after_model_delete(self, model: BaseModel) -> None:
         """This is called after flask-admin has committed the changes; when we track an audit event, that event
@@ -110,7 +110,7 @@ class PlatformAdminModelView(XGovukModelView):
             track_audit_event(self.session, audit_event, get_current_user())
             self.session.commit()
 
-        return super().after_model_delete(model)  # type: ignore[no-any-return]
+        return super().after_model_delete(model)
 
 
 class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
@@ -255,7 +255,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
                 "preview the privacy policy (opens in a new tab)"
                 "</a>."
             )
-        return form  # type: ignore[no-any-return]
+        return form
 
     def after_model_change(self, form: Form, model: Grant, is_created: bool) -> None:  # type: ignore[override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
@@ -334,7 +334,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
                     form.form_errors.append("You can only create invitations for MHCLG admins and members")
                     result = False
 
-        return result  # type: ignore[no-any-return]
+        return result
 
     def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # type: ignore[override]
         if is_created:
@@ -352,7 +352,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
 
         return super().after_model_change(form, model, is_created)
 
-    @action(  # type: ignore[untyped-decorator]
+    @action(
         "cancel_invitation",
         "Cancel invitation",
         "Are you sure you want to cancel these invitations?",
@@ -425,7 +425,7 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
     }
 
 
-def _format_json_data(view, context, model, name):  # type: ignore[no-untyped-def]
+def _format_json_data(view, context, model, name):
     import json
 
     return markupsafe.Markup(
@@ -433,19 +433,19 @@ def _format_json_data(view, context, model, name):  # type: ignore[no-untyped-de
     )
 
 
-def _format_model_class(view, context, model, name):  # type: ignore[no-untyped-def]
+def _format_model_class(view, context, model, name):
     return model.data.get("model_class", "")
 
 
-def _format_action(view, context, model, name):  # type: ignore[no-untyped-def]
+def _format_action(view, context, model, name):
     return model.data.get("action", "")
 
 
 class ModelClassFilter(BaseSQLAFilter):
-    def __init__(self, column, name: str):  # type: ignore[no-untyped-def]
+    def __init__(self, column, name: str):
         super().__init__(column, name)
 
-    def apply(self, query, value, alias=None):  # type: ignore[no-untyped-def]
+    def apply(self, query, value, alias=None):
         return query.filter(self.column["model_class"].astext.ilike(value))
 
     def operation(self) -> str:
@@ -453,10 +453,10 @@ class ModelClassFilter(BaseSQLAFilter):
 
 
 class ActionFilter(BaseSQLAFilter):
-    def __init__(self, column, name: str):  # type: ignore[no-untyped-def]
+    def __init__(self, column, name: str):
         super().__init__(column, name)
 
-    def apply(self, query, value, alias=None):  # type: ignore[no-untyped-def]
+    def apply(self, query, value, alias=None):
         return query.filter(self.column["action"].astext.ilike(value))
 
     def operation(self) -> str:
@@ -498,7 +498,7 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
     def search_placeholder(self) -> str:
         return "User, Event Type, Model Class, Action"
 
-    def _apply_search(self, query, count_query, joins, count_joins, search):  # type: ignore[no-untyped-def]
+    def _apply_search(self, query, count_query, joins, count_joins, search):
         from app.common.data.models_user import User
 
         if search:

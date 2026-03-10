@@ -150,7 +150,7 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
     mode = OrganisationModeEnum.LIVE
     type = OrganisationType.CENTRAL_GOVERNMENT
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
+    @factory.post_generation
     def with_matching_test_org(self, create: bool, extracted: bool, **kwargs: Any) -> None:
         if not extracted or self.mode != OrganisationModeEnum.LIVE:
             return
@@ -258,8 +258,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     grant_id = factory.LazyAttribute(lambda o: o.grant.id)
     grant = factory.SubFactory(_GrantFactory)
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
-    def create_completed_submissions_conditional_question(  # type: ignore[no-untyped-def]
+    @factory.post_generation
+    def create_completed_submissions_conditional_question(
         obj: Collection,
         create,
         extracted,
@@ -323,8 +323,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             _create_submission(SubmissionModeEnum.LIVE, complete_question_2=True)
             _create_submission(SubmissionModeEnum.LIVE, complete_question_2=False)
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
-    def create_completed_submissions_conditional_question_random(  # type: ignore[no-untyped-def]
+    @factory.post_generation
+    def create_completed_submissions_conditional_question_random(
         obj: Collection,
         create,
         extracted,
@@ -445,8 +445,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         _create_submission(SubmissionModeEnum.TEST, test)
         _create_submission(SubmissionModeEnum.LIVE, live)
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
-    def create_completed_submissions_each_question_type(  # type: ignore[no-untyped-def]
+    @factory.post_generation
+    def create_completed_submissions_each_question_type(
         obj: Collection,
         create,
         extracted,
@@ -588,8 +588,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
-    def create_submissions(  # type: ignore[no-untyped-def]
+    @factory.post_generation
+    def create_submissions(
         obj: Collection,
         create,
         extracted,
@@ -616,8 +616,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         for _ in range(0, live):
             _SubmissionFactory.create(collection=obj, mode=SubmissionModeEnum.LIVE)
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
-    def create_completed_submissions_add_another_nested_group(  # type: ignore[no-untyped-def]
+    @factory.post_generation
+    def create_completed_submissions_add_another_nested_group(
         obj: Collection,
         create,
         extracted,
@@ -717,7 +717,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
 
     @factory.post_generation
-    def commit_the_things_to_clean_the_session(self, create, extracted, **kwargs):  # type: ignore[no-untyped-def]
+    def commit_the_things_to_clean_the_session(self, create, extracted, **kwargs):
         # Runs after all of the other post_generation hooks (hopefully) and commits anything created to the DB,
         # so that our clean-session-tracking logic has a clean session again.
         if create:
@@ -832,7 +832,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     data_options = factory.LazyFunction(lambda: QuestionDataOptions())
     conditions_operator = ConditionsOperator.ALL
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
+    @factory.post_generation
     def form_components_join(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
@@ -842,7 +842,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             if hasattr(self.form, "cached_all_components"):
                 del self.form.cached_all_components
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
+    @factory.post_generation
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:
             return
@@ -854,7 +854,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             db.session.add(expression)
             db.session.commit()
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
+    @factory.post_generation
     def _references(self: "Question", create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not create:
             return
@@ -897,7 +897,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
     presentation_options = factory.LazyFunction(lambda: QuestionPresentationOptions())
     conditions_operator = ConditionsOperator.ALL
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
+    @factory.post_generation
     def form_components_join(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
@@ -907,7 +907,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
             if hasattr(self.form, "cached_all_components"):
                 del self.form.cached_all_components
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
+    @factory.post_generation
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:
             return
@@ -919,7 +919,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
         if create:
             db.session.commit()
 
-    @factory.post_generation  # type: ignore[untyped-decorator]
+    @factory.post_generation
     def _references(self: "Group", create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not create:
             return

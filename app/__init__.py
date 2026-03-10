@@ -226,7 +226,7 @@ def create_app() -> Flask:  # noqa: C901
     Babel(app)
     _setup_flask_admin(app, db)
 
-    @login_manager.user_loader  # type: ignore[untyped-decorator]
+    @login_manager.user_loader
     def load_user(user_id: str) -> User | None:
         user = interfaces.user.get_user(user_id)
         if user:

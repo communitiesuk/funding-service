@@ -40,7 +40,7 @@ class ProxySession:
     def __init__(self, db_: SQLAlchemy) -> None:
         self.db = db_
 
-    def __getattr__(self, name):  # type: ignore[no-untyped-def]
+    def __getattr__(self, name):
         return getattr(self.db.session, name)
 
 

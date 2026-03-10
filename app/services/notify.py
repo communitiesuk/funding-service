@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from flask import Flask, current_app, url_for
-from notifications_python_client import NotificationsAPIClient  # type: ignore[attr-defined]
+from notifications_python_client import NotificationsAPIClient
 from notifications_python_client.errors import APIError, TokenError
 
 from app.common.data.types import GrantRecipientModeEnum
@@ -44,7 +44,7 @@ class NotificationService:
 
     def init_app(self, app: Flask) -> None:
         app.extensions["notification_service"] = self
-        app.extensions["notification_service.client"] = NotificationsAPIClient(app.config["GOVUK_NOTIFY_API_KEY"])  # type: ignore[no-untyped-call]
+        app.extensions["notification_service.client"] = NotificationsAPIClient(app.config["GOVUK_NOTIFY_API_KEY"])
 
     def _send_email(
         self,

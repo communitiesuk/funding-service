@@ -318,7 +318,7 @@ class Submission(BaseModel):
 
     reference: Mapped[CIStr] = mapped_column(unique=True)
 
-    data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+    data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
     mode: Mapped[SubmissionModeEnum] = mapped_column(
         SqlEnum(SubmissionModeEnum, name="submission_mode_enum", validate_strings=True)
     )
@@ -646,7 +646,7 @@ class Question(Component, SafeQidMixin):
         data_type: QuestionDataType
 
     @property
-    def question_id(self) -> uuid.UUID:  # type: ignore[override]
+    def question_id(self) -> uuid.UUID:
         """A small proxy to support SafeQidMixin so that logic can be centralised."""
         return self.id
 
@@ -848,7 +848,7 @@ class Expression(BaseModel):
 
     statement: Mapped[str]
 
-    context: Mapped[json_flat_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))  # type: ignore[no-untyped-call]
+    context: Mapped[json_flat_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
 
     type_: Mapped[ExpressionType] = mapped_column(
         "type", SqlEnum(ExpressionType, name="expression_type_enum", validate_strings=True)

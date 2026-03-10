@@ -191,7 +191,7 @@ def factories(db_session: Session) -> _Factories:
 def mock_notification_service_calls(mocker: MockerFixture) -> Generator[list[_Call], None, None]:
     calls = []
 
-    def _track_notification(*args, **kwargs):  # type: ignore[no-untyped-def]
+    def _track_notification(*args, **kwargs):
         calls.append(mocker.call(*args, **kwargs))
         return Notification(id=uuid.uuid4())
 
@@ -219,19 +219,19 @@ class MockS3ServiceCalls:
 def mock_s3_service_calls(mocker: MockerFixture) -> Generator[MockS3ServiceCalls, None, None]:
     tracker = MockS3ServiceCalls()
 
-    def _track_upload_file(*args, **kwargs):  # type: ignore[no-untyped-def]
+    def _track_upload_file(*args, **kwargs):
         tracker.upload_file_calls.append(mocker.call(*args, **kwargs))
         return None
 
-    def _track_download_file(*args, **kwargs):  # type: ignore[no-untyped-def]
+    def _track_download_file(*args, **kwargs):
         tracker.download_file_calls.append(mocker.call(*args, **kwargs))
         return b"mocked file content"
 
-    def _track_delete_file(*args, **kwargs):  # type: ignore[no-untyped-def]
+    def _track_delete_file(*args, **kwargs):
         tracker.delete_file_calls.append(mocker.call(*args, **kwargs))
         return None
 
-    def _track_delete_prefix(*args, **kwargs):  # type: ignore[no-untyped-def]
+    def _track_delete_prefix(*args, **kwargs):
         tracker.delete_prefix_calls.append(mocker.call(*args, **kwargs))
         return None
 

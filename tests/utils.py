@@ -79,7 +79,7 @@ class AnyStringMatching(RestrictedAny):
 
     _cached_re_compile = staticmethod(lru_cache(maxsize=32)(re.compile))
 
-    def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+    def __init__(self, *args, **kwargs) -> None:
         """
         Construct an instance which will equal any string matching the supplied regex pattern. Supports all arguments
         recognized by ``re.compile``, alternatively accepts an existing regex pattern object as a single argument.

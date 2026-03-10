@@ -296,12 +296,12 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
         context = ExpressionContext()
     context.expression_context = expression.context or {}
 
-    evaluator = simpleeval.EvalWithCompoundTypes(names=context, functions=expression.required_functions)  # type: ignore[no-untyped-call]
+    evaluator = simpleeval.EvalWithCompoundTypes(names=context, functions=expression.required_functions)
 
     # Remove all nodes except those we explicitly allowlist
     evaluator.nodes = {
         ast_expr: ast_fn
-        for ast_expr, ast_fn in evaluator.nodes.items()  # ty: ignore[possibly-missing-attribute]
+        for ast_expr, ast_fn in evaluator.nodes.items()  # ty: ignore[unresolved-attribute]
         if ast_expr
         in {
             ast.UnaryOp,
@@ -320,7 +320,7 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
     }
 
     try:
-        result = evaluator.eval(expression.statement)  # type: ignore[no-untyped-call]
+        result = evaluator.eval(expression.statement)
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message) from e
     except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined) as e:

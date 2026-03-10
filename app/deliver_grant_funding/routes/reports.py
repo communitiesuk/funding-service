@@ -1270,10 +1270,10 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type: ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
+            field_with_error.errors.append(e.message)
 
     return render_template(
         "deliver_grant_funding/reports/add_question.html",
@@ -1632,10 +1632,10 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # type: ignore[attr-defined]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(e.message)  # type: ignore[attr-defined]
+            field_with_error.errors.append(e.message)
         except DataSourceItemReferenceDependencyException as e:
             for flash_context in e.as_flash_contexts():
                 flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]
