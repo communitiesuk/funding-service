@@ -76,7 +76,7 @@ class SubmissionDeclinedByCertifierEvent(SubmissionEventBase, SignOffMixin, Decl
 
 class DeclinedByCertifierKwargs(TypedDict, total=False):
     """
-    TypedDict to help mypy/ty correctly enforce kwargs that should be passed when creating Events that have
+    TypedDict to help ty correctly enforce kwargs that should be passed when creating Events that have
     attributes which can vary for each instance.
     """
 

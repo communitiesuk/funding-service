@@ -1,5 +1,3 @@
-# mypy: disable-error-code="unused-ignore"
-
 import multiprocessing
 import os
 import typing as t

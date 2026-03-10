@@ -148,7 +148,6 @@ class FinalOptionExclusive:
             return  # Don't validate empty fields - use DataRequired for that
 
         checkbox_choices = field.data
-        # MyPy expects field.choices to be a dict[str, Any] but in our implementation with wtforms it's a list of tuples
         form_choices = cast(list[tuple[str, str]], field.choices)
         final_option_key, final_option_label, *_ = form_choices[-1]
         if final_option_key in checkbox_choices and len(checkbox_choices) > 1:

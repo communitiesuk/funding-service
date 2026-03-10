@@ -157,18 +157,6 @@ jobs:
         with:
           enable-cache: true
       - name: run type checking
-        run: uv run mypy
-
-  type_checking_ty:
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
-      - name: Install uv
-        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7
-        with:
-          enable-cache: true
-      - name: run type checking
         run: uv run ty check
 
   lint_html_formatting:

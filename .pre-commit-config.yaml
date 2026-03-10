@@ -1,6 +1,6 @@
 ci:
   autofix_prs: false
-  skip: [ "mypy", "format-frontend" ]
+  skip: [ "ty", "format-frontend" ]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -37,11 +37,11 @@ repos:
 
   - repo: local
     hooks:
-      - id: mypy
+      - id: ty
         name: Run type checks
         language: system
         types: [ python ]
-        entry: uv run mypy
+        entry: uv run ty check --no-progress
         pass_filenames: false
       - id: format-frontend
         name: Format frontend files with Prettier

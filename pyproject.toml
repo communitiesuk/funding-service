@@ -46,7 +46,6 @@ dev = [
     "debugpy==1.8.20",
     "factory-boy==3.3.3",
     "flask-debugtoolbar==0.16.0",
-    "mypy==1.19.1",
     "pre-commit==4.5.1",
     "pytest-mock==3.15.1",
     "pytest-env==1.5.0",
@@ -78,7 +77,7 @@ add-bounds = "exact"
 error-on-warning = true
 
 [tool.ty.rules]
-unused-ignore-comment = "ignore" # currently needed for compat with mypy
+unused-ignore-comment = "ignore"
 
 [tool.ruff]
 line-length = 120
@@ -175,36 +174,6 @@ source_modules = [
 forbidden_modules = [
     "app.common.data.interfaces.temporary",
 ]
-
-
-
-[tool.mypy]
-strict = true
-# do not validate subclassing any types
-disallow_subclassing_any = false
-# enforce type checking on fixtures in conftest but not on all test files
-packages = ["app", "tests"]
-# Exclude actual test files, but include stuff in __init__ or conftest as they are used more widely
-exclude = [".*test_.*"]
-
-
-[[tool.mypy.overrides]]
-module = [
-    "flask_wtf", "flask_wtf.*", "govuk_frontend_wtf.*", "testcontainers.*", "flask_babel", "sqlalchemy_utils", "flask_talisman.*", "flask_login", "msal.*", "num2words", "flask_admin.*", "xgovuk_flask_admin.*"
-]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["app.common.data.migrations.versions.*"]
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = ["factory"]
-implicit_reexport = true
-
-[[tool.mypy.overrides]]
-module = ["sqlalchemy_json", "simpleeval"]
-follow_untyped_imports = true
 
 [tool.pytest.ini_options]
 env = [
