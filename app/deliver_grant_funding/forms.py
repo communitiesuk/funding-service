@@ -947,3 +947,23 @@ class SetUpGrantRecipientsForm(FlaskForm):
         tsv_reader = csv.reader(users_data.splitlines(), delimiter="\t")
         _ = next(tsv_reader)  # Skip the header
         return [(row[0], row[1], row[2]) for row in tsv_reader]
+
+
+class RequestChangesForm(FlaskForm):
+    reason = StringField(
+        "Why are you requesting changes?",
+        widget=GovTextArea(),
+        validators=[DataRequired("Enter a reason for requesting changes")],
+    )
+
+    submit = SubmitField("Request changes", widget=GovSubmitInput())
+
+
+class DeclineValidationForm(FlaskForm):
+    reason = StringField(
+        "Why are you declining validation?",
+        widget=GovTextArea(),
+        validators=[DataRequired("Enter a reason for declining validation")],
+    )
+
+    submit = SubmitField("Decline validation", widget=GovSubmitInput())

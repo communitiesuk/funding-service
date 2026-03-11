@@ -27,6 +27,11 @@ class SubmittedMixin(Protocol):
     is_submitted: bool
 
 
+class ValidatedMixin(Protocol):
+    is_validated: bool
+    is_validation_declined: bool
+
+
 # Events - things that can happen in the service, we calculate the final state
 # by taking all the latest event properties allowing workflows to go forward and backwards
 # Event names are past tense
@@ -56,6 +61,12 @@ class FormResetToInProgressEvent(SubmissionEventBase, CompletedMixin):
 @dataclass
 class FormResetByCertifierEvent(SubmissionEventBase, CompletedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER
+    is_completed: bool = False
+
+
+@dataclass
+class FormResetByValidatorEvent(SubmissionEventBase, CompletedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_VALIDATOR
     is_completed: bool = False
 
 
@@ -96,6 +107,38 @@ class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
     is_submitted: bool = True
 
 
+@dataclass
+class SubmissionValidatedEvent(SubmissionEventBase, ValidatedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_VALIDATED
+    is_validated: bool = True
+    is_validation_declined: bool = False
+
+
+@dataclass
+class SubmissionChangesRequestedByValidatorEvent(SubmissionEventBase, ValidatedMixin, SubmittedMixin, DeclinedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_CHANGES_REQUESTED_BY_VALIDATOR
+    is_validated: bool = False
+    is_validation_declined: bool = False
+    is_submitted: bool = False
+    declined_reason: str | None = field(default=None, metadata={"stored": True})
+
+
+class ChangesRequestedByValidatorKwargs(TypedDict, total=False):
+    declined_reason: str | None
+
+
+@dataclass
+class SubmissionValidationDeclinedEvent(SubmissionEventBase, ValidatedMixin, DeclinedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_VALIDATION_DECLINED
+    is_validated: bool = False
+    is_validation_declined: bool = True
+    declined_reason: str | None = field(default=None, metadata={"stored": True})
+
+
+class ValidationDeclinedKwargs(TypedDict, total=False):
+    declined_reason: str | None
+
+
 # State - represents a snapshot of the current state of the target entity for those events
 # Combines metadata about who has been doing the events and the event properties themselves
 @dataclass
@@ -123,18 +166,42 @@ class SubmittedMetadata:
 
 
 @dataclass
+class ValidatedMetadata:
+    validated_by: User | None = None
+    validated_at_utc: datetime | None = None
+
+
+@dataclass
+class ValidationDeclinedMetadata:
+    validation_declined_by: User | None = None
+    validation_declined_at_utc: datetime | None = None
+
+
+@dataclass
+class ChangesRequestedMetadata:
+    changes_requested_by: User | None = None
+    changes_requested_at_utc: datetime | None = None
+
+
+@dataclass
 class SubmissionState(
     SentForCertificationMetadata,
     SubmittedMetadata,
     CertifiedMetadata,
     CertificationDeclinedMetadata,
+    ValidatedMetadata,
+    ValidationDeclinedMetadata,
+    ChangesRequestedMetadata,
     SignOffMixin,
     SubmittedMixin,
+    ValidatedMixin,
     DeclinedMixin,
 ):
     is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
     is_approved: bool | None = None
+    is_validated: bool = False
+    is_validation_declined: bool = False
     declined_reason: str | None = None
 
 
@@ -242,6 +309,27 @@ class SubmissionEventHelper:
                         declined_at_utc=event.created_at_utc,
                     )
                 )
+            case SubmissionEventType.SUBMISSION_VALIDATED:
+                return shallow_asdict(
+                    ValidatedMetadata(
+                        validated_by=event.created_by,
+                        validated_at_utc=event.created_at_utc,
+                    )
+                )
+            case SubmissionEventType.SUBMISSION_VALIDATION_DECLINED:
+                return shallow_asdict(
+                    ValidationDeclinedMetadata(
+                        validation_declined_by=event.created_by,
+                        validation_declined_at_utc=event.created_at_utc,
+                    )
+                )
+            case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED_BY_VALIDATOR:
+                return shallow_asdict(
+                    ChangesRequestedMetadata(
+                        changes_requested_by=event.created_by,
+                        changes_requested_at_utc=event.created_at_utc,
+                    )
+                )
             case _:
                 return {}
 
@@ -250,6 +338,20 @@ class SubmissionEventHelper:
     def event_from(
         event_type: Literal[SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER],
         **kwargs: Unpack[DeclinedByCertifierKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED_BY_VALIDATOR],
+        **kwargs: Unpack[ChangesRequestedByValidatorKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SUBMISSION_VALIDATION_DECLINED],
+        **kwargs: Unpack[ValidationDeclinedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

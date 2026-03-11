@@ -68,6 +68,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     RoleEnum,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import _ManagedExpressionForm, build_managed_expression_form
@@ -80,12 +81,14 @@ from app.deliver_grant_funding.forms import (
     AddSectionForm,
     CollectionSettingsForm,
     ConditionsOperatorForm,
+    DeclineValidationForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
     GroupForm,
     QuestionForm,
     QuestionTypeForm,
+    RequestChangesForm,
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
     SetUpApplicationForm,
@@ -2485,6 +2488,19 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
                     submission_mode=submission_mode,
                 )
             )
+
+    validate_form = None
+    if helper.collection.requires_validation and helper.status == SubmissionStatusEnum.SUBMITTED:
+        validate_form = GenericSubmitForm()
+        if validate_form.validate_on_submit():
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.confirm_validate_submission",
+                    grant_id=grant_id,
+                    submission_id=submission_id,
+                )
+            )
+
     return render_template(
         "deliver_grant_funding/reports/view_submission.html",
         grant=helper.grant,
@@ -2492,4 +2508,103 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         collection_config=get_collection_type_config(helper.collection.type),
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
         delete_form=delete_wtform,
+        validate_form=validate_form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/confirm-validate",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def confirm_validate_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    helper = SubmissionHelper.load(submission_id)
+
+    if not helper.collection.requires_validation or helper.status != SubmissionStatusEnum.SUBMITTED:
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
+
+    form = GenericSubmitForm()
+
+    if form.validate_on_submit():
+        user = get_current_user()
+        helper.validate_submission(user)
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/confirm_validate_submission.html",
+        grant=helper.grant,
+        helper=helper,
+        collection_config=get_collection_type_config(helper.collection.type),
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/request-changes",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def request_changes_on_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    helper = SubmissionHelper.load(submission_id)
+
+    if not helper.collection.requires_validation or helper.status != SubmissionStatusEnum.SUBMITTED:
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
+
+    form = RequestChangesForm()
+
+    if form.validate_on_submit():
+        user = get_current_user()
+        reason = form.reason.data or ""
+        helper.request_changes_on_submission(user, reason=reason)
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/request_changes_on_submission.html",
+        grant=helper.grant,
+        helper=helper,
+        collection_config=get_collection_type_config(helper.collection.type),
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/decline-validation",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def decline_submission_validation(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    helper = SubmissionHelper.load(submission_id)
+
+    if not helper.collection.requires_validation or helper.status != SubmissionStatusEnum.SUBMITTED:
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
+
+    form = DeclineValidationForm()
+
+    if form.validate_on_submit():
+        user = get_current_user()
+        reason = form.reason.data or ""
+        helper.decline_validation(user, reason=reason)
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/decline_submission_validation.html",
+        grant=helper.grant,
+        helper=helper,
+        collection_config=get_collection_type_config(helper.collection.type),
+        form=form,
     )

@@ -1,0 +1,46 @@
+{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
+
+{% set page_title = "Decline validation: " ~ helper.long_collection_name %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
+
+{% set return_link = url_for("deliver_grant_funding.view_submission", grant_id=grant.id, submission_id=helper.submission.id) %}
+
+{% block beforeContent %}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=helper.collection, collection_config=collection_config, immediate_parent_breadcrumb_item={"text": "Submission", "href": return_link}, this_page_breadcrumb_item={"text": "Decline validation" }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="POST" novalidate>
+        {{ form.csrf_token }}
+
+        {{
+          form.reason(
+            params={
+            "label":{
+              "isPageHeading":true,
+              "classes": "govuk-label--l",
+              "text": "Why are you declining validation for the " ~ helper.long_collection_name ~ " submission?"
+            },
+            "hint":{
+              "text": "Provide a reason for declining the validation of this submission."
+            }
+            }
+          )
+        }}
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ return_link }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

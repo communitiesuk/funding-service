@@ -55,7 +55,12 @@ from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.forms.helpers import questions_in_same_add_another_container
-from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
+from app.common.helpers.submission_events import (
+    ChangesRequestedByValidatorKwargs,
+    DeclinedByCertifierKwargs,
+    SubmissionEventHelper,
+    ValidationDeclinedKwargs,
+)
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
@@ -75,6 +80,7 @@ def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionT
         slug=slugify(name),
         type=type_,
         requires_certification=True,  # note: this'll need to change when we have more than just monitoring reports
+        requires_validation=False,
     )
     db.session.add(collection)
     return collection
@@ -1315,6 +1321,28 @@ def add_submission_event(
     user: User,
     related_entity_id: UUID | None = None,
     **kwargs: Unpack[DeclinedByCertifierKwargs],
+) -> Submission: ...
+
+
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
+    event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED_BY_VALIDATOR],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[ChangesRequestedByValidatorKwargs],
+) -> Submission: ...
+
+
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
+    event_type: Literal[SubmissionEventType.SUBMISSION_VALIDATION_DECLINED],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[ValidationDeclinedKwargs],
 ) -> Submission: ...
 
 

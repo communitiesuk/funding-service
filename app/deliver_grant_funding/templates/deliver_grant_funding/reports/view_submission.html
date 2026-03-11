@@ -54,6 +54,22 @@
     </a>
   </p>
 
+  {% if helper.collection.requires_validation and helper.status == enum.submission_status.SUBMITTED %}
+    <div>
+      <h2 class="govuk-heading-m govuk-!-margin-top-9">Validate allocation</h2>
+      <p class="govuk-body">Review the submission and either validate, request changes, or decline it.</p>
+
+      <form method="POST" novalidate>
+        {{ validate_form.csrf_token }}
+        <div class="govuk-button-group">
+          {{ validate_form.submit(params={"text": "Continue to validate submission" }) }}
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.request_changes_on_submission', grant_id=grant.id, submission_id=helper.submission.id) }}"> Request changes on submission </a>
+          <a class="govuk-button govuk-button--warning" href="{{ url_for('deliver_grant_funding.decline_submission_validation', grant_id=grant.id, submission_id=helper.submission.id) }}"> Decline validation </a>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
   {% if helper.submission.mode == enum.submission_mode.TEST %}
     <div>
       <h2 class="govuk-heading-m govuk-!-margin-top-9">Manage test submission</h2>

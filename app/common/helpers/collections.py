@@ -257,7 +257,11 @@ class SubmissionHelper:
         submission_state = self.events.submission_state
 
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
-        if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_submitted:
+        if submission_state.is_submitted and submission_state.is_validation_declined:
+            return SubmissionStatusEnum.DECLINED
+        elif submission_state.is_submitted and submission_state.is_validated:
+            return SubmissionStatusEnum.VALIDATED
+        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_submitted:
             return SubmissionStatusEnum.SUBMITTED
         elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
@@ -283,7 +287,7 @@ class SubmissionHelper:
 
     @property
     def is_locked_state(self) -> bool:
-        return self.is_submitted or self.is_awaiting_sign_off
+        return self.is_submitted or self.is_awaiting_sign_off or self.is_validated or self.is_declined
 
     @property
     def is_submitted(self) -> bool:
@@ -292,6 +296,14 @@ class SubmissionHelper:
     @property
     def is_awaiting_sign_off(self) -> bool:
         return self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+    @property
+    def is_validated(self) -> bool:
+        return self.status == SubmissionStatusEnum.VALIDATED
+
+    @property
+    def is_declined(self) -> bool:
+        return self.status == SubmissionStatusEnum.DECLINED
 
     @property
     def is_preview(self) -> bool:
@@ -332,6 +344,14 @@ class SubmissionHelper:
     @property
     def declined_by(self) -> User | None:
         return self.events.submission_state.declined_by
+
+    @property
+    def validated_by(self) -> User | None:
+        return self.events.submission_state.validated_by
+
+    @property
+    def validated_at_utc(self) -> datetime | None:
+        return self.events.submission_state.validated_at_utc
 
     @property
     def created_at_utc(self) -> datetime:
@@ -963,6 +983,67 @@ class SubmissionHelper:
 
         interfaces.collections.add_submission_event(
             self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
+        )
+
+    def validate_submission(self, user: User) -> None:
+        """Validates a submitted submission (DGF validation flow)."""
+        if not self.collection.requires_validation:
+            raise ValueError(
+                f"Could not validate submission id={self.id} because this collection does not require validation."
+            )
+
+        if self.status != SubmissionStatusEnum.SUBMITTED:
+            raise ValueError(f"Could not validate submission id={self.id} because it is not in submitted status.")
+
+        interfaces.collections.add_submission_event(
+            self.submission, event_type=SubmissionEventType.SUBMISSION_VALIDATED, user=user
+        )
+
+    def request_changes_on_submission(self, user: User, reason: str) -> None:
+        """Requests changes on a submitted submission, resetting all forms (DGF validation flow)."""
+        if not self.collection.requires_validation:
+            raise ValueError(
+                f"Could not request changes on submission id={self.id} because this collection does not require "
+                f"validation."
+            )
+
+        if self.status != SubmissionStatusEnum.SUBMITTED:
+            raise ValueError(
+                f"Could not request changes on submission id={self.id} because it is not in submitted status."
+            )
+
+        interfaces.collections.add_submission_event(
+            self.submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED_BY_VALIDATOR,
+            user=user,
+            declined_reason=reason,
+        )
+        for form in self.collection.forms:
+            interfaces.collections.add_submission_event(
+                self.submission,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_VALIDATOR,
+                user=user,
+                related_entity_id=form.id,
+            )
+
+    def decline_validation(self, user: User, reason: str) -> None:
+        """Declines validation on a submitted submission (DGF validation flow)."""
+        if not self.collection.requires_validation:
+            raise ValueError(
+                f"Could not decline validation for submission id={self.id} because this collection does not require "
+                f"validation."
+            )
+
+        if self.status != SubmissionStatusEnum.SUBMITTED:
+            raise ValueError(
+                f"Could not decline validation for submission id={self.id} because it is not in submitted status."
+            )
+
+        interfaces.collections.add_submission_event(
+            self.submission,
+            event_type=SubmissionEventType.SUBMISSION_VALIDATION_DECLINED,
+            user=user,
+            declined_reason=reason,
         )
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:

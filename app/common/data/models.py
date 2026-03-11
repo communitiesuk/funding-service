@@ -277,6 +277,7 @@ class Collection(BaseModel):
     reporting_period_end_date: Mapped[datetime.date | None]
     submission_period_start_date: Mapped[datetime.date | None]
     submission_period_end_date: Mapped[datetime.date | None]
+    requires_validation: Mapped[bool | None]
     requires_certification: Mapped[bool | None]
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)

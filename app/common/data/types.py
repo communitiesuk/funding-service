@@ -132,6 +132,8 @@ class SubmissionStatusEnum(enum.StrEnum):
     READY_TO_SUBMIT = "Ready to submit"
     AWAITING_SIGN_OFF = "Awaiting sign off"
     SUBMITTED = "Submitted"
+    VALIDATED = "Validated"
+    DECLINED = "Declined"
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):
@@ -147,10 +149,14 @@ class SubmissionEventType(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
     FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS = "Form reset to in progress"
     FORM_RUNNER_FORM_RESET_BY_CERTIFIER = "Form reset by certifier"
+    FORM_RUNNER_FORM_RESET_BY_VALIDATOR = "Form reset by validator"
     SUBMISSION_SENT_FOR_CERTIFICATION = "Submission sent for certification"
     SUBMISSION_DECLINED_BY_CERTIFIER = "Submission declined by certifier"
     SUBMISSION_APPROVED_BY_CERTIFIER = "Submission approved by certifier"
     SUBMISSION_SUBMITTED = "Submission submitted"
+    SUBMISSION_VALIDATED = "Submission validated"
+    SUBMISSION_CHANGES_REQUESTED_BY_VALIDATOR = "Submission changes requested by validator"
+    SUBMISSION_VALIDATION_DECLINED = "Submission validation declined"
 
 
 class CollectionType(enum.StrEnum):

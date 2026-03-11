@@ -72,6 +72,8 @@
         enum.submission_status.IN_PROGRESS: "govuk-tag--light-blue",
         enum.submission_status.READY_TO_SUBMIT: "govuk-tag--blue",
         enum.submission_status.AWAITING_SIGN_OFF: "govuk-tag--purple",
+        enum.submission_status.DECLINED: "govuk-tag--red",
+        enum.submission_status.VALIDATED: "govuk-tag--green",
     }
   %}
   {% set status_text = status ~ (" (Overdue)" if is_overdue else "") %}
@@ -102,6 +104,8 @@
         enum.submission_status.READY_TO_SUBMIT: "View " ~ singular_name,
         enum.submission_status.AWAITING_SIGN_OFF: "View " ~ singular_name,
         enum.submission_status.SUBMITTED: "View " ~ singular_name,
+        enum.submission_status.VALIDATED: "View " ~ singular_name,
+        enum.submission_status.DECLINED: "View " ~ singular_name,
     }
   %}
   {{ textMap[status] }}
