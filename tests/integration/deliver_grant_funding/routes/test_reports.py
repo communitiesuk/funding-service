@@ -26,7 +26,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.forms import build_managed_expression_form
+from app.common.expressions.forms import CustomValidationExpressionForm, build_managed_expression_form
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.deliver_grant_funding.forms import (
@@ -6774,3 +6774,173 @@ class TestValidateCustomSyntax:
         )
 
         assert result == "The expression must evaluate to true or false"
+
+
+class TestAddCustomQuestionValidation:
+    def test_post_success(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        assert len(q3.expressions) == 0
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid})) ",
+                "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
+                f"(({q2.safe_qid}))",
+            }
+        )
+
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_custom_question_validation",
+                grant_id=report.grant.id,
+                question_id=q3.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(rf"/deliver/grant/{report.grant.id}/question/{q3.id}")
+
+        assert len(q3.expressions) == 1
+        expression = q3.expressions[0]
+        assert expression.type_ == ExpressionType.VALIDATION
+        assert expression.managed_name is None
+
+    def test_post_error_in_expression(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        q4 = factories.question.create(
+            name="Later question name",
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        assert len(q3.expressions) == 0
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q4.safe_qid})) ",
+                "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
+                f"(({q2.safe_qid}))",
+            }
+        )
+
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_custom_question_validation",
+                grant_id=report.grant.id,
+                question_id=q3.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+
+        assert len(q3.expressions) == 0
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
+        )
+
+    def test_post_error_in_message(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        assert len(q3.expressions) == 0
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q3.safe_qid})) ",
+                "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
+                f"((bad_reference))",
+            }
+        )
+
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_custom_question_validation",
+                grant_id=report.grant.id,
+                question_id=q3.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+
+        assert len(q3.expressions) == 0
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            "((bad_reference)) is not a valid reference",
+        )
+
+    def test_post_error_in_expression_and_message(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        q4 = factories.question.create(
+            name="Later question name",
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        assert len(q3.expressions) == 0
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q2.safe_qid}))) ",
+                "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
+                f"(({q4.safe_qid}))",
+            }
+        )
+
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_custom_question_validation",
+                grant_id=report.grant.id,
+                question_id=q3.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+
+        assert len(q3.expressions) == 0
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            "This function is not available: sum",
+        )
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
+        )

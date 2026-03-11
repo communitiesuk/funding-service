@@ -68,6 +68,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.edit_question_validation",
     "deliver_grant_funding.collection_configure_multiple_submissions",
     "deliver_grant_funding.set_guidance_for_multiple_submissions",
+    "deliver_grant_funding.add_custom_question_validation",
 ]
 routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.change_report_name",
@@ -97,6 +98,7 @@ routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.edit_question_condition",
     "deliver_grant_funding.add_question_validation",
     "deliver_grant_funding.edit_question_validation",
+    "deliver_grant_funding.add_custom_question_validation",
 ]
 routes_with_expected_member_only_access = [
     "deliver_grant_funding.grant_homepage",

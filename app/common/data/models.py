@@ -915,6 +915,13 @@ class Expression(BaseModel):
         raise ValueError("This expression is not a custom expression and does not have a custom definition")
 
     @property
+    def evaluatable_expression(self) -> EvaluatableExpression:
+        if self.is_custom:
+            return self.custom
+        else:
+            return self.managed
+
+    @property
     def is_custom(self) -> bool:
         return not self.is_managed
 

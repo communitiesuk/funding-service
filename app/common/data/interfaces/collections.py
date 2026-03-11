@@ -1121,11 +1121,12 @@ def raise_if_data_source_item_reference_dependency(
 
 
 class AddAnotherDependencyException(Exception, FlashableException):
-    def __init__(self, message: str, component: Component, referenced_question: Component):
+    def __init__(self, message: str, component: Component, referenced_question: Component, field_name: str = ""):
         super().__init__(message)
         self.message = message
         self.component = component
         self.referenced_question = referenced_question
+        self.field_name = field_name
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -1516,6 +1517,7 @@ def _validate_reference(  # noqa:C901
                 "A question cannot depend on an add another question from a different add another group",
                 attached_to_component,
                 referenced_question,
+                field_name=field_name_for_error_message,
             )
     else:
         # TODO implement this once we can reference other things, eg. data uploads
