@@ -79,7 +79,7 @@ class MHCLGDividableIterableBase(GovIterableBase):
         super().__init__(*args, **kwargs)
         self.insert_divider_before_last_item = insert_divider_before_last_item
 
-    def __call__(self, field, **kwargs):  # type: ignore[no-untyped-def]
+    def __call__(self, field, **kwargs):
         kwargs.setdefault("id", field.id)
 
         if "required" not in kwargs and "required" in getattr(field, "flags", []):
@@ -114,7 +114,7 @@ class MHCLGRadioInput(MHCLGDividableIterableBase):
     template = "govuk_frontend_wtf/radios.html"
     input_type = "radio"
 
-    def map_gov_params(self, field, **kwargs):  # type: ignore[no-untyped-def]
+    def map_gov_params(self, field, **kwargs):
         params = super().map_gov_params(field, **kwargs)
         params.setdefault(
             "fieldset",
@@ -140,7 +140,7 @@ class MHCLGCheckboxesInput(MHCLGDividableIterableBase):
     template = "govuk_frontend_wtf/checkboxes.html"
     input_type = "checkbox"
 
-    def map_gov_params(self, field, **kwargs):  # type: ignore[no-untyped-def]
+    def map_gov_params(self, field, **kwargs):
         params = super().map_gov_params(field, **kwargs)
 
         # This is the only bit of additional logic to uncheck all other checkboxes when the user the final option
@@ -169,7 +169,7 @@ class MHCLGApproximateDateInput(GovFormBase):
 
     template = "govuk_frontend_wtf/date.html"
 
-    def __call__(self, field, **kwargs):  # type: ignore[no-untyped-def]
+    def __call__(self, field, **kwargs):
         kwargs.setdefault("id", field.id)
         if "value" not in kwargs:
             kwargs["value"] = field._value()
@@ -177,7 +177,7 @@ class MHCLGApproximateDateInput(GovFormBase):
             kwargs["required"] = True
         return super().__call__(field, **kwargs)
 
-    def map_gov_params(self, field, **kwargs):  # type: ignore[no-untyped-def]
+    def map_gov_params(self, field, **kwargs):
         params = super().map_gov_params(field, **kwargs)
         month, year = [None] * 2
         if field.raw_data is not None:

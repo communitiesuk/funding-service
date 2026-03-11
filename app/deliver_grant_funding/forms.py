@@ -520,7 +520,7 @@ class QuestionForm(FlaskForm):
     def get_component_form_data(self) -> dict[str, Any]:
         return {key: data for key, data in self.data.items() if key not in {"csrf_token", "submit"}}
 
-    def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+    def validate(self, extra_validators=None):
         if self.is_submitted_to_add_context():
             return True
 

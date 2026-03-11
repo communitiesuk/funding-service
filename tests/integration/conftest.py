@@ -153,7 +153,7 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Fund
         # to the app under test will either revert to the previous savepoint (undoing any uncommitted flushes)
         # or leave the session unchanged if it was appropriately committed. This is to be used in conjunction with
         # the `db_session` fixture.
-        def open(self, *args, **kwargs) -> TestResponse:  # type: ignore[no-untyped-def]
+        def open(self, *args, **kwargs) -> TestResponse:
             kwargs.setdefault("headers", {})
             kwargs["headers"].setdefault("Host", "funding.communities.gov.localhost:8080")
 

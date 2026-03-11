@@ -117,7 +117,7 @@ class DynamicQuestionForm(FlaskForm):
 
     @classmethod
     def attach_field(cls, question: Question, field: Field) -> None:
-        setattr(cls, question.safe_qid, cast(_accepted_fields, field))  # type: ignore[valid-type]
+        setattr(cls, question.safe_qid, cast(_accepted_fields, field))
 
     def render_question(self, question: Question, params: dict[str, Any] | None = None) -> str:
         return cast(str, getattr(self, question.safe_qid)(params=params))
@@ -169,7 +169,7 @@ def build_question_form(  # noqa: C901
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
 
-    field: _accepted_fields  # type: ignore[valid-type]
+    field: _accepted_fields
     for question in questions:
         match question.data_type:
             case QuestionDataType.EMAIL:
@@ -210,7 +210,7 @@ def build_question_form(  # noqa: C901
                 )
             case QuestionDataType.NUMBER:
                 if question.data_options.number_type == NumberTypeEnum.DECIMAL:
-                    field = DecimalWithCommasField(  # type: ignore[call-overload]
+                    field = DecimalWithCommasField(
                         label=interpolate(text=question.text, context=interpolation_context),
                         description=interpolate(text=question.hint or "", context=interpolation_context),
                         places=None,

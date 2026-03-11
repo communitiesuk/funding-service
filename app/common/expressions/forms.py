@@ -66,7 +66,7 @@ class _ManagedExpressionForm(FlaskForm):
         data = {k: v for k, v in self.data.items() if k in expression_keys}
         return data
 
-    def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+    def validate(self, extra_validators=None):
         if self.is_submitted_to_add_context():
             return True
 

@@ -65,7 +65,7 @@ dev = [
     "import-linter==2.10",
     "pytest==9.0.2",
     "pytest-playwright==0.7.2",
-    "ty==0.0.14",
+    "ty==0.0.21",
     "watchdog[watchmedo]==6.0.0",
 ]
 
@@ -75,9 +75,6 @@ add-bounds = "exact"
 
 [tool.ty.terminal]
 error-on-warning = true
-
-[tool.ty.rules]
-unused-ignore-comment = "ignore"
 
 [tool.ruff]
 line-length = 120

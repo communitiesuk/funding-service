@@ -183,10 +183,10 @@ def is_deliver_org_member[**P](
     return is_deliver_grant_funding_user(wrapper)
 
 
-def has_deliver_grant_role[**P](
+def has_deliver_grant_role(
     role: RoleEnum,
-) -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:
-    def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+) -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:
+    def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
         @functools.wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
             # Guarding against SSO users who somehow login via magic link
@@ -213,10 +213,10 @@ def has_deliver_grant_role[**P](
     return decorator
 
 
-def has_access_grant_role[**P](
+def has_access_grant_role(
     role: RoleEnum,
-) -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:
-    def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+) -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:
+    def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
         @functools.wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
             user = interfaces.user.get_current_user()
@@ -245,8 +245,8 @@ def has_access_grant_role[**P](
     return decorator
 
 
-def collection_is_editable[**P]() -> Callable[[Callable[P, ResponseReturnValue]], Callable[P, ResponseReturnValue]]:
-    def decorator(func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+def collection_is_editable() -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:
+    def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
         @functools.wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
             # Guarding against SSO users who somehow login via magic link
