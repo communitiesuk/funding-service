@@ -1,12 +1,11 @@
 from typing import TYPE_CHECKING, Any
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea
 from markupsafe import Markup
-from wtforms import RadioField, SubmitField
+from wtforms import RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired
 
-from app.common.data.models import Expression, Question
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum
 from app.common.expressions.registry import (
     get_managed_conditions_by_data_type,
@@ -15,6 +14,7 @@ from app.common.expressions.registry import (
 )
 
 if TYPE_CHECKING:
+    from app.common.data.models import Expression, Question
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -133,3 +133,33 @@ def build_managed_expression_form(  # noqa: C901
             setattr(ManagedExpressionForm, field_name, field)
 
     return ManagedExpressionForm
+
+
+class CustomValidationExpressionForm(FlaskForm):
+    def is_submitted_to_add_context(self) -> bool:
+        return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
+
+    custom_expression = StringField(
+        "Expression",
+        widget=GovTextArea(),
+        validators=[DataRequired()],
+    )
+    custom_message = StringField(
+        "Message",
+        description="Shown to the user if the answer is not valid",
+        widget=GovTextArea(),
+        validators=[DataRequired()],
+    )
+    add_context = StringField(
+        "Reference data",
+        widget=GovSubmitInput(),
+    )
+    submit = SubmitField("Add validation", widget=GovSubmitInput())
+
+    def get_expression_form_data(self) -> dict[str, Any]:
+        data = {
+            "custom_expression": self.custom_expression.data,
+            "custom_message": self.custom_message.data,
+            "add_context": self.add_context.data,
+        }
+        return data

@@ -14,6 +14,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import evaluate
 from app.common.expressions.custom import CustomExpression
+from app.common.expressions.forms import CustomValidationExpressionForm
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -821,3 +822,15 @@ class TestCustomExpression:
             "custom_expression": expr.custom_expression,
             "custom_message": expr.custom_message,
         }
+
+    def test_build_from_form(self):
+        form = CustomValidationExpressionForm()
+        form.custom_expression.data = "some expression"
+        form.custom_message.data = "a message"
+        result = CustomExpression.build_from_form(
+            form=form,
+        )
+        assert isinstance(result, CustomExpression)
+        assert result.question_id is None
+        assert result.custom_expression == "some expression"
+        assert result.custom_message == "a message"

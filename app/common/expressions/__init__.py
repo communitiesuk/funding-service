@@ -13,12 +13,12 @@ from pydantic import BaseModel
 
 from app.common.data.types import ManagedExpressionsEnum
 from app.common.qid import SafeQidMixin
-from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Component, Expression, Group, Question
     from app.common.helpers.collections import SubmissionHelper
+    from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 
 INTERPOLATE_REGEX = re.compile(r"\(\(([^\(]+?)\)\)")
 # If any interpolation references contain characters other than alphanumeric, full stops or underscores,
@@ -72,7 +72,7 @@ class EvaluatableExpression(BaseModel, SafeQidMixin):
         return set()
 
     @classmethod
-    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
+    def prepare_form_data(cls, add_context_data: "AddContextToExpressionsModel") -> dict[str, Any]:
         data = {
             k: v
             for k, v in add_context_data.expression_form_data.items()
