@@ -4,6 +4,7 @@ from unittest.mock import Mock, PropertyMock
 
 import pytest
 from markupsafe import Markup
+from simpleeval import OperatorNotDefined
 
 from app.common.data.models import Expression
 from app.common.expressions import (
@@ -112,6 +113,22 @@ class TestInternalEvaluateExpressionWithContext:
     )
     def test_disallowed_expressions(self, expression):
         with pytest.raises(DisallowedExpression):
+            _evaluate_expression_with_context(expression, ExpressionContext())
+
+    @pytest.mark.parametrize(
+        "expression",
+        [
+            (Expression(statement="2**3")),  # ast.Pow
+            (Expression(statement="2>>3")),  # ast.RShift
+            (Expression(statement="2<<3")),  # ast.LShift
+            (Expression(statement="2^3")),  # ast.BitXor
+            (Expression(statement="2|3")),  # ast.BitOr
+            (Expression(statement="2&3")),  # ast.BitAnd
+            (Expression(statement="~3")),  # ast.Invert
+        ],
+    )
+    def test_operator_not_defined(self, expression):
+        with pytest.raises(OperatorNotDefined):
             _evaluate_expression_with_context(expression, ExpressionContext())
 
     def test_unknown_variable(self):
