@@ -338,6 +338,10 @@ class SubmissionHelper:
         return self.submission.created_at_utc
 
     @property
+    def last_updated_at_utc(self) -> datetime:
+        return max(filter(None, [self.events.latest_event_utc, self.submission.updated_at_utc]))
+
+    @property
     def id(self) -> UUID:
         return self.submission.id
 
