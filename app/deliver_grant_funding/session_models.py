@@ -78,7 +78,7 @@ class AddContextToExpressionsModel(BaseModel):
     _prepared_form_data: dict[str, Any]
 
     field: ExpressionType
-    managed_expression_name: ManagedExpressionsEnum
+    managed_expression_name: ManagedExpressionsEnum | None
     expression_form_data: dict[str, Any]
 
     component_id: UUID
@@ -90,3 +90,5 @@ class AddContextToExpressionsModel(BaseModel):
     data_source: ExpressionContext.ContextSources | None = None
     depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None
+
+    is_custom: bool = False
