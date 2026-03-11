@@ -1680,7 +1680,7 @@ def remove_question_expression(question: Component, expression: Expression) -> C
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def update_question_expression(expression: Expression, evaluatable_expression: ManagedExpression) -> Expression:
+def update_question_expression(expression: Expression, evaluatable_expression: EvaluatableExpression) -> Expression:
     expression.statement = evaluatable_expression.statement
     expression.context = evaluatable_expression.model_dump(mode="json")
     expression.managed_name = evaluatable_expression._key

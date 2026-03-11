@@ -2328,6 +2328,123 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:question_id>/custom-validation/<uuid:expression_id>",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def edit_custom_question_validation(  # noqa:C901
+    grant_id: UUID, question_id: UUID, expression_id: UUID
+) -> ResponseReturnValue:
+    # TODO remove once we un-feature-flag this
+    if not AuthorisationHelper.is_platform_member(get_current_user()):
+        return redirect(url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id))
+
+    question = get_question_by_id(question_id)
+    expression = get_expression_by_id(expression_id)
+
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToExpressionsModel, question_id=question.id, expression_id=expression_id
+    )
+
+    confirm_deletion_form = GenericConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=question, expression=expression)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant_id,
+                question_id=question.id,
+            )
+        )
+    wt_form = CustomValidationExpressionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[possibly-missing-attribute]
+        obj=expression.custom if not add_context_data else None,
+    )  # type: ignore[union-attr]
+
+    if wt_form and wt_form.validate_on_submit():
+        expression_context = ExpressionContext.build_expression_context(
+            question.form.collection,
+            "interpolation",
+        )
+
+        expression_errors = _validate_custom_syntax(
+            question,
+            expression_context,
+            wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
+            ExpressionType.VALIDATION,
+            "custom_expression",
+        )
+        message_errors = _validate_custom_syntax(
+            question,
+            expression_context,
+            wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
+            ExpressionType.VALIDATION,
+            "custom_message",
+        )
+
+        if not any([expression_errors, message_errors]):
+            custom_expression = CustomExpression.build_from_form(wt_form)
+
+            try:
+                interfaces.collections.update_question_expression(expression, custom_expression)
+            except InvalidReferenceInExpression as e:
+                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
+                field_with_error.errors.append(f"{e.bad_reference} is not a valid reference")  # type: ignore[attr-defined]
+
+            except DependencyOrderException as e:
+                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
+                field_with_error.errors.append(  # type: ignore[attr-defined]
+                    f"{question.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
+                )
+            except IncompatibleDataTypeException as e:
+                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
+                field_with_error.errors.append(  # ty:ignore [possibly-missing-attribute]
+                    f"Cannot reference {e.depends_on_question.name} as it is of data type "
+                    f"{e.depends_on_question.data_type}"
+                )
+            except AddAnotherDependencyException as e:
+                field_with_error = getattr(wt_form, e.field_name)
+                field_with_error.errors.append(  # type: ignore[attr-defined]
+                    f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a "
+                    "different group"
+                )
+
+            else:
+                if "question" in session:
+                    del session["question"]
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.edit_question",
+                        grant_id=grant_id,
+                        question_id=question.id,
+                    )
+                )
+        else:
+            if expression_errors:
+                wt_form.custom_expression.errors.append(expression_errors)  # ty:ignore [possibly-missing-attribute]
+            if message_errors:
+                wt_form.custom_message.errors.append(message_errors)  # ty:ignore [possibly-missing-attribute]
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=question.form.collection, expression_context_end_point=question
+    )
+    return render_template(
+        "deliver_grant_funding/reports/custom_validation.html",
+        form=wt_form,
+        question=question,
+        grant=question.form.collection.grant,
+        expression=expression,
+        interpolate=SubmissionHelper.get_interpolator(question.form.collection),
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>",
     methods=["GET", "POST"],
 )
