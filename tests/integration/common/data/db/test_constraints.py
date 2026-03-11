@@ -65,3 +65,65 @@ class TestExpressionConstraints:
                 statement="",
                 managed_name=ManagedExpressionsEnum.GREATER_THAN,
             )
+
+    def test_cannot_add_two_of_the_same_kind_of_condition_to_a_question(self, factories):
+        user = factories.user.create()
+        q = factories.question.create()
+        factories.expression.create(
+            question=q,
+            created_by=user,
+            type_=ExpressionType.CONDITION,
+            statement="",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+            context={"question_id": "abc"},
+        )
+
+        with pytest.raises(IntegrityError):
+            factories.expression.create(
+                question=q,
+                created_by=user,
+                type_=ExpressionType.CONDITION,
+                statement="",
+                managed_name=ManagedExpressionsEnum.GREATER_THAN,
+                context={"question_id": "abc"},
+            )
+
+    def test_can_add_two_custom_validations_to_a_question(self, factories):
+        user = factories.user.create()
+        q = factories.question.create()
+        factories.expression.create(
+            question=q,
+            created_by=user,
+            type_=ExpressionType.VALIDATION,
+            statement="",
+            managed_name=None,
+        )
+
+        factories.expression.create(
+            question=q,
+            created_by=user,
+            type_=ExpressionType.VALIDATION,
+            statement="",
+            managed_name=None,
+        )
+
+    def test_can_add_two_custom_conditions_to_a_question(self, factories):
+        user = factories.user.create()
+        q = factories.question.create()
+        factories.expression.create(
+            question=q,
+            created_by=user,
+            type_=ExpressionType.CONDITION,
+            statement="",
+            managed_name=None,
+            context={"question_id": "abc"},
+        )
+
+        factories.expression.create(
+            question=q,
+            created_by=user,
+            type_=ExpressionType.CONDITION,
+            statement="",
+            managed_name=None,
+            context={"question_id": "abc"},
+        )
