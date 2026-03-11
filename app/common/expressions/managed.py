@@ -188,16 +188,6 @@ class ManagedExpression(EvaluatableExpression):
         """
         ...
 
-    @classmethod
-    def prepare_form_data(cls, add_context_data: AddContextToExpressionsModel) -> dict[str, Any]:
-        data = {
-            k: v
-            for k, v in add_context_data.expression_form_data.items()
-            if k != "add_context" and k != "remove_context"
-        }
-
-        return data
-
 
 class BottomOfRangeIsLower:
     def __init__(self, message: str | None = None):
