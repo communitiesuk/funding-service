@@ -144,7 +144,7 @@
             	"rows": [
             	  {"key": {"text": "Report status"}, "value": {"html": reportStatusTag(report.status)} },
             		{"key": {"text": "Form"}, "value": {"text": formSectionsText} },
-                {"key": {"text": "Uploaded data sets"}, "value": {"html": dataSetsHtml} },
+                {"key": {"text": "Uploaded data sets"}, "value": {"html": dataSetsHtml} } if authorisation_helper.is_platform_admin(current_user) else {},
             		{"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} },
             		{"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} },
             		{"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },
