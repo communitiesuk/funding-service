@@ -221,7 +221,7 @@
               {% endset %}
               {% set edit_validation_link %}
                 {% if validation.is_custom %}
-                  {#                  {{ url_for('deliver_grant_funding.edit_custom_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}#}
+                  {{ url_for('deliver_grant_funding.edit_custom_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}
                 {% else %}
                   {{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}
                 {% endif %}
