@@ -60,7 +60,7 @@ dev = [
     "types-wtforms==3.2.1.20250809",
     "html5lib==1.1",
     "types-html5lib==1.1.11.20251117",
-    "types-pytz==2025.2.0.20251108",
+    "types-pytz==2026.1.1.20260304",
     "freezegun==1.5.5",
     "import-linter==2.10",
     "pytest==9.0.2",
