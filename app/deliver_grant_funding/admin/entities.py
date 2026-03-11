@@ -178,6 +178,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "type",
         "status",
         "requires_certification",
+        "requires_validation",
         "reporting_period_start_date",
         "reporting_period_end_date",
         "submission_period_start_date",

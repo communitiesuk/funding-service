@@ -25,6 +25,9 @@ class FlashMessageType(StrEnum):
     TEST_SUBMISSION_RESET = "test_submission_reset"
     TEST_SUBMISSIONS_RESET = "test_submissions_reset"
     SUBMISSION_VALIDATION_ERROR = "submission_validation_error"
+    SUBMISSION_VALIDATED = "submission_validated"
+    SUBMISSION_CHANGES_REQUESTED = "submission_changes_requested"
+    SUBMISSION_VALIDATION_DECLINED = "submission_validation_declined"
 
 
 class TRadioItem(TypedDict):

@@ -1205,6 +1205,7 @@ def test_deliver_test_grant_recipient_journey(
     access_home.navigate()
     access_home.click_accept_cookies()
     access_grant = access_home.select_grant(data["test_org_name"], data["grant_name"])
+    access_grant.page.get_by_role("link", name="Reports").click()
     access_grant.click_collection(data["collection_name"])
 
     # We should now be on the tasklist page for the submission

@@ -2531,6 +2531,10 @@ def confirm_validate_submission(grant_id: UUID, submission_id: UUID) -> Response
     if form.validate_on_submit():
         user = get_current_user()
         helper.validate_submission(user)
+        flash(
+            "Submission validated. We have sent an email to the grant recipient.",
+            FlashMessageType.SUBMISSION_VALIDATED,
+        )
         return redirect(
             url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
         )
@@ -2564,6 +2568,10 @@ def request_changes_on_submission(grant_id: UUID, submission_id: UUID) -> Respon
         user = get_current_user()
         reason = form.reason.data or ""
         helper.request_changes_on_submission(user, reason=reason)
+        flash(
+            "Changes requested on submission. We have sent an email to the grant recipient.",
+            FlashMessageType.SUBMISSION_CHANGES_REQUESTED,
+        )
         return redirect(
             url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
         )
@@ -2597,6 +2605,10 @@ def decline_submission_validation(grant_id: UUID, submission_id: UUID) -> Respon
         user = get_current_user()
         reason = form.reason.data or ""
         helper.decline_validation(user, reason=reason)
+        flash(
+            "Submission validation declined. We have sent an email to the grant recipient.",
+            FlashMessageType.SUBMISSION_VALIDATION_DECLINED,
+        )
         return redirect(
             url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
         )

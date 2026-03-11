@@ -23,6 +23,12 @@
 {% endblock beforeContent %}
 
 {% block content %}
+  {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_VALIDATED, enum.flash_message_type.SUBMISSION_CHANGES_REQUESTED, enum.flash_message_type.SUBMISSION_VALIDATION_DECLINED]) %}
+    {% if flashes %}
+      {{ govukNotificationBanner({"type": "success", "titleText": "Success", "text": flashes[0]}) }}
+    {% endif %}
+  {% endwith %}
+
   {% if delete_form %}
     {% set banner_html %}
       <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to reset this test submission?</p>
@@ -48,12 +54,6 @@
     {{ answers_summary_list(helper, form) }}
   {% endfor %}
 
-  <p class="govuk-body">
-    <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_id=helper.submission.collection.id, submission_mode=helper.submission.mode) }}">
-      Back to submissions
-    </a>
-  </p>
-
   {% if helper.collection.requires_validation and helper.status == enum.submission_status.SUBMITTED %}
     <div>
       <h2 class="govuk-heading-m govuk-!-margin-top-9">Validate allocation</h2>
@@ -69,6 +69,12 @@
       </form>
     </div>
   {% endif %}
+
+  <p class="govuk-body">
+    <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_id=helper.submission.collection.id, submission_mode=helper.submission.mode) }}">
+      Back to submissions
+    </a>
+  </p>
 
   {% if helper.submission.mode == enum.submission_mode.TEST %}
     <div>
