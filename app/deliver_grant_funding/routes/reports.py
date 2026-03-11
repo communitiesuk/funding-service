@@ -3,6 +3,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
+import simpleeval
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
@@ -18,9 +19,12 @@ from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     GroupContainsAddAnotherException,
+    IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
     SectionDependencyOrderException,
+    _find_all_references_in_expression,
+    _validate_reference,
     create_collection,
     create_form,
     create_group,
@@ -69,7 +73,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
-from app.common.expressions import ExpressionContext
+from app.common.expressions import ExpressionContext, get_safe_evaluator
 from app.common.expressions.forms import _ManagedExpressionForm, build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
@@ -104,8 +108,7 @@ from app.extensions import auto_commit_after_request, notification_service, s3_s
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.data.models import Expression, Group, Question
-
+    from app.common.data.models import Component, Expression, Group, Question
 
 SessionModelType = (
     AddConditionDependsOnSessionModel
@@ -2335,3 +2338,82 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
         delete_form=delete_wtform,
     )
+
+
+# TODO break this down so it's less complicated
+def _validate_custom_syntax(  # noqa:C901
+    component: Component,
+    expression_context: ExpressionContext,
+    statement: str,
+    expression_type: ExpressionType,
+    field_name: str,
+) -> str | None:
+    # TODO not sure this is the right place for this function to live
+
+    validated_references = []
+    try:
+        unvalidated_references = _find_all_references_in_expression(statement)
+        for ref in unvalidated_references:
+            unwrapped_ref = _validate_reference(
+                wrapped_reference=ref,
+                attached_to_component=component,
+                expression_context=expression_context,
+                expression_type=expression_type,
+                field_name_for_error_message=field_name,
+                question_to_test=None,
+            )
+            validated_references.append(unwrapped_ref)
+
+    # TODO catch more exceptions here and reword errors
+    except InvalidReferenceInExpression as e:
+        return f"{e.bad_reference} is not a valid reference"
+
+    except DependencyOrderException as e:
+        return f"{component.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
+    except IncompatibleDataTypeException as e:
+        return f"Cannot reference {e.depends_on_question.name} as it is of data type {e.depends_on_question.data_type}"
+    except AddAnotherDependencyException as e:
+        return (
+            f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a different group"
+        )
+
+    if field_name != "custom_expression":
+        # No further validation needed for custom error message
+        return None
+
+    if (
+        expression_type == ExpressionType.VALIDATION
+        and component.is_question
+        and validated_references.count(cast("Question", component).safe_qid) != 1
+    ):
+        return "The expression must include exactly one reference to this question"
+
+    try:
+        names = {}
+        for ref in validated_references:
+            # assume these are numbers as we can't do custom expressions unless using the number data
+            # type but we could check this
+            names[ref] = 1
+        evaluator = get_safe_evaluator(names=names, required_functions={})
+
+        result = evaluator.eval(statement)  # type: ignore[no-untyped-call]
+        if not isinstance(result, bool):
+            return "The expression must evaluate to true or false"  # type:ignore[attr-defined]
+
+    # TODO review error message wording
+    # TODO do we want to put some of these in sentry so we can see what sort of validation errors are triggered to
+    #  help write guidance in the future?
+
+    except simpleeval.NameNotDefined as e:
+        return f"This name is not defined: {e.name}"
+    except simpleeval.FeatureNotAvailable:
+        return "You can't do this "
+    except simpleeval.FunctionNotDefined as e:
+        return f"This function is not available: {e.func_name}"  # ty:ignore[unresolved-attribute]
+    except SyntaxError as e:
+        return f"Invalid syntax in expression: {e.text}"
+    except simpleeval.OperatorNotDefined as e:
+        # TODO: This prints the ast node name (eg. Pow()) rather than the actual operator (eg. **)
+        return f"Operator {e.attr} does not exist"
+
+    return None
