@@ -66,13 +66,10 @@ class SubmissionValidator:
             )
 
         for validation_expr in question.validations:
-            if not validation_expr.managed:
-                raise RuntimeError(f"Unmanaged validation not supported: {validation_expr.id}")
-
             try:
                 if not evaluate(expression=validation_expr, context=context):
                     error_message = interpolate(
-                        validation_expr.managed.message, context=self.helper.cached_interpolation_context
+                        validation_expr.evaluatable_expression.message, context=self.helper.cached_interpolation_context
                     )
                     errors.append(
                         ValidationError(
