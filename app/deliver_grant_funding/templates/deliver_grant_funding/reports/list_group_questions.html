@@ -28,7 +28,7 @@
     {% endset %}
     {% set parent_item={"html": parent_html, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=group.parent_id)} %}
   {% endif %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, form=db_form, immediate_parent_breadcrumb_item=parent_item,this_page_breadcrumb_item={"text":group.name}) }}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, form=db_form, immediate_parent_breadcrumb_item=parent_item,this_page_breadcrumb_item={"text":group.name}, collection_config=collection_config) }}
 {% endblock beforeContent %}
 
 {% block content %}

@@ -11,7 +11,7 @@
 {% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
 
 {% block beforeContent %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, form=db_form, this_page_breadcrumb_item={"text":"Section name"}) }}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, form=db_form, this_page_breadcrumb_item={"text":"Section name"}, collection_config=collection_config) }}
 {% endblock beforeContent %}
 
 {% block content %}

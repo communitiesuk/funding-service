@@ -40,7 +40,8 @@
         form=db_form,
         immediate_parent_breadcrumb_item=parent_item,
         this_page_breadcrumb_item={"text":"Edit " ~ question.name},
-        truncated=truncated
+        truncated=truncated,
+        collection_config=collection_config,
     )
   }}
 {% endblock beforeContent %}
