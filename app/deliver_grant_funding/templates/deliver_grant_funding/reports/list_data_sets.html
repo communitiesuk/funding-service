@@ -19,7 +19,7 @@
           {% set action = "deleted" if "deleted" in flashes[0] else "uploaded" %}
           {% set user_add_success_message %}
             <h3 class="govuk-notification-banner__heading">Data set {{ action }}</h3>
-            <p class="govuk-body">{{ flashes[0]| safe }}</p>
+            <p class="govuk-body">{{ flashes[0] }}</p>
           {% endset %}
           {{
             govukNotificationBanner({
@@ -37,8 +37,8 @@
       <p class="govuk-body">Data referenced in the grant form, uploaded as a CSV.</p>
       <p class="govuk-body">
         For uploading grant recipient level data like grant allocation, use the
-        <a class="govuk-link govuk-link-no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">grant recipient data upload template (CSV)</a>. Grant
-        recipients must be set up for the grant report before using the template and uploading grant recipient level data.
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">grant recipient data upload template (CSV)</a>.
+        Grant recipients must be set up for the grant report before using the template and uploading grant recipient level data.
       </p>
 
       {% if report.data_sources | length > 0 %}
@@ -46,7 +46,7 @@
         {% set rows = [] %}
         {% for data_set in report.data_sources %}
           {% set data_set_name_html %}
-            <a class="govuk-link govuk-link-no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, report_id=report.id, data_source_id=data_set.id) }}">{{ data_set.name }}</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, report_id=report.id, data_source_id=data_set.id) }}">{{ data_set.name }}</a>
           {% endset %}
           {% do rows.append([{"html": data_set_name_html}, {"text": format_datetime_short(data_set.updated_at_utc if data_set.updated_at_utc else data_set.created_at_utc)}, {"text": data_set.updated_by.name if data_set.updated_by else data_set.created_by.name}]) %}
         {% endfor %}

@@ -956,9 +956,7 @@ class DataSource(BaseModel):
     collection_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("collection.id"))
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
     updated_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
-    schema: Mapped[dict[str, Any] | None] = mapped_column(
-        mutable_json_type(dbtype=JSONB, nested=True),  # type: ignore[no-untyped-call]
-    )
+    schema: Mapped[dict[str, Any] | None] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
 
     questions: Mapped[list[Question]] = relationship(
         "Question",
@@ -1041,7 +1039,7 @@ class DataSourceOrganisationItem(BaseModel):
 
     # For 2D: dict[str, scalar], for 3D: list[dict[str, scalar]]
     data: Mapped[json_flat_scalars | list[json_flat_scalars]] = mapped_column(
-        mutable_json_type(dbtype=JSONB, nested=True)  # type: ignore[no-untyped-call]
+        mutable_json_type(dbtype=JSONB, nested=True)
     )
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="organisation_items")

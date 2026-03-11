@@ -18,7 +18,7 @@
         <span class="govuk-caption-l">{{ report.name }}</span>
         Map {{ session_data.name }} number columns
       </h1>
-      <p class="govuk-body">Placeholder page.</p>
+      <p class="govuk-body">Map the data from each numerical column to set formatting options.</p>
 
       <form method="POST" novalidate>
         {{ form.csrf_token }}
@@ -32,12 +32,10 @@
           {% endfor %}
           {% set preview_html = preview_values | join(', ') %}
           {% set settings_html %}
-            <div>{{ form.columns[idx].form.prefix(params={"label": {"html": "Prefix (optional) <span class='govuk-visually-hidden'>for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}</div>
-            <div>{{ form.columns[idx].form.suffix(params={"label": {"html": "Suffix (optional) <span class='govuk-visually-hidden'>for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}</div>
+            <div>{{ form.columns[idx].form.prefix(params={"label": {"html": "Prefix (optional) <span class='govuk-visually-hidden'> for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}</div>
+            <div>{{ form.columns[idx].form.suffix(params={"label": {"html": "Suffix (optional) <span class='govuk-visually-hidden'> for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}</div>
             {% if mapping.number_type == enum.number_type_enum.DECIMAL %}
-              <div>
-                {{ form.columns[idx].form.max_decimal_places(params={"label": {"html": "Decimal places (optional) <span class='govuk-visually-hidden'>for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}
-              </div>
+              <div>{{ form.columns[idx].form.max_decimal_places(params={"label": {"html": "Decimal places<span class='govuk-visually-hidden'> for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}</div>
             {% endif %}
           {% endset %}
           {%

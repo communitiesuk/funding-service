@@ -884,6 +884,7 @@ class UploadDataSetForm(FlaskForm):
             (DataSourceType.PROJECT_LEVEL, "Yes, with more than one row for grant recipients"),
             (DataSourceType.STATIC, "No"),
         ],
+        validators=[DataRequired("Select grant recipient level")],
     )
 
     file = FileField(
@@ -1057,7 +1058,7 @@ class NumberColumnOptionsForm(FlaskForm):
         else:
             self.max_decimal_places.validators = [Optional()]
 
-    def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+    def validate(self, extra_validators=None):
         self.update_validators()
         return super().validate(extra_validators=extra_validators)
 

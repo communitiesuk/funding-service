@@ -403,7 +403,6 @@ class TestCreateUploadedDataSourceStatic:
         )
 
         assert data_source.type == DataSourceType.STATIC
-        assert data_source.schema is None
 
         items = (
             db_session.query(DataSourceItem)

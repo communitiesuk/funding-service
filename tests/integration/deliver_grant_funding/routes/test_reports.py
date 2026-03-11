@@ -7418,14 +7418,7 @@ class TestMapDataSetNumberColumns:
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
 
         with authenticated_grant_admin_client.session_transaction() as updated_session:
-            session_data = DataSetUploadSessionModel.from_session(updated_session["data_set_upload"])
-            capital = session_data.get_column_mapping("Capital allocation")
-            revenue = session_data.get_column_mapping("Revenue allocation")
-
-            assert capital.prefix == "£"
-            assert capital.max_decimal_places == 2
-            assert revenue.prefix == "£"
-            assert revenue.max_decimal_places is None
+            assert updated_session.get("data_set_upload") is None
 
     def test_post_redirects_to_data_set_errors(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)

@@ -1608,7 +1608,9 @@ def delete_collection(collection: Collection) -> None:
         db.session.rollback()
         raise ValueError("Cannot delete collection with live submissions")
 
-    data_sources_to_delete = [c.data_source for form in collection.forms for c in form._all_components if c.data_source]
+    data_sources_to_delete = [
+        c.data_source for form in collection.forms for c in form._all_components if c.data_source
+    ] + collection.data_sources
 
     db.session.delete(collection)
 

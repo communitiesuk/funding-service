@@ -7,7 +7,7 @@ from uuid import UUID
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
-from markupsafe import escape
+from markupsafe import Markup, escape
 from pydantic import BaseModel, ValidationError
 from werkzeug.datastructures import FileStorage
 from wtforms import Field
@@ -2575,10 +2575,13 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 report_id=report_id,
                 data_source_id=data_source.id,
             )
+            session.pop("data_set_upload", None)
             # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
             flash(
-                f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
-                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+                Markup(
+                    f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                    + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+                )
             )
             return redirect(
                 url_for(
@@ -2655,10 +2658,13 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
                 report_id=report_id,
                 data_source_id=data_source.id,
             )
+            session.pop("data_set_upload", None)
             # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
             flash(
-                f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
-                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+                Markup(
+                    f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                    + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+                )
             )
             return redirect(
                 url_for(
@@ -2710,10 +2716,13 @@ def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
             report_id=report_id,
             data_source_id=data_source.id,
         )
+        session.pop("data_set_upload", None)
         # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
         flash(
-            f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
-            + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+            Markup(
+                f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+            )
         )
         return redirect(
             url_for(
@@ -2769,6 +2778,7 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
 @auto_commit_after_request
 def confirm_delete_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    # TODO: We should check the hierarchy here to make sure the data_source being deleted belongs to this report
     data_source = get_data_source(data_source_id)
 
     form = GenericConfirmDeletionForm()
@@ -2776,7 +2786,7 @@ def confirm_delete_data_source(grant_id: UUID, report_id: UUID, data_source_id: 
     if form.validate_on_submit() and form.confirm_deletion.data:
         name = data_source.name
         delete_data_source(data_source)
-        flash(f"'{name}' data set has been deleted.")
+        flash(Markup(f"'{escape(name)}' data set has been deleted."))
         return redirect(url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant_id, report_id=report_id))
 
     return render_template(

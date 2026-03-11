@@ -7,7 +7,7 @@
 #}
 {% macro render_data_cell(value, col_schema, format_thousands, enum, to_decimal) %}
   {% if value is none or value == "" %}
-    {{ govukTag({"text": "Data missing", "classes": "govuk-tag govuk-tag--yellow"}) }}
+    {{ govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"}) }}
   {% elif col_schema.get("data_type") == enum.question_type.NUMBER %}
     {% set presentation = col_schema.get("presentation_options") %}
     {% set prefix = presentation.prefix if presentation else "" %}

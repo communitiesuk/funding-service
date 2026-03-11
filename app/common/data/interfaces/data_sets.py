@@ -64,6 +64,8 @@ def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMappin
 
 
 def _clean_value(val: str, mapping: DataSetColumnMapping) -> str | int | None:
+    if not val:
+        return None
     val = val.strip()
     if mapping.data_type != QuestionDataType.NUMBER or not val:
         return val
@@ -154,7 +156,7 @@ def create_uploaded_data_source(
         type=data_source_type,
         grant_id=grant_id,
         collection_id=collection_id,
-        schema=schema if data_source_type != DataSourceType.STATIC else None,
+        schema=schema,
         created_by=user,
     )
     db.session.add(data_source)
