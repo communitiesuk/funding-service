@@ -1314,39 +1314,70 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     if not add_context_data:
         return abort(400)
 
+    target_expr_field_name = None
+    if isinstance(add_context_data, AddContextToExpressionsModel):
+        target_expr_field_name = add_context_data.expression_form_data["add_context"]
+
+    this_component = get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None
+
     wtform = AddContextSelectSourceForm(
         form=db_form,
-        current_component=get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None,
+        current_component=this_component,  # ty:ignore[possibly-missing-attribute]
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
         ff_show_new_context_sources=AuthorisationHelper.is_platform_member(get_current_user()),
+        include_this_question=(
+            isinstance(add_context_data, AddContextToExpressionsModel)
+            and add_context_data.is_custom is True
+            and target_expr_field_name == "custom_expression"
+        ),
     )
     if wtform.validate_on_submit():
-        add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
+        if wtform.data_source.data == "THIS_QUESTION":
+            if (
+                not isinstance(add_context_data, AddContextToExpressionsModel)
+                or target_expr_field_name != "custom_expression"
+                or not this_component
+                or not this_component.is_question
+                or add_context_data.field != ExpressionType.VALIDATION
+            ):
+                raise ValueError("Cannot reference THIS_QUESTION outside of a custom validation expression")
 
-        redirect_response = None
-        match add_context_data.data_source:
-            case ExpressionContext.ContextSources.SECTION:
-                redirect_response = redirect(
-                    url_for("deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id)
+            redirect_response = redirect(
+                _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+                    grant_id, add_context_data, cast("Question", this_component)
                 )
-                add_context_data.collection_id = db_form.collection_id
-                add_context_data.form_id = db_form.id
+            )
+        else:
+            add_context_data.data_source = ExpressionContext.ContextSources[wtform.data_source.data]
 
-            case ExpressionContext.ContextSources.PREVIOUS_SECTION:
-                redirect_response = redirect(
-                    url_for("deliver_grant_funding.select_context_source_section", grant_id=grant_id, form_id=form_id)
-                )
-                add_context_data.collection_id = db_form.collection_id
-
-            case ExpressionContext.ContextSources.PREVIOUS_COLLECTION:
-                redirect_response = redirect(
-                    url_for(
-                        "deliver_grant_funding.select_context_source_collection", grant_id=grant_id, form_id=form_id
+            redirect_response = None
+            match add_context_data.data_source:
+                case ExpressionContext.ContextSources.SECTION:
+                    redirect_response = redirect(
+                        url_for(
+                            "deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id
+                        )
                     )
-                )
+                    add_context_data.collection_id = db_form.collection_id
+                    add_context_data.form_id = db_form.id
 
-            case _:
-                wtform.form_errors.append("Unknown data source selected")
+                case ExpressionContext.ContextSources.PREVIOUS_SECTION:
+                    redirect_response = redirect(
+                        url_for(
+                            "deliver_grant_funding.select_context_source_section", grant_id=grant_id, form_id=form_id
+                        )
+                    )
+                    add_context_data.collection_id = db_form.collection_id
+
+                case ExpressionContext.ContextSources.PREVIOUS_COLLECTION:
+                    redirect_response = redirect(
+                        url_for(
+                            "deliver_grant_funding.select_context_source_collection", grant_id=grant_id, form_id=form_id
+                        )
+                    )
+
+                case _:
+                    wtform.form_errors.append("Unknown data source selected")
 
         session["question"] = add_context_data.model_dump(mode="json")
         if redirect_response:
