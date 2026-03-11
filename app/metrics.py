@@ -6,7 +6,7 @@ from uuid import UUID
 from flask import current_app
 from sentry_sdk import metrics
 
-from app.common.expressions.managed import ManagedExpression
+from app.common.expressions import EvaluatableExpression
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Submission
@@ -48,6 +48,8 @@ class MetricEventName(StrEnum):
 
     SUBMISSION_MANAGED_VALIDATION_ERROR = "submission-managed-validation-error"
     SUBMISSION_MANAGED_VALIDATION_SUCCESS = "submission-managed-validation-success"
+    SUBMISSION_CUSTOM_VALIDATION_ERROR = "submission-custom-validation-error"
+    SUBMISSION_CUSTOM_VALIDATION_SUCCESS = "submission-custom-validation-success"
 
     SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER = "section-reset-to-in-progress-by-certifier"
 
@@ -60,7 +62,7 @@ def _get_event_attributes(
     submission: Submission | None = None,
     collection: Collection | None = None,
     grant: Grant | None = None,
-    managed_expression: ManagedExpression | None = None,
+    evaluatable_expression: EvaluatableExpression | None = None,
     custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
 ) -> dict[str, str | int | UUID]:
     attributes: dict[str, str | int | UUID] = (
@@ -97,8 +99,8 @@ def _get_event_attributes(
         attributes[str(MetricAttributeName.GRANT)] = grant.name
         attributes[str(MetricAttributeName.GRANT_ID)] = str(grant.id)
 
-    if managed_expression:
-        attributes[str(MetricAttributeName.MANAGED_EXPRESSION_NAME)] = managed_expression.name
+    if evaluatable_expression:
+        attributes[str(MetricAttributeName.MANAGED_EXPRESSION_NAME)] = evaluatable_expression.name
 
     return attributes
 
@@ -110,7 +112,7 @@ def emit_metric_count(
     submission: Submission | None = None,
     collection: Collection | None = None,
     grant: Grant | None = None,
-    managed_expression: ManagedExpression | None = None,
+    evaluatable_expression: EvaluatableExpression | None = None,
     custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
 ) -> None:
     attributes = _get_event_attributes(
@@ -118,7 +120,7 @@ def emit_metric_count(
         submission=submission,
         collection=collection,
         grant=grant,
-        managed_expression=managed_expression,
+        evaluatable_expression=evaluatable_expression,
         custom_attributes=custom_attributes,
     )
 

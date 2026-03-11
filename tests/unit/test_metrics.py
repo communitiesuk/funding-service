@@ -32,10 +32,7 @@ class TestEmitMetricCount:
             MetricAttributeName.USER_ID: str(user_id),
         }
 
-        emit_metric_count(
-            MetricEventName.SECTION_MARKED_COMPLETE,
-            custom_attributes=custom_attrs,
-        )
+        emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, custom_attributes=custom_attrs)
 
         mock_count.assert_called_once_with(
             MetricEventName.SECTION_MARKED_COMPLETE,
@@ -132,8 +129,7 @@ class TestEmitMetricCount:
         managed_expression.name = "TestExpression"
 
         emit_metric_count(
-            MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR,
-            managed_expression=managed_expression,
+            MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR, evaluatable_expression=managed_expression
         )
 
         mock_count.assert_called_once_with(
@@ -149,11 +145,7 @@ class TestEmitMetricCount:
         grant = factories.grant.build(name="Explicit Grant")
         collection = factories.collection.build(name="Monthly Report", grant__name="Parent Grant")
 
-        emit_metric_count(
-            MetricEventName.SUBMISSION_CREATED,
-            collection=collection,
-            grant=grant,
-        )
+        emit_metric_count(MetricEventName.SUBMISSION_CREATED, collection=collection, grant=grant)
 
         mock_count.assert_called_once_with(
             MetricEventName.SUBMISSION_CREATED,
@@ -175,11 +167,7 @@ class TestEmitMetricCount:
             MetricAttributeName.USER_ID: "user-123",
         }
 
-        emit_metric_count(
-            MetricEventName.SUBMISSION_CREATED,
-            grant=grant,
-            custom_attributes=custom_attrs,
-        )
+        emit_metric_count(MetricEventName.SUBMISSION_CREATED, grant=grant, custom_attributes=custom_attrs)
 
         mock_count.assert_called_once_with(
             MetricEventName.SUBMISSION_CREATED,
