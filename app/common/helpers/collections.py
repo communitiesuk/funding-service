@@ -61,7 +61,6 @@ from app.common.expressions import (
     evaluate,
     interpolate,
 )
-from app.common.filters import format_datetime
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions import notification_service, s3_service
 
@@ -1199,9 +1198,11 @@ class CollectionHelper:
                     else None
                 ),
                 "Created by": submission.created_by_email,
-                "Created at": format_datetime(submission.created_at_utc),
+                "Created at": submission.created_at_utc.isoformat(" ", "seconds"),
                 "Status": submission.status,
-                "Submitted at": format_datetime(submission.submitted_at_utc) if submission.submitted_at_utc else None,
+                "Submitted at": submission.submitted_at_utc.isoformat(" ", "seconds")
+                if submission.submitted_at_utc
+                else None,
             }
 
             if self.collection.requires_certification:
@@ -1211,7 +1212,7 @@ class CollectionHelper:
                     else None
                 )
                 submission_csv_data["Certified at"] = (
-                    format_datetime(submission.events.submission_state.certified_at_utc)
+                    submission.events.submission_state.certified_at_utc.isoformat(" ", "seconds")
                     if submission.events.submission_state.certified_at_utc
                     else None
                 )
@@ -1274,10 +1275,10 @@ class CollectionHelper:
                 submission_data["name"] = submission.submission_name
 
             submission_data["created_by"] = submission.created_by_email
-            submission_data["created_at_utc"] = format_datetime(submission.created_at_utc)
+            submission_data["created_at_utc"] = submission.created_at_utc.isoformat(" ", "seconds")
             submission_data["status"] = submission.status
             submission_data["submitted_at_utc"] = (
-                format_datetime(submission.submitted_at_utc) if submission.submitted_at_utc else None
+                submission.submitted_at_utc.isoformat(" ", "seconds") if submission.submitted_at_utc else None
             )
 
             if self.collection.requires_certification:
@@ -1287,7 +1288,7 @@ class CollectionHelper:
                     else None
                 )
                 submission_data["certified_at_utc"] = (
-                    format_datetime(submission.events.submission_state.certified_at_utc)
+                    submission.events.submission_state.certified_at_utc.isoformat(" ", "seconds")
                     if submission.events.submission_state.certified_at_utc
                     else None
                 )
