@@ -34,6 +34,7 @@ from app.common.data.types import (
     ManagedExpressionsEnum,
     NumberTypeEnum,
     OrganisationModeEnum,
+    QuestionDataOptions,
     QuestionPresentationOptions,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -56,6 +57,7 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SetUpReportForm,
 )
+from app.deliver_grant_funding.routes.reports import _validate_custom_syntax
 from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
@@ -8375,3 +8377,302 @@ class TestViewDataSource:
 #         )
 #         assert db_session.get(DataSource, data_source.id) is None
 #         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
+
+
+class TestValidateCustomSyntax:
+    def test_valid_expression_same_section(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        assert (
+            _validate_custom_syntax(q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression")
+            is None
+        )
+
+    def test_valid_expression_previous_section(self, factories, mocker):
+        db_form_0 = factories.form.create()
+        previous_question = factories.question.create(
+            form=db_form_0,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        db_form = factories.form.create(collection=db_form_0.collection)
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = (
+            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({previous_question.safe_qid}))"
+        )
+
+        expr_context = ExpressionContext(
+            submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, previous_question.safe_qid: 44}
+        )
+
+        assert (
+            _validate_custom_syntax(q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression")
+            is None
+        )
+
+    def test_invalid_expression_out_of_order(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q1.safe_qid})) < (({q2.safe_qid}))"
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+        assert result == f"{q1.name} cannot reference {q2.name} as it appears in the wrong order"
+
+    def test_invalid_expression_forms_out_of_order(self, factories, mocker):
+        db_form_0 = factories.form.create()
+        db_form = factories.form.create(collection=db_form_0.collection)
+        later_form_question = factories.question.create(
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form_0,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = (
+            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({later_form_question.safe_qid}))"
+        )
+
+        expr_context = ExpressionContext(
+            submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, later_form_question.safe_qid: 55}
+        )
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+        assert result == f"{q3.name} cannot reference {later_form_question.name} as it appears in the wrong order"
+
+    def test_invalid_expression_bad_reference(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + ((some_bad_ref))"
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == "((some_bad_ref)) is not a valid reference"
+
+    def test_invalid_expression_reference_missing_from_context(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == f"(({q1.safe_qid})) is not a valid reference"
+
+    def test_invalid_expression_incompatible_data_type(self, factories, mocker):
+        db_form = factories.form.create()
+        q1 = factories.question.create(form=db_form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+        q2, q3 = factories.question.create_batch(
+            2,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == f"Cannot reference {q1.name} as it is of data type {q1.data_type}"
+
+    def test_invalid_expression_name_not_defined(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        expr_context = ExpressionContext()
+
+        side_effect = [q3.safe_qid, q2.safe_qid, None]
+
+        # mock the call the _validate_reference as it will raise an exception due to references not being there
+        # but we want to test an error at evaluation time instead
+        mocker.patch(
+            "app.deliver_grant_funding.routes.reports._validate_reference",
+            side_effect=side_effect,
+        )
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == f"This name is not defined: {q1.safe_qid}"
+
+    def test_invalid_expression_unavailable_function(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < sum( (({q2.safe_qid})), (({q1.safe_qid})) )"
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == "This function is not available: sum"
+
+    def test_invalid_expression_bad_syntax(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < hello there"
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result.strip() == f"Invalid syntax in expression: {test_expression}"
+
+    def test_invalid_expression_bad_operator(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        test_expression = f"(({q3.safe_qid})) < 2**3"
+
+        # exclude q1 from the context
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == "Operator Pow() does not exist"
+
+    def test_invalid_expression_multiple_references_to_self(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = (
+            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({q3.safe_qid})) + "
+            f"(({q3.safe_qid})) + (({q3.safe_qid}))"
+        )
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == "The expression must include exactly one reference to this question"
+
+    def test_invalid_expression_no_references_to_self(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q2.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == "The expression must include exactly one reference to this question"
+
+    def test_invalid_expression_does_not_evaluate_to_true_or_false(self, factories, mocker):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q3.safe_qid})) + (({q2.safe_qid})) + (({q1.safe_qid}))"
+
+        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        result = _validate_custom_syntax(
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+        )
+
+        assert result == "The expression must evaluate to true or false"

@@ -1402,12 +1402,12 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
-def _find_references_in_expression(
+def _find_all_references_in_expression(
     value: str,
-) -> set[str]:
-    references: set[str] = set()
+) -> list[str]:
+    references = list()
     for match in INTERPOLATE_REGEX.finditer(value):
-        references.add(match.group(0))
+        references.append(match.group(0))
     return references
 
 
@@ -1531,7 +1531,7 @@ def _validate_reference(  # noqa:C901
     return unwrapped_ref
 
 
-def _validate_and_sync_expression_references(expression: Expression) -> None:
+def _validate_and_sync_expression_references(expression: Expression) -> None:  # noqa:C901
     if expression.is_managed:
         expr_impl = expression.managed
     else:
@@ -1578,7 +1578,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
         field_value = getattr(expr_impl, field)
         if not field_value:
             continue
-        unvalidated_references = _find_references_in_expression(field_value)
+        unvalidated_references = set(_find_all_references_in_expression(field_value))
         for wrapped_reference in unvalidated_references:
             valid_reference = _validate_reference(
                 wrapped_reference=wrapped_reference,
@@ -1630,7 +1630,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
         if value is None:
             continue
 
-        unvalidated_references: set[str] = _find_references_in_expression(value)
+        unvalidated_references = set(_find_all_references_in_expression(value))
         for wrapped_reference in unvalidated_references:
             reference = _validate_reference(
                 wrapped_reference=wrapped_reference,
