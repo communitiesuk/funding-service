@@ -24,6 +24,8 @@ def upgrade() -> None:
     grant_recipient_mode_enum.create(op.get_bind())
     organisation_mode_enum.create(op.get_bind())
 
+    op.drop_constraint("ck_grant_recipient_if_live", "submission", type_="check")
+
     with op.batch_alter_table("grant_recipient", schema=None) as batch_op:
         batch_op.add_column(sa.Column("mode", grant_recipient_mode_enum, nullable=False, server_default="LIVE"))
 
@@ -46,6 +48,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_constraint("ck_grant_recipient_if_live", "submission", type_="check")
     op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="submission_mode_enum",
