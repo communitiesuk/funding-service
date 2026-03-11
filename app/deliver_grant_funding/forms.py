@@ -29,6 +29,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grants import grant_code_exists, grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
+    CollectionType,
     ConditionsOperator,
     FileUploadTypes,
     GroupDisplayOptions,
@@ -710,6 +711,17 @@ class SetUpApplicationForm(FlaskForm):
         "What is the name of the application?",
         widget=GovTextInput(),
         validators=[DataRequired("Enter a name for the application")],
+    )
+
+    collection_type = RadioField(
+        "What type of application is this?",
+        choices=[
+            (CollectionType.APPLICATION.value, "Application"),
+            (CollectionType.ALLOCATION.value, "Allocation"),
+            (CollectionType.EXPRESSION_OF_INTEREST.value, "Expression of interest"),
+        ],
+        validators=[DataRequired("Select a collection type")],
+        widget=GovRadioInput(),
     )
 
     submit = SubmitField("Continue and set up application", widget=GovSubmitInput())

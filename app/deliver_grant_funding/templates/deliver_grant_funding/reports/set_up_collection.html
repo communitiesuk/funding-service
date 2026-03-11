@@ -23,9 +23,37 @@
   <div class="govuk-grid-row">
     <div class="{{ "govuk-grid-column-full" if collection_config.active_sub_nav_item is not none else "govuk-grid-column-two-thirds" }}">
       <span class="govuk-caption-l">{{ grant.name }}</span>
+      {% if 'collection_type' in form %}
+        <h1 class="govuk-heading-l">Set up {{ collection_config.singular_name }}</h1>
+      {% endif %}
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l"} }) }}
+
+        {% if 'collection_type' in form %}
+          {{ form.name(params={"label": {"isPageHeading": false, "classes": "govuk-label--s"} }) }}
+
+
+          {% set application_hint %}
+            <p class="govuk-hint govuk-!-margin-top-0">Applications are usually used for competitive grants. Applications can be configured to allow new organisations to sign up to apply and can be fully assessed or validated.</p>
+            <p class="govuk-hint">Applications support automated eligibility checks to filter out candidates who do not meet the eligibility criteria.</p>
+          {% endset %}
+          {{
+            form.collection_type(params={
+            "fieldset": {
+              "legend": {
+                "text": form.collection_type.label.text,
+                "classes": "govuk-fieldset__legend--s"
+              },
+            },
+            "items": [
+              { "hint": { "html": application_hint } },
+              { "hint": { "text": "Allocation forms are usually used for uncompeted grants. Allocations can be configured to be validated." } },
+              { "hint": { "text": "Expression of interests can be used for both competed and uncompeted grants. Expression of interests can be configured to be validated." } },
+            ]})
+          }}
+        {% else %}
+          {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l"} }) }}
+        {% endif %}
 
         <div class="govuk-button-group">
           {{ form.submit }}

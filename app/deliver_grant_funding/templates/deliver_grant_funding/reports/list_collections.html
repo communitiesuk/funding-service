@@ -134,7 +134,7 @@
           {%
             set rows = [
               {
-                "key": {"text": collection_config.title_name[:-1] ~ " status"},
+                "key": {"text": "Status"},
                 "value": {"html": reportStatusTag(collection.status)},
               },
               {
@@ -146,6 +146,9 @@
 
           {% if collection_config.has_reporting_period %}
             {% do rows.append({"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} }) %}
+          {% endif %}
+          {% if collection_config.active_sub_nav_item is not none %}
+            {% do rows.append({"key": {"text": "Type"}, "value": {"text": collection.type.value.capitalize() } }) %}
           {% endif %}
           {% do rows.append({"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} }) %}
           {% do rows.append({"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} }) %}

@@ -31,16 +31,6 @@
       <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
         {% block mainWrapper %}
           <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
-            {% block errorSummary %}
-              <div class="govuk-grid-row">
-                <div class="govuk-grid-column-two-thirds">
-                  {% if form is defined and form.errors %}
-                    {{ govukErrorSummary(wtforms_errors(form)) }}
-                  {% endif %}
-                </div>
-              </div>
-            {% endblock errorSummary %}
-
             <div class="govuk-grid-row">
               {# todo: this doesn't need a full quarter we could shorten this #}
               <div class="govuk-grid-column-one-quarter">
@@ -54,6 +44,17 @@
               </div>
               <div class="govuk-grid-column-three-quarters">
                 {% block beforeContent %}{% endblock %}
+
+                {% block errorSummary %}
+                  <div class="govuk-grid-row">
+                    <div class="govuk-grid-column-two-thirds">
+                      {% if form is defined and form.errors %}
+                        {{ govukErrorSummary(wtforms_errors(form)) }}
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endblock errorSummary %}
+
                 {% block content %}
                 {% endblock content %}
               </div>

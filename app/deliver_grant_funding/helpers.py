@@ -59,6 +59,30 @@ COLLECTION_TYPE_CONFIGS: dict[CollectionType, CollectionTypeConfig] = {
         active_sub_nav_item="applications",
         has_reporting_period=False,
     ),
+    CollectionType.ALLOCATION: CollectionTypeConfig(
+        collection_type=CollectionType.ALLOCATION,
+        singular_name="allocation",
+        plural_name="allocations",
+        title_name="Allocations",
+        setup_label="allocation",
+        list_route="deliver_grant_funding.list_applications",
+        setup_route="deliver_grant_funding.set_up_application",
+        active_nav_item="recipients",
+        active_sub_nav_item="applications",
+        has_reporting_period=False,
+    ),
+    CollectionType.EXPRESSION_OF_INTEREST: CollectionTypeConfig(
+        collection_type=CollectionType.EXPRESSION_OF_INTEREST,
+        singular_name="expression of interest",
+        plural_name="expressions of interest",
+        title_name="Expressions of Interest",
+        setup_label="expression of interest",
+        list_route="deliver_grant_funding.list_applications",
+        setup_route="deliver_grant_funding.set_up_application",
+        active_nav_item="recipients",
+        active_sub_nav_item="applications",
+        has_reporting_period=False,
+    ),
 }
 
 

@@ -122,14 +122,23 @@ SessionModelType = (
 SETUP_FORM_FOR_COLLECTION_TYPE: dict[CollectionType, type[FlaskForm]] = {
     CollectionType.MONITORING_REPORT: SetUpReportForm,
     CollectionType.APPLICATION: SetUpApplicationForm,
+    CollectionType.ALLOCATION: SetUpApplicationForm,
+    CollectionType.EXPRESSION_OF_INTEREST: SetUpApplicationForm,
 }
 
 
-def _list_collections(grant_id: UUID, collection_type: CollectionType) -> ResponseReturnValue:
+def _list_collections(grant_id: UUID, pre_award: bool) -> ResponseReturnValue:
     """Shared implementation for listing collections of a given type."""
+    if pre_award:
+        collection_type = CollectionType.APPLICATION
+        filter_types = [CollectionType.APPLICATION, CollectionType.ALLOCATION, CollectionType.EXPRESSION_OF_INTEREST]
+    else:
+        collection_type = CollectionType.MONITORING_REPORT
+        filter_types = [CollectionType.MONITORING_REPORT]
+
     config = get_collection_type_config(collection_type)
     grant = get_grant(grant_id, with_all_collections=True)
-    collections = [c for c in grant.collections if c.type == collection_type]
+    collections = [c for c in grant.collections if c.type in filter_types]
 
     delete_wtform, delete_collection_obj = None, None
     if delete_collection_id := request.args.get("delete"):
@@ -138,9 +147,7 @@ def _list_collections(grant_id: UUID, collection_type: CollectionType) -> Respon
         ):
             return redirect(url_for(config.list_route, grant_id=grant_id))
 
-        delete_collection_obj = get_collection(
-            uuid.UUID(delete_collection_id), grant_id=grant_id, type_=collection_type
-        )
+        delete_collection_obj = get_collection(uuid.UUID(delete_collection_id), grant_id=grant_id)
         if delete_collection_obj.live_submissions:
             abort(403)
 
@@ -166,14 +173,14 @@ def _list_collections(grant_id: UUID, collection_type: CollectionType) -> Respon
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
 def list_reports(grant_id: UUID) -> ResponseReturnValue:
-    return _list_collections(grant_id, CollectionType.MONITORING_REPORT)
+    return _list_collections(grant_id, False)
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/applications", methods=["GET", "POST"])
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
 def list_applications(grant_id: UUID) -> ResponseReturnValue:
-    return _list_collections(grant_id, CollectionType.APPLICATION)
+    return _list_collections(grant_id, True)
 
 
 @deliver_grant_funding_blueprint.route(
@@ -272,7 +279,31 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def set_up_application(grant_id: UUID) -> ResponseReturnValue:
-    return _set_up_collection(grant_id, CollectionType.APPLICATION)
+    config = get_collection_type_config(CollectionType.APPLICATION)
+    grant = get_grant(grant_id)
+    form = SetUpApplicationForm()
+    if form.validate_on_submit():
+        assert form.name.data
+        assert form.collection_type.data
+        selected_type = CollectionType(form.collection_type.data)
+        try:
+            create_collection(
+                name=form.name.data,
+                user=interfaces.user.get_current_user(),
+                grant=grant,
+                type_=selected_type,
+            )
+            return redirect(url_for(config.list_route, grant_id=grant_id))
+
+        except DuplicateValueError:
+            form.name.errors = list(form.name.errors) + [f"A {config.singular_name} with this name already exists"]
+
+    return render_template(
+        "deliver_grant_funding/reports/set_up_collection.html",
+        grant=grant,
+        form=form,
+        collection_config=config,
+    )
 
 
 @deliver_grant_funding_blueprint.route(
@@ -285,7 +316,8 @@ def change_collection_name(grant_id: UUID, collection_id: UUID) -> ResponseRetur
     report = get_collection(collection_id, grant_id=grant_id)
     collection_config = get_collection_type_config(report.type)
 
-    form_class = SETUP_FORM_FOR_COLLECTION_TYPE[report.type]
+    # form_class = SETUP_FORM_FOR_COLLECTION_TYPE[report.type]
+    form_class = SetUpReportForm
     form = form_class(obj=report)
     if form.validate_on_submit():
         assert form.name.data
@@ -294,7 +326,7 @@ def change_collection_name(grant_id: UUID, collection_id: UUID) -> ResponseRetur
             return redirect(url_for(collection_config.list_route, grant_id=report.grant_id))
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.name.errors.append(f"A {collection_config.singular_name} with this name already exists")
+            form.name.errors.append(f"A {collection_config.singular_name} with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/change_collection_name.html",

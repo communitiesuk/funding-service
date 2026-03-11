@@ -157,6 +157,7 @@ class CollectionType(enum.StrEnum):
     MONITORING_REPORT = "monitoring report"
     APPLICATION = "application"
     ELIGIBILITY_CHECK = "eligibility check"
+    ALLOCATION = "allocation"
 
     # this might be modelled as an application with simple baseline validation rather than a scored assessment
     EXPRESSION_OF_INTEREST = "expression of interest"
