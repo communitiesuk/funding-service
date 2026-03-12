@@ -9,6 +9,28 @@
       <p class="govuk-body">
         <a class="govuk-link" href="{{ url_for('data_analysis.download_certification_events_csv') }}">Download sent-for-certification events by submission reference (CSV)</a>
       </p>
+
+      <h2 class="govuk-heading-m">Stats</h2>
+      <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-third">
+          <p class="govuk-!-margin-top-0">
+            <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ unique_users_count }}</span>
+            <span class="govuk-body-l">Unique users associated with live grant recipients</span>
+          </p>
+        </div>
+        <div class="govuk-grid-column-one-third">
+          <p class="govuk-!-margin-top-0">
+            <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ certifier_users_count }}</span>
+            <span class="govuk-body-l">Unique users with 'certifier' permission for live grant recipients</span>
+          </p>
+        </div>
+        <div class="govuk-grid-column-one-third">
+          <p class="govuk-!-margin-top-0">
+            <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ data_provider_users_count }}</span>
+            <span class="govuk-body-l">Unique users with 'data provider' permission for live grant recipients</span>
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 {% endblock %}
