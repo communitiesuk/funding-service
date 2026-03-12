@@ -49,36 +49,27 @@
         {% do table_head.append({"text": column}) %}
       {% endfor %}
 
-      {% set cell_errors_by_row = validation_result.cell_errors_by_row %}
       {% set rows = [] %}
-      {% for row in session_data.all_rows %}
-        {% set idx = loop.index0 %}
-        {% set row_cell_errors = cell_errors_by_row.get(idx, {}) %}
+      {% for missing_data_row in validation_result.missing_columns_by_row %}
+        {% set data_row = session_data.all_rows[missing_data_row] %}
 
+        <!-- Apologies to future selves - missing_data_row is the index for the row in the list rather than the row
+        in the csv, which is what we need to show in this table so the user knows which rows to fix up -->
         {% if is_static %}
-          {% set row_cells = [{"text": loop.index}] %}
+          {% set row_cells = [{"text": missing_data_row + 2}] %}
         {% else %}
           {%
             set row_cells = [
-              {"text": loop.index},
-              {"text": row.get("ONS code", "")},
-              {"text": row.get("Grant recipient")}
+              {"text": missing_data_row + 2},
+              {"text": data_row.get("ONS code", "")},
+              {"text": data_row.get("Grant recipient")}
             ]
           %}
         {% endif %}
 
         {% for column in session_data.data_columns %}
-          {% set val = row.get(column, "") %}
-          {% set cell_error = row_cell_errors.get(column) %}
-
-          {% if cell_error %}
-            {% if cell_error.original_value %}
-              {% set cell_html %}{{ cell_error.original_value }}<br /><span class="govuk-tag govuk-tag--red">{{ cell_error.table_message }}</span>{% endset %}
-            {% else %}
-              {% set cell_html %}<span class="govuk-tag govuk-tag--red">{{ cell_error.table_message }}</span>{% endset %}
-            {% endif %}
-            {% do row_cells.append({"html": cell_html}) %}
-          {% elif not val %}
+          {% set val = data_row.get(column, "") %}
+          {% if not val %}
             {% do row_cells.append({"html": "<span class='govuk-tag govuk-tag--yellow'>Data missing</span>"}) %}
           {% else %}
             {% do row_cells.append({"text": val}) %}

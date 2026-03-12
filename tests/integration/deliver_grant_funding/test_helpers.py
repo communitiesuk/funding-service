@@ -140,7 +140,7 @@ class TestValidateDataSet:
         cell_error = result.cell_errors_by_row[2]["theme name"]
         assert cell_error.table_message == "Data missing"
         assert cell_error.original_value == ""
-        assert "'theme name' in row 3 is missing a value" in result.blocking_errors
+        assert "'theme name' in row 2 is missing a value" in result.blocking_errors
 
     def test_missing_value_is_non_blocking_for_grant_recipient(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -301,7 +301,7 @@ class TestValidateDataSet:
         cell_error = result.cell_errors_by_row[0]["Capital allocation"]
         assert cell_error.table_message == "Too many decimal places"
         assert cell_error.original_value == "£1000.123"
-        assert "'Capital allocation' in row 1 has too many decimal places (maximum 2)" in result.blocking_errors
+        assert "'Capital allocation' in row 0 has too many decimal places (maximum 2)" in result.blocking_errors
 
     def test_incorrect_data_type_integer(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -327,7 +327,7 @@ class TestValidateDataSet:
 
         cell_error = result.cell_errors_by_row[0]["Revenue allocation"]
         assert cell_error.table_message == "Incorrect data type"
-        assert "'Revenue allocation' in row 1 must be a whole number" in result.blocking_errors
+        assert "'Revenue allocation' in row 0 must be a whole number" in result.blocking_errors
 
     def test_incorrect_data_type_decimal(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -354,7 +354,7 @@ class TestValidateDataSet:
 
         cell_error = result.cell_errors_by_row[0]["Rate"]
         assert cell_error.table_message == "Incorrect data type"
-        assert "'Rate' in row 1 must be a decimal number" in result.blocking_errors
+        assert "'Rate' in row 0 must be a decimal number" in result.blocking_errors
 
     def test_row_with_both_blocking_error_and_missing_column(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")

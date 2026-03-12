@@ -7583,8 +7583,6 @@ class TestCheckDataSetErrors:
         assert page_has_error(soup, "must be a whole number")
         assert page_has_error(soup, "must be a decimal number")
         assert page_has_error(soup, "too many decimal places")
-        table_errors = [tag.text for tag in soup.find_all("span", class_="govuk-tag govuk-tag--red")]
-        assert "Incorrect data type" in table_errors
         missing_data = [tag.text for tag in soup.find_all("span", class_="govuk-tag govuk-tag--yellow")]
         assert "Data missing" in missing_data
 

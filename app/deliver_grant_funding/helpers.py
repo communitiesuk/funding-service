@@ -83,11 +83,11 @@ class DataSetValidationResult(BaseModel):
 
     @property
     def cell_errors_by_row(self) -> dict[int, dict[str, CellError]]:
-        return {r.row_number - 1: {e.column: e for e in r.cell_errors} for r in self.row_results if r.cell_errors}
+        return {r.row_number: {e.column: e for e in r.cell_errors} for r in self.row_results if r.cell_errors}
 
     @property
     def missing_columns_by_row(self) -> dict[int, list[str]]:
-        return {r.row_number - 1: r.missing_columns for r in self.row_results if r.missing_columns}
+        return {r.row_number: r.missing_columns for r in self.row_results if r.missing_columns}
 
     @property
     def has_blocking_errors(self) -> bool:
@@ -159,7 +159,7 @@ def _validate_cell(column: str, value: str, row_number: int, mapping: DataSetCol
 
 
 def _validate_row(row: dict[str, str], idx: int, data_set: DataSetUploadSessionModel) -> RowValidationResult:
-    result = RowValidationResult(row_number=idx + 1)
+    result = RowValidationResult(row_number=idx)
     is_static = data_set.data_source_type == DataSourceType.STATIC
 
     for column in data_set.data_columns:

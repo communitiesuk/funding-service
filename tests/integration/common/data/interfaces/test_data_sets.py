@@ -230,7 +230,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         assert "ons-code" not in org_item.data
         assert "grant-recipient" not in org_item.data
 
-    def test_empty_string_values_saved_as_empty_string(self, db_session, factories):
+    def test_empty_string_values_saved_as_none(self, db_session, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
         user = factories.user.create()
@@ -256,7 +256,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
-        assert org_item.data["notes"] == ""
+        assert org_item.data["notes"] is None
 
 
 class TestCreateUploadedDataSourceProjectLevel:
