@@ -22,6 +22,7 @@ def get_grant_recipients(
     grant: Grant,
     *,
     mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
+    statuses: Sequence[GrantRecipientStatus] = ACTIVE_GRANT_RECIPIENT_STATUSES,
     with_data_providers: bool = False,
     with_certifiers: bool = False,
     with_organisations: bool = False,
@@ -29,7 +30,7 @@ def get_grant_recipients(
     stmt = select(GrantRecipient).where(
         GrantRecipient.grant_id == grant.id,
         GrantRecipient.mode == mode,
-        GrantRecipient.status.in_(ACTIVE_GRANT_RECIPIENT_STATUSES),
+        GrantRecipient.status.in_(statuses),
     )
 
     if with_data_providers:

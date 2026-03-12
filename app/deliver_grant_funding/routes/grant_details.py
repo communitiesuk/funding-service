@@ -131,12 +131,23 @@ def grant_change_contact(grant_id: UUID) -> ResponseReturnValue:
 def list_recipients(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
 
+    all_recipients = get_grant_recipients(
+        grant,
+        statuses=[GrantRecipientStatus.AWARDED, GrantRecipientStatus.ALLOCATED, GrantRecipientStatus.APPLYING],
+        with_data_providers=True,
+        with_certifiers=True,
+        with_organisations=True,
+    )
+    awarded_recipients = [r for r in all_recipients if r.status == GrantRecipientStatus.AWARDED]
+    allocated_recipients = [r for r in all_recipients if r.status == GrantRecipientStatus.ALLOCATED]
+    applying_recipients = [r for r in all_recipients if r.status == GrantRecipientStatus.APPLYING]
+
     return render_template(
         "deliver_grant_funding/recipients/list_recipients.html",
         grant=grant,
-        grant_recipients=get_grant_recipients(
-            grant, with_data_providers=True, with_certifiers=True, with_organisations=True
-        ),
+        awarded_recipients=awarded_recipients,
+        allocated_recipients=allocated_recipients,
+        applying_recipients=applying_recipients,
     )
 
 

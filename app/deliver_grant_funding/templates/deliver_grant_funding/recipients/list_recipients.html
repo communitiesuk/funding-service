@@ -2,15 +2,63 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 
 {% set page_title = "Grant recipients - " ~ grant.name %}
 {% set active_item_identifier = "recipients" %}
 {% set active_sub_item_identifier = "awarded" %}
 
-{# todo: describe what users can do here, "identify and set up grant recipients", allocated -> already allocated recipients can be set up and then allocation form, application -> public URL for them to join #}
-{# todo: add the side nav from the original template structure, this will have recipients, applications, allocations #}
-{# todo: only show awarded recipients by default #}
-{# todo: show totals for whats currently going on (number of awarded, applying, etc.) #}
+{% macro recipientsTable(recipients, empty_message) %}
+  {% set tableRows = [] %}
+  {% if not recipients %}
+    {% set emptyHtml %}
+      <span>{{ empty_message }}</span>
+    {% endset %}
+    {% do tableRows.append([{"html": emptyHtml, "colspan": 2}]) %}
+  {% else %}
+    {% for grant_recipient in recipients | sort(attribute="organisation.name") %}
+      {% set userDetails %}
+        <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Can edit and submit reports:</p>
+        {% if grant_recipient.data_providers %}
+          <ul class="govuk-list govuk-list--bullet">
+            {% for user in grant_recipient.data_providers | sort(attribute="name") %}
+              <li>{{ user.name }} ({{ user.email }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="govuk-body govuk-!-margin-bottom-0">No data providers have been set up</p>
+        {% endif %}
+        <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Certifiers:</p>
+        {% if grant_recipient.certifiers %}
+          <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+            {% for user in grant_recipient.certifiers | sort(attribute="name") %}
+              <li>{{ user.name }} ({{ user.email }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="govuk-body govuk-!-margin-bottom-0">No certifiers have been set up</p>
+        {% endif %}
+      {% endset %}
+      {%
+        do tableRows.append([
+          {"text": grant_recipient.organisation.name},
+          {"html": userDetails}
+        ])
+      %}
+    {% endfor %}
+  {% endif %}
+
+  {{
+    govukTable({
+      "head": [
+        {"text": "Grant recipient"},
+        {"text": "Users"}
+      ],
+      "rows": tableRows
+    })
+  }}
+{% endmacro %}
+
 {% block content %}
   {% with flashes = get_flashed_messages(category_filter=["success"]) %}
     {% if flashes %}
@@ -24,21 +72,19 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Recipients
       </h1>
-
-      {# <p class="govuk-body">Identify, set up and manage grant recipients</p> #}
     </div>
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-one-third">
-      <div class="govuk-heading-l govuk-!-margin-bottom-0">0</div>
+      <div class="govuk-heading-l govuk-!-margin-bottom-0">{{ awarded_recipients | length }}</div>
       <div class="govuk-body">awarded recipients</div>
     </div>
     <div class="govuk-grid-column-one-third">
-      <div class="govuk-heading-l govuk-!-margin-bottom-0">0</div>
+      <div class="govuk-heading-l govuk-!-margin-bottom-0">{{ allocated_recipients | length }}</div>
       <div class="govuk-body">allocated recipients pending validation</div>
     </div>
     <div class="govuk-grid-column-one-third">
-      <div class="govuk-heading-l govuk-!-margin-bottom-0">0</div>
+      <div class="govuk-heading-l govuk-!-margin-bottom-0">{{ applying_recipients | length }}</div>
       <div class="govuk-body">applicants</div>
     </div>
   </div>
@@ -63,56 +109,18 @@
           }}
         </div>
 
-        <div class="govuk-!-margin-top-9">
-          {% set tableRows = [] %}
-          {% if not grant_recipients %}
-            {% set noGrantRecipientsHtml %}
-              <span>No grant recipients have been set up yet</span>
-            {% endset %}
-            {% do tableRows.append([{"html": noGrantRecipientsHtml, "colspan": 2}]) %}
-          {% else %}
-            {% for grant_recipient in grant_recipients | sort(attribute="organisation.name") %}
-              {% set userDetails %}
-                <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Can edit and submit reports:</p>
-                {% if grant_recipient.data_providers %}
-                  <ul class="govuk-list govuk-list--bullet">
-                    {% for user in grant_recipient.data_providers | sort(attribute="name") %}
-                      <li>{{ user.name }} ({{ user.email }})</li>
-                    {% endfor %}
-                  </ul>
-                {% else %}
-                  <p class="govuk-body govuk-!-margin-bottom-0">No data providers have been set up</p>
-                {% endif %}
-                <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Certifiers:</p>
-                {% if grant_recipient.certifiers %}
-                  <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
-                    {% for user in grant_recipient.certifiers | sort(attribute="name") %}
-                      <li>{{ user.name }} ({{ user.email }})</li>
-                    {% endfor %}
-                  </ul>
-                {% else %}
-                  <p class="govuk-body govuk-!-margin-bottom-0">No certifiers have been set up</p>
-                {% endif %}
-              {% endset %}
-              {%
-                do tableRows.append([
-                  {"text": grant_recipient.organisation.name},
-                  {"html": userDetails}
-                ])
-              %}
-            {% endfor %}
-          {% endif %}
+        <div class="govuk-!-margin-top-9">{{ recipientsTable(awarded_recipients, "No awarded grant recipients have been set up yet") }}</div>
 
-          {{
-            govukTable({
-              "head": [
-                {"text": "Grant recipient"},
-                {"text": "Users"}
-              ],
-              "rows": tableRows
-            })
-          }}
-        </div>
+        {% set allocatedRecipientsHtml %}
+          {{ recipientsTable(allocated_recipients, "No allocated grant recipients") }}
+        {% endset %}
+        {{ govukDetails({"summaryText": "Allocated grant recipients pending validation", "html": allocatedRecipientsHtml}) }}
+
+
+        {% set applyingRecipientsHtml %}
+          {{ recipientsTable(applying_recipients, "No applying recipients") }}
+        {% endset %}
+        {{ govukDetails({"summaryText": "Applying recipients", "html": applyingRecipientsHtml}) }}
       </div>
     </div>
   </div>
