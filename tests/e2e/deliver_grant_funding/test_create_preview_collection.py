@@ -2,7 +2,7 @@ import datetime
 import re
 import uuid
 from decimal import Decimal
-from typing import Union
+from typing import Union, cast
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
@@ -18,6 +18,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -26,6 +27,7 @@ from app.common.expressions.managed import (
     IsNo,
     IsYes,
     LessThan,
+    ManagedExpression,
     Specifically,
     UKPostcode,
 )
@@ -75,6 +77,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
 from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
     delete_grant_through_admin,
+    wait_for_context_aware_textarea_to_be_ready,
 )
 
 
@@ -129,7 +132,7 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION,
                 question_text="Do you want to show question groups?",
             ),
-            managed_expression=IsYes(question_id=uuid.uuid4()),
+            evaluatable_expression=IsYes(question_id=uuid.uuid4()),
         ),
         "questions": [
             {
@@ -206,7 +209,6 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
     },
 }
 
-
 section_2_questions_to_test: dict[str, TQuestionToTest] = {
     "date": QuestionDict(
         type=QuestionDataType.DATE,
@@ -220,7 +222,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             QuestionResponse(answer=["2022", "04", "05"], check_your_answers_text="5 April 2022"),
         ],
         validation=E2EManagedExpression(
-            managed_expression=BetweenDates(
+            evaluatable_expression=BetweenDates(
                 question_id=uuid.uuid4(),
                 earliest_value=datetime.date(2020, 1, 1),
                 earliest_inclusive=True,
@@ -247,7 +249,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         ],
         options=QuestionPresentationOptions(approximate_date=True),
         validation=E2EManagedExpression(
-            managed_expression=BetweenDates(
+            evaluatable_expression=BetweenDates(
                 question_id=uuid.uuid4(),
                 earliest_value=datetime.date(2020, 4, 1),
                 earliest_inclusive=True,
@@ -267,10 +269,10 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS, approximate_date=True),
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
-            managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False)
+            evaluatable_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False)
         ),
         "condition": E2EManagedExpression(
-            managed_expression=BetweenDates(
+            evaluatable_expression=BetweenDates(
                 question_id=uuid.uuid4(),
                 earliest_value=datetime.date(2020, 4, 1),
                 earliest_inclusive=False,
@@ -297,7 +299,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "options": QuestionPresentationOptions(suffix="kg", width=NumberInputWidths.HUNDREDS),
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
-            managed_expression=LessThan(
+            evaluatable_expression=LessThan(
                 question_id=uuid.uuid4(),
                 maximum_value=None,
                 maximum_expression="",
@@ -311,7 +313,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total cost as a number"
             ),
-            managed_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),
+            evaluatable_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),
         ),
     },
     "between-integer": {
@@ -325,7 +327,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "options": QuestionPresentationOptions(),
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
-            managed_expression=Between(
+            evaluatable_expression=Between(
                 question_id=uuid.uuid4(),
                 maximum_value=100,
                 maximum_inclusive=False,
@@ -337,7 +339,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total weight as a number"
             ),
-            managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),
+            evaluatable_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),
         ),
     },
     "suffix-decimal": {
@@ -352,7 +354,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "options": QuestionPresentationOptions(suffix="%", width=NumberInputWidths.BILLIONS),
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
         "validation": E2EManagedExpression(
-            managed_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True)
+            evaluatable_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True)
         ),
     },
     "between-decimal": {
@@ -368,13 +370,44 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "options": QuestionPresentationOptions(),
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=5),
         "validation": E2EManagedExpression(
-            managed_expression=Between(
+            evaluatable_expression=Between(
                 question_id=uuid.uuid4(),
                 maximum_value=Decimal("1.12345"),
                 maximum_inclusive=True,
                 minimum_value=Decimal("0.22334"),
                 minimum_inclusive=False,
             )
+        ),
+    },
+    "custom-validation-integer": {
+        "type": QuestionDataType.NUMBER,
+        "text": "Enter a number that is greater than the weight plus the number from the previous section",
+        "display_text": "Enter a number that is greater than the weight plus the number from the previous section",
+        "answers": [
+            QuestionResponse(
+                "121", "The answer must be greater than the weight plus the number from the previous section"
+            ),
+            QuestionResponse("250"),
+        ],
+        "options": QuestionPresentationOptions(),
+        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        "validation": E2EManagedExpression(
+            evaluatable_expression=CustomExpression(
+                custom_expression="((ref1)) > ((ref2)) + ((ref3))",
+                custom_message="The answer must be greater than the weight plus the number from the previous section",
+            ),
+            expression_references={
+                "ref1": DataReferenceConfig(data_source="THIS_QUESTION"),
+                "ref2": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Enter the total weight as a number",
+                ),
+                "ref3": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
+                    section_text="E2E first task - grouped questions",
+                    question_text="What number do you want to see in another section?",
+                ),
+            },
         ),
     },
     "yes-no": {
@@ -388,7 +421,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter a number between 20 and 100"
             ),
-            managed_expression=Between(
+            evaluatable_expression=Between(
                 question_id=uuid.uuid4(),
                 maximum_value=40,
                 maximum_inclusive=True,
@@ -409,7 +442,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
             ),
-            managed_expression=IsYes(question_id=uuid.uuid4()),
+            evaluatable_expression=IsYes(question_id=uuid.uuid4()),
         ),
     },
     "autocomplete": {
@@ -425,7 +458,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Select an option"
             ),
-            managed_expression=AnyOf(
+            evaluatable_expression=AnyOf(
                 question_id=uuid.uuid4(),
                 items=[{"key": "option-2", "label": "option 2"}, {"key": "option-3", "label": "option 3"}],
             ),
@@ -445,7 +478,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION,
                 question_text="Select an option from the accessible autocomplete",
             ),
-            managed_expression=AnyOf(question_id=uuid.uuid4(), items=[{"key": "other", "label": "Other"}]),
+            evaluatable_expression=AnyOf(question_id=uuid.uuid4(), items=[{"key": "other", "label": "Other"}]),
         ),
     },
     "email": {
@@ -460,7 +493,9 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Select one or more options"
             ),
-            managed_expression=Specifically(question_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}),
+            evaluatable_expression=Specifically(
+                question_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}
+            ),
         ),
     },
     "postcode": {
@@ -472,7 +507,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             QuestionResponse("SW1A 1AA"),
         ],
         "validation": E2EManagedExpression(
-            managed_expression=UKPostcode(
+            evaluatable_expression=UKPostcode(
                 question_id=uuid.uuid4(),
             )
         ),  # question_id does not matter here
@@ -522,7 +557,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
             ),
-            managed_expression=IsNo(question_id=uuid.uuid4()),
+            evaluatable_expression=IsNo(question_id=uuid.uuid4()),
         ),
     },
     "cross-section-reference": {
@@ -545,7 +580,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             QuestionResponse("50"),
         ],
         "validation": E2EManagedExpression(
-            managed_expression=LessThan(
+            evaluatable_expression=LessThan(
                 question_id=uuid.uuid4(), maximum_value=None, maximum_expression="", inclusive=False
             ),
             context_source=DataReferenceConfig(
@@ -633,12 +668,8 @@ def create_question(
 
     expect(question_details_page.page.get_by_text(question_definition["type"].value, exact=True)).to_be_visible()
     question_text = question_definition["text"]
-    expect(
-        question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='text']")
-    ).to_be_attached()
-    expect(
-        question_details_page.page.locator(".app-context-aware-editor__visible-textarea[id='hint']")
-    ).to_be_attached()
+    wait_for_context_aware_textarea_to_be_ready(question_details_page.page, "text")
+    wait_for_context_aware_textarea_to_be_ready(question_details_page.page, "hint")
 
     if question_definition["type"] == QuestionDataType.NUMBER:
         question_details_page.select_number_type(question_definition["data_options"].number_type)
@@ -725,9 +756,7 @@ def add_question_guidance(
     if guidance is not None:
         add_guidance_page = edit_question_page.click_add_guidance()
         add_guidance_page.fill_guidance_heading(guidance.heading)
-        expect(
-            add_guidance_page.page.locator(".app-context-aware-editor__visible-textarea[id='guidance_body']")
-        ).to_be_attached()
+        wait_for_context_aware_textarea_to_be_ready(add_guidance_page.page, "guidance_body")
         add_guidance_page.fill_guidance_default()
         edit_question_page = add_guidance_page.click_save_guidance_button(edit_question_page)
         expect(edit_question_page.page.get_by_text("Page heading", exact=True)).to_be_visible()
@@ -743,10 +772,22 @@ def add_validation(
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> None:
     add_validation_page = edit_question_page.click_add_validation()
-    add_validation_page.configure_managed_validation(
-        validation.managed_expression, validation.context_source, presentation_options
-    )
-    edit_question_page = add_validation_page.click_add_validation()
+    if isinstance(validation.evaluatable_expression, CustomExpression):
+        add_custom_validation_page = add_validation_page.click_create_custom_expression()
+        expect(add_custom_validation_page.heading).to_be_visible()
+        add_custom_validation_page.configure_custom_expression(
+            validation.evaluatable_expression.custom_expression, validation.expression_references
+        )
+        add_custom_validation_page.configure_custom_message(
+            validation.evaluatable_expression.custom_message, validation.expression_references
+        )
+        add_custom_validation_page.click_create_custom_validation_expression()
+
+    else:
+        add_validation_page.configure_managed_validation(
+            cast(ManagedExpression, validation.evaluatable_expression), validation.context_source, presentation_options
+        )
+        add_validation_page.click_add_validation()
 
 
 def add_condition(
@@ -758,7 +799,7 @@ def add_condition(
     select_data_source_page = add_condition_page.click_reference_data_button()
     _reference_data_flow(select_data_source_page, condition.conditional_on)
     add_condition_page.configure_managed_condition(
-        condition.managed_expression, condition.context_source, presentation_options
+        condition.evaluatable_expression, condition.context_source, presentation_options
     )
     add_condition_page.click_add_condition(edit_question_page)
 
@@ -973,7 +1014,7 @@ def test_setup_grant_and_collection(
     # Sense check that the test includes all question types
     assert (
         len(QuestionDataType) == 10
-        and len(section_2_questions_to_test) == 18
+        and len(section_2_questions_to_test) == 19
         and len(ManagedExpressionsEnum) == 11
         and len(NumberTypeEnum) == 2
     ), (

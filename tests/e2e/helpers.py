@@ -2,10 +2,21 @@ import re
 from typing import cast
 from urllib.parse import urlencode
 
-from notifications_python_client import NotificationsAPIClient
-from playwright.sync_api import Page
+from notifications_python_client import NotificationsAPIClient  # type: ignore[attr-defined]
+from playwright.sync_api import Locator, Page, expect
 
 from tests.e2e.config import EndToEndTestSecrets
+
+
+def get_context_aware_textbox_locator_by_name(page: Page, name: str) -> Locator:
+    return page.locator(
+        ".app-context-aware-editor__editor-container",
+        has=page.get_by_role("textbox", name=name),
+    ).get_by_role("textbox", name=name)
+
+
+def wait_for_context_aware_textarea_to_be_ready(page: Page, textarea_id: str) -> None:
+    expect(page.locator(f".app-context-aware-editor__visible-textarea[id='{textarea_id}']")).to_be_attached()
 
 
 def extract_email_link(email: dict[str, str]) -> str:
@@ -15,8 +26,8 @@ def extract_email_link(email: dict[str, str]) -> str:
 
 
 def retrieve_magic_link(notification_id: str, e2e_test_secrets: EndToEndTestSecrets) -> str:
-    client = NotificationsAPIClient(e2e_test_secrets.GOVUK_NOTIFY_API_KEY)
-    email = client.get_notification_by_id(notification_id)
+    client = NotificationsAPIClient(e2e_test_secrets.GOVUK_NOTIFY_API_KEY)  # type: ignore[no-untyped-call]
+    email = client.get_notification_by_id(notification_id)  # type: ignore[no-untyped-call]
 
     if not email:
         raise LookupError("Could not find a corresponding find magic link in GOV.UK Notify")
