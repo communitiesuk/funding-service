@@ -16,6 +16,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    op.drop_constraint(op.f("ck_user_role_member_role_not_platform"), "user_role", type_="check")
     op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="role_enum",
@@ -34,6 +35,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_constraint(op.f("ck_user_role_member_role_not_platform"), "user_role", type_="check")
     op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="role_enum",
