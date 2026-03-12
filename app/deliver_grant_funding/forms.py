@@ -958,8 +958,7 @@ class ColumnDataTypeMappingForm(FlaskForm):
 
     def validate_data_type(self, field: Field) -> None:
         if not field.data or field.data == "":
-            column = self.column_name.data or "this column"
-            raise ValidationError(f"Select a data type for {column}")
+            raise ValidationError(f"Select a data type for {self.column_name.data}")
 
 
 class MapDataSetColumnsForm(FlaskForm):
@@ -1046,15 +1045,17 @@ class NumberColumnOptionsForm(FlaskForm):
 
     def validate_prefix(self, field: Field) -> None:
         if self.prefix.data and self.suffix.data:
-            raise ValidationError("Remove the suffix if you need a prefix")
+            raise ValidationError(f"Remove the suffix if you need a prefix for {self.column_name.data}")
 
     def validate_suffix(self, field: Field) -> None:
         if self.prefix.data and self.suffix.data:
-            raise ValidationError("Remove the prefix if you need a suffix")
+            raise ValidationError(f"Remove the prefix if you need a suffix for {self.column_name.data}")
 
     def update_validators(self) -> None:
         if self.number_type.data == NumberTypeEnum.DECIMAL:
-            self.max_decimal_places.validators = [DataRequired("Enter the maximum number of decimal places")]
+            self.max_decimal_places.validators = [
+                DataRequired(f"Enter the maximum number of decimal places for {self.column_name.data}")
+            ]
         else:
             self.max_decimal_places.validators = [Optional()]
 
