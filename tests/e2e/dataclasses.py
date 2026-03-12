@@ -8,8 +8,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
 )
-from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import ManagedExpression
+from app.common.expressions import EvaluatableExpression, ExpressionContext
 
 
 @dataclass
@@ -49,7 +48,7 @@ class TextFieldWithData:
 
 @dataclasses.dataclass
 class DataReferenceConfig:
-    data_source: ExpressionContext.ContextSources
+    data_source: ExpressionContext.ContextSources | Literal["THIS_QUESTION"]
     question_text: str | None = None
     section_text: str | None = None
     collection_text: str | None = None
@@ -57,11 +56,14 @@ class DataReferenceConfig:
 
 @dataclasses.dataclass
 class E2EManagedExpression:
-    managed_expression: ManagedExpression
+    evaluatable_expression: EvaluatableExpression
     conditional_on: DataReferenceConfig | None = None
     # Note this assumes you're only referencing one question's answer in an expression, if two are needed for
     # Between/BetweenDates then this will need updating
     context_source: DataReferenceConfig | None = None
+    # TODO this is so that we can reference multiple fields in an expression.
+    #  Need to refactor this class so we aren't duplicating where we put references
+    expression_references: dict[str, DataReferenceConfig] | None = dataclasses.field(default_factory=dict)
 
 
 class QuestionDict(TypedDict):
