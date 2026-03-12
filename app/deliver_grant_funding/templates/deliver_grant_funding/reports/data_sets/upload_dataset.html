@@ -11,7 +11,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+    <div class="govuk-grid-column-two-thirds">
       {% if gr_errors %}
         {% set error_list = [] %}
         {% for error in gr_errors %}
@@ -29,8 +29,6 @@
         Upload new data set
       </h1>
       <p class="govuk-body">Upload data to reference in form guidance, questions, conditions and validation.</p>
-    </div>
-    <div class="govuk-grid-column-two-thirds">
       <form method="POST" enctype="multipart/form-data" novalidate>
         {{ form.csrf_token }}
         {{ form.name }}

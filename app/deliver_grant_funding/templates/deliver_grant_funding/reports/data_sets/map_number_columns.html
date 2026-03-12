@@ -13,13 +13,14 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+    <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ report.name }}</span>
         Map {{ session_data.name }} number columns
       </h1>
       <p class="govuk-body">Map the data from each numerical column to set formatting options.</p>
-
+    </div>
+    <div class="govuk-grid-column-full">
       <form method="POST" novalidate>
         {{ form.csrf_token }}
 
@@ -50,8 +51,8 @@
         {{
           govukTable({
             "head": [
-              {"text": "Column name"},
-              {"text": "Example data"},
+              {"text": "Column name", "classes": "govuk-!-width-one-quarter"},
+              {"text": "Example data", "classes": "govuk-!-width-one-third"},
               {"text": "Formatting options"}
             ],
             "rows": rows

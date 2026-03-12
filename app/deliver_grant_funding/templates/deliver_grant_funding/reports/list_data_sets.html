@@ -32,32 +32,43 @@
         <span class="govuk-caption-l">{{ report.name }}</span>
         Uploaded data sets
       </h1>
-    </div>
-    <div class="govuk-grid-column-full">
       <p class="govuk-body">Data referenced in the grant form, uploaded as a CSV.</p>
       <p class="govuk-body">
-        For uploading grant recipient level data like grant allocation, use the
+        For uploading grant recipient level data like grant allocation, use the <br />
         <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">grant recipient data upload template (CSV)</a>.
         Grant recipients must be set up for the grant report before using the template and uploading grant recipient level data.
       </p>
-
+    </div>
+    <div class="govuk-grid-column-full">
+      {% set rows = [] %}
       {% if report.data_sources | length > 0 %}
 
-        {% set rows = [] %}
         {% for data_set in report.data_sources %}
           {% set data_set_name_html %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, report_id=report.id, data_source_id=data_set.id) }}">{{ data_set.name }}</a>
           {% endset %}
           {% do rows.append([{"html": data_set_name_html}, {"text": format_datetime_short(data_set.updated_at_utc if data_set.updated_at_utc else data_set.created_at_utc)}, {"text": data_set.updated_by.name if data_set.updated_by else data_set.created_by.name}]) %}
         {% endfor %}
-
-        {{
-          govukTable({
-              "head": [{"text": "Data set"}, {"text": "Time and date"}, {"text": "Uploaded by"}],
-              "rows": rows
-          })
-        }}
+      {% else %}
+        {% set no_data_sets_text %}
+          <span>There are no data sets uploaded for this report</span>
+        {% endset %}
+        {%
+          do rows.append([
+            {
+              "html": no_data_sets_text,
+              "colspan": 3
+            }
+          ])
+        %}
       {% endif %}
+
+      {{
+        govukTable({
+            "head": [{"text": "Data set"}, {"text": "Time and date"}, {"text": "Uploaded by"}],
+            "rows": rows
+        })
+      }}
 
       {% if can_upload %}
         <form method="POST" novalidate>
