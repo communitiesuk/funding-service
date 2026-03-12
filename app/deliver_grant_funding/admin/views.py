@@ -9,6 +9,7 @@ from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
 from app.common.data.interfaces.collections import get_collection, update_collection
+from app.common.data.interfaces.data_analysis import get_unique_users_count_for_live_grant_recipients
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     GrantMustBeLiveError,
@@ -909,7 +910,19 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 class PlatformAdminDataAnalysisView(FlaskAdminPlatformAdminDataAnalystAccessibleMixin, BaseView):
     @expose("/")
     def index(self) -> Any:
-        return self.render("deliver_grant_funding/admin/data-analysis.html")
+        # Get stats for live grant recipients
+        unique_users_count = get_unique_users_count_for_live_grant_recipients()
+        certifier_users_count = get_unique_users_count_for_live_grant_recipients(with_permissions=[RoleEnum.CERTIFIER])
+        data_provider_users_count = get_unique_users_count_for_live_grant_recipients(
+            with_permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        return self.render(
+            "deliver_grant_funding/admin/data-analysis.html",
+            unique_users_count=unique_users_count,
+            certifier_users_count=certifier_users_count,
+            data_provider_users_count=data_provider_users_count,
+        )
 
     @expose("/certification-events.csv")
     def download_certification_events_csv(self) -> Any:
