@@ -140,6 +140,9 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
     column_list = ["external_id", "name", "type", "mode", "status", "can_manage_grants"]
     column_searchable_list = ["external_id", "name"]
     column_filters = ["external_id", "name", "type", "mode", "status", "can_manage_grants"]
+    column_labels = {
+        "trusted_email_domain": "Trusted email domain",
+    }
 
     form_columns = [
         "external_id",
@@ -147,6 +150,7 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
         "type",
         "mode",
         "status",
+        "trusted_email_domain",
         "can_manage_grants",
         "active_date",
         "retirement_date",
@@ -170,6 +174,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "type.value": "Type",
         "allow_multiple_submissions": "Allow multiple submissions",
         "multiple_submissions_are_managed_by_service": "Allow managed submissions only",
+        "allow_public_sign_up": "Allow public sign up",
     }
 
     form_columns = [
@@ -179,6 +184,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "status",
         "requires_certification",
         "requires_validation",
+        "allow_public_sign_up",
         "reporting_period_start_date",
         "reporting_period_end_date",
         "submission_period_start_date",

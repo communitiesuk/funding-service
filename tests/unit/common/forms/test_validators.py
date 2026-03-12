@@ -286,8 +286,57 @@ class TestAccessGrantFundingEmail:
 
         validator(form, field)
 
+    def test_unknown_user_passes_when_signing_up_with_trusted_domain(self, factories, mocker):
+        validator, form, field = self._get_mocks()
+        org = factories.organisation.build(trusted_email_domain="localgov.gov.uk", can_manage_grants=False)
 
-class TestMaxDecimalPlaces:
+        mocker.patch("app.common.forms.validators.interfaces.user.get_user_by_email", return_value=None)
+        mocker.patch(
+            "app.common.forms.validators.interfaces.organisations.get_organisation_by_email_domain", return_value=org
+        )
+        mocker.patch("app.common.forms.validators.session", {"signing_up_for_grant_id": "some-grant-id"})
+
+        field.data = "new_user@localgov.gov.uk"
+
+        validator(form, field)
+
+    def test_unknown_user_fails_when_signing_up_with_untrusted_domain(self, factories, mocker):
+        validator, form, field = self._get_mocks()
+
+        mocker.patch("app.common.forms.validators.interfaces.user.get_user_by_email", return_value=None)
+        mocker.patch(
+            "app.common.forms.validators.interfaces.organisations.get_organisation_by_email_domain", return_value=None
+        )
+        mocker.patch("app.common.forms.validators.session", {"signing_up_for_grant_id": "some-grant-id"})
+
+        field.data = "new_user@unknown.com"
+
+        with pytest.raises(
+            ValidationError,
+            match=(
+                "The email address you entered does not have access to this service. "
+                "Check the email address is correct or request access."
+            ),
+        ):
+            validator(form, field)
+
+    def test_unknown_user_fails_without_signing_up_session(self, factories, mocker):
+        validator, form, field = self._get_mocks()
+
+        mocker.patch("app.common.forms.validators.interfaces.user.get_user_by_email", return_value=None)
+        mocker.patch("app.common.forms.validators.session", {})
+
+        field.data = "new_user@localgov.gov.uk"
+
+        with pytest.raises(
+            ValidationError,
+            match=(
+                "The email address you entered does not have access to this service. "
+                "Check the email address is correct or request access."
+            ),
+        ):
+            validator(form, field)
+
     @pytest.mark.parametrize("input_value", [12, 1, 0, 1.0, 4.5, 2.00, 2.12, 2.09, 99.99])
     def test_max_decimal_places_valid(self, input_value):
         validator = MaxNumberOfDecimalPlacesValidator(max_decimal_places=2)

@@ -19,7 +19,9 @@ class TestAccessGrantFundingServiceNavigationMacro:
 
         for org_name in grant_recipient_org_names:
             organisation = factories.organisation.build(name=org_name)
-            current_user._grant_recipients.extend(factories.grant_recipient.build_batch(3, organisation=organisation))
+            current_user._all_grant_recipients.extend(
+                factories.grant_recipient.build_batch(3, organisation=organisation)
+            )
         current_organisation = (
             current_user.get_grant_recipients()[0].organisation if current_user.get_grant_recipients() else None
         )
@@ -65,7 +67,7 @@ class TestAccessGrantFundingServiceNavigationMacro:
 
         organisation = factories.organisation.build()
         for grant_name in grant_recipient_names:
-            current_user._grant_recipients.append(
+            current_user._all_grant_recipients.append(
                 factories.grant_recipient.build(organisation=organisation, grant__name=grant_name)
             )
         current_grant_recipient = (
@@ -107,10 +109,10 @@ class TestAccessGrantFundingServiceNavigationMacro:
     def test_includes_provided_navigation_alongside_change_links(self, factories):
         current_user = factories.user.build()
         organisation = factories.organisation.build()
-        current_user._grant_recipients.append(
+        current_user._all_grant_recipients.append(
             factories.grant_recipient.build(organisation=organisation, grant__name="Test Grant")
         )
-        current_user._grant_recipients.append(
+        current_user._all_grant_recipients.append(
             factories.grant_recipient.build(organisation=organisation, grant__name="Another Grant")
         )
         current_grant_recipient = current_user.get_grant_recipients()[0]
@@ -145,7 +147,7 @@ class TestAccessGrantFundingServiceNavigationMacro:
         second_grant_recipient = factories.grant_recipient.build(
             organisation=second_organisation, grant__name="Second Grant"
         )
-        current_user._grant_recipients.extend([first_grant_recipient, second_grant_recipient])
+        current_user._all_grant_recipients.extend([first_grant_recipient, second_grant_recipient])
         current_grant_recipient = first_grant_recipient
 
         template_content = """
@@ -197,7 +199,9 @@ class TestAccessGrantFundingServiceNavigationMacro:
         third_grant_recipient = factories.grant_recipient.build(
             organisation=second_organisation, grant__name="Third Grant"
         )
-        current_user._grant_recipients.extend([first_grant_recipient, second_grant_recipient, third_grant_recipient])
+        current_user._all_grant_recipients.extend(
+            [first_grant_recipient, second_grant_recipient, third_grant_recipient]
+        )
         current_grant_recipient = second_grant_recipient
 
         template_content = """

@@ -2,7 +2,7 @@ import re
 from typing import cast
 
 from email_validator import EmailNotValidError, validate_email
-from flask import current_app
+from flask import current_app, session
 from wtforms import StringField
 from wtforms.fields.choices import SelectMultipleField
 from wtforms.fields.core import Field
@@ -92,7 +92,13 @@ class AccessGrantFundingEmail(Email):
 
         user = interfaces.user.get_user_by_email(email)
 
-        if user is None or not user.get_grant_recipients():
+        if user is None or not user.get_grant_recipients(limit_to_active_statuses=False):
+            if session.get("signing_up_for_grant_id"):
+                domain = email.split("@")[1].lower()
+                org = interfaces.organisations.get_organisation_by_email_domain(domain)
+                if org is not None:
+                    return
+
             raise ValidationError(
                 "The email address you entered does not have access to this service. "
                 "Check the email address is correct or request access."

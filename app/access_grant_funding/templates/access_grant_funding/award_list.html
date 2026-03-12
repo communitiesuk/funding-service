@@ -12,6 +12,25 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.PUBLIC_SIGN_UP_SUCCESS]) %}
+        {% if flashes %}
+          {% set sign_up_success_html %}
+            <h3 class="govuk-notification-banner__heading">You have been registered for this grant</h3>
+            <p class="govuk-body">
+              You can
+              <a class="govuk-notification-banner__link" href="{{ url_for('access_grant_funding.list_grant_team', organisation_id=flashes[0]['organisation_id'], grant_id=flashes[0]['grant_id']) }}"> manage your team </a>
+              from the team page.
+            </p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": sign_up_success_html,
+              "type": "success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_SIGN_OFF_DECLINED]) %}
         {% if flashes %}
           {% set submission_declined_html %}

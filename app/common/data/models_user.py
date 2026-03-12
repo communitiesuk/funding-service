@@ -105,15 +105,42 @@ class User(BaseModel):
         viewonly=True,
     )
 
+    # this is just temporary to not need to work out how to backwards compatibly introduce the new
+    # grant recipient types
+    # we would avoid this by adding the right filters to the right places when introducing the new
+    # grant recipient types slowly
+    _all_grant_recipients: Mapped[list[GrantRecipient]] = relationship(
+        "GrantRecipient",
+        secondary="""join(
+            UserRole,
+            Organisation,
+            UserRole.organisation_id == Organisation.id
+        )""",
+        primaryjoin="User.id == UserRole.user_id",
+        secondaryjoin="""and_(
+            GrantRecipient.organisation_id == UserRole.organisation_id,
+            or_(
+                GrantRecipient.grant_id == UserRole.grant_id,
+                UserRole.grant_id.is_(None)
+            ),
+            Organisation.can_manage_grants == False,
+        )""",
+        viewonly=True,
+    )
+
     def get_grant_recipients(
-        self, *, limit_to_organisation_id: uuid.UUID | None = None, limit_to_grant_id: uuid.UUID | None = None
+        self,
+        *,
+        limit_to_organisation_id: uuid.UUID | None = None,
+        limit_to_grant_id: uuid.UUID | None = None,
+        limit_to_active_statuses: bool = True,
     ) -> list[GrantRecipient]:
         return [
             gr
-            for gr in self._grant_recipients
+            for gr in self._all_grant_recipients
             if (gr.organisation.id == limit_to_organisation_id if limit_to_organisation_id is not None else True)
             and (gr.grant_id == limit_to_grant_id if limit_to_grant_id is not None else True)
-            and gr.status in ACTIVE_GRANT_RECIPIENT_STATUSES
+            and (gr.status in ACTIVE_GRANT_RECIPIENT_STATUSES if limit_to_active_statuses else True)
         ]
 
     def get_grant_recipient(self, *, organisation_id: uuid.UUID, grant_id: uuid.UUID) -> GrantRecipient | None:

@@ -163,3 +163,17 @@ def get_grant_recipient_data_providers(grant: Grant) -> Mapping[GrantRecipient, 
         data_providers[grant_recipient] = grant_recipient.data_providers
 
     return data_providers
+
+
+def get_grant_recipient_or_none(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> GrantRecipient | None:
+    """Get a grant recipient by grant and organisation, returning None if not found."""
+    statement = (
+        select(GrantRecipient)
+        .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
+        .where(
+            GrantRecipient.grant_id == grant_id,
+            GrantRecipient.organisation_id == organisation_id,
+        )
+        .options(joinedload(GrantRecipient.grant), joinedload(GrantRecipient.organisation))
+    )
+    return db.session.scalar(statement)

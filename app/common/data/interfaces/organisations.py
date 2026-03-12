@@ -11,6 +11,19 @@ from app.common.data.types import OrganisationData, OrganisationModeEnum, Organi
 from app.extensions import db
 
 
+def get_organisation_by_email_domain(
+    email_domain: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+) -> Organisation | None:
+    """Find an organisation whose trusted_email_domain matches the given email domain."""
+    statement = select(Organisation).where(
+        Organisation.trusted_email_domain == email_domain,
+        Organisation.mode == mode,
+        Organisation.status == OrganisationStatus.ACTIVE,
+        Organisation.can_manage_grants.is_(False),
+    )
+    return db.session.scalar(statement)
+
+
 def get_organisations(
     can_manage_grants: bool | None = None,
     mode: OrganisationModeEnum = OrganisationModeEnum.LIVE,

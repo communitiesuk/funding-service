@@ -2,7 +2,7 @@ import uuid
 from typing import cast
 
 import sentry_sdk
-from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
@@ -15,6 +15,7 @@ from app.common.data.types import AuthMethodEnum, RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.common.security.utils import sanitise_redirect_url
 from app.extensions import auto_commit_after_request, notification_service
+from app.types import FlashMessageType
 
 auth_blueprint = Blueprint(
     "auth",
@@ -59,11 +60,19 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
 
         return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
+    signing_up_for_grant_name = None
+    signing_up_for_grant_id = session.get("signing_up_for_grant_id")
+    if signing_up_for_grant_id:
+        grant = interfaces.grants.get_grant_with_open_public_sign_up_collection(signing_up_for_grant_id)
+        if grant:
+            signing_up_for_grant_name = grant.name
+
     return render_template(
         "access_grant_funding/auth/sign_in_magic_link.html",
         form=form,
         link_expired=link_expired,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+        signing_up_for_grant_name=signing_up_for_grant_name,
     )
 
 
@@ -106,12 +115,33 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
 
         session["auth"] = AuthMethodEnum.MAGIC_LINK
 
+        redirect_to = sanitise_redirect_url(magic_link.redirect_to_path)
+
+        signing_up_for_grant_id = session.pop("signing_up_for_grant_id", None)
+        if signing_up_for_grant_id:
+            from app.access_grant_funding.helpers import process_public_grant_sign_up
+
+            result = process_public_grant_sign_up(str(magic_link.email), signing_up_for_grant_id)
+            if result and result.success:
+                flash(
+                    {  # type: ignore[arg-type]
+                        "organisation_id": str(result.organisation_id),
+                        "grant_id": str(result.grant_id),
+                    },
+                    FlashMessageType.PUBLIC_SIGN_UP_SUCCESS,
+                )
+                redirect_to = url_for(
+                    "access_grant_funding.list_award_collections",
+                    organisation_id=result.organisation_id,
+                    grant_id=result.grant_id,
+                )
+
         auto_submit = session.pop("magic_link_requested", False)
         current_app.logger.info(
             "Magic link claim page submitted: auto_submit=%(auto_submit)s",
             dict(auto_submit=auto_submit),
         )
-        return redirect(sanitise_redirect_url(magic_link.redirect_to_path))
+        return redirect(redirect_to)
 
     auto_submit = session.get("magic_link_requested", False)
     return render_template(

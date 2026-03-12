@@ -199,6 +199,10 @@ class Organisation(BaseModel):
     can_manage_grants: Mapped[bool] = mapped_column(default=False)
     mode: Mapped[OrganisationModeEnum] = mapped_column(default=OrganisationModeEnum.LIVE)
 
+    # todo: organisations sometimes change domain and we may well have to support multiple domains
+    #       for that period of transition
+    trusted_email_domain: Mapped[str | None] = mapped_column(nullable=True)
+
     roles: Mapped[list[UserRole]] = relationship(
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
     )
@@ -279,6 +283,7 @@ class Collection(BaseModel):
     submission_period_end_date: Mapped[datetime.date | None]
     requires_validation: Mapped[bool | None]
     requires_certification: Mapped[bool | None]
+    allow_public_sign_up: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
     submission_name_question: Mapped["Question | None"] = relationship(

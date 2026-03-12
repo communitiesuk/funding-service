@@ -28,6 +28,7 @@ class FlashMessageType(StrEnum):
     SUBMISSION_VALIDATED = "submission_validated"
     SUBMISSION_CHANGES_REQUESTED = "submission_changes_requested"
     SUBMISSION_VALIDATION_DECLINED = "submission_validation_declined"
+    PUBLIC_SIGN_UP_SUCCESS = "public_sign_up_success"
 
 
 class TRadioItem(TypedDict):

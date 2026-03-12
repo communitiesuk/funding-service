@@ -12,7 +12,7 @@ from app.common.data.interfaces.exceptions import (
 )
 from app.common.data.models import Collection, Grant, Organisation
 from app.common.data.models_user import User
-from app.common.data.types import GrantStatusEnum
+from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
@@ -148,3 +148,37 @@ def update_grant(  # noqa: C901
     if privacy_policy_markdown is not NOT_PROVIDED:
         grant.privacy_policy_markdown = privacy_policy_markdown
     return grant
+
+
+def get_grant_with_open_public_sign_up_collection(grant_id: UUID) -> Grant | None:
+    """Get a live grant that has at least one open collection with allow_public_sign_up=True."""
+    statement = (
+        select(Grant)
+        .join(Collection, Collection.grant_id == Grant.id)
+        .where(
+            Grant.id == grant_id,
+            Grant.status == GrantStatusEnum.LIVE,
+            Collection.allow_public_sign_up.is_(True),
+            # todo: how should this be tested? we don't want public sign up pages to be available legitimately for
+            #       maybe for now its only available to non-open collections if its an already signed in deliver user
+            Collection.status == CollectionStatusEnum.OPEN,
+        )
+        .options(selectinload(Grant.collections))
+    )
+    return db.session.scalar(statement)
+
+
+def get_grant_with_open_public_sign_up_collection_by_name(grant_name: str) -> Grant | None:
+    """Get a live grant by name that has at least one open collection with allow_public_sign_up=True."""
+    statement = (
+        select(Grant)
+        .join(Collection, Collection.grant_id == Grant.id)
+        .where(
+            Grant.name == grant_name,
+            Grant.status == GrantStatusEnum.LIVE,
+            Collection.allow_public_sign_up.is_(True),
+            Collection.status == CollectionStatusEnum.OPEN,
+        )
+        .options(selectinload(Grant.collections))
+    )
+    return db.session.scalar(statement)
