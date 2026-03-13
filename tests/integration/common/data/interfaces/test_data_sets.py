@@ -7,6 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
+from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 
@@ -24,8 +25,16 @@ class TestCreateUploadedDataSourceGrantRecipient:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Capital allocation": "500000"},
-            {"ONS code": "E456", "Grant recipient": "Lothlorien", "Capital allocation": "300000"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Capital allocation": "500000",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E456",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                "Capital allocation": "300000",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -66,8 +75,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
         ]
         all_rows = [
             {
-                "ONS code": "E123",
-                "Grant recipient": "Rivendell",
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
                 "Capital allocation": "£500000",
                 "Additional info": "Notes",
             },
@@ -103,8 +112,16 @@ class TestCreateUploadedDataSourceGrantRecipient:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Capital allocation": "500000"},
-            {"ONS code": "E456", "Grant recipient": "Lothlorien", "Capital allocation": "300000"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Capital allocation": "500000",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E456",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                "Capital allocation": "300000",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -146,8 +163,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
         ]
         all_rows = [
             {
-                "ONS code": "E123",
-                "Grant recipient": "Rivendell",
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
                 "Capital allocation": "500000",
                 "Description": "A fine place",
             },
@@ -184,7 +201,11 @@ class TestCreateUploadedDataSourceGrantRecipient:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Amount": "£1.50m"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Amount": "£1.50m",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -213,7 +234,11 @@ class TestCreateUploadedDataSourceGrantRecipient:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Capital allocation": "500000"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Capital allocation": "500000",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -242,7 +267,11 @@ class TestCreateUploadedDataSourceGrantRecipient:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Notes": ""},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Notes": "",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -277,9 +306,24 @@ class TestCreateUploadedDataSourceProjectLevel:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Project name": "Roads", "Allocation": "5"},
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Project name": "Trees", "Allocation": "10"},
-            {"ONS code": "E456", "Grant recipient": "Lothlorien", "Project name": "Bridges", "Allocation": "15"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Project name": "Roads",
+                "Allocation": "5",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Project name": "Trees",
+                "Allocation": "10",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E456",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                "Project name": "Bridges",
+                "Allocation": "15",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -318,8 +362,18 @@ class TestCreateUploadedDataSourceProjectLevel:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Project name": "Roads", "Allocation": "5"},
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Project name": "Trees", "Allocation": "10"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Project name": "Roads",
+                "Allocation": "5",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Project name": "Trees",
+                "Allocation": "10",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -352,7 +406,11 @@ class TestCreateUploadedDataSourceProjectLevel:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Project name": "Roads"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Project name": "Roads",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -505,7 +563,11 @@ class TestCreateUploadedDataSourceSchemaOptions:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Amount": "£100.50"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Amount": "£100.50",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -536,7 +598,11 @@ class TestCreateUploadedDataSourceSchemaOptions:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Description": "Notes"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Description": "Notes",
+            },
         ]
 
         data_source = create_uploaded_data_source(
@@ -566,7 +632,11 @@ class TestCreateUploadedDataSourceSchemaOptions:
             ),
         ]
         all_rows = [
-            {"ONS code": "E123", "Grant recipient": "Rivendell", "Capital Allocation (£)": "500000"},
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Capital Allocation (£)": "500000",
+            },
         ]
 
         data_source = create_uploaded_data_source(

@@ -13,6 +13,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType, SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
+from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping, DataSetUploadSessionModel
 from app.extensions import s3_service
 
@@ -179,27 +180,35 @@ def _validate_row(row: dict[str, str], idx: int, data_set: DataSetUploadSessionM
 
 
 def _check_grant_recipient_row(
-    ons_code: str,
+    external_id: str,
     recipient: str,
     row_number: int,
-    ons_codes: set[str],
+    external_ids: set[str],
     recipient_names: set[str],
-    seen_ons_codes: set[str],
+    seen_external_ids: set[str],
     seen_recipient_names: set[str],
     check_duplicates: bool,
 ) -> list[str]:
     errors: list[str] = []
-    ons_code_unknown = ons_code not in ons_codes
+    external_id_unknown = external_id not in external_ids
 
-    if ons_code_unknown:
-        errors.append(f"Row {row_number}: ONS code '{ons_code}' not found in grant recipients")
-    elif check_duplicates and ons_code in seen_ons_codes:
-        errors.append(f"Row {row_number}: ONS code '{ons_code}' already appears in the data set")
+    if external_id_unknown:
+        errors.append(
+            f"Row {row_number}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' not found in grant recipients"
+        )
+    elif check_duplicates and external_id in seen_external_ids:
+        errors.append(
+            f"Row {row_number}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' already appears in the data set"
+        )
 
     if recipient not in recipient_names:
-        errors.append(f"Row {row_number}: Grant recipient '{recipient}' not found in grant recipients")
-    elif check_duplicates and not ons_code_unknown and recipient in seen_recipient_names:
-        errors.append(f"Row {row_number}: Grant recipient '{recipient}' already appears in the data set")
+        errors.append(
+            f"Row {row_number}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' not found in grant recipients"
+        )
+    elif check_duplicates and not external_id_unknown and recipient in seen_recipient_names:
+        errors.append(
+            f"Row {row_number}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' already appears in the data set"
+        )
 
     return errors
 
@@ -212,44 +221,51 @@ def validate_data_set_grant_recipients(
         return []
 
     errors: list[str] = []
-    ons_codes = {gr.organisation.external_id for gr in grant_recipients}
+    external_ids = {gr.organisation.external_id for gr in grant_recipients}
     recipient_names = {gr.organisation.name for gr in grant_recipients}
-    seen_ons_codes: set[str] = set()
+    seen_external_ids: set[str] = set()
     seen_recipient_names: set[str] = set()
     check_duplicates = data_set.data_source_type == DataSourceType.GRANT_RECIPIENT
 
     for idx, row in enumerate(data_set.all_rows):
-        ons_code = row.get("ONS code", "").strip()
-        recipient = row.get("Grant recipient", "").strip()
+        external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
+        recipient = row.get(DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, "").strip()
 
-        if not ons_code and not recipient:
+        if not external_id and not recipient:
             row_has_data = any(row.get(col, "").strip() for col in data_set.data_columns)
             if row_has_data:
-                errors.append(f"Row {idx + 1}: Data is present but ONS code and grant recipient are missing")
+                errors.append(
+                    f"Row {idx + 1}: Data is present but {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient "
+                    "are missing"
+                )
             continue
 
-        if bool(ons_code) != bool(recipient):
-            errors.append(f"Row {idx + 1}: Both ONS code and grant recipient name are required")
+        if bool(external_id) != bool(recipient):
+            errors.append(
+                f"Row {idx + 1}: Both {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient name are required"
+            )
             continue
 
         errors.extend(
             _check_grant_recipient_row(
-                ons_code,
+                external_id,
                 recipient,
                 idx + 1,
-                ons_codes,
+                external_ids,
                 recipient_names,
-                seen_ons_codes,
+                seen_external_ids,
                 seen_recipient_names,
                 check_duplicates,
             )
         )
-        seen_ons_codes.add(ons_code)
-        if ons_code in ons_codes:
+        seen_external_ids.add(external_id)
+        if external_id in external_ids:
             seen_recipient_names.add(recipient)
 
-    for ons_code in sorted(ons_codes - seen_ons_codes):
-        errors.append(f"Grant recipient with ONS code '{ons_code}' is missing from the CSV")
+    for external_id in sorted(external_ids - seen_external_ids):
+        errors.append(
+            f"Grant recipient with {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' is missing from the CSV"
+        )
     for name in sorted(recipient_names - seen_recipient_names):
         errors.append(f"Grant recipient '{name}' is missing from the CSV")
 

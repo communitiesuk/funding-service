@@ -81,6 +81,11 @@ from app.common.expressions.forms import _ManagedExpressionForm, build_managed_e
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
+from app.constants import (
+    DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+    DATA_SET_IDENTIFIER_COLUMN_HEADERS,
+)
 from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
@@ -2393,7 +2398,7 @@ def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) 
     csv_output = io.StringIO()
     csv_writer = csv.DictWriter(
         csv_output,
-        fieldnames=["ONS code", "Grant recipient"],
+        fieldnames=[DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER],
     )
     csv_writer.writeheader()
     for gr in sorted(grant_recipients, key=lambda gr: gr.organisation.name):
@@ -2401,8 +2406,8 @@ def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) 
             continue
         csv_writer.writerow(
             {
-                "ONS code": gr.organisation.external_id or "",
-                "Grant recipient": gr.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id or "",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
             }
         )
 
@@ -2447,15 +2452,7 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 
     data_set_data = _extract_data_set_data_from_session()
 
-    form = UploadDataSetForm(
-        existing_data_source_names=[ds.name for ds in report.data_sources],
-        data={
-            "name": data_set_data.name,
-            "data_source_type": data_set_data.data_source_type,
-        }
-        if data_set_data
-        else None,
-    )
+    form = UploadDataSetForm(existing_data_source_names=[ds.name for ds in report.data_sources], obj=data_set_data)
 
     gr_errors: list[str] = []
 
@@ -2463,16 +2460,13 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         columns, rows = _parse_data_set_csv(form.file.data)
 
         if form.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
-            identifier_columns = ["ONS code", "Grant recipient"]
-            data_columns = [col for col in columns if col not in identifier_columns]
+            data_columns = [col for col in columns if col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
         else:
-            identifier_columns = []
             data_columns = columns
 
         session_data = DataSetUploadSessionModel(
             name=cast(str, form.name.data),
             data_source_type=form.data_source_type.data,
-            grant_recipient_identifier_columns=identifier_columns,
             data_columns=data_columns,
             preview_rows=rows[:5],
             all_rows=rows,

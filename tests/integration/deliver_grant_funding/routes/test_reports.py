@@ -44,6 +44,7 @@ from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
 from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
+from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddSectionForm,
@@ -6584,7 +6585,6 @@ class TestListReportDataSets:
                 "name": "Test Data Set",
                 "is_grant_recipient_data": True,
                 "is_grant_recipient_project_level_data": False,
-                "grant_recipient_identifier_columns": ["ONS code", "Grant recipient"],
                 "data_columns": ["Amount"],
                 "preview_rows": [],
                 "all_rows": [],
@@ -6660,7 +6660,7 @@ class TestDownloadGrantRecipientDataSetTemplate:
         assert len(lines) == 4  # Header + 3 grant recipients
 
         header = lines[0]
-        assert "ONS code" in header
+        assert DATA_SET_EXTERNAL_ID_COLUMN_HEADER in header
         assert "Grant recipient" in header
 
         assert grant_recipient_2.organisation.name in lines[1]
@@ -6741,7 +6741,6 @@ class TestUploadDataSet:
             session["data_set_upload"] = {
                 "name": "Test Data Set",
                 "data_source_type": DataSourceType.PROJECT_LEVEL,
-                "grant_recipient_identifier_columns": ["ONS code", "Grant recipient"],
                 "data_columns": ["Amount"],
                 "preview_rows": [],
                 "all_rows": [],
@@ -6767,7 +6766,7 @@ class TestUploadDataSet:
         factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Rivendell")
         factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Lothlorien")
 
-        csv_content = "ONS code,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
+        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
         data = {
             "name": "Test Data Set",
             "data_source_type": DataSourceType.GRANT_RECIPIENT,
@@ -6790,7 +6789,6 @@ class TestUploadDataSet:
             assert session_data is not None
             assert session_data["name"] == "Test Data Set"
             assert session_data["data_source_type"] == DataSourceType.GRANT_RECIPIENT
-            assert session_data["grant_recipient_identifier_columns"] == ["ONS code", "Grant recipient"]
             assert session_data["data_columns"] == ["Amount"]
             assert len(session_data["all_rows"]) == 2
 
@@ -6803,7 +6801,7 @@ class TestUploadDataSet:
             grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT, name="Test Data Set"
         )
 
-        csv_content = "ONS code,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
+        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
         data = {
             "name": "Test Data Set",
             "data_source_type": DataSourceType.GRANT_RECIPIENT,
@@ -6837,7 +6835,10 @@ class TestUploadDataSet:
         )
 
         assert response.status_code == 200
-        assert "The CSV file must contain the columns: ONS code, Grant recipient" in response.text
+        assert (
+            f"The CSV file must contain the columns: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER}, "
+            "{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
+        ) in response.text
 
     def test_post_raises_errors_for_incorrect_grant_recipient_data(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
@@ -6846,7 +6847,7 @@ class TestUploadDataSet:
         factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
 
         csv_content = (
-            "ONS code,Grant recipient,Amount,Category\nE123,Lothlorien,1000,A"
+            "Organisation ID,Grant recipient,Amount,Category\nE123,Lothlorien,1000,A"
             + "\nE123,Rogue,1000,A\nE789,Mordor,1000,A"
         )
         data = {
@@ -6863,18 +6864,20 @@ class TestUploadDataSet:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "ONS code 'E123' already appears in the data set")
+        assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E123' already appears in the data set")
         assert page_has_error(soup, "Grant recipient 'Rogue' not found in grant recipients")
-        assert page_has_error(soup, "ONS code 'E789' not found in grant recipients")
+        assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E789' not found in grant recipients")
         assert page_has_error(soup, "Grant recipient 'Mordor' not found in grant recipients")
-        assert page_has_error(soup, "Grant recipient with ONS code 'E456' is missing from the CSV")
+        assert page_has_error(
+            soup, f"Grant recipient with {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E456' is missing from the CSV"
+        )
         assert page_has_error(soup, "Grant recipient 'Numenor' is missing from the CSV")
 
     def test_post_missing_name(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
 
-        csv_content = "ONS code,Grant recipient,Amount\nE123,Lothlorien,1000"
+        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Lothlorien,1000"
         data = {
             "name": "",
             "data_source_type": DataSourceType.STATIC,
@@ -7008,7 +7011,6 @@ class TestMapDataSetColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Capital allocation", "Revenue allocation", "Notes"],
                 preview_rows=[
                     {"Capital allocation": "£1000", "Revenue allocation": "£10000", "Notes": "First"},
@@ -7041,7 +7043,6 @@ class TestMapDataSetColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=[
                     "Capital allocation",
                     "Revenue allocation",
@@ -7091,7 +7092,6 @@ class TestMapDataSetColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Capital allocation", "Additional info"],
                 preview_rows=[
                     {"Capital allocation": "1000", "Additional info": "Some extra details"},
@@ -7130,7 +7130,6 @@ class TestMapDataSetColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Area description"],
                 preview_rows=[
                     {"Area description": "A fine place"},
@@ -7138,13 +7137,13 @@ class TestMapDataSetColumns:
                 ],
                 all_rows=[
                     {
-                        "Grant recipient": grant_recipient.organisation.name,
-                        "ONS code": grant_recipient.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
                         "Area description": "A fine place",
                     },
                     {
-                        "Grant recipient": grant_recipient_2.organisation.name,
-                        "ONS code": grant_recipient_2.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
                         "Area description": "A wonderful place",
                     },
                 ],
@@ -7175,15 +7174,22 @@ class TestMapDataSetColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.PROJECT_LEVEL,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Area description"],
                 preview_rows=[
                     {"Area description": "A fine place"},
                     {"Area description": "A wonderful place"},
                 ],
                 all_rows=[
-                    {"ONS code": "E123", "Grant recipient": "Lothlorien", "Area description": ""},
-                    {"ONS code": "E123", "Grant recipient": "Lothlorien", "Area description": ""},
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                        "Area description": "",
+                    },
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                        "Area description": "",
+                    },
                 ],
             ).model_dump(mode="json")
 
@@ -7211,7 +7217,6 @@ class TestMapDataSetColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=[
                     "Capital allocation",
                     "Revenue allocation",
@@ -7252,7 +7257,6 @@ class TestMapDataSetNumberColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Additional info", "Capital allocation", "Revenue allocation"],
                 preview_rows=[
                     {"Additional info": "Some text", "Capital allocation": "£1000", "Revenue allocation": "£10000"},
@@ -7301,7 +7305,6 @@ class TestMapDataSetNumberColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Capital allocation", "Revenue allocation", "Additional info"],
                 preview_rows=[
                     {"Capital allocation": "£1000", "Revenue allocation": "£10000", "Additional info": "Some text"},
@@ -7353,7 +7356,6 @@ class TestMapDataSetNumberColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Capital allocation", "Revenue allocation", "Additional info"],
                 preview_rows=[
                     {"Capital allocation": "£1000", "Revenue allocation": "£10000", "Additional info": "Some text"},
@@ -7377,15 +7379,15 @@ class TestMapDataSetNumberColumns:
                 ],
                 all_rows=[
                     {
-                        "Grant recipient": grant_recipient.organisation.name,
-                        "ONS code": grant_recipient.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
                         "Capital allocation": "£1000",
                         "Revenue allocation": "£10000",
                         "Additional info": "Some text",
                     },
                     {
-                        "Grant recipient": grant_recipient_2.organisation.name,
-                        "ONS code": grant_recipient_2.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
                         "Capital allocation": "£2000",
                         "Revenue allocation": "£30000",
                         "Additional info": "Some text",
@@ -7426,9 +7428,14 @@ class TestMapDataSetNumberColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Capital allocation"],
-                preview_rows=[{"ONS code": "E123", "Grant recipient": "Org", "Capital allocation": "not a number"}],
+                preview_rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Org",
+                        "Capital allocation": "not a number",
+                    }
+                ],
                 column_mappings=[
                     DataSetColumnMapping(
                         column_name="Capital allocation",
@@ -7436,7 +7443,13 @@ class TestMapDataSetNumberColumns:
                         number_type=NumberTypeEnum.INTEGER,
                     ),
                 ],
-                all_rows=[{"ONS code": "E123", "Grant recipient": "Lothlorien", "Capital allocation": "not a number"}],
+                all_rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                        "Capital allocation": "not a number",
+                    }
+                ],
             ).model_dump(mode="json")
 
         data = {
@@ -7465,7 +7478,6 @@ class TestMapDataSetNumberColumns:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=[
                     "Capital allocation",
                     "Revenue allocation",
@@ -7528,18 +7540,17 @@ class TestCheckDataSetErrors:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Capital allocation", "Revenue allocation"],
                 preview_rows=[
                     {
-                        "ONS code": grant_recipient.organisation.external_id,
-                        "Grant recipient": grant_recipient.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
                         "Capital allocation": "not a number",
                         "Revenue allocation": "$2000.1234",
                     },
                     {
-                        "ONS code": grant_recipient_2.organisation.external_id,
-                        "Grant recipient": grant_recipient_2.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
                         "Capital allocation": "",
                         "Revenue allocation": "",
                     },
@@ -7560,14 +7571,14 @@ class TestCheckDataSetErrors:
                 ],
                 all_rows=[
                     {
-                        "ONS code": grant_recipient.organisation.external_id,
-                        "Grant recipient": grant_recipient.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
                         "Capital allocation": "not a number",
                         "Revenue allocation": "$2000",
                     },
                     {
-                        "ONS code": grant_recipient_2.organisation.external_id,
-                        "Grant recipient": grant_recipient_2.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
                         "Capital allocation": "",
                         "Revenue allocation": "2000.1234",
                     },
@@ -7599,18 +7610,17 @@ class TestCheckDataSetErrors:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
-                grant_recipient_identifier_columns=["ONS code", "Grant recipient"],
                 data_columns=["Capital allocation", "Revenue allocation"],
                 preview_rows=[
                     {
-                        "ONS code": grant_recipient.organisation.external_id,
-                        "Grant recipient": grant_recipient.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
                         "Capital allocation": "",
                         "Revenue allocation": "",
                     },
                     {
-                        "ONS code": grant_recipient_2.organisation.external_id,
-                        "Grant recipient": grant_recipient_2.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
                         "Capital allocation": "",
                         "Revenue allocation": "£200.00",
                     },
@@ -7631,14 +7641,14 @@ class TestCheckDataSetErrors:
                 ],
                 all_rows=[
                     {
-                        "ONS code": grant_recipient.organisation.external_id,
-                        "Grant recipient": grant_recipient.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
                         "Capital allocation": "",
                         "Revenue allocation": "",
                     },
                     {
-                        "ONS code": grant_recipient_2.organisation.external_id,
-                        "Grant recipient": grant_recipient_2.organisation.name,
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
                         "Capital allocation": "",
                         "Revenue allocation": "£200.00",
                     },

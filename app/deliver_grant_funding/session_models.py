@@ -110,7 +110,6 @@ class DataSetColumnMapping(BaseModel):
 class DataSetUploadSessionModel(BaseModel):
     name: str
     data_source_type: DataSourceType
-    grant_recipient_identifier_columns: list[str] = []
     data_columns: list[str]
     preview_rows: list[dict[str, str]]
     all_rows: list[dict[str, str]]

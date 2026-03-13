@@ -8,6 +8,7 @@ from app.common.data.types import (
     QuestionDataType,
     SubmissionModeEnum,
 )
+from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.helpers import (
     start_previewing_collection,
     validate_data_set,
@@ -74,9 +75,6 @@ def _make_data_set(
     return DataSetUploadSessionModel(
         name="Test Data Set",
         data_source_type=data_source_type,
-        grant_recipient_identifier_columns=["ONS code", "Grant recipient"]
-        if data_source_type != DataSourceType.STATIC
-        else [],
         data_columns=data_columns or [],
         preview_rows=[],
         column_mappings=column_mappings or [],
@@ -105,8 +103,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Capital allocation": "£1000.00",
                     "Revenue allocation": "500",
                 },
@@ -151,8 +149,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Notes": "",
                 }
             ],
@@ -175,14 +173,14 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Notes": "",
                     "Summary": "ok",
                 },
                 {
-                    "ONS code": gr2.organisation.external_id,
-                    "Grant recipient": gr2.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
                     "Notes": "",
                     "Summary": "",
                 },
@@ -209,8 +207,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Capital allocation": "$1000.00",
                 }
             ],
@@ -237,8 +235,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Capital allocation": "1000.00",
                 }
             ],
@@ -263,8 +261,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Rate": "50.00",
                 }
             ],
@@ -289,8 +287,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Capital allocation": "£1000.123",
                 }
             ],
@@ -316,8 +314,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Revenue allocation": "abc",
                 }
             ],
@@ -343,8 +341,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Rate": "not-a-number",
                 }
             ],
@@ -372,8 +370,8 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Capital allocation": "not-a-number",
                     "Notes": "",
                 }
@@ -403,13 +401,13 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Capital allocation": "£1000.00",
                 },
                 {
-                    "ONS code": gr2.organisation.external_id,
-                    "Grant recipient": gr2.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
                     "Capital allocation": "$1000.00",
                 },
             ],
@@ -439,14 +437,14 @@ class TestValidateDataSet:
             ],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "Capital allocation": "$1000.00",
                     "Revenue allocation": "500",
                 },
                 {
-                    "ONS code": gr2.organisation.external_id,
-                    "Grant recipient": gr2.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
                     "Capital allocation": "£1000.123",
                     "Revenue allocation": "not-a-number",
                 },
@@ -472,51 +470,83 @@ class TestValidateDataSetGrantRecipients:
         data_set = _make_data_set(
             data_columns=["Amount"],
             all_rows=[
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "100"}
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "100",
+                }
             ],
         )
         assert validate_data_set_grant_recipients(data_set, [gr]) == []
 
-    def test_unknown_ons_code_is_error(self, factories):
+    def test_unknown_external_id_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(
             data_columns=["Amount"],
-            all_rows=[{"ONS code": "UNKNOWN", "Grant recipient": gr.organisation.name, "Amount": "100"}],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "UNKNOWN",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "100",
+                }
+            ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr])
-        assert any("ONS code 'UNKNOWN' not found in grant recipients" in e for e in errors)
+        assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'UNKNOWN' not found in grant recipients" in e for e in errors)
 
     def test_unknown_recipient_name_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(
             data_columns=["Amount"],
             all_rows=[
-                {"ONS code": gr.organisation.external_id, "Grant recipient": "Rogue Organisation", "Amount": "100"}
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rogue Organisation",
+                    "Amount": "100",
+                }
             ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr])
         assert any("Grant recipient 'Rogue Organisation' not found in grant recipients" in e for e in errors)
 
-    def test_duplicate_ons_code_is_error_for_grant_recipient_type(self, factories):
+    def test_duplicate_external_id_is_error_for_grant_recipient_type(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(
             data_columns=["Amount"],
             all_rows=[
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "100"},
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "200"},
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "100",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "200",
+                },
             ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr])
-        assert any(f"ONS code '{gr.organisation.external_id}' already appears" in e for e in errors)
+        assert any(
+            f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr.organisation.external_id}' already appears" in e for e in errors
+        )
 
-    def test_duplicate_ons_code_is_not_error_for_project_level(self, factories):
+    def test_duplicate_external_id_is_not_error_for_project_level(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(
             data_source_type=DataSourceType.PROJECT_LEVEL,
             data_columns=["Amount"],
             all_rows=[
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "100"},
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "200"},
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "100",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "200",
+                },
             ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr])
@@ -528,21 +558,36 @@ class TestValidateDataSetGrantRecipients:
         data_set = _make_data_set(
             data_columns=["Amount"],
             all_rows=[
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "100"}
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "100",
+                }
             ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr, gr2])
-        assert any(f"ONS code '{gr2.organisation.external_id}' is missing from the CSV" in e for e in errors)
+        assert any(
+            f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr2.organisation.external_id}' is missing from the CSV" in e
+            for e in errors
+        )
         assert any(f"'{gr2.organisation.name}' is missing from the CSV" in e for e in errors)
 
-    def test_ons_code_without_recipient_name_is_error(self, factories):
+    def test_external_id_without_recipient_name_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(
             data_columns=["Amount"],
-            all_rows=[{"ONS code": gr.organisation.external_id, "Grant recipient": "", "Amount": "100"}],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "",
+                    "Amount": "100",
+                }
+            ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr])
-        assert any("Both ONS code and grant recipient name are required" in e for e in errors)
+        assert any(
+            f"Both {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient name are required" in e for e in errors
+        )
 
     def test_data_present_but_no_identifiers_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
@@ -551,35 +596,42 @@ class TestValidateDataSetGrantRecipients:
             data_columns=["project name", "project cost"],
             all_rows=[
                 {
-                    "ONS code": gr.organisation.external_id,
-                    "Grant recipient": gr.organisation.name,
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                     "project name": "Roads",
                     "project cost": "1000",
                 },
                 {
-                    "ONS code": "",
-                    "Grant recipient": "",
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "",
                     "project name": "Orphan project",
                     "project cost": "500",
                 },
             ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr])
-        assert any("Data is present but ONS code and grant recipient are missing" in e for e in errors)
+        assert any(
+            f"Data is present but {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient are missing" in e
+            for e in errors
+        )
 
     def test_fully_empty_row_is_skipped(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(
             data_columns=["Amount"],
             all_rows=[
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "100"},
-                {"ONS code": "", "Grant recipient": "", "Amount": ""},
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "100",
+                },
+                {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "", "Amount": ""},
             ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr])
         assert errors == []
 
-    def test_unknown_ons_code_suppresses_recipient_duplicate_check(self, factories):
+    def test_unknown_external_id_suppresses_recipient_duplicate_check(self, factories):
         gr = factories.grant_recipient.create(
             organisation__external_id="T0001",
             organisation__name="Ministry of Testing",
@@ -587,13 +639,21 @@ class TestValidateDataSetGrantRecipients:
         data_set = _make_data_set(
             data_columns=["Amount"],
             all_rows=[
-                {"ONS code": "T0001", "Grant recipient": "Ministry of Testing", "Amount": "100"},  # valid
-                {"ONS code": "T9999", "Grant recipient": "Ministry of Testing", "Amount": "200"},  # unknown ONS code
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Ministry of Testing",
+                    "Amount": "100",
+                },  # valid
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T9999",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Ministry of Testing",
+                    "Amount": "200",
+                },  # unknown external_id
             ],
         )
         errors = validate_data_set_grant_recipients(data_set, [gr])
 
-        assert any("ONS code 'T9999' not found" in e for e in errors)
+        assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'T9999' not found" in e for e in errors)
         assert not any("Ministry of Testing" in e and "already appears" in e for e in errors)
 
     def test_duplicates_missing_and_unknown_combined(self, factories):
@@ -603,18 +663,39 @@ class TestValidateDataSetGrantRecipients:
         data_set = _make_data_set(
             data_columns=["Amount"],
             all_rows=[
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "100"},
-                {"ONS code": gr2.organisation.external_id, "Grant recipient": gr2.organisation.name, "Amount": "200"},
-                {"ONS code": gr.organisation.external_id, "Grant recipient": gr.organisation.name, "Amount": "300"},
-                {"ONS code": "AB1111", "Grant recipient": "Rivendell", "Amount": "400"},
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "100",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                    "Amount": "200",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                    "Amount": "300",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "AB1111",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                    "Amount": "400",
+                },
             ],
         )
 
         errors = validate_data_set_grant_recipients(data_set, [gr, gr2, gr3])
 
-        assert any(f"ONS code '{gr.organisation.external_id}' already appears" in e for e in errors)
+        assert any(
+            f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr.organisation.external_id}' already appears" in e for e in errors
+        )
         assert any(f"Grant recipient '{gr.organisation.name}' already appears" in e for e in errors)
-        assert any(f"ONS code '{gr3.organisation.external_id}' is missing from the CSV" in e for e in errors)
+        assert any(
+            f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr3.organisation.external_id}' is missing from the CSV" in e
+            for e in errors
+        )
         assert any(f"'{gr3.organisation.name}' is missing from the CSV" in e for e in errors)
-        assert any("ONS code 'AB1111' not found in grant recipients" in e for e in errors)
+        assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'AB1111' not found in grant recipients" in e for e in errors)
         assert any("Grant recipient 'Rivendell' not found in grant recipients" in e for e in errors)

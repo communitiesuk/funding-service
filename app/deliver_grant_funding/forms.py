@@ -46,6 +46,7 @@ from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
+from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
@@ -922,10 +923,10 @@ class UploadDataSetForm(FlaskForm):
 
             if self.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
                 missing = []
-                if "ONS code" not in fieldnames:
-                    missing.append("ONS code")
-                if "Grant recipient" not in fieldnames:
-                    missing.append("Grant recipient")
+                if DATA_SET_EXTERNAL_ID_COLUMN_HEADER not in fieldnames:
+                    missing.append(DATA_SET_EXTERNAL_ID_COLUMN_HEADER)
+                if DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER not in fieldnames:
+                    missing.append(DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER)
                 if missing:
                     raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
 
