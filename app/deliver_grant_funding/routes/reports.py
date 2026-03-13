@@ -86,6 +86,10 @@ from app.constants import (
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
     DATA_SET_IDENTIFIER_COLUMN_HEADERS,
 )
+from app.deliver_grant_funding.data_sets import (
+    validate_data_set,
+    validate_data_set_grant_recipients,
+)
 from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
@@ -107,11 +111,7 @@ from app.deliver_grant_funding.forms import (
     TestGrantRecipientJourneyForm,
     UploadDataSetForm,
 )
-from app.deliver_grant_funding.helpers import (
-    start_previewing_collection,
-    validate_data_set,
-    validate_data_set_grant_recipients,
-)
+from app.deliver_grant_funding.helpers import start_previewing_collection
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.deliver_grant_funding.session_models import (
     AddConditionDependsOnSessionModel,

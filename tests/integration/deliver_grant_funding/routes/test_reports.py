@@ -6837,7 +6837,7 @@ class TestUploadDataSet:
         assert response.status_code == 200
         assert (
             f"The CSV file must contain the columns: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER}, "
-            "{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
+            f"{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
         ) in response.text
 
     def test_post_raises_errors_for_incorrect_grant_recipient_data(self, authenticated_grant_admin_client, factories):
