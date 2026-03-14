@@ -1,0 +1,21 @@
+@use "govuk";
+
+// Sort link indicators for DataTable column headers
+
+.data-table__sort-link {
+    position: relative;
+    padding-right: govuk.govuk-spacing(4);
+    white-space: nowrap;
+
+    &::after {
+        content: " ⇅";
+    }
+}
+
+.data-table__sort-link--asc::after {
+    content: " ▲";
+}
+
+.data-table__sort-link--desc::after {
+    content: " ▼";
+}

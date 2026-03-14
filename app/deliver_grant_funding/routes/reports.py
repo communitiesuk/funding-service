@@ -68,10 +68,13 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     RoleEnum,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
+from app.common.data_table import Column, DataTable, SelectFilter, TextFilter
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import _ManagedExpressionForm, build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
+from app.common.filters import format_date_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.deliver_grant_funding.forms import (
@@ -2250,12 +2253,135 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
 
     helper = CollectionHelper(collection=report, submission_mode=submission_mode)
 
+    status_choices = [(s.value, s.value) for s in SubmissionStatusEnum]
+
+    def _format_status(status_value: str, row: dict) -> str:
+        status = SubmissionStatusEnum(status_value)
+        is_overdue = row["is_overdue"]
+        status_text = f"{status_value} (Overdue)" if is_overdue else status_value
+        if status == SubmissionStatusEnum.SUBMITTED:
+            return f'<span class="govuk-body govuk-!-margin-bottom-0">{status_text}</span>'
+        class_map = {
+            SubmissionStatusEnum.NOT_STARTED: "govuk-tag--grey",
+            SubmissionStatusEnum.IN_PROGRESS: "govuk-tag--light-blue",
+            SubmissionStatusEnum.READY_TO_SUBMIT: "govuk-tag--blue",
+            SubmissionStatusEnum.AWAITING_SIGN_OFF: "govuk-tag--purple",
+        }
+        tag_class = "govuk-tag--yellow" if is_overdue else class_map.get(status, "")
+        return f'<strong class="govuk-tag app-status-tag {tag_class}">{status_text}</strong>'
+
+    if report.allow_multiple_submissions:
+        submission_name_label = (
+            report.submission_name_question.name[0].upper() + report.submission_name_question.name[1:]
+            if report.submission_name_question
+            else "Submission"
+        )
+        data = [
+            {
+                "submission_helper": sh,
+                "submission_name": sh.submission_name,
+                "grant_recipient_name": sh.submission.grant_recipient.organisation.name,
+                "status": sh.status.value,
+                "is_overdue": sh.is_overdue,
+                "last_updated_at_utc": sh.last_updated_at_utc,
+                "submission_id": sh.submission.id,
+            }
+            for sh in helper.submission_helpers.values()
+        ]
+        table = DataTable(
+            columns=[
+                Column(
+                    submission_name_label,
+                    "submission_name",
+                    sortable=True,
+                    link=lambda row: url_for(
+                        "deliver_grant_funding.view_submission",
+                        grant_id=grant_id,
+                        submission_id=row["submission_id"],
+                    ),
+                    classes="govuk-!-width-one-third",
+                ),
+                Column(
+                    "Grant recipient",
+                    "grant_recipient_name",
+                    sortable=True,
+                    filter=TextFilter(),
+                ),
+                Column(
+                    "Status",
+                    "status",
+                    sortable=True,
+                    filter=SelectFilter(choices=status_choices),
+                    formatter=_format_status,
+                    is_html=True,
+                ),
+                Column(
+                    "Last updated",
+                    "last_updated_at_utc",
+                    sortable=True,
+                    formatter=lambda val, row: format_date_short(val) if val else "",
+                ),
+            ],
+            data=data,
+            request_args=request.args,
+        )
+    else:
+        data = []
+        for grant_recipient in helper.grant_recipients:
+            sh = helper.grant_recipients_submission_helpers[grant_recipient.id]
+            data.append(
+                {
+                    "grant_recipient_name": grant_recipient.organisation.name,
+                    "status": sh.status.value if sh else SubmissionStatusEnum.NOT_STARTED.value,
+                    "is_overdue": sh.is_overdue if sh else report.is_overdue,
+                    "last_updated_at_utc": sh.last_updated_at_utc if sh else None,
+                    "submission_id": sh.submission.id if sh else None,
+                }
+            )
+        table = DataTable(
+            columns=[
+                Column(
+                    "Grant recipient",
+                    "grant_recipient_name",
+                    sortable=True,
+                    link=lambda row: (
+                        url_for(
+                            "deliver_grant_funding.view_submission",
+                            grant_id=grant_id,
+                            submission_id=row["submission_id"],
+                        )
+                        if row["submission_id"]
+                        else None
+                    ),
+                    classes="govuk-!-width-one-half",
+                    filter=TextFilter(),
+                ),
+                Column(
+                    "Status",
+                    "status",
+                    sortable=True,
+                    filter=SelectFilter(choices=status_choices),
+                    formatter=_format_status,
+                    is_html=True,
+                ),
+                Column(
+                    "Last updated",
+                    "last_updated_at_utc",
+                    sortable=True,
+                    formatter=lambda val, row: format_date_short(val) if val else "",
+                ),
+            ],
+            data=data,
+            request_args=request.args,
+        )
+
     return render_template(
         "deliver_grant_funding/reports/list_submissions.html",
         grant=report.grant,
         report=report,
         helper=helper,
         submission_mode=submission_mode,
+        table=table,
         delete_all_form=delete_all_form if submission_mode == SubmissionModeEnum.TEST else None,
     )
 

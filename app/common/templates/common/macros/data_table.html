@@ -1,0 +1,215 @@
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/input/macro.html" import govukInput %}
+{% from "govuk_frontend_jinja/components/select/macro.html" import govukSelect %}
+
+{#
+  Render a DataTable instance with optional filter sidebar.
+
+  Params:
+    table       - DataTable instance
+    show_filters - bool, whether to show the filter sidebar (default: true if filters exist)
+    caption     - optional table caption text
+    classes     - additional CSS classes for the table element
+    empty_message - message when no rows match (default: "No results found")
+#}
+{% macro renderDataTable(table, show_filters=None, caption=None, classes="", empty_message="No results found") %}
+  {% set show_filters = show_filters if show_filters is not none else table.has_filters %}
+
+  {% if show_filters and table.has_filters %}
+    <div class="moj-filter-layout">
+      <div class="moj-filter-layout__filter">{{ _renderFilterSidebar(table) }}</div>
+      <div class="moj-filter-layout__content">
+        <div class="moj-action-bar">
+          <div class="moj-action-bar__filter"></div>
+        </div>
+        {% if table.active_filters %}
+          {{ _renderFilterTags(table) }}
+        {% endif %}
+        {{ _renderTable(table, caption, classes, empty_message) }}
+      </div>
+    </div>
+  {% else %}
+    {{ _renderTable(table, caption, classes, empty_message) }}
+  {% endif %}
+{% endmacro %}
+
+{#
+  Render just the table without any filter layout wrapper.
+  Useful when you want to control the layout yourself.
+#}
+{% macro renderTableOnly(table, caption=None, classes="", empty_message="No results found") %}
+  {{ _renderTable(table, caption, classes, empty_message) }}
+{% endmacro %}
+
+{# ── Private macros ────────────────────────────────────────── #}
+
+{% macro _renderTable(table, caption, classes, empty_message) %}
+  <table class="govuk-table {{ classes }}">
+    {% if caption %}
+      <caption class="govuk-table__caption govuk-table__caption--m">
+        {{ caption }}
+      </caption>
+    {% endif %}
+
+    <thead class="govuk-table__head">
+      <tr class="govuk-table__row">
+        {% for col in table.columns %}
+          <th scope="col" class="govuk-table__header {{ col.classes }}">
+            {% if col.sortable %}
+              {% set sort_classes = "govuk-link govuk-link--no-visited-state data-table__sort-link" %}
+              {% if col.is_sorted %}
+                {% set sort_classes = sort_classes ~ " data-table__sort-link--" ~ col.sort_direction %}
+              {% endif %}
+              <a
+                href="{{ col.sort_url }}"
+                class="{{ sort_classes }}"
+                {% if col.is_sorted %}
+                  aria-label="Sort by {{ col.label }}, currently sorted {{ 'descending' if col.sort_direction == 'desc' else 'ascending' }}"
+                {% else %}
+                  aria-label="Sort by {{ col.label }}"
+                {% endif %}>
+                {{ col.label }}
+              </a>
+            {% else %}
+              {{ col.label }}
+            {% endif %}
+          </th>
+        {% endfor %}
+      </tr>
+    </thead>
+
+    <tbody class="govuk-table__body">
+      {% if table.empty %}
+        <tr class="govuk-table__row">
+          <td class="govuk-table__cell" colspan="{{ table.columns | length }}">
+            <p class="govuk-body">{{ empty_message }}</p>
+          </td>
+        </tr>
+      {% else %}
+        {% for row in table.rows %}
+          <tr class="govuk-table__row">
+            {% for cell in row.cells %}
+              <td class="govuk-table__cell">
+                {% if cell.is_html %}
+                  {{ cell.html | safe }}
+                {% else %}
+                  {{ cell.html }}
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      {% endif %}
+    </tbody>
+  </table>
+
+  {% if table.total_count != table.filtered_count %}
+    <p class="govuk-body govuk-!-font-size-16">Showing {{ table.filtered_count }} of {{ table.total_count }} results</p>
+  {% endif %}
+{% endmacro %}
+
+{% macro _renderFilterSidebar(table) %}
+  {% set active_count = table.active_filters | length %}
+  <div class="moj-filter" data-module="moj-filter" data-moj-filter-start-hidden="true">
+    <div class="moj-filter__header">
+      <div class="moj-filter__header-title">
+        <h2 class="govuk-heading-m">Filter</h2>
+      </div>
+      <div class="moj-filter__header-action">
+        {% if table.active_filters %}
+          <p class="govuk-body">
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ table.clear_filters_url }}">Clear filters</a>
+          </p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="moj-filter__content">
+      {% if table.active_filters %}
+        <div class="moj-filter__selected">
+          <div class="moj-filter__selected-heading">
+            <div class="moj-filter__heading-title">
+              <h2 class="govuk-heading-m">Selected filters</h2>
+            </div>
+          </div>
+          {% for af in table.active_filters %}
+            <h3 class="govuk-heading-s govuk-!-margin-bottom-0">{{ af.label }}</h3>
+            <ul class="moj-filter-tags">
+              <li>
+                <a class="moj-filter__tag" href="{{ af.remove_url }}">
+                  <span class="govuk-visually-hidden">Remove this filter</span>
+                  {{ af.display_value }}
+                </a>
+              </li>
+            </ul>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="moj-filter__options">
+        <form method="GET">
+          {# Preserve sort params as hidden fields #}
+          {% for col in table.columns %}
+            {% if col.is_sorted %}
+              <input type="hidden" name="sort" value="{{ col.accessor }}" />
+              <input type="hidden" name="sort_dir" value="{{ col.sort_direction }}" />
+            {% endif %}
+          {% endfor %}
+
+          {% for col in table.filter_columns %}
+            <div class="govuk-form-group">
+              {% if col.filter.__class__.__name__ == "SelectFilter" %}
+                {% set select_items = [{"value": "", "text": "All", "selected": not table.filter_values.get(col.accessor)}] %}
+                {% for choice_val, choice_label in col.filter.choices %}
+                  {% set is_selected = table.filter_values.get(col.accessor) == choice_val %}
+                  {% set _ = select_items.append({"value": choice_val, "text": choice_label, "selected": is_selected}) %}
+                {% endfor %}
+
+                {{
+                  govukSelect({
+                    "id": "flt_" ~ col.accessor,
+                    "name": "flt_" ~ col.accessor,
+                    "label": {"text": col.label, "classes": "govuk-label--s"},
+                    "items": select_items
+                  })
+                }}
+              {% else %}
+                {{
+                  govukInput({
+                    "id": "flt_" ~ col.accessor,
+                    "name": "flt_" ~ col.accessor,
+                    "label": {"text": col.label, "classes": "govuk-label--s"},
+                    "value": table.filter_values.get(col.accessor, ""),
+                    "hint": {"text": col.filter.placeholder} if col.filter.placeholder else {},
+                  })
+                }}
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          {{
+            govukButton({
+              "text": "Apply filters",
+              "preventDoubleClick": true
+            })
+          }}
+        </form>
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
+{% macro _renderFilterTags(table) %}
+  <div class="govuk-!-margin-bottom-4">
+    <h2 class="govuk-heading-s govuk-!-margin-bottom-2">Active filters</h2>
+    <ul class="moj-filter-tags govuk-!-margin-bottom-0">
+      {% for af in table.active_filters %}
+        <li>
+          <a class="moj-filter__tag" href="{{ af.remove_url }}">
+            <span class="govuk-visually-hidden">Remove this filter</span>
+            {{ af.label }}: {{ af.display_value }}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endmacro %}

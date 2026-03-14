@@ -1,0 +1,8 @@
+{
+    "soft_wrap": "prefer_line",
+    "tab_size": 3,
+    "preferred_line_length": 120,
+    "prettier": {
+        "allowed": true,
+    },
+}
