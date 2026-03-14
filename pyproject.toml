@@ -29,7 +29,7 @@ dependencies = [
     "msal==1.35.0",
     "gunicorn[gevent]==25.1.0",
     "sqlalchemy-json==0.7.0",
-    "simpleeval==1.0.3",
+    "simpleeval==1.0.5",
     "num2words==0.5.14",
     "mistune==3.2.0",
     "faker==40.5.1",
