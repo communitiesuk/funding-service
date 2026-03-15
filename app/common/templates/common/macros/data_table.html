@@ -110,7 +110,7 @@
 
 {% macro _renderFilterSidebar(table) %}
   {% set active_count = table.active_filters | length %}
-  <div class="moj-filter" data-module="moj-filter" data-moj-filter-start-hidden="true">
+  <div class="moj-filter moj-js-hidden" data-module="moj-filter" data-moj-filter-start-hidden="true">
     <div class="moj-filter__header">
       <div class="moj-filter__header-title">
         <h2 class="govuk-heading-m">Filter</h2>
@@ -135,7 +135,7 @@
             <h3 class="govuk-heading-s govuk-!-margin-bottom-0">{{ af.label }}</h3>
             <ul class="moj-filter-tags">
               <li>
-                <a class="moj-filter__tag" href="{{ af.remove_url }}">
+                <a class="moj-filter__tag govuk-!-margin-top-0" href="{{ af.remove_url }}">
                   <span class="govuk-visually-hidden">Remove this filter</span>
                   {{ af.display_value }}
                 </a>
@@ -205,7 +205,7 @@
     </li>
     {% for af in table.active_filters %}
       <li>
-        <a class="moj-filter__tag" href="{{ af.remove_url }}">
+        <a class="moj-filter__tag govuk-!-margin-top-0" href="{{ af.remove_url }}">
           <span class="govuk-visually-hidden">Remove this filter</span>
           {{ af.label }}: {{ af.display_value }}
         </a>
