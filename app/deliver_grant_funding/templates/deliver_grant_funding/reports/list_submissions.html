@@ -32,7 +32,7 @@
   {% endif %}
 
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="govuk-grid-column-three-quarters">
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.TEST_SUBMISSION_RESET ]) %}
         {% if flashes %}
           {% set test_submission_reset_html %}
@@ -85,29 +85,34 @@
         Monitoring reports
       </h1>
       <p class="govuk-body">View the information that has been provided by grant recipients in their monitoring reports.</p>
-      <p class="govuk-body">
-        {{
-          govukButton({
-            "text": "Export as CSV",
-            "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='csv'),
-            "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
-          })
-        }}
-        {{
-          govukButton({
-            "text": "Export as JSON",
-            "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='json'),
-            "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
-          })
-        }}
-      </p>
+    </div>
+    <div class="govuk-grid-column-one-quarter">
+      <div class="app-actions">
+        <h3 class="govuk-heading-s">Actions</h3>
+        <div class="govuk-button-group app-button-group--full-width-on-desktop">
+          {{
+            govukButton({
+              "text": "Export as CSV",
+              "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='csv'),
+              "classes": "govuk-button--secondary",
+            })
+          }}
+          {{
+            govukButton({
+              "text": "Export as JSON",
+              "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='json'),
+              "classes": "govuk-button--secondary",
+            })
+          }}
+        </div>
+      </div>
     </div>
     <div class="govuk-grid-column-full">{{ renderDataTable(table, empty_message="No submissions found for this monitoring report") }}</div>
   </div>
 
   {% if submission_mode == enum.submission_mode.TEST %}
     <div class="govuk-grid-row">
-      <div class="govuk-grid-column-two-thirds">
+      <div class="govuk-grid-column-three-quarters">
         <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage test submissions</h2>
         <ul class="govuk-list govuk-list--spaced">
           <li><a class="govuk-link govuk-link--no-visited-state" href="?delete_all">Reset all test submissions</a></li>
