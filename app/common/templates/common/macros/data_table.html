@@ -21,10 +21,10 @@
       <div class="moj-filter-layout__content">
         <div class="moj-action-bar">
           <div class="moj-action-bar__filter"></div>
+          {% if table.active_filters %}
+            {{ _renderFilterTags(table) }}
+          {% endif %}
         </div>
-        {% if table.active_filters %}
-          {{ _renderFilterTags(table) }}
-        {% endif %}
         {{ _renderTable(table, caption, classes, empty_message) }}
       </div>
     </div>
@@ -199,17 +199,17 @@
 {% endmacro %}
 
 {% macro _renderFilterTags(table) %}
-  <div class="govuk-!-margin-bottom-4">
-    <h2 class="govuk-heading-s govuk-!-margin-bottom-2">Active filters</h2>
-    <ul class="moj-filter-tags govuk-!-margin-bottom-0">
-      {% for af in table.active_filters %}
-        <li>
-          <a class="moj-filter__tag" href="{{ af.remove_url }}">
-            <span class="govuk-visually-hidden">Remove this filter</span>
-            {{ af.label }}: {{ af.display_value }}
-          </a>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
+  <ul class="moj-filter-tags govuk-!-margin-bottom-0 data-table__inline-filter-tags">
+    <li class="data-table__filter-tags-label">
+      <span class="govuk-body govuk-!-font-size-16 govuk-!-font-weight-bold govuk-!-margin-bottom-0">Active filters:</span>
+    </li>
+    {% for af in table.active_filters %}
+      <li>
+        <a class="moj-filter__tag" href="{{ af.remove_url }}">
+          <span class="govuk-visually-hidden">Remove this filter</span>
+          {{ af.label }}: {{ af.display_value }}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
 {% endmacro %}

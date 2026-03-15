@@ -19,3 +19,19 @@
 .data-table__sort-link--desc::after {
     content: " ▼";
 }
+
+// Inline filter tags shown next to the show/hide filters button in the action bar
+.data-table__inline-filter-tags {
+    @include govuk.govuk-font($size: 16);
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: govuk.govuk-spacing(2);
+    vertical-align: baseline;
+    margin: 0;
+    padding: 0;
+}
+
+.data-table__filter-tags-label {
+    list-style: none;
+}
