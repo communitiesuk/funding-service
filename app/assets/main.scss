@@ -4,7 +4,9 @@
     $govuk-brand-colour: #00625e
 );
 @use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
-@forward "moj/all";
+@forward "moj/all" with (
+    $moj-assets-path: "/static/assets/"
+);
 
 @use "components/accessible-autocomplete-overrides";
 @use "components/context-aware-editor";

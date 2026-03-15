@@ -47,6 +47,10 @@ export default defineConfig({
                     dest: "./assets",
                 },
                 {
+                    src: "node_modules/@ministryofjustice/frontend/moj/assets/*",
+                    dest: "./assets",
+                },
+                {
                     src: "app/assets/images",
                     dest: "./assets",
                 },
