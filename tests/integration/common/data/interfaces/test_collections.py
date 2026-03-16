@@ -3841,6 +3841,7 @@ class TestValidateAndSyncExpressionReferences:
         assert len(expression.component_references) == 2
         referenced_components = {ref.depends_on_component for ref in expression.component_references}
         assert referenced_components == {target_question, first_referenced_question}
+        assert all(ref.component == target_question for ref in expression.component_references)
 
     def test_raises_dependency_order_exception(self, db_session, factories):
         user = factories.user.create()
@@ -4673,6 +4674,17 @@ class TestValidateReference:
             )
             == q1.safe_qid
         )
+        assert (
+            _validate_reference(
+                wrapped_reference=f"(({q1.safe_qid}))",
+                attached_to_component=q2,
+                expression_context=expression_context,
+                expression_type=ExpressionType.CONDITION,
+                field_name_for_error_message="field",
+                question_to_test=None,
+            )
+            == q1.safe_qid
+        )
 
     def test_validate_reference_allowed_in_non_expression(self, factories):
         q1 = factories.question.create()
@@ -4762,7 +4774,7 @@ class TestValidateReference:
             == q2.safe_qid
         )
 
-    def test_custom_expression_bad_order(self, factories):
+    def test_custom_expression_bad_order_validation(self, factories):
         form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
@@ -4774,6 +4786,36 @@ class TestValidateReference:
                 expression_type=ExpressionType.VALIDATION,
                 field_name_for_error_message="custom_expression",
                 question_to_test=None,
+            )
+        assert "Cannot reference a later question" in str(e)
+        assert e.value.depends_on_question.id == q3.id
+        assert e.value.question.id == q2.id
+
+    def test_expression_bad_order_condition(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
+        with pytest.raises(DependencyOrderException) as e:
+            _validate_reference(
+                wrapped_reference=f"(({q3.safe_qid}))",
+                attached_to_component=q2,
+                expression_context=context,
+                expression_type=ExpressionType.CONDITION,
+                field_name_for_error_message="custom_expression",
+                question_to_test=None,
+            )
+        assert "Cannot reference a later question" in str(e)
+        assert e.value.depends_on_question.id == q3.id
+        assert e.value.question.id == q2.id
+
+        with pytest.raises(DependencyOrderException) as e:
+            _validate_reference(
+                wrapped_reference=f"(({q1.safe_qid}))",
+                attached_to_component=q2,
+                expression_context=context,
+                expression_type=ExpressionType.CONDITION,
+                field_name_for_error_message="field",
+                question_to_test=q3,
             )
         assert "Cannot reference a later question" in str(e)
         assert e.value.depends_on_question.id == q3.id
