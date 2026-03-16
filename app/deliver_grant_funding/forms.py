@@ -930,6 +930,18 @@ class UploadDataSetForm(FlaskForm):
                 if missing:
                     raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
 
+            if self.data_source_type.data == DataSourceType.STATIC:
+                rows = list(reader)
+                rows_with_missing = [
+                    idx + 2
+                    for idx, row in enumerate(rows)
+                    if any(not value or not value.strip() for value in row.values())
+                ]
+                if rows_with_missing:
+                    raise ValidationError(
+                        f"The file has missing data in row(s): {', '.join(str(r) for r in rows_with_missing)}. "
+                    )
+
             row_count = sum(1 for _ in reader)
             if row_count > 10000:
                 raise ValidationError("The file must contain no more than 10,000 rows")

@@ -6,7 +6,7 @@
 
 {% set active_item_identifier = "reports" %}
 
-{% set page_title = "Check " ~ session_data.name ~ " data set issues" %}
+{% set page_title = "Missing data in " ~ session_data.name %}
 
 {% set is_static = session_data.data_source_type == enum.data_source_type_enum.STATIC %}
 
@@ -22,23 +22,14 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% if validation_result.blocking_errors %}
-        {% set error_list = [] %}
-        {% for error in validation_result.blocking_errors %}
-          {% do error_list.append({"text": error, "href": "#"}) %}
-        {% endfor %}
-        {{
-          govukErrorSummary({
-            "titleText": "There is a problem",
-            "errorList": error_list
-          })
-        }}
-      {% endif %}
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ report.name }}</span>
-        Check {{ session_data.name }} data set issues
+        Missing data in {{ session_data.name }}
       </h1>
-      {{ govukWarningText({"text": "There are issues with the data set."}) }}
+      {{
+        govukWarningText({"text": ("Grant recipients with missing data cannot complete the report "
+        "until the missing data is uploaded.")})
+      }}
 
       {% if is_static %}
         {% set table_head = [{"text": "Row"}] %}

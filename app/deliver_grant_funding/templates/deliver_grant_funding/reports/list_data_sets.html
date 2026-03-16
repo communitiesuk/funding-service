@@ -43,7 +43,7 @@
       {% set rows = [] %}
       {% if report.data_sources | length > 0 %}
 
-        {% for data_set in report.data_sources %}
+        {% for data_set in report.data_sources|sort(attribute='name') %}
           {% set data_set_name_html %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, report_id=report.id, data_source_id=data_set.id) }}">{{ data_set.name }}</a>
           {% endset %}

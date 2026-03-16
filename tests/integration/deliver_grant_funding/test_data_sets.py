@@ -1,6 +1,9 @@
 from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.data_sets import (
+    DataTypeError,
+    DecimalError,
+    PrefixError,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -56,32 +59,8 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set)
 
-        assert not result.has_blocking_errors
+        assert not result.blocking_errors
         assert not result.has_missing_data
-        assert result.blocking_errors == []
-
-    def test_missing_value_is_blocking_for_static(self):
-        data_set = _make_data_set(
-            data_source_type=DataSourceType.STATIC,
-            data_columns=["theme id", "theme name"],
-            column_mappings=[
-                DataSetColumnMapping(column_name="theme id", data_type=QuestionDataType.TEXT_SINGLE_LINE),
-                DataSetColumnMapping(column_name="theme name", data_type=QuestionDataType.TEXT_SINGLE_LINE),
-            ],
-            all_rows=[
-                {"theme id": "electric", "theme name": "Electricity"},
-                {"theme id": "water", "theme name": "Water supply"},
-                {"theme id": "garbage", "theme name": ""},
-            ],
-        )
-
-        result = validate_data_set(data_set)
-
-        assert result.has_blocking_errors
-        cell_error = result.cell_errors_by_row[2]["theme name"]
-        assert cell_error.table_message == "Data missing"
-        assert cell_error.original_value == ""
-        assert "'theme name' in row 2 is missing a value" in result.blocking_errors
 
     def test_missing_value_is_non_blocking_for_grant_recipient(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -101,7 +80,7 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set)
 
-        assert not result.has_blocking_errors
+        assert not result.blocking_errors
         assert result.has_missing_data
         assert result.missing_columns_by_row[0] == ["Notes"]
 
@@ -159,9 +138,10 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set)
 
-        cell_error = result.cell_errors_by_row[0]["Capital allocation"]
-        assert cell_error.table_message == "Incorrect data type"
-        assert cell_error.original_value == "$1000.00"
+        assert result.blocking_errors
+        assert len(result.blocking_errors) == 2
+        assert any(isinstance(error, PrefixError) for error in result.blocking_errors)
+        assert any(isinstance(error, DataTypeError) for error in result.blocking_errors)
 
     def test_missing_prefix_is_valid(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -186,8 +166,7 @@ class TestValidateDataSet:
         )
 
         result = validate_data_set(data_set)
-
-        assert not result.has_blocking_errors
+        assert not result.blocking_errors
 
     def test_missing_suffix_is_valid(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -212,8 +191,7 @@ class TestValidateDataSet:
         )
 
         result = validate_data_set(data_set)
-
-        assert not result.has_blocking_errors
+        assert not result.blocking_errors
 
     def test_too_many_decimal_places_is_blocking_cell_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -239,10 +217,8 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set)
 
-        cell_error = result.cell_errors_by_row[0]["Capital allocation"]
-        assert cell_error.table_message == "Too many decimal places"
-        assert cell_error.original_value == "£1000.123"
-        assert "'Capital allocation' in row 0 has too many decimal places (maximum 2)" in result.blocking_errors
+        assert result.blocking_errors
+        assert any(isinstance(error, DecimalError) for error in result.blocking_errors)
 
     def test_incorrect_data_type_integer(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -266,9 +242,8 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set)
 
-        cell_error = result.cell_errors_by_row[0]["Revenue allocation"]
-        assert cell_error.table_message == "Incorrect data type"
-        assert "'Revenue allocation' in row 0 must be a whole number" in result.blocking_errors
+        assert result.blocking_errors
+        assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
 
     def test_incorrect_data_type_decimal(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -293,9 +268,8 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set)
 
-        cell_error = result.cell_errors_by_row[0]["Rate"]
-        assert cell_error.table_message == "Incorrect data type"
-        assert "'Rate' in row 0 must be a decimal number" in result.blocking_errors
+        assert result.blocking_errors
+        assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
 
     def test_row_with_both_blocking_error_and_missing_column(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -323,41 +297,10 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set)
 
-        assert result.has_blocking_errors
+        assert result.blocking_errors
         assert result.has_missing_data
-        assert result.cell_errors_by_row[0]["Capital allocation"].table_message == "Incorrect data type"
+        assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
         assert result.missing_columns_by_row[0] == ["Notes"]
-
-    def test_clean_rows_are_excluded_from_row_results(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(organisation__external_id="EC456")
-        data_set = _make_data_set(
-            data_columns=["Capital allocation"],
-            column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
-            ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Capital allocation": "£1000.00",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
-                    "Capital allocation": "$1000.00",
-                },
-            ],
-        )
-
-        result = validate_data_set(data_set)
-        assert len(result.blocking_errors) == 1
 
     def test_multiple_errors_across_rows(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -396,11 +339,13 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set)
 
-        assert result.has_blocking_errors
-        assert any("must be a decimal number" in e for e in result.blocking_errors)
-        assert any("too many decimal places" in e for e in result.blocking_errors)
-        assert any("must be a whole number" in e for e in result.blocking_errors)
-        assert len(result.blocking_errors) == 3
+        assert result.blocking_errors
+        assert len(result.row_results) == 2
+        assert len(result.blocking_errors) == 4
+
+        assert any(isinstance(e, PrefixError) for e in result.blocking_errors)
+        assert any(isinstance(e, DecimalError) for e in result.blocking_errors)
+        assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
 
 
 class TestValidateDataSetGrantRecipients:

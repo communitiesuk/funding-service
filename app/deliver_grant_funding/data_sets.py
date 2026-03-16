@@ -13,9 +13,23 @@ if TYPE_CHECKING:
 
 class CellError(BaseModel):
     column: str
-    original_value: str
     table_message: str
-    summary_message: str
+
+
+class PrefixError(CellError):
+    table_message: str = "Incorrect prefix"
+
+
+class SuffixError(CellError):
+    table_message: str = "Incorrect suffix"
+
+
+class DecimalError(CellError):
+    table_message: str = "Too many decimal places"
+
+
+class DataTypeError(CellError):
+    table_message: str = "Incorrect data type"
 
 
 class RowValidationResult(BaseModel):
@@ -28,59 +42,36 @@ class DataSetValidationResult(BaseModel):
     row_results: list[RowValidationResult] = []
 
     @property
-    def blocking_errors(self) -> list[str]:
-        return [e.summary_message for r in self.row_results for e in r.cell_errors]
-
-    @property
-    def cell_errors_by_row(self) -> dict[int, dict[str, CellError]]:
-        return {r.row_number: {e.column: e for e in r.cell_errors} for r in self.row_results if r.cell_errors}
+    def blocking_errors(self) -> list[CellError]:
+        return [e for r in self.row_results for e in r.cell_errors]
 
     @property
     def missing_columns_by_row(self) -> dict[int, list[str]]:
         return {r.row_number: r.missing_columns for r in self.row_results if r.missing_columns}
 
     @property
-    def has_blocking_errors(self) -> bool:
-        return any(r.cell_errors for r in self.row_results)
-
-    @property
     def has_missing_data(self) -> bool:
         return any(r.missing_columns for r in self.row_results)
 
 
-def _missing_value_error(column: str, row_number: int) -> CellError:
-    return CellError(
-        column=column,
-        original_value="",
-        table_message="Data missing",
-        summary_message=f"'{column}' in row {row_number} is missing a value",
-    )
+def _validate_decimal(stripped: str, mapping: DataSetColumnMapping, column: str) -> list[CellError]:
+    errors: list[CellError] = []
+    decimal_places = len(stripped.split(".")[1]) if "." in stripped else 0
+    if mapping.max_decimal_places is not None and decimal_places > mapping.max_decimal_places:
+        errors.append(DecimalError(column=column))
+    try:
+        Decimal(stripped)
+    except InvalidOperation:
+        errors.append(DataTypeError(column=column))
+    return errors
 
 
-def _too_many_decimal_places_error(column: str, value: str, row_number: int, max_dp: int) -> CellError:
-    return CellError(
-        column=column,
-        original_value=value,
-        table_message="Too many decimal places",
-        summary_message=f"'{column}' in row {row_number} has too many decimal places (maximum {max_dp})",
-    )
-
-
-def _incorrect_data_type_error(column: str, value: str, row_number: int, number_type: NumberTypeEnum) -> CellError:
-    expected = "a whole number" if number_type == NumberTypeEnum.INTEGER else "a decimal number"
-    return CellError(
-        column=column,
-        original_value=value,
-        table_message="Incorrect data type",
-        summary_message=f"'{column}' in row {row_number} must be {expected}",
-    )
-
-
-def _validate_cell(column: str, value: str, row_number: int, mapping: DataSetColumnMapping) -> CellError | None:
+def _validate_cell(column: str, value: str, mapping: DataSetColumnMapping) -> list[CellError]:
     if mapping.data_type != QuestionDataType.NUMBER:
-        return None
+        return []
 
-    stripped = value
+    errors: list[CellError] = []
+    stripped = value.strip()
 
     if mapping.prefix:
         stripped = value.removeprefix(mapping.prefix)
@@ -90,40 +81,36 @@ def _validate_cell(column: str, value: str, row_number: int, mapping: DataSetCol
 
     stripped = stripped.replace(",", "").strip()
 
-    if mapping.number_type == NumberTypeEnum.INTEGER:
-        if not stripped.lstrip("-").isdigit():
-            return _incorrect_data_type_error(column, value, row_number, mapping.number_type)
-
-    elif mapping.number_type == NumberTypeEnum.DECIMAL:
+    if mapping.suffix or mapping.prefix:
         try:
             Decimal(stripped)
         except InvalidOperation:
-            return _incorrect_data_type_error(column, value, row_number, mapping.number_type)
+            if mapping.prefix:
+                errors.append(PrefixError(column=column))
+            if mapping.suffix:
+                errors.append(SuffixError(column=column))
 
-        if mapping.max_decimal_places is not None:
-            decimal_places = len(stripped.split(".")[1]) if "." in stripped else 0
-            if decimal_places > mapping.max_decimal_places:
-                return _too_many_decimal_places_error(column, value, row_number, mapping.max_decimal_places)
+    if mapping.number_type == NumberTypeEnum.INTEGER:
+        if not stripped.lstrip("-").isdigit():
+            errors.append(DataTypeError(column=column))
 
-    return None
+    if mapping.number_type == NumberTypeEnum.DECIMAL:
+        errors.extend(_validate_decimal(stripped, mapping, column))
+
+    return errors
 
 
 def _validate_row(row: dict[str, str], idx: int, data_set: DataSetUploadSessionModel) -> RowValidationResult:
     result = RowValidationResult(row_number=idx)
-    is_static = data_set.data_source_type == DataSourceType.STATIC
 
     for column in data_set.data_columns:
         value = row.get(column, "").strip()
         mapping = data_set.get_column_mapping(column)
 
         if not value:
-            if is_static:
-                result.cell_errors.append(_missing_value_error(column, result.row_number))
-            else:
-                result.missing_columns.append(column)
+            result.missing_columns.append(column)
         elif mapping:
-            if error := _validate_cell(column, value, result.row_number, mapping):
-                result.cell_errors.append(error)
+            result.cell_errors.extend(_validate_cell(column, value, mapping))
 
     return result
 
@@ -131,7 +118,7 @@ def _validate_row(row: dict[str, str], idx: int, data_set: DataSetUploadSessionM
 def _check_grant_recipient_row(
     external_id: str,
     recipient: str,
-    row_number: int,
+    index: int,
     external_ids: set[str],
     recipient_names: set[str],
     seen_external_ids: set[str],
@@ -143,20 +130,20 @@ def _check_grant_recipient_row(
 
     if external_id_unknown:
         errors.append(
-            f"Row {row_number}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' not found in grant recipients"
+            f"Row {index + 2}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' not found in grant recipients"
         )
     elif check_duplicates and external_id in seen_external_ids:
         errors.append(
-            f"Row {row_number}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' already appears in the data set"
+            f"Row {index + 2}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' already appears in the data set"
         )
 
     if recipient not in recipient_names:
         errors.append(
-            f"Row {row_number}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' not found in grant recipients"
+            f"Row {index + 2}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' not found in grant recipients"
         )
     elif check_duplicates and not external_id_unknown and recipient in seen_recipient_names:
         errors.append(
-            f"Row {row_number}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' already appears in the data set"
+            f"Row {index + 2}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' already appears in the data set"
         )
 
     return errors
@@ -184,14 +171,14 @@ def validate_data_set_grant_recipients(
             row_has_data = any(row.get(col, "").strip() for col in data_set.data_columns)
             if row_has_data:
                 errors.append(
-                    f"Row {idx + 1}: Data is present but {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient "
+                    f"Row {idx + 2}: Data is present but {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient "
                     "are missing"
                 )
             continue
 
         if bool(external_id) != bool(recipient):
             errors.append(
-                f"Row {idx + 1}: Both {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient name are required"
+                f"Row {idx + 2}: Both {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient name are required"
             )
             continue
 
@@ -199,7 +186,7 @@ def validate_data_set_grant_recipients(
             _check_grant_recipient_row(
                 external_id,
                 recipient,
-                idx + 1,
+                idx,
                 external_ids,
                 recipient_names,
                 seen_external_ids,

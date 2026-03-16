@@ -1,6 +1,7 @@
 import csv
 import io
 import uuid
+from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
@@ -87,6 +88,11 @@ from app.constants import (
     DATA_SET_IDENTIFIER_COLUMN_HEADERS,
 )
 from app.deliver_grant_funding.data_sets import (
+    CellError,
+    DataTypeError,
+    DecimalError,
+    PrefixError,
+    SuffixError,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -2545,10 +2551,10 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
 
         validation_result = validate_data_set(data_set_data)
 
-        if validation_result.has_blocking_errors or validation_result.has_missing_data:
+        if validation_result.blocking_errors or validation_result.has_missing_data:
             return redirect(
                 url_for(
-                    "deliver_grant_funding.check_data_set_errors",
+                    "deliver_grant_funding.data_set_missing_data",
                     grant_id=grant_id,
                     report_id=report_id,
                 )
@@ -2594,6 +2600,47 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
     )
 
 
+def _build_number_column_form_errors(
+    form: MapNumberColumnsForm,
+    column_errors: dict[str, list[CellError]],
+) -> list[dict[str, list[str]]]:
+    columns_error_list: list[dict[str, list[str]]] = []
+    for entry in form.columns.entries:
+        subform = entry.form
+        column_name = subform.column_name.data
+        col_errs = column_errors.get(column_name, []) if column_name else []
+        subform_errors: dict[str, list[str]] = {}
+
+        for error in col_errs:
+            match error:
+                case PrefixError():
+                    message = f"One or more numbers in '{column_name}' do not match the prefix '{subform.prefix.data}'"
+                    subform.prefix.errors = list(subform.prefix.errors) + [message]
+                    subform_errors.setdefault("prefix", []).append(message)
+
+                case SuffixError():
+                    message = f"One or more numbers in '{column_name}' do not match the suffix '{subform.suffix.data}'"
+                    subform.suffix.errors = list(subform.suffix.errors) + [message]
+                    subform_errors.setdefault("suffix", []).append(message)
+
+                case DecimalError():
+                    message = (
+                        f"One or more numbers in '{column_name}' have more than "
+                        f"{subform.max_decimal_places.data} decimal places"
+                    )
+                    subform.max_decimal_places.errors = list(subform.max_decimal_places.errors) + [message]
+                    subform_errors.setdefault("max_decimal_places", []).append(message)
+
+                case DataTypeError():
+                    number_type_label = subform.number_type.data.lower() if subform.number_type.data else "number"
+                    message = f"One or more values in '{column_name}' are not a valid {number_type_label}"
+                    subform_errors.setdefault("data_type", []).append(message)
+
+        columns_error_list.append(subform_errors)
+
+    return columns_error_list
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-number-columns", methods=["GET", "POST"]
 )
@@ -2611,7 +2658,7 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
         mapping for mapping in data_set_data.column_mappings if mapping.data_type == QuestionDataType.NUMBER
     ]
 
-    form = MapNumberColumnsForm(numerical_columns=number_columns)
+    form = MapNumberColumnsForm(numerical_columns=number_columns, data_set_data=data_set_data)
 
     if not form.is_submitted() and data_set_data.column_mappings:
         for idx, mapping in enumerate(number_columns):
@@ -2632,9 +2679,15 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
         session["data_set_upload"] = data_set_data.model_dump(mode="json")
 
         validation_result = validate_data_set(data_set_data)
-        if validation_result.has_blocking_errors or validation_result.has_missing_data:
+
+        if validation_result.blocking_errors:
+            errors = sorted(validation_result.blocking_errors, key=lambda e: e.column)
+            column_errors = {col: list(errs) for col, errs in groupby(errors, key=lambda e: e.column)}
+            form.columns.errors = _build_number_column_form_errors(form, column_errors)
+
+        elif validation_result.has_missing_data:
             return redirect(
-                url_for("deliver_grant_funding.check_data_set_errors", grant_id=grant_id, report_id=report_id)
+                url_for("deliver_grant_funding.data_set_missing_data", grant_id=grant_id, report_id=report_id)
             )
         else:
             data_source = create_uploaded_data_source(
@@ -2678,11 +2731,11 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/check-errors", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/missing-data", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
     user = get_current_user()
 
@@ -2694,7 +2747,7 @@ def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
 
     form = GenericSubmitForm()
 
-    if form.validate_on_submit() and not validation_result.has_blocking_errors:
+    if form.validate_on_submit() and not validation_result.blocking_errors:
         data_source = create_uploaded_data_source(
             name=data_set_data.name,
             data_source_type=data_set_data.data_source_type,
@@ -2727,7 +2780,7 @@ def check_data_set_errors(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
         )
 
     return render_template(
-        "deliver_grant_funding/reports/data_sets/data_set_issues.html",
+        "deliver_grant_funding/reports/data_sets/data_set_missing_data.html",
         grant=report.grant,
         report=report,
         session_data=data_set_data,
