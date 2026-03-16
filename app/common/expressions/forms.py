@@ -199,3 +199,26 @@ class CustomValidationExpressionForm(ExceptionRenderingForm):
             "add_context": self.add_context.data,
         }
         return data
+
+
+class CalculatedConditionForm(ExceptionRenderingForm):
+    def is_submitted_to_add_context(self) -> bool:
+        return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
+
+    custom_expression = StringField(
+        "Expression",
+        widget=GovTextArea(),
+        validators=[DataRequired()],
+    )
+    add_context = StringField(
+        "Reference data",
+        widget=GovSubmitInput(),
+    )
+    submit = SubmitField("Add calculated condition", widget=GovSubmitInput())
+
+    def get_expression_form_data(self) -> dict[str, Any]:
+        data = {
+            "custom_expression": self.custom_expression.data,
+            "add_context": self.add_context.data,
+        }
+        return data

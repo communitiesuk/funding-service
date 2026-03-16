@@ -95,6 +95,7 @@ from app.common.expressions import (
 )
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.forms import (
+    CalculatedConditionForm,
     CustomValidationExpressionForm,
     _ManagedExpressionForm,
     build_managed_expression_form,
@@ -1928,6 +1929,38 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/calculated",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:  # noqa:C901
+    # TODO remove once we un-feature-flag this
+    if not AuthorisationHelper.is_platform_member(get_current_user()):
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_calculation",
+                grant_id=grant_id,
+                component_id=component_id,
+            )
+        )
+
+    component = get_component_by_id(component_id=component_id)
+    wt_form = CalculatedConditionForm()
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=component.form.collection, expression_context_end_point=component
+    )
+    return render_template(
+        "deliver_grant_funding/reports/calculated_condition.html",
+        grant=component.form.collection.grant,
+        component=component,
+        form=wt_form,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-calculation",
     methods=["GET", "POST"],
 )
@@ -1950,7 +1983,9 @@ def add_question_condition_select_calculation(grant_id: UUID, component_id: UUID
 
     if wt_form.validate_on_submit():
         if wt_form.need_calculation.data == "yes":
-            return abort(404)
+            return redirect(
+                url_for("deliver_grant_funding.add_calculated_condition", grant_id=grant_id, component_id=component_id)
+            )
         else:
             return redirect(
                 url_for(
