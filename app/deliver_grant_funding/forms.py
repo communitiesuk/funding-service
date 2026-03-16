@@ -1181,3 +1181,19 @@ class MapNumberColumnsForm(FlaskForm):
             columns_error_list.append(subform_errors)
 
         return columns_error_list
+
+
+class SelectConditionCalculationForm(FlaskForm):
+    need_calculation = RadioField(
+        "Do you need a calculation for the condition?",
+        choices=[
+            (
+                "yes",
+                "Yes",
+            ),
+            ("no", "No"),
+        ],
+        widget=GovRadioInput(),
+        validators=[DataRequired("Please select an option")],
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
