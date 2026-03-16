@@ -1,13 +1,18 @@
+import abc
 import ast
 import enum
 import re
 from collections import ChainMap
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, overload
+from uuid import UUID
 
 import simpleeval
 from markupsafe import Markup, escape
+from pydantic import BaseModel
 
+from app.common.data.types import ManagedExpressionsEnum
+from app.common.qid import SafeQidMixin
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
@@ -36,6 +41,27 @@ class DisallowedExpression(ManagedExpressionError):
 
 class InvalidEvaluationResult(ManagedExpressionError):
     pass
+
+
+class EvaluatableExpression(BaseModel, SafeQidMixin):
+    # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
+    name: ClassVar[ManagedExpressionsEnum | Literal["CUSTOM"]]
+    question_id: UUID | None = None
+
+    _key: ManagedExpressionsEnum | None
+
+    @property
+    @abc.abstractmethod
+    def statement(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def description(self) -> str: ...
+
+    @property
+    @abc.abstractmethod
+    def message(self) -> str: ...
 
 
 class ExpressionContext(ChainMap[str, Any]):

@@ -23,16 +23,16 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovTextInput,
 )
 from markupsafe import Markup
-from pydantic import BaseModel, TypeAdapter
+from pydantic import TypeAdapter
 from wtforms import BooleanField, DateField, SelectField, SelectMultipleField, StringField
 from wtforms.fields.core import Field
 from wtforms.validators import DataRequired, InputRequired, Optional, ReadOnly, ValidationError
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
+from app.common.expressions import EvaluatableExpression
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import DecimalWithCommasField, MHCLGApproximateDateInput
-from app.common.qid import SafeQidMixin
 from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import TRadioItem
 
@@ -41,28 +41,13 @@ if TYPE_CHECKING:
     from app.common.expressions.forms import _ManagedExpressionForm
 
 
-class ManagedExpression(BaseModel, SafeQidMixin):
-    # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
+class ManagedExpression(EvaluatableExpression):
     name: ClassVar[ManagedExpressionsEnum]
+    question_id: UUID
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
     supported_validator_data_types: ClassVar[set[QuestionDataType]]
     managed_expression_form_template: ClassVar[str | None]
-
     _key: ManagedExpressionsEnum
-    question_id: UUID
-
-    @property
-    @abc.abstractmethod
-    def statement(self) -> str:
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
-    def description(self) -> str: ...
-
-    @property
-    @abc.abstractmethod
-    def message(self) -> str: ...
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type]:

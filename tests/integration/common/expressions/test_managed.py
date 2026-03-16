@@ -5,8 +5,15 @@ import pytest
 
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
+from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionDataType,
+)
 from app.common.expressions import evaluate
+from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -31,7 +38,7 @@ class TestBaseManagedExpression:
         question = factories.question.create(
             form=depends_on_question.form,
             expressions=[
-                Expression.from_managed(
+                Expression.from_evaluatable_expression(
                     GreaterThan(question_id=depends_on_question.id, minimum_value=1000), ExpressionType.CONDITION, user
                 )
             ],
@@ -106,7 +113,7 @@ class TestGreaterThanExpression:
     def test_evaluate(self, minimum_value, inclusive, answer, expected_result, factories):
         user = factories.user.build()
         expr = GreaterThan(question_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive)
-        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
             expr.safe_qid: answer,
             "minimum_value": expr.minimum_value,
@@ -145,7 +152,7 @@ class TestGreaterThanExpression:
             minimum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: minimum_value,
             target_question.safe_qid: answer,
@@ -189,7 +196,7 @@ class TestLessThanExpression:
     def test_evaluate(self, maximum_value, inclusive, answer, expected_result, factories):
         user = factories.user.build()
         expr = LessThan(question_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive)
-        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
             expr.safe_qid: answer,
             "maximum_value": expr.maximum_value,
@@ -227,7 +234,7 @@ class TestLessThanExpression:
             maximum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: maximum_value,
             target_question.safe_qid: answer,
@@ -287,7 +294,7 @@ class TestBetweenExpression:
             maximum_value=maximum_value,
             maximum_inclusive=maximum_inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.VALIDATION, factories.user.build())
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, factories.user.build())
         expression.context = {
             expr.safe_qid: answer,
             "maximum_value": expr.maximum_value,
@@ -348,7 +355,7 @@ class TestBetweenExpression:
             maximum_expression=f"(({referenced_question.safe_qid}))",
             maximum_inclusive=maximum_inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: maximum_value,
             target_question.safe_qid: answer,
@@ -455,7 +462,7 @@ class TestIsBeforeExpression:
     def test_evaluate(self, inclusive, answer, expected_result, factories):
         user = factories.user.create()
         expr = IsBefore(question_id=uuid.uuid4(), latest_value=self.maximum_value, inclusive=inclusive)
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {expr.safe_qid: answer, "latest_value": expr.latest_value, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result
 
@@ -478,7 +485,7 @@ class TestIsBeforeExpression:
             latest_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: self.maximum_value,
             target_question.safe_qid: answer,
@@ -532,7 +539,7 @@ class TestIsAfterExpression:
     def test_evaluate(self, inclusive, answer, expected_result, factories):
         user = factories.user.create()
         expr = IsAfter(question_id=uuid.uuid4(), earliest_value=self.min_value, inclusive=inclusive)
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             expr.safe_qid: answer,
             "earliest_value": expr.earliest_value,
@@ -559,7 +566,7 @@ class TestIsAfterExpression:
             earliest_expression=f"(({referenced_question.safe_qid}))",
             inclusive=inclusive,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: self.min_value,
             target_question.safe_qid: answer,
@@ -629,7 +636,7 @@ class TestIsBetweenDatesExpression:
             earliest_inclusive=earliest_inc,
             latest_inclusive=latest_inc,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             expr.safe_qid: answer,
             "earliest_value": expr.earliest_value,
@@ -670,7 +677,7 @@ class TestIsBetweenDatesExpression:
             earliest_inclusive=earliest_inc,
             latest_inclusive=latest_inc,
         )
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             referenced_question.safe_qid: self.max_value,
             target_question.safe_qid: answer,
@@ -750,6 +757,68 @@ class TestUKPostcodeExpression:
     def test_evaluate(self, answer, expected_result, factories):
         user = factories.user.create()
         expr = UKPostcode(question_id=uuid.uuid4())
-        expression = Expression.from_managed(expr, ExpressionType.CONDITION, user)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result
+
+
+class TestCustomExpression:
+    def test_create_custom_expression(self, factories, db_session):
+        user = factories.user.create()
+        question = factories.question.create()
+        expr = CustomExpression(custom_expression="(({question_id})) > 5", custom_message="Failed validation")
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
+        # db_session.add(expression)
+        question.expressions.append(expression)
+        db_session.commit()
+
+        from_db = db_session.query(Expression).filter_by(id=expression.id).one()
+        assert from_db.statement == expr.statement
+        assert from_db.type_ == ExpressionType.VALIDATION
+        assert from_db.created_by_id == user.id
+        assert from_db.is_custom is True
+        assert from_db.is_managed is False
+        assert from_db.managed_name is None
+        with pytest.raises(ValueError):
+            _ = from_db.managed
+        assert from_db.custom is not None
+        assert from_db.custom.custom_expression == expr.custom_expression
+        assert from_db.custom.custom_message == expr.custom_message
+        assert from_db.context == {
+            "question_id": None,
+            "custom_expression": "(({question_id})) > 5",
+            "custom_message": "Failed validation",
+            "custom_description": "Custom calculation",
+        }
+
+    @pytest.mark.parametrize(
+        " expression, expected_result",
+        [
+            ("(({q1})) + (({q2})) <= (({q3}))", True),
+            ("(({q1})) + (({q2})) < (({q3}))", False),
+            ("(({q1})) * (({q2})) > (({q3}))", True),
+            ("(({q1})) * 8 >= (({q3}))", True),
+        ],
+    )
+    def test_evaluate(self, expression, expected_result, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        expr = CustomExpression(
+            custom_expression=expression.format(q1=q1.safe_qid, q2=q2.safe_qid, q3=q3.safe_qid),
+            custom_message="a message",
+        )
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
+        expression.context = {
+            q1.safe_qid: 10,
+            q2.safe_qid: 20,
+            q3.safe_qid: 30,
+            "question_id": expr.question_id,
+            "custom_expression": expr.custom_expression,
+            "custom_message": expr.custom_message,
+        }
