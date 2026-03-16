@@ -1,0 +1,109 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "deliver_grant_funding/macros/equation_symbols.html" import equation_symbols %}
+
+{% set active_item_identifier = "reports" %}
+{% if expression %}
+  {% set heading = "Edit a calculated condition" %}
+  {% set submit_label = "Save calculated condition" %}
+  {% set back_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=component.id) if not component.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=component.id) %}
+{% else %}
+  {% set heading =  "Create a calculated condition" %}
+  {% set submit_label = "Add calculated condition" %}
+  {% set back_link_href= url_for("deliver_grant_funding.add_question_condition_select_calculation", grant_id=grant.id, component_id=component.id) %}
+{% endif %}
+
+{% block pageTitle %}
+  {{ heading }}
+  - {{ component.name }} - Deliver grant funding
+{% endblock pageTitle %}
+
+{% block beforeContent %}
+  {{ govukBackLink({ "text": "Back", "href": back_link_href }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if confirm_deletion_form %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this condition?</p>
+          <form method="post" novalidate>
+            {{ confirm_deletion_form.csrf_token }}
+
+            <span class="govuk-button-group">
+              {{ confirm_deletion_form.confirm_deletion(params={"text": "Yes, delete this condition", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.edit_calculated_condition', grant_id=grant.id, component_id=component.id,expression_id=expression.id) }}"
+                >Cancel</a
+              >
+            </span>
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Warning", "classes": "", "html": banner_html}) }}
+      {% endif %}
+      <h1 class="govuk-heading-l">{{ heading }}</h1>
+
+      {{
+        govukSummaryList({
+        "rows": [{
+          "key": { "text": "This question" if not component.is_group else "This group" },
+          "value": { "text": interpolate(component.text) },
+        }, ]})
+      }}
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        <div class="govuk-form-group">
+          {% set addDataToExpressionButton %}
+            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for calculation</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
+          {% endset %}
+
+          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
+            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+            {{
+              form.custom_expression(params={
+              "hint":{"text":"Use a calculation to describe when this question should be shown."},
+              "label": {"classes": "govuk-!-font-weight-bold", "text":"Calculation"},
+                "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
+                "formGroup": {
+                  "classes": "app-context-aware--container",
+                  "afterInput": {"html": addDataToExpressionButton}
+                }
+              })
+            }}
+          </div>
+          {% set helpHtml %}
+            <p class="govuk-body">For example, if this question should only be shown when the answer for total spend is greater than the answer for forecast spend, the calculation would be:</p>
+
+            <p class="govuk-body"><span class="app-context-aware-editor--valid-reference">((total spend))</span> > <span class="app-context-aware-editor--valid-reference">((forecast spend))</span></p>
+
+            <p class="govuk-body">If the user's answers meets the conditions because their total spend answer is greater than the forecast spend, the user will need to answer this conditional question.</p>
+
+            {{ equation_symbols(include_comparators=True) }}
+          {% endset %}
+          {{
+            govukDetails({
+              "summaryText": "Calculations help",
+              "html": helpHtml
+            })
+          }}
+
+          {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
+        </div>
+      </form>
+    </div>
+  </div>
+  {% if expression %}
+    <div class="govuk-grid-row govuk-!-margin-top-7">
+      <div class="govuk-grid-column-two-thirds">
+        <h2 class="govuk-heading-m">Manage condition</h2>
+        <p class="govuk-body">
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_calculated_condition', grant_id=grant.id, component_id=component.id,expression_id=expression.id,delete='') }}">Delete condition</a>
+        </p>
+      </div>
+    </div>
+  {% endif %}
+{% endblock content %}
