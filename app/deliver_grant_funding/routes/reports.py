@@ -126,6 +126,7 @@ from app.deliver_grant_funding.forms import (
     MapNumberColumnsForm,
     QuestionForm,
     QuestionTypeForm,
+    SelectConditionCalculationForm,
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
     SetUpReportForm,
@@ -1927,12 +1928,55 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-calculation",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_question_condition_select_calculation(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:  # noqa:C901
+
+    # TODO remove once we un-feature-flag this
+    if not AuthorisationHelper.is_platform_member(get_current_user()):
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=grant_id,
+                component_id=component_id,
+            )
+        )
+    component = get_component_by_id(component_id)
+
+    wt_form = SelectConditionCalculationForm()
+
+    if wt_form.validate_on_submit():
+        if wt_form.need_calculation.data == "yes":
+            return abort(404)
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.add_question_condition_select_question",
+                    grant_id=grant_id,
+                    component_id=component_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_question_condition_select_calculation.html",
+        form=wt_form,
+        component=component,
+        grant=component.form.collection.grant,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+
     component = get_component_by_id(component_id)
 
     form = FlaskForm()
