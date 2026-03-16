@@ -202,3 +202,18 @@ jobs:
         run: npm ci
       - name: Run JS tests
         run: npm test
+
+  verify_production_asset_build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
+      - name: Install Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build production assets
+        run: npm run build
