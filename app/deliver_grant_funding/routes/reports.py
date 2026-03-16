@@ -2791,9 +2791,10 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
 
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>",
-    methods=["GET"],
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
 def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
     report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
@@ -2808,38 +2809,30 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
             if gr.organisation.mode == OrganisationModeEnum.LIVE
         }
 
+    delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
+    if delete_wtform:
+        if not AuthorisationHelper.can_edit_collection(user=get_current_user(), collection_id=report.id):
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.view_data_source",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                    data_source_id=data_source_id,
+                )
+            )
+        if delete_wtform.validate_on_submit():
+            name = data_source.name
+            delete_data_source(data_source)
+            flash(Markup(f"'{escape(name)}' data set has been deleted."))
+            return redirect(
+                url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant_id, report_id=report_id)
+            )
+
     return render_template(
         "deliver_grant_funding/reports/data_sets/view_data_set.html",
         grant=report.grant,
         report=report,
         data_source=data_source,
+        delete_form=delete_wtform,
         grant_recipient_name_by_external_id=grant_recipient_name_by_external_id,
-    )
-
-
-@deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>/delete",
-    methods=["GET", "POST"],
-)
-@has_deliver_grant_role(RoleEnum.ADMIN)
-@auto_commit_after_request
-def confirm_delete_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
-    # TODO: We should check the hierarchy here to make sure the data_source being deleted belongs to this report
-    data_source = get_data_source(data_source_id)
-
-    form = GenericConfirmDeletionForm()
-
-    if form.validate_on_submit() and form.confirm_deletion.data:
-        name = data_source.name
-        delete_data_source(data_source)
-        flash(Markup(f"'{escape(name)}' data set has been deleted."))
-        return redirect(url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant_id, report_id=report_id))
-
-    return render_template(
-        "deliver_grant_funding/reports/data_sets/delete_data_set.html",
-        grant=report.grant,
-        report=report,
-        data_source=data_source,
-        form=form,
     )

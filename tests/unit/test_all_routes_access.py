@@ -72,7 +72,6 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.map_data_set_columns",
     "deliver_grant_funding.map_data_set_number_columns",
     "deliver_grant_funding.data_set_missing_data",
-    "deliver_grant_funding.confirm_delete_data_source",
 ]
 routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.change_report_name",

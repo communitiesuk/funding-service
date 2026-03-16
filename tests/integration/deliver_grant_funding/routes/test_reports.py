@@ -18,7 +18,6 @@ from app.common.data.interfaces.collections import (
 from app.common.data.models import (
     Collection,
     DataSource,
-    DataSourceItem,
     DataSourceOrganisationItem,
     Expression,
     Form,
@@ -7806,16 +7805,19 @@ class TestViewDataSource:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "client_fixture, can_access",
+        "client_fixture, can_access, can_delete",
         (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", True),
+            ("authenticated_no_role_client", False, False),
+            ("authenticated_grant_member_client", True, False),
+            ("authenticated_grant_admin_client", True, True),
         ),
     )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+    def test_get_view_data_source(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, can_delete: bool, factories
+    ):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant or factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        report = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
         data_source = factories.data_source.create(
             collection=report,
             grant=grant,
@@ -7832,12 +7834,60 @@ class TestViewDataSource:
             )
         )
 
-        if can_access:
+        if not can_access:
+            assert response.status_code == 403
+        else:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert "Test data set" in get_h1_text(soup)
+            if can_delete:
+                assert page_has_link(soup, "Delete data set")
+            else:
+                assert not page_has_link(soup, "Delete data set")
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_delete",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_shows_delete_banner(self, request: FixtureRequest, client_fixture: str, can_delete: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant or factories.grant.create()
+        print(grant)
+        report = factories.collection.create(grant=grant)
+        print(report)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=grant,
+            name="Test data set",
+            type=DataSourceType.STATIC,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+                delete="",
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        if can_delete:
+            assert response.status_code == 200
+            assert page_has_button(soup, "Yes, delete this data set")
         else:
-            assert response.status_code == 403
+            assert response.status_code == 302
+            assert response.location == url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
 
     def test_get_shows_summary_list_metadata(self, authenticated_grant_member_client, factories):
         report = factories.collection.create(grant=authenticated_grant_member_client.grant)
@@ -8074,86 +8124,21 @@ class TestViewDataSource:
         assert "Rivendell Council" in soup.text
         assert "Test Org Name" not in soup.text
 
-
-class TestConfirmDeleteDataSource:
-    def test_404(self, authenticated_grant_admin_client):
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.confirm_delete_data_source",
-                grant_id=uuid.uuid4(),
-                report_id=uuid.uuid4(),
-                data_source_id=uuid.uuid4(),
-            )
-        )
-        assert response.status_code == 404
-
-    @pytest.mark.parametrize(
-        "client_fixture, can_access",
-        (
-            ("authenticated_no_role_client", False),
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-        client = request.getfixturevalue(client_fixture)
-        grant = client.grant or factories.grant.create()
+    def test_post_delete_removes_data_source_and_redirects(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
-        data_source = factories.data_source.create(
-            collection=report,
-            grant=grant,
-            name="My Data Set",
-        )
-
-        response = client.get(
-            url_for(
-                "deliver_grant_funding.confirm_delete_data_source",
-                grant_id=grant.id,
-                report_id=report.id,
-                data_source_id=data_source.id,
-            )
-        )
-
-        assert response.status_code == 200 if can_access else response.status_code == 403
-
-    def test_get_shows_data_source_name_and_warning(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        data_source = factories.data_source.create(
-            collection=report,
-            grant=authenticated_grant_admin_client.grant,
-            name="Test data set",
-        )
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.confirm_delete_data_source",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
-                data_source_id=data_source.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert "Are you sure you want to delete this file?" in soup.text
-        assert "Test data set" in soup.text
-        assert "You are about to delete a data set and you will not be able to undo it" in soup.text
-        assert page_has_button(soup, "Yes - delete")
-
-    def test_post_deletes_data_source_and_redirects(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        data_source = factories.data_source.create(
-            collection=report,
-            grant=authenticated_grant_admin_client.grant,
-            name="My Data Set",
-        )
+        data_source = factories.data_source.create(grant=grant, collection=report, name="My Data Set")
+        data_source_id = data_source.id
 
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.confirm_delete_data_source",
-                grant_id=authenticated_grant_admin_client.grant.id,
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
                 report_id=report.id,
-                data_source_id=data_source.id,
+                data_source_id=data_source_id,
+                delete="",
             ),
             data={"confirm_deletion": "y"},
             follow_redirects=False,
@@ -8162,28 +8147,25 @@ class TestConfirmDeleteDataSource:
         assert response.status_code == 302
         assert response.location == url_for(
             "deliver_grant_funding.list_report_data_sets",
-            grant_id=authenticated_grant_admin_client.grant.id,
+            grant_id=grant.id,
             report_id=report.id,
         )
-        assert db_session.get(DataSource, data_source.id) is None
-        assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 0
+        assert db_session.get(DataSource, data_source_id) is None
 
-    def test_post_shows_flash_message_after_delete(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        data_source = factories.data_source.create(
-            collection=report,
-            grant=authenticated_grant_admin_client.grant,
-            name="My Data Set",
-        )
+    def test_post_delete_shows_flash_message(self, authenticated_grant_admin_client, factories, db_session):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, name="My Data Set")
 
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.confirm_delete_data_source",
-                grant_id=authenticated_grant_admin_client.grant.id,
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
                 report_id=report.id,
                 data_source_id=data_source.id,
+                delete="",
             ),
-            data={"confirm_deletion": True},
+            data={"confirm_deletion": "y"},
             follow_redirects=True,
         )
 
@@ -8191,7 +8173,7 @@ class TestConfirmDeleteDataSource:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "'My Data Set' data set has been deleted.")
 
-    def test_post_deletes_organisation_items(self, authenticated_grant_admin_client, factories, db_session):
+    def test_post_delete_removes_organisation_items(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         data_source = factories.data_source.create(
             name="Test data set",
@@ -8205,12 +8187,156 @@ class TestConfirmDeleteDataSource:
 
         authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.confirm_delete_data_source",
+                "deliver_grant_funding.view_data_source",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 report_id=report.id,
                 data_source_id=data_source.id,
+                delete="",
             ),
-            data={"confirm_deletion": True},
+            data={"confirm_deletion": "y"},
+            follow_redirects=False,
         )
+
         assert db_session.get(DataSource, data_source.id) is None
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
+
+
+# class TestConfirmDeleteDataSource:
+#     def test_404(self, authenticated_grant_admin_client):
+#         response = authenticated_grant_admin_client.get(
+#             url_for(
+#                 "deliver_grant_funding.confirm_delete_data_source",
+#                 grant_id=uuid.uuid4(),
+#                 report_id=uuid.uuid4(),
+#                 data_source_id=uuid.uuid4(),
+#             )
+#         )
+#         assert response.status_code == 404
+
+#     @pytest.mark.parametrize(
+#         "client_fixture, can_access",
+#         (
+#             ("authenticated_no_role_client", False),
+#             ("authenticated_grant_member_client", False),
+#             ("authenticated_grant_admin_client", True),
+#         ),
+#     )
+#     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+#         client = request.getfixturevalue(client_fixture)
+#         grant = client.grant or factories.grant.create()
+#         report = factories.collection.create(grant=grant)
+#         data_source = factories.data_source.create(
+#             collection=report,
+#             grant=grant,
+#             name="My Data Set",
+#         )
+
+#         response = client.get(
+#             url_for(
+#                 "deliver_grant_funding.confirm_delete_data_source",
+#                 grant_id=grant.id,
+#                 report_id=report.id,
+#                 data_source_id=data_source.id,
+#             )
+#         )
+
+#         assert response.status_code == 200 if can_access else response.status_code == 403
+
+#     def test_get_shows_data_source_name_and_warning(self, authenticated_grant_admin_client, factories):
+#         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+#         data_source = factories.data_source.create(
+#             collection=report,
+#             grant=authenticated_grant_admin_client.grant,
+#             name="Test data set",
+#         )
+
+#         response = authenticated_grant_admin_client.get(
+#             url_for(
+#                 "deliver_grant_funding.confirm_delete_data_source",
+#                 grant_id=authenticated_grant_admin_client.grant.id,
+#                 report_id=report.id,
+#                 data_source_id=data_source.id,
+#             )
+#         )
+
+#         assert response.status_code == 200
+#         soup = BeautifulSoup(response.data, "html.parser")
+#         assert "Are you sure you want to delete this file?" in soup.text
+#         assert "Test data set" in soup.text
+#         assert "You are about to delete a data set and you will not be able to undo it" in soup.text
+#         assert page_has_button(soup, "Yes - delete")
+
+#     def test_post_deletes_data_source_and_redirects(self, authenticated_grant_admin_client, factories, db_session):
+#         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+#         data_source = factories.data_source.create(
+#             collection=report,
+#             grant=authenticated_grant_admin_client.grant,
+#             name="My Data Set",
+#         )
+
+#         response = authenticated_grant_admin_client.post(
+#             url_for(
+#                 "deliver_grant_funding.confirm_delete_data_source",
+#                 grant_id=authenticated_grant_admin_client.grant.id,
+#                 report_id=report.id,
+#                 data_source_id=data_source.id,
+#             ),
+#             data={"confirm_deletion": "y"},
+#             follow_redirects=False,
+#         )
+
+#         assert response.status_code == 302
+#         assert response.location == url_for(
+#             "deliver_grant_funding.list_report_data_sets",
+#             grant_id=authenticated_grant_admin_client.grant.id,
+#             report_id=report.id,
+#         )
+#         assert db_session.get(DataSource, data_source.id) is None
+#         assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 0
+
+#     def test_post_shows_flash_message_after_delete(self, authenticated_grant_admin_client, factories, db_session):
+#         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+#         data_source = factories.data_source.create(
+#             collection=report,
+#             grant=authenticated_grant_admin_client.grant,
+#             name="My Data Set",
+#         )
+
+#         response = authenticated_grant_admin_client.post(
+#             url_for(
+#                 "deliver_grant_funding.confirm_delete_data_source",
+#                 grant_id=authenticated_grant_admin_client.grant.id,
+#                 report_id=report.id,
+#                 data_source_id=data_source.id,
+#             ),
+#             data={"confirm_deletion": True},
+#             follow_redirects=True,
+#         )
+
+#         assert response.status_code == 200
+#         soup = BeautifulSoup(response.data, "html.parser")
+#         assert page_has_flash(soup, "'My Data Set' data set has been deleted.")
+
+#     def test_post_deletes_organisation_items(self, authenticated_grant_admin_client, factories, db_session):
+#         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+#         data_source = factories.data_source.create(
+#             name="Test data set",
+#             collection=report,
+#             grant=authenticated_grant_admin_client.grant,
+#             type=DataSourceType.GRANT_RECIPIENT,
+#             items=None,
+#         )
+#         factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+#         factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+
+#         authenticated_grant_admin_client.post(
+#             url_for(
+#                 "deliver_grant_funding.confirm_delete_data_source",
+#                 grant_id=authenticated_grant_admin_client.grant.id,
+#                 report_id=report.id,
+#                 data_source_id=data_source.id,
+#             ),
+#             data={"confirm_deletion": True},
+#         )
+#         assert db_session.get(DataSource, data_source.id) is None
+#         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0

@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "deliver_grant_funding/macros/data_sets.html" import render_data_cell %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 
 {% set active_item_identifier = "reports" %}
@@ -15,6 +16,21 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% if delete_form and authorisation_helper.can_edit_collection(current_user, report.id) %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete this data set?</p>
+          <form method="post" novalidate>
+            {{ delete_form.csrf_token }}
+            <div class="govuk-button-group govuk-!-margin-bottom-0">
+              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this data set", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, report_id=report.id, data_source_id=data_source.id) }}">Cancel</a>
+            </div>
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Important", "classes": "", "html": banner_html}) }}
+      {% endif %}
+
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ report.name }}</span>
         {{ data_source.name }}
@@ -47,7 +63,7 @@
 
       {% if authorisation_helper.can_edit_collection(current_user, report.id) %}
         <div class="govuk-button-group">
-          <a class="govuk-button govuk-button--warning" href="{{ url_for("deliver_grant_funding.confirm_delete_data_source", grant_id=grant.id, report_id=report.id, data_source_id=data_source.id) }}">Delete data set</a>
+          <a class="govuk-button govuk-button--warning" href="?delete">Delete data set</a>
         </div>
       {% endif %}
     </div>
