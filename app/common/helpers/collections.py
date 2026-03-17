@@ -572,16 +572,32 @@ class SubmissionHelper:
 
         visited = visited | {component.id}
 
-        ref_state = self._check_reference_visibility(component, context, add_another_index, visited)
-        if ref_state != ComponentVisibilityState.VISIBLE:
-            return ref_state
+        # For ALL conditions, all references must be satisfiable — gate early.
+        # For ANY conditions, only one condition needs to pass, so a hidden/unanswered reference
+        # doesn't preclude visibility. Skip the gate and let condition evaluation handle it.
+        if component.conditions_operator != ConditionsOperator.ANY:
+            ref_state = self._check_reference_visibility(component, context, add_another_index, visited)
+            if ref_state != ComponentVisibilityState.VISIBLE:
+                return ref_state
 
         def evaluate_component_conditions(operator: ConditionsOperator, conditions: list[Expression]) -> bool:
             if not conditions:
                 return True
             match operator:
                 case ConditionsOperator.ANY:
-                    return any(evaluate(condition, context) for condition in conditions)
+                    # Evaluate each condition individually so that an UndefinedVariableInExpression
+                    # from one condition (e.g. referencing an unanswered question) doesn't prevent
+                    # other conditions from being tried.
+                    has_undetermined = False
+                    for condition in conditions:
+                        try:
+                            if evaluate(condition, context):
+                                return True
+                        except UndefinedVariableInExpression:
+                            has_undetermined = True
+                    if has_undetermined:
+                        raise UndefinedVariableInExpression("")
+                    return False
                 case ConditionsOperator.ALL:
                     return all(evaluate(condition, context) for condition in conditions)
                 case _:
@@ -593,11 +609,22 @@ class SubmissionHelper:
                     component, submission_helper=self, add_another_index=add_another_index
                 )
 
-            for _operator, _conditions in component.full_condition_chain:
-                if not evaluate_component_conditions(_operator, _conditions):
+            # Walk up the parent chain: each parent's reference visibility and conditions must pass.
+            # This keeps each level's operator (ANY/ALL) isolated, unlike full_condition_chain which
+            # flattened referenced-component conditions into an ALL-joined sequence.
+            current = component
+            while current.parent:
+                parent_ref_state = self._check_reference_visibility(current.parent, context, add_another_index, visited)
+                if parent_ref_state != ComponentVisibilityState.VISIBLE:
+                    return parent_ref_state
+                if not evaluate_component_conditions(current.parent.conditions_operator, current.parent.conditions):
                     return ComponentVisibilityState.HIDDEN
+                current = current.parent
 
-            return ComponentVisibilityState.VISIBLE
+            # Evaluate this component's own conditions with its own operator (ANY or ALL)
+            if evaluate_component_conditions(component.conditions_operator, component.conditions):
+                return ComponentVisibilityState.VISIBLE
+            return ComponentVisibilityState.HIDDEN
 
         except UndefinedVariableInExpression:
             if not check_undetermined:
