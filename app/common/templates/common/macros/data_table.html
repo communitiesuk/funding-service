@@ -152,6 +152,13 @@
             {% endif %}
           {% endfor %}
 
+          {{
+            govukButton({
+              "text": "Apply filters",
+              "preventDoubleClick": true
+            })
+          }}
+
           {% for col in table.filter_columns %}
             <div class="govuk-form-group">
               {% if col.filter.options %}
@@ -181,13 +188,6 @@
               {% endif %}
             </div>
           {% endfor %}
-
-          {{
-            govukButton({
-              "text": "Apply filters",
-              "preventDoubleClick": true
-            })
-          }}
         </form>
       </div>
     </div>

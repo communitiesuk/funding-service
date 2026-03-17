@@ -115,15 +115,14 @@ class DataTable:
         return query
 
     def filter_data(self, data: list[Any]) -> list[Any]:
-        """Apply active non-SQLA filters to a list of data in memory.
+        """Apply active filters to a list of data in memory.
 
         Filters with options use exact match; text filters use case-insensitive substring match.
-        SQLA filters are skipped (use apply_filters for those).
         """
         col_map = {c.accessor: c for c in self._columns if c.filter}
         for accessor, value in self._filter_values.items():
             col = col_map.get(accessor)
-            if not col or isinstance(col.filter, BaseSQLAFilter):
+            if not col:
                 continue
             if col.filter.options:
                 data = [item for item in data if str(self._get_value(item, accessor)) == value]
