@@ -1,0 +1,33 @@
+{% for condition in component.conditions %}
+  {% if condition.is_managed %}
+    {% set managed = condition.managed %}
+    {% set depends_on = managed.referenced_question %}
+
+
+    {% set key_html %}
+      {# todo: would users find it useful to be able to link to the question being depended on from here? #}
+      <span>{{ depends_on.data_reference_label }}</span>
+    {% endset %}
+
+
+    {% set value_html %}
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=component.id, expression_id=condition.id) }}">
+        <span class="govuk-visually-hidden">Change condition for</span>
+        {{ interpolate(condition.evaluatable_expression.message, with_interpolation_highlighting=True) }}
+      </a>
+    {% endset %}
+  {% else %}
+
+
+    {% set key_html %}
+      Calculated condition
+    {% endset %}
+    {% set value_html %}
+      <a class="govuk-link govuk-link--no-visited-state" href="#">
+        <span class="govuk-visually-hidden">Change condition for</span>
+        {{ interpolate(condition.evaluatable_expression.custom_expression, with_interpolation_highlighting=True) }}
+      </a>
+    {% endset %}
+  {% endif %}
+  {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
+{% endfor %}

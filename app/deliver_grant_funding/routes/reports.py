@@ -1976,6 +1976,46 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
             is_custom=True,
         )
 
+    if wt_form and wt_form.validate_on_submit():
+        expression_context = ExpressionContext.build_expression_context(
+            component.form.collection,
+            "interpolation",
+        )
+
+        try:
+            _validate_custom_syntax(
+                component,
+                expression_context,
+                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.CONDITION,
+                "custom_expression",
+                validate_with_evaluation=True,
+            )
+            expression = CustomExpression.build_from_form(wt_form)
+            interfaces.collections.add_component_condition(component, get_current_user(), expression)
+
+        except WTFormRenderableException as e:
+            if isinstance(e, IncompatibleDataTypeException):
+                e = IncompatibleDataTypeInCalculationException(e)
+            wt_form.handle_exception(e)
+
+        else:
+            if "question" in session:
+                del session["question"]
+            if component.is_question:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.edit_question",
+                        grant_id=grant_id,
+                        question_id=component.id,
+                    )
+                )
+
+            else:
+                return redirect(
+                    url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=component_id)
+                )
+
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=component.form.collection, expression_context_end_point=component
     )
