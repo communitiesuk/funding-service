@@ -79,7 +79,7 @@ def upgrade() -> None:
             "uq_data_source_name_collection",
             ["name", "collection_id"],
             unique=True,
-            postgresql_where="collection_id != NULL",
+            postgresql_where="collection_id IS NOT NULL",
         )
         batch_op.create_check_constraint(
             "ck_data_source_non_custom_requires_name_grant_collection_and_schema",

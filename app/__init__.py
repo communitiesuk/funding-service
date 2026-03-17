@@ -54,6 +54,7 @@ from app.common.filters import (
 from app.common.helpers.collections import SubmissionAuthorisationError
 from app.common.utils import comma_join_items
 from app.config import get_settings
+from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.extensions import (
     auto_commit_after_request,
     db,
@@ -294,6 +295,10 @@ def create_app() -> Flask:  # noqa: C901
             get_google_tag_manager_id=get_google_tag_manager_id,
             get_current_env_name=get_current_env_name,
             is_deliver_grant_funding=is_deliver_grant_funding,
+            constants=dict(
+                data_set_external_id_column_header=DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+                data_set_grant_recipient_column_header=DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+            ),
             enum=dict(
                 submission_mode=SubmissionModeEnum,
                 flash_message_type=FlashMessageType,

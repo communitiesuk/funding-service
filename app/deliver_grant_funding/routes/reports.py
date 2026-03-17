@@ -55,6 +55,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
 from app.common.data.interfaces.exceptions import (
+    DuplicateDataSourceItemError,
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
@@ -88,11 +89,6 @@ from app.constants import (
     DATA_SET_IDENTIFIER_COLUMN_HEADERS,
 )
 from app.deliver_grant_funding.data_sets import (
-    CellError,
-    DataTypeError,
-    DecimalError,
-    PrefixError,
-    SuffixError,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -2559,7 +2555,8 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                     report_id=report_id,
                 )
             )
-        else:
+
+        try:
             data_source = create_uploaded_data_source(
                 name=data_set_data.name,
                 data_source_type=data_set_data.data_source_type,
@@ -2576,7 +2573,7 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 data_source_id=data_source.id,
             )
             session.pop("data_set_upload", None)
-            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
+            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in route
             flash(
                 Markup(
                     f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
@@ -2590,6 +2587,8 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                     report_id=report_id,
                 )
             )
+        except DuplicateDataSourceItemError:
+            form.form_errors.append("The file contains duplicate values in the first column")
 
     return render_template(
         "deliver_grant_funding/reports/data_sets/map_columns.html",
@@ -2598,47 +2597,6 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
         form=form,
         session_data=data_set_data,
     )
-
-
-def _build_number_column_form_errors(
-    form: MapNumberColumnsForm,
-    column_errors: dict[str, list[CellError]],
-) -> list[dict[str, list[str]]]:
-    columns_error_list: list[dict[str, list[str]]] = []
-    for entry in form.columns.entries:
-        subform = entry.form
-        column_name = subform.column_name.data
-        col_errs = column_errors.get(column_name, []) if column_name else []
-        subform_errors: dict[str, list[str]] = {}
-
-        for error in col_errs:
-            match error:
-                case PrefixError():
-                    message = f"One or more numbers in '{column_name}' do not match the prefix '{subform.prefix.data}'"
-                    subform.prefix.errors = list(subform.prefix.errors) + [message]
-                    subform_errors.setdefault("prefix", []).append(message)
-
-                case SuffixError():
-                    message = f"One or more numbers in '{column_name}' do not match the suffix '{subform.suffix.data}'"
-                    subform.suffix.errors = list(subform.suffix.errors) + [message]
-                    subform_errors.setdefault("suffix", []).append(message)
-
-                case DecimalError():
-                    message = (
-                        f"One or more numbers in '{column_name}' have more than "
-                        f"{subform.max_decimal_places.data} decimal places"
-                    )
-                    subform.max_decimal_places.errors = list(subform.max_decimal_places.errors) + [message]
-                    subform_errors.setdefault("max_decimal_places", []).append(message)
-
-                case DataTypeError():
-                    number_type_label = subform.number_type.data.lower() if subform.number_type.data else "number"
-                    message = f"One or more values in '{column_name}' are not a valid {number_type_label}"
-                    subform_errors.setdefault("data_type", []).append(message)
-
-        columns_error_list.append(subform_errors)
-
-    return columns_error_list
 
 
 @deliver_grant_funding_blueprint.route(
@@ -2683,7 +2641,7 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
         if validation_result.blocking_errors:
             errors = sorted(validation_result.blocking_errors, key=lambda e: e.column)
             column_errors = {col: list(errs) for col, errs in groupby(errors, key=lambda e: e.column)}
-            form.columns.errors = _build_number_column_form_errors(form, column_errors)
+            form.columns.errors = form.build_number_column_form_errors(column_errors)
 
         elif validation_result.has_missing_data:
             return redirect(

@@ -2,9 +2,10 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
-from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
+from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.models_user import User
 from app.common.data.types import (
@@ -126,8 +127,6 @@ def _create_static_items(
     all_rows: list[dict[str, str]],
     column_mappings: list[DataSetColumnMapping],
 ) -> None:
-    if len(column_mappings) != 2:
-        raise ValueError("STATIC data sources must have exactly two columns")
     key_col, value_col = column_mappings[0].column_name, column_mappings[1].column_name
     for idx, row in enumerate(all_rows):
         item = DataSourceItem(
@@ -140,13 +139,13 @@ def _create_static_items(
         db.session.add(item)
 
 
-@flush_and_rollback_on_exceptions
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateDataSourceItemError)])
 def create_uploaded_data_source(
     *,
     name: str,
     data_source_type: DataSourceType,
-    grant_id: str | None,
-    collection_id: str | None,
+    grant_id: uuid.UUID | None,
+    collection_id: uuid.UUID | None,
     column_mappings: list["DataSetColumnMapping"],
     all_rows: list[dict[str, str]],
     user: User,

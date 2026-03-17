@@ -47,6 +47,7 @@ from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
+from app.deliver_grant_funding.data_sets import CellError, DataTypeError, DecimalError, PrefixError, SuffixError
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
@@ -917,9 +918,15 @@ class UploadDataSetForm(FlaskForm):
             content = field.data.stream.read().decode("utf-8-sig")
             reader = csv.DictReader(io.StringIO(content))
             fieldnames = reader.fieldnames or []
+            rows = list(reader)
 
             if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
                 raise ValidationError("The CSV file must have at least one column")
+
+            if any(None in row or None in row.values() for row in rows):
+                raise ValidationError(
+                    "The CSV file contains rows which are longer or shorter than the number of columns"
+                )
 
             if self.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
                 missing = []
@@ -931,7 +938,6 @@ class UploadDataSetForm(FlaskForm):
                     raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
 
             if self.data_source_type.data == DataSourceType.STATIC:
-                rows = list(reader)
                 rows_with_missing = [
                     idx + 2
                     for idx, row in enumerate(rows)
@@ -939,10 +945,12 @@ class UploadDataSetForm(FlaskForm):
                 ]
                 if rows_with_missing:
                     raise ValidationError(
-                        f"The file has missing data in row(s): {', '.join(str(r) for r in rows_with_missing)}. "
+                        f"The file has missing data in row(s): {', '.join(str(r) for r in rows_with_missing)} "
                     )
+                if len(fieldnames) != 2:
+                    raise ValidationError("Static data sets can only have two columns")
 
-            row_count = sum(1 for _ in reader)
+            row_count = len(rows)
             if row_count > 10000:
                 raise ValidationError("The file must contain no more than 10,000 rows")
         finally:
@@ -1109,3 +1117,51 @@ class MapNumberColumnsForm(FlaskForm):
                 max_decimal_places=int(entry.max_decimal_places.data) if entry.max_decimal_places.data else None,
             )
         return settings
+
+    def build_number_column_form_errors(
+        self,
+        column_errors: dict[str, list[CellError]],
+    ) -> list[dict[str, list[str]]]:
+        columns_error_list: list[dict[str, list[str]]] = []
+        for entry in self.columns.entries:
+            subform = entry.form
+            column_name = subform.column_name.data
+            col_errs = column_errors.get(column_name, []) if column_name else []
+            subform_errors: dict[str, list[str]] = {}
+
+            for error in col_errs:
+                match error:
+                    case PrefixError():
+                        message = (
+                            f"One or more numbers in '{column_name}' do not match the prefix '{subform.prefix.data}'"
+                        )
+                        subform.prefix.errors = list(subform.prefix.errors) + [message]
+                        subform_errors.setdefault("prefix", []).append(message)
+
+                    case SuffixError():
+                        message = (
+                            f"One or more numbers in '{column_name}' do not match the suffix '{subform.suffix.data}'"
+                        )
+                        subform.suffix.errors = list(subform.suffix.errors) + [message]
+                        subform_errors.setdefault("suffix", []).append(message)
+
+                    case DecimalError():
+                        message = (
+                            f"One or more numbers in '{column_name}' have more than "
+                            f"{subform.max_decimal_places.data} decimal places"
+                        )
+                        subform.max_decimal_places.errors = list(subform.max_decimal_places.errors) + [message]
+                        subform_errors.setdefault("max_decimal_places", []).append(message)
+
+                    case DataTypeError():
+                        number_type_label = subform.number_type.data.lower() if subform.number_type.data else "number"
+                        message = f"One or more values in '{column_name}' are not a valid {number_type_label}"
+                        subform_errors.setdefault("data_type", []).append(message)
+
+                    case _:
+                        current_app.logger.error("Invalid data upload form error", error)
+                        raise RuntimeError()
+
+            columns_error_list.append(subform_errors)
+
+        return columns_error_list

@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Sequence
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -34,12 +34,12 @@ class DataTypeError(CellError):
 
 class RowValidationResult(BaseModel):
     row_number: int
-    cell_errors: list[CellError] = []
-    missing_columns: list[str] = []
+    cell_errors: list[CellError] = Field(default_factory=list)
+    missing_columns: list[str] = Field(default_factory=list)
 
 
 class DataSetValidationResult(BaseModel):
-    row_results: list[RowValidationResult] = []
+    row_results: list[RowValidationResult] = Field(default_factory=list)
 
     @property
     def blocking_errors(self) -> list[CellError]:
@@ -74,10 +74,10 @@ def _validate_cell(column: str, value: str, mapping: DataSetColumnMapping) -> li
     stripped = value.strip()
 
     if mapping.prefix:
-        stripped = value.removeprefix(mapping.prefix)
+        stripped = stripped.removeprefix(mapping.prefix)
 
     if mapping.suffix:
-        stripped = value.removesuffix(mapping.suffix)
+        stripped = stripped.removesuffix(mapping.suffix)
 
     stripped = stripped.replace(",", "").strip()
 

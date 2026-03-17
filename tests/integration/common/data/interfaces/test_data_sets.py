@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
+from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -504,7 +505,7 @@ class TestCreateUploadedDataSourceStatic:
         org_items = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).all()
         assert len(org_items) == 0
 
-    def test_raises_error_for_wrong_number_of_columns(self, db_session, factories):
+    def test_raises_error_for_duplicate_static_keys(self, db_session, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
         user = factories.user.create()
@@ -512,11 +513,10 @@ class TestCreateUploadedDataSourceStatic:
         column_mappings = [
             DataSetColumnMapping(column_name="Code", data_type=QuestionDataType.TEXT_SINGLE_LINE),
             DataSetColumnMapping(column_name="Label", data_type=QuestionDataType.TEXT_SINGLE_LINE),
-            DataSetColumnMapping(column_name="Extra", data_type=QuestionDataType.TEXT_SINGLE_LINE),
         ]
-        all_rows = [{"Code": "UK", "Label": "United Kingdom", "Extra": "foo"}]
+        all_rows = [{"Code": "UK", "Label": "United Kingdom"}, {"Code": "UK", "Label": "Another one"}]
 
-        with pytest.raises(ValueError, match="STATIC data sources must have exactly two columns"):
+        with pytest.raises(DuplicateDataSourceItemError):
             create_uploaded_data_source(
                 name="Test Static Wrong Columns",
                 data_source_type=DataSourceType.STATIC,

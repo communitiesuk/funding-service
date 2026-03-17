@@ -7040,6 +7040,48 @@ class TestUploadDataSet:
             "deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id
         )
 
+    def test_post_csv_with_too_many_headers(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        csv_content = "theme id,theme name,extra header,and again\nelectric,Electricity\nwater,Water supply"
+        data = {
+            "name": "Themes",
+            "data_source_type": DataSourceType.STATIC,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "themes.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "The CSV file contains rows which are longer or shorter than the number of columns")
+
+    def test_post_csv_with_too_long_rws(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        csv_content = "theme id,theme name\nelectric,Electricity,,,\nwater,Water supply,something,"
+        data = {
+            "name": "Themes",
+            "data_source_type": DataSourceType.STATIC,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "themes.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "The CSV file contains rows which are longer or shorter than the number of columns")
+
 
 class TestMapDataSetColumns:
     def test_404_for_non_admin(self, authenticated_grant_member_client):
@@ -7819,10 +7861,7 @@ class TestViewDataSource:
         grant = client.grant or factories.grant.create()
         report = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
         data_source = factories.data_source.create(
-            collection=report,
-            grant=grant,
-            name="Test data set",
-            type=DataSourceType.STATIC,
+            collection=report, grant=grant, name="Test data set", type=DataSourceType.STATIC, schema={}
         )
 
         response = client.get(
@@ -7855,14 +7894,9 @@ class TestViewDataSource:
     def test_get_shows_delete_banner(self, request: FixtureRequest, client_fixture: str, can_delete: bool, factories):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant or factories.grant.create()
-        print(grant)
         report = factories.collection.create(grant=grant)
-        print(report)
         data_source = factories.data_source.create(
-            collection=report,
-            grant=grant,
-            name="Test data set",
-            type=DataSourceType.STATIC,
+            collection=report, grant=grant, name="Test data set", type=DataSourceType.STATIC, schema={}
         )
 
         response = client.get(
@@ -7898,6 +7932,7 @@ class TestViewDataSource:
             name="Test data set",
             type=DataSourceType.STATIC,
             created_by=user,
+            schema={},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8015,7 +8050,7 @@ class TestViewDataSource:
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.STATIC,
-            schema=None,
+            schema={},
             items=None,
         )
         factories.data_source_item.create(data_source=data_source, key="UK", label="United Kingdom", order=0)

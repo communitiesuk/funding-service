@@ -20,7 +20,7 @@
 
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+    <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ report.name }}</span>
         Missing data in {{ session_data.name }}
@@ -29,11 +29,14 @@
         govukWarningText({"text": ("Grant recipients with missing data cannot complete the report "
         "until the missing data is uploaded.")})
       }}
-
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
       {% if is_static %}
         {% set table_head = [{"text": "Row"}] %}
       {% else %}
-        {% set table_head = [{"text": "Row"}, {"text": "External ID"}, {"text": "Grant recipient"}] %}
+        {% set table_head = [{"text": "Row"}, {"text": constants.data_set_external_id_column_header}, {"text": constants.data_set_grant_recipient_column_header}] %}
       {% endif %}
       {% for column in session_data.data_columns %}
         {% do table_head.append({"text": column}) %}
@@ -43,16 +46,16 @@
       {% for missing_data_row in validation_result.missing_columns_by_row %}
         {% set data_row = session_data.all_rows[missing_data_row] %}
 
-        <!-- Apologies to future selves - missing_data_row is the index for the row in the list rather than the row
-        in the csv, which is what we need to show in this table so the user knows which rows to fix up -->
+        {# Apologies to future selves - missing_data_row is the index for the row in the list rather than the row
+        in the csv, which is what we need to show in this table so the user knows which rows to fix up #}
         {% if is_static %}
           {% set row_cells = [{"text": missing_data_row + 2}] %}
         {% else %}
           {%
             set row_cells = [
               {"text": missing_data_row + 2},
-              {"text": data_row.get("Organisation ID", "")},
-              {"text": data_row.get("Grant recipient")}
+              {"text": data_row.get(constants.data_set_external_id_column_header)},
+              {"text": data_row.get(constants.data_set_grant_recipient_column_header)}
             ]
           %}
         {% endif %}

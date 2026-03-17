@@ -1003,7 +1003,7 @@ class DataSource(BaseModel):
             "uq_data_source_name_collection",
             "name",
             "collection_id",
-            postgresql_where="collection_id != NULL",
+            postgresql_where="collection_id IS NOT NULL",
             unique=True,
         ),
     )

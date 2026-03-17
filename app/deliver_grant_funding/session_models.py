@@ -1,7 +1,7 @@
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.common.data.types import (
     DataSourceType,
@@ -113,7 +113,7 @@ class DataSetUploadSessionModel(BaseModel):
     data_columns: list[str]
     preview_rows: list[dict[str, str]]
     all_rows: list[dict[str, str]]
-    column_mappings: list[DataSetColumnMapping] = []
+    column_mappings: list[DataSetColumnMapping] = Field(default_factory=list)
 
     @classmethod
     def from_session(cls, session_data: dict[str, Any]) -> DataSetUploadSessionModel:
