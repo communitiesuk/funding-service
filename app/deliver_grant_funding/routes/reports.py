@@ -5,6 +5,7 @@ from uuid import UUID
 
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
+from flask_admin.contrib.sqla.filters import FilterLike
 from flask_wtf import FlaskForm
 from pydantic import BaseModel, ValidationError
 from wtforms import Field
@@ -55,6 +56,7 @@ from app.common.data.interfaces.exceptions import (
 )
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
+from app.common.data.models import Organisation
 from app.common.data.types import (
     CollectionType,
     ComponentType,
@@ -70,7 +72,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
-from app.common.data_table import Column, DataTable, SelectFilter, TextFilter
+from app.common.data_table import Column, DataTable, SelectFilter
 from app.common.expressions import ExpressionContext
 from app.common.expressions.forms import _ManagedExpressionForm, build_managed_expression_form
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
@@ -2305,13 +2307,13 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
                     "Grant recipient",
                     "grant_recipient_name",
                     sortable=True,
-                    filter=TextFilter(),
+                    filter=FilterLike(Organisation.name, "Grant recipient"),
                 ),
                 Column(
                     "Status",
                     "status",
                     sortable=True,
-                    filter=SelectFilter(choices=status_choices),
+                    filter=SelectFilter("Status", options=status_choices),
                     formatter=_format_status,
                     is_html=True,
                 ),
@@ -2322,7 +2324,6 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
                     formatter=lambda val, row: format_date_short(val) if val else "",
                 ),
             ],
-            data=data,
             request_args=request.args,
         )
     else:
@@ -2354,13 +2355,13 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
                         else None
                     ),
                     classes="govuk-!-width-one-half",
-                    filter=TextFilter(),
+                    filter=FilterLike(Organisation.name, "Grant recipient"),
                 ),
                 Column(
                     "Status",
                     "status",
                     sortable=True,
-                    filter=SelectFilter(choices=status_choices),
+                    filter=SelectFilter("Status", options=status_choices),
                     formatter=_format_status,
                     is_html=True,
                 ),
@@ -2371,9 +2372,10 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
                     formatter=lambda val, row: format_date_short(val) if val else "",
                 ),
             ],
-            data=data,
             request_args=request.args,
         )
+
+    table.set_data(data)
 
     return render_template(
         "deliver_grant_funding/reports/list_submissions.html",

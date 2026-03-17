@@ -4,31 +4,23 @@ import dataclasses
 from typing import Any, Callable
 from urllib.parse import urlencode, urlparse, urlunparse
 
+from flask_admin.contrib.sqla.filters import BaseSQLAFilter
+from flask_admin.model.filters import BaseFilter
 from werkzeug.datastructures import MultiDict
 
 
-@dataclasses.dataclass
-class TextFilter:
-    """Substring match filter rendered as a text input."""
+class SelectFilter(BaseFilter):
+    """A select filter for fields that are not backed by a DB column (e.g. computed properties).
 
-    placeholder: str = ""
+    Provides options for UI rendering. Skipped by DataTable.apply_filters() since it is
+    not a BaseSQLAFilter — the caller must filter data before passing it to DataTable.
+    """
 
-    def matches(self, cell_value: Any, filter_value: str) -> bool:
-        if not filter_value:
-            return True
-        return filter_value.lower() in str(cell_value).lower()
+    def apply(self, query: Any, value: Any) -> Any:
+        raise NotImplementedError("SelectFilter is not applicable to a SQLAlchemy query")
 
-
-@dataclasses.dataclass
-class SelectFilter:
-    """Exact match filter rendered as a dropdown select."""
-
-    choices: list[tuple[str, str]] = dataclasses.field(default_factory=list)
-
-    def matches(self, cell_value: Any, filter_value: str) -> bool:
-        if not filter_value:
-            return True
-        return str(cell_value) == filter_value
+    def operation(self) -> str:
+        return "equals"
 
 
 @dataclasses.dataclass
@@ -59,7 +51,7 @@ class Column:
         accessor: str,
         *,
         sortable: bool = False,
-        filter: TextFilter | SelectFilter | None = None,
+        filter: BaseFilter | None = None,
         formatter: Callable[[Any, Any], str] | None = None,
         link: Callable[[Any], str] | None = None,
         is_html: bool = False,
@@ -84,12 +76,11 @@ class DataTable:
     def __init__(
         self,
         columns: list[Column],
-        data: list[Any],
+        data: list[Any] | None = None,
         request_args: MultiDict | dict | None = None,
         current_url: str = "",
     ):
         self._columns = columns
-        self._raw_data = data
         self._request_args = MultiDict(request_args) if request_args else MultiDict()
         self._current_url = current_url
 
@@ -97,13 +88,48 @@ class DataTable:
         self._sort_dir: str = "asc"
         self._filter_values: dict[str, str] = {}
 
+        self._rows: list[Row] = []
+        self._data_count: int = 0
+
         self._parse_params()
         self._apply_column_sort_state()
 
-        filtered = self._apply_filters(self._raw_data)
-        sorted_data = self._apply_sort(filtered)
+        if data is not None:
+            self.set_data(data)
+
+    def set_data(self, data: list[Any]) -> None:
+        """Set or replace the table data, building rows after sorting."""
+        data = self.filter_data(data)
+        self._data_count = len(data)
+        sorted_data = self._apply_sort(data)
         self._rows = self._build_rows(sorted_data)
-        self._filtered_count = len(filtered)
+
+    def apply_filters(self, query: Any) -> Any:
+        """Apply active SQLA filters to a SQLAlchemy query and return the modified query."""
+        col_map = {c.accessor: c for c in self._columns if c.filter}
+        for accessor, value in self._filter_values.items():
+            col = col_map.get(accessor)
+            if col and isinstance(col.filter, BaseSQLAFilter):
+                cleaned = col.filter.clean(value)
+                query = col.filter.apply(query, cleaned)
+        return query
+
+    def filter_data(self, data: list[Any]) -> list[Any]:
+        """Apply active non-SQLA filters to a list of data in memory.
+
+        Filters with options use exact match; text filters use case-insensitive substring match.
+        SQLA filters are skipped (use apply_filters for those).
+        """
+        col_map = {c.accessor: c for c in self._columns if c.filter}
+        for accessor, value in self._filter_values.items():
+            col = col_map.get(accessor)
+            if not col or isinstance(col.filter, BaseSQLAFilter):
+                continue
+            if col.filter.options:
+                data = [item for item in data if str(self._get_value(item, accessor)) == value]
+            else:
+                data = [item for item in data if value.lower() in str(self._get_value(item, accessor) or "").lower()]
+        return data
 
     def _parse_params(self) -> None:
         self._sort_col = self._request_args.get("sort", None)
@@ -137,25 +163,6 @@ class DataTable:
         if isinstance(item, dict):
             return item.get(accessor)
         return getattr(item, accessor, None)
-
-    def _apply_filters(self, data: list[Any]) -> list[Any]:
-        if not self._filter_values:
-            return data
-
-        col_map = {c.accessor: c for c in self._columns if c.filter}
-        result = []
-        for item in data:
-            match = True
-            for accessor, filter_value in self._filter_values.items():
-                col = col_map.get(accessor)
-                if col and col.filter:
-                    cell_value = self._get_value(item, accessor)
-                    if not col.filter.matches(cell_value, filter_value):
-                        match = False
-                        break
-            if match:
-                result.append(item)
-        return result
 
     def _apply_sort(self, data: list[Any]) -> list[Any]:
         if not self._sort_col:
@@ -251,12 +258,12 @@ class DataTable:
         col_map = {c.accessor: c for c in self._columns}
         for accessor, value in self._filter_values.items():
             col = col_map.get(accessor)
-            if not col:
+            if not col or not col.filter:
                 continue
 
             display_value = value
-            if isinstance(col.filter, SelectFilter):
-                for choice_val, choice_label in col.filter.choices:
+            if col.filter.options:
+                for choice_val, choice_label in col.filter.options:
                     if choice_val == value:
                         display_value = choice_label
                         break
@@ -296,8 +303,8 @@ class DataTable:
 
     @property
     def total_count(self) -> int:
-        return len(self._raw_data)
+        return self._data_count
 
     @property
     def filtered_count(self) -> int:
-        return self._filtered_count
+        return self._data_count

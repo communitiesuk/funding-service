@@ -21,9 +21,6 @@
       <div class="moj-filter-layout__content">
         <div class="moj-action-bar">
           <div class="moj-action-bar__filter"></div>
-          {% if table.active_filters %}
-            {{ _renderFilterTags(table) }}
-          {% endif %}
         </div>
         {{ _renderTable(table, caption, classes, empty_message) }}
       </div>
@@ -110,7 +107,7 @@
 
 {% macro _renderFilterSidebar(table) %}
   {% set active_count = table.active_filters | length %}
-  <div class="moj-filter moj-js-hidden" data-module="moj-filter" data-moj-filter-start-hidden="true">
+  <div class="moj-filter moj-js-hidden" data-module="moj-filter" data-moj-filter-start-hidden="true" data-active-filter-count="{{ table.active_filters | length }}">
     <div class="moj-filter__header">
       <div class="moj-filter__header-title">
         <h2 class="govuk-heading-m">Filter</h2>
@@ -157,9 +154,9 @@
 
           {% for col in table.filter_columns %}
             <div class="govuk-form-group">
-              {% if col.filter.__class__.__name__ == "SelectFilter" %}
+              {% if col.filter.options %}
                 {% set select_items = [{"value": "", "text": "All", "selected": not table.filter_values.get(col.accessor)}] %}
-                {% for choice_val, choice_label in col.filter.choices %}
+                {% for choice_val, choice_label in col.filter.options %}
                   {% set is_selected = table.filter_values.get(col.accessor) == choice_val %}
                   {% set _ = select_items.append({"value": choice_val, "text": choice_label, "selected": is_selected}) %}
                 {% endfor %}
@@ -179,7 +176,6 @@
                     "name": "flt_" ~ col.accessor,
                     "label": {"text": col.label, "classes": "govuk-label--s"},
                     "value": table.filter_values.get(col.accessor, ""),
-                    "hint": {"text": col.filter.placeholder} if col.filter.placeholder else {},
                   })
                 }}
               {% endif %}
@@ -196,20 +192,4 @@
       </div>
     </div>
   </div>
-{% endmacro %}
-
-{% macro _renderFilterTags(table) %}
-  <ul class="moj-filter-tags govuk-!-margin-bottom-0 data-table__inline-filter-tags">
-    <li class="data-table__filter-tags-label">
-      <span class="govuk-body govuk-!-font-size-16 govuk-!-font-weight-bold govuk-!-margin-bottom-0">Active filters:</span>
-    </li>
-    {% for af in table.active_filters %}
-      <li>
-        <a class="moj-filter__tag govuk-!-margin-top-0" href="{{ af.remove_url }}">
-          <span class="govuk-visually-hidden">Remove this filter</span>
-          {{ af.label }}: {{ af.display_value }}
-        </a>
-      </li>
-    {% endfor %}
-  </ul>
 {% endmacro %}

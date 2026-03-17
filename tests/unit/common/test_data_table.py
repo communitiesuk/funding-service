@@ -1,6 +1,9 @@
+from unittest.mock import MagicMock
+
+from flask_admin.contrib.sqla.filters import FilterLike
 from werkzeug.datastructures import MultiDict
 
-from app.common.data_table import Column, DataTable, SelectFilter, TextFilter
+from app.common.data_table import Column, DataTable, SelectFilter
 
 SAMPLE_DATA = [
     {"name": "Alpha Corp", "status": "ACTIVE", "score": 90},
@@ -11,18 +14,20 @@ SAMPLE_DATA = [
 
 
 def _make_columns(**overrides):
+    mock_column = MagicMock()
     defaults = [
-        Column("Name", "name", sortable=True, filter=TextFilter()),
+        Column("Name", "name", sortable=True, filter=FilterLike(mock_column, "Name")),
         Column(
             "Status",
             "status",
             sortable=True,
             filter=SelectFilter(
-                choices=[
+                "Status",
+                options=[
                     ("ACTIVE", "Active"),
                     ("INACTIVE", "Inactive"),
                     ("PENDING", "Pending"),
-                ]
+                ],
             ),
         ),
         Column("Score", "score", sortable=True),
@@ -35,10 +40,9 @@ class TestDataTableNoParams:
         table = DataTable(columns=_make_columns(), data=SAMPLE_DATA)
         assert len(table.rows) == 4
 
-    def test_total_and_filtered_counts_equal(self):
+    def test_total_count_equals_data_length(self):
         table = DataTable(columns=_make_columns(), data=SAMPLE_DATA)
         assert table.total_count == 4
-        assert table.filtered_count == 4
 
     def test_empty_with_no_data(self):
         table = DataTable(columns=_make_columns(), data=[])
@@ -142,73 +146,28 @@ class TestDataTableSorting:
         assert names == [None, "Alpha", "Bravo"]
 
 
-class TestDataTableTextFilter:
-    def test_text_filter_substring_match(self):
-        args = MultiDict({"flt_name": "alpha"})
+class TestDataTableFilterParsing:
+    def test_filter_values_parsed_from_request_args(self):
+        args = MultiDict({"flt_name": "alpha", "flt_status": "ACTIVE"})
         table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert len(table.rows) == 1
-        assert table.rows[0].cells[0].html == "Alpha Corp"
-
-    def test_text_filter_case_insensitive(self):
-        args = MultiDict({"flt_name": "BETA"})
-        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert len(table.rows) == 1
-
-    def test_text_filter_no_match(self):
-        args = MultiDict({"flt_name": "zzz"})
-        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert table.empty is True
-
-    def test_text_filter_partial_match(self):
-        args = MultiDict({"flt_name": "a"})
-        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        names = {r.cells[0].html for r in table.rows}
-        assert names == {"Alpha Corp", "Beta Ltd", "Gamma Inc", "Delta Co"}
+        assert table.filter_values == {"name": "alpha", "status": "ACTIVE"}
 
     def test_empty_filter_value_ignored(self):
         args = MultiDict({"flt_name": ""})
         table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert len(table.rows) == 4
-
-
-class TestDataTableSelectFilter:
-    def test_select_filter_exact_match(self):
-        args = MultiDict({"flt_status": "ACTIVE"})
-        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert len(table.rows) == 2
-        statuses = {r.cells[1].html for r in table.rows}
-        assert statuses == {"ACTIVE"}
-
-    def test_select_filter_no_match(self):
-        args = MultiDict({"flt_status": "UNKNOWN"})
-        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert table.empty is True
-
-
-class TestDataTableCombinedFilters:
-    def test_multiple_filters_applied(self):
-        args = MultiDict({"flt_name": "a", "flt_status": "ACTIVE"})
-        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert len(table.rows) == 2
-        names = {r.cells[0].html for r in table.rows}
-        assert names == {"Alpha Corp", "Gamma Inc"}
-
-    def test_filter_and_sort_combined(self):
-        args = MultiDict({"flt_status": "ACTIVE", "sort": "score", "sort_dir": "desc"})
-        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        scores = [r.cells[2].value for r in table.rows]
-        assert scores == [90, 72]
-
-    def test_filtered_count_differs_from_total(self):
-        args = MultiDict({"flt_status": "ACTIVE"})
-        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert table.total_count == 4
-        assert table.filtered_count == 2
+        assert table.filter_values == {}
 
     def test_unknown_filter_param_ignored(self):
         args = MultiDict({"flt_nonexistent": "test"})
         table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
-        assert len(table.rows) == 4
+        assert table.filter_values == {}
+
+    def test_filter_and_sort_combined(self):
+        args = MultiDict({"flt_status": "ACTIVE", "sort": "score", "sort_dir": "desc"})
+        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
+        assert table.filter_values == {"status": "ACTIVE"}
+        scores = [r.cells[2].value for r in table.rows]
+        assert scores == [90, 72]
 
 
 class TestDataTableActiveFilters:
@@ -296,3 +255,80 @@ class TestDataTableURLBuilding:
         )
         sort_url = table.columns[0].sort_url
         assert sort_url.startswith("/my-page?")
+
+
+class TestDataTableSetData:
+    def test_set_data_builds_rows(self):
+        table = DataTable(columns=_make_columns(), request_args={})
+        assert table.rows == []
+        assert table.total_count == 0
+
+        table.set_data(SAMPLE_DATA)
+        assert len(table.rows) == 4
+        assert table.total_count == 4
+
+    def test_set_data_applies_sorting(self):
+        args = MultiDict({"sort": "name", "sort_dir": "asc"})
+        table = DataTable(columns=_make_columns(), request_args=args)
+        table.set_data(SAMPLE_DATA)
+        names = [r.cells[0].html for r in table.rows]
+        assert names == ["Alpha Corp", "Beta Ltd", "Delta Co", "Gamma Inc"]
+
+
+class TestDataTableApplyFilters:
+    def test_apply_filters_calls_sqla_filter(self):
+        mock_column = MagicMock()
+        mock_query = MagicMock()
+        mock_query.filter.return_value = mock_query
+
+        columns = [
+            Column("Name", "name", filter=FilterLike(mock_column, "Name")),
+        ]
+        args = MultiDict({"flt_name": "alpha"})
+        table = DataTable(columns=columns, data=SAMPLE_DATA, request_args=args)
+
+        result = table.apply_filters(mock_query)
+        assert result is not None
+
+    def test_apply_filters_skips_non_sqla_filter(self):
+        mock_query = MagicMock()
+
+        columns = [
+            Column(
+                "Status",
+                "status",
+                filter=SelectFilter("Status", options=[("ACTIVE", "Active")]),
+            ),
+        ]
+        args = MultiDict({"flt_status": "ACTIVE"})
+        table = DataTable(columns=columns, data=SAMPLE_DATA, request_args=args)
+
+        result = table.apply_filters(mock_query)
+        mock_query.filter.assert_not_called()
+        assert result is mock_query
+
+    def test_apply_filters_with_no_active_filters(self):
+        mock_query = MagicMock()
+        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA)
+
+        result = table.apply_filters(mock_query)
+        mock_query.filter.assert_not_called()
+        assert result is mock_query
+
+
+class TestDataTableFilterData:
+    def test_select_filter_exact_match(self):
+        args = MultiDict({"flt_status": "ACTIVE"})
+        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
+        assert len(table.rows) == 2
+        statuses = {r.cells[1].html for r in table.rows}
+        assert statuses == {"ACTIVE"}
+
+    def test_select_filter_no_match(self):
+        args = MultiDict({"flt_status": "UNKNOWN"})
+        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA, request_args=args)
+        assert table.empty is True
+
+    def test_no_active_filters_returns_all_data(self):
+        table = DataTable(columns=_make_columns(), data=SAMPLE_DATA)
+        assert len(table.rows) == 4

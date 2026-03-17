@@ -1,4 +1,4 @@
-import { initAll, createAll } from "govuk-frontend";
+import { initAll } from "govuk-frontend";
 import {
     initAll as mojInitAll,
     FilterToggleButton,
@@ -12,7 +12,15 @@ import { initSectionNavScroll } from "./components/submission-section-nav/index.
 
 initAll();
 mojInitAll();
-createAll(FilterToggleButton);
+document.querySelectorAll('[data-module="moj-filter"]').forEach((el) => {
+    const count = parseInt(el.dataset.activeFilterCount || "0", 10);
+    const showText =
+        count > 0 ? `Show filters (${count} active)` : "Show filters";
+
+    new FilterToggleButton(el, {
+        toggleButton: { showText, hideText: "Hide filters" },
+    });
+});
 initSectionNavScroll();
 
 for (let el of document.querySelectorAll("[data-accessible-autocomplete]")) {
