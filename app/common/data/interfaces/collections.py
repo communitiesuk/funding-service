@@ -60,7 +60,7 @@ from app.common.expressions import (
     EvaluatableExpression,
     ExpressionContext,
 )
-from app.common.expressions.managed import BaseDataSourceManagedExpression, ManagedExpression
+from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
@@ -72,7 +72,7 @@ from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.expressions.managed import ManagedExpression
+    pass
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
@@ -1727,8 +1727,10 @@ def _validate_and_sync_component_references(component: Component, expression_con
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_component_condition(component: Component, user: User, managed_expression: ManagedExpression) -> Component:
-    expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
+def add_component_condition(
+    component: Component, user: User, evaluatable_expression: EvaluatableExpression
+) -> Component:
+    expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.CONDITION, user)
     component.expressions.append(expression)
 
     _validate_and_sync_expression_references(expression)
