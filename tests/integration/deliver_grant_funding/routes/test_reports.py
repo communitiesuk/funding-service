@@ -55,7 +55,11 @@ from app.common.expressions import (
     UndefinedVariableInExpression,
 )
 from app.common.expressions.custom import CustomExpression
-from app.common.expressions.forms import CustomValidationExpressionForm, build_managed_expression_form
+from app.common.expressions.forms import (
+    CalculatedConditionForm,
+    CustomValidationExpressionForm,
+    build_managed_expression_form,
+)
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
 from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
@@ -3894,6 +3898,49 @@ class TestAddCalculatedCondition:
             assert response.status_code == 403
         else:
             assert response.status_code == 200
+
+    def test_post_success(self, authenticated_grant_admin_client, factories, db_session, mocker):
+        mocker.patch(
+            "app.deliver_grant_funding.routes.reports.AuthorisationHelper.is_platform_member", return_value=True
+        )
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        q1, q2, q3 = factories.question.create_batch(3, form=db_form, data_type=QuestionDataType.NUMBER)
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why so much?",
+            name="text question",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+        )
+
+        assert len(target_question.expressions) == 0
+
+        form = CalculatedConditionForm(
+            data={"custom_expression": f"(({q3.safe_qid}))>(({q2.safe_qid}))+(({q1.safe_qid}))"}
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=target_question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type_ == ExpressionType.CONDITION
+        assert expression.managed_name is None
+        assert expression.is_custom is True
 
 
 class TestAddQuestionCondition:
