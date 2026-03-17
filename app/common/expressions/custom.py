@@ -14,7 +14,7 @@ class CustomExpression(EvaluatableExpression):
     question_id: None = None
     _key: None = None
     custom_expression: str
-    custom_message: str
+    custom_message: str | None = None
     custom_description: str = (
         "Custom calculation"  # This will be customisable when we allow creating reusable calculations
     )
@@ -28,7 +28,7 @@ class CustomExpression(EvaluatableExpression):
         return self.custom_description
 
     @property
-    def message(self) -> str:
+    def message(self) -> str | None:
         return self.custom_message
 
     @property
@@ -39,7 +39,7 @@ class CustomExpression(EvaluatableExpression):
     def build_from_form(cls, form: CustomValidationExpressionForm) -> CustomExpression:
         return CustomExpression(
             custom_expression=form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-            custom_message=form.custom_message.data,  # ty:ignore[invalid-argument-type]
+            custom_message=form.custom_message.data,
         )
 
 
