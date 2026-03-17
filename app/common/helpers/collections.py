@@ -45,6 +45,7 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     ComponentVisibilityState,
     ConditionsOperator,
+    ExpressionType,
     GrantRecipientModeEnum,
     NumberTypeEnum,
     QuestionDataType,
@@ -520,6 +521,7 @@ class SubmissionHelper:
             visited = set()
 
         return_status = ComponentVisibilityState.VISIBLE
+        any_condition_ref_states: list[tuple[ComponentVisibilityState, bool]] = []
 
         for ref in component.owned_component_references:
             depends_on = ref.depends_on_component
@@ -533,17 +535,29 @@ class SubmissionHelper:
             ref_visibility = self._get_component_visibility_state_internal(
                 depends_on, context, add_another_index=add_another_index, visited=visited
             )
-
-            # If any depended-upon component is hidden, then this one needs to be hidden as well.
-            if ref_visibility == ComponentVisibilityState.HIDDEN:
-                return ComponentVisibilityState.HIDDEN
-
             answer = self.cached_get_answer_for_question(depends_on.id, add_another_index)
-            if answer is not None:
-                continue
 
-            # Otherwise we should expect the component status to be undetermined instead of visible.
-            return_status = ComponentVisibilityState.UNDETERMINED
+            is_any_condition_ref = (
+                ref.expression is not None
+                and ref.expression.type_ == ExpressionType.CONDITION
+                and component.conditions_operator == ConditionsOperator.ANY
+            )
+
+            if is_any_condition_ref:
+                any_condition_ref_states.append((ref_visibility, answer is not None))
+            else:
+                if ref_visibility == ComponentVisibilityState.HIDDEN:
+                    return ComponentVisibilityState.HIDDEN
+                if answer is None:
+                    return_status = ComponentVisibilityState.UNDETERMINED
+
+        if any_condition_ref_states:
+            if all(vis == ComponentVisibilityState.HIDDEN for vis, _ in any_condition_ref_states):
+                return ComponentVisibilityState.HIDDEN
+            if not any(
+                vis == ComponentVisibilityState.VISIBLE and answered for vis, answered in any_condition_ref_states
+            ):
+                return_status = ComponentVisibilityState.UNDETERMINED
 
         return return_status
 
@@ -581,9 +595,27 @@ class SubmissionHelper:
                 return True
             match operator:
                 case ConditionsOperator.ANY:
-                    return any(evaluate(condition, context) for condition in conditions)
+                    had_undefined = False
+                    for condition in conditions:
+                        try:
+                            if evaluate(condition, context):
+                                return True
+                        except UndefinedVariableInExpression:
+                            had_undefined = True
+                    if had_undefined:
+                        raise UndefinedVariableInExpression("undefined variable in ANY condition group")
+                    return False
                 case ConditionsOperator.ALL:
-                    return all(evaluate(condition, context) for condition in conditions)
+                    had_undefined = False
+                    for condition in conditions:
+                        try:
+                            if not evaluate(condition, context):
+                                return False
+                        except UndefinedVariableInExpression:
+                            had_undefined = True
+                    if had_undefined:
+                        raise UndefinedVariableInExpression("undefined variable in ALL condition group")
+                    return True
                 case _:
                     raise RuntimeError(f"Unknown condition operator={operator}")
 
@@ -593,7 +625,7 @@ class SubmissionHelper:
                     component, submission_helper=self, add_another_index=add_another_index
                 )
 
-            for _operator, _conditions in component.full_condition_chain:
+            for _operator, _conditions in component.get_full_condition_chain(follow_references=False):
                 if not evaluate_component_conditions(_operator, _conditions):
                     return ComponentVisibilityState.HIDDEN
 

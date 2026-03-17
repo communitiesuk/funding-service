@@ -1626,6 +1626,186 @@ class TestSubmissionHelper:
                 == ComponentVisibilityState.HIDDEN
             )
 
+        def test_any_operator_visible_when_one_ref_hidden_and_other_condition_satisfied(self, factories):
+            form = factories.form.build()
+            q1 = factories.question.build(form=form, order=0, data_type=QuestionDataType.YES_NO)
+            q2 = factories.question.build(form=form, order=1, data_type=QuestionDataType.YES_NO)
+            q3 = factories.question.build(form=form, order=2, data_type=QuestionDataType.YES_NO)
+            q4 = factories.question.build(form=form, order=3, conditions_operator=ConditionsOperator.ANY)
+
+            cond_q2 = factories.expression.build(
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} is True"
+            )
+            q2.owned_component_references = [
+                ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)
+            ]
+
+            cond_q4_on_q2 = factories.expression.build(
+                question=q4, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} is True"
+            )
+            cond_q4_on_q3 = factories.expression.build(
+                question=q4, type_=ExpressionType.CONDITION, statement=f"{q3.safe_qid} is True"
+            )
+            q4.owned_component_references = [
+                ComponentReference(component=q4, expression=cond_q4_on_q2, depends_on_component=q2),
+                ComponentReference(component=q4, expression=cond_q4_on_q3, depends_on_component=q3),
+            ]
+
+            submission = factories.submission.build(
+                collection=form.collection,
+                data={str(q1.id): False, str(q3.id): True},
+            )
+            helper = SubmissionHelper(submission)
+
+            assert (
+                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
+                == ComponentVisibilityState.HIDDEN
+            )
+            assert (
+                helper.get_component_visibility_state(q4, helper.cached_evaluation_context)
+                == ComponentVisibilityState.VISIBLE
+            )
+
+        def test_any_operator_not_visible_when_one_ref_hidden_and_other_condition_not_satisfied(self, factories):
+            form = factories.form.build()
+            q1 = factories.question.build(form=form, order=0, data_type=QuestionDataType.YES_NO)
+            q2 = factories.question.build(form=form, order=1, data_type=QuestionDataType.YES_NO)
+            q3 = factories.question.build(form=form, order=2, data_type=QuestionDataType.YES_NO)
+            q4 = factories.question.build(form=form, order=3, conditions_operator=ConditionsOperator.ANY)
+
+            cond_q2 = factories.expression.build(
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} is True"
+            )
+            q2.owned_component_references = [
+                ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)
+            ]
+
+            cond_q4_on_q2 = factories.expression.build(
+                question=q4, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} is True"
+            )
+            cond_q4_on_q3 = factories.expression.build(
+                question=q4, type_=ExpressionType.CONDITION, statement=f"{q3.safe_qid} is True"
+            )
+            q4.owned_component_references = [
+                ComponentReference(component=q4, expression=cond_q4_on_q2, depends_on_component=q2),
+                ComponentReference(component=q4, expression=cond_q4_on_q3, depends_on_component=q3),
+            ]
+
+            submission = factories.submission.build(
+                collection=form.collection,
+                data={str(q1.id): False, str(q3.id): False},
+            )
+            helper = SubmissionHelper(submission)
+
+            assert (
+                helper.get_component_visibility_state(q4, helper.cached_evaluation_context)
+                != ComponentVisibilityState.VISIBLE
+            )
+
+        def test_any_operator_hidden_when_all_refs_hidden(self, factories):
+            form = factories.form.build()
+            q1 = factories.question.build(form=form, order=0, data_type=QuestionDataType.YES_NO)
+            q2 = factories.question.build(form=form, order=1, data_type=QuestionDataType.YES_NO)
+            q3 = factories.question.build(form=form, order=2, conditions_operator=ConditionsOperator.ANY)
+
+            factories.expression.build(question=q1, type_=ExpressionType.CONDITION, statement="False")
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="False")
+
+            cond_q3_on_q1 = factories.expression.build(
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} is True"
+            )
+            cond_q3_on_q2 = factories.expression.build(
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} is True"
+            )
+            q3.owned_component_references = [
+                ComponentReference(component=q3, expression=cond_q3_on_q1, depends_on_component=q1),
+                ComponentReference(component=q3, expression=cond_q3_on_q2, depends_on_component=q2),
+            ]
+
+            submission = factories.submission.build(collection=form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert (
+                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
+                == ComponentVisibilityState.HIDDEN
+            )
+
+        def test_any_operator_visible_when_unanswered_ref_and_other_condition_true(self, factories):
+            form = factories.form.build()
+            q1 = factories.question.build(form=form, order=0, data_type=QuestionDataType.YES_NO)
+            q2 = factories.question.build(form=form, order=1, data_type=QuestionDataType.YES_NO)
+            q3 = factories.question.build(form=form, order=2, conditions_operator=ConditionsOperator.ANY)
+
+            cond_q3_on_q1 = factories.expression.build(
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} is True"
+            )
+            cond_q3_on_q2 = factories.expression.build(
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} is True"
+            )
+            q3.owned_component_references = [
+                ComponentReference(component=q3, expression=cond_q3_on_q1, depends_on_component=q1),
+                ComponentReference(component=q3, expression=cond_q3_on_q2, depends_on_component=q2),
+            ]
+
+            submission = factories.submission.build(
+                collection=form.collection,
+                data={str(q2.id): True},
+            )
+            helper = SubmissionHelper(submission)
+
+            assert (
+                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
+                == ComponentVisibilityState.VISIBLE
+            )
+
+        def test_any_operator_full_scenario_q1_hides_q2_but_q3_satisfies_q4(self, factories):
+            form = factories.form.build()
+            q1 = factories.question.build(form=form, order=0, data_type=QuestionDataType.YES_NO)
+            q2 = factories.question.build(form=form, order=1, data_type=QuestionDataType.YES_NO)
+            q3 = factories.question.build(form=form, order=2, data_type=QuestionDataType.YES_NO)
+            q4 = factories.question.build(form=form, order=3, conditions_operator=ConditionsOperator.ANY)
+
+            cond_q2 = factories.expression.build(
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} is True"
+            )
+            q2.owned_component_references = [
+                ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)
+            ]
+
+            cond_q4_on_q2 = factories.expression.build(
+                question=q4, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} is True"
+            )
+            cond_q4_on_q3 = factories.expression.build(
+                question=q4, type_=ExpressionType.CONDITION, statement=f"{q3.safe_qid} is True"
+            )
+            q4.owned_component_references = [
+                ComponentReference(component=q4, expression=cond_q4_on_q2, depends_on_component=q2),
+                ComponentReference(component=q4, expression=cond_q4_on_q3, depends_on_component=q3),
+            ]
+
+            submission = factories.submission.build(
+                collection=form.collection,
+                data={str(q1.id): False, str(q3.id): True},
+            )
+            helper = SubmissionHelper(submission)
+
+            assert (
+                helper.get_component_visibility_state(q1, helper.cached_evaluation_context)
+                == ComponentVisibilityState.VISIBLE
+            )
+            assert (
+                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
+                == ComponentVisibilityState.HIDDEN
+            )
+            assert (
+                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
+                == ComponentVisibilityState.VISIBLE
+            )
+            assert (
+                helper.get_component_visibility_state(q4, helper.cached_evaluation_context)
+                == ComponentVisibilityState.VISIBLE
+            )
+
 
 class TestDeserialiseQuestionType:
     def test_number_integer(self, factories):

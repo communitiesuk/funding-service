@@ -508,7 +508,7 @@ class Component(BaseModel):
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.CONDITION]
 
     def get_full_condition_chain(
-        self, ignore_parents: bool = False
+        self, ignore_parents: bool = False, follow_references: bool = True
     ) -> list[tuple[ConditionsOperator, list[Expression]]]:
         """Returns a list of all of the conditions that this question depends on, eg:
 
@@ -520,6 +520,7 @@ class Component(BaseModel):
 
         Q4.get_full_condition_chain() == [Q4.condition, G1.condition, Q2.condition]
         Q4.get_full_condition_chain(ignore_parents=True) == [Q4.condition, Q2.condition]
+        Q4.get_full_condition_chain(follow_references=False) == [Q4.condition, G1.condition]
         """
         conditions = []
 
@@ -529,13 +530,14 @@ class Component(BaseModel):
             if component.conditions:
                 conditions.append((component.conditions_operator, component.conditions))
 
-            for ocr in component.owned_component_references:
-                if (
-                    ocr.depends_on_component
-                    and ocr.depends_on_component != component
-                    and ocr.depends_on_component not in visited
-                ):
-                    _fetch_dependent_conditions(ocr.depends_on_component, visited)
+            if follow_references:
+                for ocr in component.owned_component_references:
+                    if (
+                        ocr.depends_on_component
+                        and ocr.depends_on_component != component
+                        and ocr.depends_on_component not in visited
+                    ):
+                        _fetch_dependent_conditions(ocr.depends_on_component, visited)
 
         target_component: Component | None = self
         while target_component:

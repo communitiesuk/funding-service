@@ -289,6 +289,25 @@ class TestFullConditionChain:
         assert len(q2.get_full_condition_chain(ignore_parents=True)) == 0
         assert len(q2.get_full_condition_chain(ignore_parents=False)) == 1
 
+    def test_follow_references_false_excludes_transitive_conditions(self, factories):
+        form = factories.form.build()
+        q1 = factories.question.build(form=form, order=0)
+        q2 = factories.question.build(form=form, order=1)
+        q3 = factories.question.build(form=form, order=2)
+
+        cond_q2 = factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="True")
+        q2.owned_component_references = [ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)]
+
+        cond_q3 = factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement="True")
+        q3.owned_component_references = [ComponentReference(component=q3, expression=cond_q3, depends_on_component=q2)]
+
+        chain_with_refs = q3.get_full_condition_chain(follow_references=True)
+        chain_without_refs = q3.get_full_condition_chain(follow_references=False)
+
+        assert len(chain_with_refs) == 2
+        assert len(chain_without_refs) == 1
+        assert chain_without_refs[0] == (ConditionsOperator.ALL, [cond_q3])
+
 
 class TestAllConditionalDependedOnComponents:
     def test_no_conditions(self, factories):
