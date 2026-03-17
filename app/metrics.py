@@ -33,6 +33,8 @@ class MetricAttributeName(StrEnum):
 
     MANAGED_EXPRESSION_NAME = "managed-expression-name"
 
+    FILE_FORMAT = "file-format"
+
 
 class MetricEventName(StrEnum):
     SECTION_MARKED_COMPLETE = "section-marked-as-complete"
@@ -53,6 +55,8 @@ class MetricEventName(StrEnum):
 
     GRANT_STATUS_CHANGED = "grant-status-changed"
     COLLECTION_STATUS_CHANGED = "collection-status-changed"
+
+    SUBMISSIONS_EXPORTED = "submissions-exported"
 
 
 def _get_event_attributes(
