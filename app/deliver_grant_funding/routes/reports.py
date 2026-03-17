@@ -101,6 +101,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToExpressionsModel,
 )
 from app.extensions import auto_commit_after_request, notification_service, s3_service
+from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
@@ -2291,6 +2292,11 @@ def export_report_submissions(
     buffer = io.StringIO()
     buffer.write(data)
     buffer.seek(0)
+    emit_metric_count(
+        MetricEventName.SUBMISSIONS_EXPORTED,
+        collection=report,
+        custom_attributes={MetricAttributeName.FILE_FORMAT: export_format},
+    )
     return send_file(
         io.BytesIO(buffer.getvalue().encode(encoding)),
         mimetype=mimetype,
