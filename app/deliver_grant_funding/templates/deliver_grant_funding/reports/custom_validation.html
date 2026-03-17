@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "deliver_grant_funding/macros/equation_symbols.html" import equation_symbols %}
 
 {% set active_item_identifier = "reports" %}
 {% if expression %}
@@ -91,19 +92,7 @@
 
             <p class="govuk-body">If the total spend answer does not pass the validation, the user will need to correct their answers to continue.</p>
 
-            <h3 class="govuk-heading-s">Equation symbols</h3>
-            {{
-              govukSummaryList({
-                "rows": [
-                    {
-                      "key": {"text": "+"},
-                      "value": {"text": "Add two numbers"}
-                    },
-              {"key": {"text": "-"}, "value": {"text": "Subtract a number from another number"
-            }},
-            {"key": {"text": "*"}, "value": {"text": "Multiply two numbers"}}, {"key": {"text": "/"}, "value": {"text": "Divide one number by another number"}}, {"key": {"text": "=="}, "value": {"text": "Is equal to"}}, {"key": {"html":
-            "&lt;"}, "value": {"text": "Is less than"}}, {"key": {"html": "&gt;"}, "value": {"text": "Is greater than"}}, {"key": {"html": "&lt;="}, "value": {"text": "Is less than or equal to"}}, {"key": {"html": "&gt;="}, "value":
-            {"text": "Is greater than or equal to"}} ], }) }}
+            {{ equation_symbols(include_comparators=True) }}
           {% endset %}
           {{
             govukDetails({
