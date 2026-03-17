@@ -359,12 +359,15 @@ def authenticated_platform_admin_client(
 
     user = factories.user.create(email=email)
     factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN])
+    grant = factories.grant.create()
 
     login_user(user)
     with anonymous_client.session_transaction() as session:
         session["auth"] = AuthMethodEnum.SSO
     anonymous_client.user = user
     db_session.commit()
+
+    anonymous_client.grant = grant
 
     yield anonymous_client
 
