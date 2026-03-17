@@ -15,20 +15,22 @@
     {% set return_url = url_for("deliver_grant_funding.add_question_condition_select_question", grant_id=grant.id, component_id=add_context_data.component_id) %}
   {% elif add_context_data.field == enum.expression_type.CONDITION %}
     {% if not add_context_data.expression_id %}
-      {% set return_url = url_for("deliver_grant_funding.add_question_condition",grant_id=grant.id, component_id=add_context_data.component_id, depends_on_question_id=add_context_data.depends_on_question_id) %}
+      {% if add_context_data.is_custom == true %}
+        {% set return_url = url_for("deliver_grant_funding.add_calculated_condition", grant_id=grant.id, component_id=add_context_data.component_id) %}
+      {% else %}
+        {% set return_url = url_for("deliver_grant_funding.add_question_condition",grant_id=grant.id, component_id=add_context_data.component_id, depends_on_question_id=add_context_data.depends_on_question_id) %}
+      {% endif %}
     {% else %}
       {% set return_url = url_for("deliver_grant_funding.edit_question_condition", grant_id=grant.id, expression_id=add_context_data.expression_id) %}
     {% endif %}
   {% elif add_context_data.field == enum.expression_type.VALIDATION %}
     {% if not add_context_data.expression_id %}
-      {% set return_url = url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=add_context_data.component_id) %}
       {% if add_context_data.is_custom == true %}
         {% set return_url = url_for("deliver_grant_funding.add_custom_question_validation", grant_id=grant.id, question_id=add_context_data.component_id) %}
       {% else %}
         {% set return_url = url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=add_context_data.component_id) %}
       {% endif %}
     {% else %}
-      {% set return_url = url_for("deliver_grant_funding.edit_question_validation", grant_id=grant.id, expression_id=add_context_data.expression_id) %}
       {% if add_context_data.is_custom == true %}
         {% set return_url = url_for("deliver_grant_funding.edit_custom_question_validation", grant_id=grant.id, question_id=add_context_data.component_id, expression_id=add_context_data.expression_id) %}
       {% else %}

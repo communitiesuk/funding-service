@@ -73,8 +73,12 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SetUpReportForm,
 )
-from app.deliver_grant_funding.routes.reports import _validate_custom_syntax
+from app.deliver_grant_funding.routes.reports import (
+    _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression,
+    _validate_custom_syntax,
+)
 from app.deliver_grant_funding.session_models import (
+    AddConditionDependsOnSessionModel,
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
@@ -2662,6 +2666,103 @@ class TestSelectContextSource:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Select a data source" in soup.text
+        assert "This question" not in soup.text
+
+    def test_get_shows_this_question_for_custom_validation_expression(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, name="Test question", data_type=QuestionDataType.NUMBER)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.VALIDATION,
+                component_id=question.id,
+                managed_expression_name=None,
+                is_custom=True,
+                expression_form_data={
+                    "add_context": "custom_expression",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select a data source" in soup.text
+        assert "This question" in soup.text
+
+    @pytest.mark.parametrize(
+        "session_data",
+        [
+            (
+                AddContextToExpressionsModel(
+                    field=ExpressionType.VALIDATION,
+                    managed_expression_name=None,
+                    component_id=uuid.uuid4(),
+                    is_custom=True,
+                    expression_form_data={
+                        "add_context": "custom_message",
+                    },
+                )
+            ),
+            (
+                AddContextToExpressionsModel(
+                    field=ExpressionType.VALIDATION,
+                    managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                    component_id=uuid.uuid4(),
+                    is_custom=False,
+                    expression_form_data={
+                        "add_context": "custom_expression",
+                    },
+                )
+            ),
+            (
+                AddContextToExpressionsModel(
+                    field=ExpressionType.CONDITION,
+                    managed_expression_name=None,
+                    component_id=uuid.uuid4(),
+                    is_custom=True,
+                    expression_form_data={
+                        "add_context": "custom_expression",
+                    },
+                )
+            ),
+            (
+                AddConditionDependsOnSessionModel(
+                    component_id=uuid.uuid4(),
+                )
+            ),
+        ],
+    )
+    def test_get_does_not_show_this_question(self, authenticated_grant_admin_client, factories, session_data):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, name="Test question", data_type=QuestionDataType.NUMBER)
+
+        session_data.component_id = question.id
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select a data source" in soup.text
+        assert "This question" not in soup.text
 
     def test_get_works_for_existing_group_available_context_source_choices(
         self, authenticated_grant_admin_client, factories
@@ -3731,6 +3832,68 @@ class TestAddQuestionConditionSelectQuestion:
         assert response.location == AnyStringMatching(
             rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/section/{form.id}/add-context/select-source"
         )
+
+
+class TestAddCalculatedCondition:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=uuid.uuid4(),
+                component_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_platform_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+        )
+
+        target_question = factories.question.create(
+            form=form,
+            text="What is your email?",
+            name="email question",
+            hint="Enter your email",
+            data_type=QuestionDataType.EMAIL,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=client.grant.id,
+                component_id=target_question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=client.grant.id,
+                component_id=group.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
 
 
 class TestAddQuestionCondition:
@@ -9417,3 +9580,100 @@ class TestEditCustomQuestionValidation:
             assert session["question"]["field"] == ExpressionType.VALIDATION
             assert session["question"]["expression_form_data"]["custom_expression"] == f"(({q1.safe_qid})) <="
             assert session["question"]["expression_form_data"]["custom_message"] == "Failed custom validation..."
+
+
+class TestDetermineReturnUrlExpressionReferencedQuestion:
+    def test_update_target_field_replace(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+            expression_form_data={
+                "test_field": "start",
+                "add_context": "test_field",
+            },
+            depends_on_question_id=uuid.uuid4(),
+        )
+
+        _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+
+        assert add_context_data.expression_form_data["test_field"] == f"(({question.safe_qid}))"
+
+    def test_update_target_field_append(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=None,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+        )
+
+        _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+
+        assert add_context_data.expression_form_data["test_field"] == f"start + (({question.safe_qid}))"
+
+    def test_return_url_new_non_calculated_condition(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+            depends_on_question_id=uuid.uuid4(),
+        )
+
+        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+        assert result == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/[a-z0-9-]{36}"
+        )
+
+    def test_return_url_existing_non_calculated_condition(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+            depends_on_question_id=uuid.uuid4(),
+            expression_id=uuid.uuid4(),
+        )
+
+        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+        assert result == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/condition/[a-z0-9-]{36}")
+
+    def test_return_url_new_calculated_condition(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=None,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+        )
+
+        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+        assert result == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/calculated"
+        )
