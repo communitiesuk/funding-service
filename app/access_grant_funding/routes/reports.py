@@ -18,6 +18,7 @@ from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.extensions import auto_commit_after_request, notification_service
+from app.metrics import MetricEventName, emit_metric_count
 from app.types import FlashMessageType
 
 
@@ -171,6 +172,8 @@ def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID
             scale=0.9,
             margin={"top": "5mm", "bottom": "5mm", "left": "5mm", "right": "5mm"},
         )
+
+    emit_metric_count(MetricEventName.SUBMISSION_PDF_DOWNLOADED, submission=submission.submission)
 
     return send_file(
         io.BytesIO(pdf_bytes),

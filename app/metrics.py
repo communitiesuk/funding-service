@@ -57,6 +57,7 @@ class MetricEventName(StrEnum):
     COLLECTION_STATUS_CHANGED = "collection-status-changed"
 
     SUBMISSIONS_EXPORTED = "submissions-exported"
+    SUBMISSION_PDF_DOWNLOADED = "submission-pdf-downloaded"
 
 
 def _get_event_attributes(
