@@ -3942,6 +3942,187 @@ class TestAddCalculatedCondition:
         assert expression.managed_name is None
         assert expression.is_custom is True
 
+    def test_post_error(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        q1, q2, q3 = factories.question.create_batch(3, form=db_form, data_type=QuestionDataType.NUMBER)
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why so much?",
+            name="text question",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+        )
+
+        assert len(target_question.expressions) == 0
+
+        form = CalculatedConditionForm(
+            data={"custom_expression": f"(({q3.safe_qid})) greater than (({q2.safe_qid}))+(({q1.safe_qid}))"}
+        )
+
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                component_id=target_question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+
+        assert len(target_question.expressions) == 0
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            "The calculation does not make sense",
+        )
+
+
+class TestEditCalculatedCondition:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_platform_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+        )
+        group_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="6>5"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        group.expressions.append(group_condition)
+        db_session.add(group_condition)
+
+        target_question = factories.question.create(form=form)
+        question_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="4>5"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        target_question.expressions.append(question_condition)
+        db_session.add(question_condition)
+        db_session.commit()
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=client.grant.id,
+                expression_id=target_question.expressions[0].id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=client.grant.id,
+                expression_id=group.expressions[0].id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    def test_post_success(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+        )
+        group_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="6>5"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        group.expressions.append(group_condition)
+        db_session.add(group_condition)
+
+        target_question = factories.question.create(form=form)
+        question_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="4>5"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        target_question.expressions.append(question_condition)
+        db_session.add(question_condition)
+        db_session.commit()
+
+        wt_form = CalculatedConditionForm(data={"custom_expression": "68>70"})
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                expression_id=question_condition.id,
+            ),
+            data=get_form_data(wt_form),
+        )
+        assert response.status_code == 302
+        updated_condition = db_session.get(Expression, question_condition.id)
+        assert updated_condition.custom.custom_expression == "68>70"
+
+        wt_form = CalculatedConditionForm(data={"custom_expression": "100<900"})
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                expression_id=group_condition.id,
+            ),
+            data=get_form_data(wt_form),
+        )
+        assert response.status_code == 302
+        updated_condition = db_session.get(Expression, group_condition.id)
+        assert updated_condition.custom.custom_expression == "100<900"
+
+    def test_post_error(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        target_question = factories.question.create(form=form)
+        later_question = factories.question.create(form=form)
+        question_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="4>5"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        target_question.expressions.append(question_condition)
+        db_session.add(question_condition)
+        db_session.commit()
+
+        wt_form = CalculatedConditionForm(data={"custom_expression": f"(({later_question.safe_qid}))>5"})
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                expression_id=question_condition.id,
+            ),
+            data=get_form_data(wt_form),
+        )
+        assert response.status_code == 200
+        updated_condition = db_session.get(Expression, question_condition.id)
+        assert updated_condition.custom.custom_expression == "4>5"
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            f"You cannot use {later_question.name} because it comes after this question",
+        )
+
 
 class TestAddQuestionCondition:
     def test_404(self, authenticated_grant_admin_client):
@@ -9722,5 +9903,23 @@ class TestDetermineReturnUrlExpressionReferencedQuestion:
             uuid.uuid4(), add_context_data, question
         )
         assert result == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/calculated"
+            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-calculated-condition"
         )
+
+    def test_return_url_existing_calculated_condition(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=None,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+            expression_id=uuid.uuid4(),
+        )
+
+        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+        assert result == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/calculated-condition/[a-z0-9-]{36}")
