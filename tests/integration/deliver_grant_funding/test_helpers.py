@@ -1,10 +1,5 @@
-from app.common.data.models import (
-    Submission,
-    SubmissionEvent,
-)
-from app.common.data.types import (
-    SubmissionModeEnum,
-)
+from app.common.data.models import Submission, SubmissionEvent
+from app.common.data.types import SubmissionModeEnum
 from app.deliver_grant_funding.helpers import start_previewing_collection
 from tests.utils import AnyStringMatching
 

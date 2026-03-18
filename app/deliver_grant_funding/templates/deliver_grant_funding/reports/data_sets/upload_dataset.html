@@ -1,0 +1,56 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% set active_item_identifier = "reports" %}
+
+{% set page_title = "Upload new data set to " + report.name %}
+
+{% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant.id, report_id=report.id) %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if gr_errors %}
+        {% set error_list = [] %}
+        {% for error in gr_errors %}
+          {% do error_list.append({"text": error, "href": "#file"}) %}
+        {% endfor %}
+        {{
+          govukErrorSummary({
+            "titleText": "There is a problem",
+            "errorList": error_list
+          })
+        }}
+      {% endif %}
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ report.name }}</span>
+        Upload new data set
+      </h1>
+      <p class="govuk-body">Upload data to reference in form guidance, questions, conditions and validation.</p>
+      <form method="POST" enctype="multipart/form-data" novalidate>
+        {{ form.csrf_token }}
+        {{ form.name }}
+        {{
+          form.data_source_type(params={
+            "items": [
+              { "hint": {
+                  "text": "For example, grant allocation",
+                }
+              },
+              {
+                "hint": {
+                  "text": "For example, project details",
+                }
+              },
+              {},
+            ]
+          })
+        }}
+        {{ form.file(params={"javascript": true}) }}
+        {{ form.submit(params={"text": "Continue and map columns" }) }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

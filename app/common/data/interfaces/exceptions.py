@@ -43,6 +43,10 @@ class DuplicateValueError(Exception):
         self.new_value = integrity_error.params.get(self.field_name, "unknown")  # ty: ignore[no-matching-overload]
 
 
+class DuplicateDataSourceItemError(Exception):
+    pass
+
+
 class InvalidUserRoleError(Exception):
     model_name: str | None
     constraint_name: str | None

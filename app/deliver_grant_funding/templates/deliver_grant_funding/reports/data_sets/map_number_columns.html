@@ -1,0 +1,66 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+
+{% set active_item_identifier = "reports" %}
+
+{% set page_title = "Map " ~ session_data.name ~ " number columns" %}
+
+{% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id) %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ report.name }}</span>
+        Map {{ session_data.name }} number columns
+      </h1>
+      <p class="govuk-body">Map the data from each numerical column to set formatting options.</p>
+    </div>
+    <div class="govuk-grid-column-full">
+      <form method="POST" novalidate>
+        {{ form.csrf_token }}
+
+        {% set rows = [] %}
+        {% for mapping in session_data.column_mappings if mapping.data_type == enum.question_type.NUMBER %}
+          {% set idx = loop.index0 %}
+          {% set preview_values = [] %}
+          {% for row in session_data.preview_rows %}
+            {% do preview_values.append(row.get(mapping.column_name, "")) %}
+          {% endfor %}
+          {% set preview_html = preview_values | join(', ') %}
+          {% set settings_html %}
+            <div>{{ form.columns[idx].form.prefix(params={"label": {"html": "Prefix (optional) <span class='govuk-visually-hidden'> for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}</div>
+            <div>{{ form.columns[idx].form.suffix(params={"label": {"html": "Suffix (optional) <span class='govuk-visually-hidden'> for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}</div>
+            {% if mapping.number_type == enum.number_type_enum.DECIMAL %}
+              <div>{{ form.columns[idx].form.max_decimal_places(params={"label": {"html": "Decimal places<span class='govuk-visually-hidden'> for " ~ mapping.column_name ~ "</span>" }, "classes": "govuk-input--width-10"}) }}</div>
+            {% endif %}
+          {% endset %}
+          {%
+            do rows.append([
+              {"text": mapping.column_name},
+              {"text": preview_html},
+              {"html": settings_html}
+            ])
+          %}
+        {% endfor %}
+
+        {{
+          govukTable({
+            "head": [
+              {"text": "Column name", "classes": "govuk-!-width-one-quarter"},
+              {"text": "Example data", "classes": "govuk-!-width-one-third"},
+              {"text": "Formatting options"}
+            ],
+            "rows": rows
+          })
+        }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

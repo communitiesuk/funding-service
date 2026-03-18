@@ -76,6 +76,13 @@
           {% endset %}
 
 
+          {% set dataSetsHtml %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_data_sets', grant_id=grant.id, report_id=report.id) }}">
+              {% trans count=report.data_sources | length %}{{ count }} data set{% pluralize %}{{ count }} data sets{% endtrans %}<span class="govuk-visually-hidden"> for {{ report.name }}</span>
+            </a>
+          {% endset %}
+
+
           {% set liveSubmissionsText %}
             {% trans count=report.live_submissions | length %}{{ count }} live submission{% pluralize %}{{ count }} live submissions{% endtrans %} <span class="govuk-visually-hidden">for {{ report.name }}</span>
           {% endset %}
@@ -127,21 +134,11 @@
 
           {{
             govukSummaryList({
-            	"card": {
-            		"title": {"text": report.name},
-            		"actions": {
-            			"items": actions,
-            		},
-            	},
+            	"card": {"title": {"text": report.name}, "actions": {"items": actions} },
             	"rows": [
-            	  {
-            	    "key": {"text": "Report status"},
-            	    "value": {"html": reportStatusTag(report.status)},
-            	  },
-            		{
-            			"key": {"text": "Form"},
-            			"value": {"text": formSectionsText},
-            		},
+            	  {"key": {"text": "Report status"}, "value": {"html": reportStatusTag(report.status)} },
+            		{"key": {"text": "Form"}, "value": {"text": formSectionsText} },
+                {"key": {"text": "Uploaded data sets"}, "value": {"html": dataSetsHtml} } if authorisation_helper.is_platform_admin(current_user) else {},
             		{"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} },
             		{"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} },
             		{"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },
