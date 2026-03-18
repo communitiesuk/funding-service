@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
 
 from flask import current_app
@@ -55,7 +55,9 @@ from app.common.data.types import (
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
 from app.common.expressions.managed import BaseDataSourceManagedExpression
-from app.common.forms.helpers import questions_in_same_add_another_container
+from app.common.forms.helpers import (
+    components_in_valid_add_another_combination,
+)
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
 from app.common.qid import SafeQidMixin
 from app.common.utils import slugify
@@ -799,11 +801,14 @@ class FlashableException(Protocol):
 
 
 class DependencyOrderException(Exception, FlashableException):
-    def __init__(self, message: str, component: Component, depends_on_component: Component):
+    def __init__(
+        self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
+    ):
         super().__init__(message)
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
+        self.field_name = field_name
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -840,11 +845,14 @@ class SectionDependencyOrderException(Exception, FlashableException):
 
 
 class IncompatibleDataTypeException(Exception):
-    def __init__(self, message: str, component: Component, depends_on_component: Component):
+    def __init__(
+        self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
+    ):
         super().__init__(message)
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
+        self.field_name = field_name
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -1389,15 +1397,134 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
+def _find_references_in_expression(
+    value: str,
+) -> set[str]:
+    references: set[str] = set()
+    for match in INTERPOLATE_REGEX.finditer(value):
+        references.add(match.group(0))
+    return references
+
+
+def components_in_same_group_and_on_same_page(component1: Component, component2: Component) -> bool:
+    # got parents
+    if not component1.parent or not component2.parent:
+        return False
+    # parents are groups
+    if not component1.parent.is_group or not component2.parent.is_group:
+        return False
+    # parents are the same
+    if component1.parent.id != component2.parent.id:
+        return False
+    return component1.parent.same_page is True
+
+
+def _validate_reference(
+    wrapped_reference: str,
+    attached_to_component: Component | None,
+    expression_context: ExpressionContext,
+    expression_type: ExpressionType | None,  # None if it's not an expression, eg. guidance text
+    field_name_for_error_message: str,
+    question_to_test: Question | None,
+) -> str:
+    unwrapped_ref = wrapped_reference.strip("() ")
+    if ALLOWED_INTERPOLATION_REGEX.search(unwrapped_ref) is not None:
+        raise InvalidReferenceInExpression(
+            f"Reference is not valid: {wrapped_reference}",
+            field_name=field_name_for_error_message,
+            bad_reference=wrapped_reference,
+        )
+    if not attached_to_component:
+        # TODO change this once we can create expressions to reuse, before they are attached to a component
+        raise NotImplementedError("Cannot handle un-attached references yet")
+
+    if expression_type == ExpressionType.VALIDATION and not attached_to_component.is_question:
+        # TODO change this once we can attach validation to a question group
+        #  or an auto calculation to a whole section
+        raise NotImplementedError("Cannot handle validation expressions attached to non-question components yet")
+
+    if not unwrapped_ref:
+        raise InvalidReferenceInExpression(
+            f"Reference is not valid: {wrapped_reference}",
+            field_name=field_name_for_error_message,
+            bad_reference=wrapped_reference,
+        )
+
+    # Check the reference is valid in this expression context
+    if not expression_context.is_valid_reference(unwrapped_ref):
+        raise InvalidReferenceInExpression(
+            f"Reference is not valid: {wrapped_reference}",
+            field_name=field_name_for_error_message,
+            bad_reference=wrapped_reference,
+        )
+
+    # If it's a question, check it is of the right data type
+    if question_id := SafeQidMixin.safe_qid_to_id(unwrapped_ref):
+        referenced_question = db.session.get_one(Question, question_id)
+
+        # for validation, the question being validated (ie attached to) needs to have the same data type as the question
+        # being referenced
+        if (
+            expression_type == ExpressionType.VALIDATION
+            and not attached_to_component.data_type == referenced_question.data_type
+        ):
+            raise IncompatibleDataTypeException(
+                f"Reference is not valid due to incompatible data types: {wrapped_reference}",
+                component=attached_to_component,
+                depends_on_component=referenced_question,
+                field_name=field_name_for_error_message,
+            )
+
+        # for conditions, the question being tested (could be any prior question) needs to have the same data type as
+        # the question being referenced.
+        if (
+            expression_type == ExpressionType.CONDITION
+            and question_to_test
+            and not question_to_test.data_type == referenced_question.data_type
+        ):
+            raise IncompatibleDataTypeException(
+                f"Reference is not valid due to incompatible data types: {wrapped_reference}",
+                component=attached_to_component,
+                depends_on_component=referenced_question,
+                field_name=field_name_for_error_message,
+            )
+        if not is_component_dependency_order_valid(attached_to_component, referenced_question):
+            raise DependencyOrderException(
+                "Cannot reference a later question",
+                attached_to_component,
+                referenced_question,
+                field_name=field_name_for_error_message,
+            )
+
+        if components_in_same_group_and_on_same_page(attached_to_component, referenced_question):
+            raise InvalidReferenceInExpression(
+                f"Reference is not valid: {wrapped_reference}",
+                field_name=field_name_for_error_message,
+                bad_reference=wrapped_reference,
+            )
+
+        if not components_in_valid_add_another_combination(
+            [attached_to_component, referenced_question, question_to_test]
+        ):
+            raise AddAnotherDependencyException(
+                "A question cannot depend on an add another question from a different add another group",
+                attached_to_component,
+                referenced_question,
+            )
+    else:
+        # TODO implement this once we can reference other things, eg. data uploads
+        raise NotImplementedError(
+            f"Reference is not a valid question ID: {wrapped_reference}",
+        )
+    return unwrapped_ref
+
+
 def _validate_and_sync_expression_references(expression: Expression) -> None:
     if not expression.is_managed:
         raise NotImplementedError("Cannot handle un-managed expressions yet")
 
     # TODO: When an expression can target multiple questions, this will need refactoring to support that.
     references: list[ComponentReference] = []
-
-    if not expression.is_managed:
-        raise ValueError("Cannot handle un-managed expressions yet")
 
     managed = expression.managed
     if isinstance(managed, BaseDataSourceManagedExpression):
@@ -1419,6 +1546,19 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             db.session.add(cr)
             references.append(cr)
     else:
+        if expression.type_ == ExpressionType.CONDITION:
+            # validate the referenced question - the one that is compared against the expression
+            valid_reference = _validate_reference(
+                wrapped_reference=f"(({managed.referenced_question.safe_qid}))",
+                attached_to_component=expression.question,
+                expression_context=ExpressionContext.build_expression_context(
+                    expression.question.form.collection, "interpolation", None, None
+                ),
+                expression_type=expression.type_,
+                field_name_for_error_message="depends_on_the_answer_to",
+                question_to_test=None,
+            )
+
         cr = ComponentReference(
             depends_on_component=expression.managed.referenced_question,
             component=expression.question,
@@ -1427,39 +1567,31 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
         db.session.add(cr)
         references.append(cr)
 
-    for referenced_question_id in managed.expression_referenced_question_ids:
-        referenced_question = get_question_by_id(referenced_question_id)
-
-        if not is_component_dependency_order_valid(managed.referenced_question, referenced_question):
-            raise DependencyOrderException(
-                "Cannot add a managed expression that references a later question",
-                managed.referenced_question,
-                referenced_question,
+    for field in managed.reference_aware_fields:
+        field_value = getattr(managed, field)
+        if not field_value:
+            continue
+        unvalidated_references = _find_references_in_expression(field_value)
+        for wrapped_reference in unvalidated_references:
+            valid_reference = _validate_reference(
+                wrapped_reference=wrapped_reference,
+                attached_to_component=expression.question,
+                expression_context=ExpressionContext.build_expression_context(
+                    expression.question.form.collection, "interpolation", None, None
+                ),
+                expression_type=expression.type_,
+                field_name_for_error_message=field,
+                question_to_test=managed.referenced_question,
             )
 
-        if referenced_question.data_type != managed.referenced_question.data_type:
-            raise IncompatibleDataTypeException(
-                "Expression cannot reference question of incompatible data type",
-                managed.referenced_question,
-                referenced_question,
+            referenced_question = get_question_by_id(SafeQidMixin.safe_qid_to_id(valid_reference))  # type:ignore[arg-type]
+            cr = ComponentReference(
+                component=expression.question,
+                expression=expression,
+                depends_on_component=referenced_question,
             )
-
-        if referenced_question.add_another_container and not questions_in_same_add_another_container(
-            managed.referenced_question, referenced_question
-        ):
-            raise AddAnotherDependencyException(
-                "Cannot add managed condition that depends on an add another question",
-                managed.referenced_question,
-                referenced_question,
-            )
-
-        cr = ComponentReference(
-            component=expression.question,
-            expression=expression,
-            depends_on_component=referenced_question,
-        )
-        db.session.add(cr)
-        references.append(cr)
+            db.session.add(cr)
+            references.append(cr)
 
     expression.component_references = references
 
@@ -1488,56 +1620,21 @@ def _validate_and_sync_component_references(component: Component, expression_con
         if value is None:
             continue
 
-        for match in INTERPOLATE_REGEX.finditer(value):
-            wrapped_ref, inner_ref = match.group(0), match.group(1).strip()
+        unvalidated_references: set[str] = _find_references_in_expression(value)
+        for wrapped_reference in unvalidated_references:
+            reference = _validate_reference(
+                wrapped_reference=wrapped_reference,
+                attached_to_component=component,
+                expression_context=expression_context,
+                expression_type=None,
+                field_name_for_error_message=field_name,
+                question_to_test=cast(Question, component)
+                if component.is_question
+                else None,  # only pass a question to test if this is a question, otherwise pass None
+            )
 
-            if ALLOWED_INTERPOLATION_REGEX.search(inner_ref) is not None:
-                raise InvalidReferenceInExpression(
-                    f"Reference is not valid: {wrapped_ref}",
-                    field_name=field_name,
-                    bad_reference=wrapped_ref,
-                )
-
-            # TODO: When we allow complex references (eg not just a single reference but some combination of references
-            #       such as `q_id1 + q_id2`) then this logic will need to handle that.
-            if not expression_context.is_valid_reference(inner_ref):
-                raise InvalidReferenceInExpression(
-                    f"Reference is not valid: {wrapped_ref}",
-                    field_name=field_name,
-                    bad_reference=wrapped_ref,
-                )
-
-            # If `is_valid_reference` above is True, then we know that we have a QID that points to a question in the
-            # same collection - but not necessarily the same form.
-            if question_id := SafeQidMixin.safe_qid_to_id(inner_ref):
+            if question_id := SafeQidMixin.safe_qid_to_id(reference):
                 question = db.session.get_one(Question, question_id)
-                if question.form.order > component.form.order:
-                    raise InvalidReferenceInExpression(
-                        f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
-                    )
-
-                if question.form_id == component.form_id:
-                    # Prevent manually injecting a reference to a question that appears later in the same form
-                    if question.form.global_component_index(question) >= question.form.global_component_index(
-                        component
-                    ):
-                        raise InvalidReferenceInExpression(
-                            f"Reference is not valid: {wrapped_ref}", field_name=field_name, bad_reference=wrapped_ref
-                        )
-
-                    if (
-                        question.parent
-                        and component.parent
-                        and question.parent.is_group
-                        and component.parent.is_group
-                        and question.parent.id == component.parent.id
-                    ):
-                        if question.parent.same_page:
-                            raise InvalidReferenceInExpression(
-                                f"Reference is not valid: {wrapped_ref}",
-                                field_name=field_name,
-                                bad_reference=wrapped_ref,
-                            )
 
                 references_to_set_up.add((component.id, question.id))
 
@@ -1547,22 +1644,6 @@ def _validate_and_sync_component_references(component: Component, expression_con
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def add_component_condition(component: Component, user: User, managed_expression: ManagedExpression) -> Component:
-    if not is_component_dependency_order_valid(component, managed_expression.referenced_question):
-        raise DependencyOrderException(
-            "Cannot add managed condition that depends on a later question",
-            component,
-            managed_expression.referenced_question,
-        )
-
-    if managed_expression.referenced_question.add_another_container and not questions_in_same_add_another_container(
-        component, managed_expression.referenced_question
-    ):
-        raise AddAnotherDependencyException(
-            "Cannot add managed condition that depends on an add another question",
-            component,
-            managed_expression.referenced_question,
-        )
-
     expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
     component.expressions.append(expression)
 

@@ -63,6 +63,13 @@ class EvaluatableExpression(BaseModel, SafeQidMixin):
     @abc.abstractmethod
     def message(self) -> str: ...
 
+    @property
+    def reference_aware_fields(self) -> set[str]:
+        """
+        Returns a set of field names in the expression that can contain reference data.
+        """
+        return set()
+
 
 class ExpressionContext(ChainMap[str, Any]):
     """
