@@ -51,6 +51,7 @@ from app.common.data.types import (
     AuditEventType,
     CollectionType,
     ConditionsOperator,
+    DataSourceFileMetadata,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -807,6 +808,13 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
     type = DataSourceType.CUSTOM
     name = None
     schema = None
+    file_metadata = factory.LazyAttribute(
+        lambda o: (
+            None
+            if o.type == DataSourceType.CUSTOM
+            else DataSourceFileMetadata(s3_key="file/key", original_filename="test-file.csv").model_dump(mode="json")
+        )
+    )
     items = factory.RelatedFactoryList(_DataSourceItemFactory, size=3, factory_related_name="data_source")
     # No organisation items are created by default - tests which need them should create them explicitly and set the
     # items size to 0
