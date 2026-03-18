@@ -796,7 +796,9 @@ def add_condition(
     condition: E2EManagedExpression,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> None:
-    add_condition_page = edit_question_page.click_add_condition()
+    select_calculation_page = edit_question_page.click_add_condition()
+    select_calculation_page.click_no_calculation()
+    add_condition_page = select_calculation_page.click_continue()
     select_data_source_page = add_condition_page.click_reference_data_button()
     _reference_data_flow(select_data_source_page, condition.conditional_on)
     add_condition_page.configure_managed_condition(
