@@ -1497,11 +1497,18 @@ def _determine_return_url_and_update_session_after_choosing_referenced_question_
                     depends_on_question_id=add_context_data.depends_on_question_id,
                 )
         else:
-            return_url = url_for(
-                "deliver_grant_funding.edit_question_condition",
-                grant_id=grant_id,
-                expression_id=add_context_data.expression_id,
-            )
+            if add_context_data.managed_expression_name is None:
+                return_url = url_for(
+                    "deliver_grant_funding.edit_calculated_condition",
+                    grant_id=grant_id,
+                    expression_id=add_context_data.expression_id,
+                )
+            else:
+                return_url = url_for(
+                    "deliver_grant_funding.edit_question_condition",
+                    grant_id=grant_id,
+                    expression_id=add_context_data.expression_id,
+                )
     else:
         if not add_context_data.expression_id:
             if add_context_data.managed_expression_name is None:
@@ -1941,7 +1948,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/calculated",
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-calculated-condition",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
@@ -2025,6 +2032,106 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
         component=component,
         form=wt_form,
         interpolate=SubmissionHelper.get_interpolator(component.form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/calculated-condition/<uuid:expression_id>",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:  # noqa:C901
+    # TODO remove once we un-feature-flag this
+    if not AuthorisationHelper.is_platform_member(get_current_user()):
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_reports",
+                grant_id=grant_id,
+            )
+        )
+
+    expression = get_expression_by_id(expression_id)
+    component = expression.question
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToExpressionsModel, question_id=component.id, expression_id=expression_id
+    )
+    confirm_deletion_form = GenericConfirmDeletionForm()
+
+    if component.is_question:
+        return_url = url_for(
+            "deliver_grant_funding.edit_question",
+            grant_id=grant_id,
+            question_id=component.id,
+        )
+
+    else:
+        return_url = url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=component.id)
+
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=component, expression=expression)
+        return redirect(return_url)
+    wt_form = CalculatedConditionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        obj=expression.custom if not add_context_data else None,
+    )
+    if wt_form and wt_form.is_submitted_to_add_context():
+        form_data = wt_form.get_expression_form_data()
+        return _store_question_state_and_redirect_to_add_context(
+            form=wt_form,
+            grant_id=grant_id,
+            form_id=component.form.id,
+            question_id=component.id,
+            expression_id=expression_id,
+            parent_id=component.parent_id,
+            form_data=form_data,
+            expression_type=ExpressionType.CONDITION,
+            is_custom=True,
+        )
+    if wt_form and wt_form.validate_on_submit():
+        expression_context = ExpressionContext.build_expression_context(
+            component.form.collection,
+            "interpolation",
+        )
+
+        try:
+            _validate_custom_syntax(
+                component,
+                expression_context,
+                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.CONDITION,
+                "custom_expression",
+                validate_with_evaluation=True,
+            )
+            custom_expression = CustomExpression.build_from_form(wt_form)
+
+            interfaces.collections.update_question_expression(expression, custom_expression)
+
+        except WTFormRenderableException as e:
+            if isinstance(e, IncompatibleDataTypeException):
+                e = IncompatibleDataTypeInCalculationException(e)
+            wt_form.handle_exception(e)
+
+        else:
+            if "question" in session:
+                del session["question"]
+            return redirect(return_url)
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=component.form.collection, expression_context_end_point=component
+    )
+    return render_template(
+        "deliver_grant_funding/reports/calculated_condition.html",
+        grant=component.form.collection.grant,
+        expression=expression,
+        component=component,
+        form=wt_form,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection),
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
 
