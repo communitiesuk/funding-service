@@ -10,18 +10,30 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l">{{ grant.name }}</h1>
+      <h1 class="govuk-heading-xl">{{ grant.name }}</h1>
 
       <p class="govuk-body">{{ grant.description }}</p>
 
-      {% if submission_deadline %}
-        <p class="govuk-body"><strong>Submission deadline:</strong> {{ format_date(submission_deadline) }}</p>
+      {% if earliest_collection %}
+        <p class="govuk-body"><strong>Submission deadline:</strong> {{ format_date(earliest_collection.submission_period_end_date) }}</p>
       {% endif %}
 
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Sign up to access this grant"}) }}
-      </form>
+      <div class="govuk-!-margin-top-6">
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.submit(params={"text": "Sign up to access this grant", "isStartButton": true}) }}
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m govuk-!-margin-top-5">Get help with your submission</h2>
+      <p class="govuk-body">
+        Contact us through our
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a> if you need help signing up.
+      </p>
+      <p class="govuk-body">Monday to Friday, 9am to 5pm (except public holidays).</p>
     </div>
   </div>
 {% endblock content %}

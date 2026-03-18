@@ -1,7 +1,7 @@
 import uuid
 from collections.abc import Mapping, Sequence
 
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, cast, func, select, true
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
@@ -76,7 +76,9 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
     return grant_recipients_with_outstanding_submissions
 
 
-def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> GrantRecipient:
+def get_grant_recipient(
+    grant_id: uuid.UUID, organisation_id: uuid.UUID, limit_to_active_statuses: bool = True
+) -> GrantRecipient:
     statement = (
         select(GrantRecipient)
         .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
@@ -84,7 +86,7 @@ def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> Gran
             GrantRecipient.grant_id == grant_id,
             GrantRecipient.organisation_id == organisation_id,
             cast(GrantRecipient.mode, String) == cast(Organisation.mode, String),
-            GrantRecipient.status.in_(ACTIVE_GRANT_RECIPIENT_STATUSES),
+            GrantRecipient.status.in_(ACTIVE_GRANT_RECIPIENT_STATUSES) if limit_to_active_statuses else true(),
         )
         .options(joinedload(GrantRecipient.grant), joinedload(GrantRecipient.organisation))
     )

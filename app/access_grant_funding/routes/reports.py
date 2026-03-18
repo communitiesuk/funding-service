@@ -27,7 +27,7 @@ from app.types import FlashMessageType
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
     user = get_current_user()
 
     # TODO refactor when we persist the collection status and/or implement multiple rounds
@@ -60,7 +60,7 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
     user = get_current_user()
     collection = get_collection(collection_id, grant_id=grant_id)
     if not collection.allow_multiple_submissions:
@@ -94,7 +94,7 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
 
     submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
@@ -132,7 +132,7 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def export_report_pdf(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
 
     submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
@@ -194,7 +194,7 @@ def decline_report(
     grant_id: UUID,
     submission_id: UUID,
 ) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
 
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
@@ -261,7 +261,7 @@ def decline_report(
 def confirm_report_submission_with_certify(
     organisation_id: UUID, grant_id: UUID, submission_id: UUID
 ) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     user = get_current_user()
 
@@ -318,7 +318,7 @@ def confirm_report_submission_with_certify(
 def confirm_report_submission_direct_submission(
     organisation_id: UUID, grant_id: UUID, submission_id: UUID
 ) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     user = get_current_user()
 
@@ -370,7 +370,7 @@ def confirm_report_submission_direct_submission(
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def submitted_confirmation(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     user = get_current_user()
 

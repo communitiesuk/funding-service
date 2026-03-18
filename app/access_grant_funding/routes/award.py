@@ -17,7 +17,7 @@ from app.common.helpers.collections import SubmissionHelper
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def list_award_collections(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
     user = get_current_user()
 
     award_collections = grant_recipient.grant.get_access_award_collections_for_user(

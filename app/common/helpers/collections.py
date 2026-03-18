@@ -46,6 +46,7 @@ from app.common.data.types import (
     ComponentVisibilityState,
     ConditionsOperator,
     GrantRecipientModeEnum,
+    GrantRecipientStatus,
     NumberTypeEnum,
     QuestionDataType,
     RoleEnum,
@@ -1181,7 +1182,15 @@ class CollectionHelper:
             GrantRecipientModeEnum.TEST if submission_mode == SubmissionModeEnum.TEST else GrantRecipientModeEnum.LIVE
         )
         self.grant_recipients = get_grant_recipients(
-            self.collection.grant, mode=grant_recipient_mode, with_organisations=True
+            self.collection.grant,
+            mode=grant_recipient_mode,
+            with_organisations=True,
+            statuses=[
+                GrantRecipientStatus.ALLOCATED,
+                GrantRecipientStatus.APPLYING,
+                GrantRecipientStatus.AWARDED,
+                GrantRecipientStatus.DECLINED,
+            ],
         )
         self.grant_recipients_submission_helpers: dict[UUID, SubmissionHelper | None] = {
             gr.id: None for gr in self.grant_recipients

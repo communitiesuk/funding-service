@@ -29,8 +29,9 @@ def public_grant_sign_up(grant_slug: str) -> ResponseReturnValue:
         #       maybe for now its only available to non-open collections if its an already signed in deliver user
         and c.status == CollectionStatusEnum.OPEN
     ]
-    earliest_deadline = min(
-        (c.submission_period_end_date for c in open_public_collections if c.submission_period_end_date),
+    earliest_collection = min(
+        (c for c in open_public_collections if c.submission_period_end_date),
+        key=lambda c: c.submission_period_end_date,  # type: ignore
         default=None,
     )
 
@@ -43,7 +44,7 @@ def public_grant_sign_up(grant_slug: str) -> ResponseReturnValue:
         render_template(
             "access_grant_funding/public_grant_sign_up.html",
             grant=grant,
-            submission_deadline=earliest_deadline,
+            earliest_collection=earliest_collection,
             form=form,
         )
     )

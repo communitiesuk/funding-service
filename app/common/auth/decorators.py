@@ -231,7 +231,7 @@ def has_access_grant_role[**P](
                 raise ValueError("Grant ID required.")
 
             # raises a 404 if the grant doesn't exist; more appropriate than 403 on non-existent entity
-            grant_recipient = get_grant_recipient(grant_id, organisation_id)
+            grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
 
             if not AuthorisationHelper.has_access_grant_role(
                 grant_id=grant_recipient.grant_id, organisation_id=grant_recipient.organisation_id, role=role, user=user

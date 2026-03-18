@@ -209,7 +209,7 @@ class AuthorisationHelper:
             return False
 
         # its' a valid grant recipient or raise
-        grant_recipient = get_grant_recipient(grant_id, organisation_id)
+        grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
 
         for role in user.roles:
             if RoleEnum.DATA_PROVIDER in role.permissions:
@@ -230,7 +230,7 @@ class AuthorisationHelper:
             return False
 
         # its' a valid grant recipient or raise
-        grant_recipient = get_grant_recipient(grant_id, organisation_id)
+        grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
 
         for role in user.roles:
             if RoleEnum.MEMBER in role.permissions:
@@ -251,7 +251,7 @@ class AuthorisationHelper:
             return False
 
         # its' a valid grant recipient or raise
-        grant_recipient = get_grant_recipient(grant_id, organisation_id)
+        grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
 
         for role in user.roles:
             if RoleEnum.CERTIFIER in role.permissions:

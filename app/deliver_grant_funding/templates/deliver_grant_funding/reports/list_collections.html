@@ -144,6 +144,13 @@
             ]
           %}
 
+
+          {% set publicUrlHtml %}
+            {% if collection.allow_public_sign_up %}
+              {% set url = url_for('access_grant_funding.public_grant_sign_up', grant_slug=collection.grant.name.replace(' ', '-').lower(), _external=True) %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url }}" target="_blank">{{ url }}</a>
+            {% endif %}
+          {% endset %}
           {% if collection_config.has_reporting_period %}
             {% do rows.append({"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} }) %}
           {% endif %}
@@ -153,6 +160,9 @@
           {% do rows.append({"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} }) %}
           {% do rows.append({"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} }) %}
           {% do rows.append({"key": {"text": "Created by"}, "value": {"text": collection.created_by.email} }) %}
+          {% if collection.allow_public_sign_up %}
+            {% do rows.append({"key": {"text": "Public URL"}, "value": {"html": publicUrlHtml} }) %}
+          {% endif %}
 
           {{
             govukSummaryList({

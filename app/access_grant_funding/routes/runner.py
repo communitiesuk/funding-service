@@ -29,7 +29,9 @@ from app.extensions import auto_commit_after_request, s3_service
 @has_access_grant_role(RoleEnum.MEMBER)
 def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
-    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(
+        grant_id, organisation_id, limit_to_active_statuses=False
+    )
 
     collection = get_collection(collection_id, grant_id=grant_id)
     if collection.allow_multiple_submissions:
@@ -87,7 +89,9 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
 @has_access_grant_role(RoleEnum.DATA_PROVIDER)
 def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
-    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(
+        grant_id, organisation_id, limit_to_active_statuses=False
+    )
 
     collection = get_collection(collection_id, grant_id=grant_id, with_full_schema=True)
     question = collection.submission_name_question
@@ -150,7 +154,9 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
 @has_access_grant_role(RoleEnum.MEMBER)
 def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
-    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(
+        grant_id, organisation_id, limit_to_active_statuses=False
+    )
 
     runner = AGFFormRunner.load(
         submission_id=submission_id,
@@ -231,7 +237,9 @@ def ask_a_question(
     action: str | None = None,
 ) -> ResponseReturnValue:
     source = request.args.get("source")
-    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(
+        grant_id, organisation_id, limit_to_active_statuses=False
+    )
 
     runner = AGFFormRunner.load(
         submission_id=submission_id,
@@ -281,7 +289,9 @@ def check_your_answers(
     organisation_id: UUID, grant_id: UUID, submission_id: UUID, section_id: UUID
 ) -> ResponseReturnValue:
     source = request.args.get("source")
-    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(
+        grant_id, organisation_id, limit_to_active_statuses=False
+    )
 
     runner = AGFFormRunner.load(
         submission_id=submission_id,
@@ -314,7 +324,9 @@ def check_your_answers(
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
-    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(
+        grant_id, organisation_id, limit_to_active_statuses=False
+    )
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     if not submission_helper.is_locked_state:
         return redirect(
@@ -351,7 +363,9 @@ def download_file(
     question_id: UUID,
     add_another_index: int | None = None,
 ) -> ResponseReturnValue:
-    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(
+        grant_id, organisation_id, limit_to_active_statuses=False
+    )
     submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     data = submission.cached_get_answer_for_question(question_id=question_id, add_another_index=add_another_index)
     if not data or not isinstance(data, FileUploadAnswer) or not data.key:

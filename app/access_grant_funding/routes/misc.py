@@ -24,7 +24,7 @@ from app.common.markdown import convert_text_to_govuk_markup
 def index() -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
 
-    grant_recipients = user.get_grant_recipients()
+    grant_recipients = user.get_grant_recipients(limit_to_active_statuses=False)
 
     if not grant_recipients:
         current_app.logger.error("Authorised user has no access to organisation or grants")
@@ -84,7 +84,7 @@ def list_organisations() -> ResponseReturnValue:
 @has_access_grant_role(RoleEnum.MEMBER)
 def list_grant_team(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     organisation = get_organisation(organisation_id=organisation_id)
-    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id, limit_to_active_statuses=False)
 
     data_providers = grant_recipient.data_providers
     certifiers = list(grant_recipient.certifiers)
