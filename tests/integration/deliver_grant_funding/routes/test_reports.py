@@ -8394,7 +8394,15 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         assert (
-            _validate_custom_syntax(q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression")
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
+            is None
+        )
+        assert (
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
+            )
             is None
         )
 
@@ -8423,7 +8431,9 @@ class TestValidateCustomSyntax:
         )
 
         assert (
-            _validate_custom_syntax(q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression")
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
             is None
         )
 
@@ -8441,7 +8451,17 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+        )
+        assert result == f"{q1.name} cannot reference {q2.name} as it appears in the wrong order"
+
+        result = _validate_custom_syntax(
+            q1,
+            expr_context,
+            f"The answer must be less than (({q2.safe_qid}))",
+            ExpressionType.VALIDATION,
+            "custom_message",
+            False,
         )
         assert result == f"{q1.name} cannot reference {q2.name} as it appears in the wrong order"
 
@@ -8470,7 +8490,17 @@ class TestValidateCustomSyntax:
         )
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+        )
+        assert result == f"{q3.name} cannot reference {later_form_question.name} as it appears in the wrong order"
+
+        result = _validate_custom_syntax(
+            q3,
+            expr_context,
+            f"The answer must be less than (({q2.safe_qid})) + (({q1.safe_qid})) + (({later_form_question.safe_qid}))",
+            ExpressionType.VALIDATION,
+            "custom_message",
+            False,
         )
         assert result == f"{q3.name} cannot reference {later_form_question.name} as it appears in the wrong order"
 
@@ -8488,7 +8518,18 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+        )
+
+        assert result == "((some_bad_ref)) is not a valid reference"
+
+        result = _validate_custom_syntax(
+            q3,
+            expr_context,
+            f"The answer must be less than (({q2.safe_qid})) + ((some_bad_ref))",
+            ExpressionType.VALIDATION,
+            "custom_message",
+            False,
         )
 
         assert result == "((some_bad_ref)) is not a valid reference"
@@ -8507,7 +8548,18 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+        )
+
+        assert result == f"(({q1.safe_qid})) is not a valid reference"
+
+        result = _validate_custom_syntax(
+            q3,
+            expr_context,
+            f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
+            ExpressionType.VALIDATION,
+            "custom_message",
+            False,
         )
 
         assert result == f"(({q1.safe_qid})) is not a valid reference"
@@ -8527,7 +8579,18 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+        )
+
+        assert result == f"Cannot reference {q1.name} as it is of data type {q1.data_type}"
+
+        result = _validate_custom_syntax(
+            q3,
+            expr_context,
+            f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
+            ExpressionType.VALIDATION,
+            "custom_message",
+            False,
         )
 
         assert result == f"Cannot reference {q1.name} as it is of data type {q1.data_type}"
@@ -8555,7 +8618,7 @@ class TestValidateCustomSyntax:
         )
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
         assert result == f"This name is not defined: {q1.safe_qid}"
@@ -8574,7 +8637,7 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
         assert result == "This function is not available: sum"
@@ -8593,7 +8656,7 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
         assert result.strip() == f"Invalid syntax in expression: {test_expression}"
@@ -8612,7 +8675,7 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
         assert result == "Operator Pow() does not exist"
@@ -8634,7 +8697,7 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
         assert result == "The expression must include exactly one reference to this question"
@@ -8653,7 +8716,7 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
         assert result == "The expression must include exactly one reference to this question"
@@ -8672,7 +8735,7 @@ class TestValidateCustomSyntax:
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression"
+            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
         assert result == "The expression must evaluate to true or false"

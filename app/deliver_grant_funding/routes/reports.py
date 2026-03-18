@@ -2809,6 +2809,7 @@ def _validate_custom_syntax(  # noqa:C901
     statement: str,
     expression_type: ExpressionType,
     field_name: str,
+    validate_with_evaluation: bool = True,
 ) -> str | None:
     # TODO not sure this is the right place for this function to live
 
@@ -2839,7 +2840,7 @@ def _validate_custom_syntax(  # noqa:C901
             f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a different group"
         )
 
-    if field_name != "custom_expression":
+    if validate_with_evaluation is False:
         # No further validation needed for custom error message
         return None
 
