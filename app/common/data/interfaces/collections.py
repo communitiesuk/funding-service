@@ -1503,7 +1503,8 @@ def _validate_reference(  # noqa:C901
                 and referenced_question == attached_to_component
             ):
                 raise DependencyOrderException(
-                    "Cannot reference a later question",
+                    f"You cannot use {referenced_question.name} because it comes after this question"
+                    f"{' group' if attached_to_component.is_group else ''}",
                     attached_to_component,
                     referenced_question,
                     field_name=field_name_for_error_message,

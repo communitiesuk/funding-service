@@ -8454,7 +8454,7 @@ class TestValidateCustomSyntax:
         result = _validate_custom_syntax(
             q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
-        assert result == f"{q1.name} cannot reference {q2.name} as it appears in the wrong order"
+        assert result == f"You cannot use {q2.name} because it comes after this question"
 
         result = _validate_custom_syntax(
             q1,
@@ -8464,7 +8464,7 @@ class TestValidateCustomSyntax:
             "custom_message",
             False,
         )
-        assert result == f"{q1.name} cannot reference {q2.name} as it appears in the wrong order"
+        assert result == f"You cannot use {q2.name} because it comes after this question"
 
     def test_invalid_expression_forms_out_of_order(self, factories, mocker):
         db_form_0 = factories.form.create()
@@ -8493,7 +8493,7 @@ class TestValidateCustomSyntax:
         result = _validate_custom_syntax(
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
-        assert result == f"{q3.name} cannot reference {later_form_question.name} as it appears in the wrong order"
+        assert result == f"You cannot use {later_form_question.name} because it comes after this question"
 
         result = _validate_custom_syntax(
             q3,
@@ -8503,7 +8503,7 @@ class TestValidateCustomSyntax:
             "custom_message",
             False,
         )
-        assert result == f"{q3.name} cannot reference {later_form_question.name} as it appears in the wrong order"
+        assert result == f"You cannot use {later_form_question.name} because it comes after this question"
 
     def test_invalid_expression_bad_reference(self, factories, mocker):
         db_form = factories.form.create()
@@ -8822,7 +8822,7 @@ class TestAddCustomQuestionValidation:
         assert len(q3.expressions) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
+            "You cannot use Later question name because it comes after this question",
         )
 
     def test_post_error_in_message(self, authenticated_platform_admin_client, factories, db_session):
@@ -8908,7 +8908,7 @@ class TestAddCustomQuestionValidation:
         )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
+            "You cannot use Later question name because it comes after this question",
         )
 
     def test_post_to_add_context(self, authenticated_platform_admin_client, factories, db_session):
@@ -9103,7 +9103,7 @@ class TestEditCustomQuestionValidation:
         )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
+            "You cannot use Later question name because it comes after this question",
         )
 
     def test_post_to_add_context(self, authenticated_platform_admin_client, factories, db_session):

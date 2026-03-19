@@ -2381,9 +2381,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
 
             except DependencyOrderException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-                field_with_error.errors.append(
-                    f"{question.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
-                )
+                field_with_error.errors.append(e.message)
             except IncompatibleDataTypeException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
                 field_with_error.errors.append(
@@ -2507,9 +2505,7 @@ def edit_custom_question_validation(  # noqa:C901
 
             except DependencyOrderException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-                field_with_error.errors.append(
-                    f"{question.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
-                )
+                field_with_error.errors.append(e.message)
             except IncompatibleDataTypeException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
                 field_with_error.errors.append(
@@ -3131,7 +3127,7 @@ def _validate_custom_syntax(  # noqa:C901
         return f"{e.bad_reference} is not a valid reference"
 
     except DependencyOrderException as e:
-        return f"{component.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
+        return e.message
     except IncompatibleDataTypeException as e:
         return (
             f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced in calculations"
