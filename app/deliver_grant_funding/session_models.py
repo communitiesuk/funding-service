@@ -1,7 +1,7 @@
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 from app.common.data.types import (
     DataSourceType,
@@ -113,8 +113,10 @@ class DataSetUploadSessionModel(BaseModel):
     name: str
     data_source_type: DataSourceType
     data_columns: list[str]
+    data_source_id: UUID4
+    original_filename: str
+    s3_key: str
     preview_rows: list[dict[str, str]]
-    all_rows: list[dict[str, str]]
     column_mappings: list[DataSetColumnMapping] = Field(default_factory=list)
 
     @classmethod

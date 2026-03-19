@@ -126,6 +126,7 @@ class _SharedConfig(_BaseConfig):
 
     AWS_S3_BUCKET_NAME: str
     SUBMISSION_FILES_PREFIX: str = "uploaded-submission-files"
+    REFERENCE_FILES_PREFIX: str = "data-set-uploads"
 
     # Basic auth
     BASIC_AUTH_ENABLED: bool = False

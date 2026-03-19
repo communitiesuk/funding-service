@@ -1,6 +1,8 @@
+import uuid
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Sequence
 
+from flask import current_app
 from pydantic import BaseModel, Field
 
 from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
@@ -150,8 +152,7 @@ def _check_grant_recipient_row(
 
 
 def validate_data_set_grant_recipients(
-    data_set: DataSetUploadSessionModel,
-    grant_recipients: Sequence[GrantRecipient],
+    data_set: DataSetUploadSessionModel, grant_recipients: Sequence[GrantRecipient], all_rows: list[dict[str, str]]
 ) -> list[str]:
     if data_set.data_source_type == DataSourceType.STATIC:
         return []
@@ -163,7 +164,7 @@ def validate_data_set_grant_recipients(
     seen_recipient_names: set[str] = set()
     check_duplicates = data_set.data_source_type == DataSourceType.GRANT_RECIPIENT
 
-    for idx, row in enumerate(data_set.all_rows):
+    for idx, row in enumerate(all_rows):
         external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
         recipient = row.get(DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, "").strip()
 
@@ -208,10 +209,14 @@ def validate_data_set_grant_recipients(
     return errors
 
 
-def validate_data_set(data_set: DataSetUploadSessionModel) -> DataSetValidationResult:
+def validate_data_set(data_set: DataSetUploadSessionModel, all_rows: list[dict[str, str]]) -> DataSetValidationResult:
     result = DataSetValidationResult()
-    for idx, row in enumerate(data_set.all_rows):
+    for idx, row in enumerate(all_rows):
         row_result = _validate_row(row, idx, data_set)
         if row_result.cell_errors or row_result.missing_columns:
             result.row_results.append(row_result)
     return result
+
+
+def build_data_set_upload_s3_key(grant_id: uuid.UUID, report_id: uuid.UUID, data_source_id: uuid.UUID) -> str:
+    return f"{current_app.config['REFERENCE_FILES_PREFIX']}/{grant_id}/{report_id}/{data_source_id}"

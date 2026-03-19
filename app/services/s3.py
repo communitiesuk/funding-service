@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 import boto3
 from flask import Flask
 from werkzeug.datastructures import FileStorage
@@ -17,8 +19,11 @@ class S3Service:
     def bucket_name(self) -> str:
         return str(self._app.config["AWS_S3_BUCKET_NAME"])
 
-    def upload_file(self, file: FileStorage, key: str) -> None:
-        self._bucket.upload_fileobj(Fileobj=file.stream, Key=key)
+    def upload_file(self, file: FileStorage, key: str, tags: dict[str, str] | None = None) -> None:
+        extra_args: dict[str, str] = {}
+        if tags:
+            extra_args["Tagging"] = urlencode(tags)
+        self._bucket.upload_fileobj(Fileobj=file.stream, Key=key, ExtraArgs=extra_args if extra_args else None)
 
     def download_file(self, key: str) -> bytes:
         # prefer using `generate_and_give_access_to_url` instead of this method, at the time of writing

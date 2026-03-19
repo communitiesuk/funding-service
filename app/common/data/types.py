@@ -440,3 +440,13 @@ class DataSourceSchemaColumn(BaseModel):
 
 class DataSourceSchema(RootModel[dict[str, DataSourceSchemaColumn]]):
     pass
+
+
+class DataSourceFileTagEnum(enum.StrEnum):
+    PENDING = "pending"
+    IN_USE = "in_use"
+
+
+class DataSourceFileMetadata(BaseModel):
+    s3_key: str
+    original_filename: str
