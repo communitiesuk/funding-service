@@ -53,6 +53,7 @@ from app.common.expressions.custom import CustomExpression, get_custom_expressio
 from app.common.expressions.managed import (
     get_managed_expression,
 )
+from app.common.helpers.visibility import CollectionDependencyGraph
 from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import comma_join_items
 
@@ -352,6 +353,10 @@ class Collection(BaseModel):
         # TODO: link to the grants/ collection public sign up page when registered as an endpoint in Access
         # url is just a placeholder for now
         return url_for("auth.request_a_link_to_sign_in", _external=True)
+
+    @property
+    def dependency_graph(self) -> CollectionDependencyGraph:
+        return CollectionDependencyGraph(self)
 
 
 class Submission(BaseModel):

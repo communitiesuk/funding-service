@@ -777,14 +777,15 @@ class TestSubmissionHelper:
             assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
             assert helper.is_component_visible(q2, helper.cached_evaluation_context) is True
 
-        def test_is_component_visible_ignores_references_to_groups(self, factories):
+        def test_is_component_visible_doesnt_understand_references_to_groups(self, factories):
             group = factories.group.build()
             q1 = factories.question.build(form=group.form)
             q1.owned_component_references = [ComponentReference(component=q1, depends_on_component=group)]
             submission = factories.submission.build(collection=group.form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
+            with pytest.raises(RuntimeError, match="Components can only depend on questions"):
+                helper.is_component_visible(q1, helper.cached_evaluation_context)
 
         def test_is_component_visible_ignores_self_references(self, factories):
             q1 = factories.question.build()
