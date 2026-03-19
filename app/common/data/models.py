@@ -16,6 +16,7 @@ from sqlalchemy_json import mutable_json_type
 from app.common.collections.types import DataSourceAnswerTypes, DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User, UserRole
+from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
@@ -353,6 +354,15 @@ class Submission(BaseModel):
     @property
     def s3_key_prefix(self) -> str:
         return f"{current_app.config['SUBMISSION_FILES_PREFIX']}/{self.mode}/{self.collection_id}/{self.id}"
+
+    @cached_property
+    def data_manager(self) -> SubmissionDataManager:
+        """Copies the existing submission data and wrap it in a helper to update answers.
+
+        Use this to add/edit/remove answers from the submission. Changes must be synced back onto the submission model
+        using the `update_submission_data` interface.
+        """
+        return SubmissionDataManager(self.data)
 
     __table_args__ = (
         CheckConstraint(

@@ -2588,7 +2588,7 @@ class TestDependencyExceptionHelpers:
 
 
 class TestUpdateSubmissionData:
-    def test_update_submission_data_single_question(db_session, factories):
+    def test_update_submission_data_single_question(self, db_session, factories):
         question = factories.question.create()
         submission = factories.submission.create(collection=question.form.collection)
 

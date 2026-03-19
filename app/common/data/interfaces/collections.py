@@ -302,6 +302,9 @@ def update_collection(  # noqa: C901
 def remove_add_another_answers_at_index(
     submission: Submission, add_another_container: Component, add_another_index: int
 ) -> Submission:
+    # Make sure this is loaded and cached with current submission data
+    submission.data_manager  # noqa
+
     existing_answers = submission.data.get(str(add_another_container.id), [])
     if add_another_index < 0 or add_another_index >= len(existing_answers):
         raise ValueError(
@@ -311,6 +314,11 @@ def remove_add_another_answers_at_index(
 
     existing_answers.pop(add_another_index)
     submission.data[str(add_another_container.id)] = existing_answers
+
+    # Make sure that our new SubmissionDataManager helper does exactly the same thing
+    submission.data_manager.remove_add_another_entry(add_another_container, add_another_index=add_another_index)
+    assert submission.data_manager.data == submission.data
+
     return submission
 
 
@@ -318,6 +326,9 @@ def remove_add_another_answers_at_index(
 def remove_question_answer(
     submission: Submission, question: Question, add_another_index: int | None = None
 ) -> Submission:
+    # Make sure this is loaded and cached with current submission data
+    submission.data_manager  # noqa
+
     if question.data_type not in [QuestionDataType.FILE_UPLOAD]:
         raise ValueError(
             "Removing answers is currently only supported for questions where an explicit remove is required"
@@ -334,6 +345,11 @@ def remove_question_answer(
         data = existing_answers[add_another_index]
 
     data.pop(str(question.id), None)
+
+    # Make sure that our new SubmissionDataManager helper does exactly the same thing
+    submission.data_manager.remove(question, add_another_index=add_another_index)
+    assert submission.data_manager.data == submission.data
+
     return submission
 
 
@@ -341,11 +357,19 @@ def remove_question_answer(
 def update_submission_data(
     submission: Submission, question: Question, data: AllAnswerTypes, add_another_index: int | None = None
 ) -> Submission:
+    # Make sure this is loaded and cached with current submission data
+    submission.data_manager  # noqa
+
     if not question.add_another_container:
         # this is just a single answer question
         if add_another_index is not None:
             raise ValueError("add_another_index cannot be provided for questions not within an add another container")
         submission.data[str(question.id)] = data.get_value_for_submission()
+
+        # Make sure that our new SubmissionDataManager helper does exactly the same thing
+        submission.data_manager.set(question, data)
+        assert submission.data_manager.data == submission.data
+
         return submission
 
     if add_another_index is None:
@@ -364,6 +388,11 @@ def update_submission_data(
     existing_answers[add_another_index][str(question.id)] = data.get_value_for_submission()
 
     submission.data[str(parent_container.id)] = existing_answers
+
+    # Make sure that our new SubmissionDataManager helper does exactly the same thing
+    submission.data_manager.set(question, data, add_another_index=add_another_index)
+    assert submission.data_manager.data == submission.data
+
     return submission
 
 
