@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
-from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
+from app.common.data.types import DataSourceFileMetadata, DataSourceType, NumberTypeEnum, QuestionDataType
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
@@ -56,6 +56,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
         assert data_source.type == DataSourceType.GRANT_RECIPIENT
         assert data_source.grant_id == grant.id
         assert data_source.collection_id == report.id
+        assert data_source.file_metadata["s3_key"] == "data-set-uploads/test.csv"
+        assert data_source.file_metadata["original_filename"] == "test.csv"
 
         from_db = db_session.get(DataSource, data_source.id)
         assert from_db is not None
@@ -767,7 +769,7 @@ class TestGetDataSource:
 
 
 class TestDeleteDataSource:
-    def test_delete_data_source(self, db_session, factories):
+    def test_delete_data_source(self, db_session, factories, mock_s3_service_calls):
         data_source = factories.data_source.create()
         assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 3
 
@@ -777,6 +779,23 @@ class TestDeleteDataSource:
         assert db_session.get(DataSource, data_source.id) is None
         assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 0
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
+        assert len(mock_s3_service_calls.delete_file_calls) == 0
+
+    def test_delete_data_source_deletes_s3_file(self, db_session, factories, mock_s3_service_calls):
+        file_metadata = DataSourceFileMetadata(
+            s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+        ).model_dump(mode="json")
+        data_source = factories.data_source.create(file_metadata=file_metadata)
+        assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 3
+
+        delete_data_source(data_source)
+        db_session.flush()
+
+        assert db_session.get(DataSource, data_source.id) is None
+        assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 0
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
+        assert len(mock_s3_service_calls.delete_file_calls) == 1
+        assert mock_s3_service_calls.delete_file_calls[0].args[0] == "data-set-uploads/test.csv"
 
     def test_delete_data_source_cascades_organisation_items(self, db_session, factories):
         data_source = factories.data_source.create(items=None)
