@@ -210,7 +210,7 @@
   {% set context = submission.cached_evaluation_context if not is_add_another_group else submission.cached_evaluation_context.with_add_another_context(container, submission.submission.data_manager, add_another_index=add_another_index) %}
   {% set interpolation_context = submission.cached_interpolation_context if not is_add_another_group else submission.cached_interpolation_context.with_add_another_context(container, submission.submission.data_manager, add_another_index=add_another_index, mode="interpolation") %}
 
-  {% for question in submission.cached_get_ordered_visible_questions(container, override_context=context if is_add_another_group else none) %}
+  {% for question in submission.cached_get_ordered_visible_questions(container, add_another_index=add_another_index) %}
     {% if question.add_another_container and not is_add_another_group %}
       {# for the add another context we'll just include one row with a link to the full answers below #}
       {% if question.add_another_container not in (add_another_contexts | map(attribute="container")) %}

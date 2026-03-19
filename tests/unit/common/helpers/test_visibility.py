@@ -673,7 +673,6 @@ class TestVisibilityResolver:
         assert resolver.get_visibility(q3) == ComponentVisibilityState.HIDDEN
         assert resolver.get_visibility(q4) == ComponentVisibilityState.HIDDEN
 
-    @pytest.mark.xfail
     def test_any_operator_with_hidden_referenced_question(self, factories):
         """Scenario: Q1 yes/no, Q2 yes/no (show if Q1=yes), Q3 text (show if Q1=no OR Q2=yes).
 

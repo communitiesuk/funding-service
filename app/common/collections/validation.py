@@ -64,7 +64,7 @@ class SubmissionValidator:
                 processed_add_another_containers.append(question.add_another_container.id)
 
             else:
-                if self.helper.is_component_visible(question, self.helper.cached_evaluation_context):
+                if self.helper.resolver.is_visible(question):
                     answer = self.helper.cached_get_answer_for_question(question.id)
                     if answer is not None and answer != NOT_ANSWERED:
                         errors.extend(self._validate_question(cast("Question", question), form))
@@ -74,9 +74,7 @@ class SubmissionValidator:
     def _validate_group(self, group: Group, form: Form, add_another_index: int | None = None) -> list[ValidationError]:
         errors: list[ValidationError] = []
 
-        if not self.helper.is_component_visible(
-            group, self.helper.cached_evaluation_context, add_another_index=add_another_index
-        ):
+        if not self.helper.resolver.is_visible(group, add_another_index=add_another_index):
             return errors
 
         if (add_another_index is not None and not group.add_another_container) or (
@@ -185,7 +183,7 @@ class SubmissionValidator:
             )
 
             for q in questions:
-                if self.helper.is_component_visible(q, self.helper.cached_evaluation_context, add_another_index=index):
+                if self.helper.resolver.is_visible(q, add_another_index=index):
                     answer = self.helper.cached_get_answer_for_question(q.id, add_another_index=index)
                     if answer is not None and answer != NOT_ANSWERED:
                         errors.extend(self._validate_question(q, form, add_another_index=index))

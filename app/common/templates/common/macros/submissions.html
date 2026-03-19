@@ -10,7 +10,7 @@
   {% set is_add_another_group = add_another_index is not none %}
   {% set context = helper.cached_evaluation_context if not is_add_another_group else helper.cached_evaluation_context.with_add_another_context(container, helper.submission.data_manager, add_another_index=add_another_index) %}
 
-  {% for question in helper.cached_get_ordered_visible_questions(container, override_context=context if is_add_another_group else none) %}
+  {% for question in helper.cached_get_ordered_visible_questions(container, add_another_index=add_another_index) %}
 
     {% if question.add_another_container and not is_add_another_group %}
       {# for the add another context we'll just include one row with a link to the full answers below #}
