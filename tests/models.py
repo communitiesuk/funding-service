@@ -4,10 +4,12 @@ accessed through fixtures such as `grant_factory`, which can ensure the Flask ap
 for transactional isolation.
 """
 
+import dataclasses
 import datetime
 import decimal
 import random
 import secrets
+from dataclasses import field
 from typing import Any, cast
 from uuid import uuid4
 
@@ -18,6 +20,7 @@ from flask import url_for
 from sqlalchemy.exc import NoResultFound
 
 from app.common.collections.types import (
+    AllAnswerTypes,
     DateAnswer,
     DecimalAnswer,
     EmailAnswer,
@@ -29,7 +32,7 @@ from app.common.collections.types import (
     TextSingleLineAnswer,
     YesNoAnswer,
 )
-from app.common.data.interfaces.collections import _validate_and_sync_component_references
+from app.common.data.interfaces.collections import _validate_and_sync_component_references, update_submission_data
 from app.common.data.models import (
     Collection,
     DataSource,
@@ -303,19 +306,16 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         )
 
         def _create_submission(mode: SubmissionModeEnum, complete_question_2: bool = False) -> None:
-            response_data: dict[str, Any] = {
-                str(q1.id): IntegerAnswer(value=(40 if complete_question_2 else 20)).get_value_for_submission()
-            }
+            sub = _SubmissionFactory.create(collection=obj, mode=mode)
+            sub.data_manager.set(q1, IntegerAnswer(value=(40 if complete_question_2 else 20)))
             if complete_question_2:
-                response_data[str(q2.id)] = IntegerAnswer(value=80).get_value_for_submission()
+                sub.data_manager.set(q2, IntegerAnswer(value=80))
+            sub.data_manager.set(q3, TextSingleLineAnswer("digestive"))
 
-            response_data[str(q3.id)] = TextSingleLineAnswer("digestive").get_value_for_submission()
-
-            _SubmissionFactory.create(
-                collection=obj,
-                mode=mode,
-                data=response_data,
-            )
+            if create:
+                update_submission_data(sub)
+            else:
+                sub._data = sub.data_manager.data
 
         if preview:
             _create_submission(SubmissionModeEnum.PREVIEW, complete_question_2=True)
@@ -326,6 +326,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         if live:
             _create_submission(SubmissionModeEnum.LIVE, complete_question_2=True)
             _create_submission(SubmissionModeEnum.LIVE, complete_question_2=False)
+
+        if create:
+            db.session.commit()
 
     @factory.post_generation
     def create_completed_submissions_conditional_question_random(
@@ -419,31 +422,28 @@ class _CollectionFactory(SQLAlchemyModelFactory):
 
         def _create_submission(mode: SubmissionModeEnum, count: int = 0) -> None:
             for _ in range(count):
-                response_data: dict[str, Any] = {
-                    str(q1.id): IntegerAnswer(value=faker.Faker().random_int(min=0, max=60)).get_value_for_submission()
-                }
-                response_data[str(q2.id)] = YesNoAnswer(random.choice([True, False])).get_value_for_submission()
-
-                response_data[str(q3.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()
+                sub = _SubmissionFactory.create(collection=obj, mode=mode)
+                sub.data_manager.set(q1, IntegerAnswer(value=faker.Faker().random_int(min=0, max=60)))
+                sub.data_manager.set(q2, YesNoAnswer(random.choice([True, False])))
+                sub.data_manager.set(q3, TextSingleLineAnswer(faker.Faker().word()))
                 item_choice = faker.Faker().random_int(min=0, max=2)
-                response_data[str(q4.id)] = SingleChoiceFromListAnswer(
-                    key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
-                ).get_value_for_submission()
-
-                response_data[str(q5.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()
-                response_data[str(q6.id)] = MultipleChoiceFromListAnswer(
-                    choices=[
-                        {"key": q6.data_source.items[0].key, "label": q6.data_source.items[0].label},
-                        {"key": q6.data_source.items[-1].key, "label": q6.data_source.items[-1].label},
-                    ]
-                ).get_value_for_submission()
-                response_data[str(q7.id)] = TextSingleLineAnswer(faker.Faker().word()).get_value_for_submission()
-
-                _SubmissionFactory.create(
-                    collection=obj,
-                    mode=mode,
-                    data=response_data,
+                sub.data_manager.set(
+                    q4,
+                    SingleChoiceFromListAnswer(
+                        key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
+                    ),
                 )
+                sub.data_manager.set(q5, TextSingleLineAnswer(faker.Faker().word()))
+                sub.data_manager.set(
+                    q6,
+                    MultipleChoiceFromListAnswer(
+                        choices=[
+                            {"key": q6.data_source.items[0].key, "label": q6.data_source.items[0].label},
+                            {"key": q6.data_source.items[-1].key, "label": q6.data_source.items[-1].label},
+                        ]
+                    ),
+                )
+                sub.data_manager.set(q7, TextSingleLineAnswer(faker.Faker().word()))
 
         _create_submission(SubmissionModeEnum.PREVIEW, preview)
         _create_submission(SubmissionModeEnum.TEST, test)
@@ -531,66 +531,90 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
             for _ in range(0, count):
                 item_choice = faker.Faker().random_int(min=0, max=2) if use_random_data else 0
-                _SubmissionFactory.create(
-                    collection=obj,
-                    mode=submission_mode,
-                    data={
-                        str(q1.id): TextSingleLineAnswer(
-                            faker.Faker().name() if use_random_data else "test name"
-                        ).get_value_for_submission(),
-                        str(q2.id): TextMultiLineAnswer(
-                            "\r\n".join(faker.Faker().sentences(nb=3))
-                            if use_random_data
-                            else "Line 1\r\nline2\r\nline 3"
-                        ).get_value_for_submission(),
-                        str(q3.id): IntegerAnswer(
-                            value=(faker.Faker().random_number(2) if use_random_data else 123)
-                        ).get_value_for_submission(),
-                        str(q3a.id): DecimalAnswer(
-                            value=(
-                                decimal.Decimal(f"{faker.Faker().random_number(2)}.{faker.Faker().random_number(2)}")
-                                if use_random_data
-                                else decimal.Decimal("456.78")
-                            )
-                        ).get_value_for_submission(),
-                        str(q4.id): SingleChoiceFromListAnswer(
-                            key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
-                        ).get_value_for_submission(),
-                        str(q5.id): YesNoAnswer(
-                            random.choice([True, False]) if use_random_data else True
-                        ).get_value_for_submission(),
-                        str(q6.id): TextSingleLineAnswer(
-                            faker.Faker().email() if use_random_data else "test@email.com"
-                        ).get_value_for_submission(),
-                        str(q7.id): TextSingleLineAnswer(
-                            faker.Faker().url()
-                            if use_random_data
-                            else "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government"
-                        ).get_value_for_submission(),
-                        str(q8.id): MultipleChoiceFromListAnswer(
-                            choices=[
-                                {"key": q8.data_source.items[0].key, "label": q8.data_source.items[0].label},
-                                {"key": q8.data_source.items[-1].key, "label": q8.data_source.items[-1].label},
-                            ]
-                        ).get_value_for_submission(),
-                        str(q9.id): DateAnswer(
-                            answer=datetime.datetime.strptime(faker.Faker().date(), "%Y-%m-%d").date()
-                            if use_random_data
-                            else datetime.date(2025, 1, 1)
-                        ).get_value_for_submission(),
-                        str(q10.id): FileUploadAnswer(
-                            filename=faker.Faker().file_name(extension="pdf")
-                            if use_random_data
-                            else "test-document.pdf",
-                            size=0,
-                            mime_type="application/pdf",
-                        ).get_value_for_submission(),
-                    },
+                sub = _SubmissionFactory.create(collection=obj, mode=submission_mode)
+                sub.data_manager.set(
+                    q1,
+                    TextSingleLineAnswer(faker.Faker().name() if use_random_data else "test name"),
                 )
+                sub.data_manager.set(
+                    q2,
+                    TextMultiLineAnswer(
+                        "\r\n".join(faker.Faker().sentences(nb=3)) if use_random_data else "Line 1\r\nline2\r\nline 3"
+                    ),
+                )
+                sub.data_manager.set(
+                    q3,
+                    IntegerAnswer(value=(faker.Faker().random_number(2) if use_random_data else 123)),
+                )
+                sub.data_manager.set(
+                    q3a,
+                    DecimalAnswer(
+                        value=(
+                            decimal.Decimal(f"{faker.Faker().random_number(2)}.{faker.Faker().random_number(2)}")
+                            if use_random_data
+                            else decimal.Decimal("456.78")
+                        )
+                    ),
+                )
+                sub.data_manager.set(
+                    q4,
+                    SingleChoiceFromListAnswer(
+                        key=q4.data_source.items[item_choice].key, label=q4.data_source.items[item_choice].label
+                    ),
+                )
+                sub.data_manager.set(
+                    q5,
+                    YesNoAnswer(random.choice([True, False]) if use_random_data else True),
+                )
+                sub.data_manager.set(
+                    q6,
+                    TextSingleLineAnswer(faker.Faker().email() if use_random_data else "test@email.com"),
+                )
+                sub.data_manager.set(
+                    q7,
+                    TextSingleLineAnswer(
+                        faker.Faker().url()
+                        if use_random_data
+                        else "https://www.gov.uk/government/organisations/ministry-of-housing-communities-local-government"
+                    ),
+                )
+                sub.data_manager.set(
+                    q8,
+                    MultipleChoiceFromListAnswer(
+                        choices=[
+                            {"key": q8.data_source.items[0].key, "label": q8.data_source.items[0].label},
+                            {"key": q8.data_source.items[-1].key, "label": q8.data_source.items[-1].label},
+                        ]
+                    ),
+                )
+                sub.data_manager.set(
+                    q9,
+                    DateAnswer(
+                        answer=datetime.datetime.strptime(faker.Faker().date(), "%Y-%m-%d").date()
+                        if use_random_data
+                        else datetime.date(2025, 1, 1)
+                    ),
+                )
+                sub.data_manager.set(
+                    q10,
+                    FileUploadAnswer(
+                        filename=faker.Faker().file_name(extension="pdf") if use_random_data else "test-document.pdf",
+                        size=0,
+                        mime_type="application/pdf",
+                    ),
+                )
+
+                if create:
+                    update_submission_data(sub)
+                else:
+                    sub._data = sub.data_manager.data
 
         _create_submission_of_type(SubmissionModeEnum.PREVIEW, preview)
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
+
+        if create:
+            db.session.commit()
 
     @factory.post_generation
     def create_submissions(
@@ -684,41 +708,44 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             text="How many years have you worked here?",
         )
 
-        add_another_responses = []
-        for i in range(0, number_of_add_another_answers):
-            add_another_responses.append(
-                {
-                    str(q3.id): TextSingleLineAnswer(
-                        faker.Faker().name() if use_random_data else f"test name {i}"
-                    ).get_value_for_submission(),
-                    str(q4.id): EmailAnswer(
-                        faker.Faker().company_email() if use_random_data else f"test_user_{i}@email.com"
-                    ).get_value_for_submission(),
-                }
-            )
-
         def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
             for _ in range(0, count):
-                _SubmissionFactory.create(
-                    collection=obj,
-                    mode=submission_mode,
-                    data={
-                        str(q1.id): TextSingleLineAnswer(
-                            faker.Faker().name() if use_random_data else "test name"
-                        ).get_value_for_submission(),
-                        str(q2.id): TextSingleLineAnswer(
-                            faker.Faker().name() if use_random_data else "test org name"
-                        ).get_value_for_submission(),
-                        str(g2.id): add_another_responses,
-                        str(q5.id): IntegerAnswer(
-                            value=random.randint(0, 10) if use_random_data else 3
-                        ).get_value_for_submission(),
-                    },
+                sub = _SubmissionFactory.create(collection=obj, mode=submission_mode)
+                sub.data_manager.set(
+                    q1,
+                    TextSingleLineAnswer(faker.Faker().name() if use_random_data else "test name"),
                 )
+                sub.data_manager.set(
+                    q2,
+                    TextSingleLineAnswer(faker.Faker().name() if use_random_data else "test org name"),
+                )
+                for i in range(0, number_of_add_another_answers):
+                    sub.data_manager.set(
+                        q3,
+                        TextSingleLineAnswer(faker.Faker().name() if use_random_data else f"test name {i}"),
+                        add_another_index=i,
+                    )
+                    sub.data_manager.set(
+                        q4,
+                        EmailAnswer(faker.Faker().company_email() if use_random_data else f"test_user_{i}@email.com"),
+                        add_another_index=i,
+                    )
+                sub.data_manager.set(
+                    q5,
+                    IntegerAnswer(value=random.randint(0, 10) if use_random_data else 3),
+                )
+
+                if create:
+                    update_submission_data(sub)
+                else:
+                    sub._data = sub.data_manager.data
 
         _create_submission_of_type(SubmissionModeEnum.PREVIEW, preview)
         _create_submission_of_type(SubmissionModeEnum.TEST, test)
         _create_submission_of_type(SubmissionModeEnum.LIVE, live)
+
+        if create:
+            db.session.commit()
 
     @factory.post_generation
     def commit_the_things_to_clean_the_session(self, create, extracted, **kwargs):
@@ -726,6 +753,13 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         # so that our clean-session-tracking logic has a clean session again.
         if create:
             _CollectionFactory._meta.sqlalchemy_session_factory().commit()  # type: ignore
+
+
+@dataclasses.dataclass
+class FactoryAnswer:
+    question: Question
+    answer: AllAnswerTypes
+    add_another_index: int | None = field(kw_only=True, default=None)
 
 
 class _SubmissionFactory(SQLAlchemyModelFactory):
@@ -736,7 +770,7 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     mode = SubmissionModeEnum.PREVIEW
-    data = factory.LazyFunction(dict)
+    _data = factory.LazyFunction(dict)
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)
@@ -754,6 +788,19 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
         )
     )
     grant_recipient_id = factory.LazyAttribute(lambda o: o.grant_recipient.id if o.grant_recipient else None)
+
+    @factory.post_generation
+    def answers(obj: Submission, create, extracted: list[FactoryAnswer], **kwargs):
+        if not extracted:
+            return
+        for entry in extracted:
+            obj.data_manager.set(entry.question, entry.answer, add_another_index=entry.add_another_index)
+
+        if create:
+            update_submission_data(obj)
+            db.session.commit()
+        else:
+            obj._data = obj.data_manager.data
 
 
 class _FormFactory(SQLAlchemyModelFactory):

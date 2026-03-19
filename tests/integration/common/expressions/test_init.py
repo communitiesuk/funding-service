@@ -5,11 +5,14 @@ from unittest.mock import PropertyMock
 
 import pytest
 
+from app import NumberTypeEnum
+from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate
 from app.common.expressions.managed import BetweenDates, GreaterThan
 from app.common.helpers.collections import SubmissionHelper
+from tests.models import FactoryAnswer
 
 
 class TestExpressionContext:
@@ -311,14 +314,16 @@ class TestExtendingWithAddAnotherContext:
         group = factories.group.create(add_another=True)
         q1 = factories.question.create(parent=group)
         q2 = factories.question.create(parent=group)
-        submission = factories.submission.create(collection=group.form.collection)
-        submission.data = {
-            str(group.id): [
-                {str(q1.id): "v0", str(q2.id): "e0"},
-                {str(q1.id): "v1", str(q2.id): "e1"},
-                {str(q1.id): "v2"},
-            ]
-        }
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("v0"), add_another_index=0),
+                FactoryAnswer(q2, TextSingleLineAnswer("e0"), add_another_index=0),
+                FactoryAnswer(q1, TextSingleLineAnswer("v1"), add_another_index=1),
+                FactoryAnswer(q2, TextSingleLineAnswer("e1"), add_another_index=1),
+                FactoryAnswer(q1, TextSingleLineAnswer("v2"), add_another_index=2),
+            ],
+        )
 
         helper = SubmissionHelper(submission=submission)
 
@@ -338,14 +343,15 @@ class TestExtendingWithAddAnotherContext:
         q1 = factories.question.create(parent=group)
         q2 = factories.question.create(parent=group)
         q3 = factories.question.create(parent=group)
-        submission = factories.submission.create(collection=group.form.collection)
-        submission.data = {
-            str(group.id): [
-                {str(q1.id): "v0", str(q2.id): "e0"},
-                {str(q2.id): "e1"},
-                {str(q1.id): "v2"},
-            ]
-        }
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("v0"), add_another_index=0),
+                FactoryAnswer(q2, TextSingleLineAnswer("e0"), add_another_index=0),
+                FactoryAnswer(q2, TextSingleLineAnswer("e1"), add_another_index=1),
+                FactoryAnswer(q1, TextSingleLineAnswer("v2"), add_another_index=2),
+            ],
+        )
 
         helper = SubmissionHelper(submission=submission)
         context = ExpressionContext.build_expression_context(
@@ -364,8 +370,10 @@ class TestExtendingWithAddAnotherContext:
 
     def test_extending_with_new_add_another_index(self, factories):
         component = factories.question.create(add_another=True)
-        submission = factories.submission.create(collection=component.form.collection)
-        submission.data = {str(component.id): [{str(component.id): 1}]}
+        submission = factories.submission.create(
+            collection=component.form.collection,
+            answers=[FactoryAnswer(component, TextSingleLineAnswer("1"), add_another_index=0)],
+        )
         helper = SubmissionHelper(submission=submission)
         context = ExpressionContext.build_expression_context(
             collection=component.form.collection,
