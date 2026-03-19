@@ -46,6 +46,9 @@ class TestCreateUploadedDataSourceGrantRecipient:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         assert data_source.id is not None
@@ -91,6 +94,9 @@ class TestCreateUploadedDataSourceGrantRecipient:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         schema = data_source.schema
@@ -133,6 +139,9 @@ class TestCreateUploadedDataSourceGrantRecipient:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_items = (
@@ -179,6 +188,9 @@ class TestCreateUploadedDataSourceGrantRecipient:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
@@ -217,6 +229,9 @@ class TestCreateUploadedDataSourceGrantRecipient:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
@@ -250,6 +265,9 @@ class TestCreateUploadedDataSourceGrantRecipient:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
@@ -283,6 +301,9 @@ class TestCreateUploadedDataSourceGrantRecipient:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
@@ -335,6 +356,9 @@ class TestCreateUploadedDataSourceProjectLevel:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_items = (
@@ -385,6 +409,9 @@ class TestCreateUploadedDataSourceProjectLevel:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
@@ -422,6 +449,9 @@ class TestCreateUploadedDataSourceProjectLevel:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
@@ -459,6 +489,9 @@ class TestCreateUploadedDataSourceStatic:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         assert data_source.type == DataSourceType.STATIC
@@ -500,6 +533,9 @@ class TestCreateUploadedDataSourceStatic:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         org_items = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).all()
@@ -525,6 +561,9 @@ class TestCreateUploadedDataSourceStatic:
                 column_mappings=column_mappings,
                 all_rows=all_rows,
                 user=user,
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             )
 
 
@@ -543,6 +582,9 @@ class TestCreateUploadedDataSourceUnsupportedType:
                 column_mappings=[],
                 all_rows=[],
                 user=user,
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             )
 
 
@@ -578,6 +620,9 @@ class TestCreateUploadedDataSourceSchemaOptions:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         schema_col = data_source.schema["amount"]
@@ -613,6 +658,9 @@ class TestCreateUploadedDataSourceSchemaOptions:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         schema_col = data_source.schema["description"]
@@ -647,6 +695,9 @@ class TestCreateUploadedDataSourceSchemaOptions:
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
+            data_source_id=uuid.uuid4(),
+            original_filename="test.csv",
+            s3_key="data-set-uploads/test.csv",
         )
 
         assert "capital-allocation" in data_source.schema
