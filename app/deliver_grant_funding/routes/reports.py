@@ -2392,10 +2392,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
                 )
             except AddAnotherDependencyException as e:
                 field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(
-                    f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a "
-                    "different group"
-                )
+                field_with_error.errors.append(e.message)
 
             else:
                 if "question" in session:
@@ -2521,10 +2518,7 @@ def edit_custom_question_validation(  # noqa:C901
                 )
             except AddAnotherDependencyException as e:
                 field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(
-                    f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a "
-                    "different group"
-                )
+                field_with_error.errors.append(e.message)
 
             else:
                 if "question" in session:
@@ -3141,9 +3135,7 @@ def _validate_custom_syntax(  # noqa:C901
     except IncompatibleDataTypeException as e:
         return f"Cannot reference {e.depends_on_question.name} as it is of data type {e.depends_on_question.data_type}"
     except AddAnotherDependencyException as e:
-        return (
-            f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a different group"
-        )
+        return e.message
 
     if validate_with_evaluation is False:
         # No further validation needed for custom error message

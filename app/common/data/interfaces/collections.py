@@ -1534,7 +1534,7 @@ def _validate_reference(  # noqa:C901
             attached_to_component, [referenced_question, question_to_test]
         ):
             raise AddAnotherDependencyException(
-                "A question cannot depend on an add another question from a different add another group",
+                f"You cannot reference {referenced_question.name} because it can be answered more than once",
                 attached_to_component,
                 referenced_question,
                 field_name=field_name_for_error_message,

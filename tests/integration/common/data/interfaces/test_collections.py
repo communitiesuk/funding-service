@@ -3134,7 +3134,7 @@ class TestExpressions:
 
         with pytest.raises(AddAnotherDependencyException) as e:
             add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
-        assert str(e.value) == "A question cannot depend on an add another question from a different add another group"
+        assert str(e.value) == f"You cannot reference {q1.name} because it can be answered more than once"
 
     def test_add_question_condition_blocks_on_add_another_question_outside_group(self, db_session, factories):
         user = factories.user.create()
@@ -3144,7 +3144,7 @@ class TestExpressions:
 
         with pytest.raises(AddAnotherDependencyException) as e:
             add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
-        assert str(e.value) == "A question cannot depend on an add another question from a different add another group"
+        assert str(e.value) == f"You cannot reference {q1.name} because it can be answered more than once"
 
     def test_add_question_condition_succeeds_add_another_question_inside_same_group(self, db_session, factories):
         user = factories.user.create()
