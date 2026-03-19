@@ -4839,7 +4839,7 @@ class TestValidateReference:
                 field_name_for_error_message="custom_expression",
                 question_to_test=None,
             )
-        assert "Reference is not valid" in str(e)
+        assert "You cannot use ((q_bad_ref)) because it does not exist" in str(e)
         assert e.value.field_name == "custom_expression"
         assert e.value.bad_reference == "((q_bad_ref))"
 

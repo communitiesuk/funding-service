@@ -1438,7 +1438,7 @@ def _validate_reference(  # noqa:C901
 
     if not unwrapped_ref:
         raise InvalidReferenceInExpression(
-            f"Reference is not valid: {wrapped_reference}",
+            f"You cannot use {wrapped_reference} because it does not exist",
             field_name=field_name_for_error_message,
             bad_reference=wrapped_reference,
         )
@@ -1460,7 +1460,7 @@ def _validate_reference(  # noqa:C901
     # Check the reference is valid in this expression context
     if not expression_context.is_valid_reference(unwrapped_ref):
         raise InvalidReferenceInExpression(
-            f"Reference is not valid: {wrapped_reference}",
+            f"You cannot use {wrapped_reference} because it does not exist",
             field_name=field_name_for_error_message,
             bad_reference=wrapped_reference,
         )

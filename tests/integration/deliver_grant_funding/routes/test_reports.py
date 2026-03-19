@@ -2259,7 +2259,7 @@ class TestAddQuestion:
         soup = BeautifulSoup(response.data, "html.parser")
         assert response.status_code == 200
 
-        assert page_has_error(soup, "Reference is not valid: ((invalid_reference))")
+        assert page_has_error(soup, "You cannot use ((invalid_reference)) because it does not exist")
 
     @pytest.mark.parametrize("context_field", ["text", "hint"])
     def test_post_to_add_context_redirects_and_sets_up_session(
@@ -3313,7 +3313,7 @@ class TestEditQuestion:
         soup = BeautifulSoup(response.data, "html.parser")
         assert response.status_code == 200
 
-        assert page_has_error(soup, "Reference is not valid: ((invalid_reference))")
+        assert page_has_error(soup, "You cannot use ((invalid_reference)) because it does not exist")
 
     @pytest.mark.parametrize("context_field", ["text", "hint"])
     def test_post_to_add_context_redirects_and_sets_up_session(
@@ -8522,7 +8522,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == "((some_bad_ref)) is not a valid reference"
+        assert result == "You cannot use ((some_bad_ref)) because it does not exist"
 
         result = _validate_custom_syntax(
             q3,
@@ -8533,7 +8533,7 @@ class TestValidateCustomSyntax:
             False,
         )
 
-        assert result == "((some_bad_ref)) is not a valid reference"
+        assert result == "You cannot use ((some_bad_ref)) because it does not exist"
 
     def test_invalid_expression_reference_missing_from_context(self, factories, mocker):
         db_form = factories.form.create()
@@ -8552,7 +8552,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == f"(({q1.safe_qid})) is not a valid reference"
+        assert result == f"You cannot use (({q1.safe_qid})) because it does not exist"
 
         result = _validate_custom_syntax(
             q3,
@@ -8563,7 +8563,7 @@ class TestValidateCustomSyntax:
             False,
         )
 
-        assert result == f"(({q1.safe_qid})) is not a valid reference"
+        assert result == f"You cannot use (({q1.safe_qid})) because it does not exist"
 
     def test_invalid_expression_incompatible_data_type(self, factories, mocker):
         db_form = factories.form.create()
@@ -8860,7 +8860,7 @@ class TestAddCustomQuestionValidation:
         assert len(q3.expressions) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "((bad_reference)) is not a valid reference",
+            "You cannot use ((bad_reference)) because it does not exist",
         )
 
     def test_post_error_in_expression_and_message(self, authenticated_platform_admin_client, factories, db_session):

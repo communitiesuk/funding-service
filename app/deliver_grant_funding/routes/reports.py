@@ -2377,7 +2377,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
                 interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
             except InvalidReferenceInExpression as e:
                 field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(f"{e.bad_reference} is not a valid reference")
+                field_with_error.errors.append(e.message)
 
             except DependencyOrderException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
@@ -2501,7 +2501,7 @@ def edit_custom_question_validation(  # noqa:C901
                 interfaces.collections.update_question_expression(expression, custom_expression)
             except InvalidReferenceInExpression as e:
                 field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(f"{e.bad_reference} is not a valid reference")
+                field_with_error.errors.append(e.message)
 
             except DependencyOrderException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
@@ -3124,7 +3124,7 @@ def _validate_custom_syntax(  # noqa:C901
 
     # TODO catch more exceptions here and reword errors
     except InvalidReferenceInExpression as e:
-        return f"{e.bad_reference} is not a valid reference"
+        return e.message
 
     except DependencyOrderException as e:
         return e.message
