@@ -3163,7 +3163,7 @@ def _validate_custom_syntax(  # noqa:C901
         return f"You cannot use {e.name} because it does not exist"
     except simpleeval.FunctionNotDefined as e:
         return f"You cannot use {e.func_name} in calculations"  # ty:ignore[unresolved-attribute]
-    except SyntaxError, simpleeval.FeatureNotAvailable:
+    except SyntaxError, simpleeval.FeatureNotAvailable, KeyError:
         return "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
     except simpleeval.OperatorNotDefined as e:
         # TODO: This prints the ast node name (eg. Pow()) rather than the actual operator (eg. **)

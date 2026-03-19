@@ -109,6 +109,7 @@ class TestInternalEvaluateExpressionWithContext:
             # ast.BoolOp
             (Expression(statement="0 or 1")),
             (Expression(statement="0 and 1")),
+            (Expression(statement="True is not False")),
         ),
     )
     def test_disallowed_expressions(self, expression):
