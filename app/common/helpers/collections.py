@@ -4,12 +4,14 @@ import uuid
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from functools import cached_property, lru_cache, partial
+from graphlib import CycleError
 from io import StringIO
 from itertools import chain
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
+import sentry_sdk
 from flask import current_app, url_for
 from pydantic import BaseModel as PydanticBaseModel
 from werkzeug.datastructures import FileStorage
@@ -66,6 +68,7 @@ from app.common.expressions import (
     interpolate,
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
+from app.common.helpers.visibility import VisibilityResolver
 from app.extensions import notification_service, s3_service
 
 if TYPE_CHECKING:
@@ -178,6 +181,18 @@ class SubmissionHelper:
             data_manager=self.submission.data_manager,
             mode="interpolation",
         )
+
+    @cached_property
+    def resolver(self) -> VisibilityResolver | None:
+        try:
+            resolver = VisibilityResolver(
+                self.collection.dependency_graph, self.cached_evaluation_context, self.submission.data_manager
+            )
+        except CycleError as e:
+            sentry_sdk.capture_exception(e)
+            return None
+
+        return resolver
 
     @property
     def submission_name(self) -> str:
@@ -594,9 +609,30 @@ class SubmissionHelper:
         that question's visibility. If the referenced question is HIDDEN, it will
         never be answered, so this component is also HIDDEN.
         """
-        return self._get_component_visibility_state_internal(
-            component, context, add_another_index=add_another_index, visited=None, check_undetermined=check_undetermined
-        )
+        with sentry_sdk.start_span(op="get-component-visibility-state[old]", name=str(component.id)):
+            state = self._get_component_visibility_state_internal(
+                component,
+                context,
+                add_another_index=add_another_index,
+                visited=None,
+                check_undetermined=check_undetermined,
+            )
+
+        if self.resolver is not None:
+            with sentry_sdk.start_span(op="get-component-visibility-state[new]", name=str(component.id)):
+                if add_another_index is not None:
+                    resolver_state = self.resolver.get_visibility_for_add_another(component, add_another_index)
+                else:
+                    resolver_state = self.resolver.get_visibility(component)
+
+            if state != resolver_state:
+                current_app.logger.error(
+                    "Old SubmissionHelper visibility mismatch with new VisibilityResolver visibility on %(component)s "
+                    "[add_another_index=%(add_another_index)s]: old=%(old)s new=%(new)s",
+                    dict(component=component.id, add_another_index=add_another_index, old=state, new=resolver_state),
+                )
+
+        return state
 
     def _check_reference_visibility(
         self,
@@ -890,6 +926,7 @@ class SubmissionHelper:
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         del self.cached_evaluation_context
+        del self.resolver
 
         # FIXME: work out why end to end tests aren't happy without this here
         #        I've made it work but not happy with not clearly pointing to where
@@ -924,6 +961,7 @@ class SubmissionHelper:
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         del self.cached_evaluation_context
+        del self.resolver
         self.cached_get_ordered_visible_questions.cache_clear()
 
     def remove_answer_for_question(self, question_id: UUID, *, add_another_index: int | None = None) -> None:
@@ -950,6 +988,7 @@ class SubmissionHelper:
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         del self.cached_evaluation_context
+        del self.resolver
         self.cached_get_ordered_visible_questions.cache_clear()
 
     def _data_providers_for_lifecycle_emails(self, user: User) -> Sequence[User]:
