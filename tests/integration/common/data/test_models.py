@@ -46,7 +46,6 @@ class TestSubmissionModel:
             reference="TEST-R123456",
             created_by_id=user.id,
             grant_recipient_id=None,
-            data={},
         )
         db_session.add(submission)
 

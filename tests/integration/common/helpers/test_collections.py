@@ -42,8 +42,8 @@ from app.common.helpers.collections import (
     CollectionHelper,
     SubmissionAuthorisationError,
     SubmissionHelper,
-    _deserialise_question_type,
 )
+from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching
 
 EC = ExpressionContext
@@ -144,13 +144,12 @@ class TestSubmissionHelper:
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={str(question.id): "Alpha"},
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
             )
             new_submission = factories.submission.create(
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={},
             )
             helper = SubmissionHelper(new_submission)
 
@@ -176,13 +175,12 @@ class TestSubmissionHelper:
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={str(question.id): "Alpha"},
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
             )
             new_submission = factories.submission.create(
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={},
             )
             helper = SubmissionHelper(new_submission)
 
@@ -208,13 +206,12 @@ class TestSubmissionHelper:
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={str(question.id): "Alpha"},
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
             )
             new_submission = factories.submission.create(
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={},
             )
             helper = SubmissionHelper(new_submission)
 
@@ -240,7 +237,7 @@ class TestSubmissionHelper:
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={str(question.id): "Alpha"},
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
             )
             helper = SubmissionHelper(submission)
 
@@ -266,13 +263,12 @@ class TestSubmissionHelper:
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={str(question.id): "Alpha"},
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
             )
             preview_submission = factories.submission.create(
                 collection=collection,
                 grant_recipient=None,
                 mode=SubmissionModeEnum.PREVIEW,
-                data={},
             )
             helper = SubmissionHelper(preview_submission)
 
@@ -299,7 +295,7 @@ class TestSubmissionHelper:
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={str(question.id): "Alpha"},
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
             )
             helper = SubmissionHelper(submission)
 
@@ -324,11 +320,11 @@ class TestSubmissionHelper:
 
             add_another_container = questions[2].add_another_container
 
-            assert len(helper.submission.data[str(add_another_container.id)]) == 2
+            assert helper.submission.data_manager.get_count_for_add_another(add_another_container) == 2
 
             helper.remove_entry_for_add_another(add_another_container, 0)
 
-            assert len(helper.submission.data[str(add_another_container.id)]) == 1
+            assert helper.submission.data_manager.get_count_for_add_another(add_another_container) == 1
 
         def test_remove_entry_for_add_another_clears_file_uploads(self, db_session, factories, mock_s3_service_calls):
             collection = factories.collection.create(
@@ -343,25 +339,26 @@ class TestSubmissionHelper:
                 data_type=QuestionDataType.FILE_UPLOAD,
                 parent=add_another_container,
             )
-            collection.test_submissions[0].data[str(add_another_container.id)] = [
-                {
-                    str(file_upload.id): {
-                        "filename": "test-document.pdf",
-                        "size": 0,
-                        "mime_type": "application/pdf",
-                        "key": f"an-s3-key-{i}",
-                    }
-                }
-                for i in range(2)
-            ]
+            submission = collection.test_submissions[0]
+            for i in range(2):
+                submission.data_manager.set(
+                    file_upload,
+                    FileUploadAnswer(
+                        filename="test-document.pdf",
+                        size=0,
+                        mime_type="application/pdf",
+                        key=f"an-s3-key-{i}",
+                    ),
+                    add_another_index=i,
+                )
 
-            helper = SubmissionHelper(collection.test_submissions[0])
+            helper = SubmissionHelper(submission)
 
-            assert len(helper.submission.data[str(add_another_container.id)]) == 2
+            assert helper.submission.data_manager.get_count_for_add_another(add_another_container) == 2
 
             helper.remove_entry_for_add_another(add_another_container, 0)
 
-            assert len(helper.submission.data[str(add_another_container.id)]) == 1
+            assert helper.submission.data_manager.get_count_for_add_another(add_another_container) == 1
 
             assert len(mock_s3_service_calls.delete_file_calls) == 1
             assert mock_s3_service_calls.delete_file_calls[0].args[0] == "an-s3-key-0"
@@ -373,14 +370,17 @@ class TestSubmissionHelper:
             question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)
             submission = factories.submission.create(
                 collection=question.form.collection,
-                data={
-                    str(question.id): {
-                        "filename": "test-document.pdf",
-                        "size": 0,
-                        "mime_type": "application/pdf",
-                        "key": "an-s3-key",
-                    }
-                },
+                answers=[
+                    FactoryAnswer(
+                        question,
+                        FileUploadAnswer(
+                            filename="test-document.pdf",
+                            size=0,
+                            mime_type="application/pdf",
+                            key="an-s3-key",
+                        ),
+                    )
+                ],
             )
             helper = SubmissionHelper(submission)
 
@@ -496,23 +496,27 @@ class TestSubmissionHelper:
 
             submission = factories.submission.create(
                 collection=form.collection,
-                data={
-                    str(q1.id): TextSingleLineAnswer("answer").get_value_for_submission(),
-                    str(q2.id): TextMultiLineAnswer("answer\nthis").get_value_for_submission(),
-                    str(q3.id): IntegerAnswer(value=50).get_value_for_submission(),
-                    str(q4.id): YesNoAnswer(True).get_value_for_submission(),  # ty: ignore[missing-argument]
-                    str(q5.id): SingleChoiceFromListAnswer(key="my-key", label="My label").get_value_for_submission(),
-                    str(q6.id): TextSingleLineAnswer("name@example.com").get_value_for_submission(),
-                    str(q7.id): TextSingleLineAnswer("https://example.com").get_value_for_submission(),
-                    str(q8.id): MultipleChoiceFromListAnswer(
-                        choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
-                    ).get_value_for_submission(),
-                    str(q9.id): DateAnswer(answer=date(2003, 2, 1)).get_value_for_submission(),
-                    str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
-                    str(q11.id): FileUploadAnswer(
-                        filename="test-document.pdf", size=0, mime_type="application/pdf"
-                    ).get_value_for_submission(),
-                },
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("answer")),
+                    FactoryAnswer(q2, TextMultiLineAnswer("answer\nthis")),
+                    FactoryAnswer(q3, IntegerAnswer(value=50)),
+                    FactoryAnswer(q4, YesNoAnswer(True)),  # ty: ignore[missing-argument]
+                    FactoryAnswer(q5, SingleChoiceFromListAnswer(key="my-key", label="My label")),
+                    FactoryAnswer(q6, TextSingleLineAnswer("name@example.com")),
+                    FactoryAnswer(q7, TextSingleLineAnswer("https://example.com")),
+                    FactoryAnswer(
+                        q8,
+                        MultipleChoiceFromListAnswer(
+                            choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
+                        ),
+                    ),
+                    FactoryAnswer(q9, DateAnswer(answer=date(2003, 2, 1))),
+                    FactoryAnswer(q10, DecimalAnswer(value=Decimal(12.21))),
+                    FactoryAnswer(
+                        q11,
+                        FileUploadAnswer(filename="test-document.pdf", size=0, mime_type="application/pdf"),
+                    ),
+                ],
             )
             helper = SubmissionHelper(submission)
 
@@ -659,23 +663,27 @@ class TestSubmissionHelper:
 
             submission = factories.submission.create(
                 collection=form.collection,
-                data={
-                    str(q1.id): TextSingleLineAnswer("answer").get_value_for_submission(),
-                    str(q2.id): TextMultiLineAnswer("answer\nthis").get_value_for_submission(),
-                    str(q3.id): IntegerAnswer(value=50).get_value_for_submission(),
-                    str(q4.id): YesNoAnswer(True).get_value_for_submission(),  # ty: ignore[missing-argument]
-                    str(q5.id): SingleChoiceFromListAnswer(key="my-key", label="My label").get_value_for_submission(),
-                    str(q6.id): TextSingleLineAnswer("name@example.com").get_value_for_submission(),
-                    str(q7.id): TextSingleLineAnswer("https://example.com").get_value_for_submission(),
-                    str(q8.id): MultipleChoiceFromListAnswer(
-                        choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
-                    ).get_value_for_submission(),
-                    str(q9.id): DateAnswer(answer=date(2000, 1, 1)).get_value_for_submission(),
-                    str(q10.id): DecimalAnswer(value=Decimal(12.21)).get_value_for_submission(),
-                    str(q11.id): FileUploadAnswer(
-                        filename="test-document.pdf", size=0, mime_type="application/pdf"
-                    ).get_value_for_submission(),
-                },
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("answer")),
+                    FactoryAnswer(q2, TextMultiLineAnswer("answer\nthis")),
+                    FactoryAnswer(q3, IntegerAnswer(value=50)),
+                    FactoryAnswer(q4, YesNoAnswer(True)),  # ty: ignore[missing-argument]
+                    FactoryAnswer(q5, SingleChoiceFromListAnswer(key="my-key", label="My label")),
+                    FactoryAnswer(q6, TextSingleLineAnswer("name@example.com")),
+                    FactoryAnswer(q7, TextSingleLineAnswer("https://example.com")),
+                    FactoryAnswer(
+                        q8,
+                        MultipleChoiceFromListAnswer(
+                            choices=[{"key": "cheddar", "label": "Cheddar"}, {"key": "stilton", "label": "Stilton"}]
+                        ),
+                    ),
+                    FactoryAnswer(q9, DateAnswer(answer=date(2000, 1, 1))),
+                    FactoryAnswer(q10, DecimalAnswer(value=Decimal(12.21))),
+                    FactoryAnswer(
+                        q11,
+                        FileUploadAnswer(filename="test-document.pdf", size=0, mime_type="application/pdf"),
+                    ),
+                ],
             )
             helper = SubmissionHelper(submission)
 
@@ -981,26 +989,20 @@ class TestSubmissionHelper:
 
     class TestGetAnswerForQuestion:
         def test_get_answer_for_question(self, factories):
-            collection = factories.collection.create(
-                create_completed_submissions_each_question_type__test=1,
-                create_completed_submissions_each_question_type__use_random_data=False,
+            question = factories.question.create()
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("test name"))],
             )
-            helper = SubmissionHelper(collection.test_submissions[0])
-
-            question = collection.forms[0].cached_questions[0]
-
+            helper = SubmissionHelper(submission)
             answer = helper._get_answer_for_question(question.id)
             assert answer == TextSingleLineAnswer("test name")
 
         def test_get_answer_for_question_not_answered(self, factories, mocker):
-            collection = factories.collection.create(
-                create_completed_submissions_each_question_type__test=1,
-                create_completed_submissions_each_question_type__use_random_data=False,
-            )
-            question = collection.forms[0].cached_questions[0]
-            collection.test_submissions[0].data[str(question.id)] = None
+            question = factories.question.create()
+            submission = factories.submission.create(collection=question.form.collection)
 
-            helper = SubmissionHelper(collection.test_submissions[0])
+            helper = SubmissionHelper(submission)
             answer = helper._get_answer_for_question(question.id)
 
             assert answer is None
@@ -1664,11 +1666,11 @@ class TestFormResetOnAnswerChange:
 
         submission = factories.submission.create(
             collection=collection,
-            data={
-                str(q_a.id): IntegerAnswer(value=10).get_value_for_submission(),
-                str(q_b1.id): TextSingleLineAnswer("answer b1").get_value_for_submission(),
-            },
             created_by=user,
+            answers=[
+                FactoryAnswer(q_a, IntegerAnswer(value=10)),
+                FactoryAnswer(q_b1, TextSingleLineAnswer("answer b1")),
+            ],
         )
         helper = SubmissionHelper(submission)
 
@@ -1715,10 +1717,10 @@ class TestFormResetOnAnswerChange:
 
         submission = factories.submission.create(
             collection=collection,
-            data={
-                str(q_a.id): IntegerAnswer(value=10).get_value_for_submission(),
-                str(q_b1.id): TextSingleLineAnswer("answer b1").get_value_for_submission(),
-            },
+            answers=[
+                FactoryAnswer(q_a, IntegerAnswer(value=10)),
+                FactoryAnswer(q_b1, TextSingleLineAnswer("answer b1")),
+            ],
         )
         helper = SubmissionHelper(submission)
 
@@ -1847,8 +1849,8 @@ class TestCollectionHelper:
         expected_question_data = {}
         for _, submission in c_helper.submission_helpers.items():
             expected_question_data[submission.reference] = {
-                f"[{question.form.title}] {question.name}": _deserialise_question_type(
-                    question, submission.submission.data[str(question.id)]
+                f"[{question.form.title}] {question.name}": submission.submission.data_manager.get(
+                    question
                 ).get_value_for_text_export()
                 for _, question in submission.all_visible_questions.items()
             }
@@ -1901,17 +1903,17 @@ class TestCollectionHelper:
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
         c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        dependant_question_id = collection.forms[0].cached_questions[0].id
-        conditional_question_id = collection.forms[0].cached_questions[1].id
+        dependant_question = collection.forms[0].cached_questions[0]
+        conditional_question = collection.forms[0].cached_questions[1]
 
         # Find the submission where question 2 is not expected to be answered it and store some data as though it has
         # previously been answered
         submission = next(
             helper.submission
             for _, helper in c_helper.submission_helpers.items()
-            if helper.cached_get_answer_for_question(dependant_question_id).get_value_for_text_export() == "20"
+            if helper.cached_get_answer_for_question(dependant_question.id).get_value_for_text_export() == "20"
         )
-        submission.data[str(conditional_question_id)] = IntegerAnswer(value=120).get_value_for_submission()
+        submission.data_manager.set(conditional_question, IntegerAnswer(value=120))
         csv_content = c_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
@@ -2064,18 +2066,16 @@ class TestCollectionHelper:
         factories.submission.create(
             collection=group.form.collection,
             mode=SubmissionModeEnum.TEST,
-            data={
-                f"{str(group.id)}": [
-                    {str(question.id): "first"},
-                    {str(question.id): "second"},
-                    {str(question.id): "third"},
-                ]
-            },
+            answers=[
+                FactoryAnswer(question, TextSingleLineAnswer("first"), add_another_index=0),
+                FactoryAnswer(question, TextSingleLineAnswer("second"), add_another_index=1),
+                FactoryAnswer(question, TextSingleLineAnswer("third"), add_another_index=2),
+            ],
         )
         factories.submission.create(
             collection=group.form.collection,
             mode=SubmissionModeEnum.TEST,
-            data={f"{str(group.id)}": [{str(question.id): "only first"}]},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("only first"), add_another_index=0)],
         )
 
         c_helper = CollectionHelper(collection=group.form.collection, submission_mode=SubmissionModeEnum.TEST)
@@ -2339,14 +2339,18 @@ class TestSubmissionValidation:
             context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
         )
 
-        submission = factories.submission.create(collection=form.collection)
-
-        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+        submission = factories.submission.create(
+            collection=form.collection,
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=50)),
+                FactoryAnswer(q2, IntegerAnswer(value=100)),
+            ],
+        )
 
         helper = SubmissionHelper(submission)
         helper.toggle_form_completed(form, user, True)
 
-        submission.data[str(q1.id)] = {"value": 150}
+        submission.data_manager.set(q1, IntegerAnswer(value=150))
         helper.cached_get_answer_for_question.cache_clear()
         helper.cached_evaluation_context = ExpressionContext.build_expression_context(
             collection=submission.collection, submission_helper=helper, mode="evaluation"
@@ -2372,9 +2376,14 @@ class TestSubmissionValidation:
             context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
         )
 
-        submission = factories.submission.create(collection=form.collection, mode=SubmissionModeEnum.TEST)
-
-        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+        submission = factories.submission.create(
+            collection=form.collection,
+            mode=SubmissionModeEnum.TEST,
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=50)),
+                FactoryAnswer(q2, IntegerAnswer(value=100)),
+            ],
+        )
 
         helper = SubmissionHelper(submission)
         helper.toggle_form_completed(form, user, True)
@@ -2401,14 +2410,18 @@ class TestSubmissionValidation:
         collection = form.collection
         collection.requires_certification = True
 
-        submission = factories.submission.create(collection=collection)
-
-        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+        submission = factories.submission.create(
+            collection=collection,
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=50)),
+                FactoryAnswer(q2, IntegerAnswer(value=100)),
+            ],
+        )
 
         helper = SubmissionHelper(submission)
         helper.toggle_form_completed(form, user, True)
 
-        submission.data[str(q1.id)] = {"value": 150}
+        submission.data_manager.set(q1, IntegerAnswer(value=150))
         helper.cached_get_answer_for_question.cache_clear()
         helper.cached_evaluation_context = ExpressionContext.build_expression_context(
             collection=submission.collection, submission_helper=helper, mode="evaluation"

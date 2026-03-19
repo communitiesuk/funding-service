@@ -7,6 +7,7 @@ from pytest import FixtureRequest
 
 from app import CollectionStatusEnum, GrantStatusEnum, TasklistSectionStatusEnum
 from app.access_grant_funding.forms import DeclineSignOffForm
+from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
@@ -18,6 +19,7 @@ from app.common.data.types import (
 )
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from tests.models import FactoryAnswer
 from tests.utils import get_h1_text, page_has_button, page_has_error, page_has_link
 
 
@@ -246,8 +248,8 @@ class TestViewLockedReport:
             collection=question.form.collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Answer"},
             events=[],
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Answer"))],
         )
         factories.submission_event.create(
             submission=submission,
@@ -384,13 +386,13 @@ class TestListCollectionSubmissions:
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Alpha"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
         )
         factories.submission.create(
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Beta"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta"))],
         )
 
         response = authenticated_grant_recipient_member_client.get(
@@ -445,7 +447,7 @@ class TestListCollectionSubmissions:
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "My custom report name"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("My custom report name"))],
         )
 
         response = authenticated_grant_recipient_member_client.get(
@@ -573,7 +575,7 @@ class TestListCollectionSubmissions:
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
-                data={str(question.id): f"Answer {i}"},
+                answers=[FactoryAnswer(question, TextSingleLineAnswer(f"Answer {i}"))],
             )
             factories.submission_event.create(
                 submission=submission,
@@ -1151,7 +1153,10 @@ class TestConfirmReportSubmission:
             collection=form.collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(q1.id): {"value": 150}, str(q2.id): {"value": 100}},
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=150)),
+                FactoryAnswer(q2, IntegerAnswer(value=100)),
+            ],
         )
         factories.submission_event.create(
             created_by=client.user,
@@ -1296,8 +1301,8 @@ class TestViewSubmittedConfirmation:
             collection=question.form.collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Answer"},
             events=[],
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Answer"))],
         )
         factories.submission_event.create(
             submission=submission,

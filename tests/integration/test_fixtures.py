@@ -126,8 +126,9 @@ def test_collection_factory_completed_submissions(db_session, factories):
     assert len(collection_from_db.test_submissions) == 3
     assert len(collection_from_db.live_submissions) == 2
 
-    answers_dict = collection._submissions[0].data
-    assert len(answers_dict) == 11
+    all_questions = collection.forms[0].cached_questions
+    submission_data = collection._submissions[0].data_manager
+    assert all(submission_data.get(q) is not None for q in all_questions)
 
     for submission in collection_from_db.test_submissions:
         helper = SubmissionHelper(submission)
@@ -136,4 +137,4 @@ def test_collection_factory_completed_submissions(db_session, factories):
             assert helper.get_question(question.id).text == question.text
             answer = helper.cached_get_answer_for_question(question.id)
             assert answer
-            assert answer.get_value_for_submission() == submission.data[str(question.id)]
+            assert answer.get_value_for_submission() == submission.data_manager.get(question).get_value_for_submission()

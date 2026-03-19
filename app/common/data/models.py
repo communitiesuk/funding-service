@@ -331,7 +331,8 @@ class Submission(BaseModel):
 
     reference: Mapped[CIStr] = mapped_column(unique=True)
 
-    data: Mapped[json_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
+    _data: Mapped[json_scalars] = mapped_column("data", mutable_json_type(dbtype=JSONB, nested=True), default=dict)
+
     mode: Mapped[SubmissionModeEnum] = mapped_column(
         SqlEnum(SubmissionModeEnum, name="submission_mode_enum", validate_strings=True)
     )
@@ -362,7 +363,7 @@ class Submission(BaseModel):
         Use this to add/edit/remove answers from the submission. Changes must be synced back onto the submission model
         using the `update_submission_data` interface.
         """
-        return SubmissionDataManager(self.data)
+        return SubmissionDataManager(self._data)
 
     __table_args__ = (
         CheckConstraint(

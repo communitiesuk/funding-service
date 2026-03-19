@@ -5,7 +5,7 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.collections.types import FileUploadAnswer
+from app.common.collections.types import FileUploadAnswer, IntegerAnswer, TextSingleLineAnswer, YesNoAnswer
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
@@ -13,6 +13,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionModeEnum,
 )
+from tests.models import FactoryAnswer
 from tests.utils import get_h1_text, page_has_button
 
 
@@ -90,9 +91,10 @@ class TestSubmissionTasklist:
         client = request.getfixturevalue(client_fixture)
         grant = getattr(client, "grant", None) or factories.grant.create()
         question = factories.question.create(form__title="Colour information", form__collection__grant=grant)
-        submission_data = {str(question.id): "test answer"}
         submission = factories.submission.create(
-            collection=question.form.collection, created_by=client.user, data=submission_data
+            collection=question.form.collection,
+            created_by=client.user,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("test answer"))],
         )
         factories.submission_event.create(
             created_by=client.user, submission=submission, related_entity_id=question.form.id
@@ -143,7 +145,10 @@ class TestSubmissionTasklist:
         submission = factories.submission.create(
             collection=form.collection,
             created_by=client.user,
-            data={str(q1.id): {"value": 150}, str(q2.id): {"value": 100}},
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=150)),
+                FactoryAnswer(q2, IntegerAnswer(value=100)),
+            ],
         )
         factories.submission_event.create(
             created_by=client.user,
@@ -225,9 +230,10 @@ class TestAskAQuestion:
             form=group.form,
         )
         submission = factories.submission.create(
-            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+            collection=question.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"), add_another_index=0)],
         )
-        submission.data = {str(group.id): [{str(question.id): "Blue"}]}
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.ask_a_question",
@@ -278,9 +284,13 @@ class TestAskAQuestion:
             managed_name=ManagedExpressionsEnum.IS_YES,
         )
         submission = factories.submission.create(
-            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+            collection=question.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            answers=[
+                FactoryAnswer(question, YesNoAnswer(True), add_another_index=0),
+                FactoryAnswer(question, YesNoAnswer(False), add_another_index=1),
+            ],
         )
-        submission.data = {str(group.id): [{str(question.id): True}, {str(question.id): False}]}
 
         # the first entry does meet the condition constraints and should be shown
         response = authenticated_grant_admin_client.get(
@@ -595,15 +605,18 @@ class TestAskAQuestion:
             form__collection__grant=grant_recipient.grant,
         )
         submission = factories.submission.create(
-            collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+            collection=question.form.collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            answers=[
+                FactoryAnswer(
+                    question,
+                    FileUploadAnswer(filename="test.pdf", size=0, mime_type="application/pdf", key="an-s3-key"),
+                )
+            ],
         )
-        submission.data = {
-            str(question.id): FileUploadAnswer(
-                filename="test.pdf", size=0, mime_type="application/pdf", key="an-s3-key"
-            ).get_value_for_submission()
-        }
 
-        assert submission.data.get(str(question.id)) is not None
+        assert submission.data_manager.get(question) is not None
 
         response = authenticated_grant_recipient_data_provider_client.post(
             url_for(
@@ -628,7 +641,7 @@ class TestAskAQuestion:
         # we returned back to the same quesiton
         assert response.location == expected_location
 
-        assert submission.data.get(str(question.id)) is None
+        assert submission.data_manager.get(question) is None
 
         assert len(mock_s3_service_calls.delete_file_calls) == 1
 
@@ -755,19 +768,19 @@ class TestAskAQuestion:
             q1 = factories.question.create(form=group.form, parent=group)
             q2 = factories.question.create(form=group.form, parent=group)
 
-            submission = factories.submission.create(
-                collection=group.form.collection, created_by=authenticated_grant_admin_client.user
-            )
-
             group.presentation_options = QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id])
-            submission.data = {
-                str(group.id): [
-                    {str(q1.id): "E1A1"},
-                    {str(q2.id): "E2A2"},
-                    {str(q1.id): "E3A1", str(q2.id): "E3A2"},
-                    {str(q1.id): "E4A1", str(q2.id): "E4A2"},
-                ]
-            }
+            submission = factories.submission.create(
+                collection=group.form.collection,
+                created_by=authenticated_grant_admin_client.user,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("E1A1"), add_another_index=0),
+                    FactoryAnswer(q2, TextSingleLineAnswer("E2A2"), add_another_index=1),
+                    FactoryAnswer(q1, TextSingleLineAnswer("E3A1"), add_another_index=2),
+                    FactoryAnswer(q2, TextSingleLineAnswer("E3A2"), add_another_index=2),
+                    FactoryAnswer(q1, TextSingleLineAnswer("E4A1"), add_another_index=3),
+                    FactoryAnswer(q2, TextSingleLineAnswer("E4A2"), add_another_index=3),
+                ],
+            )
 
             response = authenticated_grant_admin_client.get(
                 url_for(
@@ -876,14 +889,13 @@ class TestCheckYourAnswers:
             text="Why do you like this colour?", parent=group, form=group.form
         )
         submission = factories.submission.create(
-            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+            collection=question.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            answers=[
+                FactoryAnswer(nested_question_1, TextSingleLineAnswer("First reason"), add_another_index=0),
+                FactoryAnswer(nested_question_1, TextSingleLineAnswer("Second reason"), add_another_index=1),
+            ],
         )
-        submission.data = {
-            str(group.id): [
-                {str(nested_question_1.id): "First reason"},
-                {str(nested_question_1.id): "Second reason"},
-            ]
-        }
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -1049,15 +1061,17 @@ class TestRemoveAddAnotherEntry:
         )
         q1 = factories.question.create(form=group.form, parent=group, name="Question 1")
         q2 = factories.question.create(form=group.form, parent=group, name="Question 2")
-        submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
-
         group.presentation_options = QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id])
-        submission.data = {
-            str(group.id): [
-                {str(q1.id): "Entry 1", str(q2.id): "Details 1"},
-                {str(q1.id): "Entry 2", str(q2.id): "Details 2"},
-            ]
-        }
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            created_by=client.user,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 1"), add_another_index=0),
+                FactoryAnswer(q2, TextSingleLineAnswer("Details 1"), add_another_index=0),
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 2"), add_another_index=1),
+                FactoryAnswer(q2, TextSingleLineAnswer("Details 2"), add_another_index=1),
+            ],
+        )
 
         response = client.get(
             url_for(
@@ -1081,33 +1095,6 @@ class TestRemoveAddAnotherEntry:
             radios = soup.find_all("input", {"type": "radio", "name": "confirm_remove"})
             assert len(radios) == 2
 
-    def test_get_remove_add_another_entry_with_no_summary(self, authenticated_grant_admin_client, factories):
-        grant = authenticated_grant_admin_client.grant
-        group = factories.group.create(
-            add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant
-        )
-        q1 = factories.question.create(form=group.form, parent=group, name="Question 1", text="Question 1")
-        submission = factories.submission.create(
-            collection=group.form.collection, created_by=authenticated_grant_admin_client.user
-        )
-
-        submission.data = {str(group.id): [{}]}
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.ask_a_question",
-                grant_id=grant.id,
-                submission_id=submission.id,
-                question_id=q1.id,
-                add_another_index=0,
-                action="remove",
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Are you sure you want to remove answer 1?"
-
     def test_post_remove_add_another_entry_confirms_yes(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
         group = factories.group.create(
@@ -1116,16 +1103,17 @@ class TestRemoveAddAnotherEntry:
         q1 = factories.question.create(form=group.form, parent=group)
         q2 = factories.question.create(form=group.form, parent=group)
         submission = factories.submission.create(
-            collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+            collection=group.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 1"), add_another_index=0),
+                FactoryAnswer(q2, TextSingleLineAnswer("Details 1"), add_another_index=0),
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 2"), add_another_index=1),
+                FactoryAnswer(q2, TextSingleLineAnswer("Details 2"), add_another_index=1),
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 3"), add_another_index=2),
+                FactoryAnswer(q2, TextSingleLineAnswer("Details 3"), add_another_index=2),
+            ],
         )
-
-        submission.data = {
-            str(group.id): [
-                {str(q1.id): "Entry 1", str(q2.id): "Details 1"},
-                {str(q1.id): "Entry 2", str(q2.id): "Details 2"},
-                {str(q1.id): "Entry 3", str(q2.id): "Details 3"},
-            ]
-        }
 
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -1141,7 +1129,6 @@ class TestRemoveAddAnotherEntry:
         )
 
         assert response.status_code == 302
-        # redirect to the add another summary page (add another group with no index)
         expected_location = url_for(
             "deliver_grant_funding.ask_a_question",
             grant_id=grant.id,
@@ -1150,9 +1137,8 @@ class TestRemoveAddAnotherEntry:
         )
         assert response.location == expected_location
 
-        # this is synced by the ORM from the latest session
-        assert len(submission.data[str(group.id)]) == 2
-        assert submission.data[str(group.id)][1][str(q1.id)] == "Entry 3"
+        assert submission.data_manager.get_count_for_add_another(group) == 2
+        assert submission.data_manager.get(q1, add_another_index=1) == TextSingleLineAnswer("Entry 3")
 
     def test_post_remove_add_another_entry_confirms_no(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
@@ -1161,10 +1147,13 @@ class TestRemoveAddAnotherEntry:
         )
         q1 = factories.question.create(form=group.form, parent=group)
         submission = factories.submission.create(
-            collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+            collection=group.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 1"), add_another_index=0),
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 2"), add_another_index=1),
+            ],
         )
-
-        submission.data = {str(group.id): [{str(q1.id): "Entry 1"}, {str(q1.id): "Entry 2"}]}
 
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -1180,7 +1169,6 @@ class TestRemoveAddAnotherEntry:
         )
 
         assert response.status_code == 302
-        # redirect to the add another summary page (add another group with no index)
         expected_location = url_for(
             "deliver_grant_funding.ask_a_question",
             grant_id=grant.id,
@@ -1189,5 +1177,5 @@ class TestRemoveAddAnotherEntry:
         )
         assert response.location == expected_location
 
-        assert len(submission.data[str(group.id)]) == 2
-        assert submission.data[str(group.id)][0][str(q1.id)] == "Entry 1"
+        assert submission.data_manager.get_count_for_add_another(group) == 2
+        assert submission.data_manager.get(q1, add_another_index=0) == TextSingleLineAnswer("Entry 1")

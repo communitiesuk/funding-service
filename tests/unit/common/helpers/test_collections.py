@@ -6,8 +6,15 @@ import pytest
 from werkzeug.datastructures import MultiDict
 
 from app.common.collections.forms import build_question_form
-from app.common.collections.types import DecimalAnswer, FileUploadAnswer, IntegerAnswer
+from app.common.collections.types import (
+    DecimalAnswer,
+    FileUploadAnswer,
+    IntegerAnswer,
+    TextSingleLineAnswer,
+    YesNoAnswer,
+)
 from app.common.data.models import ComponentReference
+from app.common.data.submission_data_manager import _deserialise_question_type
 from app.common.data.types import (
     ComponentVisibilityState,
     ConditionsOperator,
@@ -21,7 +28,8 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.helpers.collections import SubmissionHelper, _deserialise_question_type, _form_data_to_question_type
+from app.common.helpers.collections import SubmissionHelper, _form_data_to_question_type
+from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching
 
 
@@ -113,11 +121,11 @@ class TestSubmissionHelper:
 
             assert helper.cached_get_ordered_visible_questions(form) == [q1]
 
-            submission.data = {str(q1.id): "answer1"}
+            submission.data_manager.set(q1, TextSingleLineAnswer("answer1"))
             helper = SubmissionHelper(submission)
             assert helper.cached_get_ordered_visible_questions(form) == [q1, q2]
 
-            submission.data = {str(q1.id): "answer1", str(q2.id): "answer2"}
+            submission.data_manager.set(q2, TextSingleLineAnswer("answer2"))
             helper = SubmissionHelper(submission)
             assert helper.cached_get_ordered_visible_questions(form) == [q1, q2, q3]
 
@@ -300,7 +308,8 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=form.collection)
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
 
-            submission.data = {str(group.id): [{str(q1.id): {"value": 55}}, {str(q1.id): {"value": 20}}]}
+            submission.data_manager.set(q1, IntegerAnswer(value=55), add_another_index=0)
+            submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=1)
 
             helper = SubmissionHelper(submission)
 
@@ -382,7 +391,8 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=form.collection)
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
 
-            submission.data = {str(group.id): [{str(q1.id): {"value": 55}}, {str(q1.id): {"value": 20}}]}
+            submission.data_manager.set(q1, IntegerAnswer(value=55), add_another_index=0)
+            submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=1)
 
             helper = SubmissionHelper(submission)
 
@@ -399,7 +409,7 @@ class TestSubmissionHelper:
             q1 = factories.question.build()
             q2 = factories.question.build(form=q1.form)
             submission = factories.submission.build(collection=q1.form.collection)
-            submission.data = {str(q1.id): "answer 1"}
+            submission.data_manager.set(q1, TextSingleLineAnswer("answer 1"))
             helper = SubmissionHelper(submission)
 
             all_answered = helper.cached_get_all_questions_are_answered_for_form(q1.form).all_answered
@@ -408,7 +418,7 @@ class TestSubmissionHelper:
             helper.cached_get_answer_for_question.cache_clear()
             helper.cached_get_all_questions_are_answered_for_form.cache_clear()
 
-            submission.data = {str(q1.id): "answer 1", str(q2.id): "answer 2"}
+            submission.data_manager.set(q2, TextSingleLineAnswer("answer 2"))
 
             all_answered = helper.cached_get_all_questions_are_answered_for_form(q1.form).all_answered
             assert all_answered is True
@@ -419,7 +429,7 @@ class TestSubmissionHelper:
             q1 = factories.question.build()
             q2 = factories.question.build(form=q1.form)
             submission = factories.submission.build(collection=q1.form.collection)
-            submission.data = {str(q1.id): "answer 1"}
+            submission.data_manager.set(q1, TextSingleLineAnswer("answer 1"))
             helper = SubmissionHelper(submission)
 
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="False")
@@ -431,7 +441,6 @@ class TestSubmissionHelper:
             group = factories.group.build(add_another=True)
             _q1 = factories.question.build(form=group.form, parent=group)
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data = {str(group.id): []}
             helper = SubmissionHelper(submission)
 
             all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
@@ -450,14 +459,14 @@ class TestSubmissionHelper:
             # and shouldn't block - the preferred way to do this would be to specify the conditions
             # for the group showing on the group itself
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
-            submission.data = {str(q1.id): {"value": 30}, str(group.id): []}
+            submission.data_manager.set(q1, IntegerAnswer(value=30))
 
             assert (
                 SubmissionHelper(submission).cached_get_all_questions_are_answered_for_form(group.form).all_answered
                 is True
             )
 
-            submission.data = {str(q1.id): {"value": 100}, str(group.id): []}
+            submission.data_manager.set(q1, IntegerAnswer(value=100))
             assert (
                 SubmissionHelper(submission).cached_get_all_questions_are_answered_for_form(group.form).all_answered
                 is False
@@ -468,9 +477,9 @@ class TestSubmissionHelper:
             q1 = factories.question.build(form=group.form, parent=group)
             q2 = factories.question.build(form=group.form, parent=group)
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data = {
-                str(group.id): [{str(q1.id): "answer 1"}, {str(q1.id): "answer 2", str(q2.id): "answer 2"}]
-            }
+            submission.data_manager.set(q1, TextSingleLineAnswer("answer 1"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("answer 2"), add_another_index=1)
+            submission.data_manager.set(q2, TextSingleLineAnswer("answer 2"), add_another_index=1)
             helper = SubmissionHelper(submission)
 
             all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
@@ -479,12 +488,8 @@ class TestSubmissionHelper:
             helper.cached_get_answer_for_question.cache_clear()
             helper.cached_get_all_questions_are_answered_for_form.cache_clear()
 
-            submission.data = {
-                str(group.id): [
-                    {str(q1.id): "answer 1", str(q2.id): "answer 1"},
-                    {str(q1.id): "answer 2", str(q2.id): "answer 2"},
-                ]
-            }
+            submission.data_manager.set(q2, TextSingleLineAnswer("answer 1"), add_another_index=0)
+            submission.data_manager.set(q2, TextSingleLineAnswer("answer 2"), add_another_index=1)
 
             all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
             assert all_answered is True
@@ -496,13 +501,10 @@ class TestSubmissionHelper:
             q1 = factories.question.build(form=group.form, parent=group, data_type=QuestionDataType.NUMBER)
             q2 = factories.question.build(form=group.form, parent=group)
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data = {
-                str(group.id): [
-                    {str(q1.id): {"value": 20}},
-                    {str(q1.id): {"value": 55}, str(q2.id): "answer 2"},
-                    {str(q1.id): {"value": 60}},
-                ]
-            }
+            submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=0)
+            submission.data_manager.set(q1, IntegerAnswer(value=55), add_another_index=1)
+            submission.data_manager.set(q2, TextSingleLineAnswer("answer 2"), add_another_index=1)
+            submission.data_manager.set(q1, IntegerAnswer(value=60), add_another_index=2)
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
             helper = SubmissionHelper(submission)
 
@@ -512,13 +514,7 @@ class TestSubmissionHelper:
             helper.cached_get_answer_for_question.cache_clear()
             helper.cached_get_all_questions_are_answered_for_form.cache_clear()
 
-            submission.data = {
-                str(group.id): [
-                    {str(q1.id): {"value": 20}},
-                    {str(q1.id): {"value": 55}, str(q2.id): "answer 2"},
-                    {str(q1.id): {"value": 60}, str(q2.id): "answer 3"},
-                ]
-            }
+            submission.data_manager.set(q2, TextSingleLineAnswer("answer 3"), add_another_index=2)
 
             all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
             assert all_answered is True
@@ -537,7 +533,7 @@ class TestSubmissionHelper:
             assert helper.all_needed_forms_are_completed is False
             del helper.all_needed_forms_are_completed
 
-            submission.data[str(question_one.id)] = "User submitted data"
+            submission.data_manager.set(question_one, TextSingleLineAnswer("User submitted data"))
             helper.cached_get_answer_for_question.cache_clear()
             helper.cached_get_all_questions_are_answered_for_form.cache_clear()
             submission.events = [
@@ -551,7 +547,7 @@ class TestSubmissionHelper:
             # one complete form and one incomplete is still not completed
             assert helper.all_needed_forms_are_completed is False
 
-            submission.data[str(question_two.id)] = "User submitted data"
+            submission.data_manager.set(question_two, TextSingleLineAnswer("User submitted data"))
             helper.cached_get_answer_for_question.cache_clear()
             helper.cached_get_all_questions_are_answered_for_form.cache_clear()
 
@@ -592,10 +588,8 @@ class TestSubmissionHelper:
                 requires_certification=False,
             )
             question = factories.question.build(form__collection=collection)
-            submission = factories.submission.build(
-                collection=collection,
-                data={str(question.id): "test answer"},
-            )
+            submission = factories.submission.build(collection=collection)
+            submission.data_manager.set(question, TextSingleLineAnswer("test answer"))
             submission.events = [
                 factories.submission_event.build(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
@@ -661,7 +655,8 @@ class TestSubmissionHelper:
             q1 = factories.question.build(form=group.form, parent=group)
             q2 = factories.question.build(form=group.form, parent=group)
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data[str(group.id)] = [{str(q1.id): "True"}, {str(q1.id): "False"}]
+            submission.data_manager.set(q1, TextSingleLineAnswer("True"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("False"), add_another_index=1)
             helper = SubmissionHelper(submission)
 
             factories.expression.build(
@@ -753,7 +748,8 @@ class TestSubmissionHelper:
             q1 = factories.question.build(order=0)
             q2 = factories.question.build(form=q1.form, order=1)
             q2.owned_component_references = [ComponentReference(component=q2, depends_on_component=q1)]
-            submission = factories.submission.build(collection=q1.form.collection, data={str(q1.id): "answer"})
+            submission = factories.submission.build(collection=q1.form.collection)
+            submission.data_manager.set(q1, TextSingleLineAnswer("answer"))
             helper = SubmissionHelper(submission)
 
             assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
@@ -788,25 +784,37 @@ class TestSubmissionHelper:
             """
             q1 = factories.question.build(order=0)
             q2 = factories.question.build(form=q1.form, order=1)
-            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'yes'")
-            q2.owned_component_references = [ComponentReference(component=q2, depends_on_component=q1)]
+            q2_expr1 = factories.expression.build(
+                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'yes'"
+            )
+            q2.owned_component_references = [
+                ComponentReference(component=q2, depends_on_component=q1, expression=q2_expr1)
+            ]
 
             q3 = factories.question.build(form=q1.form, order=2, conditions_operator=ConditionsOperator.ANY)
-            factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'no'")
-            factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} == 'yes'")
+            q3_expr1 = factories.expression.build(
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'no'"
+            )
+            q3_expr2 = factories.expression.build(
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} == 'yes'"
+            )
             q3.owned_component_references = [
-                ComponentReference(component=q3, depends_on_component=q1),
-                ComponentReference(component=q3, depends_on_component=q2),
+                ComponentReference(component=q3, depends_on_component=q1, expression=q3_expr1),
+                ComponentReference(component=q3, depends_on_component=q2, expression=q3_expr2),
             ]
 
             # Case 1: Q1="no" → Q2 hidden, Q3 visible (Q1=="no" is True)
-            submission = factories.submission.build(collection=q1.form.collection, data={str(q1.id): "no"})
+            submission = factories.submission.build(
+                collection=q1.form.collection, answers=[FactoryAnswer(q1, TextSingleLineAnswer("no"))]
+            )
             helper = SubmissionHelper(submission)
             assert helper.is_component_visible(q2, helper.cached_evaluation_context) is False
             assert helper.is_component_visible(q3, helper.cached_evaluation_context) is True
 
             # Case 2: Q1="yes", Q2 not answered → Q3 undetermined
-            submission = factories.submission.build(collection=q1.form.collection, data={str(q1.id): "yes"})
+            submission = factories.submission.build(
+                collection=q1.form.collection, answers=[FactoryAnswer(q1, TextSingleLineAnswer("yes"))]
+            )
             helper = SubmissionHelper(submission)
             assert helper.is_component_visible(q2, helper.cached_evaluation_context) is True
             visibility = helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
@@ -814,14 +822,22 @@ class TestSubmissionHelper:
 
             # Case 3: Q1="yes", Q2="yes" → Q3 visible
             submission = factories.submission.build(
-                collection=q1.form.collection, data={str(q1.id): "yes", str(q2.id): "yes"}
+                collection=q1.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("yes")),
+                    FactoryAnswer(q2, TextSingleLineAnswer("yes")),
+                ],
             )
             helper = SubmissionHelper(submission)
             assert helper.is_component_visible(q3, helper.cached_evaluation_context) is True
 
             # Case 4: Q1="yes", Q2="no" → Q3 hidden
             submission = factories.submission.build(
-                collection=q1.form.collection, data={str(q1.id): "yes", str(q2.id): "no"}
+                collection=q1.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("yes")),
+                    FactoryAnswer(q2, TextSingleLineAnswer("no")),
+                ],
             )
             helper = SubmissionHelper(submission)
             assert helper.is_component_visible(q3, helper.cached_evaluation_context) is False
@@ -835,14 +851,12 @@ class TestSubmissionHelper:
             assert helper.get_count_for_add_another(group) == 0
 
         def test_with_answers(self, db_session, factories):
-            group = factories.group.build()
+            group = factories.group.build(add_another=True)
             question = factories.question.build(form=group.form, parent=group)
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data[str(group.id)] = [
-                {str(question.id): "answer 0"},
-                {str(question.id): "answer 1"},
-                {str(question.id): "answer 2"},
-            ]
+            submission.data_manager.set(question, TextSingleLineAnswer("answer 0"), add_another_index=0)
+            submission.data_manager.set(question, TextSingleLineAnswer("answer 1"), add_another_index=1)
+            submission.data_manager.set(question, TextSingleLineAnswer("answer 2"), add_another_index=2)
 
             helper = SubmissionHelper(submission)
             assert helper.get_count_for_add_another(group) == 3
@@ -853,11 +867,12 @@ class TestSubmissionHelper:
             q1 = factories.question.build(parent=group)
             q2 = factories.question.build(parent=group)
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data[str(group.id)] = [
-                {str(q1.id): "line 0 answer 0", str(q2.id): "line 0 answer 1"},
-                {str(q1.id): "line 1 answer 0", str(q2.id): "line 1 answer 1"},
-                {str(q1.id): "line 2 answer 0", str(q2.id): "line 2 answer 1"},
-            ]
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1)
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2)
             helper = SubmissionHelper(submission)
             assert (
                 helper.get_answer_summary_for_add_another(group, add_another_index=0).summary
@@ -873,11 +888,12 @@ class TestSubmissionHelper:
                 add_another_summary_line_question_ids=[uuid.uuid4(), uuid.uuid4()]
             )
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data[str(group.id)] = [
-                {str(q1.id): "line 0 answer 0", str(q2.id): "line 0 answer 1"},
-                {str(q1.id): "line 1 answer 0", str(q2.id): "line 1 answer 1"},
-                {str(q1.id): "line 2 answer 0", str(q2.id): "line 2 answer 1"},
-            ]
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1)
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2)
             helper = SubmissionHelper(submission)
             assert (
                 helper.get_answer_summary_for_add_another(group, add_another_index=0).summary
@@ -891,11 +907,12 @@ class TestSubmissionHelper:
 
             group.presentation_options = QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id])
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data[str(group.id)] = [
-                {str(q1.id): "line 0 answer 0", str(q2.id): "line 0 answer 1"},
-                {str(q1.id): "line 1 answer 0", str(q2.id): "line 1 answer 1"},
-                {str(q1.id): "line 2 answer 0", str(q2.id): "line 2 answer 1"},
-            ]
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1)
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2)
+            submission.data_manager.set(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2)
             helper = SubmissionHelper(submission)
             assert helper.get_answer_summary_for_add_another(group, add_another_index=0).summary == "line 0 answer 0"
 
@@ -904,14 +921,13 @@ class TestSubmissionHelper:
             factories.question.build(parent=group)
             submission = factories.submission.build(collection=group.form.collection)
             helper = SubmissionHelper(submission)
-            submission.data = {str(group.id): [{}]}
 
             assert helper.get_answer_summary_for_add_another(group, add_another_index=0).summary == ""
 
         def test_valid_summary_line_for_single_add_another_question(self, factories):
             q1 = factories.question.build(add_another=True)
             submission = factories.submission.build(collection=q1.form.collection)
-            submission.data = {str(q1.id): [{str(q1.id): "line 0 answer 0"}]}
+            submission.data_manager.set(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)
             helper = SubmissionHelper(submission)
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=0).summary == "line 0 answer 0"
 
@@ -929,11 +945,10 @@ class TestSubmissionHelper:
             q1 = factories.question.build(form=group.form, parent=group)
             q2 = factories.question.build(form=group.form, parent=group)
             submission = factories.submission.build(collection=group.form.collection)
-            submission.data[str(group.id)] = [
-                {str(q1.id): "True"},
-                {str(q1.id): "False"},
-                {str(q1.id): "True", str(q2.id): "True"},
-            ]
+            submission.data_manager.set(q1, TextSingleLineAnswer("True"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("False"), add_another_index=1)
+            submission.data_manager.set(q1, TextSingleLineAnswer("True"), add_another_index=2)
+            submission.data_manager.set(q2, TextSingleLineAnswer("True"), add_another_index=2)
             helper = SubmissionHelper(submission)
 
             factories.expression.build(
@@ -1031,7 +1046,8 @@ class TestSubmissionHelper:
             q_b.owned_component_references = [
                 ComponentReference(component=q_b, depends_on_component=q_a),
             ]
-            submission = factories.submission.build(collection=collection, data={str(q_a.id): "answered"})
+            submission = factories.submission.build(collection=collection)
+            submission.data_manager.set(q_a, TextSingleLineAnswer("answered"))
 
             helper = SubmissionHelper(submission)
             assert helper.can_start_form(form_b) is True
@@ -1178,7 +1194,8 @@ class TestSubmissionHelper:
             q_b.owned_component_references = [
                 ComponentReference(component=q_b, depends_on_component=q_a),
             ]
-            submission = factories.submission.build(collection=collection, data={str(q_a.id): "answered"})
+            submission = factories.submission.build(collection=collection)
+            submission.data_manager.set(q_a, TextSingleLineAnswer("answered"))
 
             helper = SubmissionHelper(submission)
             assert helper.get_tasklist_status_for_form(form_b) == TasklistSectionStatusEnum.NOT_STARTED
@@ -1316,7 +1333,8 @@ class TestSubmissionHelper:
                 ComponentReference(component=q4, expression=cond_q4, depends_on_component=q3)
             ]
 
-            submission = factories.submission.build(collection=form.collection, data={str(q1.id): {"value": 6}})
+            submission = factories.submission.build(collection=form.collection)
+            submission.data_manager.set(q1, IntegerAnswer(value=6))
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1360,7 +1378,8 @@ class TestSubmissionHelper:
                 ComponentReference(component=q4, expression=cond_q4, depends_on_component=q3)
             ]
 
-            submission = factories.submission.build(collection=form.collection, data={str(q1.id): {"value": 11}})
+            submission = factories.submission.build(collection=form.collection)
+            submission.data_manager.set(q1, IntegerAnswer(value=11))
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1405,7 +1424,8 @@ class TestSubmissionHelper:
             q1 = factories.question.build(order=0)
             q2 = factories.question.build(form=q1.form, order=1)
             q2.owned_component_references = [ComponentReference(component=q2, depends_on_component=q1)]
-            submission = factories.submission.build(collection=q1.form.collection, data={str(q1.id): "answer"})
+            submission = factories.submission.build(collection=q1.form.collection)
+            submission.data_manager.set(q1, TextSingleLineAnswer("answer"))
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1446,24 +1466,25 @@ class TestSubmissionHelper:
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(form=group.form, parent=group)
             q2 = factories.question.build(form=group.form, parent=group)
+            q3 = factories.question.build(form=group.form, parent=group)
             condition = factories.expression.build(
-                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'yes'"
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} == 'yes'"
             )
-            q2.owned_component_references = [
-                ComponentReference(component=q2, expression=condition, depends_on_component=q1)
+            q3.owned_component_references = [
+                ComponentReference(component=q3, expression=condition, depends_on_component=q2)
             ]
-            submission = factories.submission.build(
-                collection=group.form.collection,
-                data={str(group.id): [{}, {}]},
-            )
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data_manager.set(q1, TextSingleLineAnswer("Test answer"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("Test answer"), add_another_index=1)
+
             helper = SubmissionHelper(submission)
 
             assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context, add_another_index=0)
+                helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=0)
                 == ComponentVisibilityState.UNDETERMINED
             )
             assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context, add_another_index=1)
+                helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=1)
                 == ComponentVisibilityState.UNDETERMINED
             )
 
@@ -1477,10 +1498,9 @@ class TestSubmissionHelper:
             q2.owned_component_references = [
                 ComponentReference(component=q2, expression=condition, depends_on_component=q1)
             ]
-            submission = factories.submission.build(
-                collection=group.form.collection,
-                data={str(group.id): [{str(q1.id): "yes"}, {str(q1.id): "no"}]},
-            )
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data_manager.set(q1, TextSingleLineAnswer("yes"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("no"), add_another_index=1)
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1496,26 +1516,26 @@ class TestSubmissionHelper:
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(form=group.form, parent=group)
             q2 = factories.question.build(form=group.form, parent=group)
-            factories.expression.build(question=q1, type_=ExpressionType.CONDITION, statement="False")
+            q3 = factories.question.build(form=group.form, parent=group)
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="False")
             condition = factories.expression.build(
-                question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'yes'"
+                question=q3, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} == 'yes'"
             )
-            q2.owned_component_references = [
-                ComponentReference(component=q2, expression=condition, depends_on_component=q1)
+            q3.owned_component_references = [
+                ComponentReference(component=q3, expression=condition, depends_on_component=q2)
             ]
-            submission = factories.submission.build(
-                collection=group.form.collection,
-                data={str(group.id): [{}]},
-            )
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data_manager.set(q1, TextSingleLineAnswer("Test answer"), add_another_index=0)
             helper = SubmissionHelper(submission)
 
             assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context, add_another_index=0)
+                helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=0)
                 == ComponentVisibilityState.HIDDEN
             )
 
         def test_add_another_different_visibility_per_index(self, factories):
             group = factories.group.build(add_another=True)
+            q1 = factories.question.build(form=group.form, parent=group)
             q_trigger = factories.question.build(form=group.form, parent=group)
             q_conditional = factories.question.build(form=group.form, parent=group)
             condition = factories.expression.build(
@@ -1526,16 +1546,11 @@ class TestSubmissionHelper:
             q_conditional.owned_component_references = [
                 ComponentReference(component=q_conditional, expression=condition, depends_on_component=q_trigger)
             ]
-            submission = factories.submission.build(
-                collection=group.form.collection,
-                data={
-                    str(group.id): [
-                        {str(q_trigger.id): "show"},
-                        {str(q_trigger.id): "hide"},
-                        {},
-                    ]
-                },
-            )
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data_manager.set(q_trigger, TextSingleLineAnswer("show"), add_another_index=0)
+            submission.data_manager.set(q_trigger, TextSingleLineAnswer("hide"), add_another_index=1)
+            submission.data_manager.set(q1, TextSingleLineAnswer("anything"), add_another_index=2)
+
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1619,15 +1634,9 @@ class TestSubmissionHelper:
                 ComponentReference(component=q3, expression=cond_q3, depends_on_component=q2)
             ]
 
-            submission = factories.submission.build(
-                collection=group.form.collection,
-                data={
-                    str(group.id): [
-                        {str(q1.id): "yes"},
-                        {str(q1.id): "no"},
-                    ]
-                },
-            )
+            submission = factories.submission.build(collection=group.form.collection)
+            submission.data_manager.set(q1, TextSingleLineAnswer("yes"), add_another_index=0)
+            submission.data_manager.set(q1, TextSingleLineAnswer("no"), add_another_index=1)
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1657,10 +1666,10 @@ class TestSubmissionHelper:
                 ComponentReference(component=q3, expression=cond_q3, depends_on_component=q2)
             ]
 
-            submission = factories.submission.build(
-                collection=form.collection,
-                data={str(q1.id): "no", str(q2.id): "yes", str(q3.id): "yes"},
-            )
+            submission = factories.submission.build(collection=form.collection)
+            submission.data_manager.set(q1, YesNoAnswer(False))
+            submission.data_manager.set(q2, YesNoAnswer(True))
+            submission.data_manager.set(q3, TextSingleLineAnswer("yes"))
             helper = SubmissionHelper(submission)
 
             assert (

@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 
+from app.common.collections.types import IntegerAnswer, YesNoAnswer
 from app.common.collections.validation import SubmissionValidator
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.exceptions import SubmissionValidationFailed
@@ -23,7 +24,8 @@ class TestSubmissionValidator:
         )
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+        submission.data_manager.set(q1, IntegerAnswer(value=50))
+        submission.data_manager.set(q2, IntegerAnswer(value=100))
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -43,7 +45,8 @@ class TestSubmissionValidator:
         )
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {str(q1.id): {"value": 100}, str(q2.id): {"value": 50}}
+        submission.data_manager.set(q1, IntegerAnswer(value=100))
+        submission.data_manager.set(q2, IntegerAnswer(value=50))
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -78,7 +81,9 @@ class TestSubmissionValidator:
         )
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 30}, str(q3.id): {"value": 70}}
+        submission.data_manager.set(q1, IntegerAnswer(value=50))
+        submission.data_manager.set(q2, IntegerAnswer(value=30))
+        submission.data_manager.set(q3, IntegerAnswer(value=70))
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -112,7 +117,8 @@ class TestSubmissionValidator:
         )
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {str(q1.id): False, str(q2.id): {"value": 50}}
+        submission.data_manager.set(q1, YesNoAnswer(False))
+        submission.data_manager.set(q2, IntegerAnswer(value=50))
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -132,13 +138,14 @@ class TestSubmissionValidator:
         )
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+        submission.data_manager.set(q1, IntegerAnswer(value=50))
+        submission.data_manager.set(q2, IntegerAnswer(value=100))
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
         assert validator.validate_all_reachable_questions() is None
 
-        submission.data[str(q1.id)] = {"value": 150}
+        submission.data_manager.set(q1, IntegerAnswer(value=150))
         helper.cached_get_answer_for_question.cache_clear()
 
         del helper.cached_evaluation_context
@@ -156,7 +163,8 @@ class TestSubmissionValidator:
         q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {str(q1.id): {"value": 50}, str(q2.id): {"value": 100}}
+        submission.data_manager.set(q1, IntegerAnswer(value=50))
+        submission.data_manager.set(q2, IntegerAnswer(value=100))
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -176,7 +184,7 @@ class TestSubmissionValidator:
         )
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {str(q1.id): {"value": 50}}
+        submission.data_manager.set(q1, IntegerAnswer(value=50))
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -199,13 +207,9 @@ class TestSubmissionValidator:
         )
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {
-            str(group.id): [
-                {str(q1.id): {"value": 10}},
-                {str(q1.id): {"value": 20}},
-                {str(q1.id): {"value": 30}},
-            ]
-        }
+        submission.data_manager.set(q1, IntegerAnswer(value=10), add_another_index=0)
+        submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=1)
+        submission.data_manager.set(q1, IntegerAnswer(value=30), add_another_index=2)
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -227,13 +231,9 @@ class TestSubmissionValidator:
         )
 
         submission = factories.submission.build(collection=form.collection)
-        submission.data = {
-            str(group.id): [
-                {str(q1.id): {"value": 10}},
-                {str(q1.id): {"value": -5}},
-                {str(q1.id): {"value": 30}},
-            ]
-        }
+        submission.data_manager.set(q1, IntegerAnswer(value=10), add_another_index=0)
+        submission.data_manager.set(q1, IntegerAnswer(value=-5), add_another_index=1)
+        submission.data_manager.set(q1, IntegerAnswer(value=30), add_another_index=2)
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
