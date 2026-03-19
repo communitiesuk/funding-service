@@ -8583,7 +8583,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == f"Cannot reference {q1.name} as it is of data type {q1.data_type}"
+        assert result == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
 
         result = _validate_custom_syntax(
             q3,
@@ -8594,7 +8594,7 @@ class TestValidateCustomSyntax:
             False,
         )
 
-        assert result == f"Cannot reference {q1.name} as it is of data type {q1.data_type}"
+        assert result == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
 
     def test_invalid_expression_name_not_defined(self, factories, mocker):
         db_form = factories.form.create()

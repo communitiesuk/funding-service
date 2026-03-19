@@ -2387,8 +2387,8 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
             except IncompatibleDataTypeException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
                 field_with_error.errors.append(
-                    f"Cannot reference {e.depends_on_question.name} as it is of data type "
-                    f"{e.depends_on_question.data_type}"
+                    f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced "
+                    "in calculations"
                 )
             except AddAnotherDependencyException as e:
                 field_with_error = getattr(wt_form, e.field_name)
@@ -2513,8 +2513,8 @@ def edit_custom_question_validation(  # noqa:C901
             except IncompatibleDataTypeException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
                 field_with_error.errors.append(
-                    f"Cannot reference {e.depends_on_question.name} as it is of data type "
-                    f"{e.depends_on_question.data_type}"
+                    f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced "
+                    "in calculations"
                 )
             except AddAnotherDependencyException as e:
                 field_with_error = getattr(wt_form, e.field_name)
@@ -3133,7 +3133,9 @@ def _validate_custom_syntax(  # noqa:C901
     except DependencyOrderException as e:
         return f"{component.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
     except IncompatibleDataTypeException as e:
-        return f"Cannot reference {e.depends_on_question.name} as it is of data type {e.depends_on_question.data_type}"
+        return (
+            f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced in calculations"
+        )
     except AddAnotherDependencyException as e:
         return e.message
 
