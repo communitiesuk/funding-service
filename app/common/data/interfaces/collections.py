@@ -53,6 +53,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.data.utils import generate_submission_reference
+from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
     ALLOWED_INTERPOLATION_REGEX,
     INTERPOLATE_REGEX,
@@ -805,7 +806,7 @@ class FlashableException(Protocol):
     def as_flash_context(self) -> dict[str, str | bool]: ...
 
 
-class DependencyOrderException(Exception, FlashableException):
+class DependencyOrderException(Exception, FlashableException, WTFormRenderableException):
     def __init__(
         self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
     ):
@@ -849,7 +850,7 @@ class SectionDependencyOrderException(Exception, FlashableException):
         }
 
 
-class IncompatibleDataTypeException(Exception):
+class IncompatibleDataTypeException(Exception, WTFormRenderableException):
     def __init__(
         self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
     ):
@@ -1126,7 +1127,7 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
-class AddAnotherDependencyException(Exception, FlashableException):
+class AddAnotherDependencyException(Exception, FlashableException, WTFormRenderableException):
     def __init__(self, message: str, component: Component, referenced_question: Component, field_name: str = ""):
         super().__init__(message)
         self.message = message

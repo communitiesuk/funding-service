@@ -1,4 +1,4 @@
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, Protocol
 from uuid import UUID
 
 from flask import render_template
@@ -43,3 +43,8 @@ class SubmissionValidationFailed(ValueError):
 class SubmissionAnswerConflict(ValueError):
     def __init__(self, message: str) -> None:
         self.message = message
+
+
+class WTFormRenderableException(Protocol):
+    field_name: str | None = None
+    message: str

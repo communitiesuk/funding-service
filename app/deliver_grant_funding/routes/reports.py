@@ -1311,7 +1311,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
         except InvalidReferenceInExpression as e:
-            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.message)
 
     return render_template(
@@ -1724,7 +1724,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
         except InvalidReferenceInExpression as e:
-            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.message)
         except DependencyOrderException as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
@@ -1813,7 +1813,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
             return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group.id))
 
         except InvalidReferenceInExpression as e:
-            field_with_error = getattr(form, e.field_name)
+            field_with_error = getattr(form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.message)
 
     return render_template(
@@ -1899,7 +1899,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
             )
 
         except InvalidReferenceInExpression as e:
-            field_with_error = getattr(form, e.field_name)
+            field_with_error = getattr(form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.message)
 
     # Build expression context for reference mappings
@@ -2375,22 +2375,15 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
 
             try:
                 interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
-            except InvalidReferenceInExpression as e:
-                field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(e.message)
+            except (InvalidReferenceInExpression, DependencyOrderException, AddAnotherDependencyException) as e:
+                wt_form.handle_exception(e)
 
-            except DependencyOrderException as e:
-                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-                field_with_error.errors.append(e.message)
             except IncompatibleDataTypeException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
                 field_with_error.errors.append(
                     f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced "
                     "in calculations"
                 )
-            except AddAnotherDependencyException as e:
-                field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(e.message)
 
             else:
                 if "question" in session:
@@ -2499,22 +2492,14 @@ def edit_custom_question_validation(  # noqa:C901
 
             try:
                 interfaces.collections.update_question_expression(expression, custom_expression)
-            except InvalidReferenceInExpression as e:
-                field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(e.message)
-
-            except DependencyOrderException as e:
-                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-                field_with_error.errors.append(e.message)
+            except (InvalidReferenceInExpression, DependencyOrderException, AddAnotherDependencyException) as e:
+                wt_form.handle_exception(e)
             except IncompatibleDataTypeException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
                 field_with_error.errors.append(
                     f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced "
                     "in calculations"
                 )
-            except AddAnotherDependencyException as e:
-                field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(e.message)
 
             else:
                 if "question" in session:

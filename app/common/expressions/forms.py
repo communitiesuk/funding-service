@@ -7,6 +7,7 @@ from wtforms import RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired
 
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum
+from app.common.exceptions import WTFormRenderableException
 from app.common.expressions.registry import (
     get_managed_conditions_by_data_type,
     get_managed_validators_by_data_type,
@@ -163,3 +164,8 @@ class CustomValidationExpressionForm(FlaskForm):
             "add_context": self.add_context.data,
         }
         return data
+
+    def handle_exception(self, e: WTFormRenderableException) -> None:
+        if e.field_name:
+            field_with_error = getattr(self, e.field_name)
+            field_with_error.errors.append(e.message)

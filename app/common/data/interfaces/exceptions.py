@@ -6,6 +6,7 @@ from flask import current_app
 from psycopg.errors import CheckViolation, UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
+from app.common.exceptions import WTFormRenderableException
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
@@ -83,7 +84,7 @@ class InvalidUserRoleError(Exception):
         super().__init__(self.message)
 
 
-class InvalidReferenceInExpression(Exception):
+class InvalidReferenceInExpression(Exception, WTFormRenderableException):
     def __init__(self, message: str, field_name: str, bad_reference: str):
         super().__init__(message)
         self.message = message
