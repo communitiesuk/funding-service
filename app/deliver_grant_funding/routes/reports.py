@@ -3122,10 +3122,8 @@ def _validate_custom_syntax(  # noqa:C901
             )
             validated_references.append(unwrapped_ref)
 
-    # TODO catch more exceptions here and reword errors
     except InvalidReferenceInExpression as e:
         return e.message
-
     except DependencyOrderException as e:
         return e.message
     except IncompatibleDataTypeException as e:
@@ -3158,20 +3156,17 @@ def _validate_custom_syntax(  # noqa:C901
         if not isinstance(result, bool):
             return "The expression must evaluate to true or false"
 
-    # TODO review error message wording
     # TODO do we want to put some of these in sentry so we can see what sort of validation errors are triggered to
     #  help write guidance in the future?
 
     except simpleeval.NameNotDefined as e:
-        return f"This name is not defined: {e.name}"
-    except simpleeval.FeatureNotAvailable:
-        return "You can't do this "
+        return f"You cannot use {e.name} because it does not exist"
     except simpleeval.FunctionNotDefined as e:
-        return f"This function is not available: {e.func_name}"  # ty:ignore[unresolved-attribute]
-    except SyntaxError as e:
-        return f"Invalid syntax in expression: {e.text}"
+        return f"You cannot use {e.func_name} in calculations"  # ty:ignore[unresolved-attribute]
+    except SyntaxError, simpleeval.FeatureNotAvailable:
+        return "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
     except simpleeval.OperatorNotDefined as e:
         # TODO: This prints the ast node name (eg. Pow()) rather than the actual operator (eg. **)
-        return f"Operator {e.attr} does not exist"
+        return f"You cannot use {e.attr} in calculations"
 
     return None

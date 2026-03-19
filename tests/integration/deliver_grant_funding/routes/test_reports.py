@@ -8622,7 +8622,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == f"This name is not defined: {q1.safe_qid}"
+        assert result == f"You cannot use {q1.safe_qid} because it does not exist"
 
     def test_invalid_expression_unavailable_function(self, factories, mocker):
         db_form = factories.form.create()
@@ -8641,7 +8641,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == "This function is not available: sum"
+        assert result == "You cannot use sum in calculations"
 
     def test_invalid_expression_bad_syntax(self, factories, mocker):
         db_form = factories.form.create()
@@ -8660,7 +8660,10 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result.strip() == f"Invalid syntax in expression: {test_expression}"
+        assert (
+            result.strip()
+            == "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
+        )
 
     def test_invalid_expression_bad_operator(self, factories, mocker):
         db_form = factories.form.create()
@@ -8679,7 +8682,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == "Operator Pow() does not exist"
+        assert result == "You cannot use Pow() in calculations"
 
     def test_invalid_expression_multiple_references_to_self(self, factories, mocker):
         db_form = factories.form.create()
@@ -8904,7 +8907,7 @@ class TestAddCustomQuestionValidation:
         assert len(q3.expressions) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "This function is not available: sum",
+            "You cannot use sum in calculations",
         )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
@@ -9099,7 +9102,7 @@ class TestEditCustomQuestionValidation:
         assert len(expression.component_references) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "This function is not available: sum",
+            "You cannot use sum in calculations",
         )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
