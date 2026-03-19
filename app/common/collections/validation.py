@@ -51,7 +51,7 @@ class SubmissionValidator:
                 processed_add_another_containers.append(question.add_another_container.id)
 
             else:
-                if self.helper.is_component_visible(question, self.helper.cached_evaluation_context):
+                if self.helper.is_component_visible(question):
                     answer = self.helper.cached_get_answer_for_question(question.id)
                     if answer is not None and answer != NOT_ANSWERED:
                         errors.extend(self._validate_question(question, form))
@@ -112,16 +112,12 @@ class SubmissionValidator:
 
         count = self.helper.get_count_for_add_another(container)
         for index in range(count):
-            context = self.helper.cached_evaluation_context.with_add_another_context(
-                container, data_manager=self.helper.submission.data_manager, add_another_index=index
-            )
-
             questions = (
                 cast("Group", container).cached_questions if container.is_group else [cast("Question", container)]
             )
 
             for q in questions:
-                if self.helper.is_component_visible(q, context):
+                if self.helper.is_component_visible(q, add_another_index=index):
                     answer = self.helper.cached_get_answer_for_question(q.id, add_another_index=index)
                     if answer is not None and answer != NOT_ANSWERED:
                         errors.extend(self._validate_question(q, form, add_another_index=index))

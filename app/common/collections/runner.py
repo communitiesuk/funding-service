@@ -103,7 +103,7 @@ class FormRunner:
             self.component = question.parent
             self.questions = self.submission.cached_get_ordered_visible_questions(
                 self.component,
-                override_context=self.runner_evaluation_context if self.add_another_index is not None else None,
+                add_another_index=self.add_another_index,
             )
         else:
             self.component = question
@@ -471,7 +471,7 @@ class FormRunner:
         if not self.component:
             raise ValueError("Question context not set")
 
-        if not self.submission.is_component_visible(self.component, self.runner_evaluation_context):
+        if not self.submission.is_component_visible(self.component, add_another_index=self.add_another_index):
             self._valid = False
         elif self.submission.is_locked_state:
             self._valid = False

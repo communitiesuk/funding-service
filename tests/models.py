@@ -603,7 +603,6 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                         mime_type="application/pdf",
                     ),
                 )
-
                 if create:
                     update_submission_data(sub)
                 else:

@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from graphlib import CycleError
 
 import pytest
 from werkzeug.datastructures import MultiDict
@@ -29,6 +30,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import SubmissionHelper, _form_data_to_question_type
+from app.common.helpers.visibility import CollectionDependencyGraph, VisibilityResolver
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching
 
@@ -605,11 +607,13 @@ class TestSubmissionHelper:
             assert helper.is_overdue is False
 
     class TestVisibleQuestion:
+        # TODO[deprecate-submission-helper-visibility]: deprecate this and shift everything onto VisibilityResolver
+
         def test_is_question_always_visible_with_no_conditions(self, factories):
             question = factories.question.build()
             helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
 
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(question) is True
 
         def test_is_component_visible_not_visible_with_failing_condition(self, factories):
             question = factories.question.build()
@@ -617,7 +621,7 @@ class TestSubmissionHelper:
 
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
 
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(question) is False
 
         def test_is_component_visible_visible_with_passing_condition(self, factories):
             question = factories.question.build()
@@ -625,30 +629,34 @@ class TestSubmissionHelper:
 
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
 
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(question) is True
 
         def test_is_component_visible_not_visible_with_nested_conditions(self, factories):
             group = factories.group.build()
             sub_group = factories.group.build(parent=group)
             question = factories.question.build(form=group.form)
-            helper = SubmissionHelper(factories.submission.build(collection=question.form.collection))
+            submission = factories.submission.build(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
 
             expression = factories.expression.build(question=group, type_=ExpressionType.CONDITION, statement="False")
 
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
-            assert helper.is_component_visible(group, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(question) is True
+            assert helper.is_component_visible(group) is False
 
             # when nested sub-components inherit the property of their parents
             question.parent = group
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
+            helper = SubmissionHelper(submission)
+            assert helper.is_component_visible(question) is False
 
             # when further nested this still applies
             question.parent = sub_group
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
+            helper = SubmissionHelper(submission)
+            assert helper.is_component_visible(question) is False
 
             # if the parents condition changes this is reflected
             expression.statement = "True"
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+            helper = SubmissionHelper(submission)
+            assert helper.is_component_visible(question) is True
 
         def test_is_component_visible_visible_with_add_another_expression_index(self, factories):
             group = factories.group.build(add_another=True)
@@ -663,15 +671,15 @@ class TestSubmissionHelper:
                 question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'True'"
             )
 
-            assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(q1) is True
 
             # the expression defaults to false if there is an condition on the same add another container and
             # no index is provided
-            assert helper.is_component_visible(q2, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(q2) is False
 
             # the expression is evaluated appropriately when an index is provided
-            assert helper.is_component_visible(q2, helper.cached_evaluation_context, add_another_index=0) is True
-            assert helper.is_component_visible(q2, helper.cached_evaluation_context, add_another_index=1) is False
+            assert helper.is_component_visible(q2, add_another_index=0) is True
+            assert helper.is_component_visible(q2, add_another_index=1) is False
 
         def test_is_component_visible_with_any_operator_one_true_condition(self, factories):
             question = factories.question.build(conditions_operator=ConditionsOperator.ANY)
@@ -680,7 +688,7 @@ class TestSubmissionHelper:
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
 
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(question) is True
 
         def test_is_component_visible_with_any_operator_all_false_conditions(self, factories):
             question = factories.question.build(conditions_operator=ConditionsOperator.ANY)
@@ -689,7 +697,7 @@ class TestSubmissionHelper:
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
 
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(question) is False
 
         def test_is_component_visible_with_all_operator_requires_all_true(self, factories):
             question = factories.question.build(conditions_operator=ConditionsOperator.ALL)
@@ -698,7 +706,7 @@ class TestSubmissionHelper:
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
 
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(question) is False
 
         def test_is_component_visible_with_nested_groups_different_operators(self, factories):
             group = factories.group.build(conditions_operator=ConditionsOperator.ANY)
@@ -715,8 +723,8 @@ class TestSubmissionHelper:
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
 
-            assert helper.is_component_visible(group, helper.cached_evaluation_context) is True
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(group) is True
+            assert helper.is_component_visible(question) is True
 
         def test_is_component_visible_child_hidden_when_parent_hidden_regardless_of_operator(self, factories):
             group = factories.group.build(conditions_operator=ConditionsOperator.ALL)
@@ -731,8 +739,8 @@ class TestSubmissionHelper:
             # Question has ANY operator with one True condition
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
 
-            assert helper.is_component_visible(group, helper.cached_evaluation_context) is False
-            assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(group) is False
+            assert helper.is_component_visible(question) is False
 
         def test_is_component_not_visible_when_referenced_question_unanswered(self, factories):
             q1 = factories.question.build(order=0)
@@ -741,8 +749,8 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=q1.form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
-            assert helper.is_component_visible(q2, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(q1) is True
+            assert helper.is_component_visible(q2) is False
 
         def test_is_component_visible_when_referenced_question_answered(self, factories):
             q1 = factories.question.build(order=0)
@@ -752,8 +760,8 @@ class TestSubmissionHelper:
             submission.data_manager.set(q1, TextSingleLineAnswer("answer"))
             helper = SubmissionHelper(submission)
 
-            assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
-            assert helper.is_component_visible(q2, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(q1) is True
+            assert helper.is_component_visible(q2) is True
 
         def test_is_component_visible_ignores_references_to_groups(self, factories):
             group = factories.group.build()
@@ -762,7 +770,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=group.form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(q1) is True
 
         def test_is_component_visible_ignores_self_references(self, factories):
             q1 = factories.question.build()
@@ -770,7 +778,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=q1.form.collection)
             helper = SubmissionHelper(submission)
 
-            assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
+            assert helper.is_component_visible(q1) is True
 
         def test_any_operator_with_hidden_referenced_question(self, factories):
             """Scenario: Q1 yes/no, Q2 yes/no (show if Q1=yes), Q3 text (show if Q1=no OR Q2=yes).
@@ -807,18 +815,27 @@ class TestSubmissionHelper:
             submission = factories.submission.build(
                 collection=q1.form.collection, answers=[FactoryAnswer(q1, TextSingleLineAnswer("no"))]
             )
-            helper = SubmissionHelper(submission)
-            assert helper.is_component_visible(q2, helper.cached_evaluation_context) is False
-            assert helper.is_component_visible(q3, helper.cached_evaluation_context) is True
+            visibility_resolver = VisibilityResolver(
+                CollectionDependencyGraph(q1.form.collection),
+                SubmissionHelper(submission).cached_evaluation_context,
+                submission.data_manager,
+            )
+            visibility_resolver.resolve()
+            assert visibility_resolver.get_visibility(q2.id) == ComponentVisibilityState.HIDDEN
+            assert visibility_resolver.get_visibility(q3.id) == ComponentVisibilityState.VISIBLE
 
             # Case 2: Q1="yes", Q2 not answered → Q3 undetermined
             submission = factories.submission.build(
                 collection=q1.form.collection, answers=[FactoryAnswer(q1, TextSingleLineAnswer("yes"))]
             )
-            helper = SubmissionHelper(submission)
-            assert helper.is_component_visible(q2, helper.cached_evaluation_context) is True
-            visibility = helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
-            assert visibility == ComponentVisibilityState.UNDETERMINED
+            visibility_resolver = VisibilityResolver(
+                CollectionDependencyGraph(q1.form.collection),
+                SubmissionHelper(submission).cached_evaluation_context,
+                submission.data_manager,
+            )
+            visibility_resolver.resolve()
+            assert visibility_resolver.get_visibility(q2.id) == ComponentVisibilityState.VISIBLE
+            assert visibility_resolver.get_visibility(q3.id) == ComponentVisibilityState.UNDETERMINED
 
             # Case 3: Q1="yes", Q2="yes" → Q3 visible
             submission = factories.submission.build(
@@ -828,19 +845,26 @@ class TestSubmissionHelper:
                     FactoryAnswer(q2, TextSingleLineAnswer("yes")),
                 ],
             )
-            helper = SubmissionHelper(submission)
-            assert helper.is_component_visible(q3, helper.cached_evaluation_context) is True
+            visibility_resolver = VisibilityResolver(
+                CollectionDependencyGraph(q1.form.collection),
+                SubmissionHelper(submission).cached_evaluation_context,
+                submission.data_manager,
+            )
+            visibility_resolver.resolve()
+            assert visibility_resolver.get_visibility(q3.id) == ComponentVisibilityState.VISIBLE
 
             # Case 4: Q1="yes", Q2="no" → Q3 hidden
             submission = factories.submission.build(
                 collection=q1.form.collection,
-                answers=[
-                    FactoryAnswer(q1, TextSingleLineAnswer("yes")),
-                    FactoryAnswer(q2, TextSingleLineAnswer("no")),
-                ],
+                answers=[FactoryAnswer(q1, TextSingleLineAnswer("yes")), FactoryAnswer(q2, TextSingleLineAnswer("no"))],
             )
-            helper = SubmissionHelper(submission)
-            assert helper.is_component_visible(q3, helper.cached_evaluation_context) is False
+            visibility_resolver = VisibilityResolver(
+                CollectionDependencyGraph(q1.form.collection),
+                SubmissionHelper(submission).cached_evaluation_context,
+                submission.data_manager,
+            )
+            visibility_resolver.resolve()
+            assert visibility_resolver.get_visibility(q3.id) == ComponentVisibilityState.HIDDEN
 
     class TestGetCountForAddAnother:
         def test_empty(self, db_session, factories):
@@ -1247,30 +1271,21 @@ class TestSubmissionHelper:
             question = factories.question.build()
             submission = factories.submission.build(collection=question.form.collection)
             helper = SubmissionHelper(submission)
-            assert (
-                helper.get_component_visibility_state(question, helper.cached_evaluation_context)
-                == ComponentVisibilityState.VISIBLE
-            )
+            assert helper.get_component_visibility_state(question) == ComponentVisibilityState.VISIBLE
 
         def test_returns_visible_when_conditions_pass(self, factories):
             question = factories.question.build()
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="True")
             submission = factories.submission.build(collection=question.form.collection)
             helper = SubmissionHelper(submission)
-            assert (
-                helper.get_component_visibility_state(question, helper.cached_evaluation_context)
-                == ComponentVisibilityState.VISIBLE
-            )
+            assert helper.get_component_visibility_state(question) == ComponentVisibilityState.VISIBLE
 
         def test_returns_hidden_when_conditions_fail(self, factories):
             question = factories.question.build()
             factories.expression.build(question=question, type_=ExpressionType.CONDITION, statement="False")
             submission = factories.submission.build(collection=question.form.collection)
             helper = SubmissionHelper(submission)
-            assert (
-                helper.get_component_visibility_state(question, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(question) == ComponentVisibilityState.HIDDEN
 
         def test_returns_undetermined_when_referenced_question_visible_but_unanswered(self, factories):
             q1 = factories.question.build(order=0)
@@ -1283,10 +1298,7 @@ class TestSubmissionHelper:
             ]
             submission = factories.submission.build(collection=q1.form.collection)
             helper = SubmissionHelper(submission)
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.UNDETERMINED
-            )
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.UNDETERMINED
 
         def test_returns_hidden_when_referenced_question_is_hidden(self, factories):
             q1 = factories.question.build(order=0)
@@ -1300,10 +1312,7 @@ class TestSubmissionHelper:
             ]
             submission = factories.submission.build(collection=q1.form.collection)
             helper = SubmissionHelper(submission)
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.HIDDEN
 
         def test_chained_visibility_with_early_failure(self, factories):
             form = factories.form.build()
@@ -1337,18 +1346,9 @@ class TestSubmissionHelper:
             submission.data_manager.set(q1, IntegerAnswer(value=6))
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
-            assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
-            assert (
-                helper.get_component_visibility_state(q4, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.HIDDEN
+            assert helper.get_component_visibility_state(q3) == ComponentVisibilityState.HIDDEN
+            assert helper.get_component_visibility_state(q4) == ComponentVisibilityState.HIDDEN
 
         def test_chained_visibility_with_partial_data(self, factories):
             form = factories.form.build()
@@ -1382,18 +1382,9 @@ class TestSubmissionHelper:
             submission.data_manager.set(q1, IntegerAnswer(value=11))
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.VISIBLE
-            )
-            assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
-                == ComponentVisibilityState.UNDETERMINED
-            )
-            assert (
-                helper.get_component_visibility_state(q4, helper.cached_evaluation_context)
-                == ComponentVisibilityState.UNDETERMINED
-            )
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.VISIBLE
+            assert helper.get_component_visibility_state(q3) == ComponentVisibilityState.UNDETERMINED
+            assert helper.get_component_visibility_state(q4) == ComponentVisibilityState.UNDETERMINED
 
         def test_returns_undetermined_when_text_interpolation_ref_unanswered(self, factories):
             q1 = factories.question.build(order=0)
@@ -1402,10 +1393,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=q1.form.collection)
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.UNDETERMINED
-            )
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.UNDETERMINED
 
         def test_returns_hidden_when_text_interpolation_ref_is_hidden(self, factories):
             q1 = factories.question.build(order=0)
@@ -1415,10 +1403,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=q1.form.collection)
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.HIDDEN
 
         def test_returns_visible_when_text_interpolation_ref_answered(self, factories):
             q1 = factories.question.build(order=0)
@@ -1428,28 +1413,18 @@ class TestSubmissionHelper:
             submission.data_manager.set(q1, TextSingleLineAnswer("answer"))
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.VISIBLE
-            )
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.VISIBLE
 
-        def test_handles_circular_references_without_infinite_loop(self, factories):
+        def test_circular_references_raise(self, factories):
             form = factories.form.build()
             q1 = factories.question.build(form=form, order=0)
             q2 = factories.question.build(form=form, order=1)
             q1.owned_component_references = [ComponentReference(component=q1, depends_on_component=q2)]
             q2.owned_component_references = [ComponentReference(component=q2, depends_on_component=q1)]
             submission = factories.submission.build(collection=form.collection)
-            helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q1, helper.cached_evaluation_context)
-                == ComponentVisibilityState.UNDETERMINED
-            )
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.UNDETERMINED
-            )
+            with pytest.raises(CycleError):
+                SubmissionHelper(submission).get_component_visibility_state(q1)
 
         def test_ignores_self_references(self, factories):
             q1 = factories.question.build()
@@ -1457,10 +1432,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(collection=q1.form.collection)
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q1, helper.cached_evaluation_context)
-                == ComponentVisibilityState.VISIBLE
-            )
+            assert helper.get_component_visibility_state(q1) == ComponentVisibilityState.VISIBLE
 
         def test_add_another_undetermined_when_referenced_question_unanswered_at_index(self, factories):
             group = factories.group.build(add_another=True)
@@ -1480,12 +1452,10 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=0)
-                == ComponentVisibilityState.UNDETERMINED
+                helper.get_component_visibility_state(q3, add_another_index=0) == ComponentVisibilityState.UNDETERMINED
             )
             assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=1)
-                == ComponentVisibilityState.UNDETERMINED
+                helper.get_component_visibility_state(q3, add_another_index=1) == ComponentVisibilityState.UNDETERMINED
             )
 
         def test_add_another_visible_when_referenced_question_answered_and_condition_passes(self, factories):
@@ -1503,14 +1473,8 @@ class TestSubmissionHelper:
             submission.data_manager.set(q1, TextSingleLineAnswer("no"), add_another_index=1)
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context, add_another_index=0)
-                == ComponentVisibilityState.VISIBLE
-            )
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context, add_another_index=1)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(q2, add_another_index=0) == ComponentVisibilityState.VISIBLE
+            assert helper.get_component_visibility_state(q2, add_another_index=1) == ComponentVisibilityState.HIDDEN
 
         def test_add_another_hidden_when_referenced_question_is_hidden(self, factories):
             group = factories.group.build(add_another=True)
@@ -1528,10 +1492,7 @@ class TestSubmissionHelper:
             submission.data_manager.set(q1, TextSingleLineAnswer("Test answer"), add_another_index=0)
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=0)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(q3, add_another_index=0) == ComponentVisibilityState.HIDDEN
 
         def test_add_another_different_visibility_per_index(self, factories):
             group = factories.group.build(add_another=True)
@@ -1554,21 +1515,15 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert (
-                helper.get_component_visibility_state(
-                    q_conditional, helper.cached_evaluation_context, add_another_index=0
-                )
+                helper.get_component_visibility_state(q_conditional, add_another_index=0)
                 == ComponentVisibilityState.VISIBLE
             )
             assert (
-                helper.get_component_visibility_state(
-                    q_conditional, helper.cached_evaluation_context, add_another_index=1
-                )
+                helper.get_component_visibility_state(q_conditional, add_another_index=1)
                 == ComponentVisibilityState.HIDDEN
             )
             assert (
-                helper.get_component_visibility_state(
-                    q_conditional, helper.cached_evaluation_context, add_another_index=2
-                )
+                helper.get_component_visibility_state(q_conditional, add_another_index=2)
                 == ComponentVisibilityState.UNDETERMINED
             )
 
@@ -1597,22 +1552,10 @@ class TestSubmissionHelper:
             )
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q1, helper.cached_evaluation_context)
-                == ComponentVisibilityState.VISIBLE
-            )
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.UNDETERMINED
-            )
-            assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
-            assert (
-                helper.get_component_visibility_state(q4, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(q1) == ComponentVisibilityState.VISIBLE
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.UNDETERMINED
+            assert helper.get_component_visibility_state(q3) == ComponentVisibilityState.HIDDEN
+            assert helper.get_component_visibility_state(q4) == ComponentVisibilityState.HIDDEN
 
         def test_add_another_chained_undetermined_visibility(self, factories):
             group = factories.group.build(add_another=True)
@@ -1640,13 +1583,9 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=0)
-                == ComponentVisibilityState.UNDETERMINED
+                helper.get_component_visibility_state(q3, add_another_index=0) == ComponentVisibilityState.UNDETERMINED
             )
-            assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context, add_another_index=1)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(q3, add_another_index=1) == ComponentVisibilityState.HIDDEN
 
         def test_referencing_hidden_question_in_condition_returns_hidden_even_with_existing_answers(self, factories):
             form = factories.form.build()
@@ -1672,18 +1611,9 @@ class TestSubmissionHelper:
             submission.data_manager.set(q3, TextSingleLineAnswer("yes"))
             helper = SubmissionHelper(submission)
 
-            assert (
-                helper.get_component_visibility_state(q1, helper.cached_evaluation_context)
-                == ComponentVisibilityState.VISIBLE
-            )
-            assert (
-                helper.get_component_visibility_state(q2, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
-            assert (
-                helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
-                == ComponentVisibilityState.HIDDEN
-            )
+            assert helper.get_component_visibility_state(q1) == ComponentVisibilityState.VISIBLE
+            assert helper.get_component_visibility_state(q2) == ComponentVisibilityState.HIDDEN
+            assert helper.get_component_visibility_state(q3) == ComponentVisibilityState.HIDDEN
 
 
 class TestDeserialiseQuestionType:

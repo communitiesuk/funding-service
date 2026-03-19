@@ -50,6 +50,7 @@ from app.common.expressions.custom import CustomExpression, get_custom_expressio
 from app.common.expressions.managed import (
     get_managed_expression,
 )
+from app.common.helpers.visibility import CollectionDependencyGraph
 from app.common.qid import SafeQidMixin
 from app.common.utils import comma_join_items
 
@@ -324,6 +325,10 @@ class Collection(BaseModel):
         if not self.submission_period_end_date:
             return False
         return self.submission_period_end_date < datetime.date.today()
+
+    @property
+    def dependency_graph(self) -> CollectionDependencyGraph:
+        return CollectionDependencyGraph(self)
 
 
 class Submission(BaseModel):

@@ -6,7 +6,6 @@ from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
-from types import TracebackType
 from typing import TYPE_CHECKING, Any, NamedTuple, Sequence, cast
 from uuid import UUID
 
@@ -43,7 +42,6 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
 from app.common.data.types import (
     ComponentVisibilityState,
-    ConditionsOperator,
     GrantRecipientModeEnum,
     NumberTypeEnum,
     QuestionDataType,
@@ -55,22 +53,17 @@ from app.common.data.types import (
 )
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import (
-    DisallowedExpression,
     ExpressionContext,
-    UndefinedFunctionInExpression,
-    UndefinedOperatorInExpression,
-    UndefinedVariableInExpression,
-    evaluate,
     interpolate,
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
+from app.common.helpers.visibility import VisibilityResolver
 from app.extensions import notification_service, s3_service
 
 if TYPE_CHECKING:
     from app.common.data.models import (
         Collection,
         Component,
-        Expression,
         Form,
         Grant,
         Group,
@@ -169,6 +162,14 @@ class SubmissionHelper:
             data_manager=self.submission.data_manager,
             mode="interpolation",
         )
+
+    @cached_property
+    def _visibility_resolver(self) -> VisibilityResolver:
+        resolver = VisibilityResolver(
+            self.collection.dependency_graph, self.cached_evaluation_context, self.submission.data_manager
+        )
+        resolver.resolve()
+        return resolver
 
     @property
     def submission_name(self) -> str:
@@ -397,20 +398,17 @@ class SubmissionHelper:
                 if number_of_add_another_entries == 0:
                     # we don't currently support optional questions so anything without answers
                     # should be considered blocking
-                    if self.is_component_visible(question, self.cached_evaluation_context, add_another_index=0):
+                    if self.is_component_visible(question):
                         question_answer_status.append(False)
                 else:
                     # check each of this questions answers for each entry being complete
                     for i in range(number_of_add_another_entries):
-                        context = self.cached_evaluation_context.with_add_another_context(
-                            question, data_manager=self.submission.data_manager, add_another_index=i
-                        )
-                        if self.is_component_visible(question, context):
+                        if self.is_component_visible(question, add_another_index=i):
                             question_answer_status.append(
                                 self.cached_get_answer_for_question(question.id, add_another_index=i) is not None
                             )
             else:
-                if self.is_component_visible(question, self.cached_evaluation_context):
+                if self.is_component_visible(question):
                     question_answer_status.append(self.cached_get_answer_for_question(question.id) is not None)
 
         return FormQuestionsAnswered(
@@ -430,7 +428,7 @@ class SubmissionHelper:
                         if answer is None:
                             # Only count as unsatisfied if the question is visible or undetermined.
                             # If definitively HIDDEN, the question won't be asked, so not blocking.
-                            visibility = self.get_component_visibility_state(depends_on, self.cached_evaluation_context)
+                            visibility = self.get_component_visibility_state(depends_on)
                             if visibility != ComponentVisibilityState.HIDDEN:
                                 unsatisfied_forms[depends_on.form_id] = depends_on.form
 
@@ -473,16 +471,14 @@ class SubmissionHelper:
         """Returns the visible, ordered forms based upon the current state of this collection."""
         return sorted(self.collection.forms, key=lambda f: f.order)
 
-    def is_component_visible(
-        self, component: Component, context: ExpressionContext, add_another_index: int | None = None
-    ) -> bool:
-        state = self.get_component_visibility_state(component, context, add_another_index, check_undetermined=False)
+    def is_component_visible(self, component: Component, add_another_index: int | None = None) -> bool:
+        # TODO[deprecate-submission-helper-visibility]: deprecate this and shift everything onto VisibilityResolver
+        state = self.get_component_visibility_state(component, add_another_index, check_undetermined=False)
         return state == ComponentVisibilityState.VISIBLE
 
     def get_component_visibility_state(
         self,
         component: Component,
-        context: ExpressionContext,
         add_another_index: int | None = None,
         check_undetermined: bool = True,
     ) -> ComponentVisibilityState:
@@ -494,177 +490,34 @@ class SubmissionHelper:
         - HIDDEN: Conditions evaluated to False (definitive - won't be asked)
         - UNDETERMINED: Conditions couldn't be evaluated due to missing data
 
-        When a condition references an unanswered question, we recursively check
-        that question's visibility. If the referenced question is HIDDEN, it will
-        never be answered, so this component is also HIDDEN.
+        Uses a topological visibility resolver that walks components in dependency
+        order, caching results so each component is resolved exactly once.
         """
-        return self._get_component_visibility_state_internal(
-            component, context, add_another_index=add_another_index, visited=None, check_undetermined=check_undetermined
-        )
+        # TODO[deprecate-submission-helper-visibility]: deprecate this and shift everything onto VisibilityResolver
+        if add_another_index is not None:
+            state = self._visibility_resolver.get_visibility_for_add_another(component.id, add_another_index)
+        else:
+            state = self._visibility_resolver.get_visibility(component.id)
 
-    def _check_reference_visibility(
-        self,
-        component: Component,
-        context: ExpressionContext,
-        add_another_index: int | None = None,
-        visited: set[UUID] | None = None,
-    ) -> ComponentVisibilityState:
-        """Check if all referenced components have answers.
-
-        Returns:
-            VISIBLE: All referenced questions are answered
-            HIDDEN: A referenced question is definitively hidden (will never be answered)
-            UNDETERMINED: A referenced question exists but is unanswered and may become visible
-        """
-        if visited is None:
-            visited = set()
-
-        return_status = ComponentVisibilityState.VISIBLE
-
-        for ref in component.owned_component_references:
-            depends_on = ref.depends_on_component
-            if depends_on.id == component.id:
-                continue
-            if not depends_on.is_question:
-                continue
-            if ref.component.add_another_container and add_another_index is None:
-                continue
-
-            ref_visibility = self._get_component_visibility_state_internal(
-                depends_on, context, add_another_index=add_another_index, visited=visited
-            )
-
-            # If any depended-upon component is hidden, then this one needs to be hidden as well.
-            if ref_visibility == ComponentVisibilityState.HIDDEN:
-                return ComponentVisibilityState.HIDDEN
-
-            answer = self.cached_get_answer_for_question(depends_on.id, add_another_index)
-            if answer is not None:
-                continue
-
-            # Otherwise we should expect the component status to be undetermined instead of visible.
-            return_status = ComponentVisibilityState.UNDETERMINED
-
-        return return_status
-
-    def _get_component_visibility_state_internal(  # noqa: C901
-        self,
-        component: Component,
-        context: ExpressionContext,
-        add_another_index: int | None = None,
-        visited: set[UUID] | None = None,
-        check_undetermined: bool = True,
-    ) -> ComponentVisibilityState:
-        """Internal implementation with cycle detection support.
-
-        Our UI should protect against cyclical references such as Q1 referencing Q2 and Q2 referencing Q1,
-        but this adds a further guard rail to prevent against that being an infinite loop.
-
-        `check_undetermined` decides whether we need to distinguish between UNDETERMINED and HIDDEN; for
-        `is_component_visible` we don't care to distinguish; both cases mean that currently the question should not be
-        shown to an end user.
-        """
-        if visited is None:
-            visited = set()
-
-        if component.id in visited:
-            return ComponentVisibilityState.UNDETERMINED
-
-        visited = visited | {component.id}
-
-        def evaluate_component_conditions(operator: ConditionsOperator, conditions: list[Expression]) -> bool:
-            if not conditions:
-                return True
-            match operator:
-                case ConditionsOperator.ANY:
-                    # as any condition being satisfied should make this component visible, ensure missing
-                    # references for any of the conditions are handled
-                    # only raise exceptions for missing variables if we haven't already determined we are visible
-                    evaluation_exception: Exception | None = None
-                    evaluation_traceback: TracebackType | None = None
-                    for condition in conditions:
-                        try:
-                            if evaluate(condition, context):
-                                return True
-                        except (
-                            UndefinedVariableInExpression,
-                            DisallowedExpression,
-                            UndefinedFunctionInExpression,
-                            UndefinedOperatorInExpression,
-                        ) as e:
-                            evaluation_exception = e
-                            evaluation_traceback = e.__traceback__
-                    if evaluation_exception is not None:
-                        raise evaluation_exception.with_traceback(evaluation_traceback)
-                    return False
-                case ConditionsOperator.ALL:
-                    return all(evaluate(condition, context) for condition in conditions)
-                case _:
-                    raise RuntimeError(f"Unknown condition operator={operator}")
-
-        # check component references first to allow short circuiting
-        references_visibility = self._check_reference_visibility(component, context, add_another_index, visited)
-        if (
-            references_visibility != ComponentVisibilityState.VISIBLE
-            and component.conditions_operator != ConditionsOperator.ANY
-        ):
-            return references_visibility
-
-        try:
-            if component.add_another_container and add_another_index is not None:
-                context = context.with_add_another_context(
-                    component,
-                    data_manager=self.submission.data_manager,
-                    add_another_index=add_another_index,
-                    allow_new_index=True,
-                )
-            # Note that to check component visibility we separate reference and condition checks
-            # (instead of relying on full_condition_chain)
-            # as that allows us to make an exception for ANY operators for both reference short circuiting
-            # and condition evaluation
-            current = component.parent
-            while current:
-                visited = visited | {current.id}
-                # 1) checks the visibility for the component references, this can short-circuit evaluating conditions
-                #    of a reference is not visible - factors in the operator
-                references_visibility = self._check_reference_visibility(current, context, add_another_index, visited)
-                if (
-                    references_visibility != ComponentVisibilityState.VISIBLE
-                    and current.conditions_operator != ConditionsOperator.ANY
-                ):
-                    return references_visibility
-
-                # 2) evaluates the conditions for that component, if any, with its operator (ANY/ALL)
-                if not evaluate_component_conditions(current.conditions_operator, current.conditions):
-                    return ComponentVisibilityState.HIDDEN
-                current = current.parent
-
-            # no parent references or condition checks fail - evaluate this components conditions
-            if evaluate_component_conditions(component.conditions_operator, component.conditions):
-                return ComponentVisibilityState.VISIBLE
+        # NOTE: should this also be part of the visibility resolver?
+        if not check_undetermined and state == ComponentVisibilityState.UNDETERMINED:
             return ComponentVisibilityState.HIDDEN
 
-        except UndefinedVariableInExpression:
-            if not check_undetermined:
-                return ComponentVisibilityState.HIDDEN
-
-            # Undefined variable means that the referenced question does not have an answer; to work out whether this
-            # question *must not* be shown because a condition correctly evaluates to prevent it being shown vs this
-            # question *might* be shown if further data is provided that finally will make it visible, we need to follow
-            # the full conditional chain up.
-            undetermined_component_visibility = self._check_reference_visibility(
-                component, context, add_another_index, visited
-            )
-            if undetermined_component_visibility == ComponentVisibilityState.HIDDEN:
-                return ComponentVisibilityState.HIDDEN
-            return ComponentVisibilityState.UNDETERMINED
+        return state
 
     def _get_ordered_visible_questions(
-        self, parent: Form | Group, *, override_context: ExpressionContext | None = None
+        self,
+        parent: Form | Group,
+        *,
+        add_another_index: int | None = None,
     ) -> list[Question]:
         """Returns the visible, ordered questions based upon the current state of this collection."""
-        context = override_context or self.cached_evaluation_context
-        return [question for question in parent.cached_questions if self.is_component_visible(question, context)]
+        # TODO[deprecate-submission-helper-visibility]: deprecate this and shift everything onto VisibilityResolver
+        return [
+            question
+            for question in parent.cached_questions
+            if self.is_component_visible(question, add_another_index=add_another_index)
+        ]
 
     def get_first_question_for_form(self, form: Form) -> Question | None:
         questions = self.cached_get_ordered_visible_questions(form)
@@ -798,6 +651,7 @@ class SubmissionHelper:
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         del self.cached_evaluation_context
+        del self._visibility_resolver
 
         # FIXME: work out why end to end tests aren't happy without this here
         #        I've made it work but not happy with not clearly pointing to where
@@ -832,6 +686,7 @@ class SubmissionHelper:
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         del self.cached_evaluation_context
+        del self._visibility_resolver
         self.cached_get_ordered_visible_questions.cache_clear()
 
     def remove_answer_for_question(self, question_id: UUID, *, add_another_index: int | None = None) -> None:
@@ -858,6 +713,7 @@ class SubmissionHelper:
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         del self.cached_evaluation_context
+        del self._visibility_resolver
         self.cached_get_ordered_visible_questions.cache_clear()
 
     def _data_providers_for_lifecycle_emails(self, user: User) -> Sequence[User]:
@@ -1089,15 +945,9 @@ class SubmissionHelper:
         form = self.get_form_for_question(current_question_id)
         question = self.get_question(current_question_id)
 
-        context_override = None
-        if question.add_another_container and add_another_index is not None:
-            context_override = self.cached_evaluation_context.with_add_another_context(
-                question, data_manager=self.submission.data_manager, add_another_index=add_another_index
-            )
+        _add_another_index = add_another_index if question.add_another_container else None
 
-        questions = self.cached_get_ordered_visible_questions(
-            form, override_context=context_override if context_override else None
-        )
+        questions = self.cached_get_ordered_visible_questions(form, add_another_index=_add_another_index)
 
         question_iterator = iter(questions)
         for question in question_iterator:
@@ -1114,18 +964,9 @@ class SubmissionHelper:
 
         question = self.get_question(current_question_id)
 
-        context_override = None
-        if question.add_another_container and add_another_index is not None:
-            context_override = self.cached_evaluation_context.with_add_another_context(
-                question,
-                data_manager=self.submission.data_manager,
-                add_another_index=add_another_index,
-                allow_new_index=True,
-            )
+        _add_another_index = add_another_index if question.add_another_container else None
 
-        questions = self.cached_get_ordered_visible_questions(
-            form, override_context=context_override if context_override else None
-        )
+        questions = self.cached_get_ordered_visible_questions(form, add_another_index=_add_another_index)
 
         # Reverse the list of questions so that we're working from the end to the start.
         question_iterator = iter(reversed(questions))
@@ -1144,11 +985,10 @@ class SubmissionHelper:
         if self.get_count_for_add_another(component.add_another_container) <= add_another_index:
             return AddAnotherAnswerSummary(summary="", is_answered=False)
 
-        context = self.cached_evaluation_context.with_add_another_context(
-            data_manager=self.submission.data_manager, component=component, add_another_index=add_another_index
-        )
         visible_questions = (
-            self.cached_get_ordered_visible_questions(component.add_another_container, override_context=context)
+            self.cached_get_ordered_visible_questions(
+                component.add_another_container, add_another_index=add_another_index
+            )
             if component.add_another_container.is_group
             else [cast("Question", component)]
         )
@@ -1313,7 +1153,6 @@ class CollectionHelper:
                 submission_csv_data["Submission name"] = submission.submission_name
 
             visible_questions = submission.all_visible_questions
-            cached_contexts: dict[str, ExpressionContext] = {}
             for question, header_string, index in question_headers:
                 if not question.add_another_container:
                     if question.id not in visible_questions.keys():
@@ -1329,17 +1168,7 @@ class CollectionHelper:
                         # this submission didn't provide this many answers as so wasn't asked this question
                         submission_csv_data[header_string] = NOT_ASKED
                     else:
-                        context_key = f"{question.add_another_container.id}{index}"
-                        context = cached_contexts.get(context_key)
-                        if not context:
-                            context = submission.cached_evaluation_context.with_add_another_context(
-                                question.add_another_container,
-                                data_manager=submission.submission.data_manager,
-                                add_another_index=index,
-                            )
-                            cached_contexts[context_key] = context
-
-                        if submission.is_component_visible(question, context):
+                        if submission.is_component_visible(question, add_another_index=index):
                             answer = submission.cached_get_answer_for_question(question.id, add_another_index=index)
                             submission_csv_data[header_string] = (
                                 answer.get_value_for_text_export() if answer is not None else NOT_ANSWERED
@@ -1400,13 +1229,8 @@ class CollectionHelper:
                             for i in range(submission.get_count_for_add_another(question.add_another_container)):
                                 entry = {}
 
-                                context = submission.cached_evaluation_context.with_add_another_context(
-                                    question.add_another_container,
-                                    data_manager=submission.submission.data_manager,
-                                    add_another_index=i,
-                                )
                                 for q in submission.cached_get_ordered_visible_questions(
-                                    question.add_another_container, override_context=context
+                                    question.add_another_container
                                 ):
                                     answer = submission.cached_get_answer_for_question(q.id, add_another_index=i)
                                     entry[q.name] = answer.get_value_for_json_export() if answer is not None else None
