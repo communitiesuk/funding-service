@@ -2150,7 +2150,13 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         session_model=AddContextToExpressionsModel, question_id=question.id
     )
 
-    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+    ValidationForm = build_managed_expression_form(
+        ExpressionType.VALIDATION,
+        question,
+        show_calculated_validation_option=(
+            AuthorisationHelper.is_platform_member(get_current_user()) and question.data_type == QuestionDataType.NUMBER
+        ),
+    )
     form = (
         ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ValidationForm

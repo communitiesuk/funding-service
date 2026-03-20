@@ -6,7 +6,7 @@ from markupsafe import Markup
 from wtforms import RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired
 
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions.registry import (
     get_managed_conditions_by_data_type,
@@ -85,8 +85,11 @@ class _ManagedExpressionForm(FlaskForm):
         raise RuntimeError(f"Unknown expression type: {self.type.data}")
 
 
-def build_managed_expression_form(  # noqa: C901
-    type_: ExpressionType, referenced_question: Question, expression: Expression | None = None
+def build_managed_expression_form(
+    type_: ExpressionType,
+    referenced_question: Question,
+    expression: Expression | None = None,
+    show_calculated_validation_option: bool = False,
 ) -> type[_ManagedExpressionForm] | None:
     """
     For a given question, generate a FlaskForm that will allow a user to select one of its managed expressions.
@@ -116,15 +119,35 @@ def build_managed_expression_form(  # noqa: C901
     class ManagedExpressionForm(_ManagedExpressionForm):
         _referenced_question = referenced_question
         _managed_expressions = managed_expressions
+        _show_calculated_validation_option = show_calculated_validation_option
 
         type = RadioField(
-            choices=[(managed_expression.name, managed_expression.name) for managed_expression in managed_expressions],
+            choices=[],
             default=expression.managed_name if expression else None,
             validators=[DataRequired(type_validation_message)],
             widget=GovRadioInput(),
         )
-
         submit = SubmitField("Add validation", widget=GovSubmitInput())
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.type.choices = [
+                (managed_expression.name, managed_expression.name) for managed_expression in self._managed_expressions
+            ]
+            if (
+                self._show_calculated_validation_option
+                and self._referenced_question.data_type == QuestionDataType.NUMBER
+            ):
+                # This creates a placeholder which is then replaced by the 'or' divider at render time below
+                self.type.choices.append((None, None))  # ty:ignore[invalid-argument-type]
+                self.type.choices.append(("CUSTOM", "Calculation with two or more numbers"))
+
+        def get_managed_expression_radio_items(self) -> list[dict[str, dict[str, Markup]]]:
+            items = super().get_managed_expression_radio_conditional_items()
+            if self._show_calculated_validation_option:
+                items.append({"divider": "or"})  # ty:ignore[invalid-argument-type]
+                items.append({"hint": {"text": "Adding, subtracting, multiplying and dividing"}})  # ty:ignore[invalid-argument-type]
+            return items
 
     for managed_expression in managed_expressions:
         pass_expression = expression and expression.managed_name == managed_expression.name

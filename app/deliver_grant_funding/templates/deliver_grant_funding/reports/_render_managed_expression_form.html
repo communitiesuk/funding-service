@@ -1,6 +1,7 @@
 {% macro render_managed_expression_form(form, label_html, submit_label, grant_id, question_id) %}
   <form method="post" novalidate>
     {{ form.csrf_token }}
+    {% set items=form.get_managed_expression_radio_items() %}
 
     {{
       form.type(params={
@@ -11,9 +12,10 @@
           "isPageHeading": False
           },
       },
-      "items": form.get_managed_expression_radio_conditional_items()
+      "items": items
       })
     }}
+
     {{ form.submit(params={"text": submit_label}) }}
   </form>
 {% endmacro %}
