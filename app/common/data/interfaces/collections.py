@@ -1517,7 +1517,7 @@ def _validate_reference(  # noqa:C901
             )
 
         if not components_in_valid_add_another_combination(
-            [attached_to_component, referenced_question, question_to_test]
+            attached_to_component, [referenced_question, question_to_test]
         ):
             raise AddAnotherDependencyException(
                 "A question cannot depend on an add another question from a different add another group",

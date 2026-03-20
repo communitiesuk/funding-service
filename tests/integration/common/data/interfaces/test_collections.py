@@ -1197,6 +1197,27 @@ class TestUpdateGroup:
         assert updated_group.guidance_body == "This is detailed guidance with **markdown** formatting."
         assert updated_group.add_another_guidance_body == "What to expect when filling in this groups answers"
 
+    def test_update_group_with_add_another_guidance_reference(self, db_session, factories):
+        form = factories.form.create()
+        q1 = factories.question.create(
+            form=form,
+        )
+        group = create_group(form=form, text="Test Question Name", add_another=True)
+
+        assert group.guidance_heading is None
+        assert group.guidance_body is None
+        assert group.add_another_guidance_body is None
+
+        updated_group = update_group(
+            group=group,
+            expression_context=ExpressionContext.build_expression_context(form.collection, "interpolation", None, None),
+            guidance_heading="How to answer this question",
+            guidance_body="This is detailed guidance with **markdown** formatting.",
+            add_another_guidance_body=f"Reference to first question (({q1.safe_qid}))",
+        )
+
+        assert updated_group.add_another_guidance_body == f"Reference to first question (({q1.safe_qid}))"
+
     def test_update_group_with_add_another_presentation_options(self, db_session, factories):
         form = factories.form.create()
         group = create_group(form=form, text="Test group name")
@@ -3627,7 +3648,7 @@ class TestReferenceValidation:
         assert components_in_same_group_and_on_same_page(q1, q2) is True
         assert components_in_same_group_and_on_same_page(q1, q3) is False
 
-    def test_components_in_valid_add_another_combination(self, factories):
+    def test_components_in_valid_add_another_combination(self, factories, subtests):
         q1 = factories.question.create(add_another=True)
         g1 = factories.group.create(form=q1.form, add_another=True)
         g1_q1 = factories.question.create(form=q1.form, parent=g1)
@@ -3637,19 +3658,45 @@ class TestReferenceValidation:
         g2 = factories.group.create(form=q1.form, add_another=True)
         g2_q1 = factories.question.create(form=q1.form, parent=g2)
 
-        assert components_in_valid_add_another_combination([q1, g1_q1]) is False
-        assert components_in_valid_add_another_combination([q1, g1_q1, None]) is False
-        assert components_in_valid_add_another_combination([g1_q1, g1_q2]) is True
-        assert components_in_valid_add_another_combination([g1_q1, None, g1_q2]) is True
-        assert components_in_valid_add_another_combination([g1_q1, g1_q2, q3]) is False
-        assert components_in_valid_add_another_combination([g1_q1, g1_q2, q3, None]) is False
-        assert components_in_valid_add_another_combination([g1_q1, q2]) is False
-        assert components_in_valid_add_another_combination([g1_q1, q2, None]) is False
-        assert components_in_valid_add_another_combination([q3, q2]) is True
-        assert components_in_valid_add_another_combination([g2_q1, q2]) is False
-        assert components_in_valid_add_another_combination([g2_q1, g1_q2]) is False
-        assert components_in_valid_add_another_combination([g1_q1, g1_q2]) is True
-        assert components_in_valid_add_another_combination([g1_q1, g1_q2, g2_q1]) is False
+        with subtests.test("add_another referencing previous non-add_another"):
+            assert (
+                components_in_valid_add_another_combination(
+                    g2_q1,
+                    [
+                        q2,
+                    ],
+                )
+                is True
+            )
+        with subtests.test("non-add_another referencing previous add_another"):
+            assert (
+                components_in_valid_add_another_combination(
+                    q2,
+                    [
+                        g1_q1,
+                    ],
+                )
+                is False
+            )
+        with subtests.test("add_another in group referencing previous add_another from outside group"):
+            assert components_in_valid_add_another_combination(g1_q1, [q1, None]) is False
+        with subtests.test("add_another in group referencing previous add_another in same group"):
+            assert components_in_valid_add_another_combination(g1_q1, [g1_q2]) is True
+        with subtests.test("add_another in group referencing previous add_another in same group, with None"):
+            assert components_in_valid_add_another_combination(g1_q1, [g1_q2, None]) is True
+        with subtests.test("non-add_another referencing previous add_anothers in same group as each other"):
+            assert components_in_valid_add_another_combination(q3, [g1_q1, g1_q2]) is False
+        with subtests.test("non-add_another referencing previous add_anothers in same group as each other, with None"):
+            assert components_in_valid_add_another_combination(q3, [g1_q1, g1_q2, None]) is False
+
+        with subtests.test("non-add_another referencing previous non-add_another"):
+            assert components_in_valid_add_another_combination(q2, [q3]) is True
+
+        with subtests.test("add_another referencing previous add_another from different group"):
+            assert components_in_valid_add_another_combination(g1_q2, [g2_q1]) is False
+
+        with subtests.test("add_another referencing multiple previous add_anothers from different group"):
+            assert components_in_valid_add_another_combination(g2_q1, [g1_q1, g1_q2]) is False
 
 
 class TestValidateAndSyncExpressionReferences:
@@ -4627,6 +4674,51 @@ class TestValidateReference:
             == q1.safe_qid
         )
 
+    def test_validate_reference_allowed_in_non_expression(self, factories):
+        q1 = factories.question.create()
+        g = factories.group.create(form=q1.form, add_another=True)
+        assert (
+            _validate_reference(
+                wrapped_reference=f"(({q1.safe_qid}))",
+                attached_to_component=g,
+                expression_context=ExpressionContext.build_expression_context(
+                    q1.form.collection, "interpolation", None, None
+                ),
+                expression_type=None,
+                field_name_for_error_message="field",
+                question_to_test=None,
+            )
+            == q1.safe_qid
+        )
+
+    def test_validate_reference_ordering_enforced_in_non_expression(self, factories):
+        q1 = factories.question.create()
+        g = factories.group.create(form=q1.form, add_another=True)
+        q2 = factories.question.create(form=q1.form)
+        with pytest.raises(DependencyOrderException):
+            _validate_reference(
+                wrapped_reference=f"(({q2.safe_qid}))",
+                attached_to_component=g,
+                expression_context=ExpressionContext.build_expression_context(
+                    q1.form.collection, "interpolation", None, None
+                ),
+                expression_type=None,
+                field_name_for_error_message="field",
+                question_to_test=None,
+            )
+        g1_q1 = factories.question.create(parent=g)
+        with pytest.raises(DependencyOrderException):
+            _validate_reference(
+                wrapped_reference=f"(({g1_q1.safe_qid}))",
+                attached_to_component=g,
+                expression_context=ExpressionContext.build_expression_context(
+                    q1.form.collection, "interpolation", None, None
+                ),
+                expression_type=None,
+                field_name_for_error_message="field",
+                question_to_test=None,
+            )
+
     def test_validate_reference_invalid_reference_to_self(self, factories):
         form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
@@ -4725,11 +4817,31 @@ class TestValidateReference:
     def test_invalid_add_another_reference(self, factories):
         form = factories.form.create()
         group = factories.group.create(form=form, add_another=True)
-        q1 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        g1_q1 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        g1_q2 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
-        q3 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
         expression_context = ExpressionContext.build_expression_context(form.collection, "interpolation", None, None)
+
+        with pytest.raises(AddAnotherDependencyException):
+            _validate_reference(
+                wrapped_reference=f"(({g1_q1.safe_qid}))",
+                attached_to_component=q1,
+                expression_context=expression_context,
+                expression_type=ExpressionType.VALIDATION,
+                field_name_for_error_message="field",
+                question_to_test=None,
+            )
+        with pytest.raises(AddAnotherDependencyException):
+            _validate_reference(
+                wrapped_reference=f"(({g1_q1.safe_qid}))",
+                attached_to_component=q1,
+                expression_context=expression_context,
+                expression_type=None,
+                field_name_for_error_message="field",
+                question_to_test=None,
+            )
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_reference(
@@ -4738,18 +4850,55 @@ class TestValidateReference:
                 expression_context=expression_context,
                 expression_type=ExpressionType.VALIDATION,
                 field_name_for_error_message="field",
+                question_to_test=g1_q1,
+            )
+
+        with pytest.raises(DependencyOrderException):
+            _validate_reference(
+                wrapped_reference=f"(({g1_q2.safe_qid}))",
+                attached_to_component=g1_q1,
+                expression_context=expression_context,
+                expression_type=ExpressionType.VALIDATION,
+                field_name_for_error_message="field",
                 question_to_test=None,
             )
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_reference(
-                wrapped_reference=f"(({q2.safe_qid}))",
-                attached_to_component=q3,
+                wrapped_reference=f"(({g1_q2.safe_qid}))",
+                attached_to_component=q2,
                 expression_context=expression_context,
-                expression_type=ExpressionType.VALIDATION,
+                expression_type=ExpressionType.CONDITION,
                 field_name_for_error_message="field",
-                question_to_test=q1,
+                question_to_test=g1_q1,
             )
+
+    def test_valid_add_another_reference(self, factories):
+        form = factories.form.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        group = factories.group.create(form=form, add_another=True)
+        g1_q1 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        g1_q2 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+
+        expression_context = ExpressionContext.build_expression_context(form.collection, "interpolation", None, None)
+
+        _validate_reference(
+            wrapped_reference=f"(({q1.safe_qid}))",
+            attached_to_component=g1_q1,
+            expression_context=expression_context,
+            expression_type=ExpressionType.VALIDATION,
+            field_name_for_error_message="field",
+            question_to_test=None,
+        )
+
+        _validate_reference(
+            wrapped_reference=f"(({g1_q1.safe_qid}))",
+            attached_to_component=g1_q2,
+            expression_context=expression_context,
+            expression_type=ExpressionType.CONDITION,
+            field_name_for_error_message="field",
+            question_to_test=q1,
+        )
 
     def test_invalid_same_page_group(self, factories):
         form = factories.form.create()
