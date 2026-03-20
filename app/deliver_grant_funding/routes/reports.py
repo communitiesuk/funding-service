@@ -86,6 +86,7 @@ from app.deliver_grant_funding.forms import (
     GroupAddAnotherSummaryForm,
     GroupDisplayOptionsForm,
     GroupForm,
+    PublicSignUpSettingsForm,
     QuestionForm,
     QuestionTypeForm,
     RequestChangesForm,
@@ -393,6 +394,35 @@ def collection_configure_multiple_submissions(grant_id: UUID, collection_id: UUI
 
     return render_template(
         "deliver_grant_funding/reports/configure_multiple_submissions.html",
+        grant=report.grant,
+        report=report,
+        collection_config=collection_config,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/collection/<uuid:collection_id>/configure-public-self-sign-up", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def collection_configure_public_sign_up(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
+    report = get_collection(collection_id, grant_id=grant_id)
+    collection_config = get_collection_type_config(report.type)
+
+    form = PublicSignUpSettingsForm(obj=report if request.method == "GET" else None)
+    if form.validate_on_submit():
+        update_collection(report, allow_public_sign_up=form.allow_public_sign_up.data == "True")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=grant_id,
+                collection_id=collection_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/configure_public_sign_up.html",
         grant=report.grant,
         report=report,
         collection_config=collection_config,

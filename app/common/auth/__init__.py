@@ -108,7 +108,11 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     if form.validate_on_submit():
         user = magic_link.user
         if not user:
-            user = interfaces.user.upsert_user_by_email(email_address=str(magic_link.email))
+            # todo: we'd have a wrapper around being able to see access pages which would make you have
+            #       have entered your name before you're able to continue, for now we'll just guess
+            user = interfaces.user.upsert_user_by_email(
+                email_address=str(magic_link.email), name=str(magic_link.email.split("@")[0].capitalize())
+            )
         interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
         if not login_user(user):
             return abort(400)

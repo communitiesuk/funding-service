@@ -1,0 +1,50 @@
+{# todo: this is gnarly #}
+{% if collection_config.active_sub_nav_item is none %}
+  {% extends "deliver_grant_funding/grant_base.html" %}
+{% else %}
+  {% extends "deliver_grant_funding/grant_recipients_base.html" %}
+{% endif %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Configure public self sign up - " ~ report.name %}
+{% set active_item_identifier = collection_config.active_nav_item %}
+{% set active_sub_item_identifier = collection_config.active_sub_nav_item %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_id=report.id),
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {% set url_html %}
+          <p class="govuk-body">
+            A public page will be available at
+            <strong>{{ url_for('access_grant_funding.public_grant_sign_up', grant_slug=grant.name | replace(" ", "-") | lower, _external=true) }}</strong>
+            where grant recipients can sign up to this grant.
+          </p>
+        {% endset %}
+
+        {{
+          form.allow_public_sign_up(params={
+          "fieldset": {"legend": {"text": form.allow_public_sign_up.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} },
+              "items": [
+                {"value": true, "text": "Yes", "conditional": {"html": url_html
+        }},
+        {"value": false, "text": "No"} ] }) }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Save"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_id=report.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

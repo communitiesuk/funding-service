@@ -128,6 +128,7 @@ def update_collection(  # noqa: C901
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
+    allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     if name is not NOT_PROVIDED:
         collection.name = name
@@ -212,6 +213,9 @@ def update_collection(  # noqa: C901
     if submission_guidance is not NOT_PROVIDED:
         stripped = submission_guidance.strip() if submission_guidance else None
         collection.submission_guidance = stripped or None
+
+    if allow_public_sign_up is not NOT_PROVIDED:
+        collection.allow_public_sign_up = allow_public_sign_up
 
     if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):
