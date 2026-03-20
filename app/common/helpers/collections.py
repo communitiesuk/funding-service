@@ -176,6 +176,17 @@ class SubmissionHelper:
             self.collection.dependency_graph, self.cached_evaluation_context, self.submission.data_manager
         )
 
+    @cached_property
+    def validator(self) -> SubmissionValidator:
+        return SubmissionValidator(
+            self.submission,
+            forms=self.get_ordered_visible_forms(),
+            resolver=self.resolver,
+            data_manager=self.submission.data_manager,
+            evaluation_context=self.cached_evaluation_context,
+            interpolation_context=self.cached_interpolation_context,
+        )
+
     @property
     def submission_name(self) -> str:
         """
@@ -833,7 +844,7 @@ class SubmissionHelper:
         if self.in_immutable_state:
             raise ValueError(f"Cannot submit {self.id} as it is in an immutable state.")
 
-        SubmissionValidator(self).validate_all_reachable_questions()
+        self.validator.validate_all_reachable_questions()
 
         interfaces.collections.add_submission_event(
             self.submission,
@@ -863,7 +874,7 @@ class SubmissionHelper:
                 f"Cannot send submission {self.id} for certification because it's in answers-locked state.",
             )
 
-        SubmissionValidator(self).validate_all_reachable_questions()
+        self.validator.validate_all_reachable_questions()
 
         if self.all_needed_forms_are_completed:
             interfaces.collections.add_submission_event(

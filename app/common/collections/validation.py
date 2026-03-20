@@ -4,38 +4,59 @@ from flask import current_app
 
 from app.common.collections.types import NOT_ANSWERED
 from app.common.data.models import Group
+from app.common.data.submission_data_manager import SubmissionDataManager
+from app.common.data.types import ComponentVisibilityState
 from app.common.exceptions import SubmissionValidationFailed, ValidationError
 from app.common.expressions import (
     DisallowedExpression,
+    ExpressionContext,
     UndefinedFunctionInExpression,
     UndefinedOperatorInExpression,
     UndefinedVariableInExpression,
     evaluate,
     interpolate,
 )
+from app.common.helpers.visibility import VisibilityResolver
 from app.metrics import MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Form, Question
-    from app.common.helpers.collections import SubmissionHelper
+    from app.common.data.models import Component, Form, Group, Question, Submission
 
 
 class SubmissionValidator:
-    def __init__(self, submission_helper: SubmissionHelper):
-        self.helper = submission_helper
+    def __init__(
+        self,
+        submission: Submission,
+        forms: list[Form],
+        resolver: VisibilityResolver,
+        data_manager: SubmissionDataManager,
+        evaluation_context: ExpressionContext,
+        interpolation_context: ExpressionContext,
+    ):
+        self._submission = submission
+        self._forms = forms
+        self._resolver = resolver
+        self._data_manager = data_manager
+        self._evaluation_context = evaluation_context
+        self._interpolation_context = interpolation_context
+
+    def _is_visible(self, component: Component, add_another_index: int | None = None) -> bool:
+        if add_another_index is not None:
+            state = self._resolver.get_visibility_for_add_another(component.id, add_another_index)
+        else:
+            state = self._resolver.get_visibility(component.id)
+        return state == ComponentVisibilityState.VISIBLE
 
     def validate_all_reachable_questions(self) -> None:
         errors = []
 
-        for form in self.helper.get_ordered_visible_forms():
+        for form in self._forms:
             errors.extend(self._validate_form(form))
 
         if errors:
-            emit_metric_count(
-                MetricEventName.SUBMISSION_BLOCKED_BY_INVALID_ANSWERS, 1, submission=self.helper.submission
-            )
+            emit_metric_count(MetricEventName.SUBMISSION_BLOCKED_BY_INVALID_ANSWERS, 1, submission=self._submission)
             raise SubmissionValidationFailed(
-                f"Could not submit submission id={self.helper.submission.id} because some answers are no longer valid.",
+                f"Could not submit submission id={self._submission.id} because some answers are no longer valid.",
                 errors=errors,
             )
 
@@ -55,7 +76,7 @@ class SubmissionValidator:
                     errors.extend(self._validate_group(component, form))
                 continue
 
-            question = component
+            question = cast("Question", component)
             if question.add_another_container:
                 if question.add_another_container.id in processed_add_another_containers:
                     continue
@@ -64,17 +85,17 @@ class SubmissionValidator:
                 processed_add_another_containers.append(question.add_another_container.id)
 
             else:
-                if self.helper.resolver.is_visible(question):
-                    answer = self.helper.cached_get_answer_for_question(question.id)
+                if self._resolver.is_visible(question):
+                    answer = self._data_manager.get(question)
                     if answer is not None and answer != NOT_ANSWERED:
-                        errors.extend(self._validate_question(cast("Question", question), form))
+                        errors.extend(self._validate_question(question, form))
 
         return errors
 
     def _validate_group(self, group: Group, form: Form, add_another_index: int | None = None) -> list[ValidationError]:
         errors: list[ValidationError] = []
 
-        if not self.helper.resolver.is_visible(group, add_another_index=add_another_index):
+        if not self._resolver.is_visible(group, add_another_index=add_another_index):
             return errors
 
         if (add_another_index is not None and not group.add_another_container) or (
@@ -83,15 +104,15 @@ class SubmissionValidator:
             raise ValueError(f"Cannot validate {group.add_another=} {group=} with {add_another_index=}")
 
         if add_another_index is not None:
-            evaluation_context = self.helper.cached_evaluation_context.with_add_another_context(
-                group, self.helper.submission.data_manager, add_another_index=add_another_index, mode="evaluation"
+            evaluation_context = self._evaluation_context.with_add_another_context(
+                group, self._data_manager, add_another_index=add_another_index, mode="evaluation"
             )
-            interpolation_context = self.helper.cached_interpolation_context.with_add_another_context(
-                group, self.helper.submission.data_manager, add_another_index=add_another_index, mode="interpolation"
+            interpolation_context = self._interpolation_context.with_add_another_context(
+                group, self._data_manager, add_another_index=add_another_index, mode="interpolation"
             )
         else:
-            evaluation_context = self.helper.cached_evaluation_context
-            interpolation_context = self.helper.cached_interpolation_context
+            evaluation_context = self._evaluation_context
+            interpolation_context = self._interpolation_context
 
         for validation_expr in group.validations:
             try:
@@ -131,11 +152,11 @@ class SubmissionValidator:
         if not question.validations:
             return errors
 
-        evaluation_context = self.helper.cached_evaluation_context
+        evaluation_context = self._evaluation_context
         if add_another_index is not None and question.add_another_container:
             evaluation_context = evaluation_context.with_add_another_context(
                 question.add_another_container,
-                data_manager=self.helper.submission.data_manager,
+                data_manager=self._data_manager,
                 add_another_index=add_another_index,
                 mode="evaluation",
             )
@@ -144,7 +165,7 @@ class SubmissionValidator:
             try:
                 if not evaluate(expression=validation_expr, context=evaluation_context):
                     error_message = interpolate(
-                        validation_expr.evaluatable_expression.message, context=self.helper.cached_interpolation_context
+                        validation_expr.evaluatable_expression.message, context=self._interpolation_context
                     )
                     errors.append(
                         ValidationError(
@@ -153,9 +174,7 @@ class SubmissionValidator:
                             form_id=form.id,
                             form_title=form.title,
                             error_message=error_message,
-                            answer=self.helper.cached_get_answer_for_question(
-                                question.id, add_another_index=add_another_index
-                            ),
+                            answer=self._data_manager.get(question, add_another_index=add_another_index),
                             add_another_index=add_another_index,
                         )
                     )
@@ -176,15 +195,15 @@ class SubmissionValidator:
         errors = []
         container = cast("Group | Question", container)
 
-        count = self.helper.get_count_for_add_another(container)
+        count = self._data_manager.get_count_for_add_another(container)
         for index in range(count):
             questions = (
                 cast("Group", container).cached_questions if container.is_group else [cast("Question", container)]
             )
 
             for q in questions:
-                if self.helper.resolver.is_visible(q, add_another_index=index):
-                    answer = self.helper.cached_get_answer_for_question(q.id, add_another_index=index)
+                if self._resolver.is_visible(q, add_another_index=index):
+                    answer = self._data_manager.get(q, add_another_index=index)
                     if answer is not None and answer != NOT_ANSWERED:
                         errors.extend(self._validate_question(q, form, add_another_index=index))
 
