@@ -213,17 +213,23 @@
             <p class="govuk-body">Add validations to show an error message to the user if the answer does not meet the requirements. For example, you can add a validation to stop users entering a number over a certain amount.</p>
             {% set rows = [] %}
             {% for validation in question.validations %}
-              {% set managed = validation.managed %}
 
               {# TODO: think more about what info to include in this summary list and how to lay it out #}
               {% set key_html %}
                 {{ to_ordinal(loop.index) | capitalize }}
                 <span class="govuk-visually-hidden">validation</span>
               {% endset %}
+              {% set edit_validation_link %}
+                {% if validation.is_custom %}
+                  {{ url_for('deliver_grant_funding.edit_custom_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}
+                {% else %}
+                  {{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}
+                {% endif %}
+              {% endset %}
               {% set value_html %}
-                <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=question.id, expression_id=validation.id) }}" disabled>
+                <a class="govuk-link govuk-link--no-visited-state" href="{{ edit_validation_link }}" disabled>
                   <span class="govuk-visually-hidden">Change validation for</span>
-                  {{ interpolate(validation.managed.message, with_interpolation_highlighting=True) }}
+                  {{ interpolate(validation.evaluatable_expression.message, with_interpolation_highlighting=True) }}
                 </a>
               {% endset %}
               {%

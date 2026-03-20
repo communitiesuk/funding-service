@@ -18,6 +18,7 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 
@@ -227,6 +228,40 @@ def test_reference_data_validation__integer(factories, db_session):
 
     # Check answer is validated against reference data value
     assert "The answer must be greater than or equal to £100" in form.errors[q2.safe_qid]
+
+
+def test_reference_data_validation__number__custom(factories, db_session):
+    user = factories.user.create()
+    form = factories.form.create()
+    q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, name="First question")
+    q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, name="Second question")
+    q3 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+    if hasattr(form, "cached_all_components"):
+        del form.cached_all_components
+
+    interfaces.collections.add_question_validation(
+        q3,
+        user,
+        CustomExpression(
+            custom_expression=f"(({q3.safe_qid}))<(({q1.safe_qid}))+(({q2.safe_qid}))",
+            custom_message=f"The answer must be less than q1 ((({q1.safe_qid}))) + q2 ((({q2.safe_qid})))",
+        ),
+    )
+
+    _FormClass = build_question_form(
+        [q3],
+        evaluation_context=ExpressionContext({q1.safe_qid: 100, q2.safe_qid: 200}),
+        interpolation_context=ExpressionContext({q1.safe_qid: "£100", q2.safe_qid: "£200"}),
+    )
+    form = _FormClass(formdata=MultiDict({q3.safe_qid: 500}))
+
+    valid = form.validate()
+
+    assert valid is False
+
+    # Check answer is validated against reference data value
+    assert "The answer must be less than q1 (£100) + q2 (£200)" in form.errors[q3.safe_qid]
 
 
 def test_reference_data_validation__date(factories, db_session):

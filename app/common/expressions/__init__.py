@@ -4,7 +4,7 @@ import enum
 import re
 from collections import ChainMap
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, cast, overload
 from uuid import UUID
 
 import simpleeval
@@ -18,6 +18,7 @@ from app.types import NOT_PROVIDED
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Component, Expression, Group, Question
     from app.common.helpers.collections import SubmissionHelper
+    from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 
 INTERPOLATE_REGEX = re.compile(r"\(\(([^\(]+?)\)\)")
 # If any interpolation references contain characters other than alphanumeric, full stops or underscores,
@@ -69,6 +70,16 @@ class EvaluatableExpression(BaseModel, SafeQidMixin):
         Returns a set of field names in the expression that can contain reference data.
         """
         return set()
+
+    @classmethod
+    def prepare_form_data(cls, add_context_data: "AddContextToExpressionsModel") -> dict[str, Any]:
+        data = {
+            k: v
+            for k, v in add_context_data.expression_form_data.items()
+            if k != "add_context" and k != "remove_context"
+        }
+
+        return data
 
 
 class ExpressionContext(ChainMap[str, Any]):
@@ -314,6 +325,41 @@ class ExpressionContext(ChainMap[str, Any]):
         return hash(id(self))
 
 
+def get_restricted_evaluator(
+    names: Any, required_functions: dict[str, Callable[[Any], Any] | type[Any]]
+) -> simpleeval.SimpleEval:
+    evaluator = simpleeval.EvalWithCompoundTypes(
+        names=names,
+        functions=required_functions,
+    )
+
+    # restrict to a subset of binary operators so eg. & (bitwise and) is not allowed
+    allowed_operators = {}
+    for op in [ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Eq, ast.GtE, ast.Gt, ast.LtE, ast.Lt, ast.USub, ast.Is, ast.In]:
+        allowed_operators[op] = evaluator.operators[op]
+    evaluator.operators = allowed_operators
+    # Remove all nodes except those we explicitly allowlist
+    evaluator.nodes = {
+        ast_expr: ast_fn
+        for ast_expr, ast_fn in evaluator.nodes.items()  # ty:ignore[unresolved-attribute]
+        if ast_expr
+        in {
+            ast.UnaryOp,
+            ast.Expr,
+            ast.Name,
+            ast.BinOp,
+            ast.Compare,
+            ast.Subscript,
+            ast.Attribute,
+            ast.Slice,
+            ast.Constant,
+            ast.Call,
+            ast.Set,
+        }
+    }
+    return evaluator
+
+
 def _evaluate_expression_with_context(expression: Expression, context: ExpressionContext | None = None) -> Any:
     """
     The base evaluator to use for handling all expressions.
@@ -329,28 +375,7 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
         context = ExpressionContext()
     context.expression_context = expression.context or {}
 
-    evaluator = simpleeval.EvalWithCompoundTypes(names=context, functions=expression.required_functions)
-
-    # Remove all nodes except those we explicitly allowlist
-    evaluator.nodes = {
-        ast_expr: ast_fn
-        for ast_expr, ast_fn in evaluator.nodes.items()  # ty: ignore[unresolved-attribute]
-        if ast_expr
-        in {
-            ast.UnaryOp,
-            ast.Expr,
-            ast.Name,
-            ast.BinOp,
-            ast.BoolOp,
-            ast.Compare,
-            ast.Subscript,
-            ast.Attribute,
-            ast.Slice,
-            ast.Constant,
-            ast.Call,
-            ast.Set,
-        }
-    }
+    evaluator = get_restricted_evaluator(names=context, required_functions=expression.required_functions)
 
     try:
         result = evaluator.eval(expression.statement)
@@ -389,7 +414,8 @@ def interpolate(
             value = _evaluate_expression_with_context(expr, context)
             if with_interpolation_highlighting:
                 return f'<span class="app-context-aware-editor--valid-reference">{escape(value)}</span>'
-        except UndefinedVariableInExpression, DisallowedExpression:
+        except (UndefinedVariableInExpression, DisallowedExpression) as e:
+            print(e)
             value = matchobj.group(0)
 
         return str(value)

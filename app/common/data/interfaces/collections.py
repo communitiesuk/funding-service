@@ -53,8 +53,13 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.data.utils import generate_submission_reference
-from app.common.expressions import ALLOWED_INTERPOLATION_REGEX, INTERPOLATE_REGEX, ExpressionContext
-from app.common.expressions.managed import BaseDataSourceManagedExpression
+from app.common.expressions import (
+    ALLOWED_INTERPOLATION_REGEX,
+    INTERPOLATE_REGEX,
+    EvaluatableExpression,
+    ExpressionContext,
+)
+from app.common.expressions.managed import BaseDataSourceManagedExpression, ManagedExpression
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
@@ -1122,11 +1127,12 @@ def raise_if_data_source_item_reference_dependency(
 
 
 class AddAnotherDependencyException(Exception, FlashableException):
-    def __init__(self, message: str, component: Component, referenced_question: Component):
+    def __init__(self, message: str, component: Component, referenced_question: Component, field_name: str = ""):
         super().__init__(message)
         self.message = message
         self.component = component
         self.referenced_question = referenced_question
+        self.field_name = field_name
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -1397,12 +1403,12 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
-def _find_references_in_expression(
+def _find_all_references_in_expression(
     value: str,
-) -> set[str]:
-    references: set[str] = set()
+) -> list[str]:
+    references = list()
     for match in INTERPOLATE_REGEX.finditer(value):
-        references.add(match.group(0))
+        references.append(match.group(0))
     return references
 
 
@@ -1419,7 +1425,8 @@ def components_in_same_group_and_on_same_page(component1: Component, component2:
     return component1.parent.same_page is True
 
 
-def _validate_reference(
+# TODO separate out more checks into little functions
+def _validate_reference(  # noqa:C901
     wrapped_reference: str,
     attached_to_component: Component | None,
     expression_context: ExpressionContext,
@@ -1428,6 +1435,13 @@ def _validate_reference(
     question_to_test: Question | None,
 ) -> str:
     unwrapped_ref = wrapped_reference.strip("() ")
+
+    if not unwrapped_ref:
+        raise InvalidReferenceInExpression(
+            f"Reference is not valid: {wrapped_reference}",
+            field_name=field_name_for_error_message,
+            bad_reference=wrapped_reference,
+        )
     if ALLOWED_INTERPOLATION_REGEX.search(unwrapped_ref) is not None:
         raise InvalidReferenceInExpression(
             f"Reference is not valid: {wrapped_reference}",
@@ -1442,13 +1456,6 @@ def _validate_reference(
         # TODO change this once we can attach validation to a question group
         #  or an auto calculation to a whole section
         raise NotImplementedError("Cannot handle validation expressions attached to non-question components yet")
-
-    if not unwrapped_ref:
-        raise InvalidReferenceInExpression(
-            f"Reference is not valid: {wrapped_reference}",
-            field_name=field_name_for_error_message,
-            bad_reference=wrapped_reference,
-        )
 
     # Check the reference is valid in this expression context
     if not expression_context.is_valid_reference(unwrapped_ref):
@@ -1489,12 +1496,18 @@ def _validate_reference(
                 field_name=field_name_for_error_message,
             )
         if not is_component_dependency_order_valid(attached_to_component, referenced_question):
-            raise DependencyOrderException(
-                "Cannot reference a later question",
-                attached_to_component,
-                referenced_question,
-                field_name=field_name_for_error_message,
-            )
+            # Can't think of a better way right now for a custom validation expression to reference itself
+            if not (
+                expression_type == ExpressionType.VALIDATION
+                and field_name_for_error_message == "custom_expression"
+                and referenced_question == attached_to_component
+            ):
+                raise DependencyOrderException(
+                    "Cannot reference a later question",
+                    attached_to_component,
+                    referenced_question,
+                    field_name=field_name_for_error_message,
+                )
 
         if components_in_same_group_and_on_same_page(attached_to_component, referenced_question):
             raise InvalidReferenceInExpression(
@@ -1510,6 +1523,7 @@ def _validate_reference(
                 "A question cannot depend on an add another question from a different add another group",
                 attached_to_component,
                 referenced_question,
+                field_name=field_name_for_error_message,
             )
     else:
         # TODO implement this once we can reference other things, eg. data uploads
@@ -1519,17 +1533,18 @@ def _validate_reference(
     return unwrapped_ref
 
 
-def _validate_and_sync_expression_references(expression: Expression) -> None:
-    if not expression.is_managed:
-        raise NotImplementedError("Cannot handle un-managed expressions yet")
+def _validate_and_sync_expression_references(expression: Expression) -> None:  # noqa:C901
+    if expression.is_managed:
+        expr_impl = expression.managed
+    else:
+        expr_impl = expression.custom
 
-    # TODO: When an expression can target multiple questions, this will need refactoring to support that.
+    referenced_questions = set()
     references: list[ComponentReference] = []
 
-    managed = expression.managed
-    if isinstance(managed, BaseDataSourceManagedExpression):
+    if isinstance(expr_impl, BaseDataSourceManagedExpression):
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
-            managed_expression=managed
+            managed_expression=expr_impl
         )
 
         # TODO: Support data sources that are independent of components(questions), eg when ee have platform-level
@@ -1545,11 +1560,11 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
             )
             db.session.add(cr)
             references.append(cr)
-    else:
+    elif expression.is_managed:
         if expression.type_ == ExpressionType.CONDITION:
             # validate the referenced question - the one that is compared against the expression
             valid_reference = _validate_reference(
-                wrapped_reference=f"(({managed.referenced_question.safe_qid}))",
+                wrapped_reference=f"(({expr_impl.referenced_question.safe_qid}))",  # ty:ignore[unresolved-attribute]
                 attached_to_component=expression.question,
                 expression_context=ExpressionContext.build_expression_context(
                     expression.question.form.collection, "interpolation", None, None
@@ -1559,19 +1574,13 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
                 question_to_test=None,
             )
 
-        cr = ComponentReference(
-            depends_on_component=expression.managed.referenced_question,
-            component=expression.question,
-            expression=expression,
-        )
-        db.session.add(cr)
-        references.append(cr)
+        referenced_questions.add(expr_impl.referenced_question)  # ty:ignore[unresolved-attribute]
 
-    for field in managed.reference_aware_fields:
-        field_value = getattr(managed, field)
+    for field in expr_impl.reference_aware_fields:
+        field_value = getattr(expr_impl, field)
         if not field_value:
             continue
-        unvalidated_references = _find_references_in_expression(field_value)
+        unvalidated_references = set(_find_all_references_in_expression(field_value))
         for wrapped_reference in unvalidated_references:
             valid_reference = _validate_reference(
                 wrapped_reference=wrapped_reference,
@@ -1581,17 +1590,20 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:
                 ),
                 expression_type=expression.type_,
                 field_name_for_error_message=field,
-                question_to_test=managed.referenced_question,
+                question_to_test=expr_impl.referenced_question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
             )
 
             referenced_question = get_question_by_id(SafeQidMixin.safe_qid_to_id(valid_reference))  # type:ignore[arg-type]
-            cr = ComponentReference(
-                component=expression.question,
-                expression=expression,
-                depends_on_component=referenced_question,
-            )
-            db.session.add(cr)
-            references.append(cr)
+            referenced_questions.add(referenced_question)
+
+    for referenced_question in referenced_questions:
+        cr = ComponentReference(
+            component=expression.question,
+            expression=expression,
+            depends_on_component=referenced_question,
+        )
+        db.session.add(cr)
+        references.append(cr)
 
     expression.component_references = references
 
@@ -1620,7 +1632,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
         if value is None:
             continue
 
-        unvalidated_references: set[str] = _find_references_in_expression(value)
+        unvalidated_references = set(_find_all_references_in_expression(value))
         for wrapped_reference in unvalidated_references:
             reference = _validate_reference(
                 wrapped_reference=wrapped_reference,
@@ -1656,8 +1668,10 @@ def add_component_condition(component: Component, user: User, managed_expression
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_question_validation(question: Question, user: User, managed_expression: "ManagedExpression") -> Question:
-    expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.VALIDATION, user)
+def add_question_validation(
+    question: Question, user: User, evaluatable_expression: "EvaluatableExpression"
+) -> Question:
+    expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.VALIDATION, user)
     question.expressions.append(expression)
     _validate_and_sync_expression_references(expression)
     return question
@@ -1674,10 +1688,10 @@ def remove_question_expression(question: Component, expression: Expression) -> C
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def update_question_expression(expression: Expression, managed_expression: ManagedExpression) -> Expression:
-    expression.statement = managed_expression.statement
-    expression.context = managed_expression.model_dump(mode="json")
-    expression.managed_name = managed_expression._key
+def update_question_expression(expression: Expression, evaluatable_expression: EvaluatableExpression) -> Expression:
+    expression.statement = evaluatable_expression.statement
+    expression.context = evaluatable_expression.model_dump(mode="json")
+    expression.managed_name = evaluatable_expression._key
 
     _validate_and_sync_expression_references(expression)
     return expression

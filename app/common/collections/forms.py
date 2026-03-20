@@ -140,17 +140,19 @@ def build_validators(
     for _validation in question.validations:
 
         def run_validation(form: Form, field: Field, validation: Expression) -> None:
-            if not validation.managed:
-                raise RuntimeError("Support for un-managed validation has not been implemented yet.")
-
+            # TODO do we want to separate out the metrics for managed vs custom expressions?
             if not evaluate(expression=validation, context=evaluation_context):
                 emit_metric_count(
-                    MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR, managed_expression=validation.managed
+                    MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR,
+                    evaluatable_expression=validation.evaluatable_expression,
                 )
-                raise ValidationError(interpolate(validation.managed.message, context=interpolation_context))
+                raise ValidationError(
+                    interpolate(validation.evaluatable_expression.message, context=interpolation_context)
+                )
 
             emit_metric_count(
-                MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS, managed_expression=validation.managed
+                MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS,
+                evaluatable_expression=validation.evaluatable_expression,
             )
 
         validators.append(cast(Callable[[Form, Field], None], partial(run_validation, validation=_validation)))

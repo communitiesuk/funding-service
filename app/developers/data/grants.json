@@ -46,6 +46,18 @@
         },
         {
           "allow_multiple_submissions": false,
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "7c616da7-401f-4faf-b7a6-d1687fd35877",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "Calculations",
+          "requires_certification": true,
+          "slug": "calculations",
+          "status": "Draft",
+          "type": "monitoring report"
+        },
+        {
+          "allow_multiple_submissions": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
@@ -1249,6 +1261,13 @@
           "title": "Cheese"
         },
         {
+          "collection_id": "7c616da7-401f-4faf-b7a6-d1687fd35877",
+          "id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "order": 0,
+          "slug": "numbers",
+          "title": "Numbers"
+        },
+        {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
           "id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
           "order": 0,
@@ -1504,6 +1523,26 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "22cc35ec-113c-4bfc-9b97-c0158200a833",
+          "name": "second number",
+          "order": 1,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-the-second-decimal-number",
+          "text": "What is the second (decimal) number?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Yes or no",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
@@ -1640,6 +1679,25 @@
           "slug": "lead-contact-role---other",
           "text": "Lead contact role - other",
           "type": "GROUP"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "53915cda-b1a2-4fb7-9e29-ee41014964b3",
+          "name": "first number",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-the-first-number",
+          "text": "What is the first number?",
+          "type": "QUESTION"
         },
         {
           "add_another": false,
@@ -2106,6 +2164,25 @@
           "presentation_options": {},
           "slug": "what-is-q80d29ce39ad04ef5bd6d09609ef4fcc3s-surname",
           "text": "What is ((q_80d29ce39ad04ef5bd6d09609ef4fcc3))'s surname?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "bda3dfd8-f4f2-4b21-a9e8-faa598d8b511",
+          "name": "final number",
+          "order": 2,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "and-a-final-whole-number",
+          "text": "And a final whole number",
           "type": "QUESTION"
         },
         {

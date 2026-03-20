@@ -4,6 +4,7 @@ from unittest.mock import Mock, PropertyMock
 
 import pytest
 from markupsafe import Markup
+from simpleeval import OperatorNotDefined
 
 from app.common.data.models import Expression
 from app.common.expressions import (
@@ -21,8 +22,6 @@ class TestInternalEvaluateExpressionWithContext:
     @pytest.mark.parametrize(
         "expression, expected_result",
         (
-            # ast.UnaryOp
-            (Expression(statement="not 1"), False),
             # ast.Expr / ast.Constant
             (Expression(statement="1"), 1),
             # ast.Name
@@ -32,9 +31,6 @@ class TestInternalEvaluateExpressionWithContext:
             (Expression(statement="1 - 1"), 0),
             (Expression(statement="1 * 2"), 2),
             (Expression(statement="10 / 2"), 5),
-            # ast.BoolOp
-            (Expression(statement="0 or 1"), True),
-            (Expression(statement="0 and 1"), False),
             # ast.Compare
             (Expression(statement="10 > 1"), True),
             (Expression(statement="10 == 1"), False),
@@ -76,6 +72,8 @@ class TestInternalEvaluateExpressionWithContext:
                 Expression(statement="variable.value", context={"variable": Mock(value="potato")}),
                 "potato",
             ),
+            (Expression(statement="1 in number_list", context={"number_list": [1, 2, 3]}), True),
+            (Expression(statement="a is True", context={"a": True}), True),
         ),
     )
     def test_allowed_expressions(self, expression, expected_result):
@@ -108,10 +106,30 @@ class TestInternalEvaluateExpressionWithContext:
             (Expression(statement="1 if True else 2")),  # ast.IfExp
             (Expression(statement="f'hi'")),  # ast.JoinedStr
             (Expression(statement="f'{var}'", context={"var": 1})),  # ast.JoinedStr
+            # ast.BoolOp
+            (Expression(statement="0 or 1")),
+            (Expression(statement="0 and 1")),
         ),
     )
     def test_disallowed_expressions(self, expression):
         with pytest.raises(DisallowedExpression):
+            _evaluate_expression_with_context(expression, ExpressionContext())
+
+    @pytest.mark.parametrize(
+        "expression",
+        [
+            (Expression(statement="2**3")),  # ast.Pow
+            (Expression(statement="2>>3")),  # ast.RShift
+            (Expression(statement="2<<3")),  # ast.LShift
+            (Expression(statement="2^3")),  # ast.BitXor
+            (Expression(statement="2|3")),  # ast.BitOr
+            (Expression(statement="2&3")),  # ast.BitAnd
+            (Expression(statement="not 1")),  # ast.UnaryOp
+            (Expression(statement="~3")),  # ast.Invert
+        ],
+    )
+    def test_operator_not_defined(self, expression):
+        with pytest.raises(OperatorNotDefined):
             _evaluate_expression_with_context(expression, ExpressionContext())
 
     def test_unknown_variable(self):
@@ -121,9 +139,6 @@ class TestInternalEvaluateExpressionWithContext:
 
 
 class TestEvaluate:
-    def test_ok_with_boolean_result(self):
-        assert evaluate(Expression(statement="True is False"), ExpressionContext()) is False
-
     def test_additional_context(self):
         assert (
             evaluate(

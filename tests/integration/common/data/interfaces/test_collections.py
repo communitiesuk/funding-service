@@ -15,7 +15,7 @@ from app.common.data.interfaces.collections import (
     IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
-    _find_references_in_expression,
+    _find_all_references_in_expression,
     _validate_and_sync_component_references,
     _validate_and_sync_expression_references,
     _validate_reference,
@@ -99,6 +99,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
 from app.common.forms.helpers import components_in_valid_add_another_combination
 
@@ -1266,8 +1267,8 @@ class TestUpdateGroup:
         )
         add_question_validation(
             question=q2,
-            managed_expression=GreaterThan(question_id=q1.id, minimum_value=100),
             user=factories.user.create(),
+            evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
         )
 
         with pytest.raises(AddAnotherDependencyException) as e:
@@ -1284,8 +1285,8 @@ class TestUpdateGroup:
         q2 = factories.question.create(form=group.form, parent=group)
         add_question_validation(
             question=q2,
-            managed_expression=GreaterThan(question_id=q1.id, minimum_value=100),
             user=factories.user.create(),
+            evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
         )
 
         update_group(group, expression_context=ExpressionContext(), add_another=True)
@@ -2999,6 +3000,29 @@ class TestExpressions:
         with pytest.raises(DuplicateValueError):
             add_component_condition(question, user, managed_expression)
 
+    def test_add_question_condition_custom(self, db_session, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expr = CustomExpression(
+            custom_expression=f"(({q1.safe_qid})) > (({q2.safe_qid}))", custom_message="Failed condition"
+        )
+
+        add_component_condition(q3, user, custom_expr)
+
+        # check the serialisation and deserialisation is as expected
+        from_db = get_question_by_id(q3.id)
+
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type_ == ExpressionType.CONDITION
+        assert from_db.expressions[0].statement == f"(({q1.safe_qid})) > (({q2.safe_qid}))"
+
+        # check the serialised context lines up with the values in the managed expression
+        assert from_db.expressions[0].managed_name is None
+        assert from_db.expressions[0].is_custom
+
     def test_add_condition_raises_if_same_page(self, db_session, factories):
         group = factories.group.create(
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
@@ -3130,6 +3154,30 @@ class TestExpressions:
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
+    def test_add_question_validation_custom(self, db_session, factories):
+        form = factories.form.create()
+        q1, q2 = factories.question.create_batch(2, form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expression = CustomExpression(
+            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid}))",
+            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
+        )
+
+        add_question_validation(q2, user, custom_expression)
+
+        # check the serialisation and deserialisation is as expected
+        from_db = get_question_by_id(q2.id)
+
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type_ == ExpressionType.VALIDATION
+        assert from_db.expressions[0].statement == f"(({q2.safe_qid})) >= (({q1.safe_qid}))"
+
+        # check the serialised context lines up with the values in the managed expression
+        assert from_db.expressions[0].is_managed is False
+        assert from_db.expressions[0].is_custom is True
+
     def test_update_expression(self, db_session, factories):
         q0 = factories.question.create()
         question = factories.question.create(form=q0.form)
@@ -3143,6 +3191,28 @@ class TestExpressions:
         update_question_expression(question.expressions[0], updated_expression)
 
         assert question.expressions[0].statement == f"{q0.safe_qid} > Decimal('5000')"
+
+    def test_update_expression_custom(self, db_session, factories):
+        form = factories.form.create()
+        q1, q2 = factories.question.create_batch(2, form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expression = CustomExpression(
+            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid}))",
+            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
+        )
+
+        add_question_validation(q2, user, custom_expression)
+
+        updated_expression = CustomExpression(
+            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid})) + 6",
+            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid})) + 6",
+        )
+
+        update_question_expression(q2.expressions[0], updated_expression)
+
+        assert q2.expressions[0].statement == f"(({q2.safe_qid})) >= (({q1.safe_qid})) + 6"
 
     def test_update_anyof_expression(self, db_session, factories):
         q0 = factories.question.create(data_type=QuestionDataType.RADIOS)
@@ -3532,18 +3602,18 @@ class TestReferenceValidation:
     @pytest.mark.parametrize(
         "expression, expected_references",
         [
-            ("((q1)) + ((q2))", {"((q1))", "((q2))"}),
-            ("((q1)) + 5", {"((q1))"}),
-            ("5 + 10", set()),
-            ("((q1)) + ((q2)) + ((q3))", {"((q1))", "((q2))", "((q3))"}),
-            ("((q1)) + ((q2)) + ((q1))", {"((q1))", "((q2))"}),  # Duplicate references should only be returned once
-            ["((q1)) + (not a ref)", {"((q1))"}],
-            ["((q1)) + (not a ref))", {"((q1))"}],
-            ["((q1)) + ((not a ref)", {"((q1))"}],
+            ("((q1)) + ((q2))", ["((q1))", "((q2))"]),
+            ("((q1)) + 5", ["((q1))"]),
+            ("5 + 10", list()),
+            ("((q1)) + ((q2)) + ((q3))", ["((q1))", "((q2))", "((q3))"]),
+            ("((q1)) + ((q2)) + ((q1))", ["((q1))", "((q2))", "((q1))"]),
+            ["((q1)) + (not a ref)", ["((q1))"]],
+            ["((q1)) + (not a ref))", ["((q1))"]],
+            ["((q1)) + ((not a ref)", ["((q1))"]],
         ],
     )
     def test_find_references_in_expression(self, expression, expected_references):
-        references = _find_references_in_expression(expression)
+        references = _find_all_references_in_expression(expression)
         assert references == expected_references
 
     def test_components_in_same_group_and_on_same_page(self, factories):
@@ -3560,26 +3630,26 @@ class TestReferenceValidation:
     def test_components_in_valid_add_another_combination(self, factories):
         q1 = factories.question.create(add_another=True)
         g1 = factories.group.create(form=q1.form, add_another=True)
-        q2 = factories.question.create(form=q1.form, parent=g1)
-        q3 = factories.question.create(form=q1.form, parent=g1)
-        q4 = factories.question.create(form=q1.form)
-        q5 = factories.question.create(form=q1.form)
+        g1_q1 = factories.question.create(form=q1.form, parent=g1)
+        g1_q2 = factories.question.create(form=q1.form, parent=g1)
+        q2 = factories.question.create(form=q1.form)
+        q3 = factories.question.create(form=q1.form)
         g2 = factories.group.create(form=q1.form, add_another=True)
-        q6 = factories.question.create(form=q1.form, parent=g2)
+        g2_q1 = factories.question.create(form=q1.form, parent=g2)
 
-        assert components_in_valid_add_another_combination([q1, q2]) is False
-        assert components_in_valid_add_another_combination([q1, q2, None]) is False
-        assert components_in_valid_add_another_combination([q2, q3]) is True
-        assert components_in_valid_add_another_combination([q2, None, q3]) is True
-        assert components_in_valid_add_another_combination([q2, q3, q5]) is False
-        assert components_in_valid_add_another_combination([q2, q3, q5, None]) is False
-        assert components_in_valid_add_another_combination([q2, q4]) is False
-        assert components_in_valid_add_another_combination([q2, q4, None]) is False
-        assert components_in_valid_add_another_combination([q5, q4]) is True
-        assert components_in_valid_add_another_combination([q6, q4]) is False
-        assert components_in_valid_add_another_combination([q6, q3]) is False
-        assert components_in_valid_add_another_combination([q2, q3]) is True
-        assert components_in_valid_add_another_combination([q2, q3, q6]) is False
+        assert components_in_valid_add_another_combination([q1, g1_q1]) is False
+        assert components_in_valid_add_another_combination([q1, g1_q1, None]) is False
+        assert components_in_valid_add_another_combination([g1_q1, g1_q2]) is True
+        assert components_in_valid_add_another_combination([g1_q1, None, g1_q2]) is True
+        assert components_in_valid_add_another_combination([g1_q1, g1_q2, q3]) is False
+        assert components_in_valid_add_another_combination([g1_q1, g1_q2, q3, None]) is False
+        assert components_in_valid_add_another_combination([g1_q1, q2]) is False
+        assert components_in_valid_add_another_combination([g1_q1, q2, None]) is False
+        assert components_in_valid_add_another_combination([q3, q2]) is True
+        assert components_in_valid_add_another_combination([g2_q1, q2]) is False
+        assert components_in_valid_add_another_combination([g2_q1, g1_q2]) is False
+        assert components_in_valid_add_another_combination([g1_q1, g1_q2]) is True
+        assert components_in_valid_add_another_combination([g1_q1, g1_q2, g2_q1]) is False
 
 
 class TestValidateAndSyncExpressionReferences:
@@ -3604,23 +3674,6 @@ class TestValidateAndSyncExpressionReferences:
         assert reference.component == dependent_question
         assert reference.expression == expression
         assert reference.depends_on_component == referenced_question
-
-    def test_raises_not_implemented_for_unmanaged_expression(self, db_session, factories):
-        user = factories.user.create()
-        question = factories.question.create()
-
-        expression = Expression(
-            statement="1 + 1",
-            context={},
-            created_by=user,
-            type_=ExpressionType.CONDITION,
-            managed_name=None,
-        )
-        question.expressions.append(expression)
-        db_session.add(expression)
-
-        with pytest.raises(NotImplementedError):
-            _validate_and_sync_expression_references(expression)
 
     def test_replaces_existing_component_references(self, db_session, factories):
         user = factories.user.create()
@@ -3900,6 +3953,34 @@ class TestValidateAndSyncExpressionReferences:
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_and_sync_expression_references(expression)
+
+    def test_creates_component_references_for_custom_expression(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        q0, q1, q2, q3 = factories.question.create_batch(4, form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            CustomExpression(
+                custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+                custom_message=f"The answer must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
+                f" and a random reference to (({q0.safe_qid}))",
+            ),
+            ExpressionType.VALIDATION,
+            user,
+        )
+        q3.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+
+        assert len(expression.component_references) == 4
+
+        assert all(ref.component == q3 for ref in expression.component_references)
+        assert all(ref.expression == expression for ref in expression.component_references)
+        assert all(ref.depends_on_component in {q0, q1, q2, q3} for ref in expression.component_references)
 
 
 class TestValidateAndSyncComponentReferences:
@@ -4571,6 +4652,24 @@ class TestValidateReference:
                 question_to_test=None,
             )
 
+    def test_validate_reference_valid_reference_to_self(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+
+        expression_context = ExpressionContext.build_expression_context(form.collection, "interpolation", None, None)
+
+        assert (
+            _validate_reference(
+                wrapped_reference=f"(({q2.safe_qid}))",
+                attached_to_component=q2,
+                expression_context=expression_context,
+                expression_type=ExpressionType.VALIDATION,
+                field_name_for_error_message="custom_expression",
+                question_to_test=None,
+            )
+            == q2.safe_qid
+        )
+
     def test_custom_expression_bad_order(self, factories):
         form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
@@ -4673,3 +4772,20 @@ class TestValidateReference:
                 )
                 == q1.safe_qid
             )
+
+
+class TestAddQuestionValidationCustomExpression:
+    def test_create_custom_validation_expression_valid(self, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
+        user = factories.user.create()
+        custom_expr = CustomExpression(
+            custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+            custom_message="Q3 must be less than Q1+Q2",
+        )
+
+        collections.add_question_validation(question=q3, user=user, evaluatable_expression=custom_expr)
+
+        q3_from_db = get_question_by_id(q3.id)
+        assert len(q3_from_db.expressions) == 1
+        assert len(q3_from_db.owned_component_references) == 3

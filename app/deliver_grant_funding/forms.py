@@ -562,12 +562,14 @@ class AddContextSelectSourceForm(FlaskForm):
         current_component: TOptional[Component],
         parent_component: TOptional[Group] = None,
         ff_show_new_context_sources: bool = False,  # TODO: remove when implementation is fully released
+        include_this_question: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
         self.form = form
         self.current_component = current_component
         self.parent_component = parent_component
+        self.include_this_question = include_this_question
 
         # TODO: remove this when implementation for referencing previous sections+collections is ready to release.
         if ff_show_new_context_sources:
@@ -583,7 +585,21 @@ class AddContextSelectSourceForm(FlaskForm):
                 ),
             ]
 
+        if include_this_question:
+            self.data_source.choices.insert(
+                0,
+                (
+                    "THIS_QUESTION",
+                    "This question",
+                ),
+            )
+
     def validate_data_source(self, field: Field) -> None:
+        choice = None
+
+        if field.data == "THIS_QUESTION" and not self.include_this_question:
+            raise ValidationError("You cannot select this question")
+
         try:
             choice = ExpressionContext.ContextSources[field.data]
         except KeyError:
