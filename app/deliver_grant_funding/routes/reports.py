@@ -101,6 +101,7 @@ from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import AllSubmissionsHelper, SubmissionHelper
+from app.common.helpers.visibility import CollectionDependencyGraph
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -842,6 +843,7 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
         db_form=db_form,
         delete_form=delete_wtform,
         form=preview_form,
+        collection_dependency_graph=CollectionDependencyGraph(db_form.collection),
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
     )
 
@@ -884,6 +886,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         db_form=group.form,
         delete_form=delete_wtform,
         group=group,
+        collection_dependency_graph=CollectionDependencyGraph(group.form.collection),
         interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
     )
 

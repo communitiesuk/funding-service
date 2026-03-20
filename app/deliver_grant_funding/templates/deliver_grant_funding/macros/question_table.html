@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {# interactively display questions for a given form or question group #}
-{% macro question_table(parent, interpolate, role_can_edit=false, enum=None) %}
+{% macro question_table(parent, interpolate, collection_dependency_graph, role_can_edit=false, enum=None) %}
   {% set grant = parent.form.collection.grant if parent.is_group else parent.collection.grant %}
 
   {% set components = [] %}
@@ -29,7 +29,7 @@
       {% else %}
         {{ interpolate(question.text, with_interpolation_highlighting=True) }}
       {% endif %}
-      {% if role_can_edit and question.is_self_conditional %}
+      {% if role_can_edit and collection_dependency_graph.is_conditional_ignoring_parents(question) %}
         {{
           govukTag({
             "text": "Conditional",
