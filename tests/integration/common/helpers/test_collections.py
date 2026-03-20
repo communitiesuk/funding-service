@@ -2353,7 +2353,7 @@ class TestSubmissionValidation:
         submission.data_manager.set(q1, IntegerAnswer(value=150))
         helper.cached_get_answer_for_question.cache_clear()
         helper.cached_evaluation_context = ExpressionContext.build_expression_context(
-            collection=submission.collection, submission_helper=helper, mode="evaluation"
+            collection=submission.collection, data_manager=helper.submission.data_manager, mode="evaluation"
         )
 
         with pytest.raises(ValueError) as e:
@@ -2424,7 +2424,7 @@ class TestSubmissionValidation:
         submission.data_manager.set(q1, IntegerAnswer(value=150))
         helper.cached_get_answer_for_question.cache_clear()
         helper.cached_evaluation_context = ExpressionContext.build_expression_context(
-            collection=submission.collection, submission_helper=helper, mode="evaluation"
+            collection=submission.collection, data_manager=helper.submission.data_manager, mode="evaluation"
         )
 
         with pytest.raises(ValueError) as e:

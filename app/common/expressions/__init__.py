@@ -11,6 +11,7 @@ import simpleeval
 from markupsafe import Markup, escape
 from pydantic import BaseModel
 
+from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import ManagedExpressionsEnum
 from app.common.exceptions import WTFormRenderableException
 from app.common.qid import SafeQidMixin
@@ -18,7 +19,6 @@ from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Component, Expression, Group, Question
-    from app.common.helpers.collections import SubmissionHelper
     from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 
 INTERPOLATE_REGEX = re.compile(r"\(\(([^\(]+?)\)\)")
@@ -190,7 +190,7 @@ class ExpressionContext(ChainMap[str, Any]):
     def with_add_another_context(
         self,
         component: Component,
-        submission_helper: SubmissionHelper,
+        data_manager: SubmissionDataManager,
         *,
         add_another_index: int,
         allow_new_index: bool = False,
@@ -207,7 +207,7 @@ class ExpressionContext(ChainMap[str, Any]):
             raise ValueError("add_another_context can only be set for add another components")
 
         if allow_new_index:
-            count = submission_helper.get_count_for_add_another(component.add_another_container)
+            count = data_manager.get_count_for_add_another(component.add_another_container)
             if add_another_index == count:
                 return self
 
@@ -221,7 +221,7 @@ class ExpressionContext(ChainMap[str, Any]):
 
         add_another_context: dict[str, Any] = {}
         for question in questions:
-            answer = submission_helper.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
+            answer = data_manager.get(question, add_another_index=add_another_index)
             if answer is not None:
                 add_another_context[question.safe_qid] = (
                     answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
@@ -277,7 +277,7 @@ class ExpressionContext(ChainMap[str, Any]):
         collection: Collection,
         mode: Literal["evaluation", "interpolation"],
         expression_context_end_point: Component | None = None,
-        submission_helper: SubmissionHelper | None = None,
+        data_manager: SubmissionDataManager | None = None,
     ) -> ExpressionContext:
         """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
 
@@ -286,14 +286,12 @@ class ExpressionContext(ChainMap[str, Any]):
             "update this method and the ContextSourceChoices enum"
         )
 
-        if submission_helper and submission_helper.collection.id != collection.id:
-            raise ValueError("Mismatch between collection and submission.collection")
-
         # TODO: Namespace this set of data, eg under a `this_submission` prefix/key
         submission_data = ExpressionContext._build_submission_data(
             mode=mode,
             expression_context_end_point=expression_context_end_point,
-            submission_helper=submission_helper,
+            collection=collection,
+            data_manager=data_manager,
         )
 
         # TODO: FSPT-1142 centralise this iteration/filtering logic; duplicated below
@@ -319,11 +317,12 @@ class ExpressionContext(ChainMap[str, Any]):
     def _build_submission_data(
         mode: Literal["evaluation", "interpolation"],
         expression_context_end_point: Component | None = None,
-        submission_helper: SubmissionHelper | None = None,
+        collection: Collection | None = None,
+        data_manager: SubmissionDataManager | None = None,
     ) -> dict[str, Any]:
         submission_data: dict[str, Any] = {}
-        if submission_helper:
-            for form in submission_helper.collection.forms:
+        if collection and data_manager:
+            for form in collection.forms:
                 for question in form.cached_questions:
                     # TODO: FSPT-1142 centralise this iteration/filtering logic; duplicated above
                     if expression_context_end_point and (
@@ -339,7 +338,7 @@ class ExpressionContext(ChainMap[str, Any]):
                     # until we do support aggregate methods in expressions we only support add another
                     # question answers through an explicit `with_add_another_context` which sets the context
                     if not question.add_another_container:
-                        answer = submission_helper.cached_get_answer_for_question(question.id)
+                        answer = data_manager.get(question)
                         if answer is not None:
                             submission_data[question.safe_qid] = (
                                 answer.get_value_for_evaluation()

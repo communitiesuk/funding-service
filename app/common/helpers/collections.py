@@ -150,7 +150,7 @@ class SubmissionHelper:
             context=ExpressionContext.build_expression_context(
                 collection=collection,
                 mode="interpolation",
-                submission_helper=submission_helper,
+                data_manager=submission_helper.submission.data_manager if submission_helper else None,
             ),
         )
 
@@ -158,7 +158,7 @@ class SubmissionHelper:
     def cached_evaluation_context(self) -> ExpressionContext:
         return ExpressionContext.build_expression_context(
             collection=self.submission.collection,
-            submission_helper=self,
+            data_manager=self.submission.data_manager,
             mode="evaluation",
         )
 
@@ -166,7 +166,7 @@ class SubmissionHelper:
     def cached_interpolation_context(self) -> ExpressionContext:
         return ExpressionContext.build_expression_context(
             collection=self.submission.collection,
-            submission_helper=self,
+            data_manager=self.submission.data_manager,
             mode="interpolation",
         )
 
@@ -403,7 +403,7 @@ class SubmissionHelper:
                     # check each of this questions answers for each entry being complete
                     for i in range(number_of_add_another_entries):
                         context = self.cached_evaluation_context.with_add_another_context(
-                            question, submission_helper=self, add_another_index=i
+                            question, data_manager=self.submission.data_manager, add_another_index=i
                         )
                         if self.is_component_visible(question, context):
                             question_answer_status.append(
@@ -613,7 +613,10 @@ class SubmissionHelper:
         try:
             if component.add_another_container and add_another_index is not None:
                 context = context.with_add_another_context(
-                    component, submission_helper=self, add_another_index=add_another_index, allow_new_index=True
+                    component,
+                    data_manager=self.submission.data_manager,
+                    add_another_index=add_another_index,
+                    allow_new_index=True,
                 )
             # Note that to check component visibility we separate reference and condition checks
             # (instead of relying on full_condition_chain)
@@ -1089,7 +1092,7 @@ class SubmissionHelper:
         context_override = None
         if question.add_another_container and add_another_index is not None:
             context_override = self.cached_evaluation_context.with_add_another_context(
-                question, submission_helper=self, add_another_index=add_another_index
+                question, data_manager=self.submission.data_manager, add_another_index=add_another_index
             )
 
         questions = self.cached_get_ordered_visible_questions(
@@ -1114,7 +1117,10 @@ class SubmissionHelper:
         context_override = None
         if question.add_another_container and add_another_index is not None:
             context_override = self.cached_evaluation_context.with_add_another_context(
-                question, submission_helper=self, add_another_index=add_another_index, allow_new_index=True
+                question,
+                data_manager=self.submission.data_manager,
+                add_another_index=add_another_index,
+                allow_new_index=True,
             )
 
         questions = self.cached_get_ordered_visible_questions(
@@ -1139,7 +1145,7 @@ class SubmissionHelper:
             return AddAnotherAnswerSummary(summary="", is_answered=False)
 
         context = self.cached_evaluation_context.with_add_another_context(
-            submission_helper=self, component=component, add_another_index=add_another_index
+            data_manager=self.submission.data_manager, component=component, add_another_index=add_another_index
         )
         visible_questions = (
             self.cached_get_ordered_visible_questions(component.add_another_container, override_context=context)
@@ -1328,7 +1334,7 @@ class CollectionHelper:
                         if not context:
                             context = submission.cached_evaluation_context.with_add_another_context(
                                 question.add_another_container,
-                                submission_helper=submission,
+                                data_manager=submission.submission.data_manager,
                                 add_another_index=index,
                             )
                             cached_contexts[context_key] = context
@@ -1395,7 +1401,9 @@ class CollectionHelper:
                                 entry = {}
 
                                 context = submission.cached_evaluation_context.with_add_another_context(
-                                    question.add_another_container, submission_helper=submission, add_another_index=i
+                                    question.add_another_container,
+                                    data_manager=submission.submission.data_manager,
+                                    add_another_index=i,
                                 )
                                 for q in submission.cached_get_ordered_visible_questions(
                                     question.add_another_container, override_context=context
