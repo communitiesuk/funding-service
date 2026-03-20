@@ -12,7 +12,6 @@ from app.common.collections.forms import (
     ConfirmRemoveAddAnotherForm,
     build_question_form,
 )
-from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
@@ -343,7 +342,7 @@ class FormRunner:
 
     def validate_submission(self) -> bool:
         try:
-            SubmissionValidator(self.submission).validate_all_reachable_questions()
+            self.submission.validator.validate_all_reachable_questions()
             return True
         except SubmissionValidationFailed as e:
             self._tasklist_form.submit.errors.append(e.error_message)  # type:ignore[attr-defined]

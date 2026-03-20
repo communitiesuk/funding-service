@@ -3,7 +3,6 @@ import uuid
 import pytest
 
 from app.common.collections.types import IntegerAnswer, YesNoAnswer
-from app.common.collections.validation import SubmissionValidator
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.exceptions import SubmissionValidationFailed
 from app.common.helpers.collections import SubmissionHelper
@@ -27,9 +26,7 @@ class TestSubmissionValidator:
         submission.data_manager.set(q1, IntegerAnswer(value=50))
         submission.data_manager.set(q2, IntegerAnswer(value=100))
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
-        assert validator.validate_all_reachable_questions() is None
+        assert SubmissionHelper(submission).validator.validate_all_reachable_questions() is None
 
     def test_invalid_answer_caught(self, factories):
         form = factories.form.build()
@@ -48,10 +45,8 @@ class TestSubmissionValidator:
         submission.data_manager.set(q1, IntegerAnswer(value=100))
         submission.data_manager.set(q2, IntegerAnswer(value=50))
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
         with pytest.raises(SubmissionValidationFailed) as e:
-            validator.validate_all_reachable_questions()
+            SubmissionHelper(submission).validator.validate_all_reachable_questions()
 
         errors = e.value.errors
         assert len(errors) == 1
@@ -85,10 +80,8 @@ class TestSubmissionValidator:
         submission.data_manager.set(q2, IntegerAnswer(value=30))
         submission.data_manager.set(q3, IntegerAnswer(value=70))
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
         with pytest.raises(SubmissionValidationFailed) as e:
-            validator.validate_all_reachable_questions()
+            SubmissionHelper(submission).validator.validate_all_reachable_questions()
 
         errors = e.value.errors
         assert len(errors) == 2
@@ -120,9 +113,7 @@ class TestSubmissionValidator:
         submission.data_manager.set(q1, YesNoAnswer(False))
         submission.data_manager.set(q2, IntegerAnswer(value=50))
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
-        assert validator.validate_all_reachable_questions() is None
+        assert SubmissionHelper(submission).validator.validate_all_reachable_questions() is None
 
     def test_changed_validation_rules(self, factories):
         form = factories.form.build()
@@ -141,17 +132,13 @@ class TestSubmissionValidator:
         submission.data_manager.set(q1, IntegerAnswer(value=50))
         submission.data_manager.set(q2, IntegerAnswer(value=100))
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
+        validator = SubmissionHelper(submission).validator
         assert validator.validate_all_reachable_questions() is None
 
         submission.data_manager.set(q1, IntegerAnswer(value=150))
-        helper.cached_get_answer_for_question.cache_clear()
-
-        del helper.cached_evaluation_context
 
         with pytest.raises(SubmissionValidationFailed) as e:
-            validator.validate_all_reachable_questions()
+            SubmissionHelper(submission).validator.validate_all_reachable_questions()
 
         errors = e.value.errors
         assert len(errors) == 1
@@ -166,9 +153,7 @@ class TestSubmissionValidator:
         submission.data_manager.set(q1, IntegerAnswer(value=50))
         submission.data_manager.set(q2, IntegerAnswer(value=100))
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
-        assert validator.validate_all_reachable_questions() is None
+        assert SubmissionHelper(submission).validator.validate_all_reachable_questions() is None
 
     def test_unanswered_questions_skipped(self, factories):
         form = factories.form.build()
@@ -186,10 +171,7 @@ class TestSubmissionValidator:
         submission = factories.submission.build(collection=form.collection)
         submission.data_manager.set(q1, IntegerAnswer(value=50))
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
-
-        assert validator.validate_all_reachable_questions() is None
+        assert SubmissionHelper(submission).validator.validate_all_reachable_questions() is None
 
     def test_add_another_all_entries_valid(self, factories):
         form = factories.form.build()
@@ -211,9 +193,7 @@ class TestSubmissionValidator:
         submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=1)
         submission.data_manager.set(q1, IntegerAnswer(value=30), add_another_index=2)
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
-        assert validator.validate_all_reachable_questions() is None
+        assert SubmissionHelper(submission).validator.validate_all_reachable_questions() is None
 
     def test_add_another_invalid_entry_caught(self, factories):
         form = factories.form.build()
@@ -235,11 +215,8 @@ class TestSubmissionValidator:
         submission.data_manager.set(q1, IntegerAnswer(value=-5), add_another_index=1)
         submission.data_manager.set(q1, IntegerAnswer(value=30), add_another_index=2)
 
-        helper = SubmissionHelper(submission)
-        validator = SubmissionValidator(helper)
-
         with pytest.raises(SubmissionValidationFailed) as e:
-            validator.validate_all_reachable_questions()
+            SubmissionHelper(submission).validator.validate_all_reachable_questions()
 
         errors = e.value.errors
         assert len(errors) == 1
