@@ -5,13 +5,11 @@ import pytest
 
 from app import CollectionStatusEnum
 from app.common.collections.types import DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
-from app.common.data.models import ComponentReference, get_ordered_nested_components
+from app.common.data.models import get_ordered_nested_components
 from app.common.data.types import (
-    ConditionsOperator,
     DataSourceSchema,
     DataSourceSchemaColumn,
     DataSourceType,
-    ExpressionType,
     NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
@@ -236,141 +234,6 @@ class TestGrantAccessReports:
         assert results[3].id == report5.id
         assert results[4].id == report4.id
         assert results[5].id == report0.id
-
-
-class TestFullConditionChain:
-    def test_no_conditions(self, factories):
-        q = factories.question.build()
-        assert q.full_condition_chain == []
-
-    def test_own_condition(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        q2 = factories.question.build(form=form)
-        cond = factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="True")
-        q2.owned_component_references = [ComponentReference(component=q2, expression=cond, depends_on_component=q1)]
-        assert q2.full_condition_chain == [(ConditionsOperator.ALL, [cond])]
-
-    def test_chain_collects_transitive_conditions(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        q2 = factories.question.build(form=form)
-        q3 = factories.question.build(form=form)
-        cond_q2 = factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="True")
-        cond_q3 = factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement="True")
-        q2.owned_component_references = [ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)]
-        q3.owned_component_references = [ComponentReference(component=q3, expression=cond_q3, depends_on_component=q2)]
-        assert q3.full_condition_chain == [(ConditionsOperator.ALL, [cond_q2]), (ConditionsOperator.ALL, [cond_q3])]
-
-    def test_does_not_revisit_components(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        q2 = factories.question.build(form=form)
-        q3 = factories.question.build(form=form)
-        cond_q2 = factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="True")
-        cond_q3 = factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement="True")
-        q2.owned_component_references = [ComponentReference(component=q2, expression=cond_q2, depends_on_component=q1)]
-        q3.owned_component_references = [
-            ComponentReference(component=q3, expression=cond_q3, depends_on_component=q2),
-            ComponentReference(component=q3, depends_on_component=q1),
-        ]
-        assert q3.full_condition_chain == [(ConditionsOperator.ALL, [cond_q2]), (ConditionsOperator.ALL, [cond_q3])]
-
-    def test_skips_self_references(self, factories):
-        q = factories.question.build()
-        cond = factories.expression.build(question=q, type_=ExpressionType.CONDITION, statement="True")
-        q.owned_component_references = [ComponentReference(component=q, expression=cond, depends_on_component=q)]
-        assert q.full_condition_chain == [(ConditionsOperator.ALL, [cond])]
-
-    def test_excludes_validation_expressions(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        q2 = factories.question.build(form=form)
-        cond = factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="True")
-        factories.expression.build(question=q2, type_=ExpressionType.VALIDATION, statement="len(value) > 0")
-        q2.owned_component_references = [ComponentReference(component=q2, expression=cond, depends_on_component=q1)]
-        assert q2.full_condition_chain == [(ConditionsOperator.ALL, [cond])]
-
-    def test_parent_conditions(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        group = factories.group.build(form=q1.form)
-        cond = factories.expression.build(question=group, type_=ExpressionType.CONDITION, statement="True")
-        cr = ComponentReference(component=group, depends_on_component=q1)
-        cond.component_references = [cr]
-        group.owned_component_references = [cr]
-        q2 = factories.question.build(parent=group)
-        assert len(q2.get_full_condition_chain(ignore_parents=True)) == 0
-        assert len(q2.get_full_condition_chain(ignore_parents=False)) == 1
-
-
-class TestAllConditionalDependedOnComponents:
-    def test_no_conditions(self, factories):
-        q = factories.question.build()
-        assert q.all_conditional_depended_on_components == set()
-
-    def test_single_condition(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        q2 = factories.question.build(form=form)
-        cond = factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="True")
-        cr = ComponentReference(component=q2, depends_on_component=q1)
-        cond.component_references = [cr]
-        q2.owned_component_references = [cr]
-        assert q2.all_conditional_depended_on_components == {q2}
-
-    def test_chain_returns_all_conditional_components(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        q2 = factories.question.build(form=form)
-        q3 = factories.question.build(form=form)
-        cond_q2 = factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="True")
-        cond_q3 = factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement="True")
-        cr_q2 = ComponentReference(component=q2, depends_on_component=q1)
-        cond_q2.component_references = [cr_q2]
-        q2.owned_component_references = [cr_q2]
-        cr_q3 = ComponentReference(component=q3, depends_on_component=q2)
-        cond_q3.component_references = [cr_q3]
-        q3.owned_component_references = [cr_q3]
-        assert q3.all_conditional_depended_on_components == {q3, q2}
-
-    def test_condition_without_component_references_excluded(self, factories):
-        q = factories.question.build()
-        factories.expression.build(question=q, type_=ExpressionType.CONDITION, statement="False")
-        assert q.all_conditional_depended_on_components == set()
-
-
-class TestIsSelfConditional:
-    def test_not_conditional(self, factories):
-        q = factories.question.build()
-        assert q.is_self_conditional is False
-
-    def test_is_conditional(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        q2 = factories.question.build(form=form)
-        cond = factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement="True")
-        cr = ComponentReference(component=q2, depends_on_component=q1)
-        cond.component_references = [cr]
-        q2.owned_component_references = [cr]
-        assert q2.is_self_conditional is True
-
-    def test_conditional_with_hardcoded_conditions(self, factories):
-        q = factories.question.build()
-        factories.expression.build(question=q, type_=ExpressionType.CONDITION, statement="False")
-        assert q.is_self_conditional is True
-
-    def test_ignores_conditions_on_parent(self, factories):
-        form = factories.form.build()
-        q1 = factories.question.build(form=form)
-        group = factories.group.build(form=q1.form)
-        cond = factories.expression.build(question=group, type_=ExpressionType.CONDITION, statement="True")
-        cr = ComponentReference(component=group, depends_on_component=q1)
-        cond.component_references = [cr]
-        group.owned_component_references = [cr]
-        q2 = factories.question.build(parent=group)
-        assert group.is_self_conditional is True
-        assert q2.is_self_conditional is False
 
 
 def _text_col(original_column_name: str) -> DataSourceSchemaColumn:
