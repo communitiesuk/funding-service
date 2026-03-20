@@ -34,6 +34,9 @@ export default defineConfig({
                 ],
             },
         },
+        lightningcss: {
+            errorRecovery: true,
+        },
     },
     plugins: [
         viteStaticCopy({
