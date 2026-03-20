@@ -69,7 +69,9 @@ class SubmissionValidator:
         context = self.helper.cached_evaluation_context
         if add_another_index is not None and question.add_another_container:
             context = context.with_add_another_context(
-                question.add_another_container, submission_helper=self.helper, add_another_index=add_another_index
+                question.add_another_container,
+                data_manager=self.helper.submission.data_manager,
+                add_another_index=add_another_index,
             )
 
         for validation_expr in question.validations:
@@ -111,7 +113,7 @@ class SubmissionValidator:
         count = self.helper.get_count_for_add_another(container)
         for index in range(count):
             context = self.helper.cached_evaluation_context.with_add_another_context(
-                container, submission_helper=self.helper, add_another_index=index
+                container, data_manager=self.helper.submission.data_manager, add_another_index=index
             )
 
             questions = (

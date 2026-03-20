@@ -576,7 +576,7 @@ class FormRunner:
         if self.add_another_index is not None and self.component and self.component.add_another_container:
             return self.submission.cached_evaluation_context.with_add_another_context(
                 self.component,
-                submission_helper=self.submission,
+                data_manager=self.submission.submission.data_manager,
                 add_another_index=self.add_another_index,
                 allow_new_index=True,
             )
@@ -587,7 +587,7 @@ class FormRunner:
         if self.add_another_index is not None and self.component and self.component.add_another_container:
             return self.submission.cached_interpolation_context.with_add_another_context(
                 self.component,
-                submission_helper=self.submission,
+                data_manager=self.submission.submission.data_manager,
                 add_another_index=self.add_another_index,
                 mode="interpolation",
                 allow_new_index=True,

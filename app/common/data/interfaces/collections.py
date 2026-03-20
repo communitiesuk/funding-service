@@ -2,7 +2,7 @@ import datetime
 import uuid
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
