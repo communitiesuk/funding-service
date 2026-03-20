@@ -6,6 +6,7 @@ from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
@@ -572,32 +573,69 @@ class SubmissionHelper:
 
         visited = visited | {component.id}
 
-        ref_state = self._check_reference_visibility(component, context, add_another_index, visited)
-        if ref_state != ComponentVisibilityState.VISIBLE:
-            return ref_state
-
         def evaluate_component_conditions(operator: ConditionsOperator, conditions: list[Expression]) -> bool:
             if not conditions:
                 return True
             match operator:
                 case ConditionsOperator.ANY:
-                    return any(evaluate(condition, context) for condition in conditions)
+                    # as any condition being satisfied should make this component visible, ensure missing
+                    # references for any of the conditions are handled
+                    # only raise exceptions for missing variables if we haven't already determined we are visible
+                    undefined_variable_exception: UndefinedVariableInExpression | None = None
+                    undefined_variable_traceback: TracebackType | None = None
+                    for condition in conditions:
+                        try:
+                            if evaluate(condition, context):
+                                return True
+                        except UndefinedVariableInExpression as e:
+                            undefined_variable_exception = e
+                            undefined_variable_traceback = e.__traceback__
+                    if undefined_variable_exception is not None:
+                        raise undefined_variable_exception.with_traceback(undefined_variable_traceback)
+                    return False
                 case ConditionsOperator.ALL:
                     return all(evaluate(condition, context) for condition in conditions)
                 case _:
                     raise RuntimeError(f"Unknown condition operator={operator}")
+
+        # check component references first to allow short circuiting
+        references_visibility = self._check_reference_visibility(component, context, add_another_index, visited)
+        if (
+            references_visibility != ComponentVisibilityState.VISIBLE
+            and component.conditions_operator != ConditionsOperator.ANY
+        ):
+            return references_visibility
 
         try:
             if component.add_another_container and add_another_index is not None:
                 context = context.with_add_another_context(
                     component, submission_helper=self, add_another_index=add_another_index
                 )
+            # Note that to check component visibility we separate reference and condition checks
+            # (instead of relying on full_condition_chain)
+            # as that allows us to make an exception for ANY operators for both reference short circuiting
+            # and condition evaluation
+            current = component.parent
+            while current:
+                visited = visited | {current.id}
+                # 1) checks the visibility for the component references, this can short-circuit evaluating conditions
+                #    of a reference is not visible - factors in the operator
+                references_visibility = self._check_reference_visibility(current, context, add_another_index, visited)
+                if (
+                    references_visibility != ComponentVisibilityState.VISIBLE
+                    and current.conditions_operator != ConditionsOperator.ANY
+                ):
+                    return references_visibility
 
-            for _operator, _conditions in component.full_condition_chain:
-                if not evaluate_component_conditions(_operator, _conditions):
+                # 2) evaluates the conditions for that component, if any, with its operator (ANY/ALL)
+                if not evaluate_component_conditions(current.conditions_operator, current.conditions):
                     return ComponentVisibilityState.HIDDEN
+                current = current.parent
 
-            return ComponentVisibilityState.VISIBLE
+            # no parent references or condition checks fail - evaluate this components conditions
+            if evaluate_component_conditions(component.conditions_operator, component.conditions):
+                return ComponentVisibilityState.VISIBLE
+            return ComponentVisibilityState.HIDDEN
 
         except UndefinedVariableInExpression:
             if not check_undetermined:

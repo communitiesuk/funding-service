@@ -776,6 +776,56 @@ class TestSubmissionHelper:
 
             assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
 
+        def test_any_operator_with_hidden_referenced_question(self, factories):
+            """Scenario: Q1 yes/no, Q2 yes/no (show if Q1=yes), Q3 text (show if Q1=no OR Q2=yes).
+
+            When Q1="no": Q2 is hidden (its condition Q1=="yes" fails). Q3 should be VISIBLE
+            because ANY only needs one condition — Q1=="no" is True.
+            When Q1="yes", Q2 unanswered: Q3 should be UNDETERMINED (Q1=="no" is False, Q2=="yes"
+            can't be evaluated yet).
+            When Q1="yes", Q2="yes": Q3 should be VISIBLE (Q2=="yes" passes).
+            When Q1="yes", Q2="no": Q3 should be HIDDEN (both conditions fail).
+            """
+            q1 = factories.question.build(order=0)
+            q2 = factories.question.build(form=q1.form, order=1)
+            factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'yes'")
+            q2.owned_component_references = [ComponentReference(component=q2, depends_on_component=q1)]
+
+            q3 = factories.question.build(form=q1.form, order=2, conditions_operator=ConditionsOperator.ANY)
+            factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} == 'no'")
+            factories.expression.build(question=q3, type_=ExpressionType.CONDITION, statement=f"{q2.safe_qid} == 'yes'")
+            q3.owned_component_references = [
+                ComponentReference(component=q3, depends_on_component=q1),
+                ComponentReference(component=q3, depends_on_component=q2),
+            ]
+
+            # Case 1: Q1="no" → Q2 hidden, Q3 visible (Q1=="no" is True)
+            submission = factories.submission.build(collection=q1.form.collection, data={str(q1.id): "no"})
+            helper = SubmissionHelper(submission)
+            assert helper.is_component_visible(q2, helper.cached_evaluation_context) is False
+            assert helper.is_component_visible(q3, helper.cached_evaluation_context) is True
+
+            # Case 2: Q1="yes", Q2 not answered → Q3 undetermined
+            submission = factories.submission.build(collection=q1.form.collection, data={str(q1.id): "yes"})
+            helper = SubmissionHelper(submission)
+            assert helper.is_component_visible(q2, helper.cached_evaluation_context) is True
+            visibility = helper.get_component_visibility_state(q3, helper.cached_evaluation_context)
+            assert visibility == ComponentVisibilityState.UNDETERMINED
+
+            # Case 3: Q1="yes", Q2="yes" → Q3 visible
+            submission = factories.submission.build(
+                collection=q1.form.collection, data={str(q1.id): "yes", str(q2.id): "yes"}
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.is_component_visible(q3, helper.cached_evaluation_context) is True
+
+            # Case 4: Q1="yes", Q2="no" → Q3 hidden
+            submission = factories.submission.build(
+                collection=q1.form.collection, data={str(q1.id): "yes", str(q2.id): "no"}
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.is_component_visible(q3, helper.cached_evaluation_context) is False
+
     class TestGetCountForAddAnother:
         def test_empty(self, db_session, factories):
             group = factories.group.build()
