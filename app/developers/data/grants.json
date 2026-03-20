@@ -4,6 +4,251 @@
       "collections": [
         {
           "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
+          "created_by_id": "aa5b487a-bac4-4a74-8025-fe335092a78c",
+          "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+          "id": "312004a7-496a-4ec8-9623-d7602122d8ab",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "Allocation form",
+          "requires_certification": false,
+          "requires_validation": true,
+          "slug": "allocation-form",
+          "status": "Open",
+          "submission_period_end_date": "Thu, 30 Apr 2026 00:00:00 GMT",
+          "submission_period_start_date": "Sun, 01 Mar 2026 00:00:00 GMT",
+          "type": "allocation"
+        },
+        {
+          "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
+          "created_by_id": "aa5b487a-bac4-4a74-8025-fe335092a78c",
+          "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+          "id": "5589d717-e287-444b-a086-c4a93b24d9e1",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "Top up 2026 - Expression of interest",
+          "requires_certification": true,
+          "requires_validation": false,
+          "slug": "expression-of-interest",
+          "status": "Open",
+          "submission_period_end_date": "Wed, 01 Apr 2026 00:00:00 GMT",
+          "submission_period_start_date": "Sun, 01 Mar 2026 00:00:00 GMT",
+          "type": "expression of interest"
+        }
+      ],
+      "component_references": [],
+      "data_source_items": [
+        {
+          "data_source_id": "6c88b431-b59c-4c8a-b790-b91843848d3e",
+          "id": "18d6e881-73d9-47af-b756-c0ea10f93d43",
+          "key": "more-information-required",
+          "label": "More information required",
+          "order": 2
+        },
+        {
+          "data_source_id": "6c88b431-b59c-4c8a-b790-b91843848d3e",
+          "id": "d358e19e-3620-4061-afd5-3d4079b2831b",
+          "key": "yes",
+          "label": "Yes",
+          "order": 0
+        },
+        {
+          "data_source_id": "6c88b431-b59c-4c8a-b790-b91843848d3e",
+          "id": "f8aed2d3-a2aa-4c54-8aff-2c53ba6b6b29",
+          "key": "no",
+          "label": "No",
+          "order": 1
+        }
+      ],
+      "data_sources": [
+        {
+          "id": "6c88b431-b59c-4c8a-b790-b91843848d3e",
+          "question_id": "a480decf-f611-4bf4-bea4-49adc7dc98de"
+        }
+      ],
+      "expressions": [],
+      "forms": [
+        {
+          "collection_id": "312004a7-496a-4ec8-9623-d7602122d8ab",
+          "id": "6fea6941-5cfb-4804-9668-b3f3e898903c",
+          "order": 2,
+          "slug": "contact-information",
+          "title": "Contact information"
+        },
+        {
+          "collection_id": "5589d717-e287-444b-a086-c4a93b24d9e1",
+          "id": "766108df-1b32-4411-ac8e-38bde2c5963f",
+          "order": 1,
+          "slug": "extra-spend-application",
+          "title": "Extra spend application "
+        },
+        {
+          "collection_id": "312004a7-496a-4ec8-9623-d7602122d8ab",
+          "id": "95a8d8c7-443d-484e-b8e7-c847cb62980e",
+          "order": 1,
+          "slug": "project-information",
+          "title": "Project information"
+        },
+        {
+          "collection_id": "312004a7-496a-4ec8-9623-d7602122d8ab",
+          "id": "c1ecabb4-eaa2-4b0a-bcd9-f3241f24dd2c",
+          "order": 0,
+          "slug": "your-allocation",
+          "title": "Your allocation"
+        },
+        {
+          "collection_id": "5589d717-e287-444b-a086-c4a93b24d9e1",
+          "id": "d231e5b4-1a19-4ce2-94ec-55c866850f8c",
+          "order": 0,
+          "slug": "financial-information",
+          "title": "Financial information"
+        }
+      ],
+      "grant": {
+        "code": "BAIP",
+        "description": "To demonstrate an allocated grant that needs a validation process but starts by knowing who should be offered funding.",
+        "ggis_number": "G2-SCH-2025-05-12347",
+        "id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+        "name": "Benches allocated in parks",
+        "primary_contact_email": "steven.fountain@communities.gov.uk",
+        "primary_contact_name": "Steven Fountain",
+        "status": "live"
+      },
+      "grant_recipients": [
+        {
+          "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+          "id": "18351b5a-dbc0-4a6b-9588-1e1f3d34aca4",
+          "mode": "live",
+          "organisation_id": "617e1c90-ce6d-4f0e-b397-fc60d7fa5033",
+          "status": "allocated"
+        },
+        {
+          "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+          "id": "7311aa09-661d-4fd2-b150-b11bbab0e07d",
+          "mode": "live",
+          "organisation_id": "13840660-99cd-436d-ac3d-03df7b23e95f",
+          "status": "allocated"
+        },
+        {
+          "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+          "id": "b099711a-a1d4-4ea5-86e9-d9b400ef8690",
+          "mode": "live",
+          "organisation_id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+          "status": "allocated"
+        },
+        {
+          "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+          "id": "b22745f7-f88a-4bbf-9369-7a6889eae408",
+          "mode": "live",
+          "organisation_id": "2182641c-b6b2-49d9-9e26-2018e496acb5",
+          "status": "allocated"
+        },
+        {
+          "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+          "id": "b3bf077d-19bc-40a7-a8dc-ab7f7ec0f27f",
+          "mode": "live",
+          "organisation_id": "8b425ad4-68ad-4089-b7e8-6cde8213e215",
+          "status": "allocated"
+        },
+        {
+          "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+          "id": "f1b610a1-d8f6-4326-8a65-d636255fc6a9",
+          "mode": "live",
+          "organisation_id": "d26212f3-a01a-4683-bbac-1d1c4d581c40",
+          "status": "allocated"
+        }
+      ],
+      "questions": [
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Single line of text",
+          "form_id": "95a8d8c7-443d-484e-b8e7-c847cb62980e",
+          "hint": "",
+          "id": "17c66ad6-db2c-423f-a6f4-20f71df9c6e4",
+          "name": "project name",
+          "order": 0,
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-the-project",
+          "text": "What is the name of the project?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Multiple lines of text",
+          "form_id": "766108df-1b32-4411-ac8e-38bde2c5963f",
+          "hint": "",
+          "id": "5dd75dca-4bf2-48db-b6fd-ecf1962ba61c",
+          "name": "the extra money",
+          "order": 0,
+          "presentation_options": {
+            "rows": 5
+          },
+          "slug": "what-do-you-need-the-extra-money-for",
+          "text": "What do you need the extra money for?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Select one from a list (radios)",
+          "form_id": "c1ecabb4-eaa2-4b0a-bcd9-f3241f24dd2c",
+          "hint": "",
+          "id": "a480decf-f611-4bf4-bea4-49adc7dc98de",
+          "name": "do you want to",
+          "order": 0,
+          "presentation_options": {
+            "last_data_source_item_is_distinct_from_others": true
+          },
+          "slug": "do-you-want-to-receive-the-grant-allocation",
+          "text": "Do you want to receive the grant allocation?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Single line of text",
+          "form_id": "6fea6941-5cfb-4804-9668-b3f3e898903c",
+          "hint": "",
+          "id": "b8c7f02c-2221-402d-a3f7-7c9f3abcf594",
+          "name": "lead contact name",
+          "order": 0,
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-the-lead-contact",
+          "text": "What is the name of the lead contact?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "d231e5b4-1a19-4ce2-94ec-55c866850f8c",
+          "hint": "",
+          "id": "d10a0953-91a0-4868-957e-9905ccfaf115",
+          "name": "amount of spend",
+          "order": 0,
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-much-money-will-you-spend",
+          "text": "How much money will you spend?",
+          "type": "QUESTION"
+        }
+      ]
+    },
+    {
+      "collections": [
+        {
+          "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
           "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "0b264b13-eacd-4ccc-b187-9fcdb23c8c7a",
@@ -20,6 +265,7 @@
         },
         {
           "allow_multiple_submissions": true,
+          "allow_public_sign_up": false,
           "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "12aec68d-f89c-430e-ba66-9e2f43459fc0",
@@ -34,6 +280,7 @@
         },
         {
           "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -46,6 +293,7 @@
         },
         {
           "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "a0718715-0d99-49f9-98e5-3c764f4a21ca",
@@ -62,6 +310,7 @@
         },
         {
           "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "f8b061f2-8f9d-43d3-8ff7-d9da0f8048f5",
@@ -1334,13 +1583,15 @@
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4058b3cf-e06c-4c5a-ba36-fe14c9dc0765",
           "mode": "test",
-          "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799"
+          "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
+          "status": "allocated"
         },
         {
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "7aa70608-4bd7-4326-bf6a-74010d30f696",
           "mode": "live",
-          "organisation_id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510"
+          "organisation_id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
+          "status": "allocated"
         }
       ],
       "questions": [
@@ -2253,6 +2504,7 @@
       "collections": [
         {
           "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
           "created_by_id": "acc47c80-8620-49d9-aa40-df1703286d43",
           "grant_id": "df51f309-718c-4dd4-bd76-0bd6df032e4b",
           "id": "09e8d677-5fce-4081-9434-eefac1348e12",
@@ -4125,6 +4377,394 @@
           "type": "QUESTION"
         }
       ]
+    },
+    {
+      "collections": [
+        {
+          "allow_multiple_submissions": false,
+          "allow_public_sign_up": true,
+          "created_by_id": "aa5b487a-bac4-4a74-8025-fe335092a78c",
+          "grant_id": "f10a65a4-eab3-4396-a30f-17f925f539b7",
+          "id": "842a9fe3-9270-4108-805e-47308a3fc204",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "Apply for funding for flowers in parks",
+          "requires_certification": false,
+          "requires_validation": true,
+          "slug": "apply-for-funding-for-flowers-in-parks",
+          "status": "Open",
+          "submission_period_end_date": "Tue, 31 Mar 2026 00:00:00 GMT",
+          "submission_period_start_date": "Sun, 01 Mar 2026 00:00:00 GMT",
+          "type": "application"
+        }
+      ],
+      "component_references": [],
+      "data_source_items": [],
+      "data_sources": [],
+      "expressions": [],
+      "forms": [
+        {
+          "collection_id": "842a9fe3-9270-4108-805e-47308a3fc204",
+          "id": "6ba70a8a-0b72-4142-9ad2-b692850c03bb",
+          "order": 0,
+          "slug": "financial-information",
+          "title": "Financial information"
+        },
+        {
+          "collection_id": "842a9fe3-9270-4108-805e-47308a3fc204",
+          "id": "b8a6dce1-9df6-4367-831f-ad21891c2619",
+          "order": 1,
+          "slug": "project-information",
+          "title": "Project information"
+        },
+        {
+          "collection_id": "842a9fe3-9270-4108-805e-47308a3fc204",
+          "id": "fa46d838-1bc8-49c7-85f8-69c61eb6f043",
+          "order": 2,
+          "slug": "contact-information",
+          "title": "Contact information"
+        }
+      ],
+      "grant": {
+        "code": "FCIP",
+        "description": "To demonstrate the process for a competed grant that would not know who will be applying in the first instance.",
+        "ggis_number": "G2-SCH-2025-05-12348",
+        "id": "f10a65a4-eab3-4396-a30f-17f925f539b7",
+        "name": "Flowers competed in parks",
+        "primary_contact_email": "steven.fountain@communities.gov.uk",
+        "primary_contact_name": "Steven Fountain",
+        "status": "live"
+      },
+      "grant_recipients": [
+        {
+          "grant_id": "f10a65a4-eab3-4396-a30f-17f925f539b7",
+          "id": "308b4f41-27f4-4f22-9718-eb04cde8819a",
+          "mode": "live",
+          "organisation_id": "8b425ad4-68ad-4089-b7e8-6cde8213e215",
+          "status": "applying"
+        }
+      ],
+      "questions": [
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "b8a6dce1-9df6-4367-831f-ad21891c2619",
+          "hint": "",
+          "id": "03110087-40b7-4543-9596-d7b2aff56706",
+          "name": "number of projects",
+          "order": 0,
+          "presentation_options": {
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-many-projects-will-you-be-delivering-with-this-money",
+          "text": "How many projects will you be delivering with this money?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Single line of text",
+          "form_id": "fa46d838-1bc8-49c7-85f8-69c61eb6f043",
+          "hint": "",
+          "id": "2350e0f0-6e67-425c-8858-e3ea58d857c3",
+          "name": "lead contact name",
+          "order": 0,
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-the-lead-contact",
+          "text": "What is the name of the lead contact?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Single line of text",
+          "form_id": "b8a6dce1-9df6-4367-831f-ad21891c2619",
+          "hint": "",
+          "id": "7d208fed-20ca-4e1b-aede-d8d442b88419",
+          "name": "project name",
+          "order": 1,
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-the-project",
+          "text": "What is the name of the project?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Email address",
+          "form_id": "fa46d838-1bc8-49c7-85f8-69c61eb6f043",
+          "hint": "",
+          "id": "9065edc8-7f7b-4fb0-9d63-09a22e1d8f98",
+          "name": "lead contact email",
+          "order": 1,
+          "presentation_options": {},
+          "slug": "what-is-the-email-of-the-lead-contact",
+          "text": "What is the email of the lead contact?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "6ba70a8a-0b72-4142-9ad2-b692850c03bb",
+          "hint": "",
+          "id": "c4e9ba3d-edb0-4491-8b2a-4ecf4cac21d6",
+          "name": "amount of money",
+          "order": 0,
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-much-money-are-you-projected-to-spend",
+          "text": "How much money are you projected to spend?",
+          "type": "QUESTION"
+        }
+      ]
+    },
+    {
+      "collections": [
+        {
+          "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
+          "created_by_id": "aa5b487a-bac4-4a74-8025-fe335092a78c",
+          "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+          "id": "fe9fb36b-7508-4bc1-bdc1-f304909f4974",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "January 01 2026 to March 31 2026",
+          "requires_certification": true,
+          "requires_validation": false,
+          "slug": "january-01-2026-to-march-31-2026",
+          "status": "Open",
+          "submission_period_end_date": "Thu, 30 Apr 2026 00:00:00 GMT",
+          "submission_period_start_date": "Sun, 01 Mar 2026 00:00:00 GMT",
+          "type": "monitoring report"
+        }
+      ],
+      "component_references": [],
+      "data_source_items": [
+        {
+          "data_source_id": "4daab831-4ad5-4665-b532-3759804923da",
+          "id": "0c825500-dbab-4b0e-9aec-ae222b290349",
+          "key": "medium",
+          "label": "Medium",
+          "order": 1
+        },
+        {
+          "data_source_id": "4daab831-4ad5-4665-b532-3759804923da",
+          "id": "8a0de34c-5c24-43f9-80d8-1aa034e77d7d",
+          "key": "high",
+          "label": "High",
+          "order": 0
+        },
+        {
+          "data_source_id": "4daab831-4ad5-4665-b532-3759804923da",
+          "id": "91c18c19-8a6e-4239-ae16-f1266fc195ee",
+          "key": "low",
+          "label": "Low",
+          "order": 2
+        }
+      ],
+      "data_sources": [
+        {
+          "id": "4daab831-4ad5-4665-b532-3759804923da",
+          "question_id": "48000f97-5148-45ef-b500-055faa0cae80"
+        }
+      ],
+      "expressions": [],
+      "forms": [
+        {
+          "collection_id": "fe9fb36b-7508-4bc1-bdc1-f304909f4974",
+          "id": "bd7a5132-4212-4423-aaae-baf1bf279c3b",
+          "order": 2,
+          "slug": "output-and-outcomes",
+          "title": "Output and outcomes"
+        },
+        {
+          "collection_id": "fe9fb36b-7508-4bc1-bdc1-f304909f4974",
+          "id": "db092db4-e660-4c13-834c-de43cec41ecf",
+          "order": 1,
+          "slug": "risks",
+          "title": "Risks"
+        },
+        {
+          "collection_id": "fe9fb36b-7508-4bc1-bdc1-f304909f4974",
+          "id": "deb66b9e-08cb-4943-94d0-2531842286e4",
+          "order": 0,
+          "slug": "spending",
+          "title": "Spending"
+        }
+      ],
+      "grant": {
+        "code": "TDIP",
+        "description": "To demonstrate a direct award grant that would go straight to monitoring.",
+        "ggis_number": "G2-SCH-2025-05-12346",
+        "id": "8122df63-fbd3-400a-8063-44a468c078f6",
+        "name": "Trees direct in parks",
+        "primary_contact_email": "steven.fountain@communities.gov.uk",
+        "primary_contact_name": "Steven Fountain",
+        "status": "live"
+      },
+      "grant_recipients": [
+        {
+          "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+          "id": "1adfc582-6c67-4ddd-90d3-8a9e80b34de2",
+          "mode": "live",
+          "organisation_id": "617e1c90-ce6d-4f0e-b397-fc60d7fa5033",
+          "status": "awarded"
+        },
+        {
+          "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+          "id": "52a7de93-1dc8-447a-a8b3-bf7acd434b39",
+          "mode": "live",
+          "organisation_id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+          "status": "awarded"
+        },
+        {
+          "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+          "id": "530d7f8d-e90f-4667-818a-ec238d6c32db",
+          "mode": "live",
+          "organisation_id": "2182641c-b6b2-49d9-9e26-2018e496acb5",
+          "status": "awarded"
+        },
+        {
+          "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+          "id": "5fd1e6c1-4c9e-4870-bad3-cbfc5a6ba29b",
+          "mode": "live",
+          "organisation_id": "8b425ad4-68ad-4089-b7e8-6cde8213e215",
+          "status": "awarded"
+        },
+        {
+          "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+          "id": "966d938a-3c17-4050-a801-fe9d218cddeb",
+          "mode": "live",
+          "organisation_id": "13840660-99cd-436d-ac3d-03df7b23e95f",
+          "status": "awarded"
+        },
+        {
+          "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+          "id": "dc5a33f6-f5ed-4a27-a056-12ee5701362e",
+          "mode": "live",
+          "organisation_id": "d26212f3-a01a-4683-bbac-1d1c4d581c40",
+          "status": "awarded"
+        }
+      ],
+      "questions": [
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Multiple lines of text",
+          "form_id": "db092db4-e660-4c13-834c-de43cec41ecf",
+          "hint": "",
+          "id": "01bf6157-c226-448a-9ea8-11f5e567199b",
+          "name": "risk description",
+          "order": 2,
+          "parent_id": "d20bdef3-beaa-4b56-a624-48b2852defce",
+          "presentation_options": {
+            "rows": 5
+          },
+          "slug": "describe-the-risk",
+          "text": "Describe the risk",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Select one from a list (radios)",
+          "form_id": "db092db4-e660-4c13-834c-de43cec41ecf",
+          "hint": "",
+          "id": "48000f97-5148-45ef-b500-055faa0cae80",
+          "name": "risk priority",
+          "order": 1,
+          "parent_id": "d20bdef3-beaa-4b56-a624-48b2852defce",
+          "presentation_options": {
+            "last_data_source_item_is_distinct_from_others": false
+          },
+          "slug": "what-priority-is-the-risk",
+          "text": "What priority is the risk?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Multiple lines of text",
+          "form_id": "bd7a5132-4212-4423-aaae-baf1bf279c3b",
+          "hint": "",
+          "id": "83db3780-8fdd-4abb-8a96-2e4df93157b8",
+          "name": "outputs and outcomes",
+          "order": 0,
+          "presentation_options": {
+            "rows": 5
+          },
+          "slug": "what-are-the-outputs-and-outcomes-at-this-stage-of-the-project",
+          "text": "What are the outputs and outcomes at this stage of the project?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "form_id": "db092db4-e660-4c13-834c-de43cec41ecf",
+          "guidance_body": "Add details about the biggest risk to delivery. This will be reviewed in subsequent monitoring reports.",
+          "guidance_heading": "Risk",
+          "id": "d20bdef3-beaa-4b56-a624-48b2852defce",
+          "name": "Risk",
+          "order": 0,
+          "presentation_options": {
+            "show_questions_on_the_same_page": true
+          },
+          "slug": "risk",
+          "text": "Risk",
+          "type": "GROUP"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "number_type": "Whole number"
+          },
+          "data_type": "A number",
+          "form_id": "deb66b9e-08cb-4943-94d0-2531842286e4",
+          "hint": "",
+          "id": "d58f0689-51e5-4a6b-8957-4d25180f6372",
+          "name": "how much spent",
+          "order": 0,
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-5"
+          },
+          "slug": "how-much-did-you-spend",
+          "text": "How much did you spend?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Single line of text",
+          "form_id": "db092db4-e660-4c13-834c-de43cec41ecf",
+          "hint": "",
+          "id": "eade6ec2-0684-45a2-ab70-8923de2796ee",
+          "name": "risk name",
+          "order": 0,
+          "parent_id": "d20bdef3-beaa-4b56-a624-48b2852defce",
+          "presentation_options": {},
+          "slug": "what-is-the-name-of-the-risk",
+          "text": "What is the name of the risk?",
+          "type": "QUESTION"
+        }
+      ]
     }
   ],
   "organisations": [
@@ -4134,6 +4774,43 @@
       "id": "<UUID:GB-GOV-27>",
       "mode": "live",
       "name": "Ministry of Housing, Communities and Local Government",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
+      "can_manage_grants": false,
+      "external_id": "E08000001",
+      "id": "8b425ad4-68ad-4089-b7e8-6cde8213e215",
+      "mode": "live",
+      "name": "Bolton Metropolitan Borough Council",
+      "status": "active",
+      "trusted_email_domain": "bolton.gov.uk",
+      "type": "Central Government"
+    },
+    {
+      "can_manage_grants": false,
+      "external_id": "W06000004",
+      "id": "13840660-99cd-436d-ac3d-03df7b23e95f",
+      "mode": "live",
+      "name": "Denbighshire County Council",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
+      "can_manage_grants": false,
+      "external_id": "S12000049",
+      "id": "d26212f3-a01a-4683-bbac-1d1c4d581c40",
+      "mode": "live",
+      "name": "Glasgow City Council",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
+      "can_manage_grants": false,
+      "external_id": "E07000133",
+      "id": "617e1c90-ce6d-4f0e-b397-fc60d7fa5033",
+      "mode": "live",
+      "name": "Melton Borough Council",
       "status": "active",
       "type": "Central Government"
     },
@@ -4154,9 +4831,87 @@
       "name": "Ministry of Testing (test)",
       "status": "active",
       "type": "Central Government"
+    },
+    {
+      "can_manage_grants": false,
+      "external_id": "E07000243",
+      "id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+      "mode": "live",
+      "name": "Stevenage Borough Council",
+      "status": "active",
+      "type": "Central Government"
+    },
+    {
+      "can_manage_grants": false,
+      "external_id": "E07000239",
+      "id": "2182641c-b6b2-49d9-9e26-2018e496acb5",
+      "mode": "live",
+      "name": "Wyre Forest District Council",
+      "status": "active",
+      "type": "Central Government"
     }
   ],
   "user_roles": [
+    {
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "cf6a73f4-1756-4f72-906f-bbaa40ce91c2",
+      "organisation_id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "0772fb8a-0f1b-435d-ab33-de9ae3d5b37d"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "36cbbc05-3e09-490a-87d3-bae8ffe6d52a",
+      "organisation_id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "0772fb8a-0f1b-435d-ab33-de9ae3d5b37d"
+    },
+    {
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "e47d6121-b89c-4469-887c-c39709a5e302",
+      "organisation_id": "8b425ad4-68ad-4089-b7e8-6cde8213e215",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "0873fd99-c0ff-4893-a75b-207bc543cee9"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "c90469f6-6a93-4665-a5d4-6b25948a2482",
+      "organisation_id": "8b425ad4-68ad-4089-b7e8-6cde8213e215",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "0873fd99-c0ff-4893-a75b-207bc543cee9"
+    },
+    {
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "cc0b8d9a-9530-4171-900a-c8b8eb4f64b6",
+      "organisation_id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "3c687636-6fd0-4870-a2c7-b4f7b3c6295a"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "9a126e29-a857-4a03-8d4d-389b54ab834d",
+      "organisation_id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "3c687636-6fd0-4870-a2c7-b4f7b3c6295a"
+    },
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "302870e9-0bc8-42a5-8ace-1b8f09a72d7e",
@@ -4178,10 +4933,30 @@
       "user_id": "62ee98f5-cf10-4848-95a4-5b6280529046"
     },
     {
-      "id": "68e3b145-1ce2-4561-b0fc-0225c39f87ef",
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "ec1ede5f-b219-4aa5-9802-e9617a30a87b",
+      "organisation_id": "2182641c-b6b2-49d9-9e26-2018e496acb5",
       "permissions": [
         "member",
-        "admin"
+        "data-provider"
+      ],
+      "user_id": "75a4a1fe-586b-43c6-9d57-27788ba3907e"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "43cacd02-e095-4084-a96b-54093dd5fd1e",
+      "organisation_id": "2182641c-b6b2-49d9-9e26-2018e496acb5",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "75a4a1fe-586b-43c6-9d57-27788ba3907e"
+    },
+    {
+      "id": "68e3b145-1ce2-4561-b0fc-0225c39f87ef",
+      "permissions": [
+        "admin",
+        "member"
       ],
       "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },
@@ -4197,6 +4972,16 @@
       "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },
     {
+      "grant_id": "f10a65a4-eab3-4396-a30f-17f925f539b7",
+      "id": "f8231cfb-6028-4776-ac6b-785dd120beab",
+      "organisation_id": "8b425ad4-68ad-4089-b7e8-6cde8213e215",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "93da41c8-cbf9-47de-bb9a-3e81c31b00a9"
+    },
+    {
       "id": "841fd896-87e8-4230-9da3-69c498ddf3fe",
       "permissions": [
         "admin",
@@ -4205,12 +4990,82 @@
       "user_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3"
     },
     {
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "a9248aa7-e897-4d9a-af95-7f89499923fd",
+      "organisation_id": "<UUID:GB-GOV-27>",
+      "permissions": [
+        "admin",
+        "member"
+      ],
+      "user_id": "aa5b487a-bac4-4a74-8025-fe335092a78c"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "72d3fae2-f529-4227-bf4a-b2cdf7441f31",
+      "organisation_id": "<UUID:GB-GOV-27>",
+      "permissions": [
+        "admin",
+        "member"
+      ],
+      "user_id": "aa5b487a-bac4-4a74-8025-fe335092a78c"
+    },
+    {
+      "grant_id": "f10a65a4-eab3-4396-a30f-17f925f539b7",
+      "id": "e46ba188-ca69-4e9c-b083-50d4c309d31a",
+      "organisation_id": "<UUID:GB-GOV-27>",
+      "permissions": [
+        "admin",
+        "member"
+      ],
+      "user_id": "aa5b487a-bac4-4a74-8025-fe335092a78c"
+    },
+    {
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "1f20d9ae-58dd-402f-a29e-2e68bc30e80b",
+      "organisation_id": "617e1c90-ce6d-4f0e-b397-fc60d7fa5033",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "b2ec640b-6d5c-4be4-8aa5-e9507b68043b"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "d5c08d30-bea1-4fa0-b544-0672fc20d42b",
+      "organisation_id": "617e1c90-ce6d-4f0e-b397-fc60d7fa5033",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "b2ec640b-6d5c-4be4-8aa5-e9507b68043b"
+    },
+    {
       "id": "e42b0f9e-371a-446d-94c3-9fc374d15fa0",
       "permissions": [
         "member",
         "admin"
       ],
       "user_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c"
+    },
+    {
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "a6339c6a-94ba-45cd-a946-64420a2204b2",
+      "organisation_id": "13840660-99cd-436d-ac3d-03df7b23e95f",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "ce8e36c2-944d-473a-a984-5cb5c0aa9cd8"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "eb35afef-e5c2-426e-a4b9-483bc718ccc9",
+      "organisation_id": "13840660-99cd-436d-ac3d-03df7b23e95f",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "ce8e36c2-944d-473a-a984-5cb5c0aa9cd8"
     },
     {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
@@ -4233,6 +5088,26 @@
       "user_id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe"
     },
     {
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "09a21921-6518-4be4-a46e-87fe34181c05",
+      "organisation_id": "d26212f3-a01a-4683-bbac-1d1c4d581c40",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "e849cabd-4ad4-4e7e-9ccc-34e0e88b3be9"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "0d0b12ce-b4e4-40f7-a647-6b6991c60970",
+      "organisation_id": "d26212f3-a01a-4683-bbac-1d1c4d581c40",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "e849cabd-4ad4-4e7e-9ccc-34e0e88b3be9"
+    },
+    {
       "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
       "id": "97e2a8fe-31ec-459a-b6cc-d3287c2e07e0",
       "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
@@ -4251,15 +5126,46 @@
         "member"
       ],
       "user_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb"
+    },
+    {
+      "grant_id": "72e371b7-98b5-4333-ba27-4905e382b1c1",
+      "id": "ab806ff8-500d-4201-87d8-916b5fa4c311",
+      "organisation_id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "e925c424-a436-49fe-98fb-3e6b773db085"
+    },
+    {
+      "grant_id": "8122df63-fbd3-400a-8063-44a468c078f6",
+      "id": "4c04a28a-f7be-4093-9496-ee50d5a7cfe9",
+      "organisation_id": "a9f8934b-725a-4125-887a-a3c2a51774f3",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "e925c424-a436-49fe-98fb-3e6b773db085"
     }
   ],
   "users": [
     {
+      "email": "alexander.clarke@test.communities.gov.uk",
+      "id": "3c687636-6fd0-4870-a2c7-b4f7b3c6295a",
+      "name": "Alexander Clarke"
+    },
+    {
       "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
       "email": "brandy.santos@test.communities.gov.uk",
       "id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-      "last_logged_in_at_utc": "Fri, 27 Feb 2026 14:22:51 GMT",
+      "last_logged_in_at_utc": "Fri, 20 Mar 2026 11:27:33 GMT",
       "name": "Brandy Santos"
+    },
+    {
+      "email": "brenda.gibson@test.communities.gov.uk",
+      "id": "e849cabd-4ad4-4e7e-9ccc-34e0e88b3be9",
+      "last_logged_in_at_utc": "Fri, 20 Mar 2026 10:50:39 GMT",
+      "name": "Brenda Gibson"
     },
     {
       "azure_ad_subject_id": "789779cf9692b89ab3fd5e4d725e44c5",
@@ -4283,10 +5189,25 @@
       "name": "Darin Lewis"
     },
     {
+      "email": "david.harvey@test.communities.gov.uk",
+      "id": "ce8e36c2-944d-473a-a984-5cb5c0aa9cd8",
+      "name": "David Harvey"
+    },
+    {
+      "email": "elizabeth.hopkins@test.communities.gov.uk",
+      "id": "75a4a1fe-586b-43c6-9d57-27788ba3907e",
+      "name": "Elizabeth Hopkins"
+    },
+    {
       "email": "fsd-post-award@levellingup.gov.uk",
       "id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe",
-      "last_logged_in_at_utc": "Fri, 27 Feb 2026 14:17:14 GMT",
+      "last_logged_in_at_utc": "Fri, 20 Mar 2026 09:48:20 GMT",
       "name": "MHCLG Test User"
+    },
+    {
+      "email": "george.russo@test.communities.gov.uk",
+      "id": "e925c424-a436-49fe-98fb-3e6b773db085",
+      "name": "George Russo"
     },
     {
       "azure_ad_subject_id": "baf97a91d41d4a5690488c56c4c10558",
@@ -4296,11 +5217,39 @@
       "name": "John Floyd"
     },
     {
+      "email": "joseph.barrett@test.communities.gov.uk",
+      "id": "0873fd99-c0ff-4893-a75b-207bc543cee9",
+      "name": "Joseph Barrett"
+    },
+    {
+      "email": "kelsey.wright@test.communities.gov.uk",
+      "id": "0772fb8a-0f1b-435d-ab33-de9ae3d5b37d",
+      "name": "Kelsey Wright"
+    },
+    {
+      "email": "kevin.gardner@test.communities.gov.uk",
+      "id": "93da41c8-cbf9-47de-bb9a-3e81c31b00a9",
+      "last_logged_in_at_utc": "Fri, 20 Mar 2026 11:11:14 GMT",
+      "name": "Kevin Gardner"
+    },
+    {
+      "azure_ad_subject_id": "36c9573e94ac452b1a5999c24685add2",
+      "email": "laura.preston@test.communities.gov.uk",
+      "id": "aa5b487a-bac4-4a74-8025-fe335092a78c",
+      "last_logged_in_at_utc": "Fri, 20 Mar 2026 11:12:12 GMT",
+      "name": "Laura Preston"
+    },
+    {
       "azure_ad_subject_id": "aef0d89750aa6dcb4d10040f6e5766c1",
       "email": "lisa.little@test.communities.gov.uk",
       "id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
       "last_logged_in_at_utc": "Thu, 11 Dec 2025 10:06:08 GMT",
       "name": "Lisa Little"
+    },
+    {
+      "email": "manuel.manning@test.communities.gov.uk",
+      "id": "b2ec640b-6d5c-4be4-8aa5-e9507b68043b",
+      "name": "Manuel Manning"
     },
     {
       "azure_ad_subject_id": "d9221fd9f0ecd24ffef4996689b2fe38",
