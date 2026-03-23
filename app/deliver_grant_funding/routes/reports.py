@@ -2186,6 +2186,15 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         return redirect(request.url)
 
     if form and form.validate_on_submit():
+        if form.type.data == "CUSTOM":
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.add_custom_question_validation",
+                    grant_id=grant_id,
+                    question_id=question_id,
+                )
+            )
+
         expression = form.get_expression(question)
 
         try:
