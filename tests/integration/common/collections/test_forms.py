@@ -459,7 +459,7 @@ class TestValidationMetrics:
         valid = form.validate()
 
         assert valid is True
-        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_count == 2
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS, 1)
 
     def test_validation_metrics_managed_failure(self, factories, mock_sentry_metrics):
@@ -483,10 +483,10 @@ class TestValidationMetrics:
         valid = form.validate()
 
         assert valid is False
-        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_count == 2
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR, 1)
 
-    def test_validation_metrics_calculation_success(self, factories, mock_sentry_metrics):
+    def test_validation_metrics_custom_success(self, factories, mock_sentry_metrics):
         q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
         interfaces.collections.add_question_validation(
             q1,
@@ -507,10 +507,10 @@ class TestValidationMetrics:
         valid = form.validate()
 
         assert valid is True
-        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_count == 2
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_CUSTOM_VALIDATION_SUCCESS, 1)
 
-    def test_validation_metrics_calculation_failures(self, factories, mock_sentry_metrics):
+    def test_validation_metrics_custom_failures(self, factories, mock_sentry_metrics):
         q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
         interfaces.collections.add_question_validation(
             q1,
@@ -531,5 +531,5 @@ class TestValidationMetrics:
         valid = form.validate()
 
         assert valid is False
-        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_count == 2
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_CUSTOM_VALIDATION_ERROR, 1)

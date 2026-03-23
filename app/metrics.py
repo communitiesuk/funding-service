@@ -61,6 +61,9 @@ class MetricEventName(StrEnum):
     SUBMISSIONS_EXPORTED = "submissions-exported"
     SUBMISSION_PDF_DOWNLOADED = "submission-pdf-downloaded"
 
+    VALIDATION_CREATED_CUSTOM = "validation-created-custom"
+    VALIDATION_CREATED_MANAGED = "validation-created-managed"
+
 
 def _get_event_attributes(
     grant_recipient: GrantRecipient | None = None,
