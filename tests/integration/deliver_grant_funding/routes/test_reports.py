@@ -9087,9 +9087,10 @@ class TestEditCustomQuestionValidation:
 
         response = authenticated_platform_admin_client.post(
             url_for(
-                "deliver_grant_funding.add_custom_question_validation",
+                "deliver_grant_funding.edit_custom_question_validation",
                 grant_id=report.grant.id,
                 question_id=q3.id,
+                expression_id=expression.id,
             ),
             data=get_form_data(form),
             follow_redirects=False,

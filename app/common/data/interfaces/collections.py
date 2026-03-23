@@ -712,6 +712,8 @@ def raise_if_group_cannot_be_add_another(group: Group) -> None:
             referenced_question=next(
                 component for component in group.cached_all_components if len(component.depended_on_by) > 0
             ),
+            form_error_message="You cannot set a group to be add another if questions in the group are depended on "
+            "by other components",
         )
     if group.parent and group.parent.add_another_container:
         raise AddAnotherNotValidException(
@@ -808,17 +810,23 @@ class FlashableException(Protocol):
 
 class DependencyOrderException(Exception, FlashableException, WTFormRenderableException):
     def __init__(
-        self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
+        self,
+        message: str,
+        component: Component,
+        depends_on_component: Component,
+        form_error_message: str,
+        field_name: str | None = None,
     ):
         super().__init__(message)
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
         self.field_name = field_name
+        self.form_error_message = form_error_message
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
-            "message": self.message,
+            "message": self.form_error_message,
             "grant_id": str(self.question.form.collection.grant_id),  # Required for URL routing
             "question_id": str(self.question.id),
             "question_text": self.question.text,
@@ -852,17 +860,23 @@ class SectionDependencyOrderException(Exception, FlashableException):
 
 class IncompatibleDataTypeException(Exception, WTFormRenderableException):
     def __init__(
-        self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
+        self,
+        message: str,
+        component: Component,
+        depends_on_component: Component,
+        form_error_message: str,
+        field_name: str | None = None,
     ):
         super().__init__(message)
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
         self.field_name = field_name
+        self.form_error_message = form_error_message
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
-            "message": self.message,
+            "message": self.form_error_message,
             "grant_id": str(self.question.form.collection.grant_id),  # Required for URL routing
             "question_id": str(self.question.id),
             "question_text": self.question.text,
@@ -1033,9 +1047,10 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
         for cr in c.owned_component_references:
             if cr.depends_on_component in child_swap_components:
                 raise DependencyOrderException(
-                    f"You cannot move {component_name} above answers they depend on",
+                    f"Cannot move {c.id} above {cr.depends_on_component.id} because there is a dependency",
                     component,
                     swap_component,
+                    form_error_message=f"You cannot move {component_name} above answers they depend on",
                 )
 
     for c in child_swap_components:
@@ -1043,9 +1058,10 @@ def _check_component_order_dependency(component: Component, swap_component: Comp
         for cr in c.owned_component_references:
             if cr.depends_on_component in child_components:
                 raise DependencyOrderException(
-                    f"You cannot move answers below {component_name} that depend on them",
+                    f"Cannot move {cr.depends_on_component.id} below {c.id} because there is a dependency",
                     swap_component,
                     component,
+                    form_error_message=f"You cannot move answers below {component_name} that depend on them",
                 )
 
 
@@ -1076,9 +1092,10 @@ def raise_if_question_has_any_dependencies(question: Question | Group) -> Never 
     )
     if component_reference:
         raise DependencyOrderException(
-            "You cannot delete an answer that other questions depend on",
+            f"{question.id} cannot be deleted as it is depended on by {component_reference[0].component.id}",
             component_reference[0].component,
             question,  # TODO: this could be component_reference[0].depends_on_component?
+            form_error_message="You cannot delete an answer that other questions depend on",
         )
 
     return None
@@ -1098,9 +1115,12 @@ def raise_if_group_questions_depend_on_each_other(group: Group) -> Never | None:
     )
     if component_reference:
         raise DependencyOrderException(
-            "You cannot set a group to be same page if it contains questions that depend on each other",
+            f"Group {group.id} cannot be set to same page because {component_reference[0].component.id} "
+            f"depends on {component_reference[0].depends_on_component.id}",
             component_reference[0].component,
             component_reference[0].depends_on_component,
+            form_error_message="You cannot set a group to be same page if it contains questions that depend on each "
+            "other",
         )
 
     return None
@@ -1128,16 +1148,24 @@ def raise_if_data_source_item_reference_dependency(
 
 
 class AddAnotherDependencyException(Exception, FlashableException, WTFormRenderableException):
-    def __init__(self, message: str, component: Component, referenced_question: Component, field_name: str = ""):
+    def __init__(
+        self,
+        message: str,
+        component: Component,
+        referenced_question: Component,
+        form_error_message: str,
+        field_name: str = "",
+    ):
         super().__init__(message)
         self.message = message
         self.component = component
         self.referenced_question = referenced_question
         self.field_name = field_name
+        self.form_error_message = form_error_message if form_error_message else message
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
-            "message": self.message,
+            "message": self.form_error_message,
             "grant_id": str(self.component.form.collection.grant_id),  # Required for URL routing
             "component_id": str(self.component.id),
             "component_text": self.component.text,
@@ -1442,12 +1470,14 @@ def _validate_reference(  # noqa:C901
             f"You cannot use {wrapped_reference} because it does not exist",
             field_name=field_name_for_error_message,
             bad_reference=wrapped_reference,
+            form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
         )
     if ALLOWED_INTERPOLATION_REGEX.search(unwrapped_ref) is not None:
         raise InvalidReferenceInExpression(
             f"Reference is not valid: {wrapped_reference}",
             field_name=field_name_for_error_message,
             bad_reference=wrapped_reference,
+            form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
         )
     if not attached_to_component:
         # TODO change this once we can create expressions to reuse, before they are attached to a component
@@ -1464,6 +1494,7 @@ def _validate_reference(  # noqa:C901
             f"You cannot use {wrapped_reference} because it does not exist",
             field_name=field_name_for_error_message,
             bad_reference=wrapped_reference,
+            form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
         )
 
     # If it's a question, check it is of the right data type
@@ -1477,10 +1508,12 @@ def _validate_reference(  # noqa:C901
             and not attached_to_component.data_type == referenced_question.data_type
         ):
             raise IncompatibleDataTypeException(
-                f"Reference is not valid due to incompatible data types: {wrapped_reference}",
+                f"Incompatible data types: {attached_to_component.id} ({attached_to_component.data_type}) and "
+                f"{referenced_question.id} ({referenced_question.data_type})",
                 component=attached_to_component,
                 depends_on_component=referenced_question,
                 field_name=field_name_for_error_message,
+                form_error_message=f"Reference is not valid due to incompatible data types: {wrapped_reference}",
             )
 
         # for conditions, the question being tested (could be any prior question) needs to have the same data type as
@@ -1491,10 +1524,12 @@ def _validate_reference(  # noqa:C901
             and not question_to_test.data_type == referenced_question.data_type
         ):
             raise IncompatibleDataTypeException(
-                f"Reference is not valid due to incompatible data types: {wrapped_reference}",
+                f"Incompatible data types: {attached_to_component.id} ({attached_to_component.data_type}) and "
+                f"{referenced_question.id} ({referenced_question.data_type})",
                 component=attached_to_component,
                 depends_on_component=referenced_question,
                 field_name=field_name_for_error_message,
+                form_error_message=f"Reference is not valid due to incompatible data types: {wrapped_reference}",
             )
         if not is_component_dependency_order_valid(attached_to_component, referenced_question):
             # Can't think of a better way right now for a custom validation expression to reference itself
@@ -1504,11 +1539,12 @@ def _validate_reference(  # noqa:C901
                 and referenced_question == attached_to_component
             ):
                 raise DependencyOrderException(
-                    f"You cannot use {referenced_question.name} because it comes after this question"
-                    f"{' group' if attached_to_component.is_group else ''}",
+                    f"Cannot reference {referenced_question.id} because it comes after {attached_to_component.id}",
                     attached_to_component,
                     referenced_question,
                     field_name=field_name_for_error_message,
+                    form_error_message=f"You cannot use {referenced_question.name} because it comes after this question"
+                    f"{' group' if attached_to_component.is_group else ''}",
                 )
 
         # For a non-custom condition, the question_to_test is the answer we are checking. eg. The answer that must
@@ -1523,6 +1559,7 @@ def _validate_reference(  # noqa:C901
                 attached_to_component,
                 question_to_test,
                 field_name=field_name_for_error_message,
+                form_error_message=f"You cannot use {question_to_test.name} because it comes after this question",
             )
 
         if components_in_same_group_and_on_same_page(attached_to_component, referenced_question):
@@ -1530,16 +1567,21 @@ def _validate_reference(  # noqa:C901
                 f"Reference is not valid: {wrapped_reference}",
                 field_name=field_name_for_error_message,
                 bad_reference=wrapped_reference,
+                form_error_message=f"You cannot use {wrapped_reference} because it is in the same group as "
+                f"{referenced_question.name}",
             )
 
         if not components_in_valid_add_another_combination(
             attached_to_component, [referenced_question, question_to_test]
         ):
             raise AddAnotherDependencyException(
-                f"You cannot reference {referenced_question.name} because it can be answered more than once",
+                f"Invalid add another combination: [{attached_to_component.id}, {referenced_question.id}, "
+                f"{question_to_test.id if question_to_test else ''}]",
                 attached_to_component,
                 referenced_question,
                 field_name=field_name_for_error_message,
+                form_error_message=f"You cannot reference {referenced_question.name} because it can be answered more "
+                "than once",
             )
     else:
         # TODO implement this once we can reference other things, eg. data uploads

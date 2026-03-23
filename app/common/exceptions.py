@@ -48,3 +48,4 @@ class SubmissionAnswerConflict(ValueError):
 class WTFormRenderableException(Protocol):
     field_name: str | None = None
     message: str
+    form_error_message: str
