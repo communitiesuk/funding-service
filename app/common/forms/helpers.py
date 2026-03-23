@@ -30,15 +30,19 @@ def questions_in_same_add_another_container(q1: Component, q2: Component) -> boo
     )
 
 
-def components_in_valid_add_another_combination(components: list[Component | None]) -> bool:
-    filtered_components = [c for c in components if c is not None]
+def components_in_valid_add_another_combination(
+    attached_to_component: Component, referenced_components: list[Component | None]
+) -> bool:
+    filtered_components = [c for c in referenced_components if c is not None]
     if not any(c.add_another_container for c in filtered_components):
         return True
 
-    first_add_another_container = next(
-        (c.add_another_container for c in filtered_components if c.add_another_container), None
-    )
-    return all((c.add_another_container == first_add_another_container) for c in filtered_components)
+    all_add_another_containers = set(c.add_another_container for c in filtered_components if c.add_another_container)
+    if attached_to_component.add_another_container:
+        all_add_another_containers.add(attached_to_component.add_another_container)
+        return len(all_add_another_containers) == 1
+
+    return len(all_add_another_containers) == 0
 
 
 def get_referenceable_questions(

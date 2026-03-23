@@ -5,7 +5,6 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from app import NumberTypeEnum
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, QuestionDataType
 from app.common.expressions import DisallowedExpression, ExpressionContext, evaluate
@@ -107,13 +106,13 @@ class TestEvaluatingManagedExpressions:
         q0 = factories.question.create()
         question = factories.question.create(
             form=q0.form,
-            expressions=[
-                Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q0.id, minimum_value=3000, number_type=NumberTypeEnum.INTEGER),
-                    ExpressionType.CONDITION,
-                    user,
-                )
-            ],
+        )
+        question.expressions.append(
+            Expression.from_evaluatable_expression(
+                GreaterThan(question_id=q0.id, minimum_value=3000),
+                ExpressionType.CONDITION,
+                user,
+            )
         )
 
         expr = question.expressions[0]
@@ -130,7 +129,8 @@ class TestEvaluatingManagedExpressions:
             expressions=[
                 Expression.from_evaluatable_expression(
                     GreaterThan(
-                        question_id=q0.id, minimum_value=Decimal("3000.01"), number_type=NumberTypeEnum.DECIMAL
+                        question_id=q0.id,
+                        minimum_value=Decimal("3000.01"),
                     ),
                     ExpressionType.CONDITION,
                     user,
@@ -163,18 +163,17 @@ class TestEvaluatingManagedExpressions:
             id=qid,
             form=q0.form,
             data_type=QuestionDataType.NUMBER,
-            expressions=[
-                Expression.from_evaluatable_expression(
-                    GreaterThan(
-                        question_id=qid,
-                        minimum_value=None,
-                        minimum_expression=f"(({q0.safe_qid}))",
-                        number_type=NumberTypeEnum.INTEGER,
-                    ),
-                    ExpressionType.VALIDATION,
-                    user,
-                )  # Double brackets should be ignored by the evaluation engine
-            ],
+        )
+        q1.expressions.append(
+            Expression.from_evaluatable_expression(
+                GreaterThan(
+                    question_id=qid,
+                    minimum_value=None,
+                    minimum_expression=f"(({q0.safe_qid}))",
+                ),
+                ExpressionType.VALIDATION,
+                user,
+            )  # Double brackets should be ignored by the evaluation engine
         )
 
         expr = q1.expressions[0]
@@ -198,20 +197,20 @@ class TestEvaluatingManagedExpressions:
         q2 = factories.question.create(
             id=qid,
             form=q0.form,
-            expressions=[
-                Expression.from_evaluatable_expression(
-                    BetweenDates(
-                        question_id=qid,
-                        earliest_value=None,
-                        latest_value=None,
-                        earliest_expression=f"(({q0.safe_qid}))",
-                        latest_expression=f"(({q1.safe_qid}))",
-                    ),
-                    ExpressionType.VALIDATION,
-                    user,
-                )  # Double brackets should be ignored by the evaluation engine
-            ],
             data_type=QuestionDataType.DATE,
+        )
+        q2.expressions.append(
+            Expression.from_evaluatable_expression(
+                BetweenDates(
+                    question_id=qid,
+                    earliest_value=None,
+                    latest_value=None,
+                    earliest_expression=f"(({q0.safe_qid}))",
+                    latest_expression=f"(({q1.safe_qid}))",
+                ),
+                ExpressionType.VALIDATION,
+                user,
+            )  # Double brackets should be ignored by the evaluation engine
         )
 
         expr = q2.expressions[0]

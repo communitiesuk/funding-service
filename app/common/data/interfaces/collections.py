@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
@@ -1509,6 +1509,20 @@ def _validate_reference(  # noqa:C901
                     field_name=field_name_for_error_message,
                 )
 
+        # For a non-custom condition, the question_to_test is the answer we are checking. eg. The answer that must
+        # be GREATER_THAN something else, in order for attached_to_component to display
+        if (
+            question_to_test is not None
+            and expression_type == ExpressionType.CONDITION
+            and not is_component_dependency_order_valid(attached_to_component, question_to_test)
+        ):
+            raise DependencyOrderException(
+                "Cannot reference a later question",
+                attached_to_component,
+                question_to_test,
+                field_name=field_name_for_error_message,
+            )
+
         if components_in_same_group_and_on_same_page(attached_to_component, referenced_question):
             raise InvalidReferenceInExpression(
                 f"Reference is not valid: {wrapped_reference}",
@@ -1517,7 +1531,7 @@ def _validate_reference(  # noqa:C901
             )
 
         if not components_in_valid_add_another_combination(
-            [attached_to_component, referenced_question, question_to_test]
+            attached_to_component, [referenced_question, question_to_test]
         ):
             raise AddAnotherDependencyException(
                 "A question cannot depend on an add another question from a different add another group",
@@ -1640,9 +1654,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
                 expression_context=expression_context,
                 expression_type=None,
                 field_name_for_error_message=field_name,
-                question_to_test=cast(Question, component)
-                if component.is_question
-                else None,  # only pass a question to test if this is a question, otherwise pass None
+                question_to_test=None,
             )
 
             if question_id := SafeQidMixin.safe_qid_to_id(reference):
