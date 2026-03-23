@@ -21,6 +21,7 @@ from app.common.expressions import ExpressionContext
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
+from app.metrics import MetricEventName
 
 EC = ExpressionContext
 
@@ -434,3 +435,53 @@ def test_file_upload_field_validates_maximum_file_size(factories, max_file_size,
         assert (
             f"The selected file must be smaller than {max_file_size.human_readable}." in form.errors[question.safe_qid]
         )
+
+
+class TestValidationMetrics:
+    def test_validation_metrics_managed_success(self, factories, mock_sentry_metrics):
+        q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
+        interfaces.collections.add_question_validation(
+            q1,
+            factories.user.create(),
+            GreaterThan(
+                question_id=q1.id,
+                minimum_value=8,
+            ),
+        )
+
+        _FormClass = build_question_form(
+            [q1],
+            evaluation_context=ExpressionContext({q1.safe_qid: 9}),
+            interpolation_context=ExpressionContext({q1.safe_qid: 9}),
+        )
+        form = _FormClass(formdata=MultiDict({q1.safe_qid: 9}))
+
+        valid = form.validate()
+
+        assert valid is True
+        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS, 1)
+
+    def test_validation_metrics_managed_failure(self, factories, mock_sentry_metrics):
+        q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
+        interfaces.collections.add_question_validation(
+            q1,
+            factories.user.create(),
+            GreaterThan(
+                question_id=q1.id,
+                minimum_value=8,
+            ),
+        )
+
+        _FormClass = build_question_form(
+            [q1],
+            evaluation_context=ExpressionContext({q1.safe_qid: 7}),
+            interpolation_context=ExpressionContext({q1.safe_qid: 7}),
+        )
+        form = _FormClass(formdata=MultiDict({q1.safe_qid: 7}))
+
+        valid = form.validate()
+
+        assert valid is False
+        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR, 1)

@@ -771,3 +771,9 @@ def _count_sqlalchemy_queries() -> Generator[list[QueryInfo], None, None]:
 @pytest.fixture
 def track_sql_queries() -> t.Callable[[], _GeneratorContextManager[list[QueryInfo], None, None]]:
     return _count_sqlalchemy_queries
+
+
+@pytest.fixture
+def mock_sentry_metrics(mocker) -> Generator[Any, Any, None]:
+    emit_metric_mock = mocker.patch("app.metrics.metrics.count")
+    yield emit_metric_mock
