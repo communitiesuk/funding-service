@@ -140,10 +140,11 @@ def build_validators(
     for _validation in question.validations:
 
         def run_validation(form: Form, field: Field, validation: Expression) -> None:
-            # TODO do we want to separate out the metrics for managed vs custom expressions?
             if not evaluate(expression=validation, context=evaluation_context):
                 emit_metric_count(
-                    MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR,
+                    MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR
+                    if validation.is_managed
+                    else MetricEventName.SUBMISSION_CUSTOM_VALIDATION_ERROR,
                     evaluatable_expression=validation.evaluatable_expression,
                 )
                 raise ValidationError(
@@ -151,7 +152,9 @@ def build_validators(
                 )
 
             emit_metric_count(
-                MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS,
+                MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS
+                if validation.is_managed
+                else MetricEventName.SUBMISSION_CUSTOM_VALIDATION_SUCCESS,
                 evaluatable_expression=validation.evaluatable_expression,
             )
 

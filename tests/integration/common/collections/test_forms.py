@@ -485,3 +485,51 @@ class TestValidationMetrics:
         assert valid is False
         assert mock_sentry_metrics.call_count == 1
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR, 1)
+
+    def test_validation_metrics_calculation_success(self, factories, mock_sentry_metrics):
+        q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
+        interfaces.collections.add_question_validation(
+            q1,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({q1.safe_qid}))<5",
+                custom_message="failure message",
+            ),
+        )
+
+        _FormClass = build_question_form(
+            [q1],
+            evaluation_context=ExpressionContext({q1.safe_qid: 2}),
+            interpolation_context=ExpressionContext({q1.safe_qid: 2}),
+        )
+        form = _FormClass(formdata=MultiDict({q1.safe_qid: 2}))
+
+        valid = form.validate()
+
+        assert valid is True
+        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_CUSTOM_VALIDATION_SUCCESS, 1)
+
+    def test_validation_metrics_calculation_failures(self, factories, mock_sentry_metrics):
+        q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
+        interfaces.collections.add_question_validation(
+            q1,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({q1.safe_qid}))<5",
+                custom_message="failure message",
+            ),
+        )
+
+        _FormClass = build_question_form(
+            [q1],
+            evaluation_context=ExpressionContext({q1.safe_qid: 23}),
+            interpolation_context=ExpressionContext({q1.safe_qid: 23}),
+        )
+        form = _FormClass(formdata=MultiDict({q1.safe_qid: 23}))
+
+        valid = form.validate()
+
+        assert valid is False
+        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_CUSTOM_VALIDATION_ERROR, 1)

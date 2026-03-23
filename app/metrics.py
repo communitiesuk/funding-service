@@ -49,7 +49,9 @@ class MetricEventName(StrEnum):
     SUBMISSION_BLOCKED_BY_INVALID_ANSWERS = "submission-blocked-by-invalid-answers"
 
     SUBMISSION_MANAGED_VALIDATION_ERROR = "submission-managed-validation-error"
+    SUBMISSION_CUSTOM_VALIDATION_ERROR = "submission-custom-validation-error"
     SUBMISSION_MANAGED_VALIDATION_SUCCESS = "submission-managed-validation-success"
+    SUBMISSION_CUSTOM_VALIDATION_SUCCESS = "submission-custom-validation-success"
 
     SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER = "section-reset-to-in-progress-by-certifier"
 
