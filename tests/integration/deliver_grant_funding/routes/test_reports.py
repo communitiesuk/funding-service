@@ -13,8 +13,11 @@ from sqlalchemy import func, select
 from app import CollectionStatusEnum, FlashMessageType, QuestionDataType
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    DependencyOrderException,
+    IncompatibleDataTypeInCalculationException,
     add_question_validation,
 )
+from app.common.data.interfaces.exceptions import InvalidReferenceInExpression
 from app.common.data.models import (
     Collection,
     DataSource,
@@ -39,7 +42,14 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
 )
-from app.common.expressions import ExpressionContext
+from app.common.expressions import (
+    DisallowedExpression,
+    ExpressionContext,
+    InvalidEvaluationResult,
+    UndefinedFunctionInExpression,
+    UndefinedOperatorInExpression,
+    UndefinedVariableInExpression,
+)
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.forms import CustomValidationExpressionForm, build_managed_expression_form
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
@@ -8498,20 +8508,22 @@ class TestValidateCustomSyntax:
 
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
-        assert result == f"You cannot use {q2.name} because it comes after this question"
+        with pytest.raises(DependencyOrderException) as e:
+            _validate_custom_syntax(
+                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
+        assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
 
-        result = _validate_custom_syntax(
-            q1,
-            expr_context,
-            f"The answer must be less than (({q2.safe_qid}))",
-            ExpressionType.VALIDATION,
-            "custom_message",
-            False,
-        )
-        assert result == f"You cannot use {q2.name} because it comes after this question"
+        with pytest.raises(DependencyOrderException) as e:
+            _validate_custom_syntax(
+                q1,
+                expr_context,
+                f"The answer must be less than (({q2.safe_qid}))",
+                ExpressionType.VALIDATION,
+                "custom_message",
+                False,
+            )
+        assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
 
     def test_invalid_expression_forms_out_of_order(self, factories, mocker):
         db_form_0 = factories.form.create()
@@ -8537,20 +8549,31 @@ class TestValidateCustomSyntax:
             submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, later_form_question.safe_qid: 55}
         )
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+        with pytest.raises(DependencyOrderException) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
+        assert (
+            e.value.form_error_message
+            == f"You cannot use {later_form_question.name} because it comes after this question"
         )
-        assert result == f"You cannot use {later_form_question.name} because it comes after this question"
 
-        result = _validate_custom_syntax(
-            q3,
-            expr_context,
-            f"The answer must be less than (({q2.safe_qid})) + (({q1.safe_qid})) + (({later_form_question.safe_qid}))",
-            ExpressionType.VALIDATION,
-            "custom_message",
-            False,
+        with pytest.raises(DependencyOrderException) as e:
+            _validate_custom_syntax(
+                q3,
+                expr_context,
+                (
+                    f"The answer must be less than (({q2.safe_qid})) + (({q1.safe_qid})) + "
+                    f"(({later_form_question.safe_qid}))"
+                ),
+                ExpressionType.VALIDATION,
+                "custom_message",
+                False,
+            )
+        assert (
+            e.value.form_error_message
+            == f"You cannot use {later_form_question.name} because it comes after this question"
         )
-        assert result == f"You cannot use {later_form_question.name} because it comes after this question"
 
     def test_invalid_expression_bad_reference(self, factories, mocker):
         db_form = factories.form.create()
@@ -8565,22 +8588,24 @@ class TestValidateCustomSyntax:
 
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(InvalidReferenceInExpression) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
-        assert result == "You cannot use ((some_bad_ref)) because it does not exist"
+        assert e.value.form_error_message == "You cannot use ((some_bad_ref)) because it does not exist"
 
-        result = _validate_custom_syntax(
-            q3,
-            expr_context,
-            f"The answer must be less than (({q2.safe_qid})) + ((some_bad_ref))",
-            ExpressionType.VALIDATION,
-            "custom_message",
-            False,
-        )
+        with pytest.raises(InvalidReferenceInExpression) as e:
+            _validate_custom_syntax(
+                q3,
+                expr_context,
+                f"The answer must be less than (({q2.safe_qid})) + ((some_bad_ref))",
+                ExpressionType.VALIDATION,
+                "custom_message",
+                False,
+            )
 
-        assert result == "You cannot use ((some_bad_ref)) because it does not exist"
+        assert e.value.form_error_message == "You cannot use ((some_bad_ref)) because it does not exist"
 
     def test_invalid_expression_reference_missing_from_context(self, factories, mocker):
         db_form = factories.form.create()
@@ -8595,22 +8620,24 @@ class TestValidateCustomSyntax:
         # exclude q1 from the context
         expr_context = ExpressionContext(submission_data={q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(InvalidReferenceInExpression) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
-        assert result == f"You cannot use (({q1.safe_qid})) because it does not exist"
+        assert e.value.form_error_message == f"You cannot use (({q1.safe_qid})) because it does not exist"
 
-        result = _validate_custom_syntax(
-            q3,
-            expr_context,
-            f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
-            ExpressionType.VALIDATION,
-            "custom_message",
-            False,
-        )
+        with pytest.raises(InvalidReferenceInExpression) as e:
+            _validate_custom_syntax(
+                q3,
+                expr_context,
+                f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
+                ExpressionType.VALIDATION,
+                "custom_message",
+                False,
+            )
 
-        assert result == f"You cannot use (({q1.safe_qid})) because it does not exist"
+        assert e.value.form_error_message == f"You cannot use (({q1.safe_qid})) because it does not exist"
 
     def test_invalid_expression_incompatible_data_type(self, factories, mocker):
         db_form = factories.form.create()
@@ -8626,22 +8653,30 @@ class TestValidateCustomSyntax:
 
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+        with pytest.raises(IncompatibleDataTypeInCalculationException) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
+
+        assert (
+            e.value.form_error_message
+            == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
         )
 
-        assert result == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
+        with pytest.raises(IncompatibleDataTypeInCalculationException) as e:
+            _validate_custom_syntax(
+                q3,
+                expr_context,
+                f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
+                ExpressionType.VALIDATION,
+                "custom_message",
+                False,
+            )
 
-        result = _validate_custom_syntax(
-            q3,
-            expr_context,
-            f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
-            ExpressionType.VALIDATION,
-            "custom_message",
-            False,
+        assert (
+            e.value.form_error_message
+            == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
         )
-
-        assert result == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
 
     def test_invalid_expression_name_not_defined(self, factories, mocker):
         db_form = factories.form.create()
@@ -8665,11 +8700,12 @@ class TestValidateCustomSyntax:
             side_effect=side_effect,
         )
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(UndefinedVariableInExpression) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
-        assert result == f"You cannot use {q1.safe_qid} because it does not exist"
+        assert e.value.form_error_message == f"You cannot use {q1.safe_qid} because it does not exist"
 
     def test_invalid_expression_unavailable_function(self, factories, mocker):
         db_form = factories.form.create()
@@ -8684,11 +8720,12 @@ class TestValidateCustomSyntax:
         # exclude q1 from the context
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(UndefinedFunctionInExpression) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
-        assert result == "You cannot use sum in calculations"
+        assert e.value.form_error_message == "You cannot use sum in calculations"
 
     def test_invalid_expression_bad_syntax(self, factories, mocker):
         db_form = factories.form.create()
@@ -8703,12 +8740,13 @@ class TestValidateCustomSyntax:
         # exclude q1 from the context
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(DisallowedExpression) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
         assert (
-            result.strip()
+            e.value.form_error_message
             == "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
         )
 
@@ -8725,11 +8763,12 @@ class TestValidateCustomSyntax:
         # exclude q1 from the context
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(UndefinedOperatorInExpression) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
-        assert result == "You cannot use Pow() in calculations"
+        assert e.value.form_error_message == "You cannot use Pow() in calculations"
 
     def test_invalid_expression_multiple_references_to_self(self, factories, mocker):
         db_form = factories.form.create()
@@ -8747,11 +8786,12 @@ class TestValidateCustomSyntax:
 
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(DisallowedExpression) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
-        assert result == "The expression must include exactly one reference to this question"
+        assert e.value.form_error_message == "The expression must include exactly one reference to this question"
 
     def test_invalid_expression_no_references_to_self(self, factories, mocker):
         db_form = factories.form.create()
@@ -8766,11 +8806,12 @@ class TestValidateCustomSyntax:
 
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(DisallowedExpression) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
-        assert result == "The expression must include exactly one reference to this question"
+        assert e.value.form_error_message == "The expression must include exactly one reference to this question"
 
     def test_invalid_expression_does_not_evaluate_to_true_or_false(self, factories, mocker):
         db_form = factories.form.create()
@@ -8785,11 +8826,12 @@ class TestValidateCustomSyntax:
 
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        result = _validate_custom_syntax(
-            q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-        )
+        with pytest.raises(InvalidEvaluationResult) as e:
+            _validate_custom_syntax(
+                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
 
-        assert result == "The expression must evaluate to true or false"
+        assert e.value.form_error_message == "The expression must evaluate to true or false"
 
 
 class TestAddCustomQuestionValidation:

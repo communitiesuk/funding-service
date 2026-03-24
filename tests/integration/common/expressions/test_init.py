@@ -7,7 +7,7 @@ import pytest
 
 from app.common.data.models import Expression
 from app.common.data.types import ExpressionType, QuestionDataType
-from app.common.expressions import DisallowedExpression, ExpressionContext, evaluate
+from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate
 from app.common.expressions.managed import BetweenDates, GreaterThan
 from app.common.helpers.collections import SubmissionHelper
 
@@ -292,7 +292,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
         # test with a builtin function that isn't on the allowed list
         expr = factories.expression.create(statement="q_123 > max(1,2)", type_=ExpressionType.VALIDATION)
         # Don't patch the required_functions property, so it returns an empty dict
-        with pytest.raises(DisallowedExpression):
+        with pytest.raises(UndefinedFunctionInExpression):
             evaluate(expr, ExpressionContext(submission_data={"q_123": 123}))
 
     def test_managed_expression_with_required_function_not_present_custom(self, factories):
@@ -302,7 +302,7 @@ class TestEvaluatingManagedExpressionsWithRequiredFunctions:
         # Test with a custom function that isn't on the allowed list
         expr = factories.expression.create(statement="q_123 > _custom_test_function()", type_=ExpressionType.VALIDATION)
         # Don't patch the required_functions property, so it returns an empty dict
-        with pytest.raises(DisallowedExpression):
+        with pytest.raises(UndefinedFunctionInExpression):
             evaluate(expr, ExpressionContext(submission_data={"q_123": 123}))
 
 

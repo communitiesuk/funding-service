@@ -57,7 +57,10 @@ from app.common.data.types import (
 )
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import (
+    DisallowedExpression,
     ExpressionContext,
+    UndefinedFunctionInExpression,
+    UndefinedOperatorInExpression,
     UndefinedVariableInExpression,
     evaluate,
     interpolate,
@@ -581,17 +584,22 @@ class SubmissionHelper:
                     # as any condition being satisfied should make this component visible, ensure missing
                     # references for any of the conditions are handled
                     # only raise exceptions for missing variables if we haven't already determined we are visible
-                    undefined_variable_exception: UndefinedVariableInExpression | None = None
-                    undefined_variable_traceback: TracebackType | None = None
+                    evaluation_exception: Exception | None = None
+                    evaluation_traceback: TracebackType | None = None
                     for condition in conditions:
                         try:
                             if evaluate(condition, context):
                                 return True
-                        except UndefinedVariableInExpression as e:
-                            undefined_variable_exception = e
-                            undefined_variable_traceback = e.__traceback__
-                    if undefined_variable_exception is not None:
-                        raise undefined_variable_exception.with_traceback(undefined_variable_traceback)
+                        except (
+                            UndefinedVariableInExpression,
+                            DisallowedExpression,
+                            UndefinedFunctionInExpression,
+                            UndefinedOperatorInExpression,
+                        ) as e:
+                            evaluation_exception = e
+                            evaluation_traceback = e.__traceback__
+                    if evaluation_exception is not None:
+                        raise evaluation_exception.with_traceback(evaluation_traceback)
                     return False
                 case ConditionsOperator.ALL:
                     return all(evaluate(condition, context) for condition in conditions)

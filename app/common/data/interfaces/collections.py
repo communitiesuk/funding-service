@@ -860,6 +860,16 @@ class SectionDependencyOrderException(Exception, FlashableException):
         }
 
 
+class IncompatibleDataTypeInCalculationException(WTFormRenderableException):
+    def __init__(self, e: IncompatibleDataTypeException):
+        super().__init__(
+            message=e.message,
+            form_error_message=f"You cannot reference {e.depends_on_question.name} because only numbers can be "
+            "referenced in calculations",
+            field_name=e.field_name,
+        )
+
+
 class IncompatibleDataTypeException(WTFormRenderableException):
     def __init__(
         self,

@@ -12,6 +12,7 @@ from markupsafe import Markup, escape
 from pydantic import BaseModel
 
 from app.common.data.types import ManagedExpressionsEnum
+from app.common.exceptions import WTFormRenderableException
 from app.common.qid import SafeQidMixin
 from app.types import NOT_PROVIDED
 
@@ -32,16 +33,79 @@ class ManagedExpressionError(Exception):
     pass
 
 
-class UndefinedVariableInExpression(ManagedExpressionError):
-    pass
+class UndefinedVariableInExpression(
+    WTFormRenderableException,
+    ManagedExpressionError,
+):
+    def __init__(
+        self,
+        message: str,
+        variable_name: str,
+    ):
+        self.variable_name = variable_name
+        super().__init__(message, f"You cannot use {self.variable_name} because it does not exist")
 
 
-class DisallowedExpression(ManagedExpressionError):
-    pass
+class UndefinedFunctionInExpression(
+    WTFormRenderableException,
+    ManagedExpressionError,
+):
+    def __init__(
+        self,
+        message: str,
+        function_name: str,
+    ):
+        self.function_name = function_name
+        super().__init__(message, f"You cannot use {self.function_name} in calculations")
 
 
-class InvalidEvaluationResult(ManagedExpressionError):
-    pass
+class UndefinedOperatorInExpression(
+    WTFormRenderableException,
+    ManagedExpressionError,
+):
+    def __init__(
+        self,
+        message: str,
+        operator: str,
+    ):
+        self.operator = operator
+        # TODO map these to better names as this will print the ast node name, eg. Pow() not **
+        super().__init__(message, f"You cannot use {self.operator} in calculations")
+
+
+class DisallowedExpression(
+    WTFormRenderableException,
+    ManagedExpressionError,
+):
+    def __init__(
+        self,
+        message: str,
+        form_error_message: str | None = None,
+    ):
+        super().__init__(
+            message,
+            (
+                form_error_message
+                or "The calculation does not make sense. Check it is a complete calculation that only uses accepted "
+                "symbols"
+            ),
+        )
+
+
+class InvalidEvaluationResult(
+    WTFormRenderableException,
+    ManagedExpressionError,
+):
+    def __init__(
+        self,
+        statement: str,
+        result: str,
+        expected_type: type[bool] | type[int],
+    ):
+        super().__init__(
+            f"Result of evaluating {statement} was {result}; expected {expected_type}.",
+            f"The expression must evaluate to {'true or false' if expected_type is bool else 'a number'}",
+        )
 
 
 class EvaluatableExpression(BaseModel, SafeQidMixin):
@@ -360,6 +424,20 @@ def get_restricted_evaluator(
     return evaluator
 
 
+def run_evaluation(evaluator: simpleeval.SimpleEval, statement: str) -> Any:
+    try:
+        return evaluator.eval(statement)
+
+    except simpleeval.NameNotDefined as e:
+        raise UndefinedVariableInExpression(e.message, e.name) from e
+    except simpleeval.FunctionNotDefined as e:
+        raise UndefinedFunctionInExpression(e.message, e.func_name) from e  # ty:ignore[unresolved-attribute]
+    except (SyntaxError, simpleeval.FeatureNotAvailable, KeyError) as e:
+        raise DisallowedExpression("Expression is using unsafe/unsupported features") from e
+    except simpleeval.OperatorNotDefined as e:
+        raise UndefinedOperatorInExpression(e.message, e.attr) from e
+
+
 def _evaluate_expression_with_context(expression: Expression, context: ExpressionContext | None = None) -> Any:
     """
     The base evaluator to use for handling all expressions.
@@ -377,12 +455,7 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
 
     evaluator = get_restricted_evaluator(names=context, required_functions=expression.required_functions)
 
-    try:
-        result = evaluator.eval(expression.statement)
-    except simpleeval.NameNotDefined as e:
-        raise UndefinedVariableInExpression(e.message) from e
-    except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined, KeyError) as e:
-        raise DisallowedExpression("Expression is using unsafe/unsupported features") from e
+    result = run_evaluation(evaluator, expression.statement)
 
     return result
 
@@ -414,8 +487,12 @@ def interpolate(
             value = _evaluate_expression_with_context(expr, context)
             if with_interpolation_highlighting:
                 return f'<span class="app-context-aware-editor--valid-reference">{escape(value)}</span>'
-        except (UndefinedVariableInExpression, DisallowedExpression) as e:
-            print(e)
+        except (
+            UndefinedVariableInExpression,
+            DisallowedExpression,
+            UndefinedFunctionInExpression,
+            UndefinedOperatorInExpression,
+        ):
             value = matchobj.group(0)
 
         return str(value)
@@ -435,6 +512,6 @@ def evaluate(expression: Expression, context: ExpressionContext | None = None) -
 
     # do we want these to evalaute to non-bool types like int/str ever?
     if not isinstance(result, bool):
-        raise InvalidEvaluationResult(f"Result of evaluating {expression=} was {result=}; expected a boolean.")
+        raise InvalidEvaluationResult(expression.statement, result, bool)
 
     return result
