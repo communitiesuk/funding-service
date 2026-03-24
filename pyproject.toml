@@ -25,7 +25,7 @@ dependencies = [
     "notifications-python-client==10.0.1",
     "flask-talisman==1.1.0",
     "flask-login==0.6.3",
-    "sentry-sdk==2.54.0",
+    "sentry-sdk==2.55.0",
     "msal==1.35.1",
     "gunicorn[gevent]==25.1.0",
     "sqlalchemy-json==0.7.0",
