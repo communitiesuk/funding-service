@@ -1,9 +1,11 @@
 import uuid
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.common.collections.types import DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
 from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
@@ -825,3 +827,208 @@ class TestDeleteDataSource:
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 1
         assert db_session.get(DataSourceOrganisationItem, org_item_1.id) is None
         assert db_session.get(DataSourceOrganisationItem, org_item_2.id) is not None
+
+
+class TestDataSourceOrganisationItemDataProperty:
+    def test_2d_data_property_returns_typed_answers_after_db_round_trip(self, db_session, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        user = factories.user.create()
+
+        data_source = create_uploaded_data_source(
+            name="Test data source",
+            data_source_type=DataSourceType.GRANT_RECIPIENT,
+            grant_id=grant.id,
+            collection_id=report.id,
+            column_mappings=[
+                DataSetColumnMapping(
+                    column_name="Capital allocation",
+                    data_type=QuestionDataType.NUMBER,
+                    number_type=NumberTypeEnum.DECIMAL,
+                    prefix="£",
+                    max_decimal_places=2,
+                ),
+                DataSetColumnMapping(
+                    column_name="Additional notes",
+                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                ),
+            ],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                    "Capital allocation": "£1,000.00",
+                    "Additional notes": "Nice place",
+                }
+            ],
+            user=user,
+            s3_key="data-set-uploads/test.csv",
+            original_filename="test.csv",
+            data_source_id=uuid.uuid4(),
+        )
+
+        db_datasource = get_data_source(data_source.id, with_organisation_items=True)
+        org_item = db_datasource.organisation_items[0]
+        typed_data = org_item.data
+
+        assert isinstance(typed_data, dict)
+        allocation = typed_data["capital-allocation"]
+        assert isinstance(allocation, DecimalAnswer)
+        assert allocation.value == Decimal("1000.00")
+        assert allocation.get_value_for_interpolation() == "£1,000.00"
+
+        notes = typed_data["additional-notes"]
+        assert isinstance(notes, TextSingleLineAnswer)
+        assert notes.get_value_for_interpolation() == "Nice place"
+
+    def test_3d_data_property_returns_list_of_typed_dicts_after_db_round_trip(self, db_session, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        user = factories.user.create()
+
+        data_source = create_uploaded_data_source(
+            name="Test project level data set",
+            data_source_type=DataSourceType.PROJECT_LEVEL,
+            grant_id=grant.id,
+            collection_id=report.id,
+            column_mappings=[
+                DataSetColumnMapping(
+                    column_name="Project name",
+                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                ),
+                DataSetColumnMapping(
+                    column_name="Headcount",
+                    data_type=QuestionDataType.NUMBER,
+                    number_type=NumberTypeEnum.INTEGER,
+                ),
+            ],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                    "Project name": "Glorfindel",
+                    "Headcount": "10",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                    "Project name": "Lembas",
+                    "Headcount": "20",
+                },
+            ],
+            user=user,
+            s3_key="data-set-uploads/test.csv",
+            original_filename="test.csv",
+            data_source_id=uuid.uuid4(),
+        )
+
+        db_datasource = get_data_source(data_source.id, with_organisation_items=True)
+        org_item = db_datasource.organisation_items[0]
+        typed_data = org_item.data
+
+        assert isinstance(typed_data, list)
+        assert len(typed_data) == 2
+        assert isinstance(typed_data[0]["project-name"], TextSingleLineAnswer)
+        assert isinstance(typed_data[0]["headcount"], IntegerAnswer)
+        assert typed_data[0]["headcount"].value == 10
+        assert typed_data[1]["headcount"].value == 20
+
+    def test_none_values_in_db_return_none_from_data_property(self, db_session, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        user = factories.user.create()
+
+        data_source = create_uploaded_data_source(
+            name="Test Data Set",
+            data_source_type=DataSourceType.GRANT_RECIPIENT,
+            grant_id=grant.id,
+            collection_id=report.id,
+            column_mappings=[
+                DataSetColumnMapping(
+                    column_name="Notes",
+                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                ),
+                DataSetColumnMapping(
+                    column_name="Capital allocation",
+                    data_type=QuestionDataType.NUMBER,
+                    number_type=NumberTypeEnum.DECIMAL,
+                    prefix="£",
+                    max_decimal_places=2,
+                ),
+            ],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                    "Notes": "",
+                    "Capital allocation": "",
+                }
+            ],
+            user=user,
+            s3_key="data-set-uploads/test.csv",
+            original_filename="test.csv",
+            data_source_id=uuid.uuid4(),
+        )
+
+        db_datasource = get_data_source(data_source.id, with_organisation_items=True)
+        org_item = db_datasource.organisation_items[0]
+
+        # Confirm raw _data stores None
+        assert org_item._data["notes"] is None
+        assert org_item._data["capital-allocation"] is None
+
+        # Confirm typed .data returns None
+        assert org_item.data["notes"] is None
+        assert org_item.data["capital-allocation"] is None
+
+    def test_3d_none_values_within_project_rows_return_none(self, db_session, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        user = factories.user.create()
+
+        data_source = create_uploaded_data_source(
+            name="Test 3D None Values",
+            data_source_type=DataSourceType.PROJECT_LEVEL,
+            grant_id=grant.id,
+            collection_id=report.id,
+            column_mappings=[
+                DataSetColumnMapping(
+                    column_name="Project name",
+                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                ),
+                DataSetColumnMapping(
+                    column_name="Headcount",
+                    data_type=QuestionDataType.NUMBER,
+                    number_type=NumberTypeEnum.INTEGER,
+                ),
+            ],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                    "Project name": "Elrond",
+                    "Headcount": "10",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                    "Project name": "",
+                    "Headcount": "",
+                },
+            ],
+            user=user,
+            s3_key="data-set-uploads/test.csv",
+            original_filename="test.csv",
+            data_source_id=uuid.uuid4(),
+        )
+
+        db_datasource = get_data_source(data_source.id, with_organisation_items=True)
+        typed_data = db_datasource.organisation_items[0].data
+
+        # First row has values
+        assert isinstance(typed_data[0]["project-name"], TextSingleLineAnswer)
+        assert isinstance(typed_data[0]["headcount"], IntegerAnswer)
+
+        # Second row has None
+        assert typed_data[1]["project-name"] is None
+        assert typed_data[1]["headcount"] is None

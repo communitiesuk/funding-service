@@ -1,8 +1,22 @@
 from datetime import date
+from decimal import Decimal
+
+import pytest
 
 from app import CollectionStatusEnum
+from app.common.collections.types import DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
 from app.common.data.models import ComponentReference, get_ordered_nested_components
-from app.common.data.types import ConditionsOperator, ExpressionType
+from app.common.data.types import (
+    ConditionsOperator,
+    DataSourceSchema,
+    DataSourceSchemaColumn,
+    DataSourceType,
+    ExpressionType,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionDataType,
+    QuestionPresentationOptions,
+)
 
 
 class TestNestedComponents:
@@ -357,3 +371,285 @@ class TestIsSelfConditional:
         q2 = factories.question.build(parent=group)
         assert group.is_self_conditional is True
         assert q2.is_self_conditional is False
+
+
+def _text_col(original_column_name: str) -> DataSourceSchemaColumn:
+    return DataSourceSchemaColumn(
+        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        presentation_options=QuestionPresentationOptions(),
+        data_options=QuestionDataOptions(),
+        original_column_name=original_column_name,
+    )
+
+
+def _decimal_col(
+    original_column_name: str, prefix: str = "", suffix: str = "", max_decimal_places: int = 2
+) -> DataSourceSchemaColumn:
+    return DataSourceSchemaColumn(
+        data_type=QuestionDataType.NUMBER,
+        presentation_options=QuestionPresentationOptions(prefix=prefix or None, suffix=suffix or None),
+        data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=max_decimal_places),
+        original_column_name=original_column_name,
+    )
+
+
+def _integer_col(original_column_name: str, prefix: str = "", suffix: str = "") -> DataSourceSchemaColumn:
+    return DataSourceSchemaColumn(
+        data_type=QuestionDataType.NUMBER,
+        presentation_options=QuestionPresentationOptions(prefix=prefix or None, suffix=suffix or None),
+        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        original_column_name=original_column_name,
+    )
+
+
+class TestDataSourceMakePydanticModel:
+    def test_returns_empty_dict_when_no_schema_and_2d_data(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set", type=DataSourceType.GRANT_RECIPIENT, schema=None
+        )
+        assert data_source.build_typed_org_item_data({"capital-allocation": "1000"}) == {}
+
+    def test_returns_empty_list_when_no_schema_and_3d_data(self, factories):
+        data_source = factories.data_source.build(name="Test data set", type=DataSourceType.PROJECT_LEVEL, schema=None)
+        assert data_source.build_typed_org_item_data([{"capital-allocation": "1000"}]) == []
+
+    def test_text_column_returns_text_single_line_answer(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.STATIC,
+            schema=DataSourceSchema.model_validate({"theme-name": _text_col("Theme name")}),
+        )
+
+        result = data_source.build_typed_org_item_data({"theme-name": "Electricity"})
+
+        assert isinstance(result["theme-name"], TextSingleLineAnswer)
+        assert result["theme-name"].get_value_for_interpolation() == "Electricity"
+
+    def test_decimal_column_with_prefix_formats_correctly(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
+        )
+
+        result = data_source.build_typed_org_item_data({"allocation": "1000.00"})
+
+        answer = result["allocation"]
+        assert isinstance(answer, DecimalAnswer)
+        assert answer.value == Decimal("1000.00")
+        assert answer.get_value_for_interpolation() == "£1,000.00"
+
+    def test_decimal_column_without_prefix_formats_correctly(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation")}),
+        )
+
+        result = data_source.build_typed_org_item_data({"allocation": "500.50"})
+
+        assert result["allocation"].get_value_for_interpolation() == "500.50"
+
+    def test_integer_column_with_suffix_formats_correctly(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"headcount": _integer_col("Headcount", suffix=" people")}),
+        )
+
+        result = data_source.build_typed_org_item_data({"headcount": 42})
+
+        answer = result["headcount"]
+        assert isinstance(answer, IntegerAnswer)
+        assert answer.value == 42
+        assert answer.get_value_for_interpolation() == "42 people"
+
+    def test_none_value_returns_none(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
+        )
+
+        result = data_source.build_typed_org_item_data({"allocation": None})
+        assert result["allocation"] is None
+
+    def test_missing_key_in_row_treated_as_none(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
+        )
+
+        result = data_source.build_typed_org_item_data({})
+        assert result["allocation"] is None
+
+    def test_multiple_columns_all_typed_correctly(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "theme-name": _text_col("Theme name"),
+                    "allocation": _decimal_col("Allocation", prefix="£"),
+                    "headcount": _integer_col("Headcount"),
+                }
+            ),
+        )
+
+        result = data_source.build_typed_org_item_data(
+            {
+                "theme-name": "Electricity",
+                "allocation": "1000.00",
+                "headcount": 5,
+            }
+        )
+
+        assert isinstance(result["theme-name"], TextSingleLineAnswer)
+        assert isinstance(result["allocation"], DecimalAnswer)
+        assert isinstance(result["headcount"], IntegerAnswer)
+
+    def test_3d_project_level_returns_list_of_dicts(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.PROJECT_LEVEL,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "project-name": _text_col("Project name"),
+                    "allocation": _decimal_col("Allocation", prefix="£", max_decimal_places=2),
+                }
+            ),
+        )
+
+        result = data_source.build_typed_org_item_data(
+            [
+                {"project-name": "Alpha", "allocation": "500.00"},
+                {"project-name": "Beta", "allocation": "1500.00"},
+            ]
+        )
+
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert isinstance(result[0]["project-name"], TextSingleLineAnswer)
+        assert isinstance(result[0]["allocation"], DecimalAnswer)
+        assert result[0]["allocation"].get_value_for_interpolation() == "£500.00"
+        assert result[1]["allocation"].get_value_for_interpolation() == "£1,500.00"
+
+    def test_3d_each_row_in_list_is_independently_typed(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.PROJECT_LEVEL,
+            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
+        )
+
+        result = data_source.build_typed_org_item_data(
+            [
+                {"allocation": "100.00"},
+                {"allocation": None},
+                {"allocation": "300.00"},
+            ]
+        )
+
+        assert isinstance(result[0]["allocation"], DecimalAnswer)
+        assert result[1]["allocation"] is None
+        assert isinstance(result[2]["allocation"], DecimalAnswer)
+
+
+class TestDataSourceBuildAnswerForColumn:
+    def test_none_value_always_returns_none_regardless_of_column_type(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
+        )
+
+        result = data_source._build_answer_for_column(None, data_source.schema.root["allocation"])
+        assert result is None
+
+    def test_decimal_value_stored_as_string_is_correctly_parsed(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
+        )
+
+        result = data_source._build_answer_for_column("1234.56", data_source.schema.root["allocation"])
+
+        assert isinstance(result, DecimalAnswer)
+        assert result.value == Decimal("1234.56")
+
+    def test_integer_value_stored_as_int_is_correctly_parsed(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"allocation": _integer_col("Allocation")}),
+        )
+
+        result = data_source._build_answer_for_column(42, data_source.schema.root["allocation"])
+
+        assert isinstance(result, IntegerAnswer)
+        assert result.value == 42
+
+    def test_prefix_and_suffix_set_when_present_on_column(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "allocation": _decimal_col("Allocation", prefix="£"),
+                    "distance": _integer_col("Distance", suffix="km"),
+                }
+            ),
+        )
+
+        prefix_column = data_source._build_answer_for_column("1.5", data_source.schema.root["allocation"])
+        assert isinstance(prefix_column, DecimalAnswer)
+        assert prefix_column.prefix == "£"
+
+        suffix_column = data_source._build_answer_for_column("1000", data_source.schema.root["distance"])
+        assert isinstance(suffix_column, IntegerAnswer)
+        assert suffix_column.suffix == "km"
+
+    def test_no_prefix_or_suffix_when_not_set_on_column(self, factories):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation")}),
+        )
+
+        result = data_source._build_answer_for_column("100.5", data_source.schema.root["allocation"])
+
+        assert result.prefix is None
+        assert result.suffix is None
+
+    def test_unsupported_number_type_logs_error_and_raises(self, factories, caplog):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"column": _decimal_col("Bad column")}),
+        )
+        column = data_source.schema.root["column"]
+        column.data_options.number_type = None
+
+        with pytest.raises(ValueError, match="Unsupported number_type"):
+            data_source._build_answer_for_column("123", column)
+
+        assert len(caplog.messages) == 1
+        assert "Unsupported number_type" in caplog.messages[0]
+        assert "Bad column" in caplog.messages[0]
+
+    def test_unsupported_data_type_logs_error_and_raises(self, factories, caplog):
+        data_source = factories.data_source.build(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"column": _text_col("Bad column")}),
+        )
+        column = data_source.schema.root["column"]
+        column.data_type = QuestionDataType.DATE
+
+        with pytest.raises(ValueError, match="Unsupported data_type"):
+            data_source._build_answer_for_column("2024-01-01", column)
+
+        assert len(caplog.messages) == 1
+        assert "Unsupported data_type" in caplog.messages[0]
+        assert "Bad column" in caplog.messages[0]
