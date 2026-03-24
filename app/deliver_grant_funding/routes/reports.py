@@ -1312,7 +1312,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-            field_with_error.errors.append(e.message)
+            field_with_error.errors.append(e.form_error_message)
 
     return render_template(
         "deliver_grant_funding/reports/add_question.html",
@@ -1725,10 +1725,10 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-            field_with_error.errors.append(e.message)
+            field_with_error.errors.append(e.form_error_message)
         except DependencyOrderException as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-            field_with_error.errors.append(e.message)
+            field_with_error.errors.append(e.form_error_message)
         except DataSourceItemReferenceDependencyException as e:
             for flash_context in e.as_flash_contexts():
                 flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]
@@ -1814,7 +1814,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
 
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(form, e.field_name)  # ty:ignore[invalid-argument-type]
-            field_with_error.errors.append(e.message)
+            field_with_error.errors.append(e.form_error_message)
 
     return render_template(
         "deliver_grant_funding/reports/manage_add_another_guidance.html",
@@ -3123,15 +3123,15 @@ def _validate_custom_syntax(  # noqa:C901
             validated_references.append(unwrapped_ref)
 
     except InvalidReferenceInExpression as e:
-        return e.message
+        return e.form_error_message
     except DependencyOrderException as e:
-        return e.message
+        return e.form_error_message
     except IncompatibleDataTypeException as e:
         return (
             f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced in calculations"
         )
     except AddAnotherDependencyException as e:
-        return e.message
+        return e.form_error_message
 
     if validate_with_evaluation is False:
         # No further validation needed for custom error message

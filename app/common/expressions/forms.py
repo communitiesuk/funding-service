@@ -191,4 +191,4 @@ class CustomValidationExpressionForm(FlaskForm):
     def handle_exception(self, e: WTFormRenderableException) -> None:
         if e.field_name:
             field_with_error = getattr(self, e.field_name)
-            field_with_error.errors.append(e.message)
+            field_with_error.errors.append(e.form_error_message)
