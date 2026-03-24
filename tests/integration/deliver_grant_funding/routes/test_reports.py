@@ -2259,7 +2259,7 @@ class TestAddQuestion:
         soup = BeautifulSoup(response.data, "html.parser")
         assert response.status_code == 200
 
-        assert page_has_error(soup, "Reference is not valid: ((invalid_reference))")
+        assert page_has_error(soup, "You cannot use ((invalid_reference)) because it does not exist")
 
     @pytest.mark.parametrize("context_field", ["text", "hint"])
     def test_post_to_add_context_redirects_and_sets_up_session(
@@ -3313,7 +3313,7 @@ class TestEditQuestion:
         soup = BeautifulSoup(response.data, "html.parser")
         assert response.status_code == 200
 
-        assert page_has_error(soup, "Reference is not valid: ((invalid_reference))")
+        assert page_has_error(soup, "You cannot use ((invalid_reference)) because it does not exist")
 
     @pytest.mark.parametrize("context_field", ["text", "hint"])
     def test_post_to_add_context_redirects_and_sets_up_session(
@@ -8454,7 +8454,7 @@ class TestValidateCustomSyntax:
         result = _validate_custom_syntax(
             q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
-        assert result == f"{q1.name} cannot reference {q2.name} as it appears in the wrong order"
+        assert result == f"You cannot use {q2.name} because it comes after this question"
 
         result = _validate_custom_syntax(
             q1,
@@ -8464,7 +8464,7 @@ class TestValidateCustomSyntax:
             "custom_message",
             False,
         )
-        assert result == f"{q1.name} cannot reference {q2.name} as it appears in the wrong order"
+        assert result == f"You cannot use {q2.name} because it comes after this question"
 
     def test_invalid_expression_forms_out_of_order(self, factories, mocker):
         db_form_0 = factories.form.create()
@@ -8493,7 +8493,7 @@ class TestValidateCustomSyntax:
         result = _validate_custom_syntax(
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
-        assert result == f"{q3.name} cannot reference {later_form_question.name} as it appears in the wrong order"
+        assert result == f"You cannot use {later_form_question.name} because it comes after this question"
 
         result = _validate_custom_syntax(
             q3,
@@ -8503,7 +8503,7 @@ class TestValidateCustomSyntax:
             "custom_message",
             False,
         )
-        assert result == f"{q3.name} cannot reference {later_form_question.name} as it appears in the wrong order"
+        assert result == f"You cannot use {later_form_question.name} because it comes after this question"
 
     def test_invalid_expression_bad_reference(self, factories, mocker):
         db_form = factories.form.create()
@@ -8522,7 +8522,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == "((some_bad_ref)) is not a valid reference"
+        assert result == "You cannot use ((some_bad_ref)) because it does not exist"
 
         result = _validate_custom_syntax(
             q3,
@@ -8533,7 +8533,7 @@ class TestValidateCustomSyntax:
             False,
         )
 
-        assert result == "((some_bad_ref)) is not a valid reference"
+        assert result == "You cannot use ((some_bad_ref)) because it does not exist"
 
     def test_invalid_expression_reference_missing_from_context(self, factories, mocker):
         db_form = factories.form.create()
@@ -8552,7 +8552,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == f"(({q1.safe_qid})) is not a valid reference"
+        assert result == f"You cannot use (({q1.safe_qid})) because it does not exist"
 
         result = _validate_custom_syntax(
             q3,
@@ -8563,7 +8563,7 @@ class TestValidateCustomSyntax:
             False,
         )
 
-        assert result == f"(({q1.safe_qid})) is not a valid reference"
+        assert result == f"You cannot use (({q1.safe_qid})) because it does not exist"
 
     def test_invalid_expression_incompatible_data_type(self, factories, mocker):
         db_form = factories.form.create()
@@ -8583,7 +8583,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == f"Cannot reference {q1.name} as it is of data type {q1.data_type}"
+        assert result == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
 
         result = _validate_custom_syntax(
             q3,
@@ -8594,7 +8594,7 @@ class TestValidateCustomSyntax:
             False,
         )
 
-        assert result == f"Cannot reference {q1.name} as it is of data type {q1.data_type}"
+        assert result == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
 
     def test_invalid_expression_name_not_defined(self, factories, mocker):
         db_form = factories.form.create()
@@ -8622,7 +8622,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == f"This name is not defined: {q1.safe_qid}"
+        assert result == f"You cannot use {q1.safe_qid} because it does not exist"
 
     def test_invalid_expression_unavailable_function(self, factories, mocker):
         db_form = factories.form.create()
@@ -8641,7 +8641,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == "This function is not available: sum"
+        assert result == "You cannot use sum in calculations"
 
     def test_invalid_expression_bad_syntax(self, factories, mocker):
         db_form = factories.form.create()
@@ -8660,7 +8660,10 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result.strip() == f"Invalid syntax in expression: {test_expression}"
+        assert (
+            result.strip()
+            == "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
+        )
 
     def test_invalid_expression_bad_operator(self, factories, mocker):
         db_form = factories.form.create()
@@ -8679,7 +8682,7 @@ class TestValidateCustomSyntax:
             q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
         )
 
-        assert result == "Operator Pow() does not exist"
+        assert result == "You cannot use Pow() in calculations"
 
     def test_invalid_expression_multiple_references_to_self(self, factories, mocker):
         db_form = factories.form.create()
@@ -8822,7 +8825,7 @@ class TestAddCustomQuestionValidation:
         assert len(q3.expressions) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
+            "You cannot use Later question name because it comes after this question",
         )
 
     def test_post_error_in_message(self, authenticated_platform_admin_client, factories, db_session):
@@ -8860,7 +8863,7 @@ class TestAddCustomQuestionValidation:
         assert len(q3.expressions) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "((bad_reference)) is not a valid reference",
+            "You cannot use ((bad_reference)) because it does not exist",
         )
 
     def test_post_error_in_expression_and_message(self, authenticated_platform_admin_client, factories, db_session):
@@ -8904,11 +8907,11 @@ class TestAddCustomQuestionValidation:
         assert len(q3.expressions) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "This function is not available: sum",
+            "You cannot use sum in calculations",
         )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
+            "You cannot use Later question name because it comes after this question",
         )
 
     def test_post_to_add_context(self, authenticated_platform_admin_client, factories, db_session):
@@ -9099,11 +9102,11 @@ class TestEditCustomQuestionValidation:
         assert len(expression.component_references) == 0
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            "This function is not available: sum",
+            "You cannot use sum in calculations",
         )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
-            f"{q3.name} cannot reference Later question name as it appears in the wrong order",
+            "You cannot use Later question name because it comes after this question",
         )
 
     def test_post_to_add_context(self, authenticated_platform_admin_client, factories, db_session):

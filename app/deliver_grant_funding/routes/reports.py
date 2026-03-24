@@ -1311,7 +1311,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
         except InvalidReferenceInExpression as e:
-            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.message)
 
     return render_template(
@@ -1724,7 +1724,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             field_with_error: Field = getattr(wt_form, e.field_name)
             field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
         except InvalidReferenceInExpression as e:
-            field_with_error = getattr(wt_form, e.field_name)
+            field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.message)
         except DependencyOrderException as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
@@ -1813,7 +1813,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
             return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group.id))
 
         except InvalidReferenceInExpression as e:
-            field_with_error = getattr(form, e.field_name)
+            field_with_error = getattr(form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.message)
 
     return render_template(
@@ -1899,7 +1899,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
             )
 
         except InvalidReferenceInExpression as e:
-            field_with_error = getattr(form, e.field_name)
+            field_with_error = getattr(form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.message)
 
     # Build expression context for reference mappings
@@ -2150,7 +2150,13 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         session_model=AddContextToExpressionsModel, question_id=question.id
     )
 
-    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+    ValidationForm = build_managed_expression_form(
+        ExpressionType.VALIDATION,
+        question,
+        show_calculated_validation_option=(
+            AuthorisationHelper.is_platform_member(get_current_user()) and question.data_type == QuestionDataType.NUMBER
+        ),
+    )
     form = (
         ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ValidationForm
@@ -2180,6 +2186,15 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         return redirect(request.url)
 
     if form and form.validate_on_submit():
+        if form.type.data == "CUSTOM":
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.add_custom_question_validation",
+                    grant_id=grant_id,
+                    question_id=question_id,
+                )
+            )
+
         expression = form.get_expression(question)
 
         try:
@@ -2375,26 +2390,14 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
 
             try:
                 interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
-            except InvalidReferenceInExpression as e:
-                field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(f"{e.bad_reference} is not a valid reference")
+            except (InvalidReferenceInExpression, DependencyOrderException, AddAnotherDependencyException) as e:
+                wt_form.handle_exception(e)
 
-            except DependencyOrderException as e:
-                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-                field_with_error.errors.append(
-                    f"{question.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
-                )
             except IncompatibleDataTypeException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
                 field_with_error.errors.append(
-                    f"Cannot reference {e.depends_on_question.name} as it is of data type "
-                    f"{e.depends_on_question.data_type}"
-                )
-            except AddAnotherDependencyException as e:
-                field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(
-                    f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a "
-                    "different group"
+                    f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced "
+                    "in calculations"
                 )
 
             else:
@@ -2504,26 +2507,13 @@ def edit_custom_question_validation(  # noqa:C901
 
             try:
                 interfaces.collections.update_question_expression(expression, custom_expression)
-            except InvalidReferenceInExpression as e:
-                field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(f"{e.bad_reference} is not a valid reference")
-
-            except DependencyOrderException as e:
-                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-                field_with_error.errors.append(
-                    f"{question.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
-                )
+            except (InvalidReferenceInExpression, DependencyOrderException, AddAnotherDependencyException) as e:
+                wt_form.handle_exception(e)
             except IncompatibleDataTypeException as e:
                 field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
                 field_with_error.errors.append(
-                    f"Cannot reference {e.depends_on_question.name} as it is of data type "
-                    f"{e.depends_on_question.data_type}"
-                )
-            except AddAnotherDependencyException as e:
-                field_with_error = getattr(wt_form, e.field_name)
-                field_with_error.errors.append(
-                    f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a "
-                    "different group"
+                    f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced "
+                    "in calculations"
                 )
 
             else:
@@ -3132,18 +3122,16 @@ def _validate_custom_syntax(  # noqa:C901
             )
             validated_references.append(unwrapped_ref)
 
-    # TODO catch more exceptions here and reword errors
     except InvalidReferenceInExpression as e:
-        return f"{e.bad_reference} is not a valid reference"
-
+        return e.message
     except DependencyOrderException as e:
-        return f"{component.name} cannot reference {e.depends_on_question.name} as it appears in the wrong order"
+        return e.message
     except IncompatibleDataTypeException as e:
-        return f"Cannot reference {e.depends_on_question.name} as it is of data type {e.depends_on_question.data_type}"
-    except AddAnotherDependencyException as e:
         return (
-            f"Cannot reference {e.referenced_question.name} as it can be answered multiple times in a different group"
+            f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced in calculations"
         )
+    except AddAnotherDependencyException as e:
+        return e.message
 
     if validate_with_evaluation is False:
         # No further validation needed for custom error message
@@ -3168,20 +3156,17 @@ def _validate_custom_syntax(  # noqa:C901
         if not isinstance(result, bool):
             return "The expression must evaluate to true or false"
 
-    # TODO review error message wording
     # TODO do we want to put some of these in sentry so we can see what sort of validation errors are triggered to
     #  help write guidance in the future?
 
     except simpleeval.NameNotDefined as e:
-        return f"This name is not defined: {e.name}"
-    except simpleeval.FeatureNotAvailable:
-        return "You can't do this "
+        return f"You cannot use {e.name} because it does not exist"
     except simpleeval.FunctionNotDefined as e:
-        return f"This function is not available: {e.func_name}"  # ty:ignore[unresolved-attribute]
-    except SyntaxError as e:
-        return f"Invalid syntax in expression: {e.text}"
+        return f"You cannot use {e.func_name} in calculations"  # ty:ignore[unresolved-attribute]
+    except SyntaxError, simpleeval.FeatureNotAvailable, KeyError:
+        return "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
     except simpleeval.OperatorNotDefined as e:
         # TODO: This prints the ast node name (eg. Pow()) rather than the actual operator (eg. **)
-        return f"Operator {e.attr} does not exist"
+        return f"You cannot use {e.attr} in calculations"
 
     return None

@@ -3121,11 +3121,16 @@ class TestExpressions:
     def test_add_question_condition_blocks_on_order(self, db_session, factories):
         user = factories.user.create()
         q1 = factories.question.create()
+        g1 = factories.group.create(form=q1.form)
         q2 = factories.question.create(form=q1.form)
 
         with pytest.raises(DependencyOrderException) as e:
             add_component_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
-        assert str(e.value) == "Cannot reference a later question"
+        assert str(e.value) == f"You cannot use {q2.name} because it comes after this question"
+
+        with pytest.raises(DependencyOrderException) as e:
+            add_component_condition(g1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+        assert str(e.value) == f"You cannot use {q2.name} because it comes after this question group"
 
     def test_add_question_condition_blocks_on_add_another_question(self, db_session, factories):
         user = factories.user.create()
@@ -3134,7 +3139,7 @@ class TestExpressions:
 
         with pytest.raises(AddAnotherDependencyException) as e:
             add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
-        assert str(e.value) == "A question cannot depend on an add another question from a different add another group"
+        assert str(e.value) == f"You cannot reference {q1.name} because it can be answered more than once"
 
     def test_add_question_condition_blocks_on_add_another_question_outside_group(self, db_session, factories):
         user = factories.user.create()
@@ -3144,7 +3149,7 @@ class TestExpressions:
 
         with pytest.raises(AddAnotherDependencyException) as e:
             add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
-        assert str(e.value) == "A question cannot depend on an add another question from a different add another group"
+        assert str(e.value) == f"You cannot reference {q1.name} because it can be answered more than once"
 
     def test_add_question_condition_succeeds_add_another_question_inside_same_group(self, db_session, factories):
         user = factories.user.create()
@@ -4787,7 +4792,7 @@ class TestValidateReference:
                 field_name_for_error_message="custom_expression",
                 question_to_test=None,
             )
-        assert "Cannot reference a later question" in str(e)
+        assert f"You cannot use {q3.name} because it comes after this question" in str(e)
         assert e.value.depends_on_question.id == q3.id
         assert e.value.question.id == q2.id
 
@@ -4804,7 +4809,7 @@ class TestValidateReference:
                 field_name_for_error_message="custom_expression",
                 question_to_test=None,
             )
-        assert "Cannot reference a later question" in str(e)
+        assert f"You cannot use {q3.name} because it comes after this question" in str(e)
         assert e.value.depends_on_question.id == q3.id
         assert e.value.question.id == q2.id
 
@@ -4834,7 +4839,7 @@ class TestValidateReference:
                 field_name_for_error_message="custom_expression",
                 question_to_test=None,
             )
-        assert "Reference is not valid" in str(e)
+        assert "You cannot use ((q_bad_ref)) because it does not exist" in str(e)
         assert e.value.field_name == "custom_expression"
         assert e.value.bad_reference == "((q_bad_ref))"
 

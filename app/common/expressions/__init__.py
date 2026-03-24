@@ -381,7 +381,7 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
         result = evaluator.eval(expression.statement)
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message) from e
-    except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined) as e:
+    except (simpleeval.FeatureNotAvailable, simpleeval.FunctionNotDefined, KeyError) as e:
         raise DisallowedExpression("Expression is using unsafe/unsupported features") from e
 
     return result

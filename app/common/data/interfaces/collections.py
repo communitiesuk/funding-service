@@ -53,6 +53,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.data.utils import generate_submission_reference
+from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
     ALLOWED_INTERPOLATION_REGEX,
     INTERPOLATE_REGEX,
@@ -805,7 +806,7 @@ class FlashableException(Protocol):
     def as_flash_context(self) -> dict[str, str | bool]: ...
 
 
-class DependencyOrderException(Exception, FlashableException):
+class DependencyOrderException(Exception, FlashableException, WTFormRenderableException):
     def __init__(
         self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
     ):
@@ -849,7 +850,7 @@ class SectionDependencyOrderException(Exception, FlashableException):
         }
 
 
-class IncompatibleDataTypeException(Exception):
+class IncompatibleDataTypeException(Exception, WTFormRenderableException):
     def __init__(
         self, message: str, component: Component, depends_on_component: Component, field_name: str | None = None
     ):
@@ -1126,7 +1127,7 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
-class AddAnotherDependencyException(Exception, FlashableException):
+class AddAnotherDependencyException(Exception, FlashableException, WTFormRenderableException):
     def __init__(self, message: str, component: Component, referenced_question: Component, field_name: str = ""):
         super().__init__(message)
         self.message = message
@@ -1438,7 +1439,7 @@ def _validate_reference(  # noqa:C901
 
     if not unwrapped_ref:
         raise InvalidReferenceInExpression(
-            f"Reference is not valid: {wrapped_reference}",
+            f"You cannot use {wrapped_reference} because it does not exist",
             field_name=field_name_for_error_message,
             bad_reference=wrapped_reference,
         )
@@ -1460,7 +1461,7 @@ def _validate_reference(  # noqa:C901
     # Check the reference is valid in this expression context
     if not expression_context.is_valid_reference(unwrapped_ref):
         raise InvalidReferenceInExpression(
-            f"Reference is not valid: {wrapped_reference}",
+            f"You cannot use {wrapped_reference} because it does not exist",
             field_name=field_name_for_error_message,
             bad_reference=wrapped_reference,
         )
@@ -1503,7 +1504,8 @@ def _validate_reference(  # noqa:C901
                 and referenced_question == attached_to_component
             ):
                 raise DependencyOrderException(
-                    "Cannot reference a later question",
+                    f"You cannot use {referenced_question.name} because it comes after this question"
+                    f"{' group' if attached_to_component.is_group else ''}",
                     attached_to_component,
                     referenced_question,
                     field_name=field_name_for_error_message,
@@ -1534,7 +1536,7 @@ def _validate_reference(  # noqa:C901
             attached_to_component, [referenced_question, question_to_test]
         ):
             raise AddAnotherDependencyException(
-                "A question cannot depend on an add another question from a different add another group",
+                f"You cannot reference {referenced_question.name} because it can be answered more than once",
                 attached_to_component,
                 referenced_question,
                 field_name=field_name_for_error_message,

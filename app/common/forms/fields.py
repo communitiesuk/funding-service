@@ -88,7 +88,10 @@ class MHCLGDividableIterableBase(GovIterableBase):
         kwargs["items"] = []
 
         for subfield in field:
-            item = {"text": subfield.label.text, "value": subfield._value()}
+            item = {
+                "text": subfield.label.text,
+                "value": subfield._value(),
+            }
 
             if getattr(subfield, "checked", subfield.data):
                 item["checked"] = True

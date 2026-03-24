@@ -52,7 +52,7 @@
           What does the answer <span class="govuk-visually-hidden">to {{ interpolate(question.text) }}</span> need to be?
         {% endset %}
 
-        {{ render_managed_expression_form(form, label_html=label_html, submit_label=submit_label, show_custom_expression_btn = ff_show_custom_expression_option, grant_id=grant.id, question_id=question.id) }}
+        {{ render_managed_expression_form(form, label_html=label_html, submit_label=submit_label, grant_id=grant.id, question_id=question.id) }}
 
         {% if expression %}
           <div class="govuk-grid-row govuk-!-margin-top-7">
