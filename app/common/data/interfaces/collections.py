@@ -1777,7 +1777,7 @@ def delete_form(form: Form) -> None:
     db.session.delete(form)
     for ds in data_sources_to_delete:
         db.session.delete(ds)
-    form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # type: ignore[assignment]
+    form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # type: ignore[invalid-assignment]
     form.collection.forms.reorder()  # Force all other forms to update their `order` attribute
     db.session.execute(text("SET CONSTRAINTS uq_form_order_collection DEFERRED"))
 

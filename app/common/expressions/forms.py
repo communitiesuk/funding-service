@@ -139,7 +139,7 @@ def build_managed_expression_form(
                 and self._referenced_question.data_type == QuestionDataType.NUMBER
             ):
                 # This creates a placeholder which is then replaced by the 'or' divider at render time below
-                self.type.choices.append((None, None))  # ty:ignore[invalid-argument-type]
+                self.type.choices.append((None, None))
                 self.type.choices.append(("CUSTOM", "Calculation with two or more numbers"))
 
         def get_managed_expression_radio_items(self) -> list[dict[str, dict[str, Markup]]]:
