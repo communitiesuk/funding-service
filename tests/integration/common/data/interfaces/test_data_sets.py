@@ -101,12 +101,13 @@ class TestCreateUploadedDataSourceGrantRecipient:
             s3_key="data-set-uploads/test.csv",
         )
 
-        schema = data_source.schema
-        assert "capital-allocation" in schema
-        assert schema["capital-allocation"]["data_type"] == QuestionDataType.NUMBER
-        assert schema["capital-allocation"]["original_column_name"] == "Capital allocation"
-        assert "additional-info" in schema
-        assert schema["additional-info"]["data_type"] == QuestionDataType.TEXT_SINGLE_LINE
+        allocation_column = data_source.schema.root["capital-allocation"]
+        assert allocation_column.data_type == QuestionDataType.NUMBER
+        assert allocation_column.original_column_name == "Capital allocation"
+        assert allocation_column.presentation_options.prefix == "£"
+
+        info_column = data_source.schema.root["additional-info"]
+        assert info_column.data_type == QuestionDataType.TEXT_SINGLE_LINE
 
     def test_creates_organisation_items_one_per_grant_recipient(self, db_session, factories):
         grant = factories.grant.create()
@@ -197,8 +198,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
         assert isinstance(org_item.data, dict)
-        assert org_item.data["capital-allocation"] == 500000
-        assert org_item.data["description"] == "A fine place"
+        assert org_item._data["capital-allocation"] == 500000
+        assert org_item._data["description"] == "A fine place"
 
     def test_cleans_prefix_and_suffix_from_number_values(self, db_session, factories):
         grant = factories.grant.create()
@@ -237,7 +238,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
-        assert org_item.data["amount"] == "1.50"
+        assert org_item._data["amount"] == "1.50"
 
     def test_excludes_identifier_columns_from_data_blob(self, db_session, factories):
         grant = factories.grant.create()
@@ -273,8 +274,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
-        assert "ons-code" not in org_item.data
-        assert "grant-recipient" not in org_item.data
+        assert "ons-code" not in org_item._data
+        assert "grant-recipient" not in org_item._data
 
     def test_empty_string_values_saved_as_none(self, db_session, factories):
         grant = factories.grant.create()
@@ -309,7 +310,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
-        assert org_item.data["notes"] is None
+        assert org_item._data["notes"] is None
 
 
 class TestCreateUploadedDataSourceProjectLevel:
@@ -417,12 +418,12 @@ class TestCreateUploadedDataSourceProjectLevel:
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
-        assert isinstance(org_item.data, list)
-        assert len(org_item.data) == 2
-        assert org_item.data[0]["project-name"] == "Roads"
-        assert org_item.data[0]["allocation"] == 5
-        assert org_item.data[1]["project-name"] == "Trees"
-        assert org_item.data[1]["allocation"] == 10
+        assert isinstance(org_item._data, list)
+        assert len(org_item._data) == 2
+        assert org_item._data[0]["project-name"] == "Roads"
+        assert org_item._data[0]["allocation"] == 5
+        assert org_item._data[1]["project-name"] == "Trees"
+        assert org_item._data[1]["allocation"] == 10
 
     def test_single_row_per_grant_recipient_is_still_list(self, db_session, factories):
         grant = factories.grant.create()
@@ -627,13 +628,13 @@ class TestCreateUploadedDataSourceSchemaOptions:
             s3_key="data-set-uploads/test.csv",
         )
 
-        schema_col = data_source.schema["amount"]
-        assert schema_col["presentation_options"]["prefix"] == "£"
-        assert schema_col["presentation_options"]["suffix"] == ""
-        assert schema_col["data_options"]["number_type"] == NumberTypeEnum.DECIMAL
-        assert schema_col["data_options"]["max_decimal_places"] == 2
+        schema_col = data_source.schema.root["amount"]
+        assert schema_col.presentation_options.prefix == "£"
+        assert schema_col.presentation_options.suffix == ""
+        assert schema_col.data_options.number_type == NumberTypeEnum.DECIMAL
+        assert schema_col.data_options.max_decimal_places == 2
 
-    def test_text_columns_have_empty_presentation_and_data_options(self, db_session, factories):
+    def test_text_columns_have_none_presentation_and_data_options(self, db_session, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
         user = factories.user.create()
@@ -665,9 +666,13 @@ class TestCreateUploadedDataSourceSchemaOptions:
             s3_key="data-set-uploads/test.csv",
         )
 
-        schema_col = data_source.schema["description"]
-        assert schema_col["data_type"] == QuestionDataType.TEXT_SINGLE_LINE
-        assert schema_col["original_column_name"] == "Description"
+        schema_col = data_source.schema.root["description"]
+        assert schema_col.data_type == QuestionDataType.TEXT_SINGLE_LINE
+        assert schema_col.original_column_name == "Description"
+        assert schema_col.presentation_options.prefix is None
+        assert schema_col.presentation_options.suffix is None
+        assert schema_col.data_options.number_type is None
+        assert schema_col.data_options.max_decimal_places is None
 
     def test_schema_keys_are_slugified(self, db_session, factories):
         grant = factories.grant.create()
@@ -702,8 +707,8 @@ class TestCreateUploadedDataSourceSchemaOptions:
             s3_key="data-set-uploads/test.csv",
         )
 
-        assert "capital-allocation" in data_source.schema
-        assert "Capital Allocation (£)" not in data_source.schema
+        assert "capital-allocation" in data_source.schema.root
+        assert "Capital Allocation (£)" not in data_source.schema.root
 
 
 class TestGetDataSource:

@@ -34,6 +34,7 @@ from app.common.data.types import (
     ConditionsOperator,
     DataSourceFileMetadata,
     DataSourceFileTagEnum,
+    DataSourceSchema,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -6581,7 +6582,6 @@ class TestListReportDataSets:
         data_source_1 = factories.data_source.create(
             type=DataSourceType.GRANT_RECIPIENT,
             name="Allocations Data",
-            schema={},
             grant=client.grant,
             collection=report,
             created_by=uploader,
@@ -6591,7 +6591,6 @@ class TestListReportDataSets:
         data_source_2 = factories.data_source.create(
             type=DataSourceType.STATIC,
             name="Themes Data",
-            schema={},
             grant=client.grant,
             collection=report,
             created_by=uploader,
@@ -6602,7 +6601,6 @@ class TestListReportDataSets:
         data_source_3 = factories.data_source.create(
             type=DataSourceType.STATIC,
             name="Other Data",
-            schema={},
             grant=other_report.grant,
             collection=other_report,
         )
@@ -7986,10 +7984,12 @@ class TestDataSetMissingData:
         assert data_source.name == session["data_set_upload"]["name"]
         assert data_source.type == DataSourceType.GRANT_RECIPIENT
         assert data_source.grant_id == authenticated_grant_admin_client.grant.id
-        assert data_source.schema is not None
-        assert "capital-allocation" in data_source.schema
-        assert "revenue-allocation" in data_source.schema
-        assert data_source.schema["revenue-allocation"]["presentation_options"]["prefix"] == "£"
+        schema = data_source.schema.root
+        assert schema is not None
+        assert "capital-allocation" in schema
+        assert "revenue-allocation" in schema
+        revenue_allocation = schema["revenue-allocation"]
+        assert revenue_allocation.presentation_options.prefix == "£"
 
         org_items = (
             db_session.query(DataSourceOrganisationItem)
@@ -8000,7 +8000,7 @@ class TestDataSetMissingData:
         assert len(org_items) == 2
         assert org_items[0].external_id == grant_recipient.organisation.external_id
         assert org_items[1].external_id == grant_recipient_2.organisation.external_id
-        assert org_items[1].data["revenue-allocation"] == "200.00"
+        assert org_items[1]._data["revenue-allocation"] == "200.00"
 
 
 class TestViewDataSource:
@@ -8034,7 +8034,6 @@ class TestViewDataSource:
             grant=grant,
             name="Test data set",
             type=DataSourceType.STATIC,
-            schema={},
         )
 
         response = client.get(
@@ -8073,7 +8072,6 @@ class TestViewDataSource:
             grant=grant,
             name="Test data set",
             type=DataSourceType.STATIC,
-            schema={},
         )
 
         response = client.get(
@@ -8109,7 +8107,6 @@ class TestViewDataSource:
             name="Test data set",
             type=DataSourceType.STATIC,
             created_by=user,
-            schema={},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8140,20 +8137,22 @@ class TestViewDataSource:
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema={
-                "allocation": {
-                    "data_type": QuestionDataType.NUMBER,
-                    "original_column_name": "Allocation",
-                    "presentation_options": {"prefix": "£", "suffix": ""},
-                    "data_options": {"number_type": NumberTypeEnum.INTEGER, "max_decimal_places": None},
+            schema=DataSourceSchema.model_validate(
+                {
+                    "allocation": {
+                        "data_type": QuestionDataType.NUMBER,
+                        "original_column_name": "Allocation",
+                        "presentation_options": {"prefix": "£", "suffix": ""},
+                        "data_options": {"number_type": NumberTypeEnum.INTEGER, "max_decimal_places": None},
+                    }
                 }
-            },
+            ),
             items=None,
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            data={"allocation": 500000},
+            _data={"allocation": 500000},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8185,20 +8184,22 @@ class TestViewDataSource:
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.PROJECT_LEVEL,
-            schema={
-                "project-name": {
-                    "data_type": QuestionDataType.TEXT_SINGLE_LINE,
-                    "original_column_name": "Project name",
-                    "presentation_options": {},
-                    "data_options": {},
+            schema=DataSourceSchema.model_validate(
+                {
+                    "project-name": {
+                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "original_column_name": "Project name",
+                        "presentation_options": {},
+                        "data_options": {},
+                    }
                 }
-            },
+            ),
             items=None,
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            data=[
+            _data=[
                 {"project-name": "Roads"},
                 {"project-name": "Bridges"},
             ],
@@ -8227,7 +8228,6 @@ class TestViewDataSource:
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.STATIC,
-            schema={},
             items=None,
         )
         factories.data_source_item.create(data_source=data_source, key="UK", label="United Kingdom", order=0)
@@ -8256,20 +8256,22 @@ class TestViewDataSource:
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema={
-                "notes": {
-                    "data_type": QuestionDataType.TEXT_SINGLE_LINE,
-                    "original_column_name": "Notes",
-                    "presentation_options": {},
-                    "data_options": {},
+            schema=DataSourceSchema.model_validate(
+                {
+                    "notes": {
+                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "original_column_name": "Notes",
+                        "presentation_options": {},
+                        "data_options": {},
+                    }
                 }
-            },
+            ),
             items=None,
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            data={"notes": ""},
+            _data={"notes": None},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8306,20 +8308,22 @@ class TestViewDataSource:
             grant=authenticated_grant_member_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             name="Test data set",
-            schema={
-                "notes": {
-                    "data_type": QuestionDataType.TEXT_SINGLE_LINE,
-                    "original_column_name": "Notes",
-                    "presentation_options": {},
-                    "data_options": {},
+            schema=DataSourceSchema.model_validate(
+                {
+                    "notes": {
+                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "original_column_name": "Notes",
+                        "presentation_options": {},
+                        "data_options": {},
+                    }
                 }
-            },
+            ),
             items=None,
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            data={"notes": "hello"},
+            _data={"notes": "hello"},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8442,7 +8446,6 @@ class TestDownloadDataSourceCsv:
             grant=authenticated_grant_admin_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
-            schema={},
             file_metadata=None,
         )
         response = authenticated_grant_admin_client.get(
@@ -8469,7 +8472,6 @@ class TestDownloadDataSourceCsv:
             grant=grant2,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
-            schema={},
         )
 
         response = authenticated_grant_admin_client.get(
@@ -8501,7 +8503,6 @@ class TestDownloadDataSourceCsv:
             grant=grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
-            schema={},
         )
         response = client.get(
             url_for(
@@ -8527,7 +8528,6 @@ class TestDownloadDataSourceCsv:
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
             file_metadata=DataSourceFileMetadata(s3_key="data-set-uploads/test.csv", original_filename="test.csv"),
-            schema={},
         )
 
         response = authenticated_grant_admin_client.get(
