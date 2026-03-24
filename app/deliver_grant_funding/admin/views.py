@@ -781,17 +781,35 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         notify_service_id = current_app.config["GOVUK_NOTIFY_SERVICE_ID"]
         match email_type:
             case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
-                notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"]
+                if collection.multiple_submissions_are_managed_by_service:
+                    notify_template_id = current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_NOTIFICATION_TEMPLATE_ID"
+                    ]
+                else:
+                    notify_template_id = current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"
+                    ]
             case ReportAdminEmailTypeEnum.DEADLINE_REMINDER:
                 if not collection.status == CollectionStatusEnum.OPEN:
                     return abort(404)
-                notify_template_id = current_app.config[
-                    "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
-                ]
+
+                if collection.multiple_submissions_are_managed_by_service:
+                    notify_template_id = current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
+                    ]
+                else:
+                    notify_template_id = current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
+                    ]
             case ReportAdminEmailTypeEnum.REPORT_OVERDUE:
                 if collection.status != CollectionStatusEnum.OPEN or not collection.is_overdue:
                     return abort(404)
-                notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_OVERDUE_TEMPLATE_ID"]
+                if collection.multiple_submissions_are_managed_by_service:
+                    notify_template_id = current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_OVERDUE_TEMPLATE_ID"
+                    ]
+                else:
+                    notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_OVERDUE_TEMPLATE_ID"]
             case _:
                 return abort(404)
 
@@ -826,7 +844,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 "grant_report_url",
                 "is_test_data",
                 "requires_certification",
-                "allows_multiple_submissions",
                 "submissions",
                 "unsubmitted_submissions",
             ],
@@ -877,11 +894,8 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     "grant_report_url": grant_report_url,
                     "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
                     "requires_certification": "yes" if collection.requires_certification else "no",
-                    "allows_multiple_submissions": (
-                        "yes" if collection.allow_multiple_submissions else "no"  # TODO: update key names
-                    ),
                     "submissions": "\n".join(sorted(f"* {submission.submission_name}" for submission in submissions))
-                    if collection.allow_multiple_submissions
+                    if collection.multiple_submissions_are_managed_by_service
                     else "",
                     "unsubmitted_submissions": "\n".join(
                         sorted(
@@ -892,7 +906,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                             )
                         )
                     )
-                    if collection.allow_multiple_submissions
+                    if collection.multiple_submissions_are_managed_by_service
                     else "",
                 }
             )

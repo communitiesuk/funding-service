@@ -1058,9 +1058,8 @@ class TestSendEmailsToRecipients:
         assert "grant_report_url" == header[5]
         assert "is_test_data" == header[6]
         assert "requires_certification" == header[7]
-        assert "allows_multiple_submissions" == header[8]
-        assert "submissions" == header[9]
-        assert "unsubmitted_submissions" == header[10]
+        assert "submissions" == header[8]
+        assert "unsubmitted_submissions" == header[9]
 
         assert "user1@org1.example.com" in lines[1]
         assert "user2@org1.example.com" in lines[2]
@@ -1071,7 +1070,7 @@ class TestSendEmailsToRecipients:
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
-        assert all(line.endswith("no,,") for line in lines[1:])
+        assert all(line.endswith(",,") for line in lines[1:])
 
     def test_download_csv_format_and_content_deadline_reminder(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -1188,9 +1187,8 @@ class TestSendEmailsToRecipients:
         assert "grant_report_url" == header[5]
         assert "is_test_data" == header[6]
         assert "requires_certification" == header[7]
-        assert "allows_multiple_submissions" == header[8]
-        assert "submissions" == header[9]
-        assert "unsubmitted_submissions" == header[10]
+        assert "submissions" == header[8]
+        assert "unsubmitted_submissions" == header[9]
 
         assert "user3@org2.example.com" not in response.text
         assert "user4@org2.example.com" not in response.text
@@ -1203,7 +1201,7 @@ class TestSendEmailsToRecipients:
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
-        assert all(line.endswith("no,,") for line in lines[1:])
+        assert all(line.endswith(",,") for line in lines[1:])
 
     def test_download_csv_multi_submission_collection(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -1214,6 +1212,7 @@ class TestSendEmailsToRecipients:
             name="Q1 Report",
             status=CollectionStatusEnum.OPEN,
             allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=True,
             reporting_period_start_date=datetime.date(2025, 1, 1),
             reporting_period_end_date=datetime.date(2025, 3, 31),
             submission_period_start_date=datetime.date(2025, 4, 1),
@@ -1274,7 +1273,6 @@ class TestSendEmailsToRecipients:
 
         row = rows[0]
         assert row["email_address"] == "user1@org1.example.com"
-        assert row["allows_multiple_submissions"] == "yes"
         assert "* Area Alpha" in row["submissions"]
         assert "* Area Bravo" in row["submissions"]
         assert "* Area Bravo" in row["unsubmitted_submissions"]
