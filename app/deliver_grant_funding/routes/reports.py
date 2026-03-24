@@ -3137,21 +3137,41 @@ def _validate_custom_syntax(  # noqa:C901
     if expression_type == ExpressionType.VALIDATION and component.is_question:
         references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
         if references_to_self_count != 1:
-            raise DisallowedExpression(
+            e = DisallowedExpression(
                 message=(
                     f"Expression contains {references_to_self_count} references to question {component.id}, "
                     "should contain exactly 1"
                 ),
                 form_error_message="The expression must include exactly one reference to this question",
             )
+            emit_metric_count(
+                MetricEventName.CALCULATION_FIELD_INVALID,
+                1,
+                custom_attributes={
+                    MetricAttributeName.CALCULATION_INVALID_FIELD: field_name,
+                    MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
+                },
+            )
+            raise e
 
     names = {}
     for ref in validated_references:
-        # assume these are numbers as we can't do custom expressions unless using the number data
-        # type but we could check this
+        # assume these are numbers as we can't do custom expressions unless using non number data
+        # types but we could check this
         names[ref] = 1
     evaluator = get_restricted_evaluator(names=names, required_functions={})
 
-    result = run_evaluation(evaluator, statement)
-    if not isinstance(result, bool):
-        raise InvalidEvaluationResult(statement, result, bool)
+    try:
+        result = run_evaluation(evaluator, statement)
+        if not isinstance(result, bool):
+            raise InvalidEvaluationResult(statement, result, bool)
+    except WTFormRenderableException as e:
+        emit_metric_count(
+            MetricEventName.CALCULATION_FIELD_INVALID,
+            1,
+            custom_attributes={
+                MetricAttributeName.CALCULATION_INVALID_FIELD: field_name,
+                MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
+            },
+        )
+        raise

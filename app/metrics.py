@@ -35,6 +35,9 @@ class MetricAttributeName(StrEnum):
 
     FILE_FORMAT = "file-format"
 
+    CALCULATION_INVALID_REASON = "calculation-invalid-reason"
+    CALCULATION_INVALID_FIELD = "calculation-invalid-field"
+
 
 class MetricEventName(StrEnum):
     SECTION_MARKED_COMPLETE = "section-marked-as-complete"
@@ -63,6 +66,8 @@ class MetricEventName(StrEnum):
 
     VALIDATION_CREATED_CUSTOM = "validation-created-custom"
     VALIDATION_CREATED_MANAGED = "validation-created-managed"
+
+    CALCULATION_FIELD_INVALID = "calculation-field-invalid"
 
 
 def _get_event_attributes(
