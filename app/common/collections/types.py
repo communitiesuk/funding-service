@@ -298,3 +298,5 @@ AllAnswerTypes = Union[
     | DateAnswer
     | FileUploadAnswer
 ]
+
+DataSourceAnswerTypes = TextSingleLineAnswer | IntegerAnswer | DecimalAnswer

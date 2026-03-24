@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Callable, Sequence
+from decimal import Decimal
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,7 @@ from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, column_property, foreign, mapped_column, relationship, remote
 from sqlalchemy_json import mutable_json_type
 
+from app.common.collections.types import DataSourceAnswerTypes, DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import (
@@ -20,6 +22,8 @@ from app.common.data.types import (
     ComponentType,
     ConditionsOperator,
     DataSourceFileMetadata,
+    DataSourceSchema,
+    DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
     FileUploadTypes,
@@ -968,7 +972,10 @@ class DataSource(BaseModel):
     collection_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("collection.id"))
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
     updated_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
-    schema: Mapped[dict[str, Any] | None] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
+    schema: Mapped[DataSourceSchema | None] = mapped_column(
+        default=None,
+        server_default=None,
+    )
     file_metadata: Mapped[DataSourceFileMetadata | None] = mapped_column(
         default=None,
         server_default=None,
@@ -1025,6 +1032,91 @@ class DataSource(BaseModel):
         ),
     )
 
+    def build_typed_org_item_data(
+        self,
+        data: dict[str, str | int | float | None] | list[dict[str, str | int | float | None]],
+    ) -> dict[str, DataSourceAnswerTypes | None] | list[dict[str, DataSourceAnswerTypes | None]]:
+        """
+        Transform raw DataSourceOrganisationItem data into typed answer models.
+
+        2D (GRANT_RECIPIENT or STATIC, though STATIC is bit of a weird one): dict -> dict[str, DataSourceAnswerTypes]
+        3D (PROJECT_LEVEL): list[dict] -> list[dict[str, DataSourceAnswerTypes]]
+
+        The typed answers carry the presentation & data options (prefix, suffix etc.) so that we can call all the usual
+        answer methods eg. get_value_for_interpolation().
+        """
+        if not self.schema:
+            return {} if isinstance(data, dict) else []
+
+        if isinstance(data, list):
+            return [self._build_typed_data(row) for row in data]
+
+        return self._build_typed_data(data)
+
+    def _build_typed_data(self, row: dict[str, str | int | float | None]) -> dict[str, DataSourceAnswerTypes | None]:
+        """
+        Build a dict of typed answer models from a single flat row.
+        """
+        if not self.schema or not self.schema.root:
+            return {}
+        return {
+            column_name: self._build_answer_for_column(row.get(column_name), column_schema)
+            for column_name, column_schema in self.schema.root.items()
+        }
+
+    def _build_answer_for_column(
+        self,
+        value: str | int | float | None,
+        column_schema: DataSourceSchemaColumn,
+    ) -> DataSourceAnswerTypes | None:
+        """
+        Build the appropriate typed answer for a single column value.
+        """
+
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+
+        match column_schema.data_type:
+            case QuestionDataType.NUMBER:
+                match column_schema.data_options.number_type:
+                    case NumberTypeEnum.DECIMAL:
+                        return DecimalAnswer(
+                            value=Decimal(str(value)),
+                            prefix=column_schema.presentation_options.prefix or None,
+                            suffix=column_schema.presentation_options.suffix or None,
+                        )
+                    case NumberTypeEnum.INTEGER:
+                        return IntegerAnswer(
+                            value=int(value),
+                            prefix=column_schema.presentation_options.prefix or None,
+                            suffix=column_schema.presentation_options.suffix or None,
+                        )
+                    case _:
+                        current_app.logger.error(
+                            "Unsupported number_type [%(number_type)s] in column %(column_name)s",
+                            {
+                                "number_type": column_schema.data_options.number_type,
+                                "column_name": column_schema.original_column_name,
+                            },
+                        )
+                        raise ValueError(
+                            f"Unsupported number_type {column_schema.data_options.number_type} "
+                            f"for column {column_schema.original_column_name}"
+                        )
+            case QuestionDataType.TEXT_SINGLE_LINE:
+                return TextSingleLineAnswer(str(value))
+            case _:
+                current_app.logger.error(
+                    "Unsupported data_type [%(data_type)s] in column %(column_name)s",
+                    {
+                        "data_type": column_schema.data_type,
+                        "column_name": column_schema.original_column_name,
+                    },
+                )
+                raise ValueError(
+                    f"Unsupported data_type {column_schema.data_type} for column {column_schema.original_column_name}"
+                )
+
 
 class DataSourceItem(BaseModel):
     __tablename__ = "data_source_item"
@@ -1055,8 +1147,8 @@ class DataSourceOrganisationItem(BaseModel):
     external_id: Mapped[str]
 
     # For 2D: dict[str, scalar], for 3D: list[dict[str, scalar]]
-    data: Mapped[json_flat_scalars | list[json_flat_scalars]] = mapped_column(
-        mutable_json_type(dbtype=JSONB, nested=True)
+    _data: Mapped[json_flat_scalars | list[json_flat_scalars]] = mapped_column(
+        "data", mutable_json_type(dbtype=JSONB, nested=True)
     )
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="organisation_items")
@@ -1066,6 +1158,16 @@ class DataSourceOrganisationItem(BaseModel):
         Index("ix_data_source_organisation_item_data_source_id", "data_source_id"),
         Index("ix_data_source_organisation_item_external_id", "external_id"),
     )
+
+    @property
+    def data(self) -> dict[str, DataSourceAnswerTypes | None] | list[dict[str, DataSourceAnswerTypes | None]]:
+        """
+        Returns raw data as typed answer models via the parent DataSource schema.
+
+        2D (GRANT_RECIPIENT or STATIC): dict[str, DataSourceAnswerTypes]
+        3D (PROJECT_LEVEL): list[dict[str, DataSourceAnswerTypes]]
+        """
+        return self.data_source.build_typed_org_item_data(self._data)
 
 
 class ComponentReference(BaseModel):
