@@ -17,6 +17,8 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
+    TUnvalidatedDataSetRow,
+    TUnvalidatedDataSetRows,
 )
 from app.common.utils import slugify
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
@@ -88,7 +90,7 @@ def _clean_value(val: str, mapping: DataSetColumnMapping) -> str | int | None:
 
 
 def _build_data_blob(
-    row: dict[str, str],
+    row: TUnvalidatedDataSetRow,
     mappings: dict[str, DataSetColumnMapping],
     identifier_columns: list[str],
 ) -> dict[str, str | int | None]:
@@ -101,13 +103,13 @@ def _build_data_blob(
 
 def _create_organisation_items(
     data_source: DataSource,
-    all_rows: list[dict[str, str]],
+    all_rows: TUnvalidatedDataSetRows,
     column_mappings: list[DataSetColumnMapping],
     identifier_columns: list[str],
     is_project_level: bool = False,
 ) -> None:
     mappings = {m.column_name: m for m in column_mappings}
-    grouped: dict[str, list[dict[str, str]]] = {}
+    grouped: dict[str, TUnvalidatedDataSetRows] = {}
     for row in all_rows:
         external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
         grouped.setdefault(external_id, []).append(row)
@@ -125,7 +127,7 @@ def _create_organisation_items(
 
 def _create_static_items(
     data_source: DataSource,
-    all_rows: list[dict[str, str]],
+    all_rows: TUnvalidatedDataSetRows,
     column_mappings: list[DataSetColumnMapping],
 ) -> None:
     key_col, value_col = column_mappings[0].column_name, column_mappings[1].column_name
@@ -148,7 +150,7 @@ def create_uploaded_data_source(
     grant_id: uuid.UUID | None,
     collection_id: uuid.UUID | None,
     column_mappings: list["DataSetColumnMapping"],
-    all_rows: list[dict[str, str]],
+    all_rows: TUnvalidatedDataSetRows,
     user: User,
     s3_key: str,
     original_filename: str,

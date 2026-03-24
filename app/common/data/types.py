@@ -450,3 +450,7 @@ class DataSourceFileTagEnum(enum.StrEnum):
 class DataSourceFileMetadata(BaseModel):
     s3_key: str
     original_filename: str
+
+
+TUnvalidatedDataSetRow = dict[str, str]
+TUnvalidatedDataSetRows = list[TUnvalidatedDataSetRow]

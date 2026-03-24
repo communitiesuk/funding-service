@@ -83,6 +83,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     RoleEnum,
     SubmissionModeEnum,
+    TUnvalidatedDataSetRows,
 )
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
@@ -2731,14 +2732,14 @@ def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) 
     )
 
 
-def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], list[dict[str, str]]]:
+def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], TUnvalidatedDataSetRows]:
     file_storage.stream.seek(0)
     content = file_storage.stream.read().decode("utf-8-sig")
     file_storage.stream.seek(0)
 
     reader = csv.DictReader(io.StringIO(content))
     columns = list(reader.fieldnames or [])
-    rows: list[dict[str, str]] = list(reader)
+    rows: TUnvalidatedDataSetRows = list(reader)
 
     return columns, rows
 
