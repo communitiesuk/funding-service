@@ -14,7 +14,7 @@ dependencies = [
     "flask-migrate==4.1.0",
     "flask-sqlalchemy-lite==0.2.1",
     "flask-wtf==1.2.2",
-    "govuk-frontend-jinja==3.10.0",
+    "govuk-frontend-jinja==4.0.0",
     "govuk-frontend-wtf==3.2.0",
     "psycopg==3.3.3",
     "pydantic==2.12.5",
@@ -33,12 +33,12 @@ dependencies = [
     "num2words==0.5.14",
     "mistune==3.2.0",
     "faker==40.11.0",
-    "xgovuk-flask-admin==0.1.7",
     "flask-admin==2.0.2",
     "playwright==1.58.0",
     "boto3==1.42.69",
     "types-boto3[s3]==1.42.69",
     "alembic==1.18.4",
+    "xgovuk-flask-admin==0.2.0",
 ]
 
 [dependency-groups]
