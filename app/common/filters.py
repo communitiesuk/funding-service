@@ -104,9 +104,5 @@ def to_ordinal(number: int) -> str:
     return cast(str, num2words(number, to="ordinal"))
 
 
-def to_decimal(number: str | int | decimal.Decimal) -> decimal.Decimal:
-    return decimal.Decimal(str(number))
-
-
 def format_thousands(number: int | decimal.Decimal) -> str:
     return f"{number:,}"
