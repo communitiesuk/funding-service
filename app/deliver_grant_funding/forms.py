@@ -672,7 +672,7 @@ class SelectDataSourceQuestionForm(FlaskForm):
         )
 
         if referenceable_questions:
-            self.question.choices = [("", "")] + [  # type: ignore[assignment]
+            self.question.choices = [("", "")] + [
                 (str(question.id), interpolate(question.text)) for question in referenceable_questions
             ]
 
@@ -800,7 +800,7 @@ class TestGrantRecipientJourneyForm(FlaskForm):
 
     def __init__(self, *args: Any, users_test_grant_recipients: list[GrantRecipient], **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.organisation.choices = [("", "")] + [  # type: ignore[assignment]
+        self.organisation.choices = [("", "")] + [
             (str(grant_recipient.id), grant_recipient.organisation.name)
             for grant_recipient in users_test_grant_recipients
         ]
@@ -828,7 +828,7 @@ class CollectionSettingsForm(FlaskForm):
     def __init__(self, questions: list[Question], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-        self.submission_name_question.choices = [("", "")] + [(str(q.id), q.text) for q in questions]  # type: ignore[assignment]
+        self.submission_name_question.choices = [("", "")] + [(str(q.id), q.text) for q in questions]
 
         if kwargs["obj"]:
             self.submission_name_question.data = str(kwargs["obj"].submission_name_question_id)
@@ -882,7 +882,7 @@ class CollectionSettingsSelectQuestionForm(FlaskForm):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.question.choices = [("", "")] + [  # type: ignore[assignment]
+        self.question.choices = [("", "")] + [
             (str(question.id), interpolate(question.text)) for question in form.cached_questions
         ]
 

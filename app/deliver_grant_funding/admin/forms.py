@@ -33,7 +33,7 @@ class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
     def __init__(self, grants: Sequence[Grant]) -> None:
         super().__init__()
 
-        self.grant_id.choices = [("", "")] + [(str(grant.id), grant.name) for grant in grants]  # type: ignore[assignment]
+        self.grant_id.choices = [("", "")] + [(str(grant.id), grant.name) for grant in grants]
 
 
 class PlatformAdminSelectReportForm(FlaskForm):
@@ -48,7 +48,7 @@ class PlatformAdminSelectReportForm(FlaskForm):
     def __init__(self, collections: Sequence[Collection]) -> None:
         super().__init__()
 
-        self.collection_id.choices = [("", "")] + [(str(collection.id), collection.name) for collection in collections]  # type: ignore[assignment]
+        self.collection_id.choices = [("", "")] + [(str(collection.id), collection.name) for collection in collections]
 
 
 class PlatformAdminMakeGrantLiveForm(FlaskForm):
@@ -286,9 +286,7 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
     def __init__(self, grant_recipients: Sequence[GrantRecipient], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.grant_recipients = grant_recipients
-        self.grant_recipient.choices = [("", "")] + [  # type: ignore[assignment]
-            (str(gr.id), gr.organisation.name) for gr in grant_recipients
-        ]
+        self.grant_recipient.choices = [("", "")] + [(str(gr.id), gr.organisation.name) for gr in grant_recipients]
 
 
 class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
@@ -318,13 +316,9 @@ class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
         super().__init__(*args, **kwargs)
 
         # Populate grant recipient choices
-        self.grant_recipient.choices = [("", "")] + [  # type: ignore[assignment]
-            (str(gr.id), gr.organisation.name) for gr in grant_recipients
-        ]
+        self.grant_recipient.choices = [("", "")] + [(str(gr.id), gr.organisation.name) for gr in grant_recipients]
 
-        self.mhclg_user.choices = [("", "")] + [  # type: ignore[assignment]
-            (str(user.id), f"{user.name} ({user.email})") for user in mhclg_users
-        ]
+        self.mhclg_user.choices = [("", "")] + [(str(user.id), f"{user.name} ({user.email})") for user in mhclg_users]
 
 
 class PlatformAdminRevokeGrantRecipientUsersForm(FlaskForm):
@@ -364,7 +358,7 @@ class PlatformAdminRevokeCertifiersForm(FlaskForm):
 
     def __init__(self, organisations: Sequence[Organisation]) -> None:
         super().__init__()
-        self.organisation_id.choices = [("", "")] + [(str(org.id), org.name) for org in organisations]  # type: ignore[assignment]
+        self.organisation_id.choices = [("", "")] + [(str(org.id), org.name) for org in organisations]
 
 
 class PlatformAdminSetCollectionDatesForm(FlaskForm):
