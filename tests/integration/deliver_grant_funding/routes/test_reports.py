@@ -6409,6 +6409,53 @@ class TestViewSubmission:
             == 5
         )
 
+    def test_view_submission_add_another_interpolates_with_display_value(
+        self, authenticated_grant_admin_client, factories
+    ):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(
+            form__collection__grant=grant,
+            add_another=True,
+        )
+        amount_question = factories.question.create(
+            text="How much funding was received?",
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(prefix="£"),
+            parent=group,
+            form=group.form,
+        )
+        detail_question = factories.question.create(
+            text=f"How was the (({amount_question.safe_qid})) spent?",
+            parent=group,
+            form=group.form,
+        )
+
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            mode=SubmissionModeEnum.TEST,
+            data={
+                str(group.id): [
+                    {
+                        str(amount_question.id): {"value": 50000, "prefix": "£"},
+                        str(detail_question.id): "On staffing costs",
+                    },
+                ]
+            },
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        question_keys = [dt.text.strip() for dt in soup.find_all("dt", {"class": "govuk-summary-list__key"})]
+        assert "How was the £50,000 spent?" in question_keys
+
     def test_post_view_submission_resets_test_submission(
         self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
     ):
