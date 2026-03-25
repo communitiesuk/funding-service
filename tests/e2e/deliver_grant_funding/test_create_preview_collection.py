@@ -410,6 +410,38 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             },
         ),
     },
+    "calculated-condition-text": {
+        "type": QuestionDataType.TEXT_MULTI_LINE,
+        "text": "Enter the reason why suffix-integer was greater than the between and prefix integers added together",
+        "display_text": (
+            "Enter the reason why suffix-integer was greater than the between and prefix integers added together"
+        ),
+        "answers": [
+            QuestionResponse("I have my reasons"),
+        ],
+        "options": QuestionPresentationOptions(),
+        "data_options": QuestionDataOptions(),
+        "condition": E2EManagedExpression(
+            evaluatable_expression=CustomExpression(
+                custom_expression="((ref1)) > ((ref2)) + ((ref3))",
+                expression_name="Show if cost greater than weight plus number",
+            ),
+            expression_references={
+                "ref1": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Enter the total cost as a number",
+                ),
+                "ref2": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Enter the total weight as a number",
+                ),
+                "ref3": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Enter a number between 20 and 100",
+                ),
+            },
+        ),
+    },
     "yes-no": {
         "type": QuestionDataType.YES_NO,
         "text": "Yes or no",
@@ -797,14 +829,24 @@ def add_condition(
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> None:
     select_calculation_page = edit_question_page.click_add_condition()
-    select_calculation_page.click_no_calculation()
-    add_condition_page = select_calculation_page.click_continue()
-    select_data_source_page = add_condition_page.click_reference_data_button()
-    _reference_data_flow(select_data_source_page, condition.conditional_on)
-    add_condition_page.configure_managed_condition(
-        condition.evaluatable_expression, condition.context_source, presentation_options
-    )
-    add_condition_page.click_add_condition(edit_question_page)
+    if isinstance(condition.evaluatable_expression, CustomExpression):
+        select_calculation_page.click_yes_need_calculation()
+        calculated_condition_page = select_calculation_page.click_continue()
+        calculated_condition_page.fill_calculation_name(condition.evaluatable_expression.expression_name)
+        calculated_condition_page.configure_custom_expression(
+            expression=condition.evaluatable_expression.custom_expression,
+            expression_references=condition.expression_references,
+        )
+        calculated_condition_page.click_create_calculated_condition(edit_question_page)
+    else:
+        select_calculation_page.click_no_calculation()
+        add_condition_page = select_calculation_page.click_continue()
+        select_data_source_page = add_condition_page.click_reference_data_button()
+        _reference_data_flow(select_data_source_page, condition.conditional_on)
+        add_condition_page.configure_managed_condition(
+            condition.evaluatable_expression, condition.context_source, presentation_options
+        )
+        add_condition_page.click_add_condition(edit_question_page)
 
 
 def complete_question_group(
@@ -1017,7 +1059,7 @@ def test_setup_grant_and_collection(
     # Sense check that the test includes all question types
     assert (
         len(QuestionDataType) == 10
-        and len(section_2_questions_to_test) == 19
+        and len(section_2_questions_to_test) == 20
         and len(ManagedExpressionsEnum) == 11
         and len(NumberTypeEnum) == 2
     ), (
