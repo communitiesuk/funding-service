@@ -4,7 +4,14 @@ from flask import current_app
 
 from app.common.collections.types import NOT_ANSWERED
 from app.common.exceptions import SubmissionValidationFailed, ValidationError
-from app.common.expressions import UndefinedVariableInExpression, evaluate, interpolate
+from app.common.expressions import (
+    DisallowedExpression,
+    UndefinedFunctionInExpression,
+    UndefinedOperatorInExpression,
+    UndefinedVariableInExpression,
+    evaluate,
+    interpolate,
+)
 from app.metrics import MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
@@ -84,10 +91,15 @@ class SubmissionValidator:
                             add_another_index=add_another_index,
                         )
                     )
-            except UndefinedVariableInExpression:
+            except (
+                UndefinedVariableInExpression,
+                DisallowedExpression,
+                UndefinedFunctionInExpression,
+                UndefinedOperatorInExpression,
+            ) as e:
                 current_app.logger.warning(
-                    "Undefined variable in validation for question %(qid)s (form %(fid)s)",
-                    dict(qid=question.id, fid=form.id),
+                    "%(exception_name)s in validation for question %(qid)s (form %(fid)s)",
+                    dict(exception_name=e.__class__.__name__, qid=question.id, fid=form.id),
                 )
 
         return errors

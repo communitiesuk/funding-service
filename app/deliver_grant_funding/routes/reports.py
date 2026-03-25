@@ -5,7 +5,6 @@ from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
-import simpleeval
 from flask import abort, current_app, flash, g, redirect, render_template, request, send_file, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
@@ -24,6 +23,7 @@ from app.common.data.interfaces.collections import (
     DependencyOrderException,
     GroupContainsAddAnotherException,
     IncompatibleDataTypeException,
+    IncompatibleDataTypeInCalculationException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
     SectionDependencyOrderException,
@@ -82,7 +82,14 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
-from app.common.expressions import ExpressionContext, get_restricted_evaluator
+from app.common.exceptions import WTFormRenderableException
+from app.common.expressions import (
+    DisallowedExpression,
+    ExpressionContext,
+    InvalidEvaluationResult,
+    get_restricted_evaluator,
+    run_evaluation,
+)
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.forms import (
     CustomValidationExpressionForm,
@@ -2367,38 +2374,41 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
             question.form.collection,
             "interpolation",
         )
+        valid_to_save = True
+        try:
+            _validate_custom_syntax(
+                question,
+                expression_context,
+                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+            )
+        except WTFormRenderableException as e:
+            valid_to_save = False
+            wt_form.handle_exception(e, field_name="custom_expression")
+        try:
+            _validate_custom_syntax(
+                question,
+                expression_context,
+                wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.VALIDATION,
+                "custom_message",
+                validate_with_evaluation=False,
+            )
+        except WTFormRenderableException as e:
+            valid_to_save = False
+            wt_form.handle_exception(e, field_name="custom_message")
 
-        expression_errors = _validate_custom_syntax(
-            question,
-            expression_context,
-            wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-            ExpressionType.VALIDATION,
-            "custom_expression",
-            validate_with_evaluation=True,
-        )
-        message_errors = _validate_custom_syntax(
-            question,
-            expression_context,
-            wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
-            ExpressionType.VALIDATION,
-            "custom_message",
-            validate_with_evaluation=False,
-        )
-
-        if not any([expression_errors, message_errors]):
+        if valid_to_save:
             expression = CustomExpression.build_from_form(wt_form)
 
             try:
                 interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
-            except (InvalidReferenceInExpression, DependencyOrderException, AddAnotherDependencyException) as e:
-                wt_form.handle_exception(e)
 
-            except IncompatibleDataTypeException as e:
-                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-                field_with_error.errors.append(
-                    f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced "
-                    "in calculations"
-                )
+            except WTFormRenderableException as e:
+                if isinstance(e, IncompatibleDataTypeException):
+                    wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
 
             else:
                 if "question" in session:
@@ -2410,11 +2420,6 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
                         question_id=question.id,
                     )
                 )
-        else:
-            if expression_errors:
-                wt_form.custom_expression.errors.append(expression_errors)  # ty:ignore [unresolved-attribute]
-            if message_errors:
-                wt_form.custom_message.errors.append(message_errors)  # ty:ignore [unresolved-attribute]
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )
@@ -2484,37 +2489,41 @@ def edit_custom_question_validation(  # noqa:C901
             question.form.collection,
             "interpolation",
         )
+        valid_to_save = True
+        try:
+            _validate_custom_syntax(
+                question,
+                expression_context,
+                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+            )
+        except WTFormRenderableException as e:
+            valid_to_save = False
+            wt_form.handle_exception(e, field_name="custom_expression")
+        try:
+            _validate_custom_syntax(
+                question,
+                expression_context,
+                wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.VALIDATION,
+                "custom_message",
+                validate_with_evaluation=False,
+            )
+        except WTFormRenderableException as e:
+            valid_to_save = False
+            wt_form.handle_exception(e, field_name="custom_message")
 
-        expression_errors = _validate_custom_syntax(
-            question,
-            expression_context,
-            wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-            ExpressionType.VALIDATION,
-            "custom_expression",
-            validate_with_evaluation=True,
-        )
-        message_errors = _validate_custom_syntax(
-            question,
-            expression_context,
-            wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
-            ExpressionType.VALIDATION,
-            "custom_message",
-            validate_with_evaluation=False,
-        )
-
-        if not any([expression_errors, message_errors]):
+        if valid_to_save:
             custom_expression = CustomExpression.build_from_form(wt_form)
 
             try:
                 interfaces.collections.update_question_expression(expression, custom_expression)
-            except (InvalidReferenceInExpression, DependencyOrderException, AddAnotherDependencyException) as e:
-                wt_form.handle_exception(e)
             except IncompatibleDataTypeException as e:
-                field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
-                field_with_error.errors.append(
-                    f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced "
-                    "in calculations"
-                )
+                wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
+            except WTFormRenderableException as e:
+                wt_form.handle_exception(e)
 
             else:
                 if "question" in session:
@@ -2526,11 +2535,6 @@ def edit_custom_question_validation(  # noqa:C901
                         question_id=question.id,
                     )
                 )
-        else:
-            if expression_errors:
-                wt_form.custom_expression.errors.append(expression_errors)  # ty:ignore [unresolved-attribute]
-            if message_errors:
-                wt_form.custom_message.errors.append(message_errors)  # ty:ignore [unresolved-attribute]
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )
@@ -3105,8 +3109,7 @@ def _validate_custom_syntax(  # noqa:C901
     expression_type: ExpressionType,
     field_name: str,
     validate_with_evaluation: bool = True,
-) -> str | None:
-    # TODO not sure this is the right place for this function to live
+) -> None:
 
     validated_references = []
     try:
@@ -3122,51 +3125,33 @@ def _validate_custom_syntax(  # noqa:C901
             )
             validated_references.append(unwrapped_ref)
 
-    except InvalidReferenceInExpression as e:
-        return e.form_error_message
-    except DependencyOrderException as e:
-        return e.form_error_message
-    except IncompatibleDataTypeException as e:
-        return (
-            f"You cannot reference {e.depends_on_question.name} because only numbers can be referenced in calculations"
-        )
-    except AddAnotherDependencyException as e:
-        return e.form_error_message
+    except WTFormRenderableException as e:
+        if isinstance(e, IncompatibleDataTypeException):
+            raise IncompatibleDataTypeInCalculationException(e) from e
+        raise
 
-    if validate_with_evaluation is False:
+    if not validate_with_evaluation:
         # No further validation needed for custom error message
-        return None
+        return
 
-    if (
-        expression_type == ExpressionType.VALIDATION
-        and component.is_question
-        and validated_references.count(cast("Question", component).safe_qid) != 1
-    ):
-        return "The expression must include exactly one reference to this question"
+    if expression_type == ExpressionType.VALIDATION and component.is_question:
+        references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
+        if references_to_self_count != 1:
+            raise DisallowedExpression(
+                message=(
+                    f"Expression contains {references_to_self_count} references to question {component.id}, "
+                    "should contain exactly 1"
+                ),
+                form_error_message="The expression must include exactly one reference to this question",
+            )
 
-    try:
-        names = {}
-        for ref in validated_references:
-            # assume these are numbers as we can't do custom expressions unless using the number data
-            # type but we could check this
-            names[ref] = 1
-        evaluator = get_restricted_evaluator(names=names, required_functions={})
+    names = {}
+    for ref in validated_references:
+        # assume these are numbers as we can't do custom expressions unless using the number data
+        # type but we could check this
+        names[ref] = 1
+    evaluator = get_restricted_evaluator(names=names, required_functions={})
 
-        result = evaluator.eval(statement)
-        if not isinstance(result, bool):
-            return "The expression must evaluate to true or false"
-
-    # TODO do we want to put some of these in sentry so we can see what sort of validation errors are triggered to
-    #  help write guidance in the future?
-
-    except simpleeval.NameNotDefined as e:
-        return f"You cannot use {e.name} because it does not exist"
-    except simpleeval.FunctionNotDefined as e:
-        return f"You cannot use {e.func_name} in calculations"  # ty:ignore[unresolved-attribute]
-    except SyntaxError, simpleeval.FeatureNotAvailable, KeyError:
-        return "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
-    except simpleeval.OperatorNotDefined as e:
-        # TODO: This prints the ast node name (eg. Pow()) rather than the actual operator (eg. **)
-        return f"You cannot use {e.attr} in calculations"
-
-    return None
+    result = run_evaluation(evaluator, statement)
+    if not isinstance(result, bool):
+        raise InvalidEvaluationResult(statement, result, bool)

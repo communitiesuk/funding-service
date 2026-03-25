@@ -4,13 +4,14 @@ from unittest.mock import Mock, PropertyMock
 
 import pytest
 from markupsafe import Markup
-from simpleeval import OperatorNotDefined
 
 from app.common.data.models import Expression
 from app.common.expressions import (
     DisallowedExpression,
     ExpressionContext,
     InvalidEvaluationResult,
+    UndefinedFunctionInExpression,
+    UndefinedOperatorInExpression,
     UndefinedVariableInExpression,
     _evaluate_expression_with_context,
     evaluate,
@@ -82,8 +83,6 @@ class TestInternalEvaluateExpressionWithContext:
     @pytest.mark.parametrize(
         "expression",
         (
-            (Expression(statement="import os")),
-            (Expression(statement="raise Exception")),  # ast.Keyword
             (Expression(statement="eval('1')")),
             (Expression(statement="input('hi')")),
             (Expression(statement="print('hi')")),
@@ -101,6 +100,17 @@ class TestInternalEvaluateExpressionWithContext:
             (Expression(statement="dir()")),
             (Expression(statement="globals()")),
             (Expression(statement="locals()")),
+        ),
+    )
+    def test_function_not_defined(self, expression):
+        with pytest.raises(UndefinedFunctionInExpression):
+            _evaluate_expression_with_context(expression, ExpressionContext())
+
+    @pytest.mark.parametrize(
+        "expression",
+        (
+            (Expression(statement="import os")),
+            (Expression(statement="raise Exception")),  # ast.Keyword
             (Expression(statement="a = 1")),  # ast.Assign
             (Expression(statement="a += 1", context={"a": 1})),  # ast.AugAssign
             (Expression(statement="1 if True else 2")),  # ast.IfExp
@@ -130,7 +140,7 @@ class TestInternalEvaluateExpressionWithContext:
         ],
     )
     def test_operator_not_defined(self, expression):
-        with pytest.raises(OperatorNotDefined):
+        with pytest.raises(UndefinedOperatorInExpression):
             _evaluate_expression_with_context(expression, ExpressionContext())
 
     def test_unknown_variable(self):

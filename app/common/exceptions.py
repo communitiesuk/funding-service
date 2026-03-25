@@ -1,4 +1,4 @@
-from typing import Any, NamedTuple, Protocol
+from typing import Any, NamedTuple
 from uuid import UUID
 
 from flask import render_template
@@ -45,7 +45,17 @@ class SubmissionAnswerConflict(ValueError):
         self.message = message
 
 
-class WTFormRenderableException(Protocol):
+class WTFormRenderableException(Exception):
     field_name: str | None = None
     message: str
     form_error_message: str
+
+    def __init__(
+        self,
+        message: str,
+        form_error_message: str,
+        field_name: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.field_name = field_name
+        self.form_error_message = form_error_message
