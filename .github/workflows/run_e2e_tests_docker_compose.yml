@@ -95,7 +95,7 @@ jobs:
     needs:
       - e2e_tests_docker_compose
     if: ${{ always() && (needs.e2e_tests_docker_compose.result == 'failure') && github.ref_name == 'main'}}
-    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
+    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@d4a4c7d63b1d5c82a8c1fe57edea8ef529a60d04  # PR #313
     with:
       app_name: FS Docker Compose E2E Tests
       env_name: N/A

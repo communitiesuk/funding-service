@@ -109,7 +109,7 @@ jobs:
 
       - name: Deploy image to App Runner - ${{ github.sha }}
         id: deploy
-        uses: awslabs/amazon-app-runner-deploy@main
+        uses: awslabs/amazon-app-runner-deploy@8d446e5e06d34b619d712e6f4d35ded91e3c9e7e  # PR #53
         with:
           service: ${{ inputs.environment }}-funding-service
           image: ${{ steps.ecr_info.outputs.ecr_image_location }}
@@ -135,7 +135,7 @@ jobs:
   notify_slack:
     needs: [deploy, e2e_tests]
     if: ${{ always() && (needs.deploy.result == 'failure' || needs.e2e_tests.result == 'failure') && github.ref_name == 'main' }}
-    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@main
+    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@d4a4c7d63b1d5c82a8c1fe57edea8ef529a60d04  # PR #313
     with:
       app_name: FS Deploy CI ECR
       env_name: ${{ inputs.environment }}
