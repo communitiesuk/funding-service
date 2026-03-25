@@ -31,7 +31,7 @@ jobs:
           PULLPREVIEW_GOVUK_NOTIFY_API_KEY: ${{ secrets.PULLPREVIEW_GOVUK_NOTIFY_API_KEY }}
         run: |
           echo "GOVUK_NOTIFY_API_KEY=$PULLPREVIEW_GOVUK_NOTIFY_API_KEY" >> .env
-      - uses: pullpreview/action@v5
+      - uses: pullpreview/action@6ebc91939407c543bf2994dcc4426d5110c7a4e1  # v5.8.0
         with:
           admins: 'samuelhwilliams,srh-sloan,sfount,gidsg,marcusher,nuwan-samarasinghe'
           always_on: 'main'
