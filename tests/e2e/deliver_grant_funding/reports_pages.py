@@ -793,8 +793,6 @@ class CreateCustomExpressionPage(ReportsBasePage):
                     raise ValueError(f"No data reference found for key: {reference_key}")
             else:
                 field.press_sequentially(f" {part}")
-                # existing_content = field.input_value() or ""
-                # field.fill(f"{existing_content} {part}")
 
     def configure_custom_expression(
         self, expression: str, expression_references: dict[str, DataReferenceConfig]
