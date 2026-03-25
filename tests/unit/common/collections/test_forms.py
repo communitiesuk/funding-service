@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
-from flask_wtf.file import FileAllowed, FileField, FileRequired
+from flask_wtf.file import FileAllowed, FileField, FileRequired, FileSize
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCharacterCount,
     GovDateInput,
@@ -34,7 +34,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
-from app.common.forms.validators import URLWithoutProtocol
+from app.common.forms.validators import MaxNumberOfDecimalPlacesValidator, URLWithoutProtocol, WordRange
 from tests.conftest import FundingServiceTestClient
 from tests.utils import build_db_config
 
@@ -133,7 +133,7 @@ class TestBuildQuestionForm:
                 None,
                 StringField,
                 GovCharacterCount,
-                [DataRequired],
+                [DataRequired, WordRange],
             ),
             (
                 QuestionDataType.NUMBER,
@@ -149,10 +149,10 @@ class TestBuildQuestionForm:
                 QDO(number_type=NumberTypeEnum.DECIMAL),
                 DecimalField,
                 GovTextInput,
-                [InputRequired],
+                [InputRequired, MaxNumberOfDecimalPlacesValidator],
             ),
             (QuestionDataType.YES_NO, QPO(), None, RadioField, GovRadioInput, [InputRequired]),
-            (QuestionDataType.RADIOS, QPO(), None, RadioField, MHCLGRadioInput, []),
+            (QuestionDataType.RADIOS, QPO(), None, RadioField, MHCLGRadioInput, [DataRequired]),
             (QuestionDataType.EMAIL, QPO(), None, EmailField, GovTextInput, [DataRequired, Email]),
             (QuestionDataType.URL, QPO(), None, StringField, GovTextInput, [DataRequired, URLWithoutProtocol]),
             (QuestionDataType.CHECKBOXES, QPO(), None, SelectMultipleField, MHCLGCheckboxesInput, [DataRequired]),
@@ -166,7 +166,7 @@ class TestBuildQuestionForm:
                 ),
                 FileField,
                 GovFileInput,
-                [FileRequired, FileAllowed],
+                [FileRequired, FileAllowed, FileSize],
             ),
         ),
     )
@@ -196,6 +196,8 @@ class TestBuildQuestionForm:
         assert isinstance(question_field.widget, expected_widget)
         assert question_field.label.text == "Question text"
         assert question_field.description == "Question hint"
+
+        assert len(question_field.validators) == len(expected_validators)
         for i, validator in enumerate(expected_validators):
             assert isinstance(question_field.validators[i], validator)
 

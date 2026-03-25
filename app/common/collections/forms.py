@@ -254,7 +254,7 @@ def build_question_form(  # noqa: C901
                         description=interpolate(text=question.hint or "", context=interpolation_context),
                         widget=MHCLGAccessibleAutocomplete(fallback_option=fallback_option),
                         choices=[("", "")] + [(item.key, item.label) for item in question.data_source.items],
-                        validators=[DataRequired("Select an option")],
+                        validators=[DataRequired(f"Select the {question.name}")],
                     )
                 else:
                     choices = [(item.key, item.label) for item in question.data_source.items]
@@ -265,6 +265,7 @@ def build_question_form(  # noqa: C901
                             insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
                         ),
                         choices=choices,
+                        validators=[DataRequired(f"Select the {question.name}")],
                     )
             case QuestionDataType.URL:
                 field = StringField(
