@@ -2406,9 +2406,10 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
             try:
                 interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
 
+            except IncompatibleDataTypeException as e:
+                wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
             except WTFormRenderableException as e:
-                if isinstance(e, IncompatibleDataTypeException):
-                    wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
+                wt_form.handle_exception(e)
 
             else:
                 if "question" in session:
