@@ -3083,6 +3083,83 @@ class TestOverrideGrantCertifiers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "3 overrides" in soup.text
 
+    def test_tasklist_excludes_test_org_certifiers_from_override_count(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        live_org = factories.organisation.create(can_manage_grants=False, with_matching_test_org=True)
+        test_org = live_org.matching_test_organisation
+        factories.grant_recipient.create(grant=grant, organisation=live_org)
+        factories.grant_recipient.create(grant=grant, organisation=test_org, mode=GrantRecipientModeEnum.TEST)
+
+        live_user = factories.user.create(email="live_certifier@example.com")
+        test_user = factories.user.create(email="test_certifier@example.com")
+        factories.user_role.create(user=live_user, organisation=live_org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=test_user, organisation=test_org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "1 override" in soup.text
+        assert "2 overrides" not in soup.text
+
+    def test_tasklist_deduplicates_data_provider_count(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient_1 = factories.grant_recipient.create(grant=grant)
+        grant_recipient_2 = factories.grant_recipient.create(grant=grant)
+
+        user = factories.user.create(email="shared_dp@example.com")
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient_1.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient_2.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "1 data provider" in soup.text
+        assert "2 data providers" not in soup.text
+
+    def test_tasklist_shows_test_users_count(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        live_org = factories.organisation.create(can_manage_grants=False, with_matching_test_org=True)
+        test_org = live_org.matching_test_organisation
+        factories.grant_recipient.create(grant=grant, organisation=test_org, mode=GrantRecipientModeEnum.TEST)
+
+        test_user = factories.user.create(email="test_dp@example.com")
+        factories.user_role.create(
+            user=test_user,
+            organisation=test_org,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "1 test user" in soup.text
+
     def test_existing_certifiers_section_shows_grant_specific_only(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):

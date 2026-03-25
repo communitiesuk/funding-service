@@ -16,7 +16,7 @@ from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.models import Grant, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import RoleEnum
+from app.common.data.types import OrganisationModeEnum, RoleEnum
 from app.extensions import db
 from app.types import NOT_PROVIDED, TNotProvided
 
@@ -43,6 +43,7 @@ def get_users_with_permission(
     permission: RoleEnum,
     organisation_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     grant_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
+    organisation_mode: OrganisationModeEnum | TNotProvided = NOT_PROVIDED,
 ) -> Sequence[User]:
     """Finds all users in the system with the given permission and matching organisation and/or grant.
 
@@ -50,15 +51,22 @@ def get_users_with_permission(
           *specifically* for that grant. It will not return users who have that permission in the grant through an
           org-level permission (ie UserRole.grant_id IS NULL)
     """
-    stmt = select(User).join(UserRole).where(UserRole.permissions.contains([permission]))
+    stmt = select(User).join(UserRole)
+    filters = [UserRole.permissions.contains([permission])]
+
+    if organisation_mode is not NOT_PROVIDED:
+        stmt = stmt.join(Organisation)
+        filters.append(Organisation.mode == organisation_mode)
 
     if organisation_id is not NOT_PROVIDED:
-        stmt = stmt.where(UserRole.organisation_id == organisation_id)
+        filters.append(UserRole.organisation_id == organisation_id)
 
     if grant_id is not NOT_PROVIDED:
-        stmt = stmt.where(UserRole.grant_id == grant_id)
+        filters.append(UserRole.grant_id == grant_id)
 
-    return db.session.scalars(stmt).all()
+    stmt = stmt.where(*filters)
+
+    return db.session.scalars(stmt).unique().all()
 
 
 @flush_and_rollback_on_exceptions
@@ -378,18 +386,25 @@ def get_certifiers_by_organisation() -> dict[Organisation, Sequence[User]]:
     return certifiers_by_organisation
 
 
-def get_grant_override_certifiers_by_organisation(grant_id: uuid.UUID) -> dict[Organisation, Sequence[User]]:
+def get_grant_override_certifiers_by_organisation(
+    grant_id: uuid.UUID, organisation_mode: OrganisationModeEnum | TNotProvided = NOT_PROVIDED
+) -> dict[Organisation, Sequence[User]]:
     grant = get_grant(grant_id)
     grant_recipients = get_grant_recipients(grant=grant)
 
     certifiers_by_organisation: dict[Organisation, Sequence[User]] = {gr.organisation: [] for gr in grant_recipients}
 
-    roles = db.session.scalars(
-        select(UserRole).where(
-            UserRole.grant_id == grant_id,
-            UserRole.permissions.contains([RoleEnum.CERTIFIER]),
-        )
-    ).all()
+    stmt = select(UserRole)
+    filters = [
+        UserRole.grant_id == grant_id,
+        UserRole.permissions.contains([RoleEnum.CERTIFIER]),
+    ]
+
+    if organisation_mode is not NOT_PROVIDED:
+        stmt = stmt.join(Organisation)
+        filters.append(Organisation.mode == organisation_mode)
+
+    roles = db.session.scalars(stmt.where(*filters)).all()
 
     sorted_roles = sorted(roles, key=lambda r: str(r.organisation_id or ""))
     for org, user_roles in groupby(sorted_roles, lambda role: role.organisation):

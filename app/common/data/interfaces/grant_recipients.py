@@ -111,10 +111,11 @@ def all_grant_recipients_have_data_providers(grant: Grant) -> bool:
 def get_grant_recipient_data_providers_count(
     grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE
 ) -> int:
-    return sum(
-        len(grant_recipient.data_providers)
-        for grant_recipient in get_grant_recipients(grant, mode=mode, with_data_providers=True)
-    )
+    data_providers = set()
+    for grant_recipient in get_grant_recipients(grant, mode=mode, with_data_providers=True):
+        data_providers.update(grant_recipient.data_providers)
+
+    return len(data_providers)
 
 
 def get_grant_recipient_data_provider_roles(grant: Grant) -> Sequence[UserRole]:
