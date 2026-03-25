@@ -380,6 +380,7 @@ def get_certifiers_by_organisation() -> dict[Organisation, Sequence[User]]:
         )
     ).all()
 
+    roles = sorted(roles, key=lambda role: str(role.organisation_id or ""))
     for org, user_roles in groupby(roles, lambda role: role.organisation):
         certifiers_by_organisation[org] = list({ur.user for ur in user_roles})
 
