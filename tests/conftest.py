@@ -212,10 +212,17 @@ class MockS3ServiceCalls:
         self.download_file_calls: list[_Call] = []
         self.delete_file_calls: list[_Call] = []
         self.delete_prefix_calls: list[_Call] = []
+        self.update_file_tags: list[_Call] = []
 
     @property
     def all_calls(self) -> list[_Call]:
-        return self.upload_file_calls + self.download_file_calls + self.delete_file_calls + self.delete_prefix_calls
+        return (
+            self.upload_file_calls
+            + self.download_file_calls
+            + self.delete_file_calls
+            + self.delete_prefix_calls
+            + self.update_file_tags
+        )
 
 
 @pytest.fixture(scope="function")
@@ -238,6 +245,10 @@ def mock_s3_service_calls(mocker: MockerFixture) -> Generator[MockS3ServiceCalls
         tracker.delete_prefix_calls.append(mocker.call(*args, **kwargs))
         return None
 
+    def _track_update_file_tags(*args, **kwargs):
+        tracker.update_file_tags.append(mocker.call(*args, **kwargs))
+        return None
+
     mocker.patch(
         "app.services.s3.S3Service.upload_file",
         side_effect=_track_upload_file,
@@ -253,6 +264,10 @@ def mock_s3_service_calls(mocker: MockerFixture) -> Generator[MockS3ServiceCalls
     mocker.patch(
         "app.services.s3.S3Service.delete_prefix",
         side_effect=_track_delete_prefix,
+    )
+    mocker.patch(
+        "app.services.s3.S3Service.update_file_tags",
+        side_effect=_track_update_file_tags,
     )
 
     yield tracker

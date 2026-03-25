@@ -12,12 +12,10 @@ class S3Service:
         self._app = app
         # https://docs.aws.amazon.com/boto3/latest/guide/credentials.html
         self._resource = boto3.resource("s3")
-        self._bucket = self._resource.Bucket(app.config["AWS_S3_BUCKET_NAME"])
+        self._bucket_name = str(self._app.config["AWS_S3_BUCKET_NAME"])
+        self._bucket = self._resource.Bucket(self._bucket_name)
         app.extensions["s3_service"] = self
-
-    @property
-    def bucket_name(self) -> str:
-        return str(self._app.config["AWS_S3_BUCKET_NAME"])
+        self._client = boto3.client("s3")
 
     def upload_file(self, file: FileStorage, key: str, tags: dict[str, str] | None = None) -> None:
         extra_args: dict[str, str] = {}
@@ -38,3 +36,7 @@ class S3Service:
 
     def delete_prefix(self, prefix: str) -> None:
         self._bucket.objects.filter(Prefix=prefix).delete()
+
+    def update_file_tags(self, key: str, tags: dict[str, str]) -> None:
+        tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
+        self._client.put_object_tagging(Bucket=self._bucket_name, Key=key, Tagging={"TagSet": tag_set})

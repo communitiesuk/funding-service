@@ -2891,8 +2891,7 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 original_filename=data_set_data.original_filename,
                 data_source_id=data_set_data.data_source_id,
             )
-
-            s3_service.upload_file(file_storage, data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+            s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
 
             data_source_url = url_for(
                 "deliver_grant_funding.view_data_source",
@@ -2993,7 +2992,7 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
                 data_source_id=data_set_data.data_source_id,
             )
 
-            s3_service.upload_file(file_storage, data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+            s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
 
             data_source_url = url_for(
                 "deliver_grant_funding.view_data_source",
@@ -3061,7 +3060,7 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
             data_source_id=data_set_data.data_source_id,
         )
 
-        s3_service.upload_file(file_storage, data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+        s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
 
         data_source_url = url_for(
             "deliver_grant_funding.view_data_source",

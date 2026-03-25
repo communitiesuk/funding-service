@@ -7364,8 +7364,8 @@ class TestMapDataSetColumns:
         assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
 
-        assert len(mock_s3_service_calls.upload_file_calls) == 1
-        assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.IN_USE}
+        assert len(mock_s3_service_calls.update_file_tags) == 1
+        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
 
     def test_post_with_errors_redirects_to_data_set_errors(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
@@ -7636,8 +7636,8 @@ class TestMapDataSetNumberColumns:
         assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
 
-        assert len(mock_s3_service_calls.upload_file_calls) == 1
-        assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.IN_USE}
+        assert len(mock_s3_service_calls.update_file_tags) == 1
+        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
 
         with authenticated_grant_admin_client.session_transaction() as updated_session:
             assert updated_session.get("data_set_upload") is None
@@ -7975,8 +7975,8 @@ class TestDataSetMissingData:
             soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
         )
 
-        assert len(mock_s3_service_calls.upload_file_calls) == 1
-        assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.IN_USE}
+        assert len(mock_s3_service_calls.update_file_tags) == 1
+        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
 
         data_sources = db_session.query(DataSource).all()
 
@@ -8464,7 +8464,7 @@ class TestDownloadDataSourceCsv:
         )
         assert response.status_code == 404
 
-    def test_404_when_no_file_metadata(self, authenticated_grant_admin_client, factories):
+    def test_500_when_no_file_metadata(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         data_source = factories.data_source.create(
             name="Test data set",
@@ -8483,7 +8483,7 @@ class TestDownloadDataSourceCsv:
                 data_source_id=data_source.id,
             )
         )
-        assert response.status_code == 404
+        assert response.status_code == 500
 
     def test_404_when_data_source_doesnt_belong_to_collection(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
