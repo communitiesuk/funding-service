@@ -3,9 +3,20 @@ from typing import cast
 from urllib.parse import urlencode
 
 from notifications_python_client import NotificationsAPIClient
-from playwright.sync_api import Page
+from playwright.sync_api import Locator, Page, expect
 
 from tests.e2e.config import EndToEndTestSecrets
+
+
+def get_context_aware_textbox_locator_by_name(page: Page, name: str) -> Locator:
+    return page.locator(
+        ".app-context-aware-editor__editor-container",
+        has=page.get_by_role("textbox", name=name),
+    ).get_by_role("textbox", name=name)
+
+
+def wait_for_context_aware_textarea_to_be_ready(page: Page, textarea_id: str) -> None:
+    expect(page.locator(f".app-context-aware-editor__visible-textarea[id='{textarea_id}']")).to_be_attached()
 
 
 def extract_email_link(email: dict[str, str]) -> str:
