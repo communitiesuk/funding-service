@@ -159,7 +159,19 @@ def build_managed_expression_form(
     return ManagedExpressionForm
 
 
-class CustomValidationExpressionForm(FlaskForm):
+class ExceptionRenderingForm(FlaskForm):
+    def handle_exception(self, e: WTFormRenderableException, field_name: str | None = None) -> None:
+        if e.field_name:
+            field_with_error = getattr(self, e.field_name)
+        elif field_name:
+            field_with_error = getattr(self, field_name)
+        else:
+            self.form_errors.append(e.form_error_message)
+            return
+        field_with_error.errors.append(e.form_error_message)
+
+
+class CustomValidationExpressionForm(ExceptionRenderingForm):
     def is_submitted_to_add_context(self) -> bool:
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
 
@@ -187,13 +199,3 @@ class CustomValidationExpressionForm(FlaskForm):
             "add_context": self.add_context.data,
         }
         return data
-
-    def handle_exception(self, e: WTFormRenderableException, field_name: str | None = None) -> None:
-        if e.field_name:
-            field_with_error = getattr(self, e.field_name)
-        elif field_name:
-            field_with_error = getattr(self, field_name)
-        else:
-            self.form_errors.append(e.form_error_message)
-            return
-        field_with_error.errors.append(e.form_error_message)
