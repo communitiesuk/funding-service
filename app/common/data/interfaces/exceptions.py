@@ -84,13 +84,15 @@ class InvalidUserRoleError(Exception):
         super().__init__(self.message)
 
 
-class InvalidReferenceInExpression(Exception, WTFormRenderableException):
+class InvalidReferenceInExpression(WTFormRenderableException):
     def __init__(self, message: str, field_name: str, bad_reference: str, form_error_message: str):
-        super().__init__(message)
+        super().__init__(
+            message=message,
+            form_error_message=form_error_message,
+            field_name=field_name,
+        )
         self.message = message
-        self.field_name = field_name
         self.bad_reference = bad_reference
-        self.form_error_message = form_error_message
 
 
 @overload

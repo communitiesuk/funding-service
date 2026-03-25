@@ -808,7 +808,7 @@ class FlashableException(Protocol):
     def as_flash_context(self) -> dict[str, str | bool]: ...
 
 
-class DependencyOrderException(Exception, FlashableException, WTFormRenderableException):
+class DependencyOrderException(WTFormRenderableException, FlashableException):
     def __init__(
         self,
         message: str,
@@ -817,12 +817,14 @@ class DependencyOrderException(Exception, FlashableException, WTFormRenderableEx
         form_error_message: str,
         field_name: str | None = None,
     ):
-        super().__init__(message)
+        super().__init__(
+            message,
+            form_error_message,
+            field_name,
+        )
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
-        self.field_name = field_name
-        self.form_error_message = form_error_message
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -858,7 +860,7 @@ class SectionDependencyOrderException(Exception, FlashableException):
         }
 
 
-class IncompatibleDataTypeException(Exception, WTFormRenderableException):
+class IncompatibleDataTypeException(WTFormRenderableException):
     def __init__(
         self,
         message: str,
@@ -867,12 +869,14 @@ class IncompatibleDataTypeException(Exception, WTFormRenderableException):
         form_error_message: str,
         field_name: str | None = None,
     ):
-        super().__init__(message)
+        super().__init__(
+            message,
+            form_error_message,
+            field_name,
+        )
         self.message = message
         self.question = component
         self.depends_on_question = depends_on_component
-        self.field_name = field_name
-        self.form_error_message = form_error_message
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
@@ -1147,7 +1151,7 @@ def raise_if_data_source_item_reference_dependency(
     return None
 
 
-class AddAnotherDependencyException(Exception, FlashableException, WTFormRenderableException):
+class AddAnotherDependencyException(WTFormRenderableException, FlashableException):
     def __init__(
         self,
         message: str,
@@ -1156,12 +1160,14 @@ class AddAnotherDependencyException(Exception, FlashableException, WTFormRendera
         form_error_message: str,
         field_name: str = "",
     ):
-        super().__init__(message)
+        super().__init__(
+            message,
+            form_error_message,
+            field_name,
+        )
         self.message = message
         self.component = component
         self.referenced_question = referenced_question
-        self.field_name = field_name
-        self.form_error_message = form_error_message if form_error_message else message
 
     def as_flash_context(self) -> dict[str, str | bool]:
         return {
