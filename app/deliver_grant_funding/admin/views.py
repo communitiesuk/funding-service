@@ -117,7 +117,11 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=None))
         grant_recipients_count = get_grant_recipients_count(grant=grant)
         grant_recipient_users_count = get_grant_recipient_data_providers_count(grant=grant)
-        grant_override_certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=grant_id))
+        grant_override_certifiers_count = len(
+            get_users_with_permission(
+                RoleEnum.CERTIFIER, grant_id=grant_id, organisation_mode=OrganisationModeEnum.LIVE
+            )
+        )
 
         # Test entity counts
         test_users_count = get_grant_recipient_data_providers_count(grant=grant, mode=GrantRecipientModeEnum.TEST)
@@ -318,7 +322,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         collection = get_collection(collection_id, grant_id=grant_id)
         grant_recipients = get_grant_recipients(grant=grant)
 
-        certifiers_by_org = get_grant_override_certifiers_by_organisation(grant_id=grant_id)
+        certifiers_by_org = get_grant_override_certifiers_by_organisation(
+            grant_id=grant_id, organisation_mode=OrganisationModeEnum.LIVE
+        )
 
         form = PlatformAdminCreateGrantOverrideCertifiersForm(grant_recipients=grant_recipients)
 

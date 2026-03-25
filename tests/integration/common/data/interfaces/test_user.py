@@ -917,6 +917,33 @@ class TestGetUsersWithPermission:
         assert len(result_explicit_none) == 1
         assert result_explicit_none[0].id == user2.id
 
+    def test_filters_by_organisation_mode(self, factories, db_session):
+        live_org = factories.organisation.create(with_matching_test_org=True)
+        test_org = live_org.matching_test_organisation
+        live_user = factories.user.create(email="live@test.com")
+        test_user = factories.user.create(email="test@test.com")
+        factories.user_role.create(user=live_user, organisation=live_org, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=test_user, organisation=test_org, permissions=[RoleEnum.CERTIFIER])
+
+        result = list(
+            interfaces.user.get_users_with_permission(RoleEnum.CERTIFIER, organisation_mode=OrganisationModeEnum.LIVE)
+        )
+
+        assert len(result) == 1
+        assert result[0].id == live_user.id
+
+    def test_organisation_mode_not_provided_returns_all(self, factories, db_session):
+        live_org = factories.organisation.create(with_matching_test_org=True)
+        test_org = live_org.matching_test_organisation
+        live_user = factories.user.create(email="live@test.com")
+        test_user = factories.user.create(email="test@test.com")
+        factories.user_role.create(user=live_user, organisation=live_org, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=test_user, organisation=test_org, permissions=[RoleEnum.CERTIFIER])
+
+        result = list(interfaces.user.get_users_with_permission(RoleEnum.CERTIFIER))
+
+        assert len(result) == 2
+
 
 class TestGetUserRole:
     def test_returns_matching_organisation_level_role(self, factories, db_session):
@@ -1090,3 +1117,81 @@ class TestGetCertifiersByOrganisation:
         assert len(result) == 2
         assert len(result[org_with_certifiers]) == 1
         assert len(result[org_without_certifiers]) == 0
+
+
+class TestGetGrantOverrideCertifiersByOrganisation:
+    def test_returns_certifiers_grouped_by_grant_recipient_organisation(self, factories, db_session):
+        grant = factories.grant.create()
+        org1 = factories.organisation.create(can_manage_grants=False)
+        org2 = factories.organisation.create(can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org1)
+        factories.grant_recipient.create(grant=grant, organisation=org2)
+        user1 = factories.user.create(email="certifier1@test.com")
+        user2 = factories.user.create(email="certifier2@test.com")
+        factories.user_role.create(user=user1, organisation=org1, grant=grant, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=user2, organisation=org2, grant=grant, permissions=[RoleEnum.CERTIFIER])
+
+        result = interfaces.user.get_grant_override_certifiers_by_organisation(grant_id=grant.id)
+
+        assert len(result[org1]) == 1
+        assert result[org1][0].id == user1.id
+        assert len(result[org2]) == 1
+        assert result[org2][0].id == user2.id
+
+    def test_excludes_organisation_level_certifiers(self, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        org_level_user = factories.user.create(email="org_certifier@test.com")
+        factories.user_role.create(user=org_level_user, organisation=org, grant=None, permissions=[RoleEnum.CERTIFIER])
+
+        result = interfaces.user.get_grant_override_certifiers_by_organisation(grant_id=grant.id)
+
+        assert len(result[org]) == 0
+
+    def test_filters_by_organisation_mode(self, factories, db_session):
+        grant = factories.grant.create()
+        live_org = factories.organisation.create(can_manage_grants=False, with_matching_test_org=True)
+        factories.grant_recipient.create(grant=grant, organisation=live_org)
+        factories.grant_recipient.create(
+            grant=grant, organisation=(live_org.matching_test_organisation), mode=GrantRecipientModeEnum.TEST
+        )
+        live_user = factories.user.create(email="live_certifier@test.com")
+        test_user = factories.user.create(email="test_certifier@test.com")
+        factories.user_role.create(user=live_user, organisation=live_org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(
+            user=test_user,
+            organisation=(live_org.matching_test_organisation),
+            grant=grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        result = interfaces.user.get_grant_override_certifiers_by_organisation(
+            grant_id=grant.id, organisation_mode=OrganisationModeEnum.LIVE
+        )
+
+        assert len(result[live_org]) == 1
+        assert result[live_org][0].id == live_user.id
+
+        result = interfaces.user.get_grant_override_certifiers_by_organisation(
+            grant_id=grant.id, organisation_mode=OrganisationModeEnum.TEST
+        )
+
+        assert len(result[live_org.matching_test_organisation]) == 1
+        assert result[live_org.matching_test_organisation][0].id == test_user.id
+
+    def test_organisation_mode_none_returns_all(self, factories, db_session):
+        grant = factories.grant.create()
+        live_org = factories.organisation.create(can_manage_grants=False, with_matching_test_org=True)
+        test_org = live_org.matching_test_organisation
+        factories.grant_recipient.create(grant=grant, organisation=live_org)
+        factories.grant_recipient.create(grant=grant, organisation=test_org, mode=GrantRecipientModeEnum.TEST)
+        live_user = factories.user.create(email="live_certifier@test.com")
+        test_user = factories.user.create(email="test_certifier@test.com")
+        factories.user_role.create(user=live_user, organisation=live_org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=test_user, organisation=test_org, grant=grant, permissions=[RoleEnum.CERTIFIER])
+
+        result = interfaces.user.get_grant_override_certifiers_by_organisation(grant_id=grant.id)
+
+        assert len(result[live_org]) == 1
+        assert len(result[test_org]) == 1

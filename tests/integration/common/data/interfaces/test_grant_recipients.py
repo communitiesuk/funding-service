@@ -600,6 +600,28 @@ class TestGetGrantRecipientDataProvidersCount:
 
         assert count == 0
 
+    def test_deduplicates_users_across_grant_recipients(self, db_session, factories):
+        grant = factories.grant.create()
+        grant_recipient_1 = factories.grant_recipient.create(grant=grant)
+        grant_recipient_2 = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient_1.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient_2.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        count = get_grant_recipient_data_providers_count(grant)
+
+        assert count == 1
+
 
 class TestAllGrantRecipientsHaveDataProviders:
     def test_returns_false_when_no_grant_recipients(self, db_session, factories):

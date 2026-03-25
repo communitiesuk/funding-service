@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
 
 {# Macro for existing users table #}
 {% macro existing_users_table() %}
@@ -50,6 +51,8 @@
       <h1 class="govuk-heading-xl">Add form designers to test Access grant funding</h1>
 
       <p class="govuk-body">Set up MHCLG form designers / Funding Service staff to allow them to test the Access grant funding recipient journey. Grant team members will automatically be able to test the journey as any grant recipient.</p>
+
+      {{ govukInsetText({"text": "Grant team members can test as any grant recipient that has been set up."}) }}
     </div>
   </div>
 
