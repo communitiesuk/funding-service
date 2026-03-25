@@ -850,6 +850,34 @@ class PublicSignUpSettingsForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class ScoringSettingsForm(FlaskForm):
+    requires_scoring = RadioField(
+        "Should this collection allow scoring and commenting on submissions?",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[DataRequired("Select whether the collection should allow scoring and commenting")],
+        widget=GovRadioInput(),
+    )
+    scored_sections = SelectMultipleField(
+        "Which sections should be scored?",
+        default=[],
+        widget=GovCheckboxesInput(),
+        choices=[],
+        validators=[Optional()],
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, collection_forms: list[Form] | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if collection_forms:
+            self.scored_sections.choices = [(str(f.id), f.title) for f in collection_forms]
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> Any:
+        if self.requires_scoring.data == "True":
+            self.scored_sections.validators = [DataRequired("Select at least one section to score")]
+
+        return super().validate(extra_validators)
+
+
 class CollectionSettingsSelectSectionForm(FlaskForm):
     section = RadioField(
         "Select a section",
@@ -977,3 +1005,24 @@ class DeclineValidationForm(FlaskForm):
     )
 
     submit = SubmitField("Decline validation", widget=GovSubmitInput())
+
+
+class SectionScoreForm(FlaskForm):
+    score = RadioField(
+        "Score this section",
+        choices=[("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5")],
+        widget=GovRadioInput(),
+        validators=[DataRequired("Select a score")],
+    )
+
+    submit = SubmitField("Save score", widget=GovSubmitInput())
+
+
+class SectionCommentForm(FlaskForm):
+    comment = StringField(
+        "Add a comment",
+        widget=GovTextArea(),
+        validators=[DataRequired("Enter a comment")],
+    )
+
+    submit = SubmitField("Save comment", widget=GovSubmitInput())

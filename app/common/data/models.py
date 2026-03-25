@@ -15,6 +15,8 @@ from sqlalchemy_json import mutable_json_type
 from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import (
+    CollectionDataOptions,
+    CollectionDataOptionsPostgresType,
     CollectionStatusEnum,
     CollectionType,
     ComponentType,
@@ -284,6 +286,12 @@ class Collection(BaseModel):
     requires_validation: Mapped[bool | None]
     requires_certification: Mapped[bool | None]
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    requires_scoring: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    data_options: Mapped[CollectionDataOptions] = mapped_column(
+        CollectionDataOptionsPostgresType(),
+        default=CollectionDataOptions,
+        server_default="{}",
+    )
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
     submission_name_question: Mapped["Question | None"] = relationship(
@@ -357,6 +365,13 @@ class Collection(BaseModel):
         if not self.submission_period_end_date:
             return False
         return self.submission_period_end_date < datetime.date.today()
+
+    @property
+    def scored_section_ids(self) -> list[uuid.UUID]:
+        """Return scored section IDs. If none are set, all sections are scored."""
+        if self.data_options.scored_section_ids:
+            return self.data_options.scored_section_ids
+        return [form.id for form in self.forms]
 
 
 class Submission(BaseModel):

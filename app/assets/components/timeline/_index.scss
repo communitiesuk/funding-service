@@ -1,0 +1,66 @@
+// Timeline component
+// Based on the MOJ Design System timeline pattern
+// https://design-patterns.service.justice.gov.uk/components/timeline/
+
+@use "govuk";
+
+.moj-timeline {
+    overflow: hidden;
+    position: relative;
+
+    &::before {
+        // background-color: govuk.$govuk-brand-colour;
+        background-color: #1d70b8;
+        content: "";
+        height: 100%;
+        left: 0;
+        position: absolute;
+        top: govuk.$govuk-gutter-half;
+        width: 5px;
+    }
+}
+
+.moj-timeline__item {
+    padding-bottom: govuk.$govuk-gutter;
+    padding-left: govuk.$govuk-gutter;
+    position: relative;
+
+    &::before {
+        // background-color: govuk.$govuk-border-colour;
+        background-color: #1d70b8;
+        // border-radius: 50%;
+        content: "";
+        height: 5px;
+        left: 0px;
+        position: absolute;
+        top: govuk.$govuk-gutter-half;
+        width: 15px;
+    }
+}
+
+.moj-timeline__title {
+    @include govuk.govuk-font($size: 19, $weight: bold);
+    display: inline;
+}
+
+.moj-timeline__byline {
+    @include govuk.govuk-font($size: 16);
+    color: govuk.$govuk-secondary-text-colour;
+    display: inline;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.moj-timeline__date {
+    @include govuk.govuk-font($size: 16);
+    color: govuk.$govuk-secondary-text-colour;
+    display: block;
+    margin-top: 0;
+    margin-bottom: govuk.govuk-spacing(1);
+}
+
+.moj-timeline__description {
+    @include govuk.govuk-font($size: 19);
+    margin-top: govuk.govuk-spacing(2);
+    margin-bottom: 0;
+}

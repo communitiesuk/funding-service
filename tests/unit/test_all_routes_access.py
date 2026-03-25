@@ -70,6 +70,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.collection_configure_multiple_submissions",
     "deliver_grant_funding.set_guidance_for_multiple_submissions",
     "deliver_grant_funding.collection_configure_public_sign_up",
+    "deliver_grant_funding.collection_configure_scoring",
     "deliver_grant_funding.set_up_awarded_recipients",
     "deliver_grant_funding.set_up_allocated_recipients",
 ]

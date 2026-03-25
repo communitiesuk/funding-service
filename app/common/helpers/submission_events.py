@@ -139,6 +139,34 @@ class ValidationDeclinedKwargs(TypedDict, total=False):
     declined_reason: str | None
 
 
+class ScoredMixin(Protocol):
+    score: int
+
+
+class CommentMixin(Protocol):
+    comment: str
+
+
+@dataclass
+class SectionScoredEvent(SubmissionEventBase, ScoredMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SECTION_SCORED
+    score: int = field(default=0, metadata={"stored": True})
+
+
+class SectionScoredKwargs(TypedDict, total=False):
+    score: int
+
+
+@dataclass
+class SectionCommentAddedEvent(SubmissionEventBase, CommentMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SECTION_COMMENT_ADDED
+    comment: str = field(default="", metadata={"stored": True})
+
+
+class SectionCommentAddedKwargs(TypedDict, total=False):
+    comment: str
+
+
 # State - represents a snapshot of the current state of the target entity for those events
 # Combines metadata about who has been doing the events and the event properties themselves
 @dataclass
@@ -210,6 +238,25 @@ class FormState(CompletedMixin):
     is_completed: bool = False
 
 
+@dataclass
+class AssessmentEntry:
+    """A single score or comment entry in the assessment timeline."""
+
+    event_type: SubmissionEventType
+    user: User
+    created_at_utc: datetime
+    score: int | None = None
+    comment: str | None = None
+
+
+@dataclass
+class AssessmentState:
+    """Tracks the latest score and all score/comment entries for a section within a submission."""
+
+    latest_score: int | None = None
+    entries: list[AssessmentEntry] = field(default_factory=list)
+
+
 _SUBMISSION_EVENT_REGISTRY = {event.event_type: event for event in SubmissionEventBase.__subclasses__()}
 if len(_SUBMISSION_EVENT_REGISTRY) != len(SubmissionEventType):
     raise RuntimeError("Not all SubmissionEventType values have been registered")
@@ -236,8 +283,56 @@ class SubmissionEventHelper:
     def events(self) -> list[SubmissionEvent]:
         return sorted(self.submission.events, key=lambda x: x.created_at_utc, reverse=False)
 
+    _ASSESSMENT_EVENT_TYPES = frozenset({SubmissionEventType.SECTION_SCORED, SubmissionEventType.SECTION_COMMENT_ADDED})
+
     def form_state(self, form_id: UUID) -> FormState:
-        return FormState(**self._reduce([e for e in self.events if e.related_entity_id == form_id]))
+        return FormState(
+            **self._reduce(
+                [
+                    e
+                    for e in self.events
+                    if e.related_entity_id == form_id and e.event_type not in self._ASSESSMENT_EVENT_TYPES
+                ]
+            )
+        )
+
+    def assessment_state(self, form_id: UUID) -> AssessmentState:
+        """Build the assessment state for a given form (section), collecting all scores and comments."""
+        assessment_events = [
+            e
+            for e in self.events
+            if e.related_entity_id == form_id
+            and e.event_type in (SubmissionEventType.SECTION_SCORED, SubmissionEventType.SECTION_COMMENT_ADDED)
+        ]
+
+        latest_score: int | None = None
+        entries: list[AssessmentEntry] = []
+
+        for event in assessment_events:
+            if event.event_type == SubmissionEventType.SECTION_SCORED:
+                raw_score = event.data.get("score", 0)
+                score = int(raw_score) if isinstance(raw_score, (str, int, float)) else 0
+                latest_score = score
+                entries.append(
+                    AssessmentEntry(
+                        event_type=event.event_type,
+                        user=event.created_by,
+                        created_at_utc=event.created_at_utc,
+                        score=score,
+                    )
+                )
+            elif event.event_type == SubmissionEventType.SECTION_COMMENT_ADDED:
+                raw_comment = event.data.get("comment")
+                entries.append(
+                    AssessmentEntry(
+                        event_type=event.event_type,
+                        user=event.created_by,
+                        created_at_utc=event.created_at_utc,
+                        comment=raw_comment if isinstance(raw_comment, str) else "",
+                    )
+                )
+
+        return AssessmentState(latest_score=latest_score, entries=entries)
 
     @property
     def submission_state(self) -> SubmissionState:
@@ -352,6 +447,20 @@ class SubmissionEventHelper:
     def event_from(
         event_type: Literal[SubmissionEventType.SUBMISSION_VALIDATION_DECLINED],
         **kwargs: Unpack[ValidationDeclinedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SECTION_SCORED],
+        **kwargs: Unpack[SectionScoredKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SECTION_COMMENT_ADDED],
+        **kwargs: Unpack[SectionCommentAddedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

@@ -67,6 +67,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
@@ -90,6 +91,9 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     RequestChangesForm,
+    ScoringSettingsForm,
+    SectionCommentForm,
+    SectionScoreForm,
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
     SetUpApplicationForm,
@@ -423,6 +427,45 @@ def collection_configure_public_sign_up(grant_id: UUID, collection_id: UUID) -> 
 
     return render_template(
         "deliver_grant_funding/reports/configure_public_sign_up.html",
+        grant=report.grant,
+        report=report,
+        collection_config=collection_config,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/collection/<uuid:collection_id>/configure-scoring", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def collection_configure_scoring(grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
+    report = get_collection(collection_id, grant_id=grant_id, with_full_schema=True)
+    collection_config = get_collection_type_config(report.type)
+
+    form = ScoringSettingsForm(collection_forms=report.forms, obj=report if request.method == "GET" else None)
+
+    if request.method == "GET" and report.data_options.scored_section_ids:
+        form.scored_sections.data = [str(sid) for sid in report.data_options.scored_section_ids]
+
+    if form.validate_on_submit():
+        requires_scoring = form.requires_scoring.data == "True"
+        scored_section_ids: list[UUID] | None = None
+
+        if requires_scoring and form.scored_sections.data:
+            scored_section_ids = [UUID(sid) for sid in form.scored_sections.data]
+
+        update_collection(report, requires_scoring=requires_scoring, scored_section_ids=scored_section_ids)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=grant_id,
+                collection_id=collection_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/configure_scoring.html",
         grant=report.grant,
         report=report,
         collection_config=collection_config,
@@ -2519,8 +2562,61 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
                 )
             )
 
+    # Assessment: scoring and commenting per section (gated by requires_scoring)
+    scoring_form_id = None
+    commenting_form_id = None
+    score_form = None
+    comment_form = None
+
+    if helper.collection.requires_scoring:
+        scoring_form_id = request.args.get("score_section")
+        commenting_form_id = request.args.get("comment_section")
+
+        if scoring_form_id:
+            score_form = SectionScoreForm()
+            if score_form.validate_on_submit():
+                form_obj = get_form_by_id(UUID(scoring_form_id))
+                interfaces.collections.add_submission_event(
+                    helper.submission,
+                    event_type=SubmissionEventType.SECTION_SCORED,
+                    user=get_current_user(),
+                    related_entity_id=form_obj.id,
+                    score=int(score_form.score.data),
+                )
+                flash(
+                    f"You scored {form_obj.title}: {score_form.score.data}",
+                    FlashMessageType.SECTION_SCORED,
+                )
+                return redirect(
+                    url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+                )
+
+        if commenting_form_id:
+            comment_form = SectionCommentForm()
+            if comment_form.validate_on_submit():
+                form_obj = get_form_by_id(UUID(commenting_form_id))
+                interfaces.collections.add_submission_event(
+                    helper.submission,
+                    event_type=SubmissionEventType.SECTION_COMMENT_ADDED,
+                    user=get_current_user(),
+                    related_entity_id=form_obj.id,
+                    comment=comment_form.comment.data if comment_form.comment.data is not None else "",
+                )
+                flash(
+                    f"Your comment was saved for {form_obj.title}",
+                    FlashMessageType.SECTION_COMMENT_ADDED,
+                )
+                return redirect(
+                    url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+                )
+
     validate_form = None
-    if helper.collection.requires_validation and helper.status == SubmissionStatusEnum.SUBMITTED:
+    if (
+        not scoring_form_id
+        and not commenting_form_id
+        and helper.collection.requires_validation
+        and helper.status == SubmissionStatusEnum.SUBMITTED
+    ):
         validate_form = GenericSubmitForm()
         if validate_form.validate_on_submit():
             return redirect(
@@ -2539,6 +2635,12 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
         delete_form=delete_wtform,
         validate_form=validate_form,
+        score_form=score_form,
+        comment_form=comment_form,
+        scoring_form_id=scoring_form_id,
+        commenting_form_id=commenting_form_id,
+        requires_scoring=helper.collection.requires_scoring,
+        scored_section_ids=helper.collection.scored_section_ids if helper.collection.requires_scoring else [],
     )
 
 

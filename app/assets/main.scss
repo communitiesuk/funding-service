@@ -17,6 +17,7 @@
 @use "components/service-navigation";
 @use "components/summary-list";
 @use "components/test-data-banner";
+@use "components/timeline";
 
 @use "importants";
 @use "tweaks"; // Tiny CSS snippets to tweak existing components, not worth treating as their own thing

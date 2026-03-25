@@ -58,6 +58,8 @@ from app.common.forms.helpers import questions_in_same_add_another_container
 from app.common.helpers.submission_events import (
     ChangesRequestedByValidatorKwargs,
     DeclinedByCertifierKwargs,
+    SectionCommentAddedKwargs,
+    SectionScoredKwargs,
     SubmissionEventHelper,
     ValidationDeclinedKwargs,
 )
@@ -129,6 +131,8 @@ def update_collection(  # noqa: C901
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
+    requires_scoring: bool | TNotProvided = NOT_PROVIDED,
+    scored_section_ids: list[uuid.UUID] | None | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     if name is not NOT_PROVIDED:
         collection.name = name
@@ -216,6 +220,14 @@ def update_collection(  # noqa: C901
 
     if allow_public_sign_up is not NOT_PROVIDED:
         collection.allow_public_sign_up = allow_public_sign_up
+
+    if requires_scoring is not NOT_PROVIDED:
+        collection.requires_scoring = requires_scoring
+
+    if scored_section_ids is not NOT_PROVIDED:
+        from app.common.data.types import CollectionDataOptions
+
+        collection.data_options = CollectionDataOptions(scored_section_ids=scored_section_ids)
 
     if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):
@@ -1347,6 +1359,28 @@ def add_submission_event(
     user: User,
     related_entity_id: UUID | None = None,
     **kwargs: Unpack[ValidationDeclinedKwargs],
+) -> Submission: ...
+
+
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
+    event_type: Literal[SubmissionEventType.SECTION_SCORED],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[SectionScoredKwargs],
+) -> Submission: ...
+
+
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
+    event_type: Literal[SubmissionEventType.SECTION_COMMENT_ADDED],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[SectionCommentAddedKwargs],
 ) -> Submission: ...
 
 

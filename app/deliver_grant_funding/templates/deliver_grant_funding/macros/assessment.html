@@ -1,0 +1,38 @@
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{% macro assessmentScoreTag(assessment_state) %}
+  {% if assessment_state.latest_score is not none %}
+    {{ govukTag({"text": "Score: " ~ assessment_state.latest_score, "classes": "govuk-tag--blue"}) }}
+  {% else %}
+    {{ govukTag({"text": "Not scored yet", "classes": "govuk-tag--grey"}) }}
+  {% endif %}
+{% endmacro %}
+
+{% macro assessmentTimeline(entries) %}
+  {% if entries %}
+    <div class="moj-timeline">
+      {% for entry in entries | reverse %}
+        <div class="moj-timeline__item">
+          <div class="moj-timeline__header">
+            {% if entry.score is not none %}
+              <h2 class="moj-timeline__title">Score: {{ entry.score }}</h2>
+              <span class="moj-timeline__byline">by {{ entry.user.email }}</span>
+            {% elif entry.comment is not none %}
+              <h2 class="moj-timeline__title">Comment</h2>
+              <span class="moj-timeline__byline">by {{ entry.user.email }}</span>
+            {% endif %}
+          </div>
+
+          <p class="moj-timeline__date">
+            <time datetime="{{ entry.created_at_utc.isoformat() }}">{{ format_datetime(entry.created_at_utc) }}</time>
+          </p>
+          {% if entry.comment is not none %}
+            <div class="moj-timeline__description"><p>{{ entry.comment }}</p></div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="govuk-body">No scores or comments yet.</p>
+  {% endif %}
+{% endmacro %}

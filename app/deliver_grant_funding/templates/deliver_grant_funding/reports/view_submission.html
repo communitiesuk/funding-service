@@ -3,6 +3,9 @@
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+{% from "deliver_grant_funding/macros/assessment.html" import assessmentScoreTag, assessmentTimeline with context %}
 {# todo: this is gnarly #}
 {% if collection_config.active_sub_nav_item is none %}
   {% extends "deliver_grant_funding/grant_base.html" %}
@@ -23,7 +26,7 @@
 {% endblock beforeContent %}
 
 {% block content %}
-  {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_VALIDATED, enum.flash_message_type.SUBMISSION_CHANGES_REQUESTED, enum.flash_message_type.SUBMISSION_VALIDATION_DECLINED]) %}
+  {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_VALIDATED, enum.flash_message_type.SUBMISSION_CHANGES_REQUESTED, enum.flash_message_type.SUBMISSION_VALIDATION_DECLINED, enum.flash_message_type.SECTION_SCORED, enum.flash_message_type.SECTION_COMMENT_ADDED]) %}
     {% if flashes %}
       {{ govukNotificationBanner({"type": "success", "titleText": "Success", "text": flashes[0]}) }}
     {% endif %}
@@ -50,11 +53,55 @@
   </div>
 
   {% for form in helper.get_ordered_visible_forms() %}
-    <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
+    {% if requires_scoring %}
+      {% set section_is_scored = form.id in scored_section_ids %}
+      {% if section_is_scored %}
+        {% set assessment = helper.events.assessment_state(form.id) %}
+      {% endif %}
+    {% else %}
+      {% set section_is_scored = false %}
+    {% endif %}
+    <div class="app-aligned-header-tag govuk-!-margin-top-4">
+      <h2 class="govuk-heading-m govuk-!-margin-bottom-0">{{ form.title }}</h2>
+      {% if requires_scoring %}
+        {% if section_is_scored %}
+          {{ assessmentScoreTag(assessment) }}
+        {% else %}
+          {{ govukTag({"text": "Unscored section", "classes": "govuk-tag--light-blue"}) }}
+        {% endif %}
+      {% endif %}
+    </div>
     {{ answers_summary_list(helper, form) }}
+
+    {% if section_is_scored %}
+      {% set details_html %}
+        {{ assessmentTimeline(assessment.entries) }}
+
+        {% if scoring_form_id == form.id | string %}
+          <form method="POST" action="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id, score_section=form.id) }}" novalidate>
+            {{ score_form.csrf_token }}
+            {{ score_form.score(params={"fieldset": {"legend": {"text": "Score this section", "classes": "govuk-fieldset__legend--s" }},
+            "items": [{"value": "1", "text": "1"}, {"value": "2", "text": "2"}, {"value": "3", "text": "3"}, {"value": "4", "text": "4"}, {"value": "5", "text": "5"}]}) }} {{ score_form.submit }}
+          </form>
+        {% elif commenting_form_id == form.id | string %}
+          <form method="POST" action="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id, comment_section=form.id) }}" novalidate>
+            {{ comment_form.csrf_token }}
+            {{ comment_form.comment }}
+            {{ comment_form.submit }}
+          </form>
+        {% else %}
+          <div class="govuk-button-group">
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id, score_section=form.id) }}">Score this section</a>
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id, comment_section=form.id) }}">Add comment</a>
+          </div>
+        {% endif %}
+      {% endset %}
+
+      {{ govukDetails({"summaryText": form.title ~ " score and comment", "html": details_html, "open": scoring_form_id == form.id | string or commenting_form_id == form.id | string}) }}
+    {% endif %}
   {% endfor %}
 
-  {% if helper.collection.requires_validation and helper.status == enum.submission_status.SUBMITTED %}
+  {% if validate_form and helper.collection.requires_validation and helper.status == enum.submission_status.SUBMITTED %}
     <div>
       <h2 class="govuk-heading-m govuk-!-margin-top-9">Validate allocation</h2>
       <p class="govuk-body">Review the submission and either validate, request changes, or decline it.</p>

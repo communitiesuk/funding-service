@@ -157,6 +157,8 @@ class SubmissionEventType(enum.StrEnum):
     SUBMISSION_VALIDATED = "Submission validated"
     SUBMISSION_CHANGES_REQUESTED_BY_VALIDATOR = "Submission changes requested by validator"
     SUBMISSION_VALIDATION_DECLINED = "Submission validation declined"
+    SECTION_SCORED = "Section scored"
+    SECTION_COMMENT_ADDED = "Section comment added"
 
 
 class CollectionType(enum.StrEnum):
@@ -431,6 +433,26 @@ class QuestionDataOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
         if value is None:
             return None
         return QuestionDataOptions(**value)
+
+
+class CollectionDataOptions(BaseModel):
+    scored_section_ids: list[UUID] | None = None
+
+
+class CollectionDataOptionsPostgresType(TypeDecorator):  # type: ignore[type-arg]
+    impl = JSONB
+
+    cache_ok = False
+
+    def process_bind_param(self, value: BaseModel, dialect: Any) -> Any:  # type: ignore[override]
+        if value is None:
+            return None
+        return value.model_dump(mode="json", exclude_none=True)
+
+    def process_result_value(self, value: typing.Any, dialect: Any) -> CollectionDataOptions | None:
+        if value is None:
+            return None
+        return CollectionDataOptions(**value)
 
 
 class ComponentType(enum.StrEnum):
