@@ -1118,6 +1118,22 @@ class TestGetCertifiersByOrganisation:
         assert len(result[org_with_certifiers]) == 1
         assert len(result[org_without_certifiers]) == 0
 
+    def test_handles_out_of_order_certifiers(self, factories, db_session):
+        org1 = factories.organisation.create(can_manage_grants=False)
+        org2 = factories.organisation.create(can_manage_grants=False)
+        user1 = factories.user.create(email="certifier1@test.com")
+        user2 = factories.user.create(email="certifier2@test.com")
+        user3 = factories.user.create(email="certifier3@test.com")
+        factories.user_role.create(user=user1, organisation=org1, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=user2, organisation=org2, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(user=user3, organisation=org1, permissions=[RoleEnum.CERTIFIER])
+
+        result = interfaces.user.get_certifiers_by_organisation()
+
+        assert len(result) == 2
+        assert set(result[org1]) == {user1, user3}
+        assert set(result[org2]) == {user2}
+
 
 class TestGetGrantOverrideCertifiersByOrganisation:
     def test_returns_certifiers_grouped_by_grant_recipient_organisation(self, factories, db_session):
