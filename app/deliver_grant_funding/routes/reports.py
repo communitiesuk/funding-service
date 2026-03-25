@@ -11,6 +11,7 @@ from flask_wtf import FlaskForm
 from markupsafe import Markup, escape
 from pydantic import BaseModel, ValidationError
 from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 from wtforms import Field
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -69,6 +70,7 @@ from app.common.data.types import (
     CollectionType,
     ComponentType,
     ConditionsOperator,
+    DataSourceFileTagEnum,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -81,6 +83,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     RoleEnum,
     SubmissionModeEnum,
+    TUnvalidatedDataSetRows,
 )
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
@@ -105,6 +108,7 @@ from app.constants import (
     DATA_SET_IDENTIFIER_COLUMN_HEADERS,
 )
 from app.deliver_grant_funding.data_sets import (
+    build_data_set_upload_s3_key,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -2728,14 +2732,14 @@ def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) 
     )
 
 
-def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], list[dict[str, str]]]:
+def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], TUnvalidatedDataSetRows]:
     file_storage.stream.seek(0)
     content = file_storage.stream.read().decode("utf-8-sig")
     file_storage.stream.seek(0)
 
     reader = csv.DictReader(io.StringIO(content))
     columns = list(reader.fieldnames or [])
-    rows: list[dict[str, str]] = list(reader)
+    rows: TUnvalidatedDataSetRows = list(reader)
 
     return columns, rows
 
@@ -2765,6 +2769,7 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
     gr_errors: list[str] = []
 
     if form.validate_on_submit():
+        file: FileStorage = form.file.data
         columns, rows = _parse_data_set_csv(form.file.data)
 
         if form.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
@@ -2772,19 +2777,26 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         else:
             data_columns = columns
 
+        data_source_id = uuid.uuid4()
+        s3_key = build_data_set_upload_s3_key(grant_id=grant_id, report_id=report_id, data_source_id=data_source_id)
+        file.stream.seek(0)
+        s3_service.upload_file(file, s3_key, {"status": DataSourceFileTagEnum.PENDING})
+
         session_data = DataSetUploadSessionModel(
             name=cast(str, form.name.data),
             data_source_type=form.data_source_type.data,
             data_columns=data_columns,
             preview_rows=rows[:5],
-            all_rows=rows,
+            s3_key=s3_key,
+            original_filename=secure_filename(file.filename),
+            data_source_id=data_source_id,
         )
 
         session["data_set_upload"] = session_data.model_dump(mode="json")
 
         if form.data_source_type.data != DataSourceType.STATIC:
             grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
-            gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients)
+            gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients, all_rows=rows)
             if gr_errors:
                 return render_template(
                     "deliver_grant_funding/reports/data_sets/upload_dataset.html",
@@ -2851,7 +2863,11 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 )
             )
 
-        validation_result = validate_data_set(data_set_data)
+        file_bytes = s3_service.download_file(data_set_data.s3_key)
+        file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
+        _, rows = _parse_data_set_csv(file_storage)
+
+        validation_result = validate_data_set(data_set_data, rows)
 
         if validation_result.blocking_errors or validation_result.has_missing_data:
             return redirect(
@@ -2869,9 +2885,14 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 grant_id=grant_id,
                 collection_id=report.id,
                 column_mappings=data_set_data.column_mappings,
-                all_rows=data_set_data.all_rows,
+                all_rows=rows,
                 user=user,
+                s3_key=data_set_data.s3_key,
+                original_filename=data_set_data.original_filename,
+                data_source_id=data_set_data.data_source_id,
             )
+            s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+
             data_source_url = url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant_id,
@@ -2942,7 +2963,11 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
                     mapping.max_decimal_places = settings[mapping.column_name]["max_decimal_places"]
         session["data_set_upload"] = data_set_data.model_dump(mode="json")
 
-        validation_result = validate_data_set(data_set_data)
+        file_bytes = s3_service.download_file(data_set_data.s3_key)
+        file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
+        _, rows = _parse_data_set_csv(file_storage)
+
+        validation_result = validate_data_set(data_set_data, rows)
 
         if validation_result.blocking_errors:
             errors = sorted(validation_result.blocking_errors, key=lambda e: e.column)
@@ -2960,9 +2985,15 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
                 grant_id=grant_id,
                 collection_id=report.id,
                 column_mappings=data_set_data.column_mappings,
-                all_rows=data_set_data.all_rows,
+                all_rows=rows,
                 user=user,
+                s3_key=data_set_data.s3_key,
+                original_filename=data_set_data.original_filename,
+                data_source_id=data_set_data.data_source_id,
             )
+
+            s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+
             data_source_url = url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant_id,
@@ -3007,7 +3038,11 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
     if not data_set_data:
         return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
 
-    validation_result = validate_data_set(data_set_data)
+    file_bytes = s3_service.download_file(data_set_data.s3_key)
+    file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
+    _, rows = _parse_data_set_csv(file_storage)
+
+    validation_result = validate_data_set(data_set_data, rows)
 
     form = GenericSubmitForm()
 
@@ -3018,9 +3053,15 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
             grant_id=grant_id,
             collection_id=report.id,
             column_mappings=data_set_data.column_mappings,
-            all_rows=data_set_data.all_rows,
+            all_rows=rows,
             user=user,
+            s3_key=data_set_data.s3_key,
+            original_filename=data_set_data.original_filename,
+            data_source_id=data_set_data.data_source_id,
         )
+
+        s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+
         data_source_url = url_for(
             "deliver_grant_funding.view_data_source",
             grant_id=grant_id,
@@ -3050,6 +3091,7 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
         session_data=data_set_data,
         form=form,
         validation_result=validation_result,
+        all_rows=rows,
     )
 
 
@@ -3100,6 +3142,30 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
         delete_form=delete_wtform,
         grant_recipient_name_by_external_id=grant_recipient_name_by_external_id,
     )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>/download",
+    methods=["GET"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def download_data_source_csv(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
+    get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+    data_source = get_data_source(data_source_id)
+
+    # TODO FSPT-1044: We should do this filtering in the interface rather than here
+    if data_source.collection_id != report_id or data_source.grant_id != grant_id:
+        abort(404)
+
+    if not data_source.file_metadata:
+        abort(500)
+
+    file_bytes = s3_service.download_file(data_source.file_metadata["s3_key"])
+    # This secure_filename use is kind of redundant as we pass the filename through secure_filename when we create the
+    # session and ingest to the database, this is just for safety
+    filename = secure_filename(data_source.file_metadata["original_filename"])
+
+    return send_file(io.BytesIO(file_bytes), mimetype="text/csv", as_attachment=True, download_name=filename, max_age=0)
 
 
 # TODO break this down so it's less complicated

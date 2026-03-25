@@ -1,3 +1,4 @@
+import csv
 import io
 import logging
 import uuid
@@ -31,6 +32,8 @@ from app.common.data.models import (
 )
 from app.common.data.types import (
     ConditionsOperator,
+    DataSourceFileMetadata,
+    DataSourceFileTagEnum,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -56,6 +59,7 @@ from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, Is
 from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
+from app.deliver_grant_funding.data_sets import build_data_set_upload_s3_key
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddSectionForm,
@@ -6765,6 +6769,14 @@ class TestDownloadGrantRecipientDataSetTemplate:
         assert f"{report.slug}-grant-recipient-data-template.csv" in content_disposition
 
 
+def _rows_to_csv_bytes(rows: list[dict]) -> bytes:
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=list(rows[0].keys()))
+    writer.writeheader()
+    writer.writerows(rows)
+    return buffer.getvalue().encode("utf-8")
+
+
 class TestUploadDataSet:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
@@ -6803,8 +6815,10 @@ class TestUploadDataSet:
                 "data_source_type": DataSourceType.PROJECT_LEVEL,
                 "data_columns": ["Amount"],
                 "preview_rows": [],
-                "all_rows": [],
                 "column_mappings": [],
+                "data_source_id": uuid.uuid4(),
+                "original_filename": "test.csv",
+                "s3_key": "data-set-uploads/test.csv",
             }
 
         response = authenticated_grant_admin_client.get(
@@ -6820,7 +6834,9 @@ class TestUploadDataSet:
             is not None
         )
 
-    def test_post_valid_csv_redirects_to_map_columns_with_session(self, authenticated_grant_admin_client, factories):
+    def test_post_valid_csv_redirects_to_map_columns_with_session(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
         factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Rivendell")
@@ -6843,14 +6859,29 @@ class TestUploadDataSet:
         assert response.location == (
             url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id)
         )
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session_data = session.get("data_set_upload")
             assert session_data is not None
-            assert session_data["name"] == "Test Data Set"
-            assert session_data["data_source_type"] == DataSourceType.GRANT_RECIPIENT
-            assert session_data["data_columns"] == ["Amount"]
-            assert len(session_data["all_rows"]) == 2
+
+        data_source_id = session_data["data_source_id"]
+
+        expected_s3_key = build_data_set_upload_s3_key(
+            grant_id=grant.id,
+            report_id=report.id,
+            data_source_id=data_source_id,
+        )
+
+        assert session_data["s3_key"] == expected_s3_key
+        assert session_data["name"] == "Test Data Set"
+        assert session_data["data_source_type"] == DataSourceType.GRANT_RECIPIENT
+        assert session_data["data_columns"] == ["Amount"]
+        assert session_data["original_filename"] == "test.csv"
+        assert session_data["s3_key"] == expected_s3_key
+
+        assert mock_s3_service_calls.upload_file_calls[0].args[1] == expected_s3_key
+        assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.PENDING}
 
     def test_post_raises_validation_error_on_duplicate_name(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
@@ -6900,7 +6931,9 @@ class TestUploadDataSet:
             f"{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
         ) in response.text
 
-    def test_post_raises_errors_for_incorrect_grant_recipient_data(self, authenticated_grant_admin_client, factories):
+    def test_post_raises_errors_for_incorrect_grant_recipient_data(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
         factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
@@ -6932,8 +6965,10 @@ class TestUploadDataSet:
             soup, f"Grant recipient with {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E456' is missing from the CSV"
         )
         assert page_has_error(soup, "Grant recipient 'Numenor' is missing from the CSV")
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
+        assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.PENDING}
 
-    def test_post_missing_name(self, authenticated_grant_admin_client, factories):
+    def test_post_missing_name(self, authenticated_grant_admin_client, factories, mock_s3_service_calls):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
 
@@ -7031,7 +7066,7 @@ class TestUploadDataSet:
         assert response.status_code == 200
         assert page_has_error(soup, "The file must contain no more than 10,000 rows")
 
-    def test_post_stores_preview_rows(self, authenticated_grant_admin_client, factories):
+    def test_post_stores_preview_rows(self, authenticated_grant_admin_client, factories, mock_s3_service_calls):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
 
@@ -7054,7 +7089,7 @@ class TestUploadDataSet:
         with authenticated_grant_admin_client.session_transaction() as sess:
             session_data = sess.get("data_set_upload")
             assert len(session_data["preview_rows"]) == 5  # Only first 5 rows
-            assert len(session_data["all_rows"]) == 10
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
 
     def test_post_static_csv_with_missing_data_raises_validation_error(
         self, authenticated_grant_admin_client, factories
@@ -7079,7 +7114,9 @@ class TestUploadDataSet:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "The file has missing data in row(s): 4")
 
-    def test_post_static_csv_without_missing_data_proceeds(self, authenticated_grant_admin_client, factories):
+    def test_post_static_csv_without_missing_data_proceeds(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
 
@@ -7100,6 +7137,7 @@ class TestUploadDataSet:
         assert response.location == url_for(
             "deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id
         )
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
 
     def test_post_csv_with_too_many_headers(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
@@ -7163,7 +7201,9 @@ class TestMapDataSetColumns:
                     {"Capital allocation": "£1000", "Revenue allocation": "£10000", "Notes": "First"},
                     {"Capital allocation": "£2000", "Revenue allocation": "£30000", "Notes": "Second"},
                 ],
-                all_rows=[],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -7210,7 +7250,9 @@ class TestMapDataSetColumns:
                         "number_type": NumberTypeEnum.DECIMAL,
                     },
                 ],
-                all_rows=[],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -7244,7 +7286,9 @@ class TestMapDataSetColumns:
                     {"Capital allocation": "1000", "Additional info": "Some extra details"},
                     {"Capital allocation": "2000", "Additional info": "Here are some finer details"},
                 ],
-                all_rows=[],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
 
         data = {
@@ -7263,7 +7307,7 @@ class TestMapDataSetColumns:
         )
 
     def test_post_no_errors_creates_datasource_and_redirects(
-        self, authenticated_grant_admin_client, factories, db_session
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
     ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
@@ -7282,19 +7326,24 @@ class TestMapDataSetColumns:
                     {"Area description": "A fine place"},
                     {"Area description": "A wonderful place"},
                 ],
-                all_rows=[
-                    {
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
-                        "Area description": "A fine place",
-                    },
-                    {
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
-                        "Area description": "A wonderful place",
-                    },
-                ],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                "Area description": "A fine place",
+            },
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                "Area description": "A wonderful place",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         data = {
             "columns-0-data_type": "TEXT",
@@ -7315,7 +7364,12 @@ class TestMapDataSetColumns:
         assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
 
-    def test_post_with_errors_redirects_to_data_set_errors(self, authenticated_grant_admin_client, factories):
+        assert len(mock_s3_service_calls.update_file_tags) == 1
+        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
+
+    def test_post_with_errors_redirects_to_data_set_errors(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
+    ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
@@ -7326,19 +7380,24 @@ class TestMapDataSetColumns:
                     {"Area description": "A fine place"},
                     {"Area description": "A wonderful place"},
                 ],
-                all_rows=[
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
-                        "Area description": "",
-                    },
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
-                        "Area description": "",
-                    },
-                ],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                "Area description": "",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                "Area description": "",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         data = {
             "columns-0-data_type": "TEXT",
@@ -7372,7 +7431,9 @@ class TestMapDataSetColumns:
                     {"Capital allocation": "£1000", "Revenue allocation": "£10000"},
                     {"Capital allocation": "£2000", "Revenue allocation": "£30000"},
                 ],
-                all_rows=[],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
 
         data = {
@@ -7425,7 +7486,9 @@ class TestMapDataSetNumberColumns:
                         number_type=NumberTypeEnum.INTEGER,
                     ),
                 ],
-                all_rows=[],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -7478,7 +7541,9 @@ class TestMapDataSetNumberColumns:
                         data_type=QuestionDataType.TEXT_SINGLE_LINE,
                     ),
                 ],
-                all_rows=[],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -7490,7 +7555,7 @@ class TestMapDataSetNumberColumns:
         assert soup.find("input", {"name": "columns-1-suffix"})["value"] == "km"
 
     def test_post_no_errors_creates_datasource_and_redirects(
-        self, authenticated_grant_admin_client, factories, db_session
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
     ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
@@ -7524,23 +7589,28 @@ class TestMapDataSetNumberColumns:
                         data_type=QuestionDataType.TEXT_SINGLE_LINE,
                     ),
                 ],
-                all_rows=[
-                    {
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
-                        "Capital allocation": "£1000",
-                        "Revenue allocation": "£10000",
-                        "Additional info": "Some text",
-                    },
-                    {
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
-                        "Capital allocation": "£2000",
-                        "Revenue allocation": "£30000",
-                        "Additional info": "Some text",
-                    },
-                ],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                "Capital allocation": "£1000",
+                "Revenue allocation": "£10000",
+                "Additional info": "Some text",
+            },
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                "Capital allocation": "£2000",
+                "Revenue allocation": "£30000",
+                "Additional info": "Some text",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         data = {
             "columns-0-prefix": "£",
@@ -7566,10 +7636,15 @@ class TestMapDataSetNumberColumns:
         assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
 
+        assert len(mock_s3_service_calls.update_file_tags) == 1
+        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
+
         with authenticated_grant_admin_client.session_transaction() as updated_session:
             assert updated_session.get("data_set_upload") is None
 
-    def test_post_redirects_to_data_set_errors_when_missing_data(self, authenticated_grant_admin_client, factories):
+    def test_post_redirects_to_data_set_errors_when_missing_data(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
+    ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
@@ -7590,14 +7665,19 @@ class TestMapDataSetNumberColumns:
                         number_type=NumberTypeEnum.INTEGER,
                     ),
                 ],
-                all_rows=[
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
-                        "Capital allocation": "",
-                    }
-                ],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                "Capital allocation": "",
+            }
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         data = {
             "columns-0-prefix": "£",
@@ -7645,7 +7725,9 @@ class TestMapDataSetNumberColumns:
                         number_type=NumberTypeEnum.INTEGER,
                     ),
                 ],
-                all_rows=[],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
 
         data = {
@@ -7666,7 +7748,9 @@ class TestMapDataSetNumberColumns:
         assert page_has_error(soup, "Remove the prefix if you need a suffix")
         assert page_has_error(soup, "Enter the maximum number of decimal places")
 
-    def test_post_shows_errors_for_blocking_cell_errors(self, authenticated_grant_admin_client, factories):
+    def test_post_shows_errors_for_blocking_cell_errors(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
+    ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
@@ -7681,20 +7765,9 @@ class TestMapDataSetNumberColumns:
                 "data_source_type": DataSourceType.GRANT_RECIPIENT,
                 "data_columns": ["Capital allocation", "Distance"],
                 "preview_rows": [],
-                "all_rows": [
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
-                        "Capital allocation": "$1000.123",
-                        "Distance": "ABC",
-                    },
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient2.organisation.external_id,
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient2.organisation.name,
-                        "Capital allocation": "$1000.123",
-                        "Distance": "ABCkm",
-                    },
-                ],
+                "data_source_id": uuid.uuid4(),
+                "original_filename": "test.csv",
+                "s3_key": "data-set-uploads/test.csv",
                 "column_mappings": [
                     {
                         "column_name": "Capital allocation",
@@ -7708,6 +7781,22 @@ class TestMapDataSetNumberColumns:
                     },
                 ],
             }
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                "Capital allocation": "$1000.123",
+                "Distance": "ABC",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient2.organisation.name,
+                "Capital allocation": "$1000.123",
+                "Distance": "ABCkm",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -7746,7 +7835,9 @@ class TestDataSetMissingData:
         )
         assert response.status_code == 404
 
-    def test_get_data_set_missing_data_shows_rows_with_missing_data(self, authenticated_grant_admin_client, factories):
+    def test_get_data_set_missing_data_shows_rows_with_missing_data(
+        self, authenticated_grant_admin_client, factories, mocker
+    ):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
         gr = factories.grant_recipient.create(
@@ -7762,18 +7853,6 @@ class TestDataSetMissingData:
                 "data_source_type": DataSourceType.GRANT_RECIPIENT,
                 "data_columns": ["Capital allocation"],
                 "preview_rows": [],
-                "all_rows": [
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                        "Capital allocation": "",
-                    },
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
-                        "Capital allocation": "£1000.00",
-                    },
-                ],
                 "column_mappings": [
                     {
                         "column_name": "Capital allocation",
@@ -7783,7 +7862,25 @@ class TestDataSetMissingData:
                         "max_decimal_places": 2,
                     }
                 ],
+                "data_source_id": uuid.uuid4(),
+                "original_filename": "test.csv",
+                "s3_key": "data-set-uploads/test.csv",
             }
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                "Capital allocation": "£1000.00",
+            },
+        ]
+
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         response = authenticated_grant_admin_client.get(
             url_for("deliver_grant_funding.data_set_missing_data", grant_id=grant.id, report_id=report.id)
@@ -7796,7 +7893,9 @@ class TestDataSetMissingData:
         assert soup.find("div", {"class": "govuk-error-summary"}) is None
         assert "Data missing" in soup.text
 
-    def test_post_redirects(self, authenticated_grant_admin_client, factories, db_session):
+    def test_post_creates_data_source_and_redirects(
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
+    ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
@@ -7838,21 +7937,27 @@ class TestDataSetMissingData:
                         max_decimal_places=2,
                     ),
                 ],
-                all_rows=[
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
-                        "Capital allocation": "",
-                        "Revenue allocation": "",
-                    },
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
-                        "Capital allocation": "",
-                        "Revenue allocation": "£200.00",
-                    },
-                ],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
             ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                "Capital allocation": "",
+                "Revenue allocation": "",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                "Capital allocation": "",
+                "Revenue allocation": "£200.00",
+            },
+        ]
+
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         data = {
             "submit": "y",
@@ -7869,6 +7974,9 @@ class TestDataSetMissingData:
         assert page_has_flash(
             soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
         )
+
+        assert len(mock_s3_service_calls.update_file_tags) == 1
+        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
 
         data_sources = db_session.query(DataSource).all()
 
@@ -7922,7 +8030,14 @@ class TestViewDataSource:
         grant = client.grant or factories.grant.create()
         report = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
         data_source = factories.data_source.create(
-            collection=report, grant=grant, name="Test data set", type=DataSourceType.STATIC, schema={}
+            collection=report,
+            grant=grant,
+            name="Test data set",
+            type=DataSourceType.STATIC,
+            schema={},
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
 
         response = client.get(
@@ -7957,7 +8072,14 @@ class TestViewDataSource:
         grant = client.grant or factories.grant.create()
         report = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            collection=report, grant=grant, name="Test data set", type=DataSourceType.STATIC, schema={}
+            collection=report,
+            grant=grant,
+            name="Test data set",
+            type=DataSourceType.STATIC,
+            schema={},
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
 
         response = client.get(
@@ -7994,6 +8116,9 @@ class TestViewDataSource:
             type=DataSourceType.STATIC,
             created_by=user,
             schema={},
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
 
         response = authenticated_grant_member_client.get(
@@ -8033,6 +8158,9 @@ class TestViewDataSource:
                 }
             },
             items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -8078,6 +8206,9 @@ class TestViewDataSource:
                 }
             },
             items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -8113,6 +8244,9 @@ class TestViewDataSource:
             type=DataSourceType.STATIC,
             schema={},
             items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
         factories.data_source_item.create(data_source=data_source, key="UK", label="United Kingdom", order=0)
         factories.data_source_item.create(data_source=data_source, key="FR", label="France", order=1)
@@ -8149,6 +8283,9 @@ class TestViewDataSource:
                 }
             },
             items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -8199,6 +8336,9 @@ class TestViewDataSource:
                 }
             },
             items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -8221,11 +8361,20 @@ class TestViewDataSource:
         assert "Test Org Name" not in soup.text
 
     def test_post_delete_removes_data_source_and_redirects(
-        self, authenticated_grant_admin_client, factories, db_session
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
-        data_source = factories.data_source.create(grant=grant, collection=report, name="My Data Set")
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            name="My Data Set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
+        )
         data_source_id = data_source.id
 
         response = authenticated_grant_admin_client.post(
@@ -8247,6 +8396,7 @@ class TestViewDataSource:
             report_id=report.id,
         )
         assert db_session.get(DataSource, data_source_id) is None
+        assert len(mock_s3_service_calls.delete_file_calls) == 1
 
     def test_post_delete_shows_flash_message(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
@@ -8269,7 +8419,9 @@ class TestViewDataSource:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "'My Data Set' data set has been deleted.")
 
-    def test_post_delete_removes_organisation_items(self, authenticated_grant_admin_client, factories, db_session):
+    def test_post_delete_removes_organisation_items(
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
+    ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         data_source = factories.data_source.create(
             name="Test data set",
@@ -8277,6 +8429,9 @@ class TestViewDataSource:
             grant=authenticated_grant_admin_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
         factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
@@ -8297,145 +8452,138 @@ class TestViewDataSource:
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
 
 
-# class TestConfirmDeleteDataSource:
-#     def test_404(self, authenticated_grant_admin_client):
-#         response = authenticated_grant_admin_client.get(
-#             url_for(
-#                 "deliver_grant_funding.confirm_delete_data_source",
-#                 grant_id=uuid.uuid4(),
-#                 report_id=uuid.uuid4(),
-#                 data_source_id=uuid.uuid4(),
-#             )
-#         )
-#         assert response.status_code == 404
+class TestDownloadDataSourceCsv:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.download_data_source_csv",
+                grant_id=uuid.uuid4(),
+                report_id=uuid.uuid4(),
+                data_source_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
 
-#     @pytest.mark.parametrize(
-#         "client_fixture, can_access",
-#         (
-#             ("authenticated_no_role_client", False),
-#             ("authenticated_grant_member_client", False),
-#             ("authenticated_grant_admin_client", True),
-#         ),
-#     )
-#     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
-#         client = request.getfixturevalue(client_fixture)
-#         grant = client.grant or factories.grant.create()
-#         report = factories.collection.create(grant=grant)
-#         data_source = factories.data_source.create(
-#             collection=report,
-#             grant=grant,
-#             name="My Data Set",
-#         )
+    def test_500_when_no_file_metadata(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_source = factories.data_source.create(
+            name="Test data set",
+            collection=report,
+            grant=authenticated_grant_admin_client.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema={},
+            file_metadata=None,
+        )
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.download_data_source_csv",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+        assert response.status_code == 500
 
-#         response = client.get(
-#             url_for(
-#                 "deliver_grant_funding.confirm_delete_data_source",
-#                 grant_id=grant.id,
-#                 report_id=report.id,
-#                 data_source_id=data_source.id,
-#             )
-#         )
+    def test_404_when_data_source_doesnt_belong_to_collection(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
 
-#         assert response.status_code == 200 if can_access else response.status_code == 403
+        grant2 = factories.grant.create()
+        report2 = factories.collection.create(grant=grant2)
+        data_source2 = factories.data_source.create(
+            name="Test data set",
+            collection=report2,
+            grant=grant2,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
+            schema={},
+        )
 
-#     def test_get_shows_data_source_name_and_warning(self, authenticated_grant_admin_client, factories):
-#         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-#         data_source = factories.data_source.create(
-#             collection=report,
-#             grant=authenticated_grant_admin_client.grant,
-#             name="Test data set",
-#         )
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.download_data_source_csv",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source2.id,
+            )
+        )
+        assert response.status_code == 404
 
-#         response = authenticated_grant_admin_client.get(
-#             url_for(
-#                 "deliver_grant_funding.confirm_delete_data_source",
-#                 grant_id=authenticated_grant_admin_client.grant.id,
-#                 report_id=report.id,
-#                 data_source_id=data_source.id,
-#             )
-#         )
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_member_client", True),
+        ),
+    )
+    def test_get_access(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, mock_s3_service_calls
+    ):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant or factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Test data set",
+            collection=report,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
+            schema={},
+        )
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.download_data_source_csv",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
 
-#         assert response.status_code == 200
-#         soup = BeautifulSoup(response.data, "html.parser")
-#         assert "Are you sure you want to delete this file?" in soup.text
-#         assert "Test data set" in soup.text
-#         assert "You are about to delete a data set and you will not be able to undo it" in soup.text
-#         assert page_has_button(soup, "Yes - delete")
+    def test_get_returns_file_with_correct_name_and_content(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_source = factories.data_source.create(
+            name="Test data set",
+            collection=report,
+            grant=authenticated_grant_admin_client.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            file_metadata=DataSourceFileMetadata(
+                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
+            ).model_dump(mode="json"),
+            schema={},
+        )
 
-#     def test_post_deletes_data_source_and_redirects(self, authenticated_grant_admin_client, factories, db_session):
-#         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-#         data_source = factories.data_source.create(
-#             collection=report,
-#             grant=authenticated_grant_admin_client.grant,
-#             name="My Data Set",
-#         )
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.download_data_source_csv",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
 
-#         response = authenticated_grant_admin_client.post(
-#             url_for(
-#                 "deliver_grant_funding.confirm_delete_data_source",
-#                 grant_id=authenticated_grant_admin_client.grant.id,
-#                 report_id=report.id,
-#                 data_source_id=data_source.id,
-#             ),
-#             data={"confirm_deletion": "y"},
-#             follow_redirects=False,
-#         )
+        assert response.status_code == 200
+        assert response.content_type.startswith("text/csv")
+        assert "filename=test.csv" in response.headers["Content-Disposition"]
+        assert response.data == b"mocked file content"
 
-#         assert response.status_code == 302
-#         assert response.location == url_for(
-#             "deliver_grant_funding.list_report_data_sets",
-#             grant_id=authenticated_grant_admin_client.grant.id,
-#             report_id=report.id,
-#         )
-#         assert db_session.get(DataSource, data_source.id) is None
-#         assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 0
-
-#     def test_post_shows_flash_message_after_delete(self, authenticated_grant_admin_client, factories, db_session):
-#         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-#         data_source = factories.data_source.create(
-#             collection=report,
-#             grant=authenticated_grant_admin_client.grant,
-#             name="My Data Set",
-#         )
-
-#         response = authenticated_grant_admin_client.post(
-#             url_for(
-#                 "deliver_grant_funding.confirm_delete_data_source",
-#                 grant_id=authenticated_grant_admin_client.grant.id,
-#                 report_id=report.id,
-#                 data_source_id=data_source.id,
-#             ),
-#             data={"confirm_deletion": True},
-#             follow_redirects=True,
-#         )
-
-#         assert response.status_code == 200
-#         soup = BeautifulSoup(response.data, "html.parser")
-#         assert page_has_flash(soup, "'My Data Set' data set has been deleted.")
-
-#     def test_post_deletes_organisation_items(self, authenticated_grant_admin_client, factories, db_session):
-#         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-#         data_source = factories.data_source.create(
-#             name="Test data set",
-#             collection=report,
-#             grant=authenticated_grant_admin_client.grant,
-#             type=DataSourceType.GRANT_RECIPIENT,
-#             items=None,
-#         )
-#         factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
-#         factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
-
-#         authenticated_grant_admin_client.post(
-#             url_for(
-#                 "deliver_grant_funding.confirm_delete_data_source",
-#                 grant_id=authenticated_grant_admin_client.grant.id,
-#                 report_id=report.id,
-#                 data_source_id=data_source.id,
-#             ),
-#             data={"confirm_deletion": True},
-#         )
-#         assert db_session.get(DataSource, data_source.id) is None
-#         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
+        assert len(mock_s3_service_calls.download_file_calls) == 1
+        assert mock_s3_service_calls.download_file_calls[0].args[0] == "data-set-uploads/test.csv"
 
 
 class TestValidateCustomSyntax:

@@ -44,7 +44,7 @@
 
       {% set rows = [] %}
       {% for missing_data_row in validation_result.missing_columns_by_row %}
-        {% set data_row = session_data.all_rows[missing_data_row] %}
+        {% set data_row = all_rows[missing_data_row] %}
 
         {# Apologies to future selves - missing_data_row is the index for the row in the list rather than the row
         in the csv, which is what we need to show in this table so the user knows which rows to fix up #}

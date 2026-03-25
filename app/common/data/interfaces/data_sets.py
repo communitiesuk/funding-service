@@ -9,6 +9,7 @@ from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, 
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.models_user import User
 from app.common.data.types import (
+    DataSourceFileMetadata,
     DataSourceSchema,
     DataSourceSchemaColumn,
     DataSourceType,
@@ -16,11 +17,13 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
+    TUnvalidatedDataSetRow,
+    TUnvalidatedDataSetRows,
 )
 from app.common.utils import slugify
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
-from app.extensions import db
+from app.extensions import db, s3_service
 
 
 def get_data_source(
@@ -87,7 +90,7 @@ def _clean_value(val: str, mapping: DataSetColumnMapping) -> str | int | None:
 
 
 def _build_data_blob(
-    row: dict[str, str],
+    row: TUnvalidatedDataSetRow,
     mappings: dict[str, DataSetColumnMapping],
     identifier_columns: list[str],
 ) -> dict[str, str | int | None]:
@@ -100,13 +103,13 @@ def _build_data_blob(
 
 def _create_organisation_items(
     data_source: DataSource,
-    all_rows: list[dict[str, str]],
+    all_rows: TUnvalidatedDataSetRows,
     column_mappings: list[DataSetColumnMapping],
     identifier_columns: list[str],
     is_project_level: bool = False,
 ) -> None:
     mappings = {m.column_name: m for m in column_mappings}
-    grouped: dict[str, list[dict[str, str]]] = {}
+    grouped: dict[str, TUnvalidatedDataSetRows] = {}
     for row in all_rows:
         external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
         grouped.setdefault(external_id, []).append(row)
@@ -124,7 +127,7 @@ def _create_organisation_items(
 
 def _create_static_items(
     data_source: DataSource,
-    all_rows: list[dict[str, str]],
+    all_rows: TUnvalidatedDataSetRows,
     column_mappings: list[DataSetColumnMapping],
 ) -> None:
     key_col, value_col = column_mappings[0].column_name, column_mappings[1].column_name
@@ -147,17 +150,23 @@ def create_uploaded_data_source(
     grant_id: uuid.UUID | None,
     collection_id: uuid.UUID | None,
     column_mappings: list["DataSetColumnMapping"],
-    all_rows: list[dict[str, str]],
+    all_rows: TUnvalidatedDataSetRows,
     user: User,
+    s3_key: str,
+    original_filename: str,
+    data_source_id: uuid.UUID,
 ) -> DataSource:
     schema = _build_schema_from_column_mappings(column_mappings).model_dump(mode="json", exclude_none=True)
+    file_metadata = DataSourceFileMetadata(s3_key=s3_key, original_filename=original_filename).model_dump(mode="json")
     data_source = DataSource(
+        id=data_source_id,
         name=name,
         type=data_source_type,
         grant_id=grant_id,
         collection_id=collection_id,
         schema=schema,
         created_by=user,
+        file_metadata=file_metadata,
     )
     db.session.add(data_source)
 
@@ -179,4 +188,7 @@ def create_uploaded_data_source(
 @flush_and_rollback_on_exceptions
 def delete_data_source(data_source: DataSource) -> None:
     # TODO: Add guardrails against deleting datasource where it's been used in a reference
+    if data_source.file_metadata and data_source.file_metadata["s3_key"]:
+        s3_service.delete_file(data_source.file_metadata["s3_key"])
+
     db.session.delete(data_source)

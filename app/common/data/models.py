@@ -968,6 +968,7 @@ class DataSource(BaseModel):
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
     updated_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
     schema: Mapped[dict[str, Any] | None] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
+    file_metadata: Mapped[dict[str, str] | None] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
 
     questions: Mapped[list[Question]] = relationship(
         "Question",
@@ -1000,9 +1001,10 @@ class DataSource(BaseModel):
         CheckConstraint(
             (
                 "type = 'CUSTOM' OR "
-                "(name IS NOT NULL AND grant_id IS NOT NULL AND collection_id IS NOT NULL AND schema IS NOT NULL)"
+                "(name IS NOT NULL AND grant_id IS NOT NULL AND collection_id IS NOT NULL AND schema IS NOT NULL "
+                "AND file_metadata IS NOT NULL)"
             ),
-            name="ck_data_source_non_custom_requires_name_grant_collection_and_schema",
+            name="ck_data_source_non_custom_requires_name_grant_collection_and_schema_and_file_metadata",
         ),
         CheckConstraint(
             "collection_id IS NULL OR grant_id IS NOT NULL",

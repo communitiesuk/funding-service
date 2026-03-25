@@ -1,3 +1,5 @@
+import uuid
+
 from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.data_sets import (
@@ -15,16 +17,16 @@ def _make_data_set(
     data_source_type: DataSourceType = DataSourceType.GRANT_RECIPIENT,
     data_columns: list[str] | None = None,
     column_mappings: list[DataSetColumnMapping] | None = None,
-    all_rows: list[dict] | None = None,
 ) -> DataSetUploadSessionModel:
-    """Build a minimal DataSetUploadSessionModel — handles the boilerplate that rarely varies between tests."""
     return DataSetUploadSessionModel(
         name="Test Data Set",
         data_source_type=data_source_type,
         data_columns=data_columns or [],
         preview_rows=[],
         column_mappings=column_mappings or [],
-        all_rows=all_rows or [],
+        data_source_id=uuid.uuid4(),
+        original_filename="test.csv",
+        s3_key="data-set-uploads/test.csv",
     )
 
 
@@ -47,17 +49,18 @@ class TestValidateDataSet:
                     number_type=NumberTypeEnum.INTEGER,
                 ),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Capital allocation": "£1000.00",
-                    "Revenue allocation": "500",
-                },
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "£1000.00",
+                "Revenue allocation": "500",
+            },
+        ]
+
+        result = validate_data_set(data_set, all_rows)
 
         assert not result.blocking_errors
         assert not result.has_missing_data
@@ -69,16 +72,17 @@ class TestValidateDataSet:
             column_mappings=[
                 DataSetColumnMapping(column_name="Notes", data_type=QuestionDataType.TEXT_SINGLE_LINE),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Notes": "",
-                }
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Notes": "",
+            }
+        ]
+
+        result = validate_data_set(data_set, all_rows)
 
         assert not result.blocking_errors
         assert result.has_missing_data
@@ -93,23 +97,24 @@ class TestValidateDataSet:
                 DataSetColumnMapping(column_name="Notes", data_type=QuestionDataType.TEXT_SINGLE_LINE),
                 DataSetColumnMapping(column_name="Summary", data_type=QuestionDataType.TEXT_SINGLE_LINE),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Notes": "",
-                    "Summary": "ok",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
-                    "Notes": "",
-                    "Summary": "",
-                },
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Notes": "",
+                "Summary": "ok",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                "Notes": "",
+                "Summary": "",
+            },
+        ]
+
+        result = validate_data_set(data_set, all_rows)
 
         assert result.missing_columns_by_row[0] == ["Notes"]
         assert result.missing_columns_by_row[1] == ["Notes", "Summary"]
@@ -127,16 +132,17 @@ class TestValidateDataSet:
                     max_decimal_places=2,
                 ),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Capital allocation": "$1000.00",
-                }
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "$1000.00",
+            }
+        ]
+
+        result = validate_data_set(data_set, all_rows)
 
         assert result.blocking_errors
         assert len(result.blocking_errors) == 2
@@ -156,16 +162,17 @@ class TestValidateDataSet:
                     max_decimal_places=2,
                 ),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Capital allocation": "1000.00",
-                }
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "1000.00",
+            }
+        ]
+
+        result = validate_data_set(data_set, all_rows)
         assert not result.blocking_errors
 
     def test_missing_suffix_is_valid(self, factories):
@@ -181,16 +188,17 @@ class TestValidateDataSet:
                     max_decimal_places=2,
                 ),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Rate": "50.00",
-                }
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Rate": "50.00",
+            }
+        ]
+
+        result = validate_data_set(data_set, all_rows)
         assert not result.blocking_errors
 
     def test_too_many_decimal_places_is_blocking_cell_error(self, factories):
@@ -206,16 +214,17 @@ class TestValidateDataSet:
                     max_decimal_places=2,
                 ),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Capital allocation": "£1000.123",
-                }
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "£1000.123",
+            }
+        ]
+
+        result = validate_data_set(data_set, all_rows)
 
         assert result.blocking_errors
         assert any(isinstance(error, DecimalError) for error in result.blocking_errors)
@@ -231,16 +240,15 @@ class TestValidateDataSet:
                     number_type=NumberTypeEnum.INTEGER,
                 ),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Revenue allocation": "abc",
-                }
-            ],
         )
-
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Revenue allocation": "abc",
+            }
+        ]
+        result = validate_data_set(data_set, all_rows)
 
         assert result.blocking_errors
         assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
@@ -257,16 +265,17 @@ class TestValidateDataSet:
                     max_decimal_places=2,
                 ),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Rate": "not-a-number",
-                }
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Rate": "not-a-number",
+            }
+        ]
+
+        result = validate_data_set(data_set, all_rows)
 
         assert result.blocking_errors
         assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
@@ -285,17 +294,18 @@ class TestValidateDataSet:
                 ),
                 DataSetColumnMapping(column_name="Notes", data_type=QuestionDataType.TEXT_SINGLE_LINE),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Capital allocation": "not-a-number",
-                    "Notes": "",
-                }
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "not-a-number",
+                "Notes": "",
+            }
+        ]
+
+        result = validate_data_set(data_set, all_rows)
 
         assert result.blocking_errors
         assert result.has_missing_data
@@ -321,23 +331,24 @@ class TestValidateDataSet:
                     number_type=NumberTypeEnum.INTEGER,
                 ),
             ],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Capital allocation": "$1000.00",
-                    "Revenue allocation": "500",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
-                    "Capital allocation": "£1000.123",
-                    "Revenue allocation": "not-a-number",
-                },
-            ],
         )
 
-        result = validate_data_set(data_set)
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "$1000.00",
+                "Revenue allocation": "500",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                "Capital allocation": "£1000.123",
+                "Revenue allocation": "not-a-number",
+            },
+        ]
+
+        result = validate_data_set(data_set, all_rows)
 
         assert result.blocking_errors
         assert len(result.row_results) == 2
@@ -351,109 +362,96 @@ class TestValidateDataSet:
 class TestValidateDataSetGrantRecipients:
     def test_returns_empty_for_static(self):
         data_set = _make_data_set(data_source_type=DataSourceType.STATIC)
-        assert validate_data_set_grant_recipients(data_set, []) == []
+        assert validate_data_set_grant_recipients(data_set, [], []) == []
 
     def test_valid_csv_returns_no_errors(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "100",
-                }
-            ],
-        )
-        assert validate_data_set_grant_recipients(data_set, [gr]) == []
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            }
+        ]
+        assert validate_data_set_grant_recipients(data_set, [gr], all_rows) == []
 
     def test_unknown_external_id_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "UNKNOWN",
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "100",
-                }
-            ],
-        )
-        errors = validate_data_set_grant_recipients(data_set, [gr])
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "UNKNOWN",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            }
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'UNKNOWN' not found in grant recipients" in e for e in errors)
 
     def test_unknown_recipient_name_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rogue Organisation",
-                    "Amount": "100",
-                }
-            ],
-        )
-        errors = validate_data_set_grant_recipients(data_set, [gr])
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rogue Organisation",
+                "Amount": "100",
+            }
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert any("Grant recipient 'Rogue Organisation' not found in grant recipients" in e for e in errors)
 
     def test_duplicate_external_id_is_error_for_grant_recipient_type(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "100",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "200",
-                },
-            ],
-        )
-        errors = validate_data_set_grant_recipients(data_set, [gr])
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "200",
+            },
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert any(
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr.organisation.external_id}' already appears" in e for e in errors
         )
 
     def test_duplicate_external_id_is_not_error_for_project_level(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(
-            data_source_type=DataSourceType.PROJECT_LEVEL,
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "100",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "200",
-                },
-            ],
-        )
-        errors = validate_data_set_grant_recipients(data_set, [gr])
+        data_set = _make_data_set(data_source_type=DataSourceType.PROJECT_LEVEL, data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "200",
+            },
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert not errors
 
     def test_grant_recipient_missing_from_csv(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         gr2 = factories.grant_recipient.create(organisation__external_id="T0002")
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "100",
-                }
-            ],
-        )
-        errors = validate_data_set_grant_recipients(data_set, [gr, gr2])
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            }
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr, gr2], all_rows)
         assert any(
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr2.organisation.external_id}' is missing from the CSV" in e
             for e in errors
@@ -462,17 +460,15 @@ class TestValidateDataSetGrantRecipients:
 
     def test_external_id_without_recipient_name_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "",
-                    "Amount": "100",
-                }
-            ],
-        )
-        errors = validate_data_set_grant_recipients(data_set, [gr])
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "",
+                "Amount": "100",
+            }
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert any(
             f"Both {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient name are required" in e for e in errors
         )
@@ -480,24 +476,23 @@ class TestValidateDataSetGrantRecipients:
     def test_data_present_but_no_identifiers_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(
-            data_source_type=DataSourceType.PROJECT_LEVEL,
-            data_columns=["project name", "project cost"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "project name": "Roads",
-                    "project cost": "1000",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "",
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "",
-                    "project name": "Orphan project",
-                    "project cost": "500",
-                },
-            ],
+            data_source_type=DataSourceType.PROJECT_LEVEL, data_columns=["project name", "project cost"]
         )
-        errors = validate_data_set_grant_recipients(data_set, [gr])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "project name": "Roads",
+                "project cost": "1000",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "",
+                "project name": "Orphan project",
+                "project cost": "500",
+            },
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert any(
             f"Data is present but {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient are missing" in e
             for e in errors
@@ -505,18 +500,16 @@ class TestValidateDataSetGrantRecipients:
 
     def test_fully_empty_row_is_skipped(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "100",
-                },
-                {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "", "Amount": ""},
-            ],
-        )
-        errors = validate_data_set_grant_recipients(data_set, [gr])
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            },
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "", "Amount": ""},
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert errors == []
 
     def test_unknown_external_id_suppresses_recipient_duplicate_check(self, factories):
@@ -524,22 +517,20 @@ class TestValidateDataSetGrantRecipients:
             organisation__external_id="T0001",
             organisation__name="Ministry of Testing",
         )
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001",
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Ministry of Testing",
-                    "Amount": "100",
-                },  # valid
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T9999",
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Ministry of Testing",
-                    "Amount": "200",
-                },  # unknown external_id
-            ],
-        )
-        errors = validate_data_set_grant_recipients(data_set, [gr])
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Ministry of Testing",
+                "Amount": "100",
+            },  # valid
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T9999",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Ministry of Testing",
+                "Amount": "200",
+            },  # unknown external_id
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
 
         assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'T9999' not found" in e for e in errors)
         assert not any("Ministry of Testing" in e and "already appears" in e for e in errors)
@@ -548,33 +539,31 @@ class TestValidateDataSetGrantRecipients:
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         gr2 = factories.grant_recipient.create(organisation__external_id="EC456")
         gr3 = factories.grant_recipient.create(organisation__external_id="EC789")
-        data_set = _make_data_set(
-            data_columns=["Amount"],
-            all_rows=[
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "100",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
-                    "Amount": "200",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                    "Amount": "300",
-                },
-                {
-                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "AB1111",
-                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
-                    "Amount": "400",
-                },
-            ],
-        )
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                "Amount": "200",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "300",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "AB1111",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                "Amount": "400",
+            },
+        ]
 
-        errors = validate_data_set_grant_recipients(data_set, [gr, gr2, gr3])
+        errors = validate_data_set_grant_recipients(data_set, [gr, gr2, gr3], all_rows)
 
         assert any(
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr.organisation.external_id}' already appears" in e for e in errors
