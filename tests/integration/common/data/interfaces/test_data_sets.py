@@ -6,10 +6,21 @@ from sqlalchemy import func, select
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.common.collections.types import DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
-from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
+from app.common.data.interfaces.data_sets import (
+    create_uploaded_data_source,
+    delete_data_source,
+    get_data_source,
+    get_grant_recipient_data_sources_for_collection,
+)
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
-from app.common.data.types import DataSourceFileMetadata, DataSourceType, NumberTypeEnum, QuestionDataType
+from app.common.data.types import (
+    DataSourceFileMetadata,
+    DataSourceSchema,
+    DataSourceType,
+    NumberTypeEnum,
+    QuestionDataType,
+)
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
@@ -1032,3 +1043,252 @@ class TestDataSourceOrganisationItemDataProperty:
         # Second row has None
         assert typed_data[1]["project-name"] is None
         assert typed_data[1]["headcount"] is None
+
+
+class TestGetGrantRecipientDataSourcesForCollection:
+    def test_returns_only_data_sources_for_specified_collection(self, db_session, factories):
+        grant = factories.grant.create()
+        collection_1 = factories.collection.create(grant=grant)
+        collection_2 = factories.collection.create(grant=grant)
+
+        ds_collection_1 = factories.data_source.create(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection_1,
+            items=None,
+        )
+        ds_collection_2 = factories.data_source.create(
+            name="Second test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection_2,
+            items=None,
+        )
+        factories.data_source_organisation_item.create(data_source=ds_collection_1, external_id="E123")
+
+        result = get_grant_recipient_data_sources_for_collection(
+            collection_id=collection_1.id,
+            external_id="E123",
+        )
+
+        assert len(result) == 1
+        assert result[0].id == ds_collection_1.id
+        assert ds_collection_2.id not in {ds.id for ds in result}
+
+    def test_returns_multiple_data_sources_for_same_collection(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        ds_1 = factories.data_source.create(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            items=None,
+        )
+        ds_2 = factories.data_source.create(
+            name="Second test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            items=None,
+        )
+        factories.data_source_organisation_item.create(data_source=ds_1, external_id="E123")
+        factories.data_source_organisation_item.create(data_source=ds_2, external_id="E123")
+
+        result = get_grant_recipient_data_sources_for_collection(
+            collection_id=collection.id,
+            external_id="E123",
+        )
+
+        assert len(result) == 2
+        assert {ds.id for ds in result} == {ds_1.id, ds_2.id}
+
+    def test_returns_only_grant_recipient_data_sources(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        gr_data_source = factories.data_source.create(
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            items=None,
+        )
+        factories.data_source.create(
+            name="Project data set",
+            type=DataSourceType.PROJECT_LEVEL,
+            grant=grant,
+            collection=collection,
+            items=None,
+        )
+        factories.data_source.create(
+            name="Static data set",
+            type=DataSourceType.STATIC,
+            grant=grant,
+            collection=collection,
+            items=None,
+        )
+        factories.data_source.create(
+            name="Custom data set",
+            grant=grant,
+            collection=collection,
+        )
+        factories.data_source_organisation_item.create(data_source=gr_data_source, external_id="E123")
+
+        result = get_grant_recipient_data_sources_for_collection(
+            collection_id=collection.id,
+            external_id="E123",
+        )
+
+        assert len(result) == 1
+        assert result[0].id == gr_data_source.id
+        assert result[0].type == DataSourceType.GRANT_RECIPIENT
+
+    def test_returns_empty_list_when_no_data_sources_for_collection(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        result = get_grant_recipient_data_sources_for_collection(
+            collection_id=collection.id,
+            external_id="E123",
+        )
+
+        assert result == []
+
+    def test_filtered_organisation_item_filtered_to_matching_external_id(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            name="Test",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            items=None,
+        )
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+        db_session.expire_all()
+
+        result = get_grant_recipient_data_sources_for_collection(
+            collection_id=collection.id,
+            external_id="E123",
+        )
+
+        assert len(result) == 1
+        assert result[0].filtered_organisation_item.external_id == "E123"
+
+    def test_filtered_organisation_item_empty_when_no_matching_external_id(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            name="Test",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            items=None,
+        )
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+        db_session.expire_all()
+
+        result = get_grant_recipient_data_sources_for_collection(
+            collection_id=collection.id,
+            external_id="E123",
+        )
+
+        assert len(result) == 1
+        assert result[0].filtered_organisation_item is None
+
+    def test_filtered_organisation_item_data_returns_typed_answers(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            name="Test GR Data Set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "capital-allocation": {
+                        "data_type": QuestionDataType.NUMBER,
+                        "original_column_name": "Capital allocation",
+                        "presentation_options": {"prefix": "£"},
+                        "data_options": {"number_type": NumberTypeEnum.DECIMAL, "max_decimal_places": 2},
+                    },
+                    "notes": {
+                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "original_column_name": "Notes",
+                        "presentation_options": {},
+                        "data_options": {},
+                    },
+                    "missing-value": {
+                        "data_type": QuestionDataType.NUMBER,
+                        "original_column_name": "Missing value",
+                        "presentation_options": {"suffix": "km"},
+                        "data_options": {"number_type": NumberTypeEnum.INTEGER},
+                    },
+                }
+            ),
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id="E123",
+            _data={
+                "capital-allocation": "1000.00",
+                "notes": "A fine place",
+                "missing-value": None,
+            },
+        )
+
+        result = get_grant_recipient_data_sources_for_collection(
+            collection_id=collection.id,
+            external_id="E123",
+        )
+
+        typed_data = result[0].filtered_organisation_item.data
+
+        allocation = typed_data["capital-allocation"]
+        assert isinstance(allocation, DecimalAnswer)
+        assert allocation.value == Decimal("1000.00")
+        assert allocation.get_value_for_interpolation() == "£1,000.00"
+
+        notes = typed_data["notes"]
+        assert isinstance(notes, TextSingleLineAnswer)
+        assert notes.get_value_for_interpolation() == "A fine place"
+
+        assert typed_data["missing-value"] is None
+
+    def test_filtered_organisation_item_eagerly_loaded(self, db_session, factories, track_sql_queries):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            name="Test GR Data Set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            items=None,
+        )
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+        db_session.expire_all()
+
+        result = get_grant_recipient_data_sources_for_collection(
+            collection_id=collection.id,
+            external_id="E123",
+        )
+
+        with track_sql_queries() as queries:
+            assert result[0].filtered_organisation_item is not None
+            assert result[0].filtered_organisation_item.external_id == "E123"
+        assert len(queries) == 0
+
+        with track_sql_queries() as queries:
+            assert len(result[0].organisation_items) == 2
+
+        assert len(queries) == 1
