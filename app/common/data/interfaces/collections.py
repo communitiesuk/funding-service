@@ -1746,6 +1746,13 @@ def add_question_validation(
     expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.VALIDATION, user)
     question.expressions.append(expression)
     _validate_and_sync_expression_references(expression)
+    emit_metric_count(
+        MetricEventName.VALIDATION_CREATED_MANAGED
+        if expression.is_managed
+        else MetricEventName.VALIDATION_CREATED_CUSTOM,
+        1,
+        evaluatable_expression=evaluatable_expression,
+    )
     return question
 
 

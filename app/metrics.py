@@ -35,6 +35,9 @@ class MetricAttributeName(StrEnum):
 
     FILE_FORMAT = "file-format"
 
+    CALCULATION_INVALID_REASON = "calculation-invalid-reason"
+    CALCULATION_INVALID_FIELD = "calculation-invalid-field"
+
 
 class MetricEventName(StrEnum):
     SECTION_MARKED_COMPLETE = "section-marked-as-complete"
@@ -49,7 +52,9 @@ class MetricEventName(StrEnum):
     SUBMISSION_BLOCKED_BY_INVALID_ANSWERS = "submission-blocked-by-invalid-answers"
 
     SUBMISSION_MANAGED_VALIDATION_ERROR = "submission-managed-validation-error"
+    SUBMISSION_CUSTOM_VALIDATION_ERROR = "submission-custom-validation-error"
     SUBMISSION_MANAGED_VALIDATION_SUCCESS = "submission-managed-validation-success"
+    SUBMISSION_CUSTOM_VALIDATION_SUCCESS = "submission-custom-validation-success"
 
     SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER = "section-reset-to-in-progress-by-certifier"
 
@@ -58,6 +63,11 @@ class MetricEventName(StrEnum):
 
     SUBMISSIONS_EXPORTED = "submissions-exported"
     SUBMISSION_PDF_DOWNLOADED = "submission-pdf-downloaded"
+
+    VALIDATION_CREATED_CUSTOM = "validation-created-custom"
+    VALIDATION_CREATED_MANAGED = "validation-created-managed"
+
+    CALCULATION_FIELD_INVALID = "calculation-field-invalid"
 
 
 def _get_event_attributes(

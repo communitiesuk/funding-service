@@ -76,6 +76,7 @@ from app.deliver_grant_funding.session_models import (
     DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
+from app.metrics import MetricAttributeName, MetricEventName
 from tests.utils import (
     AnyStringMatching,
     get_form_data,
@@ -8438,7 +8439,7 @@ class TestViewDataSource:
 
 
 class TestValidateCustomSyntax:
-    def test_valid_expression_same_section(self, factories, mocker):
+    def test_valid_expression_same_section(self, factories):
         db_form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(
             3,
@@ -8832,6 +8833,64 @@ class TestValidateCustomSyntax:
             )
 
         assert e.value.form_error_message == "The expression must evaluate to true or false"
+
+    def test_metrics_success(self, factories, mock_sentry_metrics):
+        q1 = factories.question.create(
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q1.safe_qid})) < 5"
+
+        expr_context = ExpressionContext(
+            submission_data={
+                q1.safe_qid: 1,
+            }
+        )
+
+        assert (
+            _validate_custom_syntax(
+                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
+            is None
+        )
+        assert mock_sentry_metrics.call_count == 0
+        assert (
+            _validate_custom_syntax(
+                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
+            )
+            is None
+        )
+        assert mock_sentry_metrics.call_count == 0
+
+    def test_metrics_failure(self, factories, mock_sentry_metrics):
+        q1 = factories.question.create(
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        test_expression = f"(({q1.safe_qid})) < syntax error"
+
+        expr_context = ExpressionContext(
+            submission_data={
+                q1.safe_qid: 1,
+            }
+        )
+
+        with pytest.raises(DisallowedExpression):
+            _validate_custom_syntax(
+                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+            )
+
+        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_args[0] == (
+            MetricEventName.CALCULATION_FIELD_INVALID,
+            1,
+        )
+        assert mock_sentry_metrics.call_args_list[0].kwargs["attributes"] == {
+            MetricAttributeName.CALCULATION_INVALID_FIELD.value: "custom_expression",
+            MetricAttributeName.CALCULATION_INVALID_REASON.value: "DisallowedExpression",
+        }
 
 
 class TestAddCustomQuestionValidation:

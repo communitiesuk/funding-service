@@ -102,6 +102,7 @@ from app.common.expressions import ExpressionContext
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
 from app.common.forms.helpers import components_in_valid_add_another_combination
+from app.metrics import MetricEventName
 
 
 class TestGetCollection:
@@ -3161,7 +3162,7 @@ class TestExpressions:
         add_component_condition(q3, user, GreaterThan(minimum_value=1000, question_id=q2.id))
         assert len(q3.expressions) == 1
 
-    def test_add_question_validation(self, db_session, factories):
+    def test_add_question_validation(self, db_session, factories, mock_sentry_metrics):
         question = factories.question.create()
         user = factories.user.create()
 
@@ -3180,7 +3181,10 @@ class TestExpressions:
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
 
-    def test_add_question_validation_custom(self, db_session, factories):
+        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_args[0] == (MetricEventName.VALIDATION_CREATED_MANAGED, 1)
+
+    def test_add_question_validation_custom(self, db_session, factories, mock_sentry_metrics):
         form = factories.form.create()
         q1, q2 = factories.question.create_batch(2, form=form)
         user = factories.user.create()
@@ -3203,6 +3207,8 @@ class TestExpressions:
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].is_managed is False
         assert from_db.expressions[0].is_custom is True
+        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_args[0] == (MetricEventName.VALIDATION_CREATED_CUSTOM, 1)
 
     def test_update_expression(self, db_session, factories):
         q0 = factories.question.create()
