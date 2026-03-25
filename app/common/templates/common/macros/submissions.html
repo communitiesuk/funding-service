@@ -66,7 +66,7 @@
       {% endset %}
 
       {% if is_add_another_group %}
-        {% set context = helper.cached_interpolation_context.with_add_another_context(container, helper, add_another_index=add_another_index) %}
+        {% set context = helper.cached_interpolation_context.with_add_another_context(container, helper, add_another_index=add_another_index, mode='interpolation') %}
         {% set key_text = interpolate(question.text, context=context) %}
       {% else %}
         {% set key_text = interpolate(question.text) %}
