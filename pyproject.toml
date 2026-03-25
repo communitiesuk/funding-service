@@ -56,7 +56,7 @@ dev = [
     "responses==0.26.0",
     "ruff==0.15.6",
     "sqlalchemy-utils==0.42.1",
-    "testcontainers[postgres]==4.14.1",
+    "testcontainers[postgres]==4.14.2",
     "types-flask-migrate==4.1.0.20250809",
     "types-wtforms==3.2.1.20260312",
     "html5lib==1.1",
