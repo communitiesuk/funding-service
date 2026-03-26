@@ -4,6 +4,7 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/equation_symbols.html" import equation_symbols %}
+{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 
 {% set active_item_identifier = "reports" %}
 {% if expression %}
@@ -58,9 +59,19 @@
         {{ form.csrf_token }}
         {{
           form.expression_name(params={
-          "hint":{"text":"A short name to describe this condition."},
-          "label": {"classes": "govuk-!-font-weight-bold", "text":"Calculation name"},})
+          "hint":{"text":'A brief description of what the calculated answer must be to meet the condition. For example, the question is shown when "Capital and revenue spend are more than the funding amount".'},
+          "label": {"classes": "govuk-!-font-weight-bold", "text":"Condition name"},})
         }}
+        <label for="custom_expression" class="govuk-label govuk-!-font-weight-bold">Calculation</label>
+        <p class="govuk-body">You can use number question references, calculation symbols and numbers to describe when to show this question to the user.</p>
+        <p class="govuk-body">For example, if you need to show the question when the capital spend value plus the revenue spend value is more than the funding value,the calculation would be:</p>
+        {% set calculation_example_html %}
+          <p class="govuk-body">
+            <span class="app-context-aware-editor--valid-reference">((capital spend))</span> + <span class="app-context-aware-editor--valid-reference">((revenue spend))</span> >
+            <span class="app-context-aware-editor--valid-reference">((funding amount))</span>
+          </p>
+        {% endset %}
+        {{ govukInsetText({"html":calculation_example_html}) }}
         <div class="govuk-form-group">
           {% set addDataToExpressionButton %}
             {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for calculation</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
@@ -70,8 +81,7 @@
             <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
             {{
               form.custom_expression(params={
-              "hint":{"text":"Use a calculation to describe when this question should be shown."},
-              "label": {"classes": "govuk-!-font-weight-bold", "text":"Calculation"},
+                "label":None,
                 "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
                 "formGroup": {
                   "classes": "app-context-aware--container",
