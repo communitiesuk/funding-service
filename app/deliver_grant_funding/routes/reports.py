@@ -1565,21 +1565,15 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         else None
     )
 
-    limit = None
-    if isinstance(add_context_data, AddContextToExpressionsModel):
-        if add_context_data.managed_expression_name is None:
-            limit = "numbers_only"
-        else:
-            limit = "component_data_type"
-    elif isinstance(add_context_data, AddConditionDependsOnSessionModel):
-        limit = "any_expression_data_type"
-
     wtform = SelectDataSourceQuestionForm(
         form=target_form,
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
         current_component=current_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
-        limit=limit,
+        expression_type=add_context_data.field if isinstance(add_context_data, AddContextToExpressionsModel) else None,
+        managed_expression_name=add_context_data.managed_expression_name
+        if isinstance(add_context_data, AddContextToExpressionsModel)
+        else None,
     )
 
     if wtform.validate_on_submit():
