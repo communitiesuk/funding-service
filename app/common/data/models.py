@@ -19,6 +19,7 @@ from app.common.data.types import (
     CollectionType,
     ComponentType,
     ConditionsOperator,
+    DataSourceFileMetadata,
     DataSourceType,
     ExpressionType,
     FileUploadTypes,
@@ -968,7 +969,10 @@ class DataSource(BaseModel):
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
     updated_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"))
     schema: Mapped[dict[str, Any] | None] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
-    file_metadata: Mapped[dict[str, str] | None] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
+    file_metadata: Mapped[DataSourceFileMetadata | None] = mapped_column(
+        default=None,
+        server_default=None,
+    )
 
     questions: Mapped[list[Question]] = relationship(
         "Question",

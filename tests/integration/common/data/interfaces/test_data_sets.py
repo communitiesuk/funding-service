@@ -56,8 +56,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
         assert data_source.type == DataSourceType.GRANT_RECIPIENT
         assert data_source.grant_id == grant.id
         assert data_source.collection_id == report.id
-        assert data_source.file_metadata["s3_key"] == "data-set-uploads/test.csv"
-        assert data_source.file_metadata["original_filename"] == "test.csv"
+        assert data_source.file_metadata.s3_key == "data-set-uploads/test.csv"
+        assert data_source.file_metadata.original_filename == "test.csv"
 
         from_db = db_session.get(DataSource, data_source.id)
         assert from_db is not None
@@ -782,9 +782,7 @@ class TestDeleteDataSource:
         assert len(mock_s3_service_calls.delete_file_calls) == 0
 
     def test_delete_data_source_deletes_s3_file(self, db_session, factories, mock_s3_service_calls):
-        file_metadata = DataSourceFileMetadata(
-            s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-        ).model_dump(mode="json")
+        file_metadata = DataSourceFileMetadata(s3_key="data-set-uploads/test.csv", original_filename="test.csv")
         data_source = factories.data_source.create(file_metadata=file_metadata)
         assert db_session.scalar(select(func.count()).select_from(DataSourceItem)) == 3
 

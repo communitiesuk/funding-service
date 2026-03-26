@@ -454,3 +454,18 @@ class DataSourceFileMetadata(BaseModel):
 
 TUnvalidatedDataSetRow = dict[str, str]
 TUnvalidatedDataSetRows = list[TUnvalidatedDataSetRow]
+
+
+class DataSourceFileMetadataPostgresType(TypeDecorator):
+    impl = JSONB
+    cache_ok = False
+
+    def process_bind_param(self, value: DataSourceFileMetadata, dialect: Any) -> dict[str, str] | None:  # type: ignore[override]
+        if value is None:
+            return None
+        return value.model_dump(mode="json", exclude_none=True)
+
+    def process_result_value(self, value: Any, dialect: Any) -> DataSourceFileMetadata | None:
+        if value is None:
+            return None
+        return DataSourceFileMetadata.model_validate(value)

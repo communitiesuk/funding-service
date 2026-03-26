@@ -3160,10 +3160,10 @@ def download_data_source_csv(grant_id: UUID, report_id: UUID, data_source_id: UU
     if not data_source.file_metadata:
         abort(500)
 
-    file_bytes = s3_service.download_file(data_source.file_metadata["s3_key"])
+    file_bytes = s3_service.download_file(data_source.file_metadata.s3_key)
     # This secure_filename use is kind of redundant as we pass the filename through secure_filename when we create the
     # session and ingest to the database, this is just for safety
-    filename = secure_filename(data_source.file_metadata["original_filename"])
+    filename = secure_filename(data_source.file_metadata.original_filename)
 
     return send_file(io.BytesIO(file_bytes), mimetype="text/csv", as_attachment=True, download_name=filename, max_age=0)
 

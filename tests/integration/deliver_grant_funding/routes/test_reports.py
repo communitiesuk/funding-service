@@ -8035,9 +8035,6 @@ class TestViewDataSource:
             name="Test data set",
             type=DataSourceType.STATIC,
             schema={},
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
 
         response = client.get(
@@ -8077,9 +8074,6 @@ class TestViewDataSource:
             name="Test data set",
             type=DataSourceType.STATIC,
             schema={},
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
 
         response = client.get(
@@ -8116,9 +8110,6 @@ class TestViewDataSource:
             type=DataSourceType.STATIC,
             created_by=user,
             schema={},
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
 
         response = authenticated_grant_member_client.get(
@@ -8158,9 +8149,6 @@ class TestViewDataSource:
                 }
             },
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -8206,9 +8194,6 @@ class TestViewDataSource:
                 }
             },
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -8244,9 +8229,6 @@ class TestViewDataSource:
             type=DataSourceType.STATIC,
             schema={},
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
         factories.data_source_item.create(data_source=data_source, key="UK", label="United Kingdom", order=0)
         factories.data_source_item.create(data_source=data_source, key="FR", label="France", order=1)
@@ -8283,9 +8265,6 @@ class TestViewDataSource:
                 }
             },
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -8336,9 +8315,6 @@ class TestViewDataSource:
                 }
             },
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -8371,9 +8347,6 @@ class TestViewDataSource:
             name="My Data Set",
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
         data_source_id = data_source.id
 
@@ -8429,9 +8402,6 @@ class TestViewDataSource:
             grant=authenticated_grant_admin_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
         )
         factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
         factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
@@ -8499,9 +8469,6 @@ class TestDownloadDataSourceCsv:
             grant=grant2,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
             schema={},
         )
 
@@ -8534,9 +8501,6 @@ class TestDownloadDataSourceCsv:
             grant=grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
             schema={},
         )
         response = client.get(
@@ -8562,9 +8526,7 @@ class TestDownloadDataSourceCsv:
             grant=authenticated_grant_admin_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
-            file_metadata=DataSourceFileMetadata(
-                s3_key="data-set-uploads/test.csv", original_filename="test.csv"
-            ).model_dump(mode="json"),
+            file_metadata=DataSourceFileMetadata(s3_key="data-set-uploads/test.csv", original_filename="test.csv"),
             schema={},
         )
 
