@@ -1,7 +1,7 @@
 import csv
 import io
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -33,8 +33,10 @@ from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
     DataSourceType,
+    ExpressionType,
     FileUploadTypes,
     GroupDisplayOptions,
+    ManagedExpressionsEnum,
     MaximumFileSize,
     MultilineTextInputRows,
     NumberInputWidths,
@@ -650,29 +652,24 @@ class SelectDataSourceQuestionForm(FlaskForm):
         interpolate: Callable[[str], str],
         current_component: TOptional[Component],
         *args: Any,
+        expression_type: TOptional[ExpressionType],
+        managed_expression_name: TOptional[ManagedExpressionsEnum],
         parent_component: TOptional[Group] = None,
-        limit: TOptional[Literal["component_data_type", "any_expression_data_type", "numbers_only"]] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        limit_to_data_type: TOptional[set[QuestionDataType]]
-        match limit:
-            case "component_data_type":
-                limit_to_data_type = (
-                    {current_component.data_type} if current_component and current_component.data_type else None
-                )
-            case "any_expression_data_type":
-                limit_to_data_type = get_registered_data_types()
-            case "numbers_only":
-                limit_to_data_type = {QuestionDataType.NUMBER}
-            case _:
-                limit_to_data_type = None
+        limit_to_data_types: set[QuestionDataType] = get_registered_data_types()
+        if expression_type is not None:
+            if managed_expression_name is None:
+                limit_to_data_types.add(QuestionDataType.NUMBER)
+            elif current_component and current_component.data_type:
+                limit_to_data_types.add(current_component.data_type)
 
         referenceable_questions = get_referenceable_questions(
             form,
             current_component if current_component and current_component.form == form else None,
             parent_component if parent_component and parent_component.form == form else None,
-            limit_to_data_type=limit_to_data_type,
+            limit_to_data_type=limit_to_data_types,
         )
 
         if referenceable_questions:
