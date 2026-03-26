@@ -14,7 +14,7 @@
 {% else %}
   {% set heading =  "Create a calculated condition" %}
   {% set submit_label = "Add calculated condition" %}
-  {% set back_link_href= url_for("deliver_grant_funding.add_question_condition_select_calculation", grant_id=grant.id, component_id=component.id) %}
+  {% set back_link= url_for("deliver_grant_funding.add_question_condition_select_calculation", grant_id=grant.id, component_id=component.id) %}
 {% endif %}
 
 {% block pageTitle %}
@@ -23,7 +23,7 @@
 {% endblock pageTitle %}
 
 {% block beforeContent %}
-  {{ govukBackLink({ "text": "Back", "href": back_link_href }) }}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -60,11 +60,11 @@
         {{
           form.expression_name(params={
           "hint":{"text":'A brief description of what the calculated answer must be to meet the condition. For example, the question is shown when "Capital and revenue spend are more than the funding amount".'},
-          "label": {"classes": "govuk-!-font-weight-bold", "text":"Condition name"},})
+          "label": {"classes": "govuk-!-font-weight-bold"},})
         }}
-        <label for="custom_expression" class="govuk-label govuk-!-font-weight-bold">Calculation</label>
+        {{ form.custom_expression.label(class="govuk-!-font-weight-bold govuk-label") }}
         <p class="govuk-body">You can use number question references, calculation symbols and numbers to describe when to show this question to the user.</p>
-        <p class="govuk-body">For example, if you need to show the question when the capital spend value plus the revenue spend value is more than the funding value,the calculation would be:</p>
+        <p class="govuk-body">For example, if you need to show the question when the capital spend value plus the revenue spend value is more than the funding value, the calculation would be:</p>
         {% set calculation_example_html %}
           <p class="govuk-body">
             <span class="app-context-aware-editor--valid-reference">((capital spend))</span> + <span class="app-context-aware-editor--valid-reference">((revenue spend))</span> >
