@@ -651,18 +651,22 @@ class SelectDataSourceQuestionForm(FlaskForm):
         current_component: TOptional[Component],
         *args: Any,
         parent_component: TOptional[Group] = None,
-        limit: TOptional[Literal["component_data_type", "any_expression_data_type"]] = None,
+        limit: TOptional[Literal["component_data_type", "any_expression_data_type", "numbers_only"]] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-
-        limit_to_data_type: TOptional[set[QuestionDataType]] = (
-            {current_component.data_type}
-            if limit == "component_data_type" and current_component and current_component.data_type
-            else get_registered_data_types()
-            if limit == "any_expression_data_type"
-            else None
-        )
+        limit_to_data_type: TOptional[set[QuestionDataType]]
+        match limit:
+            case "component_data_type":
+                limit_to_data_type = (
+                    {current_component.data_type} if current_component and current_component.data_type else None
+                )
+            case "any_expression_data_type":
+                limit_to_data_type = get_registered_data_types()
+            case "numbers_only":
+                limit_to_data_type = {QuestionDataType.NUMBER}
+            case _:
+                limit_to_data_type = None
 
         referenceable_questions = get_referenceable_questions(
             form,
