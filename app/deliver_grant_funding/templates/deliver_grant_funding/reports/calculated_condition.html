@@ -56,6 +56,11 @@
       }}
       <form method="post" novalidate>
         {{ form.csrf_token }}
+        {{
+          form.expression_name(params={
+          "hint":{"text":"A short name to describe this condition."},
+          "label": {"classes": "govuk-!-font-weight-bold", "text":"Calculation name"},})
+        }}
         <div class="govuk-form-group">
           {% set addDataToExpressionButton %}
             {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for calculation</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}

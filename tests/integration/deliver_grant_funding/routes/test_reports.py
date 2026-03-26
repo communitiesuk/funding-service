@@ -3918,7 +3918,10 @@ class TestAddCalculatedCondition:
         assert len(target_question.expressions) == 0
 
         form = CalculatedConditionForm(
-            data={"custom_expression": f"(({q3.safe_qid}))>(({q2.safe_qid}))+(({q1.safe_qid}))"}
+            data={
+                "custom_expression": f"(({q3.safe_qid}))>(({q2.safe_qid}))+(({q1.safe_qid}))",
+                "expression_name": "the name",
+            }
         )
 
         response = authenticated_grant_admin_client.post(
@@ -3941,6 +3944,7 @@ class TestAddCalculatedCondition:
         assert expression.type_ == ExpressionType.CONDITION
         assert expression.managed_name is None
         assert expression.is_custom is True
+        assert expression.evaluatable_expression.description == "the name"
 
     def test_post_error(self, authenticated_platform_admin_client, factories, db_session):
         report = factories.collection.create(name="Test Report")
@@ -3958,7 +3962,10 @@ class TestAddCalculatedCondition:
         assert len(target_question.expressions) == 0
 
         form = CalculatedConditionForm(
-            data={"custom_expression": f"(({q3.safe_qid})) greater than (({q2.safe_qid}))+(({q1.safe_qid}))"}
+            data={
+                "custom_expression": f"(({q3.safe_qid})) greater than (({q2.safe_qid}))+(({q1.safe_qid}))",
+                "expression_name": "new name",
+            }
         )
 
         response = authenticated_platform_admin_client.post(
@@ -4057,7 +4064,7 @@ class TestEditCalculatedCondition:
 
         target_question = factories.question.create(form=form)
         question_condition = Expression.from_evaluatable_expression(
-            evaluatable_expression=CustomExpression(custom_expression="4>5"),
+            evaluatable_expression=CustomExpression(custom_expression="4>5", expression_name="test name"),
             expression_type=ExpressionType.CONDITION,
             created_by=factories.user.create(),
         )
@@ -4078,7 +4085,7 @@ class TestEditCalculatedCondition:
         updated_condition = db_session.get(Expression, question_condition.id)
         assert updated_condition.custom.custom_expression == "68>70"
 
-        wt_form = CalculatedConditionForm(data={"custom_expression": "100<900"})
+        wt_form = CalculatedConditionForm(data={"custom_expression": "100<900", "expression_name": "new name"})
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.edit_calculated_condition",
@@ -4090,6 +4097,7 @@ class TestEditCalculatedCondition:
         assert response.status_code == 302
         updated_condition = db_session.get(Expression, group_condition.id)
         assert updated_condition.custom.custom_expression == "100<900"
+        assert updated_condition.custom.expression_name == "new name"
 
     def test_post_error(self, authenticated_platform_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
@@ -4098,7 +4106,7 @@ class TestEditCalculatedCondition:
         target_question = factories.question.create(form=form)
         later_question = factories.question.create(form=form)
         question_condition = Expression.from_evaluatable_expression(
-            evaluatable_expression=CustomExpression(custom_expression="4>5"),
+            evaluatable_expression=CustomExpression(custom_expression="4>5", expression_name="test name"),
             expression_type=ExpressionType.CONDITION,
             created_by=factories.user.create(),
         )
@@ -4106,7 +4114,9 @@ class TestEditCalculatedCondition:
         db_session.add(question_condition)
         db_session.commit()
 
-        wt_form = CalculatedConditionForm(data={"custom_expression": f"(({later_question.safe_qid}))>5"})
+        wt_form = CalculatedConditionForm(
+            data={"custom_expression": f"(({later_question.safe_qid}))>5", "expression_name": "new name"}
+        )
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.edit_calculated_condition",
