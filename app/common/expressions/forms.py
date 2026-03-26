@@ -205,10 +205,10 @@ class CalculatedConditionForm(ExceptionRenderingForm):
     def is_submitted_to_add_context(self) -> bool:
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
 
-    expression_name = StringField("Expression name", widget=GovTextInput(), validators=[DataRequired()])
+    expression_name = StringField("Condition name", widget=GovTextInput(), validators=[DataRequired()])
 
     custom_expression = StringField(
-        "Expression",
+        "Calculation",
         widget=GovTextArea(),
         validators=[DataRequired()],
     )
