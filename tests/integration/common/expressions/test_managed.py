@@ -767,7 +767,11 @@ class TestCustomExpression:
     def test_create_custom_expression(self, factories, db_session):
         user = factories.user.create()
         question = factories.question.create()
-        expr = CustomExpression(custom_expression="(({question_id})) > 5", custom_message="Failed validation")
+        expr = CustomExpression(
+            custom_expression="(({question_id})) > 5",
+            custom_message="Failed validation",
+            expression_name="my short name",
+        )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         question.expressions.append(expression)
         db_session.commit()
@@ -788,7 +792,7 @@ class TestCustomExpression:
             "question_id": None,
             "custom_expression": "(({question_id})) > 5",
             "custom_message": "Failed validation",
-            "custom_description": "Custom calculation",
+            "expression_name": "my short name",
         }
 
     @pytest.mark.parametrize(

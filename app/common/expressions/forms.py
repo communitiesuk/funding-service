@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from markupsafe import Markup
 from wtforms import RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired
@@ -205,6 +205,8 @@ class CalculatedConditionForm(ExceptionRenderingForm):
     def is_submitted_to_add_context(self) -> bool:
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
 
+    expression_name = StringField("Expression name", widget=GovTextInput(), validators=[DataRequired()])
+
     custom_expression = StringField(
         "Expression",
         widget=GovTextArea(),
@@ -218,6 +220,7 @@ class CalculatedConditionForm(ExceptionRenderingForm):
 
     def get_expression_form_data(self) -> dict[str, Any]:
         data = {
+            "expression_name": self.expression_name.data,
             "custom_expression": self.custom_expression.data,
             "add_context": self.add_context.data,
         }
