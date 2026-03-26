@@ -1,5 +1,7 @@
 from app import CollectionStatusEnum
 from app.common.data.types import (
+    DataSourceFileMetadata,
+    DataSourceFileMetadataPostgresType,
     FileUploadTypes,
     MaximumFileSize,
     NumberTypeEnum,
@@ -95,3 +97,42 @@ class TestQuestionDataOptionsPostgresType:
         deserialised = postgres_type.process_result_value(serialised, dialect=None)
         assert deserialised.maximum_file_size == MaximumFileSize.SMALL
         assert deserialised.file_types_supported == [FileUploadTypes.PDF]
+
+
+class TestDataSourceFileMetadataPostgresType:
+    def test_bind_param_defaults(self):
+        assert DataSourceFileMetadataPostgresType().process_bind_param(None, dialect=None) is None
+
+    def test_result_value_defaults(self):
+        assert DataSourceFileMetadataPostgresType().process_result_value(None, dialect=None) is None
+
+    def test_bind_param_serialises_to_plain_dict(self):
+        file_metadata = DataSourceFileMetadata.model_validate(
+            {"s3_key": "file/key", "original_filename": "test-file.csv"}
+        )
+
+        result = DataSourceFileMetadataPostgresType().process_bind_param(file_metadata, dialect=None)
+
+        assert isinstance(result, dict)
+        assert result["s3_key"] == "file/key"
+        assert result["original_filename"] == "test-file.csv"
+
+    def test_result_value_deserialises_to_typed_schema(self):
+        file_metadata = {"s3_key": "file/key", "original_filename": "test-file.csv"}
+
+        result = DataSourceFileMetadataPostgresType().process_result_value(file_metadata, dialect=None)
+
+        assert isinstance(result, DataSourceFileMetadata)
+        assert result.s3_key == "file/key"
+        assert result.original_filename == "test-file.csv"
+
+    def test_round_trip_preserves_all_fields(self):
+        file_metadata = DataSourceFileMetadata.model_validate(
+            {"s3_key": "file/key", "original_filename": "test-file.csv"}
+        )
+
+        serialised = DataSourceFileMetadataPostgresType().process_bind_param(file_metadata, dialect=None)
+        deserialised = DataSourceFileMetadataPostgresType().process_result_value(serialised, dialect=None)
+
+        assert deserialised.s3_key == "file/key"
+        assert deserialised.original_filename == "test-file.csv"

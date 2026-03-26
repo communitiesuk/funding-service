@@ -157,7 +157,7 @@ def create_uploaded_data_source(
     data_source_id: uuid.UUID,
 ) -> DataSource:
     schema = _build_schema_from_column_mappings(column_mappings).model_dump(mode="json", exclude_none=True)
-    file_metadata = DataSourceFileMetadata(s3_key=s3_key, original_filename=original_filename).model_dump(mode="json")
+    file_metadata = DataSourceFileMetadata(s3_key=s3_key, original_filename=original_filename)
     data_source = DataSource(
         id=data_source_id,
         name=name,
@@ -188,7 +188,7 @@ def create_uploaded_data_source(
 @flush_and_rollback_on_exceptions
 def delete_data_source(data_source: DataSource) -> None:
     # TODO: Add guardrails against deleting datasource where it's been used in a reference
-    if data_source.file_metadata and data_source.file_metadata["s3_key"]:
-        s3_service.delete_file(data_source.file_metadata["s3_key"])
+    if data_source.file_metadata and data_source.file_metadata.s3_key:
+        s3_service.delete_file(data_source.file_metadata.s3_key)
 
     db.session.delete(data_source)

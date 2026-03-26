@@ -812,7 +812,7 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
         lambda o: (
             None
             if o.type == DataSourceType.CUSTOM
-            else DataSourceFileMetadata(s3_key="file/key", original_filename="test-file.csv").model_dump(mode="json")
+            else DataSourceFileMetadata.model_validate({"s3_key": "file/key", "original_filename": "test-file.csv"})
         )
     )
     items = factory.RelatedFactoryList(_DataSourceItemFactory, size=3, factory_related_name="data_source")

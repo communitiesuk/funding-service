@@ -37,7 +37,7 @@
       </h1>
 
       {% set data_set_html %}
-        {{ data_source.file_metadata["original_filename"] }}
+        {{ data_source.file_metadata.original_filename }}
         <br />
         <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_data_source_csv', grant_id=grant.id, report_id=report.id, data_source_id=data_source.id) }}"> Download data set (CSV) </a>
       {% endset %}
