@@ -1,10 +1,11 @@
 import pytest
 from psycopg.errors import ForeignKeyViolation
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError
 
 from app import QuestionDataType
 from app.common.data.models import ComponentReference, Expression, Group
 from app.common.data.types import (
+    DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
     QuestionPresentationOptions,
@@ -718,3 +719,22 @@ class TestComponentReferenceModel:
         db_session.commit()
 
         assert db_session.query(ComponentReference).count() == 0
+
+
+class TestDataSourceFilteredOrganisationItemsRaisesOutsideInterface:
+    def test_filtered_organisation_item_raises_without_explicit_load(self, factories):
+        """
+        The filtered_organisation_item sets lazy="raise" as accessing it without an explicit selectinload from an
+        interface should raise, preventing accidental unscoped access outside the interface.
+
+        It is used for creating the data_source_context in the ExpressionContext, filtering down DataSourceOrgItems just
+        to the grant recipient org completing that submission
+        """
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Test data set", grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT, items=None
+        )
+
+        with pytest.raises(InvalidRequestError):
+            _ = data_source.filtered_organisation_item

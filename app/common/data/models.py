@@ -1006,6 +1006,19 @@ class DataSource(BaseModel):
         "DataSourceOrganisationItem",
         back_populates="data_source",
         cascade="all, delete-orphan",
+        overlaps="filtered_organisation_item",
+    )
+
+    # This relationship sets lazy="raise" as accessing it without an explicit selectinload from an interface should
+    # raise, preventing accidental unscoped access outside the interface.
+    # It is used for creating the data_source_context in the ExpressionContext, filtering down DataSourceOrgItems just
+    # to the grant recipient org completing that submission
+    filtered_organisation_item: Mapped[DataSourceOrganisationItem] = relationship(
+        "DataSourceOrganisationItem",
+        viewonly=True,
+        lazy="raise",
+        overlaps="organisation_items",
+        uselist=False,
     )
 
     __table_args__ = (
