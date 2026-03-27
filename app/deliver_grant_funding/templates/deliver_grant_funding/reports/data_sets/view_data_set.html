@@ -1,7 +1,6 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
-{% from "deliver_grant_funding/macros/data_sets.html" import render_data_cell %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
@@ -103,8 +102,8 @@
             {"text": "Grant recipient"}
           ]
         %}
-        {% for slug, col_schema in data_source.schema.items() %}
-          {% do head.append({"text": col_schema.get("original_column_name", slug)}) %}
+        {% for slug, col_schema in data_source.schema.root.items() %}
+          {% do head.append({"text": col_schema.original_column_name}) %}
         {% endfor %}
 
         {% set rows = [] %}
@@ -116,8 +115,14 @@
               {"text": gr_name}
             ]
           %}
-          {% for slug, col_schema in data_source.schema.items() %}
-            {% do row.append({"html": render_data_cell(item.data.get(slug), col_schema, format_thousands, enum, to_decimal)}) %}
+          {% set typed_row = item.data %}
+          {% for slug, col_schema in data_source.schema.root.items() %}
+            {% set answer = typed_row[slug] %}
+            {% if answer is none %}
+              {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}) %}
+            {% else %}
+              {% do row.append({"text": answer.get_value_for_interpolation()}) %}
+            {% endif %}
           {% endfor %}
           {% do rows.append(row) %}
         {% endfor %}
@@ -129,8 +134,8 @@
             {"text": "Grant recipient"}
           ]
         %}
-        {% for slug, col_schema in data_source.schema.items() %}
-          {% do head.append({"text": col_schema.get("original_column_name", slug)}) %}
+        {% for slug, col_schema in data_source.schema.root.items() %}
+          {% do head.append({"text": col_schema.original_column_name}) %}
         {% endfor %}
 
         {% set rows = [] %}
@@ -143,8 +148,13 @@
                 {"text": gr_name}
               ]
             %}
-            {% for slug, col_schema in data_source.schema.items() %}
-              {% do row.append({"html": render_data_cell(blob.get(slug), col_schema, format_thousands, enum, to_decimal) }) %}
+            {% for slug, col_schema in data_source.schema.root.items() %}
+              {% set answer = blob[slug] %}
+              {% if answer is none %}
+                {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}) %}
+              {% else %}
+                {% do row.append({"text": answer.get_value_for_interpolation()}) %}
+              {% endif %}
             {% endfor %}
             {% do rows.append(row) %}
           {% endfor %}

@@ -52,6 +52,7 @@ from app.common.data.types import (
     CollectionType,
     ConditionsOperator,
     DataSourceFileMetadata,
+    DataSourceSchema,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -778,7 +779,7 @@ class _DataSourceOrganisationItemFactory(SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
 
-    data = factory.LazyFunction(dict)
+    _data = factory.LazyFunction(dict)
     external_id = factory.LazyFunction(_required)
     data_source_id = factory.LazyAttribute(lambda o: o.data_source.id)
     data_source = None
@@ -807,7 +808,7 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     type = DataSourceType.CUSTOM
     name = None
-    schema = None
+    schema = factory.LazyAttribute(lambda o: None if o.type == DataSourceType.CUSTOM else DataSourceSchema({}))
     file_metadata = factory.LazyAttribute(
         lambda o: (
             None

@@ -119,7 +119,7 @@ def _create_organisation_items(
         item = DataSourceOrganisationItem(
             data_source_id=data_source.id,
             external_id=external_id,
-            data=data_blobs if is_project_level else data_blobs[0],
+            _data=data_blobs if is_project_level else data_blobs[0],
         )
         data_source.organisation_items.append(item)
         db.session.add(item)
@@ -156,7 +156,7 @@ def create_uploaded_data_source(
     original_filename: str,
     data_source_id: uuid.UUID,
 ) -> DataSource:
-    schema = _build_schema_from_column_mappings(column_mappings).model_dump(mode="json", exclude_none=True)
+    schema = _build_schema_from_column_mappings(column_mappings)
     file_metadata = DataSourceFileMetadata(s3_key=s3_key, original_filename=original_filename)
     data_source = DataSource(
         id=data_source_id,

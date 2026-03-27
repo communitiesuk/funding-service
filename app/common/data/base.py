@@ -9,6 +9,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from app.common.data.types import (
     DataSourceFileMetadata,
     DataSourceFileMetadataPostgresType,
+    DataSourceSchema,
+    DataSourceSchemaPostgresType,
     QuestionDataOptions,
     QuestionDataOptionsPostgresType,
     QuestionOptionsPostgresType,
@@ -37,6 +39,7 @@ class BaseModel(DeclarativeBase):
         QuestionPresentationOptions: QuestionOptionsPostgresType,
         QuestionDataOptions: QuestionDataOptionsPostgresType,
         DataSourceFileMetadata: DataSourceFileMetadataPostgresType,
+        DataSourceSchema: DataSourceSchemaPostgresType,
         CIStr: CITEXT,
     }
 

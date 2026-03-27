@@ -469,3 +469,18 @@ class DataSourceFileMetadataPostgresType(TypeDecorator):
         if value is None:
             return None
         return DataSourceFileMetadata.model_validate(value)
+
+
+class DataSourceSchemaPostgresType(TypeDecorator):
+    impl = JSONB
+    cache_ok = False
+
+    def process_bind_param(self, value: DataSourceSchema, dialect: Any) -> dict[str, dict[str, Any]] | None:  # type: ignore[override]
+        if value is None:
+            return None
+        return value.model_dump(mode="json", exclude_none=True)
+
+    def process_result_value(self, value: Any, dialect: Any) -> DataSourceSchema | None:
+        if value is None:
+            return None
+        return DataSourceSchema.model_validate(value)

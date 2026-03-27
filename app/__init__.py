@@ -48,7 +48,6 @@ from app.common.filters import (
     format_datetime_range,
     format_datetime_short,
     format_thousands,
-    to_decimal,
     to_ordinal,
 )
 from app.common.helpers.collections import SubmissionAuthorisationError
@@ -291,7 +290,6 @@ def create_app() -> Flask:  # noqa: C901
             format_thousands=format_thousands,
             timedelta=datetime.timedelta,
             to_ordinal=to_ordinal,
-            to_decimal=to_decimal,
             get_google_tag_manager_id=get_google_tag_manager_id,
             get_current_env_name=get_current_env_name,
             is_deliver_grant_funding=is_deliver_grant_funding,
