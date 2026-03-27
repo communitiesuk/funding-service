@@ -658,6 +658,8 @@ class SelectDataSourceQuestionForm(FlaskForm):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
+        # NOTE: I think this logic might sit better inside `get_referenceable_questions` or a separate helper for a
+        # future refactor, but not no time to pull that thread currently - sorry future us.
         limit_to_data_types: set[QuestionDataType] = get_registered_data_types()
         if expression_type is not None:
             if managed_expression_name is None:
