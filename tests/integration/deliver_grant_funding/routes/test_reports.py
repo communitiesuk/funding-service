@@ -14,11 +14,8 @@ from sqlalchemy import func, select
 from app import CollectionStatusEnum, FlashMessageType, QuestionDataType
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
-    DependencyOrderException,
-    IncompatibleDataTypeInCalculationException,
     add_question_validation,
 )
-from app.common.data.interfaces.exceptions import InvalidReferenceInExpression
 from app.common.data.models import (
     Collection,
     DataSource,
@@ -47,15 +44,14 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import (
-    DisallowedExpression,
     ExpressionContext,
-    InvalidEvaluationResult,
-    UndefinedFunctionInExpression,
-    UndefinedOperatorInExpression,
-    UndefinedVariableInExpression,
 )
 from app.common.expressions.custom import CustomExpression
-from app.common.expressions.forms import CustomValidationExpressionForm, build_managed_expression_form
+from app.common.expressions.forms import (
+    CalculatedConditionForm,
+    CustomValidationExpressionForm,
+    build_managed_expression_form,
+)
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
 from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
@@ -73,15 +69,17 @@ from app.deliver_grant_funding.forms import (
     QuestionTypeForm,
     SetUpReportForm,
 )
-from app.deliver_grant_funding.routes.reports import _validate_custom_syntax
+from app.deliver_grant_funding.routes.reports import (
+    _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression,
+)
 from app.deliver_grant_funding.session_models import (
+    AddConditionDependsOnSessionModel,
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
     DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
-from app.metrics import MetricAttributeName, MetricEventName
 from tests.utils import (
     AnyStringMatching,
     get_form_data,
@@ -2662,6 +2660,103 @@ class TestSelectContextSource:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Select a data source" in soup.text
+        assert "This question" not in soup.text
+
+    def test_get_shows_this_question_for_custom_validation_expression(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, name="Test question", data_type=QuestionDataType.NUMBER)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.VALIDATION,
+                component_id=question.id,
+                managed_expression_name=None,
+                is_custom=True,
+                expression_form_data={
+                    "add_context": "custom_expression",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select a data source" in soup.text
+        assert "This question" in soup.text
+
+    @pytest.mark.parametrize(
+        "session_data",
+        [
+            (
+                AddContextToExpressionsModel(
+                    field=ExpressionType.VALIDATION,
+                    managed_expression_name=None,
+                    component_id=uuid.uuid4(),
+                    is_custom=True,
+                    expression_form_data={
+                        "add_context": "custom_message",
+                    },
+                )
+            ),
+            (
+                AddContextToExpressionsModel(
+                    field=ExpressionType.VALIDATION,
+                    managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                    component_id=uuid.uuid4(),
+                    is_custom=False,
+                    expression_form_data={
+                        "add_context": "custom_expression",
+                    },
+                )
+            ),
+            (
+                AddContextToExpressionsModel(
+                    field=ExpressionType.CONDITION,
+                    managed_expression_name=None,
+                    component_id=uuid.uuid4(),
+                    is_custom=True,
+                    expression_form_data={
+                        "add_context": "custom_expression",
+                    },
+                )
+            ),
+            (
+                AddConditionDependsOnSessionModel(
+                    component_id=uuid.uuid4(),
+                )
+            ),
+        ],
+    )
+    def test_get_does_not_show_this_question(self, authenticated_grant_admin_client, factories, session_data):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, name="Test question", data_type=QuestionDataType.NUMBER)
+
+        session_data.component_id = question.id
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = session_data.model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select a data source" in soup.text
+        assert "This question" not in soup.text
 
     def test_get_works_for_existing_group_available_context_source_choices(
         self, authenticated_grant_admin_client, factories
@@ -3730,6 +3825,316 @@ class TestAddQuestionConditionSelectQuestion:
         assert response.status_code == 302
         assert response.location == AnyStringMatching(
             rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/section/{form.id}/add-context/select-source"
+        )
+
+
+class TestAddCalculatedCondition:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=uuid.uuid4(),
+                component_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_platform_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+        )
+
+        target_question = factories.question.create(
+            form=form,
+            text="What is your email?",
+            name="email question",
+            hint="Enter your email",
+            data_type=QuestionDataType.EMAIL,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=client.grant.id,
+                component_id=target_question.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=client.grant.id,
+                component_id=group.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    def test_post_success(self, authenticated_grant_admin_client, factories, db_session, mocker):
+        mocker.patch(
+            "app.deliver_grant_funding.routes.reports.AuthorisationHelper.is_platform_member", return_value=True
+        )
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        q1, q2, q3 = factories.question.create_batch(3, form=db_form, data_type=QuestionDataType.NUMBER)
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why so much?",
+            name="text question",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+        )
+
+        assert len(target_question.expressions) == 0
+
+        form = CalculatedConditionForm(
+            data={
+                "custom_expression": f"(({q3.safe_qid}))>(({q2.safe_qid}))+(({q1.safe_qid}))",
+                "expression_name": "the name",
+            },
+            component=target_question,
+            expression_context=ExpressionContext(),
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=target_question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type_ == ExpressionType.CONDITION
+        assert expression.managed_name is None
+        assert expression.is_custom is True
+        assert expression.evaluatable_expression.description == "the name"
+
+    def test_post_error(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        q1, q2, q3 = factories.question.create_batch(3, form=db_form, data_type=QuestionDataType.NUMBER)
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why so much?",
+            name="text question",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+        )
+
+        assert len(target_question.expressions) == 0
+
+        form = CalculatedConditionForm(
+            data={
+                "custom_expression": f"(({q3.safe_qid})) greater than (({q2.safe_qid}))+(({q1.safe_qid}))",
+                "expression_name": "new name",
+            },
+            component=target_question,
+            expression_context=ExpressionContext(),
+        )
+
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                component_id=target_question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+
+        assert len(target_question.expressions) == 0
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            "The calculation does not make sense",
+        )
+
+
+class TestEditCalculatedCondition:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_platform_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+        )
+        group_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="6>5"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        group.expressions.append(group_condition)
+        db_session.add(group_condition)
+
+        target_question = factories.question.create(form=form)
+        question_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="4>5"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        target_question.expressions.append(question_condition)
+        db_session.add(question_condition)
+        db_session.commit()
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=client.grant.id,
+                expression_id=target_question.expressions[0].id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=client.grant.id,
+                expression_id=group.expressions[0].id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    def test_post_success(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        group = factories.group.create(
+            form=form,
+        )
+        group_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="6>5"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        group.expressions.append(group_condition)
+        db_session.add(group_condition)
+
+        target_question = factories.question.create(form=form)
+        question_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="4>5", expression_name="test name"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        target_question.expressions.append(question_condition)
+        db_session.add(question_condition)
+        db_session.commit()
+
+        wt_form = CalculatedConditionForm(
+            data={"custom_expression": "68>70"},
+            component=target_question,
+            expression_context=ExpressionContext(),
+        )
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                expression_id=question_condition.id,
+            ),
+            data=get_form_data(wt_form),
+        )
+        assert response.status_code == 302
+        updated_condition = db_session.get(Expression, question_condition.id)
+        assert updated_condition.custom.custom_expression == "68>70"
+
+        wt_form = CalculatedConditionForm(
+            data={"custom_expression": "100<900", "expression_name": "new name"},
+            component=target_question,
+            expression_context=ExpressionContext(),
+        )
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                expression_id=group_condition.id,
+            ),
+            data=get_form_data(wt_form),
+        )
+        assert response.status_code == 302
+        updated_condition = db_session.get(Expression, group_condition.id)
+        assert updated_condition.custom.custom_expression == "100<900"
+        assert updated_condition.custom.expression_name == "new name"
+
+    def test_post_error(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        target_question = factories.question.create(form=form)
+        later_question = factories.question.create(form=form)
+        question_condition = Expression.from_evaluatable_expression(
+            evaluatable_expression=CustomExpression(custom_expression="4>5", expression_name="test name"),
+            expression_type=ExpressionType.CONDITION,
+            created_by=factories.user.create(),
+        )
+        target_question.expressions.append(question_condition)
+        db_session.add(question_condition)
+        db_session.commit()
+
+        wt_form = CalculatedConditionForm(
+            data={"custom_expression": f"(({later_question.safe_qid}))>5", "expression_name": "new name"},
+            component=target_question,
+            expression_context=ExpressionContext(),
+        )
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                expression_id=question_condition.id,
+            ),
+            data=get_form_data(wt_form),
+        )
+        assert response.status_code == 200
+        updated_condition = db_session.get(Expression, question_condition.id)
+        assert updated_condition.custom.custom_expression == "4>5"
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            f"You cannot use {later_question.name} because it comes after this question",
         )
 
 
@@ -8548,461 +8953,6 @@ class TestDownloadDataSourceCsv:
         assert mock_s3_service_calls.download_file_calls[0].args[0] == "data-set-uploads/test.csv"
 
 
-class TestValidateCustomSyntax:
-    def test_valid_expression_same_section(self, factories):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
-
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        assert (
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-            is None
-        )
-        assert (
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
-            )
-            is None
-        )
-
-    def test_valid_expression_previous_section(self, factories, mocker):
-        db_form_0 = factories.form.create()
-        previous_question = factories.question.create(
-            form=db_form_0,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        db_form = factories.form.create(collection=db_form_0.collection)
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = (
-            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({previous_question.safe_qid}))"
-        )
-
-        expr_context = ExpressionContext(
-            submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, previous_question.safe_qid: 44}
-        )
-
-        assert (
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-            is None
-        )
-
-    def test_invalid_expression_out_of_order(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q1.safe_qid})) < (({q2.safe_qid}))"
-
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(DependencyOrderException) as e:
-            _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-        assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
-
-        with pytest.raises(DependencyOrderException) as e:
-            _validate_custom_syntax(
-                q1,
-                expr_context,
-                f"The answer must be less than (({q2.safe_qid}))",
-                ExpressionType.VALIDATION,
-                "custom_message",
-                False,
-            )
-        assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
-
-    def test_invalid_expression_forms_out_of_order(self, factories, mocker):
-        db_form_0 = factories.form.create()
-        db_form = factories.form.create(collection=db_form_0.collection)
-        later_form_question = factories.question.create(
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form_0,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = (
-            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({later_form_question.safe_qid}))"
-        )
-
-        expr_context = ExpressionContext(
-            submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, later_form_question.safe_qid: 55}
-        )
-
-        with pytest.raises(DependencyOrderException) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-        assert (
-            e.value.form_error_message
-            == f"You cannot use {later_form_question.name} because it comes after this question"
-        )
-
-        with pytest.raises(DependencyOrderException) as e:
-            _validate_custom_syntax(
-                q3,
-                expr_context,
-                (
-                    f"The answer must be less than (({q2.safe_qid})) + (({q1.safe_qid})) + "
-                    f"(({later_form_question.safe_qid}))"
-                ),
-                ExpressionType.VALIDATION,
-                "custom_message",
-                False,
-            )
-        assert (
-            e.value.form_error_message
-            == f"You cannot use {later_form_question.name} because it comes after this question"
-        )
-
-    def test_invalid_expression_bad_reference(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + ((some_bad_ref))"
-
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == "You cannot use ((some_bad_ref)) because it does not exist"
-
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _validate_custom_syntax(
-                q3,
-                expr_context,
-                f"The answer must be less than (({q2.safe_qid})) + ((some_bad_ref))",
-                ExpressionType.VALIDATION,
-                "custom_message",
-                False,
-            )
-
-        assert e.value.form_error_message == "You cannot use ((some_bad_ref)) because it does not exist"
-
-    def test_invalid_expression_reference_missing_from_context(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
-
-        # exclude q1 from the context
-        expr_context = ExpressionContext(submission_data={q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == f"You cannot use (({q1.safe_qid})) because it does not exist"
-
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _validate_custom_syntax(
-                q3,
-                expr_context,
-                f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
-                ExpressionType.VALIDATION,
-                "custom_message",
-                False,
-            )
-
-        assert e.value.form_error_message == f"You cannot use (({q1.safe_qid})) because it does not exist"
-
-    def test_invalid_expression_incompatible_data_type(self, factories, mocker):
-        db_form = factories.form.create()
-        q1 = factories.question.create(form=db_form, data_type=QuestionDataType.TEXT_MULTI_LINE)
-        q2, q3 = factories.question.create_batch(
-            2,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
-
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(IncompatibleDataTypeInCalculationException) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert (
-            e.value.form_error_message
-            == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
-        )
-
-        with pytest.raises(IncompatibleDataTypeInCalculationException) as e:
-            _validate_custom_syntax(
-                q3,
-                expr_context,
-                f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
-                ExpressionType.VALIDATION,
-                "custom_message",
-                False,
-            )
-
-        assert (
-            e.value.form_error_message
-            == f"You cannot reference {q1.name} because only numbers can be referenced in calculations"
-        )
-
-    def test_invalid_expression_name_not_defined(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
-
-        expr_context = ExpressionContext()
-
-        side_effect = [q3.safe_qid, q2.safe_qid, None]
-
-        # mock the call the _validate_reference as it will raise an exception due to references not being there
-        # but we want to test an error at evaluation time instead
-        mocker.patch(
-            "app.deliver_grant_funding.routes.reports._validate_reference",
-            side_effect=side_effect,
-        )
-
-        with pytest.raises(UndefinedVariableInExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == f"You cannot use {q1.safe_qid} because it does not exist"
-
-    def test_invalid_expression_unavailable_function(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-        test_expression = f"(({q3.safe_qid})) < sum( (({q2.safe_qid})), (({q1.safe_qid})) )"
-
-        # exclude q1 from the context
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(UndefinedFunctionInExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == "You cannot use sum in calculations"
-
-    def test_invalid_expression_bad_syntax(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-        test_expression = f"(({q3.safe_qid})) < hello there"
-
-        # exclude q1 from the context
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(DisallowedExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert (
-            e.value.form_error_message
-            == "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
-        )
-
-    def test_invalid_expression_bad_operator(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-        test_expression = f"(({q3.safe_qid})) < 2**3"
-
-        # exclude q1 from the context
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(UndefinedOperatorInExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == "You cannot use Pow() in calculations"
-
-    def test_invalid_expression_multiple_references_to_self(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = (
-            f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({q3.safe_qid})) + "
-            f"(({q3.safe_qid})) + (({q3.safe_qid}))"
-        )
-
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(DisallowedExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == "The expression must include exactly one reference to this question"
-
-    def test_invalid_expression_no_references_to_self(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q2.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
-
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(DisallowedExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == "The expression must include exactly one reference to this question"
-
-    def test_invalid_expression_does_not_evaluate_to_true_or_false(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q3.safe_qid})) + (({q2.safe_qid})) + (({q1.safe_qid}))"
-
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(InvalidEvaluationResult) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == "The expression must evaluate to true or false"
-
-    def test_metrics_success(self, factories, mock_sentry_metrics):
-        q1 = factories.question.create(
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q1.safe_qid})) < 5"
-
-        expr_context = ExpressionContext(
-            submission_data={
-                q1.safe_qid: 1,
-            }
-        )
-
-        assert (
-            _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-            is None
-        )
-        assert mock_sentry_metrics.call_count == 0
-        assert (
-            _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
-            )
-            is None
-        )
-        assert mock_sentry_metrics.call_count == 0
-
-    def test_metrics_failure(self, factories, mock_sentry_metrics):
-        q1 = factories.question.create(
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-
-        test_expression = f"(({q1.safe_qid})) < syntax error"
-
-        expr_context = ExpressionContext(
-            submission_data={
-                q1.safe_qid: 1,
-            }
-        )
-
-        with pytest.raises(DisallowedExpression):
-            _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert mock_sentry_metrics.call_count == 1
-        assert mock_sentry_metrics.call_args[0] == (
-            MetricEventName.CALCULATION_FIELD_INVALID,
-            1,
-        )
-        assert mock_sentry_metrics.call_args_list[0].kwargs["attributes"] == {
-            MetricAttributeName.CALCULATION_INVALID_FIELD.value: "custom_expression",
-            MetricAttributeName.CALCULATION_INVALID_REASON.value: "DisallowedExpression",
-        }
-
-
 class TestAddCustomQuestionValidation:
     def test_post_success(self, authenticated_platform_admin_client, factories, db_session):
         report = factories.collection.create(name="Test Report")
@@ -9021,7 +8971,9 @@ class TestAddCustomQuestionValidation:
                 "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid})) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9065,7 +9017,9 @@ class TestAddCustomQuestionValidation:
                 "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q4.safe_qid})) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9100,10 +9054,12 @@ class TestAddCustomQuestionValidation:
 
         form = CustomValidationExpressionForm(
             data={
-                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q3.safe_qid})) ",
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid})) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"((bad_reference))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9144,10 +9100,12 @@ class TestAddCustomQuestionValidation:
 
         form = CustomValidationExpressionForm(
             data={
-                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q2.safe_qid}))) ",
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q4.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9163,10 +9121,6 @@ class TestAddCustomQuestionValidation:
         assert response.status_code == 200
 
         assert len(q3.expressions) == 0
-        assert page_has_error(
-            BeautifulSoup(response.data, "html.parser"),
-            "You cannot use sum in calculations",
-        )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
             "You cannot use Later question name because it comes after this question",
@@ -9189,7 +9143,9 @@ class TestAddCustomQuestionValidation:
                 "custom_expression": f"(({q1.safe_qid})) <=",
                 "custom_message": "Failed custom validation...",
                 "add_context": "custom_expression",
-            }
+            },
+            question=q2,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9287,7 +9243,9 @@ class TestEditCustomQuestionValidation:
                 "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid})) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9337,10 +9295,12 @@ class TestEditCustomQuestionValidation:
         assert len(expression.component_references) == 0
         form = CustomValidationExpressionForm(
             data={
-                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q2.safe_qid}))) ",
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q4.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9359,10 +9319,6 @@ class TestEditCustomQuestionValidation:
         assert len(q3.expressions) == 1
         expression = q3.expressions[0]
         assert len(expression.component_references) == 0
-        assert page_has_error(
-            BeautifulSoup(response.data, "html.parser"),
-            "You cannot use sum in calculations",
-        )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
             "You cannot use Later question name because it comes after this question",
@@ -9393,7 +9349,9 @@ class TestEditCustomQuestionValidation:
                 "custom_expression": f"(({q1.safe_qid})) <=",
                 "custom_message": "Failed custom validation...",
                 "add_context": "custom_expression",
-            }
+            },
+            question=q2,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9417,3 +9375,118 @@ class TestEditCustomQuestionValidation:
             assert session["question"]["field"] == ExpressionType.VALIDATION
             assert session["question"]["expression_form_data"]["custom_expression"] == f"(({q1.safe_qid})) <="
             assert session["question"]["expression_form_data"]["custom_message"] == "Failed custom validation..."
+
+
+class TestDetermineReturnUrlExpressionReferencedQuestion:
+    def test_update_target_field_replace(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+            expression_form_data={
+                "test_field": "start",
+                "add_context": "test_field",
+            },
+            depends_on_question_id=uuid.uuid4(),
+        )
+
+        _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+
+        assert add_context_data.expression_form_data["test_field"] == f"(({question.safe_qid}))"
+
+    def test_update_target_field_append(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=None,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+        )
+
+        _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+
+        assert add_context_data.expression_form_data["test_field"] == f"start + (({question.safe_qid}))"
+
+    def test_return_url_new_non_calculated_condition(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+            depends_on_question_id=uuid.uuid4(),
+        )
+
+        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+        assert result == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/[a-z0-9-]{36}"
+        )
+
+    def test_return_url_existing_non_calculated_condition(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+            depends_on_question_id=uuid.uuid4(),
+            expression_id=uuid.uuid4(),
+        )
+
+        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+        assert result == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/condition/[a-z0-9-]{36}")
+
+    def test_return_url_new_calculated_condition(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=None,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+        )
+
+        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+        assert result == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-calculated-condition"
+        )
+
+    def test_return_url_existing_calculated_condition(self, factories):
+        question = factories.question.create()
+        add_context_data = AddContextToExpressionsModel(
+            field=ExpressionType.CONDITION,
+            component_id=question.id,
+            managed_expression_name=None,
+            expression_form_data={
+                "test_field": "start + ",
+                "add_context": "test_field",
+            },
+            expression_id=uuid.uuid4(),
+        )
+
+        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+            uuid.uuid4(), add_context_data, question
+        )
+        assert result == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/calculated-condition/[a-z0-9-]{36}")

@@ -25,7 +25,7 @@ class TestGetAllDeliverGrantsByUser:
     def test_get_all_grants_platform_admin(self, factories, authenticated_platform_admin_client):
         factories.grant.create_batch(5)
         result = get_all_deliver_grants_by_user(authenticated_platform_admin_client.user)
-        assert len(result) == 5
+        assert len(result) == 6  # admin client creates one grant itself
 
     def test_deliver_org_admin(self, factories, authenticated_org_admin_client):
         factories.grant.create_batch(2, organisation=authenticated_org_admin_client.organisation)

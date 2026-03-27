@@ -4013,7 +4013,7 @@ class TestValidateAndSyncExpressionReferences:
         with pytest.raises(AddAnotherDependencyException):
             _validate_and_sync_expression_references(expression)
 
-    def test_creates_component_references_for_custom_expression(self, db_session, factories):
+    def test_creates_component_references_for_custom_validation_expression(self, db_session, factories):
         user = factories.user.create()
         form = factories.form.create()
         q0, q1, q2, q3 = factories.question.create_batch(4, form=form, data_type=QuestionDataType.NUMBER)
@@ -4040,6 +4040,32 @@ class TestValidateAndSyncExpressionReferences:
         assert all(ref.component == q3 for ref in expression.component_references)
         assert all(ref.expression == expression for ref in expression.component_references)
         assert all(ref.depends_on_component in {q0, q1, q2, q3} for ref in expression.component_references)
+
+    def test_creates_component_references_for_calculated_condition(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        q0, q1, q2, q3 = factories.question.create_batch(4, form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            CustomExpression(
+                custom_expression=f"(({q0.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+            ),
+            ExpressionType.CONDITION,
+            user,
+        )
+        q3.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+
+        assert len(expression.component_references) == 3
+
+        assert all(ref.component == q3 for ref in expression.component_references)
+        assert all(ref.expression == expression for ref in expression.component_references)
+        assert all(ref.depends_on_component in {q0, q1, q2} for ref in expression.component_references)
 
 
 class TestValidateAndSyncComponentReferences:

@@ -1,0 +1,44 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% set active_item_identifier = "reports" %}
+
+{% block pageTitle %}Do you need a calculation for the condition? - Deliver grant funding{% endblock pageTitle %}
+
+{% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=component.id) if not component.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=component.id) %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Do you need a calculation for the condition?</h1>
+
+      {{
+        govukSummaryList({
+        "rows": [{
+          "key": { "text": "This question" if not component.is_group else "This group" },
+          "value": { "text": interpolate(component.text) },
+        }, ]})
+      }}
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.need_calculation(params={
+          "items": [
+            {
+              "hint": {
+                "text": "Condition requires adding, subtracting, multiplying or dividing two or more numbers",
+              }
+            },
+            {},
+          ]})
+        }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

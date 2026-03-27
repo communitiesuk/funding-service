@@ -1,7 +1,7 @@
 import csv
 import io
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -33,8 +33,10 @@ from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
     DataSourceType,
+    ExpressionType,
     FileUploadTypes,
     GroupDisplayOptions,
+    ManagedExpressionsEnum,
     MaximumFileSize,
     MultilineTextInputRows,
     NumberInputWidths,
@@ -650,25 +652,26 @@ class SelectDataSourceQuestionForm(FlaskForm):
         interpolate: Callable[[str], str],
         current_component: TOptional[Component],
         *args: Any,
+        expression_type: TOptional[ExpressionType],
+        managed_expression_name: TOptional[ManagedExpressionsEnum],
         parent_component: TOptional[Group] = None,
-        limit: TOptional[Literal["component_data_type", "any_expression_data_type"]] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-
-        limit_to_data_type: TOptional[set[QuestionDataType]] = (
-            {current_component.data_type}
-            if limit == "component_data_type" and current_component and current_component.data_type
-            else get_registered_data_types()
-            if limit == "any_expression_data_type"
-            else None
-        )
+        # NOTE: I think this logic might sit better inside `get_referenceable_questions` or a separate helper for a
+        # future refactor, but not no time to pull that thread currently - sorry future us.
+        limit_to_data_types: set[QuestionDataType] = get_registered_data_types()
+        if expression_type is not None:
+            if managed_expression_name is None:
+                limit_to_data_types = {QuestionDataType.NUMBER}
+            elif current_component and current_component.data_type:
+                limit_to_data_types = {current_component.data_type}
 
         referenceable_questions = get_referenceable_questions(
             form,
             current_component if current_component and current_component.form == form else None,
             parent_component if parent_component and parent_component.form == form else None,
-            limit_to_data_type=limit_to_data_type,
+            limit_to_data_type=limit_to_data_types,
         )
 
         if referenceable_questions:
@@ -1181,3 +1184,19 @@ class MapNumberColumnsForm(FlaskForm):
             columns_error_list.append(subform_errors)
 
         return columns_error_list
+
+
+class SelectConditionCalculationForm(FlaskForm):
+    need_calculation = RadioField(
+        "Do you need a calculation for the condition?",
+        choices=[
+            (
+                "yes",
+                "Yes",
+            ),
+            ("no", "No"),
+        ],
+        widget=GovRadioInput(),
+        validators=[DataRequired("Please select an option")],
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())

@@ -7,14 +7,16 @@ from flask import Flask, request
 from werkzeug.datastructures import MultiDict
 from wtforms import ValidationError
 
-from app import format_thousands
 from app.common.data.types import (
+    ExpressionType,
+    ManagedExpressionsEnum,
     MaximumFileSize,
     NumberTypeEnum,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
 )
+from app.common.filters import format_thousands
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
 from app.deliver_grant_funding.forms import (
@@ -324,6 +326,7 @@ class TestSelectDataSourceQuestionForm:
     def test_only_includes_earlier_questions_in_the_form_if_given_a_current_question(self, app, factories, mocker):
         questions = factories.question.build_batch(5, data_type=QuestionDataType.NUMBER)
 
+        # TODO: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(questions[2].form, "cached_questions", questions)
         mocker.patch.object(questions[2].form, "cached_all_components", questions)
 
@@ -331,6 +334,8 @@ class TestSelectDataSourceQuestionForm:
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
             current_component=questions[2],
+            expression_type=None,
+            managed_expression_name=None,
         )
 
         assert len(form.question.choices) == 3
@@ -343,6 +348,7 @@ class TestSelectDataSourceQuestionForm:
         )
         questions = factories.question.build_batch(5, parent=group, data_type=QuestionDataType.NUMBER)
 
+        # TODO: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(questions[2].form, "cached_questions", questions)
         mocker.patch.object(questions[2].form, "cached_all_components", [group] + questions)
 
@@ -350,6 +356,8 @@ class TestSelectDataSourceQuestionForm:
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
             current_component=questions[2],
+            expression_type=None,
+            managed_expression_name=None,
         )
 
         assert len(form.question.choices) == 3
@@ -361,6 +369,8 @@ class TestSelectDataSourceQuestionForm:
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
             current_component=questions[2],
+            expression_type=None,
+            managed_expression_name=None,
         )
 
         assert len(form.question.choices) == 0
@@ -374,6 +384,7 @@ class TestSelectDataSourceQuestionForm:
 
         all_questions = [text_question, yes_no_question, date_question, integer_question]
 
+        # TODO: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(text_question.form, "cached_questions", all_questions)
         mocker.patch.object(text_question.form, "cached_all_components", all_questions)
 
@@ -381,6 +392,8 @@ class TestSelectDataSourceQuestionForm:
             form=text_question.form,
             interpolate=SubmissionHelper.get_interpolator(collection=text_question.form.collection),
             current_component=integer_question,
+            expression_type=None,
+            managed_expression_name=None,
         )
 
         assert len(form.question.choices) == 4
@@ -392,33 +405,39 @@ class TestSelectDataSourceQuestionForm:
             str(date_question.id),
         }
 
-    def test_expressions_reference_only_show_questions_of_same_datatype(self, app, factories, mocker):
-        text_question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
-        yes_no_question = factories.question.build(form=text_question.form, data_type=QuestionDataType.YES_NO)
+    def test_managed_expression_excludes_mismatched_data_types(self, app, factories, mocker):
+        multi_line_question = factories.question.build(data_type=QuestionDataType.TEXT_MULTI_LINE)
+        yes_no_question = factories.question.build(form=multi_line_question.form, data_type=QuestionDataType.YES_NO)
         integer_questions = factories.question.build_batch(
-            4, form=text_question.form, data_type=QuestionDataType.NUMBER
+            4, form=multi_line_question.form, data_type=QuestionDataType.NUMBER
         )
 
-        all_questions = [text_question, yes_no_question] + integer_questions
+        all_questions = [multi_line_question, yes_no_question] + integer_questions
 
-        mocker.patch.object(text_question.form, "cached_questions", all_questions)
-        mocker.patch.object(text_question.form, "cached_all_components", all_questions)
+        # TODO: don't love these being mocked; move to an integration test instead?
+        mocker.patch.object(multi_line_question.form, "cached_questions", all_questions)
+        mocker.patch.object(multi_line_question.form, "cached_all_components", all_questions)
 
         form = SelectDataSourceQuestionForm(
-            form=text_question.form,
-            interpolate=SubmissionHelper.get_interpolator(collection=text_question.form.collection),
+            form=multi_line_question.form,
+            interpolate=SubmissionHelper.get_interpolator(collection=multi_line_question.form.collection),
             current_component=integer_questions[2],
-            limit="component_data_type",
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
         )
 
         assert len(form.question.choices) == 3
         # '' is the default "no answer" choice
-        assert {q[0] for q in form.question.choices} == {"", str(integer_questions[0].id), str(integer_questions[1].id)}
+        assert {q[0] for q in form.question.choices} == {
+            "",
+            str(integer_questions[0].id),
+            str(integer_questions[1].id),
+        }
 
-    def test_expressions_reference_exclude_same_page_groups_and_other_question_datatypes(self, app, factories, mocker):
+    def test_excludes_same_page_groups_and_unregistered_data_types(self, app, factories, mocker):
         integer_q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
         integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.NUMBER)
-        text_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        multi_line_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_MULTI_LINE)
 
         group = factories.group.build(
             form=integer_q1.form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
@@ -426,8 +445,9 @@ class TestSelectDataSourceQuestionForm:
         integer_q3 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
         integer_q4 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
 
-        all_questions = [integer_q1, integer_q2, text_question, integer_q3, integer_q4]
+        all_questions = [integer_q1, integer_q2, multi_line_question, integer_q3, integer_q4]
 
+        # TODO: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(group.form, "cached_questions", all_questions)
         mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
 
@@ -435,43 +455,45 @@ class TestSelectDataSourceQuestionForm:
             form=group.form,
             interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
             current_component=integer_q4,
-            limit="component_data_type",
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
         )
 
         assert len(form.question.choices) == 3
         assert {q[0] for q in form.question.choices} == {"", str(integer_q1.id), str(integer_q2.id)}
 
-    def test_limit_for_selecting_a_condition_data_reference_can_be_any_valid_expression_data_type(
-        self, app, factories, mocker
-    ):
+    def test_calculated_condition_excludes_unregistered_data_types(self, app, factories, mocker):
         integer_q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
         integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.NUMBER)
-        yesno_q = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.YES_NO)
+        multi_line_q = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_MULTI_LINE)
         text_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_MULTI_LINE)
 
         group = factories.group.build(
             form=integer_q1.form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
         )
         integer_q3 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
-        integer_q4 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
+        text_q4 = factories.question.build(
+            form=integer_q1.form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE
+        )
 
-        all_questions = [integer_q1, yesno_q, integer_q2, text_question, integer_q3, integer_q4]
+        all_questions = [integer_q1, multi_line_q, integer_q2, text_question, integer_q3, text_q4]
 
+        # TODO: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(group.form, "cached_questions", all_questions)
         mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
 
         form = SelectDataSourceQuestionForm(
             form=group.form,
             interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
-            current_component=integer_q4,
-            limit="any_expression_data_type",
+            current_component=text_q4,
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=None,
         )
 
-        assert len(form.question.choices) == 4
+        assert len(form.question.choices) == 3
         assert {q[0] for q in form.question.choices} == {
             "",
             str(integer_q1.id),
-            str(yesno_q.id),
             str(integer_q2.id),
         }
 

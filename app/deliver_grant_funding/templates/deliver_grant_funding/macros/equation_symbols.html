@@ -1,0 +1,31 @@
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% macro equation_symbols(include_comparators) %}
+  <h3 class="govuk-heading-s">Equation symbols</h3>
+  {% set rows = [] %}
+  {%
+    do rows.append({
+      "key": {"text": "+"},
+      "value": {"text": "Add two numbers"}
+    })
+  %}
+  {% do rows.append({"key": {"text": "-"}, "value": {"text": "Subtract a number from another number"}}) %}
+  {% do rows.append({"key": {"text": "*"}, "value": {"text": "Multiply two numbers"}}) %}
+  {% do rows.append({"key": {"text": "/"}, "value": {"text": "Divide one number by another number"}}) %}
+
+  {% if include_comparators %}
+    {% do rows.append({"key": {"text": "=="}, "value": {"text": "Is equal to"}}) %}
+    {% do rows.append({"key": {"html": "&lt;"},"value": {"text": "Is less than"}}) %}
+    {% do rows.append({"key": {"html": "&gt;"}, "value": {"text": "Is greater than"}}) %}
+    {% do rows.append({"key": {"html": "&lt;="}, "value": {"text": "Is less than or equal to"}}) %}
+    {%
+      do rows.append({"key": {"html": "&gt;="}, "value": {"text": "Is greater than or
+      equal to"}})
+    %}
+  {% endif %}
+
+  {{
+    govukSummaryList({
+    "rows": rows })
+  }}
+{% endmacro %}

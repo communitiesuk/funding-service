@@ -12,7 +12,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
 )
-from app.common.expressions import evaluate
+from app.common.expressions import ExpressionContext, evaluate
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.forms import CustomValidationExpressionForm
 from app.common.expressions.managed import (
@@ -767,7 +767,11 @@ class TestCustomExpression:
     def test_create_custom_expression(self, factories, db_session):
         user = factories.user.create()
         question = factories.question.create()
-        expr = CustomExpression(custom_expression="(({question_id})) > 5", custom_message="Failed validation")
+        expr = CustomExpression(
+            custom_expression="(({question_id})) > 5",
+            custom_message="Failed validation",
+            expression_name="my short name",
+        )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         question.expressions.append(expression)
         db_session.commit()
@@ -788,7 +792,7 @@ class TestCustomExpression:
             "question_id": None,
             "custom_expression": "(({question_id})) > 5",
             "custom_message": "Failed validation",
-            "custom_description": "Custom calculation",
+            "expression_name": "my short name",
         }
 
     @pytest.mark.parametrize(
@@ -823,8 +827,9 @@ class TestCustomExpression:
             "custom_message": expr.custom_message,
         }
 
-    def test_build_from_form(self):
-        form = CustomValidationExpressionForm()
+    def test_build_from_form(self, factories):
+        question = factories.question.build()
+        form = CustomValidationExpressionForm(question=question, expression_context=ExpressionContext())
         form.custom_expression.data = "some expression"
         form.custom_message.data = "a message"
         result = CustomExpression.build_from_form(
