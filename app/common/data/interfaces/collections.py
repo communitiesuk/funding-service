@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
 from uuid import UUID
 
@@ -9,7 +10,6 @@ from sqlalchemy import and_, delete, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.common.collections.types import AllAnswerTypes
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
@@ -299,72 +299,13 @@ def update_collection(  # noqa: C901
 
 
 @flush_and_rollback_on_exceptions
-def remove_add_another_answers_at_index(
-    submission: Submission, add_another_container: Component, add_another_index: int
-) -> Submission:
-    existing_answers = submission.data.get(str(add_another_container.id), [])
-    if add_another_index < 0 or add_another_index >= len(existing_answers):
-        raise ValueError(
-            f"Cannot remove answers at index {add_another_index} as there are "
-            f"only {len(existing_answers)} existing answers"
-        )
+def update_submission_data(submission: Submission) -> None:
+    # We make a deepcopy here so that if any changes are made to `submission.data_manager.data` after this is flushed,
+    # the changes are not reflected on the submission.
+    submission._data = deepcopy(submission.data_manager.data)
 
-    existing_answers.pop(add_another_index)
-    submission.data[str(add_another_container.id)] = existing_answers
-    return submission
-
-
-@flush_and_rollback_on_exceptions
-def remove_question_answer(
-    submission: Submission, question: Question, add_another_index: int | None = None
-) -> Submission:
-    if question.data_type not in [QuestionDataType.FILE_UPLOAD]:
-        raise ValueError(
-            "Removing answers is currently only supported for questions where an explicit remove is required"
-        )
-
-    data = submission.data
-    if add_another_index is not None and question.add_another_container:
-        existing_answers = submission.data.get(str(question.add_another_container.id), [])
-        if add_another_index < 0 or add_another_index >= len(existing_answers):
-            raise ValueError(
-                f"Cannot clear answers at index {add_another_index} as there are "
-                f"only {len(existing_answers)} existing answers"
-            )
-        data = existing_answers[add_another_index]
-
-    data.pop(str(question.id), None)
-    return submission
-
-
-@flush_and_rollback_on_exceptions
-def update_submission_data(
-    submission: Submission, question: Question, data: AllAnswerTypes, add_another_index: int | None = None
-) -> Submission:
-    if not question.add_another_container:
-        # this is just a single answer question
-        if add_another_index is not None:
-            raise ValueError("add_another_index cannot be provided for questions not within an add another container")
-        submission.data[str(question.id)] = data.get_value_for_submission()
-        return submission
-
-    if add_another_index is None:
-        raise ValueError("add_another_index must be provided for questions within an add another container")
-
-    parent_container = question.add_another_container
-    existing_answers = submission.data.get(str(parent_container.id), [])
-
-    if add_another_index > len(existing_answers) or add_another_index < 0:
-        raise ValueError(
-            f"Cannot update answers at index {add_another_index} as there are "
-            f"only {len(existing_answers)} existing answers"
-        )
-    if len(existing_answers) == add_another_index:
-        existing_answers.append({})
-    existing_answers[add_another_index][str(question.id)] = data.get_value_for_submission()
-
-    submission.data[str(parent_container.id)] = existing_answers
-    return submission
+    # Bust the DataManager cached property so that it reads the new submission data
+    del submission.data_manager
 
 
 def get_all_submissions_with_mode_for_collection(
@@ -508,7 +449,6 @@ def create_submission(
         collection=collection,
         created_by=created_by,
         mode=mode,
-        data={},
         grant_recipient=grant_recipient,
     )
     db.session.add(submission)

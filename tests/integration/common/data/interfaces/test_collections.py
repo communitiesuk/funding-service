@@ -4,7 +4,7 @@ import uuid
 import pytest
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from app.common.collections.types import TextSingleLineAnswer
+from app.common.collections.types import EmailAnswer, TextSingleLineAnswer
 from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
@@ -51,8 +51,6 @@ from app.common.data.interfaces.collections import (
     raise_if_group_questions_depend_on_each_other,
     raise_if_nested_group_creation_not_valid_here,
     raise_if_question_has_any_dependencies,
-    remove_add_another_answers_at_index,
-    remove_question_answer,
     remove_question_expression,
     reset_all_test_submissions,
     reset_test_submission,
@@ -81,6 +79,7 @@ from app.common.data.models import (
     Submission,
     SubmissionEvent,
 )
+from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
@@ -103,6 +102,7 @@ from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
 from app.common.forms.helpers import components_in_valid_add_another_combination
 from app.metrics import MetricEventName
+from tests.models import FactoryAnswer
 
 
 class TestGetCollection:
@@ -510,7 +510,9 @@ class TestUpdateCollection:
         collection.submission_name_question_id = question.id
         db_session.flush()
         factories.submission.create(
-            collection=collection, mode=SubmissionModeEnum.LIVE, data={str(question.id): "Project A"}
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Project A"))],
         )
 
         with pytest.raises(ValueError, match="Cannot disable multiple submissions"):
@@ -523,7 +525,9 @@ class TestUpdateCollection:
         collection.submission_name_question_id = question.id
         db_session.flush()
         factories.submission.create(
-            collection=collection, mode=SubmissionModeEnum.PREVIEW, data={str(question.id): "Project A"}
+            collection=collection,
+            mode=SubmissionModeEnum.PREVIEW,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Project A"))],
         )
 
         update_collection(collection, allow_multiple_submissions=False)
@@ -2588,21 +2592,27 @@ class TestDependencyExceptionHelpers:
 
 
 class TestUpdateSubmissionData:
-    def test_update_submission_data_single_question(db_session, factories):
+    def test_update_submission_data_single_question(self, db_session, factories):
         question = factories.question.create()
         submission = factories.submission.create(collection=question.form.collection)
 
-        assert str(question.id) not in submission.data
+        assert submission.data_manager.get(question) is None
+        submission.data_manager.set(question, TextSingleLineAnswer("User submitted data"))
 
-        data = TextSingleLineAnswer("User submitted data")
-        updated_submission = update_submission_data(submission, question, data)
+        assert SubmissionDataManager(submission._data).get(question) is None, (
+            "The answer should not be set on the submission instance until the interface is called"
+        )
+        update_submission_data(submission)
 
-        assert updated_submission.data[str(question.id)] == "User submitted data"
+        assert submission.data_manager.get(question) == TextSingleLineAnswer("User submitted data")
 
-        data = TextSingleLineAnswer("User edited data")
-        updated_submission = update_submission_data(submission, question, data)
+        submission.data_manager.set(question, TextSingleLineAnswer("User edited data"))
+        assert SubmissionDataManager(submission._data).get(question) == TextSingleLineAnswer("User submitted data"), (
+            "The answer should not be updated on the submission instance until the interface is called"
+        )
+        update_submission_data(submission)
 
-        assert updated_submission.data[str(question.id)] == "User edited data"
+        assert submission.data_manager.get(question) == TextSingleLineAnswer("User edited data")
 
     def test_update_submission_data_add_another_group_first_answer(self, db_session, factories):
         form = factories.form.create()
@@ -2612,19 +2622,19 @@ class TestUpdateSubmissionData:
         submission = factories.submission.create(collection=form.collection)
 
         q1_data1 = TextSingleLineAnswer("Group 1 - Question 1 - Answer 1")
+        submission.data_manager.set(question1, q1_data1, add_another_index=0)
 
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        assert updated_submission.data[str(group.id)] == [{str(question1.id): "Group 1 - Question 1 - Answer 1"}]
+        update_submission_data(submission)
+
+        assert submission.data_manager.get(question1, add_another_index=0) == q1_data1
+        assert submission.data_manager.get(question2, add_another_index=0) is None
 
         q2_data1 = TextSingleLineAnswer("Group 1 - Question 2 - Answer 1")
+        submission.data_manager.set(question2, q2_data1, add_another_index=0)
 
-        updated_submission = update_submission_data(submission, question2, q2_data1, 0)
-        assert updated_submission.data[str(group.id)] == [
-            {
-                str(question1.id): "Group 1 - Question 1 - Answer 1",
-                str(question2.id): "Group 1 - Question 2 - Answer 1",
-            },
-        ]
+        update_submission_data(submission)
+        assert submission.data_manager.get(question1, add_another_index=0) == q1_data1
+        assert submission.data_manager.get(question2, add_another_index=0) == q2_data1
 
     def test_update_submission_data_add_another_group_edit_only_answer(self, db_session, factories):
         form = factories.form.create()
@@ -2635,189 +2645,86 @@ class TestUpdateSubmissionData:
 
         q1_data1 = TextSingleLineAnswer("Group 1 - Question 1 - Answer 1")
         q2_data1 = TextSingleLineAnswer("Group 1 - Question 2 - Answer 1")
+        submission.data_manager.set(question1, q1_data1, add_another_index=0)
+        submission.data_manager.set(question2, q2_data1, add_another_index=0)
 
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        updated_submission = update_submission_data(submission, question2, q2_data1, 0)
+        update_submission_data(submission)
 
         q1_data1_updated = TextSingleLineAnswer("Group 1 - Question 1 - Updated 1")
         q2_data1_updated = TextSingleLineAnswer("Group 1 - Question 2 - Updated 1")
+        submission.data_manager.set(question1, q1_data1_updated, add_another_index=0)
+        submission.data_manager.set(question2, q2_data1_updated, add_another_index=0)
 
-        updated_submission = update_submission_data(submission, question1, q1_data1_updated, 0)
-        updated_submission = update_submission_data(submission, question2, q2_data1_updated, 0)
+        update_submission_data(submission)
 
-        assert updated_submission.data[str(group.id)] == [
-            {
-                str(question1.id): "Group 1 - Question 1 - Updated 1",
-                str(question2.id): "Group 1 - Question 2 - Updated 1",
-            },
-        ]
+        assert submission.data_manager.get(question1, add_another_index=0) == q1_data1_updated
+        assert submission.data_manager.get(question2, add_another_index=0) == q2_data1_updated
 
     def test_update_submission_data_add_another_group_another_answer(self, db_session, factories):
         form = factories.form.create()
         group = factories.group.create(form=form, add_another=True)
         question1 = factories.question.create(form=form, parent=group)
         question2 = factories.question.create(form=form, parent=group)
-        submission = factories.submission.create(collection=form.collection)
-
         q1_data1 = TextSingleLineAnswer("Group 1 - Question 1 - Answer 1")
         q2_data1 = TextSingleLineAnswer("Group 1 - Question 2 - Answer 1")
-
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        updated_submission = update_submission_data(submission, question2, q2_data1, 0)
-
         q1_data2 = TextSingleLineAnswer("Group 1 - Question 1 - Answer 2")
         q2_data2 = TextSingleLineAnswer("Group 1 - Question 2 - Answer 2")
+        submission = factories.submission.create(
+            collection=form.collection,
+            answers=[
+                FactoryAnswer(question1, q1_data1, add_another_index=0),
+                FactoryAnswer(question2, q2_data1, add_another_index=0),
+            ],
+        )
 
-        updated_submission = update_submission_data(submission, question1, q1_data2, 1)
-        updated_submission = update_submission_data(submission, question2, q2_data2, 1)
-        assert updated_submission.data[str(group.id)] == [
-            {
-                str(question1.id): "Group 1 - Question 1 - Answer 1",
-                str(question2.id): "Group 1 - Question 2 - Answer 1",
-            },
-            {
-                str(question1.id): "Group 1 - Question 1 - Answer 2",
-                str(question2.id): "Group 1 - Question 2 - Answer 2",
-            },
-        ]
+        submission.data_manager.set(question1, q1_data2, add_another_index=1)
+        submission.data_manager.set(question2, q2_data2, add_another_index=1)
+        update_submission_data(submission)
+
+        assert submission.data_manager.get(question1, add_another_index=0) == q1_data1
+        assert submission.data_manager.get(question2, add_another_index=0) == q2_data1
+        assert submission.data_manager.get(question1, add_another_index=1) == q1_data2
+        assert submission.data_manager.get(question2, add_another_index=1) == q2_data2
 
     def test_update_submission_data_add_another_group_edit_another_answer(self, db_session, factories):
         form = factories.form.create()
         group = factories.group.create(form=form, add_another=True)
         question1 = factories.question.create(form=form, parent=group)
         question2 = factories.question.create(form=form, parent=group)
-        submission = factories.submission.create(collection=form.collection)
-
-        q1_data1 = TextSingleLineAnswer("Group 1 - Question 1 - Answer 1")
-        q2_data1 = TextSingleLineAnswer("Group 1 - Question 2 - Answer 1")
-
-        update_submission_data(submission, question1, q1_data1, 0)
-        update_submission_data(submission, question2, q2_data1, 0)
-
-        q1_data2 = TextSingleLineAnswer("Group 1 - Question 1 - Answer 2")
-        q2_data2 = TextSingleLineAnswer("Group 1 - Question 2 - Answer 2")
-
-        update_submission_data(submission, question1, q1_data2, 1)
-        update_submission_data(submission, question2, q2_data2, 1)
-
-        update_submission_data(submission, question1, TextSingleLineAnswer("Group 1 - Question 1 - Updated 1"), 0)
-        update_submission_data(submission, question2, TextSingleLineAnswer("Group 1 - Question 2 - Updated 1"), 0)
-        update_submission_data(submission, question1, TextSingleLineAnswer("Group 1 - Question 1 - Updated 2"), 1)
-        updated_submission = update_submission_data(
-            submission, question2, TextSingleLineAnswer("Group 1 - Question 2 - Updated 2"), 1
+        submission = factories.submission.create(
+            collection=form.collection,
+            answers=[
+                FactoryAnswer(question1, TextSingleLineAnswer("Group 1 - Question 1 - Answer 1"), add_another_index=0),
+                FactoryAnswer(question2, TextSingleLineAnswer("Group 1 - Question 2 - Answer 1"), add_another_index=0),
+                FactoryAnswer(question1, TextSingleLineAnswer("Group 1 - Question 1 - Answer 2"), add_another_index=1),
+                FactoryAnswer(question2, TextSingleLineAnswer("Group 1 - Question 2 - Answer 2"), add_another_index=1),
+            ],
         )
 
-        assert updated_submission.data[str(group.id)] == [
-            {
-                str(question1.id): "Group 1 - Question 1 - Updated 1",
-                str(question2.id): "Group 1 - Question 2 - Updated 1",
-            },
-            {
-                str(question1.id): "Group 1 - Question 1 - Updated 2",
-                str(question2.id): "Group 1 - Question 2 - Updated 2",
-            },
-        ]
-
-    def test_update_submission_data_add_another_question_first_answer(self, db_session, factories):
-        form = factories.form.create()
-        question1 = factories.question.create(form=form, add_another=True)
-        submission = factories.submission.create(collection=form.collection)
-
-        q1_data1 = TextSingleLineAnswer("Question 1 - Answer 1")
-
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        assert updated_submission.data[str(question1.id)] == [{str(question1.id): "Question 1 - Answer 1"}]
-
-    def test_update_submission_data_add_another_question_edit_only_answer(self, db_session, factories):
-        form = factories.form.create()
-        question1 = factories.question.create(form=form, add_another=True)
-        submission = factories.submission.create(collection=form.collection)
-
-        q1_data1 = TextSingleLineAnswer("Question 1 - Answer 1")
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-
-        q1_data1 = TextSingleLineAnswer("Question 1 - Updated 1")
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        assert updated_submission.data[str(question1.id)] == [{str(question1.id): "Question 1 - Updated 1"}]
-
-    def test_update_submission_data_add_another_question_another_answer(self, db_session, factories):
-        form = factories.form.create()
-        question1 = factories.question.create(form=form, add_another=True)
-        submission = factories.submission.create(collection=form.collection)
-
-        q1_data1 = TextSingleLineAnswer("Question 1 - Answer 1")
-        q1_data2 = TextSingleLineAnswer("Question 1 - Answer 2")
-
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        updated_submission = update_submission_data(submission, question1, q1_data2, 1)
-        assert updated_submission.data[str(question1.id)] == [
-            {str(question1.id): "Question 1 - Answer 1"},
-            {str(question1.id): "Question 1 - Answer 2"},
-        ]
-
-    def test_update_submission_data_add_another_question_edit_another_answer(self, db_session, factories):
-        form = factories.form.create()
-        question1 = factories.question.create(form=form, add_another=True)
-        submission = factories.submission.create(collection=form.collection)
-
-        q1_data1 = TextSingleLineAnswer("Question 1 - Answer 1")
-        q1_data2 = TextSingleLineAnswer("Question 1 - Answer 2")
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        updated_submission = update_submission_data(submission, question1, q1_data2, 1)
-
-        q1_data1 = TextSingleLineAnswer("Question 1 - Updated 1")
-        q1_data2 = TextSingleLineAnswer("Question 1 - Updated 2")
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        updated_submission = update_submission_data(submission, question1, q1_data2, 1)
-
-        assert updated_submission.data[str(question1.id)] == [
-            {str(question1.id): "Question 1 - Updated 1"},
-            {str(question1.id): "Question 1 - Updated 2"},
-        ]
-
-    def test_update_submission_data_validates_add_another_index_when_not_in_add_another(self, db_session, factories):
-        form = factories.form.create()
-        question = factories.question.create(form=form)
-        submission = factories.submission.create(collection=form.collection)
-        data = TextSingleLineAnswer("User submitted data")
-        with pytest.raises(ValueError) as error:
-            update_submission_data(submission, question, data, add_another_index=1)
-        assert (
-            str(error.value) == "add_another_index cannot be provided for questions not within an add another container"
+        submission.data_manager.set(
+            question1, TextSingleLineAnswer("Group 1 - Question 1 - Updated 1"), add_another_index=0
+        )
+        submission.data_manager.set(
+            question2, TextSingleLineAnswer("Group 1 - Question 2 - Updated 1"), add_another_index=0
+        )
+        submission.data_manager.set(
+            question1, TextSingleLineAnswer("Group 1 - Question 1 - Updated 2"), add_another_index=1
         )
 
-    def test_update_submission_data_validates_add_another_index_when_in_add_another(self, db_session, factories):
-        form = factories.form.create()
-        question = factories.question.create(form=form, add_another=True)
-        submission = factories.submission.create(collection=form.collection)
-        data = TextSingleLineAnswer("User submitted data")
-        with pytest.raises(ValueError) as error:
-            update_submission_data(submission, question, data, add_another_index=None)
-        assert str(error.value) == "add_another_index must be provided for questions within an add another container"
+        update_submission_data(submission)
 
-    def test_update_submission_data_add_another_fail_if_index_not_available(self, db_session, factories):
-        form = factories.form.create()
-        group = factories.group.create(form=form, add_another=True)
-        question1 = factories.question.create(form=form, parent=group)
-        question2 = factories.question.create(form=form, parent=group)
-        submission = factories.submission.create(collection=form.collection)
-        q1_data1 = TextSingleLineAnswer("Group 1 - Question 1 - Answer 1")
-
-        with pytest.raises(ValueError) as e:
-            update_submission_data(submission, question2, q1_data1, 1)
-        assert str(e.value) == "Cannot update answers at index 1 as there are only 0 existing answers"
-        with pytest.raises(ValueError) as e:
-            update_submission_data(submission, question2, q1_data1, -1)
-        assert str(e.value) == "Cannot update answers at index -1 as there are only 0 existing answers"
-
-        updated_submission = update_submission_data(submission, question1, q1_data1, 0)
-        assert updated_submission.data[str(group.id)] == [{str(question1.id): "Group 1 - Question 1 - Answer 1"}]
-
-        q2_data1 = TextSingleLineAnswer("Group 1 - Question 2 - Answer 1")
-
-        with pytest.raises(ValueError) as e:
-            update_submission_data(submission, question2, q2_data1, 2)
-        assert str(e.value) == "Cannot update answers at index 2 as there are only 1 existing answers"
+        assert submission.data_manager.get(question1, add_another_index=0) == TextSingleLineAnswer(
+            "Group 1 - Question 1 - Updated 1"
+        )
+        assert submission.data_manager.get(question2, add_another_index=0) == TextSingleLineAnswer(
+            "Group 1 - Question 2 - Updated 1"
+        )
+        assert submission.data_manager.get(question1, add_another_index=1) == TextSingleLineAnswer(
+            "Group 1 - Question 1 - Updated 2"
+        )
+        assert submission.data_manager.get(question2, add_another_index=1) == TextSingleLineAnswer(
+            "Group 1 - Question 2 - Answer 2"
+        )
 
     def test_update_submission_data_many_add_another_entries(self, db_session, factories):
         collection = factories.collection.create(
@@ -2826,36 +2733,46 @@ class TestUpdateSubmissionData:
         )
         submission = collection.test_submissions[0]
         form = collection.forms[0]
-        add_another_group = form.cached_all_components[3]
         add_another_name_question = form.cached_questions[2]
         add_another_email_question = form.cached_questions[3]
 
-        update_submission_data(submission, add_another_name_question, TextSingleLineAnswer("Updated 3rd name"), 2)
-        update_submission_data(
-            submission, add_another_email_question, TextSingleLineAnswer("Updated_4th_email@stuff.com"), 3
+        submission.data_manager.set(
+            add_another_name_question, TextSingleLineAnswer("Updated 3rd name"), add_another_index=2
         )
-        update_submission_data(submission, add_another_name_question, TextSingleLineAnswer("Added name 6"), 5)
-        updated_submission = update_submission_data(
-            submission, add_another_email_question, TextSingleLineAnswer("Added_email_6@email.com"), 5
+        submission.data_manager.set(
+            add_another_email_question, TextSingleLineAnswer("Updated_4th_email@stuff.com"), add_another_index=3
         )
+        submission.data_manager.set(
+            add_another_name_question, TextSingleLineAnswer("Added name 6"), add_another_index=5
+        )
+        submission.data_manager.set(
+            add_another_email_question, TextSingleLineAnswer("Added_email_6@email.com"), add_another_index=5
+        )
+        update_submission_data(submission)
 
-        updated_data = updated_submission.data[str(add_another_group.id)]
-
-        # check the name and email of entries we didn't change are still the same
         for i in [0, 1, 3, 4]:
-            assert updated_data[i][str(add_another_name_question.id)] == f"test name {i}"
+            assert submission.data_manager.get(add_another_name_question, add_another_index=i) == TextSingleLineAnswer(
+                f"test name {i}"
+            )
+
         for i in [0, 1, 2, 4]:
-            assert updated_data[i][str(add_another_email_question.id)] == f"test_user_{i}@email.com"
+            assert submission.data_manager.get(add_another_email_question, add_another_index=i) == EmailAnswer(
+                f"test_user_{i}@email.com"
+            )
 
-        # check the updates we made are present
-        assert updated_data[2][str(add_another_name_question.id)] == "Updated 3rd name"
-        assert updated_data[3][str(add_another_email_question.id)] == "Updated_4th_email@stuff.com"
+        assert submission.data_manager.get(add_another_name_question, add_another_index=2) == TextSingleLineAnswer(
+            "Updated 3rd name"
+        )
+        assert submission.data_manager.get(add_another_email_question, add_another_index=3) == EmailAnswer(
+            "Updated_4th_email@stuff.com"
+        )
 
-        # check the entry we added is correct
-        assert updated_data[5] == {
-            str(add_another_name_question.id): "Added name 6",
-            str(add_another_email_question.id): "Added_email_6@email.com",
-        }
+        assert submission.data_manager.get(add_another_name_question, add_another_index=5) == TextSingleLineAnswer(
+            "Added name 6"
+        )
+        assert submission.data_manager.get(add_another_email_question, add_another_index=5) == EmailAnswer(
+            "Added_email_6@email.com"
+        )
 
 
 def test_add_submission_event(db_session, factories):
@@ -4293,197 +4210,6 @@ class TestValidateAndSyncComponentReferences:
                     collection=referenced_question.form.collection, mode="interpolation"
                 ),
             )
-
-
-class TestAddAnother:
-    def test_remove_add_another_answers(self, db_session, factories):
-        collection = factories.collection.create(
-            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=5,
-            create_completed_submissions_add_another_nested_group__test=1,
-            create_completed_submissions_add_another_nested_group__use_random_data=False,
-        )
-        add_another_group = collection.forms[0].cached_all_components[3]
-        submission = collection.test_submissions[0]
-        add_another_answers = submission.data[str(add_another_group.id)]
-        assert len(add_another_answers) == 5
-
-        updated_submission = remove_add_another_answers_at_index(submission, add_another_group, 2)
-        updated_add_another_answers = updated_submission.data[str(add_another_group.id)]
-
-        # check we have the right number of answers, and what was the second to last item is now last
-        assert len(updated_add_another_answers) == 4
-        assert "test name 4" in list(updated_add_another_answers[-1].values())
-
-    def test_remove_add_another_answers_first_answer(self, db_session, factories):
-        collection = factories.collection.create(
-            create_completed_submissions_add_another_nested_group__test=1,
-            create_completed_submissions_add_another_nested_group__use_random_data=False,
-        )
-        add_another_group = collection.forms[0].cached_all_components[3]
-        submission = collection.test_submissions[0]
-        add_another_answers = submission.data[str(add_another_group.id)]
-        assert len(add_another_answers) == 5
-
-        updated_submission = remove_add_another_answers_at_index(submission, add_another_group, 0)
-        updated_add_another_answers = updated_submission.data[str(add_another_group.id)]
-
-        # check we have the right number of answers, and what was the second item is now first
-        assert len(updated_add_another_answers) == 4
-        assert "test name 1" in list(updated_add_another_answers[0].values())
-
-    def test_remove_add_another_answers_last_answer(self, db_session, factories):
-        collection = factories.collection.create(
-            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=5,
-            create_completed_submissions_add_another_nested_group__test=1,
-            create_completed_submissions_add_another_nested_group__use_random_data=False,
-        )
-        add_another_group = collection.forms[0].cached_all_components[3]
-        submission = collection.test_submissions[0]
-        add_another_answers = submission.data[str(add_another_group.id)]
-        assert len(add_another_answers) == 5
-
-        updated_submission = remove_add_another_answers_at_index(submission, add_another_group, 4)
-        updated_add_another_answers = updated_submission.data[str(add_another_group.id)]
-
-        # check we have the right number of answers, and what was the second to last item is now last
-        assert len(updated_add_another_answers) == 4
-        assert "test name 3" in list(updated_add_another_answers[-1].values())
-
-    def test_remove_add_another_answers_only_answer(self, db_session, factories):
-        collection = factories.collection.create(
-            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=1,
-            create_completed_submissions_add_another_nested_group__test=1,
-            create_completed_submissions_add_another_nested_group__use_random_data=False,
-        )
-        add_another_group = collection.forms[0].cached_all_components[3]
-        submission = collection.test_submissions[0]
-        add_another_answers = submission.data[str(add_another_group.id)]
-        assert len(add_another_answers) == 1
-
-        updated_submission = remove_add_another_answers_at_index(submission, add_another_group, 0)
-        updated_add_another_answers = updated_submission.data[str(add_another_group.id)]
-
-        assert updated_add_another_answers is not None
-        assert len(updated_add_another_answers) == 0
-
-    def test_remove_add_another_answers_validates_add_another_index(self, db_session, factories):
-        collection = factories.collection.create(
-            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=1,
-            create_completed_submissions_add_another_nested_group__test=1,
-            create_completed_submissions_add_another_nested_group__use_random_data=False,
-        )
-        add_another_group = collection.forms[0].cached_all_components[3]
-        submission = collection.test_submissions[0]
-        with pytest.raises(ValueError) as e:
-            remove_add_another_answers_at_index(submission, add_another_group, 1)
-        assert str(e.value) == "Cannot remove answers at index 1 as there are only 1 existing answers"
-        with pytest.raises(ValueError) as e:
-            remove_add_another_answers_at_index(submission, add_another_group, -1)
-        assert str(e.value) == "Cannot remove answers at index -1 as there are only 1 existing answers"
-
-    def test_remove_add_another_answers_validates_add_another_index_no_existing_answers(self, db_session, factories):
-        collection = factories.collection.create(
-            create_completed_submissions_add_another_nested_group__number_of_add_another_answers=0,
-            create_completed_submissions_add_another_nested_group__test=1,
-            create_completed_submissions_add_another_nested_group__use_random_data=False,
-        )
-        add_another_group = collection.forms[0].cached_all_components[3]
-        submission = collection.test_submissions[0]
-        with pytest.raises(ValueError) as e:
-            remove_add_another_answers_at_index(submission, add_another_group, 1)
-        assert str(e.value) == "Cannot remove answers at index 1 as there are only 0 existing answers"
-        with pytest.raises(ValueError) as e:
-            remove_add_another_answers_at_index(submission, add_another_group, -1)
-        assert str(e.value) == "Cannot remove answers at index -1 as there are only 0 existing answers"
-
-
-class TestRemoveQuestionAnswer:
-    def test_remove_question_answer_for_file_upload(self, db_session, factories):
-        question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)
-        question_two = factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
-        submission = factories.submission.create(
-            collection=question.form.collection,
-            data={str(question.id): {"filename": "test-document.pdf"}, str(question_two.id): "Some text answer"},
-        )
-
-        assert str(question.id) in submission.data
-        assert str(question_two.id) in submission.data
-
-        updated_submission = remove_question_answer(submission, question)
-
-        assert str(question.id) not in updated_submission.data
-        assert str(question_two.id) in updated_submission.data
-
-    def test_remove_question_answer_when_no_answer_exists(self, db_session, factories):
-        question = factories.question.create(data_type=QuestionDataType.FILE_UPLOAD)
-        submission = factories.submission.create(collection=question.form.collection)
-
-        assert str(question.id) not in submission.data
-
-        updated_submission = remove_question_answer(submission, question)
-
-        assert str(question.id) not in updated_submission.data
-
-    def test_remove_question_answer_only_supported_for_file_upload(self, db_session, factories):
-        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
-        submission = factories.submission.create(
-            collection=question.form.collection,
-            data={str(question.id): "User submitted data"},
-        )
-
-        with pytest.raises(ValueError) as e:
-            remove_question_answer(submission, question)
-        assert (
-            str(e.value)
-            == "Removing answers is currently only supported for questions where an explicit remove is required"
-        )
-
-    def test_remove_question_answer_within_add_another_group(self, db_session, factories):
-        form = factories.form.create()
-        group = factories.group.create(form=form, add_another=True)
-        question = factories.question.create(form=form, parent=group, data_type=QuestionDataType.FILE_UPLOAD)
-        question2 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE)
-        submission = factories.submission.create(
-            collection=form.collection,
-            data={
-                str(group.id): [
-                    {str(question.id): {"filename": "file0.pdf"}, str(question2.id): "Entry 0"},
-                    {str(question.id): {"filename": "file1.pdf"}, str(question2.id): "Entry 1"},
-                ]
-            },
-        )
-
-        updated_submission = remove_question_answer(submission, question, add_another_index=1)
-
-        updated_entries = updated_submission.data[str(group.id)]
-        assert len(updated_entries) == 2
-
-        assert updated_entries[0][str(question.id)] == {"filename": "file0.pdf"}
-        assert updated_entries[0][str(question2.id)] == "Entry 0"
-
-        assert str(question.id) not in updated_entries[1]
-        assert updated_entries[1][str(question2.id)] == "Entry 1"
-
-    def test_remove_question_answer_within_add_another_validates_index(self, db_session, factories):
-        form = factories.form.create()
-        group = factories.group.create(form=form, add_another=True)
-        question = factories.question.create(form=form, parent=group, data_type=QuestionDataType.FILE_UPLOAD)
-        submission = factories.submission.create(
-            collection=form.collection,
-            data={
-                str(group.id): [
-                    {str(question.id): {"filename": "file0.pdf"}},
-                ]
-            },
-        )
-
-        with pytest.raises(ValueError) as e:
-            remove_question_answer(submission, question, add_another_index=1)
-        assert str(e.value) == "Cannot clear answers at index 1 as there are only 1 existing answers"
-
-        with pytest.raises(ValueError) as e:
-            remove_question_answer(submission, question, add_another_index=-1)
-        assert str(e.value) == "Cannot clear answers at index -1 as there are only 1 existing answers"
 
 
 class TestGetSubmissions:

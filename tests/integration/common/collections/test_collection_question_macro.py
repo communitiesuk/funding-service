@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from flask import render_template_string
 
 from app.common.collections.runner import FormRunner
-from app.common.collections.types import FileUploadAnswer
+from app.common.collections.types import FileUploadAnswer, TextSingleLineAnswer
 from app.common.data.types import (
     FileUploadTypes,
     MaximumFileSize,
@@ -11,6 +11,7 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.helpers.collections import SubmissionHelper
+from tests.models import FactoryAnswer
 from tests.utils import get_h1_text
 
 
@@ -46,13 +47,12 @@ class TestCollectionQuestionMacro:
             form=reference_question.form,  # Same collection for interpolation context
         )
 
-        submission = factories.submission.create(
-            collection=reference_question.form.collection, created_by=authenticated_grant_admin_client.user
-        )
-
         reference_answer_value = "Interpolated Text Value"
-        submission_data = {str(reference_question.id): reference_answer_value}
-        submission.data = submission_data
+        submission = factories.submission.create(
+            collection=reference_question.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            answers=[FactoryAnswer(reference_question, TextSingleLineAnswer(reference_answer_value))],
+        )
 
         template_content = """
         {% from "common/macros/collections.html" import collection_question with context %}
@@ -128,11 +128,12 @@ class TestCollectionQuestionMacro:
         submission = factories.submission.create(
             collection=question.form.collection,
             created_by=authenticated_grant_admin_client.user,
-            data={
-                str(question.id): FileUploadAnswer(
-                    filename="test-file.pdf", size=0, mime_type="application/pdf"
-                ).get_value_for_submission()
-            },
+            answers=[
+                FactoryAnswer(
+                    question,
+                    FileUploadAnswer(filename="test-file.pdf", size=0, mime_type="application/pdf"),
+                )
+            ],
         )
 
         template_content = """

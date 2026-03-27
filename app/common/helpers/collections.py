@@ -12,7 +12,6 @@ from uuid import UUID
 
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import TypeAdapter
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -25,14 +24,12 @@ from app.common.collections.types import (
     ChoiceDict,
     DateAnswer,
     DecimalAnswer,
-    EmailAnswer,
     FileUploadAnswer,
     IntegerAnswer,
     MultipleChoiceFromListAnswer,
     SingleChoiceFromListAnswer,
     TextMultiLineAnswer,
     TextSingleLineAnswer,
-    UrlAnswer,
     YesNoAnswer,
 )
 from app.common.collections.validation import SubmissionValidator
@@ -40,6 +37,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     get_all_submissions_with_mode_for_collection,
     get_submission,
+    update_submission_data,
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
@@ -152,7 +150,7 @@ class SubmissionHelper:
             context=ExpressionContext.build_expression_context(
                 collection=collection,
                 mode="interpolation",
-                submission_helper=submission_helper,
+                data_manager=submission_helper.submission.data_manager if submission_helper else None,
             ),
         )
 
@@ -160,7 +158,7 @@ class SubmissionHelper:
     def cached_evaluation_context(self) -> ExpressionContext:
         return ExpressionContext.build_expression_context(
             collection=self.submission.collection,
-            submission_helper=self,
+            data_manager=self.submission.data_manager,
             mode="evaluation",
         )
 
@@ -168,7 +166,7 @@ class SubmissionHelper:
     def cached_interpolation_context(self) -> ExpressionContext:
         return ExpressionContext.build_expression_context(
             collection=self.submission.collection,
-            submission_helper=self,
+            data_manager=self.submission.data_manager,
             mode="interpolation",
         )
 
@@ -237,9 +235,7 @@ class SubmissionHelper:
         return form_data
 
     def get_count_for_add_another(self, add_another_container: Component) -> int:
-        if answers := self.submission.data.get(str(add_another_container.id)):
-            return len(answers)
-        return 0
+        return self.submission.data_manager.get_count_for_add_another(add_another_container)
 
     @property
     def all_visible_questions(self) -> dict[UUID, Question]:
@@ -401,13 +397,13 @@ class SubmissionHelper:
                 if number_of_add_another_entries == 0:
                     # we don't currently support optional questions so anything without answers
                     # should be considered blocking
-                    if self.is_component_visible(question, self.cached_evaluation_context):
+                    if self.is_component_visible(question, self.cached_evaluation_context, add_another_index=0):
                         question_answer_status.append(False)
                 else:
                     # check each of this questions answers for each entry being complete
                     for i in range(number_of_add_another_entries):
                         context = self.cached_evaluation_context.with_add_another_context(
-                            question, submission_helper=self, add_another_index=i
+                            question, data_manager=self.submission.data_manager, add_another_index=i
                         )
                         if self.is_component_visible(question, context):
                             question_answer_status.append(
@@ -617,7 +613,10 @@ class SubmissionHelper:
         try:
             if component.add_another_container and add_another_index is not None:
                 context = context.with_add_another_context(
-                    component, submission_helper=self, add_another_index=add_another_index
+                    component,
+                    data_manager=self.submission.data_manager,
+                    add_another_index=add_another_index,
+                    allow_new_index=True,
                 )
             # Note that to check component visibility we separate reference and condition checks
             # (instead of relying on full_condition_chain)
@@ -721,8 +720,8 @@ class SubmissionHelper:
         if question.add_another_container:
             if add_another_index is None:
                 raise ValueError("add_another_index must be provided for questions within an add another container")
-            if self.submission.data.get(str(question.add_another_container.id)) is None or add_another_index >= len(
-                self.submission.data.get(str(question.add_another_container.id), [])
+            if add_another_index >= self.submission.data_manager.get_count_for_add_another(
+                question.add_another_container
             ):
                 if allow_new_index:
                     return None
@@ -730,13 +729,7 @@ class SubmissionHelper:
                 # add another entry that doesn't exist
                 raise ValueError("no add another entry exists at this index")
 
-        data_entry = (
-            self.submission.data
-            if not question.add_another_container
-            else self.submission.data.get(str(question.add_another_container.id), [])[add_another_index]
-        )
-        serialised_data = data_entry.get(str(question_id))
-        return _deserialise_question_type(question, serialised_data) if serialised_data is not None else None
+        return self.submission.data_manager.get(question, add_another_index=add_another_index)
 
     def submit_answer_for_question(
         self, question_id: UUID, form: DynamicQuestionForm, user: User, *, add_another_index: int | None = None
@@ -799,9 +792,8 @@ class SubmissionHelper:
             assert isinstance(data, FileUploadAnswer)
             data.key = key
 
-        interfaces.collections.update_submission_data(
-            self.submission, question, data, add_another_index=add_another_index
-        )
+        self.submission.data_manager.set(question, data, add_another_index=add_another_index)
+        update_submission_data(self.submission)
 
         self.cached_get_answer_for_question.cache_clear()
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
@@ -829,11 +821,10 @@ class SubmissionHelper:
             and isinstance(answer, FileUploadAnswer)
             and answer.key
         ]
-        interfaces.collections.remove_add_another_answers_at_index(
-            submission=self.submission,
-            add_another_container=add_another_container,
-            add_another_index=add_another_index,
+        self.submission.data_manager.remove_add_another_entry(
+            add_another_container, add_another_index=add_another_index
         )
+        update_submission_data(self.submission)
 
         for key in keys_to_delete:
             s3_service.delete_file(key)
@@ -858,7 +849,8 @@ class SubmissionHelper:
             if isinstance(answer, FileUploadAnswer) and answer.key:
                 keys_to_delete.append(answer.key)
 
-        interfaces.collections.remove_question_answer(self.submission, question, add_another_index=add_another_index)
+        self.submission.data_manager.remove(question, add_another_index=add_another_index)
+        update_submission_data(self.submission)
 
         for key in keys_to_delete:
             s3_service.delete_file(key)
@@ -1100,7 +1092,7 @@ class SubmissionHelper:
         context_override = None
         if question.add_another_container and add_another_index is not None:
             context_override = self.cached_evaluation_context.with_add_another_context(
-                question, submission_helper=self, add_another_index=add_another_index
+                question, data_manager=self.submission.data_manager, add_another_index=add_another_index
             )
 
         questions = self.cached_get_ordered_visible_questions(
@@ -1125,7 +1117,10 @@ class SubmissionHelper:
         context_override = None
         if question.add_another_container and add_another_index is not None:
             context_override = self.cached_evaluation_context.with_add_another_context(
-                question, submission_helper=self, add_another_index=add_another_index, allow_new_index=True
+                question,
+                data_manager=self.submission.data_manager,
+                add_another_index=add_another_index,
+                allow_new_index=True,
             )
 
         questions = self.cached_get_ordered_visible_questions(
@@ -1146,8 +1141,11 @@ class SubmissionHelper:
         if not component.add_another_container:
             raise ValueError("answer summaries can only be generated for components in an add another container")
 
+        if self.get_count_for_add_another(component.add_another_container) <= add_another_index:
+            return AddAnotherAnswerSummary(summary="", is_answered=False)
+
         context = self.cached_evaluation_context.with_add_another_context(
-            submission_helper=self, component=component, add_another_index=add_another_index
+            data_manager=self.submission.data_manager, component=component, add_another_index=add_another_index
         )
         visible_questions = (
             self.cached_get_ordered_visible_questions(component.add_another_container, override_context=context)
@@ -1336,7 +1334,7 @@ class CollectionHelper:
                         if not context:
                             context = submission.cached_evaluation_context.with_add_another_context(
                                 question.add_another_container,
-                                submission_helper=submission,
+                                data_manager=submission.submission.data_manager,
                                 add_another_index=index,
                             )
                             cached_contexts[context_key] = context
@@ -1403,7 +1401,9 @@ class CollectionHelper:
                                 entry = {}
 
                                 context = submission.cached_evaluation_context.with_add_another_context(
-                                    question.add_another_container, submission_helper=submission, add_another_index=i
+                                    question.add_another_container,
+                                    data_manager=submission.submission.data_manager,
+                                    add_another_index=i,
                                 )
                                 for q in submission.cached_get_ordered_visible_questions(
                                     question.add_another_container, override_context=context
@@ -1465,31 +1465,3 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
             )
 
     raise ValueError(f"Could not parse data for question type={question.data_type}")
-
-
-def _deserialise_question_type(question: Question, serialised_data: str | int | float | bool) -> AllAnswerTypes:
-    match question.data_type:
-        case QuestionDataType.TEXT_SINGLE_LINE:
-            return TypeAdapter(TextSingleLineAnswer).validate_python(serialised_data)
-        case QuestionDataType.URL:
-            return TypeAdapter(UrlAnswer).validate_python(serialised_data)
-        case QuestionDataType.EMAIL:
-            return TypeAdapter(EmailAnswer).validate_python(serialised_data)
-        case QuestionDataType.TEXT_MULTI_LINE:
-            return TypeAdapter(TextMultiLineAnswer).validate_python(serialised_data)
-        case QuestionDataType.NUMBER:
-            if question.data_options.number_type == NumberTypeEnum.DECIMAL:
-                return TypeAdapter(DecimalAnswer).validate_python(serialised_data)
-            return TypeAdapter(IntegerAnswer).validate_python(serialised_data)
-        case QuestionDataType.YES_NO:
-            return TypeAdapter(YesNoAnswer).validate_python(serialised_data)
-        case QuestionDataType.RADIOS:
-            return TypeAdapter(SingleChoiceFromListAnswer).validate_python(serialised_data)
-        case QuestionDataType.CHECKBOXES:
-            return TypeAdapter(MultipleChoiceFromListAnswer).validate_python(serialised_data)
-        case QuestionDataType.DATE:
-            return TypeAdapter(DateAnswer).validate_python(serialised_data)
-        case QuestionDataType.FILE_UPLOAD:
-            return TypeAdapter(FileUploadAnswer).validate_python(serialised_data)
-
-    raise ValueError(f"Could not deserialise data for question type={question.data_type}")

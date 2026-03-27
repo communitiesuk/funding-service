@@ -12,6 +12,7 @@ from flask import url_for
 from sqlalchemy import func, select
 
 from app import CollectionStatusEnum, FlashMessageType, QuestionDataType
+from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     DependencyOrderException,
@@ -82,6 +83,7 @@ from app.deliver_grant_funding.session_models import (
     DataSetUploadSessionModel,
 )
 from app.metrics import MetricAttributeName, MetricEventName
+from tests.models import FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
     get_form_data,
@@ -6077,13 +6079,13 @@ class TestListSubmissionsMultipleSubmissions:
             collection=report,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
-            data={str(question.id): "Alpha Project"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha Project"))],
         )
         factories.submission.create(
             collection=report,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
-            data={str(question.id): "Beta Project"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta Project"))],
         )
 
         response = authenticated_grant_member_client.get(
@@ -6249,13 +6251,13 @@ class TestExportReportSubmissions:
             collection=report,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
-            data={str(question.id): "Alpha Project"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha Project"))],
         )
         factories.submission.create(
             collection=report,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
-            data={str(question.id): "Beta Project"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta Project"))],
         )
 
         response = authenticated_grant_member_client.get(
@@ -6294,13 +6296,13 @@ class TestExportReportSubmissions:
             collection=report,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
-            data={str(question.id): "Alpha Project"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha Project"))],
         )
         factories.submission.create(
             collection=report,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
-            data={str(question.id): "Beta Project"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta Project"))],
         )
 
         response = authenticated_grant_member_client.get(
@@ -6449,14 +6451,10 @@ class TestViewSubmission:
         submission = factories.submission.create(
             collection=group.form.collection,
             mode=SubmissionModeEnum.TEST,
-            data={
-                str(group.id): [
-                    {
-                        str(amount_question.id): {"value": 50000, "prefix": "£"},
-                        str(detail_question.id): "On staffing costs",
-                    },
-                ]
-            },
+            answers=[
+                FactoryAnswer(amount_question, IntegerAnswer(value=50_000, prefix="£"), add_another_index=0),
+                FactoryAnswer(detail_question, TextSingleLineAnswer("On staffing costs"), add_another_index=0),
+            ],
         )
 
         response = authenticated_grant_admin_client.get(

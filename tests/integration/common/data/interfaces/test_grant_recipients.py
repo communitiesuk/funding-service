@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.grant_recipients import (
     all_grant_recipients_have_data_providers,
     create_grant_recipients,
@@ -13,6 +14,7 @@ from app.common.data.interfaces.grant_recipients import (
 )
 from app.common.data.models import GrantRecipient
 from app.common.data.types import RoleEnum, SubmissionEventType, SubmissionModeEnum
+from tests.models import FactoryAnswer
 
 
 class TestGetGrantRecipients:
@@ -336,7 +338,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
             grant_recipient=gr1,
             collection=collection,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Blue"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
         )
         factories.submission_event.create(
             submission=submission1,
@@ -352,7 +354,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
             grant_recipient=gr2,
             collection=collection,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Blue"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
         )
         factories.submission_event.create(
             submission=submission2,
@@ -366,7 +368,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
             grant_recipient=gr3,
             collection=collection,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): "Blue"},
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
         )
         factories.submission_event.create(
             submission=submission3,
