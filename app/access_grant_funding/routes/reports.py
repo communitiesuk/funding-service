@@ -17,7 +17,7 @@ from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
 from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.extensions import auto_commit_after_request, notification_service
+from app.extensions import auto_commit_after_request
 from app.metrics import MetricEventName, emit_metric_count
 from app.types import FlashMessageType
 
@@ -216,19 +216,6 @@ def decline_report(
         declined_reason = form.decline_reason.data or ""
         certifier_user = get_current_user()
         submission_helper.decline_certification(certifier_user, declined_reason=declined_reason)
-
-        # There are two distinct emails for data providers and certifiers in this flow so we want users to receive the
-        # relevant ones, even if they have both permissions.
-        for data_provider in grant_recipient.data_providers:
-            notification_service.send_access_submitter_submission_declined(
-                user=data_provider, submission_helper=submission_helper
-            )
-
-        for certifier in grant_recipient.certifiers:
-            notification_service.send_access_certifier_confirm_submission_declined(
-                user=certifier,
-                submission_helper=submission_helper,
-            )
 
         flash(
             {  # type:ignore [arg-type]

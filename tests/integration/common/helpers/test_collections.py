@@ -1248,6 +1248,38 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.SUBMITTED
             assert len(mock_notification_service_calls) == 0
 
+        @pytest.mark.parametrize(
+            "submission_mode, expected_email_recipients",
+            (
+                (SubmissionModeEnum.PREVIEW, 0),
+                (SubmissionModeEnum.TEST, 1),
+                (SubmissionModeEnum.LIVE, 2),
+            ),
+        )
+        def test_sends_emails_to_users_based_on_submission_mode(
+            self,
+            factories,
+            submission_ready_to_submit,
+            mock_notification_service_calls,
+            data_provider_user,
+            submission_mode,
+            expected_email_recipients,
+        ):
+            factories.user_role.create(
+                organisation=submission_ready_to_submit.grant_recipient.organisation,
+                grant=submission_ready_to_submit.grant_recipient.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            )
+
+            submission_ready_to_submit.mode = submission_mode
+            submission_ready_to_submit.collection.requires_certification = False
+            helper = SubmissionHelper(submission_ready_to_submit)
+
+            helper.submit(user=data_provider_user)
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+            assert len(mock_notification_service_calls) == expected_email_recipients
+
     class TestSentForCertification:
         def test_mark_as_sent_for_certification(
             self, data_provider_user, certifier_user, submission_ready_to_submit, mock_notification_service_calls
@@ -1260,6 +1292,65 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
             assert len(mock_notification_service_calls) == 2
+
+        @pytest.mark.parametrize(
+            "submission_mode, expected_data_provider_emails, expected_certifier_emails",
+            (
+                (SubmissionModeEnum.PREVIEW, 0, 0),
+                (SubmissionModeEnum.TEST, 1, 1),
+                (SubmissionModeEnum.LIVE, 2, 2),
+            ),
+        )
+        def test_sends_emails_to_users_based_on_submission_mode(
+            self,
+            app,
+            factories,
+            submission_ready_to_submit,
+            mock_notification_service_calls,
+            data_provider_user,
+            submission_mode,
+            expected_data_provider_emails,
+            expected_certifier_emails,
+            user,
+        ):
+            _data_provider_2 = factories.user_role.create(
+                organisation=submission_ready_to_submit.grant_recipient.organisation,
+                grant=submission_ready_to_submit.grant_recipient.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+            _certifier_1 = factories.user_role.create(
+                organisation=submission_ready_to_submit.grant_recipient.organisation,
+                grant=submission_ready_to_submit.grant_recipient.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            )
+            _certifier_2 = factories.user_role.create(
+                organisation=submission_ready_to_submit.grant_recipient.organisation,
+                grant=submission_ready_to_submit.grant_recipient.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            )
+
+            submission_ready_to_submit.mode = submission_mode
+            helper = SubmissionHelper(submission_ready_to_submit)
+
+            helper.mark_as_sent_for_certification(user=data_provider_user)
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+            data_provider_emails = [
+                call
+                for call in mock_notification_service_calls
+                if (
+                    call.args[1]
+                    == app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_SENT_FOR_CERTIFICATION_CONFIRMATION_TEMPLATE_ID"]
+                )
+            ]
+            certifier_emails = [
+                call
+                for call in mock_notification_service_calls
+                if (call.args[1] == app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_READY_TO_CERTIFY_TEMPLATE_ID"])
+            ]
+
+            assert len(data_provider_emails) == expected_data_provider_emails
+            assert len(certifier_emails) == expected_certifier_emails
 
     class TestCertificationApproved:
         def test_certify(
@@ -1285,8 +1376,65 @@ class TestSubmissionHelper:
             helper.decline_certification(user=certifier_user, declined_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
-            # TODO should we change the decline function to send emails for consistency with submit/certify
-            assert len(mock_notification_service_calls) == 0
+            assert len(mock_notification_service_calls) == 2
+
+        @pytest.mark.parametrize(
+            "submission_mode, expected_data_provider_emails, expected_certifier_emails",
+            (
+                (SubmissionModeEnum.PREVIEW, 0, 0),
+                (SubmissionModeEnum.TEST, 1, 1),
+                (SubmissionModeEnum.LIVE, 2, 2),
+            ),
+        )
+        def test_sends_emails_to_users_based_on_submission_mode(
+            self,
+            app,
+            factories,
+            submission_awaiting_sign_off,
+            mock_notification_service_calls,
+            submission_mode,
+            expected_data_provider_emails,
+            expected_certifier_emails,
+            data_provider_user,
+            certifier_user,
+            user,
+        ):
+            _data_provider_2 = factories.user_role.create(
+                organisation=submission_awaiting_sign_off.grant_recipient.organisation,
+                grant=submission_awaiting_sign_off.grant_recipient.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+            _certifier_2 = factories.user_role.create(
+                organisation=submission_awaiting_sign_off.grant_recipient.organisation,
+                grant=submission_awaiting_sign_off.grant_recipient.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            )
+
+            submission_awaiting_sign_off.mode = submission_mode
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+
+            helper.decline_certification(user=certifier_user, declined_reason="Test reason")
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+            data_provider_emails = [
+                call
+                for call in mock_notification_service_calls
+                if (
+                    call.kwargs["template_id"]
+                    == app.config["GOVUK_NOTIFY_ACCESS_SUBMITTER_REPORT_DECLINED_TEMPLATE_ID"]
+                )
+            ]
+            certifier_emails = [
+                call
+                for call in mock_notification_service_calls
+                if (
+                    call.kwargs["template_id"]
+                    == app.config["GOVUK_NOTIFY_ACCESS_CERTIFIER_REPORT_DECLINED_TEMPLATE_ID"]
+                )
+            ]
+
+            assert len(data_provider_emails) == expected_data_provider_emails
+            assert len(certifier_emails) == expected_certifier_emails
 
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")
@@ -1338,6 +1486,94 @@ class TestSubmissionHelper:
             assert helper.submitted_at_utc is None
             assert helper.certified_at_utc is None
             assert helper.last_updated_at_utc == helper.submission.updated_at_utc
+
+    class TestGetDataProvidersForLifecycleEmails:
+        def test_returns_correct_data_providers(self, factories):
+            gr = factories.grant_recipient.create()
+            data_provider_1 = factories.user.create()
+            factories.user_role.create(
+                user=data_provider_1,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+            data_provider_2 = factories.user.create()
+            factories.user_role.create(
+                user=data_provider_2,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+            certifier_1 = factories.user.create()
+            factories.user_role.create(
+                user=certifier_1,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            )
+            certifier_2 = factories.user.create()
+            factories.user_role.create(
+                user=certifier_2,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            )
+
+            preview_submission = factories.submission.create(grant_recipient=gr, mode=SubmissionModeEnum.PREVIEW)
+            test_submission = factories.submission.create(grant_recipient=gr, mode=SubmissionModeEnum.TEST)
+            live_submission = factories.submission.create(grant_recipient=gr, mode=SubmissionModeEnum.LIVE)
+
+            assert SubmissionHelper(preview_submission)._data_providers_for_lifecycle_emails(data_provider_1) == []
+            assert SubmissionHelper(test_submission)._data_providers_for_lifecycle_emails(data_provider_1) == [
+                data_provider_1
+            ]
+            assert set(SubmissionHelper(live_submission)._data_providers_for_lifecycle_emails(data_provider_1)) == {
+                data_provider_1,
+                data_provider_2,
+            }
+
+    class TestGetCertifiersForLifecycleEmails:
+        def test_returns_correct_certifiers(self, factories):
+            gr = factories.grant_recipient.create()
+            data_provider_1 = factories.user.create()
+            factories.user_role.create(
+                user=data_provider_1,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+            data_provider_2 = factories.user.create()
+            factories.user_role.create(
+                user=data_provider_2,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+            certifier_1 = factories.user.create()
+            factories.user_role.create(
+                user=certifier_1,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            )
+            certifier_2 = factories.user.create()
+            factories.user_role.create(
+                user=certifier_2,
+                organisation=gr.organisation,
+                grant=gr.grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            )
+
+            preview_submission = factories.submission.create(grant_recipient=gr, mode=SubmissionModeEnum.PREVIEW)
+            test_submission = factories.submission.create(grant_recipient=gr, mode=SubmissionModeEnum.TEST)
+            live_submission = factories.submission.create(grant_recipient=gr, mode=SubmissionModeEnum.LIVE)
+
+            assert SubmissionHelper(preview_submission)._certifiers_for_lifecycle_emails(certifier_1) == []
+            assert SubmissionHelper(test_submission)._certifiers_for_lifecycle_emails(certifier_1) == [certifier_1]
+            assert set(SubmissionHelper(live_submission)._certifiers_for_lifecycle_emails(certifier_1)) == {
+                certifier_1,
+                certifier_2,
+            }
 
 
 class TestFormResetOnAnswerChange:
@@ -2121,7 +2357,7 @@ class TestSubmissionValidation:
 
         assert "no longer valid" in str(e.value)
 
-    def test_submit_succeeds_when_all_answers_valid(self, factories):
+    def test_submit_succeeds_when_all_answers_valid(self, factories, mock_notification_service_calls):
         form = factories.form.create()
         user = factories.user.create()
         q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, order=0)

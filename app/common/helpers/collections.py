@@ -7,7 +7,7 @@ from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, Sequence, cast
 from uuid import UUID
 
 from flask import current_app
@@ -868,6 +868,40 @@ class SubmissionHelper:
         del self.cached_evaluation_context
         self.cached_get_ordered_visible_questions.cache_clear()
 
+    def _data_providers_for_lifecycle_emails(self, user: User) -> Sequence[User]:
+        if self.is_preview:
+            return []
+
+        if self.is_test:
+            if user not in self.submission.grant_recipient.data_providers:
+                current_app.logger.error(
+                    (
+                        "%(user_id)s is not a data provider for "
+                        "test submission %(submission_id)s when sending lifecycle emails"
+                    ),
+                    dict(user_id=user.id, submission_id=self.id),
+                )
+            return [user]
+
+        return self.submission.grant_recipient.data_providers
+
+    def _certifiers_for_lifecycle_emails(self, user: User) -> Sequence[User]:
+        if self.is_preview:
+            return []
+
+        if self.is_test:
+            if user not in self.submission.grant_recipient.certifiers:
+                current_app.logger.error(
+                    (
+                        "%(user_id)s is not a certifier for "
+                        "test submission %(submission_id)s when sending lifecycle emails"
+                    ),
+                    dict(user_id=user.id, submission_id=self.id),
+                )
+            return [user]
+
+        return self.submission.grant_recipient.certifiers
+
     def submit(self, user: User) -> None:
         if self.is_submitted:
             return
@@ -912,13 +946,14 @@ class SubmissionHelper:
             related_entity_id=self.submission.id,
         )
 
-        if not self.is_preview:
-            for unique_user in self.submission.grant_recipient.unique_data_providers_and_certifiers:
-                if unique_user is not None:
-                    notification_service.send_access_submission_submitted(
-                        email_address=unique_user.email,
-                        submission_helper=self,
-                    )
+        unique_users = set(self._data_providers_for_lifecycle_emails(user)) | set(
+            self._certifiers_for_lifecycle_emails(user)
+        )
+        for unique_user in unique_users:
+            notification_service.send_access_submission_submitted(
+                email_address=unique_user.email,
+                submission_helper=self,
+            )
 
     def mark_as_sent_for_certification(self, user: User) -> None:
         if self.is_locked_state:
@@ -936,19 +971,18 @@ class SubmissionHelper:
             interfaces.collections.add_submission_event(
                 self.submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, user=user
             )
-            # If we are previewing a report, and then submitting, there is no grant recipient so don't send email
-            if not self.is_preview:
-                for data_provider in self.submission.grant_recipient.data_providers:
-                    notification_service.send_access_submission_sent_for_certification_confirmation(
-                        data_provider.email, submission_helper=self
-                    )
-                for certifier in self.submission.grant_recipient.certifiers:
-                    assert self.sent_for_certification_by is not None
-                    notification_service.send_access_submission_ready_to_certify(
-                        certifier.email,
-                        submission_helper=self,
-                        submitted_by=self.sent_for_certification_by,
-                    )
+
+            for data_provider in self._data_providers_for_lifecycle_emails(user):
+                notification_service.send_access_submission_sent_for_certification_confirmation(
+                    data_provider.email, submission_helper=self
+                )
+            for certifier in self._certifiers_for_lifecycle_emails(user):
+                assert self.sent_for_certification_by is not None
+                notification_service.send_access_submission_ready_to_certify(
+                    certifier.email,
+                    submission_helper=self,
+                    submitted_by=self.sent_for_certification_by,
+                )
         else:
             raise ValueError(f"Could not send submission id={self.id} for sign off because not all forms are complete.")
 
@@ -983,6 +1017,20 @@ class SubmissionHelper:
                     user=user,
                     related_entity_id=form.id,
                 )
+
+            # There are two distinct emails for data providers and certifiers in this flow so we want users to receive
+            # the relevant ones, even if they have both permissions.
+            for data_provider in self._data_providers_for_lifecycle_emails(user):
+                notification_service.send_access_submitter_submission_declined(
+                    user=data_provider, submission_helper=self
+                )
+
+            for certifier in self._certifiers_for_lifecycle_emails(user):
+                notification_service.send_access_certifier_confirm_submission_declined(
+                    user=certifier,
+                    submission_helper=self,
+                )
+
         else:
             raise ValueError(
                 f"Could not decline certification for submission id={self.id} because it is not awaiting sign off."
