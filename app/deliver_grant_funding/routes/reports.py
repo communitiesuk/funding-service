@@ -1945,7 +1945,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:  # noqa:C901
+def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(
@@ -2023,7 +2023,7 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:  # noqa:C901
+def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(
@@ -2111,7 +2111,7 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
-def add_question_condition_select_calculation(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:  # noqa:C901
+def add_question_condition_select_calculation(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
 
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
@@ -2572,7 +2572,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # noqa:C901
+def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(
@@ -2646,9 +2646,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def edit_custom_question_validation(  # noqa:C901
-    grant_id: UUID, question_id: UUID, expression_id: UUID
-) -> ResponseReturnValue:
+def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id))

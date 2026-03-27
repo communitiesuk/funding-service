@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
@@ -173,8 +173,12 @@ def build_managed_expression_form(
     return ManagedExpressionForm
 
 
+class HasFormErrors(Protocol):
+    form_errors: list[str]
+
+
 class ExceptionRenderingFormMixin:
-    def handle_exception(self, e: WTFormRenderableException, field_name: str | None = None) -> None:
+    def handle_exception(self: HasFormErrors, e: WTFormRenderableException, field_name: str | None = None) -> None:
         if e.field_name:
             field_with_error = getattr(self, e.field_name)
         elif field_name:
@@ -344,10 +348,6 @@ class CalculatedConditionForm(ExceptionRenderingFormMixin, FlaskForm):
         return data
 
     def validate(self, extra_validators=None) -> bool:
-        from app.common.data.interfaces.collections import (
-            IncompatibleDataTypeException,
-            IncompatibleDataTypeInCalculationException,
-        )
 
         if not super().validate(extra_validators):
             return False
