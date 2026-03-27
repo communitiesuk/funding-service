@@ -663,9 +663,9 @@ class SelectDataSourceQuestionForm(FlaskForm):
         limit_to_data_types: set[QuestionDataType] = get_registered_data_types()
         if expression_type is not None:
             if managed_expression_name is None:
-                limit_to_data_types.add(QuestionDataType.NUMBER)
+                limit_to_data_types = {QuestionDataType.NUMBER}
             elif current_component and current_component.data_type:
-                limit_to_data_types.add(current_component.data_type)
+                limit_to_data_types = {current_component.data_type}
 
         referenceable_questions = get_referenceable_questions(
             form,
