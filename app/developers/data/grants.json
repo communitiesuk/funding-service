@@ -158,6 +158,12 @@
           "id": "5eef7648-1ad2-494d-b3a0-c853a78ac43e"
         },
         {
+          "component_id": "22cc35ec-113c-4bfc-9b97-c0158200a833",
+          "depends_on_component_id": "53915cda-b1a2-4fb7-9e29-ee41014964b3",
+          "expression_id": "dabee620-a538-43cf-b705-2a8e74cb07e7",
+          "id": "6107ab55-1882-4326-8abc-7d297627c0ab"
+        },
+        {
           "component_id": "22613139-724f-41d7-84a3-3549550c6a4b",
           "depends_on_component_id": "0e6df617-b770-4525-9c06-6fdbcca72a10",
           "expression_id": "cfa12ef8-bfd2-4077-96a4-cb3362ff45c4",
@@ -168,6 +174,12 @@
           "depends_on_component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
           "expression_id": "d5b8174f-6b9e-49d7-b1ac-1bb29749009e",
           "id": "7c83c49e-5137-4873-b0d5-9e965541653b"
+        },
+        {
+          "component_id": "946bd001-a1a3-4f09-ba2f-a61966871e33",
+          "depends_on_component_id": "22cc35ec-113c-4bfc-9b97-c0158200a833",
+          "expression_id": "a70ef8d9-feb9-41c8-bfb7-f6b4c391f182",
+          "id": "81ebdf9e-b265-4405-abbc-fcab3041062c"
         },
         {
           "component_id": "19fc71ff-ec1b-414a-b8b9-52502c0d4617",
@@ -199,10 +211,22 @@
           "id": "a11a4746-25db-48bd-9f8d-6f33ba524be7"
         },
         {
+          "component_id": "22cc35ec-113c-4bfc-9b97-c0158200a833",
+          "depends_on_component_id": "22cc35ec-113c-4bfc-9b97-c0158200a833",
+          "expression_id": "dabee620-a538-43cf-b705-2a8e74cb07e7",
+          "id": "a2506650-3bd9-47e6-ad5c-956392d7110f"
+        },
+        {
           "component_id": "6e42d5ac-1475-4e3a-89f0-39c9ab1ac2d1",
           "depends_on_component_id": "d99b94c3-66fa-4449-b4c4-ac5a2caeb8c9",
           "expression_id": "fac76323-0d53-427f-ad85-2522a33c77e4",
           "id": "a5df4911-602f-4f69-9d6d-11c5dc9baf74"
+        },
+        {
+          "component_id": "946bd001-a1a3-4f09-ba2f-a61966871e33",
+          "depends_on_component_id": "53915cda-b1a2-4fb7-9e29-ee41014964b3",
+          "expression_id": "a70ef8d9-feb9-41c8-bfb7-f6b4c391f182",
+          "id": "b4246f83-681b-4cbf-ab11-546d871b2763"
         },
         {
           "component_id": "b67ee3f1-d942-416a-8710-348c841d58d9",
@@ -1161,6 +1185,19 @@
         },
         {
           "context": {
+            "custom_expression": "((q_22cc35ec113c4bfc9b97c0158200a833)) > ((q_53915cdab1a24fb79e29ee41014964b3))",
+            "custom_message": null,
+            "expression_name": "Spend uses leeway funds",
+            "question_id": null
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "a70ef8d9-feb9-41c8-bfb7-f6b4c391f182",
+          "question_id": "946bd001-a1a3-4f09-ba2f-a61966871e33",
+          "statement": "((q_22cc35ec113c4bfc9b97c0158200a833)) > ((q_53915cdab1a24fb79e29ee41014964b3))",
+          "type_": "CONDITION"
+        },
+        {
+          "context": {
             "inclusive": false,
             "minimum_value": 1000000,
             "question_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c"
@@ -1225,6 +1262,19 @@
           "question_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
           "statement": "q_c1f6fdab3e7948ae9c751210588afc1c <((q_459a385ff293497bb6fb76011304306c))",
           "type_": "CONDITION"
+        },
+        {
+          "context": {
+            "custom_expression": "((q_22cc35ec113c4bfc9b97c0158200a833)) < ((q_53915cdab1a24fb79e29ee41014964b3)) + 100",
+            "custom_message": "This answer must be less than the allocation + \u00a3100 leeway",
+            "expression_name": null,
+            "question_id": null
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "dabee620-a538-43cf-b705-2a8e74cb07e7",
+          "question_id": "22cc35ec-113c-4bfc-9b97-c0158200a833",
+          "statement": "((q_22cc35ec113c4bfc9b97c0158200a833)) < ((q_53915cdab1a24fb79e29ee41014964b3)) + 100",
+          "type_": "VALIDATION"
         },
         {
           "context": {
@@ -1381,6 +1431,28 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "09ab93ac-a6a5-4d85-925a-c82fb44af982",
+          "name": "Q3 spend",
+          "order": 2,
+          "parent_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "q3-spend",
+          "text": "Q3 spend",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Single line of text",
           "form_id": "615f5183-f056-42c4-acd1-23d25db5f9a3",
@@ -1531,13 +1603,14 @@
           "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
           "hint": "",
           "id": "22cc35ec-113c-4bfc-9b97-c0158200a833",
-          "name": "second number",
+          "name": "smaller than slight allocation overspend",
           "order": 1,
           "presentation_options": {
+            "prefix": "\u00a3",
             "width": "govuk-input--width-10"
           },
-          "slug": "what-is-the-second-decimal-number",
-          "text": "What is the second (decimal) number?",
+          "slug": "enter-a-number-less-than-the-allocation-100",
+          "text": "Enter a number less than the allocation + \u00a3100",
           "type": "QUESTION"
         },
         {
@@ -1684,19 +1757,21 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_options": {
-            "number_type": "Whole number"
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
           },
           "data_type": "A number",
           "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
           "hint": "",
           "id": "53915cda-b1a2-4fb7-9e29-ee41014964b3",
-          "name": "first number",
+          "name": "allocation",
           "order": 0,
           "presentation_options": {
+            "prefix": "\u00a3",
             "width": "govuk-input--width-10"
           },
-          "slug": "what-is-the-first-number",
-          "text": "What is the first number?",
+          "slug": "what-is-the-allocated-amount",
+          "text": "What is the allocated amount?",
           "type": "QUESTION"
         },
         {
@@ -1810,6 +1885,21 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_options": {},
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "name": "Spend breakdown",
+          "order": 3,
+          "presentation_options": {
+            "show_questions_on_the_same_page": true
+          },
+          "slug": "spend-breakdown",
+          "text": "Spend breakdown",
+          "type": "GROUP"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Single line of text",
           "form_id": "c98aeb88-e4e6-4ad9-a673-4e8197ce5c8d",
           "hint": "",
@@ -1836,6 +1926,28 @@
           },
           "slug": "detail-the-failures-that-you-want-us-to-know-about",
           "text": "Detail the failures that you want us to know about",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "76fcc01a-69e9-4f2f-ba98-8e77d71168e8",
+          "name": "Q4 spend",
+          "order": 3,
+          "parent_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "q4-spend",
+          "text": "Q4 spend",
           "type": "QUESTION"
         },
         {
@@ -1909,6 +2021,28 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "8b856525-892a-4117-8d00-3c72e85d5438",
+          "name": "Q1 spend",
+          "order": 0,
+          "parent_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "q1-spend",
+          "text": "Q1 spend",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Single line of text",
           "form_id": "cd5fc00f-13d0-4c89-af8c-9f16c5c77afe",
@@ -1919,6 +2053,23 @@
           "presentation_options": {},
           "slug": "what-is-the-name-of-the-park",
           "text": "What is the name of the park?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Multiple lines of text",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "946bd001-a1a3-4f09-ba2f-a61966871e33",
+          "name": "explanation for leeway fund use",
+          "order": 2,
+          "presentation_options": {
+            "rows": 5
+          },
+          "slug": "explain-use-of-leeway-funds",
+          "text": "Explain use of leeway funds",
           "type": "QUESTION"
         },
         {
@@ -2169,25 +2320,6 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
-          "data_options": {
-            "number_type": "Whole number"
-          },
-          "data_type": "A number",
-          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
-          "hint": "",
-          "id": "bda3dfd8-f4f2-4b21-a9e8-faa598d8b511",
-          "name": "final number",
-          "order": 2,
-          "presentation_options": {
-            "width": "govuk-input--width-10"
-          },
-          "slug": "and-a-final-whole-number",
-          "text": "And a final whole number",
-          "type": "QUESTION"
-        },
-        {
-          "add_another": false,
-          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Single line of text",
           "form_id": "72907157-c74a-4aab-bb87-0965926514d2",
@@ -2218,6 +2350,28 @@
           },
           "slug": "how-much-did-you-spend-in-the-last-reporting-period",
           "text": "How much did you spend in the last reporting period?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "cd658c1f-dd9b-4982-936b-fed83afb7c5a",
+          "name": "Q2 spend",
+          "order": 1,
+          "parent_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "q2-spend",
+          "text": "Q2 spend",
           "type": "QUESTION"
         },
         {
