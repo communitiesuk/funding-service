@@ -12,7 +12,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
 )
-from app.common.expressions import evaluate
+from app.common.expressions import ExpressionContext, evaluate
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.forms import CustomValidationExpressionForm
 from app.common.expressions.managed import (
@@ -827,8 +827,9 @@ class TestCustomExpression:
             "custom_message": expr.custom_message,
         }
 
-    def test_build_from_form(self):
-        form = CustomValidationExpressionForm()
+    def test_build_from_form(self, factories):
+        question = factories.question.build()
+        form = CustomValidationExpressionForm(question=question, expression_context=ExpressionContext())
         form.custom_expression.data = "some expression"
         form.custom_message.data = "a message"
         result = CustomExpression.build_from_form(

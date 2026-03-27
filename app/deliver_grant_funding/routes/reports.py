@@ -1966,8 +1966,17 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToExpressionsModel, question_id=component.id
     )
-    wt_form = CalculatedConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty:ignore[unresolved-attribute]
-    if wt_form and wt_form.is_submitted_to_add_context():
+    wt_form = CalculatedConditionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        component=component,
+        expression_context=(
+            ExpressionContext.build_expression_context(
+                component.form.collection,
+                "interpolation",
+            )
+        ),
+    )
+    if wt_form.is_submitted_to_add_context():
         form_data = wt_form.get_expression_form_data()
         return _store_question_state_and_redirect_to_add_context(
             form=wt_form,
@@ -1980,45 +1989,25 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
             is_custom=True,
         )
 
-    if wt_form and wt_form.validate_on_submit():
-        expression_context = ExpressionContext.build_expression_context(
-            component.form.collection,
-            "interpolation",
-        )
+    if wt_form.validate_on_submit():
+        expression = CustomExpression.build_from_form(wt_form)
+        interfaces.collections.add_component_condition(component, get_current_user(), expression)
 
-        try:
-            _validate_custom_syntax(
-                component,
-                expression_context,
-                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.CONDITION,
-                "custom_expression",
-                validate_with_evaluation=True,
+        if "question" in session:
+            del session["question"]
+        if component.is_question:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=component.id,
+                )
             )
-            expression = CustomExpression.build_from_form(wt_form)
-            interfaces.collections.add_component_condition(component, get_current_user(), expression)
-
-        except WTFormRenderableException as e:
-            if isinstance(e, IncompatibleDataTypeException):
-                e = IncompatibleDataTypeInCalculationException(e)
-            wt_form.handle_exception(e)
 
         else:
-            if "question" in session:
-                del session["question"]
-            if component.is_question:
-                return redirect(
-                    url_for(
-                        "deliver_grant_funding.edit_question",
-                        grant_id=grant_id,
-                        question_id=component.id,
-                    )
-                )
-
-            else:
-                return redirect(
-                    url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=component_id)
-                )
+            return redirect(
+                url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=component_id)
+            )
 
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=component.form.collection, expression_context_end_point=component
@@ -2073,11 +2062,19 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
     ):
         remove_question_expression(question=component, expression=expression)
         return redirect(return_url)
+
     wt_form = CalculatedConditionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
         obj=expression.custom if not add_context_data else None,
+        component=component,
+        expression_context=(
+            ExpressionContext.build_expression_context(
+                component.form.collection,
+                "interpolation",
+            )
+        ),
     )
-    if wt_form and wt_form.is_submitted_to_add_context():
+    if wt_form.is_submitted_to_add_context():
         form_data = wt_form.get_expression_form_data()
         return _store_question_state_and_redirect_to_add_context(
             form=wt_form,
@@ -2090,34 +2087,14 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
             expression_type=ExpressionType.CONDITION,
             is_custom=True,
         )
-    if wt_form and wt_form.validate_on_submit():
-        expression_context = ExpressionContext.build_expression_context(
-            component.form.collection,
-            "interpolation",
-        )
+    if wt_form.validate_on_submit():
+        custom_expression = CustomExpression.build_from_form(wt_form)
+        interfaces.collections.update_question_expression(expression, custom_expression)
 
-        try:
-            _validate_custom_syntax(
-                component,
-                expression_context,
-                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.CONDITION,
-                "custom_expression",
-                validate_with_evaluation=True,
-            )
-            custom_expression = CustomExpression.build_from_form(wt_form)
+        if "question" in session:
+            del session["question"]
+        return redirect(return_url)
 
-            interfaces.collections.update_question_expression(expression, custom_expression)
-
-        except WTFormRenderableException as e:
-            if isinstance(e, IncompatibleDataTypeException):
-                e = IncompatibleDataTypeInCalculationException(e)
-            wt_form.handle_exception(e)
-
-        else:
-            if "question" in session:
-                del session["question"]
-            return redirect(return_url)
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=component.form.collection, expression_context_end_point=component
     )
@@ -2610,9 +2587,16 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToExpressionsModel, question_id=question.id
     )
-    wt_form = CustomValidationExpressionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+    wt_form = CustomValidationExpressionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
+        question=question,
+        expression_context=ExpressionContext.build_expression_context(
+            question.form.collection,
+            "interpolation",
+        ),
+    )
 
-    if wt_form and wt_form.is_submitted_to_add_context():
+    if wt_form.is_submitted_to_add_context():
         form_data = wt_form.get_expression_form_data()
         return _store_question_state_and_redirect_to_add_context(
             form=wt_form,
@@ -2624,58 +2608,28 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
             expression_type=ExpressionType.VALIDATION,
             is_custom=True,
         )
-    if wt_form and wt_form.validate_on_submit():
-        expression_context = ExpressionContext.build_expression_context(
-            question.form.collection,
-            "interpolation",
-        )
-        valid_to_save = True
+    if wt_form.validate_on_submit():
+        expression = CustomExpression.build_from_form(wt_form)
+
         try:
-            _validate_custom_syntax(
-                question,
-                expression_context,
-                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.VALIDATION,
-                "custom_expression",
-                validate_with_evaluation=True,
-            )
+            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+
+        except IncompatibleDataTypeException as e:
+            wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
         except WTFormRenderableException as e:
-            valid_to_save = False
-            wt_form.handle_exception(e, field_name="custom_expression")
-        try:
-            _validate_custom_syntax(
-                question,
-                expression_context,
-                wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.VALIDATION,
-                "custom_message",
-                validate_with_evaluation=False,
-            )
-        except WTFormRenderableException as e:
-            valid_to_save = False
-            wt_form.handle_exception(e, field_name="custom_message")
+            wt_form.handle_exception(e)
 
-        if valid_to_save:
-            expression = CustomExpression.build_from_form(wt_form)
-
-            try:
-                interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
-
-            except IncompatibleDataTypeException as e:
-                wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
-            except WTFormRenderableException as e:
-                wt_form.handle_exception(e)
-
-            else:
-                if "question" in session:
-                    del session["question"]
-                return redirect(
-                    url_for(
-                        "deliver_grant_funding.edit_question",
-                        grant_id=grant_id,
-                        question_id=question.id,
-                    )
+        else:
+            if "question" in session:
+                del session["question"]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
                 )
+            )
+
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )
@@ -2726,6 +2680,11 @@ def edit_custom_question_validation(  # noqa:C901
     wt_form = CustomValidationExpressionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
         obj=expression.custom if not add_context_data else None,
+        question=question,
+        expression_context=ExpressionContext.build_expression_context(
+            question.form.collection,
+            "interpolation",
+        ),
     )
     if wt_form and wt_form.is_submitted_to_add_context():
         form_data = wt_form.get_expression_form_data()
@@ -2741,56 +2700,26 @@ def edit_custom_question_validation(  # noqa:C901
             is_custom=True,
         )
     if wt_form and wt_form.validate_on_submit():
-        expression_context = ExpressionContext.build_expression_context(
-            question.form.collection,
-            "interpolation",
-        )
-        valid_to_save = True
+        custom_expression = CustomExpression.build_from_form(wt_form)
+
         try:
-            _validate_custom_syntax(
-                question,
-                expression_context,
-                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.VALIDATION,
-                "custom_expression",
-                validate_with_evaluation=True,
-            )
+            interfaces.collections.update_question_expression(expression, custom_expression)
+        except IncompatibleDataTypeException as e:
+            wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
         except WTFormRenderableException as e:
-            valid_to_save = False
-            wt_form.handle_exception(e, field_name="custom_expression")
-        try:
-            _validate_custom_syntax(
-                question,
-                expression_context,
-                wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.VALIDATION,
-                "custom_message",
-                validate_with_evaluation=False,
-            )
-        except WTFormRenderableException as e:
-            valid_to_save = False
-            wt_form.handle_exception(e, field_name="custom_message")
+            wt_form.handle_exception(e)
 
-        if valid_to_save:
-            custom_expression = CustomExpression.build_from_form(wt_form)
-
-            try:
-                interfaces.collections.update_question_expression(expression, custom_expression)
-            except IncompatibleDataTypeException as e:
-                wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
-            except WTFormRenderableException as e:
-                wt_form.handle_exception(e)
-
-            else:
-                if "question" in session:
-                    del session["question"]
-                return redirect(
-                    url_for(
-                        "deliver_grant_funding.edit_question",
-                        grant_id=grant_id,
-                        question_id=question.id,
-                    )
+        else:
+            if "question" in session:
+                del session["question"]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
                 )
+            )
+
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )

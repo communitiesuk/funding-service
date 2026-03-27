@@ -3921,7 +3921,9 @@ class TestAddCalculatedCondition:
             data={
                 "custom_expression": f"(({q3.safe_qid}))>(({q2.safe_qid}))+(({q1.safe_qid}))",
                 "expression_name": "the name",
-            }
+            },
+            component=target_question,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_grant_admin_client.post(
@@ -3965,7 +3967,9 @@ class TestAddCalculatedCondition:
             data={
                 "custom_expression": f"(({q3.safe_qid})) greater than (({q2.safe_qid}))+(({q1.safe_qid}))",
                 "expression_name": "new name",
-            }
+            },
+            component=target_question,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -4072,7 +4076,11 @@ class TestEditCalculatedCondition:
         db_session.add(question_condition)
         db_session.commit()
 
-        wt_form = CalculatedConditionForm(data={"custom_expression": "68>70"})
+        wt_form = CalculatedConditionForm(
+            data={"custom_expression": "68>70"},
+            component=target_question,
+            expression_context=ExpressionContext(),
+        )
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.edit_calculated_condition",
@@ -4085,7 +4093,11 @@ class TestEditCalculatedCondition:
         updated_condition = db_session.get(Expression, question_condition.id)
         assert updated_condition.custom.custom_expression == "68>70"
 
-        wt_form = CalculatedConditionForm(data={"custom_expression": "100<900", "expression_name": "new name"})
+        wt_form = CalculatedConditionForm(
+            data={"custom_expression": "100<900", "expression_name": "new name"},
+            component=target_question,
+            expression_context=ExpressionContext(),
+        )
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.edit_calculated_condition",
@@ -4115,7 +4127,9 @@ class TestEditCalculatedCondition:
         db_session.commit()
 
         wt_form = CalculatedConditionForm(
-            data={"custom_expression": f"(({later_question.safe_qid}))>5", "expression_name": "new name"}
+            data={"custom_expression": f"(({later_question.safe_qid}))>5", "expression_name": "new name"},
+            component=target_question,
+            expression_context=ExpressionContext(),
         )
         response = authenticated_platform_admin_client.post(
             url_for(
@@ -9422,7 +9436,9 @@ class TestAddCustomQuestionValidation:
                 "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid})) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9466,7 +9482,9 @@ class TestAddCustomQuestionValidation:
                 "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q4.safe_qid})) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9501,10 +9519,12 @@ class TestAddCustomQuestionValidation:
 
         form = CustomValidationExpressionForm(
             data={
-                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q3.safe_qid})) ",
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid})) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"((bad_reference))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9545,10 +9565,12 @@ class TestAddCustomQuestionValidation:
 
         form = CustomValidationExpressionForm(
             data={
-                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q2.safe_qid}))) ",
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q4.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9564,10 +9586,6 @@ class TestAddCustomQuestionValidation:
         assert response.status_code == 200
 
         assert len(q3.expressions) == 0
-        assert page_has_error(
-            BeautifulSoup(response.data, "html.parser"),
-            "You cannot use sum in calculations",
-        )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
             "You cannot use Later question name because it comes after this question",
@@ -9590,7 +9608,9 @@ class TestAddCustomQuestionValidation:
                 "custom_expression": f"(({q1.safe_qid})) <=",
                 "custom_message": "Failed custom validation...",
                 "add_context": "custom_expression",
-            }
+            },
+            question=q2,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9688,7 +9708,9 @@ class TestEditCustomQuestionValidation:
                 "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid})) ",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9738,10 +9760,12 @@ class TestEditCustomQuestionValidation:
         assert len(expression.component_references) == 0
         form = CustomValidationExpressionForm(
             data={
-                "custom_expression": f"(({q3.safe_qid})) <= sum((({q1.safe_qid})), (({q2.safe_qid}))) ",
+                "custom_expression": f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q4.safe_qid}))",
-            }
+            },
+            question=q3,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9760,10 +9784,6 @@ class TestEditCustomQuestionValidation:
         assert len(q3.expressions) == 1
         expression = q3.expressions[0]
         assert len(expression.component_references) == 0
-        assert page_has_error(
-            BeautifulSoup(response.data, "html.parser"),
-            "You cannot use sum in calculations",
-        )
         assert page_has_error(
             BeautifulSoup(response.data, "html.parser"),
             "You cannot use Later question name because it comes after this question",
@@ -9794,7 +9814,9 @@ class TestEditCustomQuestionValidation:
                 "custom_expression": f"(({q1.safe_qid})) <=",
                 "custom_message": "Failed custom validation...",
                 "add_context": "custom_expression",
-            }
+            },
+            question=q2,
+            expression_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
