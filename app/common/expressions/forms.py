@@ -194,8 +194,8 @@ def _validate_custom_syntax(  # noqa:C901
     field_name: str,
     validate_with_evaluation: bool = True,
 ) -> None:
-
     validated_references = []
+
     try:
         unvalidated_references = _find_all_references_in_expression(statement)
         for ref in unvalidated_references:
@@ -209,46 +209,32 @@ def _validate_custom_syntax(  # noqa:C901
             )
             validated_references.append(unwrapped_ref)
 
-    except WTFormRenderableException as e:
-        if isinstance(e, IncompatibleDataTypeException):
-            raise IncompatibleDataTypeInCalculationException(e) from e
-        raise
+        if not validate_with_evaluation:
+            # No further validation needed for custom error message
+            return
 
-    if not validate_with_evaluation:
-        # No further validation needed for custom error message
-        return
+        if expression_type == ExpressionType.VALIDATION and component.is_question:
+            references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
+            if references_to_self_count != 1:
+                raise DisallowedExpression(
+                    message=(
+                        f"Expression contains {references_to_self_count} references to question {component.id}, "
+                        "should contain exactly 1"
+                    ),
+                    form_error_message="The expression must include exactly one reference to this question",
+                )
 
-    if expression_type == ExpressionType.VALIDATION and component.is_question:
-        references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
-        if references_to_self_count != 1:
-            e = DisallowedExpression(
-                message=(
-                    f"Expression contains {references_to_self_count} references to question {component.id}, "
-                    "should contain exactly 1"
-                ),
-                form_error_message="The expression must include exactly one reference to this question",
-            )
-            emit_metric_count(
-                MetricEventName.CALCULATION_FIELD_INVALID,
-                1,
-                custom_attributes={
-                    MetricAttributeName.CALCULATION_INVALID_FIELD: field_name,
-                    MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
-                },
-            )
-            raise e
+        names = {}
+        for ref in validated_references:
+            # assume these are numbers as we can't do custom expressions unless using non number data
+            # types but we could check this
+            names[ref] = 1
+        evaluator = get_restricted_evaluator(names=names, required_functions={})
 
-    names = {}
-    for ref in validated_references:
-        # assume these are numbers as we can't do custom expressions unless using non number data
-        # types but we could check this
-        names[ref] = 1
-    evaluator = get_restricted_evaluator(names=names, required_functions={})
-
-    try:
         result = run_evaluation(evaluator, statement)
         if not isinstance(result, bool):
             raise InvalidEvaluationResult(statement, result, bool)
+
     except WTFormRenderableException as e:
         emit_metric_count(
             MetricEventName.CALCULATION_FIELD_INVALID,
@@ -258,6 +244,8 @@ def _validate_custom_syntax(  # noqa:C901
                 MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
             },
         )
+        if isinstance(e, IncompatibleDataTypeException):
+            raise IncompatibleDataTypeInCalculationException(e) from e
         raise
 
 
@@ -309,11 +297,6 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
                 "custom_expression",
                 validate_with_evaluation=True,
             )
-        except WTFormRenderableException as e:
-            self.handle_exception(e, field_name="custom_expression")
-            return False
-
-        try:
             _validate_custom_syntax(
                 self.question,
                 self.expression_context,
@@ -322,6 +305,7 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
                 "custom_message",
                 validate_with_evaluation=False,
             )
+
         except WTFormRenderableException as e:
             self.handle_exception(e, field_name="custom_message")
             return False
@@ -378,8 +362,6 @@ class CalculatedConditionForm(ExceptionRenderingFormMixin, FlaskForm):
                 validate_with_evaluation=True,
             )
         except WTFormRenderableException as e:
-            if isinstance(e, IncompatibleDataTypeException):
-                e = IncompatibleDataTypeInCalculationException(e)
             self.handle_exception(e)
             return False
 
