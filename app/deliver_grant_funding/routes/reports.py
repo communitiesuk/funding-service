@@ -28,8 +28,6 @@ from app.common.data.interfaces.collections import (
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
     SectionDependencyOrderException,
-    _find_all_references_in_expression,
-    _validate_reference,
     create_collection,
     create_form,
     create_group,
@@ -87,11 +85,7 @@ from app.common.data.types import (
 )
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
-    DisallowedExpression,
     ExpressionContext,
-    InvalidEvaluationResult,
-    get_restricted_evaluator,
-    run_evaluation,
 )
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.forms import (
@@ -149,7 +143,7 @@ from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Expression, Group, Question
+    from app.common.data.models import Expression, Group, Question
 
 SessionModelType = (
     AddConditionDependsOnSessionModel
@@ -3346,79 +3340,3 @@ def download_data_source_csv(grant_id: UUID, report_id: UUID, data_source_id: UU
     filename = secure_filename(data_source.file_metadata.original_filename)
 
     return send_file(io.BytesIO(file_bytes), mimetype="text/csv", as_attachment=True, download_name=filename, max_age=0)
-
-
-# TODO break this down so it's less complicated
-def _validate_custom_syntax(  # noqa:C901
-    component: Component,
-    expression_context: ExpressionContext,
-    statement: str,
-    expression_type: ExpressionType,
-    field_name: str,
-    validate_with_evaluation: bool = True,
-) -> None:
-
-    validated_references = []
-    try:
-        unvalidated_references = _find_all_references_in_expression(statement)
-        for ref in unvalidated_references:
-            unwrapped_ref = _validate_reference(
-                wrapped_reference=ref,
-                attached_to_component=component,
-                expression_context=expression_context,
-                expression_type=expression_type,
-                field_name_for_error_message=field_name,
-                question_to_test=None,
-            )
-            validated_references.append(unwrapped_ref)
-
-    except WTFormRenderableException as e:
-        if isinstance(e, IncompatibleDataTypeException):
-            raise IncompatibleDataTypeInCalculationException(e) from e
-        raise
-
-    if not validate_with_evaluation:
-        # No further validation needed for custom error message
-        return
-
-    if expression_type == ExpressionType.VALIDATION and component.is_question:
-        references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
-        if references_to_self_count != 1:
-            e = DisallowedExpression(
-                message=(
-                    f"Expression contains {references_to_self_count} references to question {component.id}, "
-                    "should contain exactly 1"
-                ),
-                form_error_message="The expression must include exactly one reference to this question",
-            )
-            emit_metric_count(
-                MetricEventName.CALCULATION_FIELD_INVALID,
-                1,
-                custom_attributes={
-                    MetricAttributeName.CALCULATION_INVALID_FIELD: field_name,
-                    MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
-                },
-            )
-            raise e
-
-    names = {}
-    for ref in validated_references:
-        # assume these are numbers as we can't do custom expressions unless using non number data
-        # types but we could check this
-        names[ref] = 1
-    evaluator = get_restricted_evaluator(names=names, required_functions={})
-
-    try:
-        result = run_evaluation(evaluator, statement)
-        if not isinstance(result, bool):
-            raise InvalidEvaluationResult(statement, result, bool)
-    except WTFormRenderableException as e:
-        emit_metric_count(
-            MetricEventName.CALCULATION_FIELD_INVALID,
-            1,
-            custom_attributes={
-                MetricAttributeName.CALCULATION_INVALID_FIELD: field_name,
-                MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
-            },
-        )
-        raise

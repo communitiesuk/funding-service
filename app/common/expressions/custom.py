@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 from pydantic import TypeAdapter
 
 from app.common.expressions import EvaluatableExpression
-from app.common.expressions.forms import CalculatedConditionForm, CustomValidationExpressionForm
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression
+    from app.common.expressions.forms import CalculatedConditionForm, CustomValidationExpressionForm
 
 
 class CustomExpression(EvaluatableExpression):
@@ -35,6 +35,8 @@ class CustomExpression(EvaluatableExpression):
 
     @classmethod
     def build_from_form(cls, form: CustomValidationExpressionForm | CalculatedConditionForm) -> CustomExpression:
+        from app.common.expressions.forms import CustomValidationExpressionForm
+
         if isinstance(form, CustomValidationExpressionForm):
             return CustomExpression(
                 custom_expression=form.custom_expression.data,  # ty:ignore[invalid-argument-type]
