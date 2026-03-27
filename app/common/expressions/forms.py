@@ -173,7 +173,7 @@ def build_managed_expression_form(
     return ManagedExpressionForm
 
 
-class ExceptionRenderingForm(FlaskForm):
+class ExceptionRenderingFormMixin:
     def handle_exception(self, e: WTFormRenderableException, field_name: str | None = None) -> None:
         if e.field_name:
             field_with_error = getattr(self, e.field_name)
@@ -261,7 +261,7 @@ def _validate_custom_syntax(  # noqa:C901
         raise
 
 
-class CustomValidationExpressionForm(ExceptionRenderingForm):
+class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
     def is_submitted_to_add_context(self) -> bool:
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
 
@@ -329,7 +329,7 @@ class CustomValidationExpressionForm(ExceptionRenderingForm):
         return True
 
 
-class CalculatedConditionForm(ExceptionRenderingForm):
+class CalculatedConditionForm(ExceptionRenderingFormMixin, FlaskForm):
     def is_submitted_to_add_context(self) -> bool:
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
 
