@@ -2003,6 +2003,7 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
                 url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=component_id)
             )
 
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=component.form.collection, expression_context_end_point=component
     )
@@ -2089,6 +2090,7 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
             del session["question"]
         return redirect(return_url)
 
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=component.form.collection, expression_context_end_point=component
     )
@@ -2624,6 +2626,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
                 )
             )
 
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )
@@ -2714,6 +2717,7 @@ def edit_custom_question_validation(  # noqa:C901
                 )
             )
 
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )
