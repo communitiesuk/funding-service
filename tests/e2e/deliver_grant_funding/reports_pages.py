@@ -639,25 +639,38 @@ class SelectConditionCalculationPage(ReportsBasePage):
         self.section_name = section_name
         self.component_name = component_name
         self.continue_btn = page.get_by_role("button", name="Continue")
+        self.expect_calculated_condition = False
 
     def click_yes_need_calculation(self) -> None:
         self.page.get_by_role("radio", name="Yes").click()
-        raise NotImplementedError("Not yet built calculated condition pages")
+        self.expect_calculated_condition = True
 
     def click_no_calculation(self) -> None:
         self.page.get_by_role("radio", name="No").click()
 
-    def click_continue(self) -> AddConditionPage:
+    def click_continue(self) -> AddConditionPage | CreateCalculatedConditionPage:
         self.continue_btn.click()
-        add_condition_page = AddConditionPage(
-            self.page,
-            self.domain,
-            grant_name=self.grant_name,
-            report_name=self.report_name,
-            section_name=self.section_name,
-        )
-        expect(add_condition_page.heading).to_be_visible()
-        return add_condition_page
+        if self.expect_calculated_condition:
+            calculated_condition_page = CreateCalculatedConditionPage(
+                self.page,
+                self.domain,
+                grant_name=self.grant_name,
+                report_name=self.report_name,
+                section_name=self.section_name,
+                component_name=self.component_name,
+            )
+            expect(calculated_condition_page.heading).to_be_visible()
+            return calculated_condition_page
+        else:
+            add_condition_page = AddConditionPage(
+                self.page,
+                self.domain,
+                grant_name=self.grant_name,
+                report_name=self.report_name,
+                section_name=self.section_name,
+            )
+            expect(add_condition_page.heading).to_be_visible()
+            return add_condition_page
 
 
 class AddGuidancePage(ReportsBasePage):
@@ -804,6 +817,31 @@ class AddGuidancePage(ReportsBasePage):
         self.click_write_guidance_tab()
 
 
+def _fill_custom_field(
+    reports_page: ReportsBasePage,
+    field: Locator,
+    reference_data_btn: Locator,
+    value: str,
+    references: dict[str, DataReferenceConfig],
+) -> None:
+    parts_of_expression = value.split(" ")
+    for part in parts_of_expression:
+        if part.startswith("((") and part.endswith("))"):
+            part = part.strip()
+            reference_key = part[2:-2]
+            context_source = references.get(reference_key)
+            if context_source:
+                reference_data_btn.click()
+                _reference_data_flow(
+                    SelectDataSourcePage(reports_page.page, reports_page.domain, reports_page.grant_name),
+                    context_source,
+                )
+            else:
+                raise ValueError(f"No data reference found for key: {reference_key}")
+        else:
+            field.press_sequentially(f" {part}")
+
+
 class CreateCustomExpressionPage(ReportsBasePage):
     add_validation_button: Locator
 
@@ -827,35 +865,18 @@ class CreateCustomExpressionPage(ReportsBasePage):
         self.custom_message_textarea = get_context_aware_textbox_locator_by_name(page, name="Message")
         self.add_data_to_message_button = self.page.get_by_role("button", name="Reference data for message")
 
-    def _fill_custom_field(
-        self, field: Locator, reference_data_btn: Locator, value: str, references: dict[str, DataReferenceConfig]
-    ) -> None:
-        parts_of_expression = value.split(" ")
-        for part in parts_of_expression:
-            if part.startswith("((") and part.endswith("))"):
-                part = part.strip()
-                reference_key = part[2:-2]
-                context_source = references.get(reference_key)
-                if context_source:
-                    reference_data_btn.click()
-                    _reference_data_flow(SelectDataSourcePage(self.page, self.domain, self.grant_name), context_source)
-                else:
-                    raise ValueError(f"No data reference found for key: {reference_key}")
-            else:
-                field.press_sequentially(f" {part}")
-
     def configure_custom_expression(
         self, expression: str, expression_references: dict[str, DataReferenceConfig]
     ) -> None:
         wait_for_context_aware_textarea_to_be_ready(self.page, "custom_expression")
-        self._fill_custom_field(
-            self.custom_expression_textarea, self.add_data_to_expression_button, expression, expression_references
+        _fill_custom_field(
+            self, self.custom_expression_textarea, self.add_data_to_expression_button, expression, expression_references
         )
 
     def configure_custom_message(self, expression: str, message_references: dict[str, DataReferenceConfig]) -> None:
         wait_for_context_aware_textarea_to_be_ready(self.page, "custom_message")
-        self._fill_custom_field(
-            self.custom_message_textarea, self.add_data_to_message_button, expression, message_references
+        _fill_custom_field(
+            self, self.custom_message_textarea, self.add_data_to_message_button, expression, message_references
         )
 
     def click_create_custom_validation_expression(self) -> "EditQuestionPage":
@@ -870,6 +891,63 @@ class CreateCustomExpressionPage(ReportsBasePage):
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
+
+
+class CreateCalculatedConditionPage(ReportsBasePage):
+    add_condition_button: Locator
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str, component_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Create a calculated condition"),
+        )
+        self.report_name = report_name
+        self.section_name = section_name
+        self.attached_component_name = component_name
+        self.add_condition_button = self.page.get_by_role("button", name="Add calculated condition")
+
+        self.calculation_name_input = self.page.get_by_role("textbox", name="Condition name")
+        self.custom_expression_textarea = get_context_aware_textbox_locator_by_name(page, "Calculation")
+        self.add_data_to_expression_button = self.page.get_by_role("button", name="Reference data for calculation")
+
+    def configure_custom_expression(
+        self, expression: str, expression_references: dict[str, DataReferenceConfig]
+    ) -> None:
+        wait_for_context_aware_textarea_to_be_ready(self.page, "custom_expression")
+        _fill_custom_field(
+            self, self.custom_expression_textarea, self.add_data_to_expression_button, expression, expression_references
+        )
+
+    def fill_calculation_name(self, calculation_name: str) -> None:
+        self.calculation_name_input.fill(calculation_name)
+
+    def click_create_calculated_condition(self, edit_page) -> "EditQuestionPage" | "EditQuestionGroupPage":
+        self.add_condition_button.click()
+
+        if isinstance(edit_page, EditQuestionGroupPage):
+            edit_page = EditQuestionGroupPage(
+                self.page,
+                self.domain,
+                grant_name=self.grant_name,
+                report_name=self.report_name,
+                section_name=self.section_name,
+                group_name=edit_page.group_name,
+            )
+        else:
+            edit_page = EditQuestionPage(
+                self.page,
+                self.domain,
+                grant_name=self.grant_name,
+                report_name=self.report_name,
+                section_name=self.section_name,
+                question_name=self.attached_component_name,
+            )
+        expect(edit_page.heading).to_be_visible()
+        return edit_page
 
 
 class AddValidationPage(ReportsBasePage):
