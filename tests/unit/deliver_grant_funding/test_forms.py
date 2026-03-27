@@ -405,7 +405,7 @@ class TestSelectDataSourceQuestionForm:
             str(date_question.id),
         }
 
-    def test_managed_expression_excludes_unregistered_data_types(self, app, factories, mocker):
+    def test_managed_expression_excludes_mismatched_data_types(self, app, factories, mocker):
         multi_line_question = factories.question.build(data_type=QuestionDataType.TEXT_MULTI_LINE)
         yes_no_question = factories.question.build(form=multi_line_question.form, data_type=QuestionDataType.YES_NO)
         integer_questions = factories.question.build_batch(
@@ -426,11 +426,10 @@ class TestSelectDataSourceQuestionForm:
             managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
         )
 
-        assert len(form.question.choices) == 4
-        # '' is the default "no answer" choice; TEXT_MULTI_LINE excluded as it has no registered expressions
+        assert len(form.question.choices) == 3
+        # '' is the default "no answer" choice
         assert {q[0] for q in form.question.choices} == {
             "",
-            str(yes_no_question.id),
             str(integer_questions[0].id),
             str(integer_questions[1].id),
         }
