@@ -8,6 +8,7 @@ from wtforms.validators import DataRequired
 
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.exceptions import WTFormRenderableException
+from app.common.expressions import ExpressionContext
 from app.common.expressions.registry import (
     get_managed_conditions_by_data_type,
     get_managed_validators_by_data_type,
@@ -15,7 +16,7 @@ from app.common.expressions.registry import (
 )
 
 if TYPE_CHECKING:
-    from app.common.data.models import Expression, Question
+    from app.common.data.models import Component, Expression, Question
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -192,6 +193,11 @@ class CustomValidationExpressionForm(ExceptionRenderingForm):
     )
     submit = SubmitField("Add validation", widget=GovSubmitInput())
 
+    def __init__(self, *args, question: Question, expression_context: ExpressionContext, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.question = question
+        self.expression_context = expression_context
+
     def get_expression_form_data(self) -> dict[str, Any]:
         data = {
             "custom_expression": self.custom_expression.data,
@@ -199,6 +205,40 @@ class CustomValidationExpressionForm(ExceptionRenderingForm):
             "add_context": self.add_context.data,
         }
         return data
+
+    def validate(self, extra_validators=None) -> bool:
+        from app.deliver_grant_funding.routes.reports import _validate_custom_syntax
+
+        if not super().validate(extra_validators):
+            return False
+
+        try:
+            _validate_custom_syntax(
+                self.question,
+                self.expression_context,
+                self.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+            )
+        except WTFormRenderableException as e:
+            self.handle_exception(e, field_name="custom_expression")
+            return False
+
+        try:
+            _validate_custom_syntax(
+                self.question,
+                self.expression_context,
+                self.custom_message.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.VALIDATION,
+                "custom_message",
+                validate_with_evaluation=False,
+            )
+        except WTFormRenderableException as e:
+            self.handle_exception(e, field_name="custom_message")
+            return False
+
+        return True
 
 
 class CalculatedConditionForm(ExceptionRenderingForm):
@@ -218,6 +258,11 @@ class CalculatedConditionForm(ExceptionRenderingForm):
     )
     submit = SubmitField("Add calculated condition", widget=GovSubmitInput())
 
+    def __init__(self, *args, component: Component, expression_context: ExpressionContext, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.component = component
+        self.expression_context = expression_context
+
     def get_expression_form_data(self) -> dict[str, Any]:
         data = {
             "expression_name": self.expression_name.data,
@@ -225,3 +270,30 @@ class CalculatedConditionForm(ExceptionRenderingForm):
             "add_context": self.add_context.data,
         }
         return data
+
+    def validate(self, extra_validators=None) -> bool:
+        from app.common.data.interfaces.collections import (
+            IncompatibleDataTypeException,
+            IncompatibleDataTypeInCalculationException,
+        )
+        from app.deliver_grant_funding.routes.reports import _validate_custom_syntax
+
+        if not super().validate(extra_validators):
+            return False
+
+        try:
+            _validate_custom_syntax(
+                self.component,
+                self.expression_context,
+                self.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.CONDITION,
+                "custom_expression",
+                validate_with_evaluation=True,
+            )
+        except WTFormRenderableException as e:
+            if isinstance(e, IncompatibleDataTypeException):
+                e = IncompatibleDataTypeInCalculationException(e)
+            self.handle_exception(e)
+            return False
+
+        return True
