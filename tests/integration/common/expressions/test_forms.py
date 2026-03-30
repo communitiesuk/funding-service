@@ -295,7 +295,6 @@ class TestValidateCustomSyntax:
         )
         test_expression = f"(({q3.safe_qid})) < sum( (({q2.safe_qid})), (({q1.safe_qid})) )"
 
-        # exclude q1 from the context
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(UndefinedFunctionInExpression) as e:
@@ -315,7 +314,6 @@ class TestValidateCustomSyntax:
         )
         test_expression = f"(({q3.safe_qid})) < hello there"
 
-        # exclude q1 from the context
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(DisallowedExpression) as e:
@@ -338,7 +336,6 @@ class TestValidateCustomSyntax:
         )
         test_expression = f"(({q3.safe_qid})) < 2**3"
 
-        # exclude q1 from the context
         expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(UndefinedOperatorInExpression) as e:

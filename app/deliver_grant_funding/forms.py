@@ -1190,10 +1190,7 @@ class SelectConditionCalculationForm(FlaskForm):
     need_calculation = RadioField(
         "Do you need a calculation for the condition?",
         choices=[
-            (
-                "yes",
-                "Yes",
-            ),
+            ("yes", "Yes"),
             ("no", "No"),
         ],
         widget=GovRadioInput(),

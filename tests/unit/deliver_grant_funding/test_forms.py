@@ -326,7 +326,7 @@ class TestSelectDataSourceQuestionForm:
     def test_only_includes_earlier_questions_in_the_form_if_given_a_current_question(self, app, factories, mocker):
         questions = factories.question.build_batch(5, data_type=QuestionDataType.NUMBER)
 
-        # TODO: don't love these being mocked; move to an integration test instead?
+        # TODO[FSPT-1255]: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(questions[2].form, "cached_questions", questions)
         mocker.patch.object(questions[2].form, "cached_all_components", questions)
 
@@ -348,7 +348,7 @@ class TestSelectDataSourceQuestionForm:
         )
         questions = factories.question.build_batch(5, parent=group, data_type=QuestionDataType.NUMBER)
 
-        # TODO: don't love these being mocked; move to an integration test instead?
+        # TODO[FSPT-1255]: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(questions[2].form, "cached_questions", questions)
         mocker.patch.object(questions[2].form, "cached_all_components", [group] + questions)
 
@@ -384,7 +384,7 @@ class TestSelectDataSourceQuestionForm:
 
         all_questions = [text_question, yes_no_question, date_question, integer_question]
 
-        # TODO: don't love these being mocked; move to an integration test instead?
+        # TODO[FSPT-1255]: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(text_question.form, "cached_questions", all_questions)
         mocker.patch.object(text_question.form, "cached_all_components", all_questions)
 
@@ -414,7 +414,7 @@ class TestSelectDataSourceQuestionForm:
 
         all_questions = [multi_line_question, yes_no_question] + integer_questions
 
-        # TODO: don't love these being mocked; move to an integration test instead?
+        # TODO[FSPT-1255]: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(multi_line_question.form, "cached_questions", all_questions)
         mocker.patch.object(multi_line_question.form, "cached_all_components", all_questions)
 
@@ -447,7 +447,7 @@ class TestSelectDataSourceQuestionForm:
 
         all_questions = [integer_q1, integer_q2, multi_line_question, integer_q3, integer_q4]
 
-        # TODO: don't love these being mocked; move to an integration test instead?
+        # TODO[FSPT-1255]: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(group.form, "cached_questions", all_questions)
         mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
 
@@ -465,7 +465,7 @@ class TestSelectDataSourceQuestionForm:
     def test_calculated_condition_excludes_unregistered_data_types(self, app, factories, mocker):
         integer_q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
         integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.NUMBER)
-        multi_line_q = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+        multi_line_q = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.YES_NO)
         text_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_MULTI_LINE)
 
         group = factories.group.build(
@@ -478,7 +478,7 @@ class TestSelectDataSourceQuestionForm:
 
         all_questions = [integer_q1, multi_line_q, integer_q2, text_question, integer_q3, text_q4]
 
-        # TODO: don't love these being mocked; move to an integration test instead?
+        # TODO[FSPT-1255]: don't love these being mocked; move to an integration test instead?
         mocker.patch.object(group.form, "cached_questions", all_questions)
         mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
 

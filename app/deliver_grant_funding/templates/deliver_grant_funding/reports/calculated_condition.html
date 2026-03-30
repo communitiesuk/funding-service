@@ -97,7 +97,7 @@
 
             <p class="govuk-body">If the user's answers meets the conditions because their total spend answer is greater than the forecast spend, the user will need to answer this conditional question.</p>
 
-            {{ equation_symbols(include_comparators=True) }}
+            {{ equation_symbols() }}
           {% endset %}
           {{
             govukDetails({
