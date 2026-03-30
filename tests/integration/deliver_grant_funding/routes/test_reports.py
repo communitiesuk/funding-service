@@ -8391,9 +8391,9 @@ class TestDataSetMissingData:
         assert data_source.grant_id == authenticated_grant_admin_client.grant.id
         schema = data_source.schema.root
         assert schema is not None
-        assert "capital-allocation" in schema
-        assert "revenue-allocation" in schema
-        revenue_allocation = schema["revenue-allocation"]
+        assert "c_capital_allocation" in schema
+        assert "c_revenue_allocation" in schema
+        revenue_allocation = schema["c_revenue_allocation"]
         assert revenue_allocation.presentation_options.prefix == "£"
 
         org_items = (
@@ -8405,7 +8405,7 @@ class TestDataSetMissingData:
         assert len(org_items) == 2
         assert org_items[0].external_id == grant_recipient.organisation.external_id
         assert org_items[1].external_id == grant_recipient_2.organisation.external_id
-        assert org_items[1]._data["revenue-allocation"] == "200.00"
+        assert org_items[1]._data["c_revenue_allocation"] == "200.00"
 
 
 class TestViewDataSource:

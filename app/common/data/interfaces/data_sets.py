@@ -21,7 +21,7 @@ from app.common.data.types import (
     TUnvalidatedDataSetRow,
     TUnvalidatedDataSetRows,
 )
-from app.common.utils import slugify
+from app.common.safe_ids import safe_column_id
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 from app.extensions import db, s3_service
@@ -84,7 +84,7 @@ def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMappin
             presentation_options = QuestionPresentationOptions()
             data_options = QuestionDataOptions()
 
-        schema_dict[slugify(mapping.column_name)] = DataSourceSchemaColumn(
+        schema_dict[safe_column_id(mapping.column_name)] = DataSourceSchemaColumn(
             data_type=mapping.data_type,
             presentation_options=presentation_options,
             data_options=data_options,
@@ -120,7 +120,7 @@ def _build_data_blob(
     identifier_columns: list[str],
 ) -> dict[str, str | int | None]:
     return {
-        slugify(col): _clean_value(row.get(col, ""), mappings[col])
+        safe_column_id(col): _clean_value(row.get(col, ""), mappings[col])
         for col in row
         if col not in identifier_columns and col in mappings
     }

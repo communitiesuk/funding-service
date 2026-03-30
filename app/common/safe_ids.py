@@ -5,6 +5,8 @@
 #     question_id: uuid.UUID
 import uuid
 
+from app.common.utils import slugify
+
 
 class SafeQidMixin:
     # This attribute must be defined on the inheriting class
@@ -44,3 +46,18 @@ class SafeDidMixin:
             return uuid.UUID(safe_did[2:])
 
         return None
+
+
+def safe_column_id(text: str) -> str:
+    """
+    Similar to `slugify`, convert a string to a safe Python identifier string containing only lowercase alphanumeric
+    characters and underscores (rather than hyphens) and prefaced with `c_`.
+    :param text: The string to turn into a safe Python identifier
+    :return: The resulting identifier
+
+    For example:
+        - "Hello World" -> "c_hello_world"
+        - "Special #$@! Characters" -> "c_special_characters"
+        - "ångström unicode" -> "c_ngstrm_unicode"
+    """
+    return "c_" + slugify(text).replace("-", "_")
