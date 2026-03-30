@@ -24,3 +24,23 @@ class SafeQidMixin:
             return uuid.UUID(safe_qid[2:])
 
         return None
+
+
+class SafeDidMixin:
+    # This attribute must be defined on the inheriting class
+    data_source_id: uuid.UUID
+
+    @property
+    def safe_did(self) -> str:
+        """
+        Returns the data source ID in a format that is suitable for using as a Python variable/attribute name, for
+        feeding into some of our dynamic systems (form generation, expression evaluation, etc).
+        """
+        return "d_" + self.data_source_id.hex
+
+    @staticmethod
+    def safe_did_to_id(safe_did: str) -> uuid.UUID | None:
+        if safe_did.startswith("d_"):
+            return uuid.UUID(safe_did[2:])
+
+        return None

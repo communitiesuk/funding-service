@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from app.common.data.types import ManagedExpressionsEnum
 from app.common.exceptions import WTFormRenderableException
-from app.common.qid import SafeQidMixin
+from app.common.safe_ids import SafeQidMixin
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:

@@ -49,7 +49,7 @@ from app.common.expressions.custom import CustomExpression, get_custom_expressio
 from app.common.expressions.managed import (
     get_managed_expression,
 )
-from app.common.qid import SafeQidMixin
+from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import comma_join_items
 
 if TYPE_CHECKING:
@@ -961,7 +961,7 @@ class Expression(BaseModel):
         return {}
 
 
-class DataSource(BaseModel):
+class DataSource(BaseModel, SafeDidMixin):
     __tablename__ = "data_source"
 
     type: Mapped[DataSourceType] = mapped_column(
@@ -1044,6 +1044,11 @@ class DataSource(BaseModel):
             unique=True,
         ),
     )
+
+    @property
+    def data_source_id(self) -> uuid.UUID:
+        """A small proxy to support SafeDidMixin so that logic can be centralised."""
+        return self.id
 
     def build_typed_org_item_data(
         self,
