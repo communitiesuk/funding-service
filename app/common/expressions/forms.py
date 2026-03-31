@@ -1,21 +1,35 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from markupsafe import Markup
 from wtforms import RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired
 
+from app.common.data.interfaces.collections import (
+    IncompatibleDataTypeException,
+    IncompatibleDataTypeInCalculationException,
+    _find_all_references_in_expression,
+    _validate_reference,
+)
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.exceptions import WTFormRenderableException
+from app.common.expressions import (
+    DisallowedExpression,
+    ExpressionContext,
+    InvalidEvaluationResult,
+    get_restricted_evaluator,
+    run_evaluation,
+)
 from app.common.expressions.registry import (
     get_managed_conditions_by_data_type,
     get_managed_validators_by_data_type,
     lookup_managed_expression,
 )
+from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
-    from app.common.data.models import Expression, Question
+    from app.common.data.models import Component, Expression, Question
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -159,7 +173,87 @@ def build_managed_expression_form(
     return ManagedExpressionForm
 
 
-class CustomValidationExpressionForm(FlaskForm):
+class HasFormErrors(Protocol):
+    form_errors: list[str]
+
+
+class ExceptionRenderingFormMixin:
+    def handle_exception(self: HasFormErrors, e: WTFormRenderableException, field_name: str | None = None) -> None:
+        if e.field_name:
+            field_with_error = getattr(self, e.field_name)
+        elif field_name:
+            field_with_error = getattr(self, field_name)
+        else:
+            self.form_errors.append(e.form_error_message)
+            return
+        field_with_error.errors.append(e.form_error_message)
+
+
+# TODO break this down so it's less complicated
+def _validate_custom_syntax(  # noqa:C901
+    component: Component,
+    expression_context: ExpressionContext,
+    statement: str,
+    expression_type: ExpressionType,
+    field_name: str,
+    validate_with_evaluation: bool = True,
+) -> None:
+    validated_references = []
+
+    try:
+        unvalidated_references = _find_all_references_in_expression(statement)
+        for ref in unvalidated_references:
+            unwrapped_ref = _validate_reference(
+                wrapped_reference=ref,
+                attached_to_component=component,
+                expression_context=expression_context,
+                expression_type=expression_type,
+                field_name_for_error_message=field_name,
+                question_to_test=None,
+            )
+            validated_references.append(unwrapped_ref)
+
+        if not validate_with_evaluation:
+            # No further validation needed for custom error message
+            return
+
+        if expression_type == ExpressionType.VALIDATION and component.is_question:
+            references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
+            if references_to_self_count != 1:
+                raise DisallowedExpression(
+                    message=(
+                        f"Expression contains {references_to_self_count} references to question {component.id}, "
+                        "should contain exactly 1"
+                    ),
+                    form_error_message="The expression must include exactly one reference to this question",
+                )
+
+        names = {}
+        for ref in validated_references:
+            # assume these are numbers as we can't do custom expressions unless using non number data
+            # types but we could check this
+            names[ref] = 1
+        evaluator = get_restricted_evaluator(names=names, required_functions={})
+
+        result = run_evaluation(evaluator, statement)
+        if not isinstance(result, bool):
+            raise InvalidEvaluationResult(statement, result, bool)
+
+    except WTFormRenderableException as e:
+        emit_metric_count(
+            MetricEventName.CALCULATION_FIELD_INVALID,
+            1,
+            custom_attributes={
+                MetricAttributeName.CALCULATION_INVALID_FIELD: field_name,
+                MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
+            },
+        )
+        if isinstance(e, IncompatibleDataTypeException):
+            raise IncompatibleDataTypeInCalculationException(e) from e
+        raise
+
+
+class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
     def is_submitted_to_add_context(self) -> bool:
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
 
@@ -180,6 +274,11 @@ class CustomValidationExpressionForm(FlaskForm):
     )
     submit = SubmitField("Add validation", widget=GovSubmitInput())
 
+    def __init__(self, *args, question: Question, expression_context: ExpressionContext, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.question = question
+        self.expression_context = expression_context
+
     def get_expression_form_data(self) -> dict[str, Any]:
         data = {
             "custom_expression": self.custom_expression.data,
@@ -188,12 +287,82 @@ class CustomValidationExpressionForm(FlaskForm):
         }
         return data
 
-    def handle_exception(self, e: WTFormRenderableException, field_name: str | None = None) -> None:
-        if e.field_name:
-            field_with_error = getattr(self, e.field_name)
-        elif field_name:
-            field_with_error = getattr(self, field_name)
-        else:
-            self.form_errors.append(e.form_error_message)
-            return
-        field_with_error.errors.append(e.form_error_message)
+    def validate(self, extra_validators=None) -> bool:
+
+        if not super().validate(extra_validators):
+            return False
+
+        try:
+            _validate_custom_syntax(
+                self.question,
+                self.expression_context,
+                self.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+            )
+            _validate_custom_syntax(
+                self.question,
+                self.expression_context,
+                self.custom_message.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.VALIDATION,
+                "custom_message",
+                validate_with_evaluation=False,
+            )
+
+        except WTFormRenderableException as e:
+            self.handle_exception(e, field_name="custom_message")
+            return False
+
+        return True
+
+
+class CalculatedConditionForm(ExceptionRenderingFormMixin, FlaskForm):
+    def is_submitted_to_add_context(self) -> bool:
+        return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
+
+    expression_name = StringField("Condition name", widget=GovTextInput(), validators=[DataRequired()])
+
+    custom_expression = StringField(
+        "Calculation",
+        widget=GovTextArea(),
+        validators=[DataRequired()],
+    )
+    add_context = StringField(
+        "Reference data",
+        widget=GovSubmitInput(),
+    )
+    submit = SubmitField("Add calculated condition", widget=GovSubmitInput())
+
+    def __init__(self, *args, component: Component, expression_context: ExpressionContext, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.component = component
+        self.expression_context = expression_context
+
+    def get_expression_form_data(self) -> dict[str, Any]:
+        data = {
+            "expression_name": self.expression_name.data,
+            "custom_expression": self.custom_expression.data,
+            "add_context": self.add_context.data,
+        }
+        return data
+
+    def validate(self, extra_validators=None) -> bool:
+
+        if not super().validate(extra_validators):
+            return False
+
+        try:
+            _validate_custom_syntax(
+                self.component,
+                self.expression_context,
+                self.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                ExpressionType.CONDITION,
+                "custom_expression",
+                validate_with_evaluation=True,
+            )
+        except WTFormRenderableException as e:
+            self.handle_exception(e)
+            return False
+
+        return True

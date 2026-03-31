@@ -163,7 +163,7 @@
 
         <div class="govuk-form-group">
           <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
-          <p class="govuk-body">Add conditions to only show this question if the grant recipient has answered one of the other questions in a particular way.</p>
+          <p class="govuk-body">Add conditions to only show this question if the grant recipient has answered other questions in a particular way.</p>
 
           {% with component=question %}
             {% include 'deliver_grant_funding/partials/component-conditions-operator-table.html' %}
@@ -174,35 +174,17 @@
           {% with component=question %}
             {% include 'deliver_grant_funding/partials/_implicit-conditions.html' %}
           {% endwith %}
-
-          {% for condition in question.conditions %}
-            {% set managed = condition.managed %}
-            {% set depends_on = managed.referenced_question %}
-
-
-            {% set key_html %}
-              {# todo: would users find it useful to be able to link to the question being depended on from here? #}
-              <span>{{ depends_on.data_reference_label }}</span>
-            {% endset %}
-
-
-            {% set value_html %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.edit_question_condition', grant_id=grant.id, component_id=question.id, expression_id=condition.id) }}">
-                <span class="govuk-visually-hidden">Change condition for</span>
-                {{ interpolate(condition.managed.message, with_interpolation_highlighting=True) }}
-              </a>
-            {% endset %}
-            {% do rows.append({ "key": { "html": key_html }, "value": { "html": value_html } }) %}
-          {% endfor %}
+          {% with component=question %}
+            {% include 'deliver_grant_funding/partials/_explicit-conditions.html' %}
+          {% endwith %}
 
           {% if rows %}
             {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
           {% endif %}
-
           {{
             govukButton({
               "text": "Add condition",
-              "href": url_for('deliver_grant_funding.add_question_condition_select_question', grant_id=grant.id, component_id=question.id),
+              "href": url_for('deliver_grant_funding.add_question_condition_select_calculation', grant_id=grant.id, component_id=question.id),
               "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
             })
           }}
