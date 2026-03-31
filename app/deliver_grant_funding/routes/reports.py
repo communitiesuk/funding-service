@@ -104,6 +104,7 @@ from app.constants import (
 )
 from app.deliver_grant_funding.data_sets import (
     build_data_set_upload_s3_key,
+    build_grant_recipient_comparison,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -2982,6 +2983,14 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
                     gr_errors=gr_errors,
                 )
 
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.review_data_set_grant_recipients",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                )
+            )
+
         return redirect(
             url_for(
                 "deliver_grant_funding.map_data_set_columns",
@@ -2996,6 +3005,33 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         report=report,
         form=form,
         gr_errors=gr_errors,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/review-grant-recipients", methods=["GET"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def review_data_set_grant_recipients(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    data_set_data = _extract_data_set_data_from_session()
+    if not data_set_data:
+        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+
+    file_bytes = s3_service.download_file(data_set_data.s3_key)
+    file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
+    _, rows = _parse_data_set_csv(file_storage)
+
+    grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+    comparisons = build_grant_recipient_comparison(grant_recipients, rows)
+
+    return render_template(
+        "deliver_grant_funding/reports/data_sets/review_grant_recipients.html",
+        grant=report.grant,
+        report=report,
+        session_data=data_set_data,
+        comparisons=comparisons,
     )
 
 

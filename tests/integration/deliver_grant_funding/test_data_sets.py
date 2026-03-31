@@ -6,6 +6,7 @@ from app.deliver_grant_funding.data_sets import (
     DataTypeError,
     DecimalError,
     PrefixError,
+    build_grant_recipient_comparison,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -389,7 +390,7 @@ class TestValidateDataSetGrantRecipients:
         errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'UNKNOWN' not found in grant recipients" in e for e in errors)
 
-    def test_unknown_recipient_name_is_error(self, factories):
+    def test_mismatched_recipient_name_is_not_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
@@ -400,7 +401,7 @@ class TestValidateDataSetGrantRecipients:
             }
         ]
         errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
-        assert any("Grant recipient 'Rogue Organisation' not found in grant recipients" in e for e in errors)
+        assert not errors
 
     def test_duplicate_external_id_is_error_for_grant_recipient_type(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
@@ -456,7 +457,6 @@ class TestValidateDataSetGrantRecipients:
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr2.organisation.external_id}' is missing from the CSV" in e
             for e in errors
         )
-        assert any(f"'{gr2.organisation.name}' is missing from the CSV" in e for e in errors)
 
     def test_external_id_without_recipient_name_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
@@ -568,11 +568,62 @@ class TestValidateDataSetGrantRecipients:
         assert any(
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr.organisation.external_id}' already appears" in e for e in errors
         )
-        assert any(f"Grant recipient '{gr.organisation.name}' already appears" in e for e in errors)
         assert any(
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr3.organisation.external_id}' is missing from the CSV" in e
             for e in errors
         )
-        assert any(f"'{gr3.organisation.name}' is missing from the CSV" in e for e in errors)
         assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'AB1111' not found in grant recipients" in e for e in errors)
-        assert any("Grant recipient 'Rivendell' not found in grant recipients" in e for e in errors)
+
+
+class TestBuildGrantRecipientComparison:
+    def test_matching_names(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="T0001", organisation__name="Council A")
+        all_rows = [
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Council A"},
+        ]
+        comparisons = build_grant_recipient_comparison([gr], all_rows)
+        assert len(comparisons) == 1
+        assert comparisons[0].external_id == "T0001"
+        assert comparisons[0].csv_name == "Council A"
+        assert comparisons[0].db_name == "Council A"
+        assert not comparisons[0].has_discrepancy
+
+    def test_mismatched_names(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="T0001", organisation__name="Council A")
+        all_rows = [
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Council B"},
+        ]
+        comparisons = build_grant_recipient_comparison([gr], all_rows)
+        assert len(comparisons) == 1
+        assert comparisons[0].csv_name == "Council B"
+        assert comparisons[0].db_name == "Council A"
+        assert comparisons[0].has_discrepancy
+
+    def test_unknown_external_id_is_skipped(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="T0001", organisation__name="Council A")
+        all_rows = [
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Council A"},
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "UNKNOWN", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rogue"},
+        ]
+        comparisons = build_grant_recipient_comparison([gr], all_rows)
+        assert len(comparisons) == 1
+        assert comparisons[0].external_id == "T0001"
+
+    def test_duplicate_external_id_only_included_once(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="T0001", organisation__name="Council A")
+        all_rows = [
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Council A"},
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Council A"},
+        ]
+        comparisons = build_grant_recipient_comparison([gr], all_rows)
+        assert len(comparisons) == 1
+
+    def test_empty_rows_are_skipped(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="T0001", organisation__name="Council A")
+        all_rows = [
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: ""},
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Council A"},
+        ]
+        comparisons = build_grant_recipient_comparison([gr], all_rows)
+        assert len(comparisons) == 1
+        assert comparisons[0].external_id == "T0001"

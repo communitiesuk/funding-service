@@ -7260,7 +7260,7 @@ class TestUploadDataSet:
 
         assert response.status_code == 302
         assert response.location == (
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id)
+            url_for("deliver_grant_funding.review_data_set_grant_recipients", grant_id=grant.id, report_id=report.id)
         )
         assert len(mock_s3_service_calls.upload_file_calls) == 1
 
@@ -7361,13 +7361,10 @@ class TestUploadDataSet:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E123' already appears in the data set")
-        assert page_has_error(soup, "Grant recipient 'Rogue' not found in grant recipients")
         assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E789' not found in grant recipients")
-        assert page_has_error(soup, "Grant recipient 'Mordor' not found in grant recipients")
         assert page_has_error(
             soup, f"Grant recipient with {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E456' is missing from the CSV"
         )
-        assert page_has_error(soup, "Grant recipient 'Numenor' is missing from the CSV")
         assert len(mock_s3_service_calls.upload_file_calls) == 1
         assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.PENDING}
 
@@ -7583,6 +7580,125 @@ class TestUploadDataSet:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "The CSV file contains rows which are longer or shorter than the number of columns")
+
+
+class TestReviewDataSetGrantRecipients:
+    def test_404_for_non_admin(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.review_data_set_grant_recipients",
+                grant_id=uuid.uuid4(),
+                report_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    def test_redirects_to_upload_without_session(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.review_data_set_grant_recipients",
+                grant_id=grant.id,
+                report_id=report.id,
+            )
+        )
+        assert response.status_code == 302
+        assert url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id) in (
+            response.location
+        )
+
+    def test_get_renders_comparison_table(self, authenticated_grant_admin_client, factories, mocker):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Council A")
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Council B")
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Council A",
+                "Amount": "100",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E456",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Council B",
+                "Amount": "200",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["Amount"],
+                preview_rows=all_rows[:5],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.review_data_set_grant_recipients",
+                grant_id=grant.id,
+                report_id=report.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Review grant recipients" in get_h1_text(soup)
+        assert "Council A" in soup.text
+        assert "Council B" in soup.text
+        assert "E123" in soup.text
+        assert "E456" in soup.text
+        continue_link = page_has_link(soup, "Continue")
+        assert continue_link is not None
+        assert continue_link["href"] == url_for(
+            "deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id
+        )
+
+    def test_get_highlights_discrepancies(self, authenticated_grant_admin_client, factories, mocker):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Council A")
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Wrong Name",
+                "Amount": "100",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["Amount"],
+                preview_rows=all_rows[:5],
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.review_data_set_grant_recipients",
+                grant_id=grant.id,
+                report_id=report.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Wrong Name" in soup.text
+        assert "Council A" in soup.text
+        tag = soup.find("strong", class_="govuk-tag--yellow")
+        assert tag is not None
+        assert "Needs review" in tag.text
 
 
 class TestMapDataSetColumns:

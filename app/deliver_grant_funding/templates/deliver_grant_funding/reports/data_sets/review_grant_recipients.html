@@ -1,0 +1,64 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+{% set active_item_identifier = "reports" %}
+
+{% set page_title = "Review grant recipients" %}
+
+{% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id) %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ report.name }}</span>
+        Review grant recipients
+      </h1>
+      <p class="govuk-body">Check the grant recipient names in your file match the names in the database. Rows where the names differ are highlighted.</p>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% set rows = [] %}
+      {% for comparison in comparisons %}
+        {% if comparison.has_discrepancy %}
+          {% set status_cell = {"html": "<strong class='govuk-tag govuk-tag--yellow'>Needs review</strong>"} %}
+        {% else %}
+          {% set status_cell = {"html": "<strong class='govuk-tag govuk-tag--green'>OK</strong>"} %}
+        {% endif %}
+        {%
+          do rows.append([
+            {"text": comparison.external_id},
+            {"text": comparison.csv_name},
+            {"text": comparison.db_name},
+            status_cell
+          ])
+        %}
+      {% endfor %}
+
+      {{
+        govukTable({
+          "head": [
+            {"text": "Organisation ID"},
+            {"text": "Name in uploaded data set"},
+            {"text": "Our name"},
+            {"text": "Status"}
+          ],
+          "rows": rows
+        })
+      }}
+
+      {{
+        govukButton({
+          "text": "Continue",
+          "href": url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id)
+        })
+      }}
+    </div>
+  </div>
+{% endblock content %}
