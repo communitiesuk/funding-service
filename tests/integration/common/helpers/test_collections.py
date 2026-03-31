@@ -39,7 +39,7 @@ from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan
 from app.common.helpers.collections import (
-    CollectionHelper,
+    AllSubmissionsHelper,
     SubmissionAuthorisationError,
     SubmissionHelper,
     _deserialise_question_type,
@@ -1789,25 +1789,25 @@ class TestFormResetOnAnswerChange:
         assert len(reset_events) == 1
 
 
-class TestCollectionHelper:
-    def test_init_collection_helper(self, factories):
+class TestSubmissionsHelper:
+    def test_init_submissions_helper(self, factories):
         collection = factories.collection.create(create_submissions__test=2, create_submissions__live=3)
         collection_from_db = interfaces.collections.get_collection(collection.id)
         assert len(collection_from_db._submissions) == 5
 
-        test_collection_helper = CollectionHelper(
+        test_submissions_helper = AllSubmissionsHelper(
             collection=collection_from_db, submission_mode=SubmissionModeEnum.TEST
         )
-        assert test_collection_helper.collection == collection
-        assert test_collection_helper.submission_mode == SubmissionModeEnum.TEST
-        assert len(test_collection_helper.submissions) == 2
+        assert test_submissions_helper.collection == collection
+        assert test_submissions_helper.submission_mode == SubmissionModeEnum.TEST
+        assert len(test_submissions_helper.submissions) == 2
 
-        live_collection_helper = CollectionHelper(
+        live_submissions_helper = AllSubmissionsHelper(
             collection=collection_from_db, submission_mode=SubmissionModeEnum.LIVE
         )
-        assert live_collection_helper.collection == collection
-        assert live_collection_helper.submission_mode == SubmissionModeEnum.LIVE
-        assert len(live_collection_helper.submissions) == 3
+        assert live_submissions_helper.collection == collection
+        assert live_submissions_helper.submission_mode == SubmissionModeEnum.LIVE
+        assert len(live_submissions_helper.submissions) == 3
 
     @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_check_correct_rows_for_multiple_simple_submissions_every_question_type(
@@ -1819,8 +1819,8 @@ class TestCollectionHelper:
             create_completed_submissions_each_question_type__test=num_test_submissions,
             create_completed_submissions_each_question_type__use_random_data=True,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         assert reader.fieldnames == [
@@ -1845,7 +1845,7 @@ class TestCollectionHelper:
             "[Export test form] Supporting document",
         ]
         expected_question_data = {}
-        for _, submission in c_helper.submission_helpers.items():
+        for _, submission in subs_helper.submission_helpers.items():
             expected_question_data[submission.reference] = {
                 f"[{question.form.title}] {question.name}": _deserialise_question_type(
                     question, submission.submission.data[str(question.id)]
@@ -1855,7 +1855,7 @@ class TestCollectionHelper:
         rows = list(reader)
         for line in rows:
             submission_ref = line["Submission reference"]
-            s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+            s_helper = subs_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
             assert line["Created at"] == "2025-03-01 13:30:00"
             for header, value in expected_question_data[submission_ref].items():
@@ -1866,8 +1866,8 @@ class TestCollectionHelper:
     @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_skipped_questions(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         assert reader.fieldnames == [
@@ -1886,7 +1886,7 @@ class TestCollectionHelper:
         for _ in range(2):
             line = next(reader)
             submission_ref = line["Submission reference"]
-            s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+            s_helper = subs_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
             assert line["Created at"] == "2025-03-01 13:30:00"
             number_of_cups_of_tea = line["[Export test form] Number of cups of tea"]
@@ -1900,7 +1900,7 @@ class TestCollectionHelper:
 
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
         dependant_question_id = collection.forms[0].cached_questions[0].id
         conditional_question_id = collection.forms[0].cached_questions[1].id
 
@@ -1908,11 +1908,11 @@ class TestCollectionHelper:
         # previously been answered
         submission = next(
             helper.submission
-            for _, helper in c_helper.submission_helpers.items()
+            for _, helper in subs_helper.submission_helpers.items()
             if helper.cached_get_answer_for_question(dependant_question_id).get_value_for_text_export() == "20"
         )
         submission.data[str(conditional_question_id)] = IntegerAnswer(value=120).get_value_for_submission()
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         assert reader.fieldnames == [
@@ -1947,8 +1947,8 @@ class TestCollectionHelper:
             create_completed_submissions_each_question_type__test=1,
             create_completed_submissions_each_question_type__use_random_data=False,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.reader(StringIO(csv_content))
 
         rows = list(reader)
@@ -1976,9 +1976,9 @@ class TestCollectionHelper:
             "[Export test form] Supporting document",
         ]
         assert rows[1] == [
-            c_helper.submissions[0].reference,
-            c_helper.submissions[0].grant_recipient.organisation.name,
-            c_helper.submissions[0].created_by.email,
+            subs_helper.submissions[0].reference,
+            subs_helper.submissions[0].grant_recipient.organisation.name,
+            subs_helper.submissions[0].created_by.email,
             "2025-03-01 13:30:00",
             "",
             "",
@@ -2004,8 +2004,8 @@ class TestCollectionHelper:
             create_completed_submissions_add_another_nested_group__test=1,
             create_completed_submissions_add_another_nested_group__use_random_data=False,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         assert reader.fieldnames == [
@@ -2034,9 +2034,9 @@ class TestCollectionHelper:
         rows = list(reader)
 
         assert list(rows[0].values()) == [
-            c_helper.submissions[0].reference,
-            c_helper.submissions[0].grant_recipient.organisation.name,
-            c_helper.submissions[0].created_by.email,
+            subs_helper.submissions[0].reference,
+            subs_helper.submissions[0].grant_recipient.organisation.name,
+            subs_helper.submissions[0].created_by.email,
             "2025-03-01 13:30:00",
             "",
             "",
@@ -2078,8 +2078,8 @@ class TestCollectionHelper:
             data={f"{str(group.id)}": [{str(question.id): "only first"}]},
         )
 
-        c_helper = CollectionHelper(collection=group.form.collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=group.form.collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         rows = list(reader)
@@ -2097,8 +2097,8 @@ class TestCollectionHelper:
             create_completed_submissions_each_question_type__test=1,
             create_completed_submissions_each_question_type__use_random_data=False,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        json_data = c_helper.generate_json_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        json_data = subs_helper.generate_json_content_for_all_submissions()
         submissions = json.loads(json_data)
 
         assert submissions == {
@@ -2153,8 +2153,8 @@ class TestCollectionHelper:
             created_by=user,
             created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
-        json_data = c_helper.generate_json_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+        json_data = subs_helper.generate_json_content_for_all_submissions()
         submissions = json.loads(json_data)
 
         assert submissions == {
@@ -2199,8 +2199,8 @@ class TestCollectionHelper:
             create_completed_submissions_add_another_nested_group__test=1,
             create_completed_submissions_add_another_nested_group__use_random_data=False,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        json_data = c_helper.generate_json_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        json_data = subs_helper.generate_json_content_for_all_submissions()
         submissions = json.loads(json_data)
 
         assert submissions == {
@@ -2253,12 +2253,12 @@ class TestCollectionHelper:
         )
         factory_duration = datetime.now() - factory_start
         # FIXME Can we clear out the session cache here so we actually generate some queries?
-        create_collection_helper_start = datetime.now()
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        create_collection_helper_duration = datetime.now() - create_collection_helper_start
+        create_submissions_helper_start = datetime.now()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        create_submissions_helper_duration = datetime.now() - create_submissions_helper_start
         with track_sql_queries() as queries:
             start = datetime.now()
-            c_helper.generate_csv_content_for_all_submissions()
+            subs_helper.generate_csv_content_for_all_submissions()
             end = datetime.now()
             generate_csv_content_for_all_submissions_duration = end - start
         total_query_duration = sum(query.duration for query in queries)
@@ -2266,7 +2266,7 @@ class TestCollectionHelper:
             "num_test_submissions": num_test_submissions,
             "num_sql_queries": len(queries),
             "factory_duration": str(factory_duration.total_seconds()),
-            "create_collection_helper_duration": str(create_collection_helper_duration.total_seconds()),
+            "create_submissions_helper_duration": str(create_submissions_helper_duration.total_seconds()),
             "total_query_duration": str(total_query_duration),
             "generate_csv_content_for_all_submissions_duration": str(
                 generate_csv_content_for_all_submissions_duration.total_seconds()
@@ -2296,12 +2296,12 @@ class TestCollectionHelper:
             create_completed_submissions_conditional_question_random__test=num_test_submissions
         )
         factory_duration = datetime.now() - factory_start
-        create_collection_helper_start = datetime.now()
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        create_collection_helper_duration = datetime.now() - create_collection_helper_start
+        create_submissions_helper_start = datetime.now()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        create_submissions_helper_duration = datetime.now() - create_submissions_helper_start
         with track_sql_queries() as queries:
             start = datetime.now()
-            c_helper.generate_csv_content_for_all_submissions()
+            subs_helper.generate_csv_content_for_all_submissions()
             end = datetime.now()
             generate_csv_content_for_all_submissions_duration = end - start
         total_query_duration = sum(query.duration for query in queries)
@@ -2309,7 +2309,7 @@ class TestCollectionHelper:
             "num_test_submissions": num_test_submissions,
             "num_sql_queries": len(queries),
             "factory_duration": str(factory_duration.total_seconds()),
-            "create_collection_helper_duration": str(create_collection_helper_duration.total_seconds()),
+            "create_submissions_helper_duration": str(create_submissions_helper_duration.total_seconds()),
             "total_query_duration": str(total_query_duration),
             "generate_csv_content_for_all_submissions_duration": str(
                 generate_csv_content_for_all_submissions_duration.total_seconds()

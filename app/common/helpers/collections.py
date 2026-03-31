@@ -1180,7 +1180,7 @@ class SubmissionHelper:
         return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
 
 
-class CollectionHelper:
+class AllSubmissionsHelper:
     collection: Collection
     submission_mode: SubmissionModeEnum
     submissions: list[Submission]

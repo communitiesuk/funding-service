@@ -96,7 +96,7 @@ from app.common.expressions.forms import (
 )
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
-from app.common.helpers.collections import CollectionHelper, SubmissionHelper
+from app.common.helpers.collections import AllSubmissionsHelper, SubmissionHelper
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -2785,7 +2785,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
             )
         )
 
-    helper = CollectionHelper(collection=report, submission_mode=submission_mode)
+    helper = AllSubmissionsHelper(collection=report, submission_mode=submission_mode)
 
     return render_template(
         "deliver_grant_funding/reports/list_submissions.html",
@@ -2808,7 +2808,7 @@ def export_report_submissions(
     report = interfaces.collections.get_collection(
         report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True
     )
-    helper = CollectionHelper(collection=report, submission_mode=submission_mode)
+    helper = AllSubmissionsHelper(collection=report, submission_mode=submission_mode)
 
     export_format = export_format.lower()
     match export_format:
