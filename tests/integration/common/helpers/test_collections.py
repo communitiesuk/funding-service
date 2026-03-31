@@ -1002,6 +1002,24 @@ class TestSubmissionHelper:
             with pytest.raises(ValueError, match="answers are locked"):
                 helper.toggle_form_completed(question.form, submission.created_by, True)
 
+        def test_status_is_not_submitted_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                data={str(question.id): "some answer"},
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.status == SubmissionStatusEnum.NOT_SUBMITTED
+
+        def test_status_is_submitted_when_collection_closed_and_already_submitted(
+            self, db_session, factories, submission_submitted
+        ):
+            submission_submitted.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_submitted)
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
     class TestRequiresCertification:
         def test_decline_certification_requires_certification(self, factories, submission_awaiting_sign_off, user):
             collection = submission_awaiting_sign_off.collection
@@ -1037,6 +1055,115 @@ class TestSubmissionHelper:
                 == f"Could not send submission id={submission_in_progress.id} for sign off because this report does "
                 f"not require certification."
             )
+
+    class TestGetStatus:
+        def test_returns_not_started_when_no_submission_and_open(self, db_session, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.OPEN)
+            factories.form.create(collection=collection)
+
+            assert SubmissionHelper.get_status(None, collection) == SubmissionStatusEnum.NOT_STARTED
+
+        def test_returns_not_submitted_when_no_submission_and_closed(self, db_session, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.CLOSED)
+            factories.form.create(collection=collection)
+
+            assert SubmissionHelper.get_status(None, collection) == SubmissionStatusEnum.NOT_SUBMITTED
+
+        def test_returns_submission_status_when_submission_exists(self, db_session, factories, submission_in_progress):
+            assert (
+                SubmissionHelper.get_status(submission_in_progress, submission_in_progress.collection)
+                == SubmissionStatusEnum.IN_PROGRESS
+            )
+
+        def test_raises_when_submission_does_not_belong_to_collection(self, db_session, factories):
+            collection_a = factories.collection.create()
+            collection_b = factories.collection.create()
+            factories.form.create(collection=collection_a)
+            submission = factories.submission.create(collection=collection_a)
+
+            with pytest.raises(ValueError, match="does not belong"):
+                SubmissionHelper.get_status(submission, collection_b)
+
+    class TestGetAccessSubmissionAction:
+        def test_start_report_when_no_submission_and_open(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            collection = factories.collection.create(grant=grant_recipient.grant, status=CollectionStatusEnum.OPEN)
+            factories.form.create(collection=collection)
+
+            result = SubmissionHelper.get_access_submission_action(collection, grant_recipient, None)
+
+            assert result["label"] == "Start report"
+            assert result["href"]
+
+        def test_did_not_start_when_no_submission_and_closed(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            collection = factories.collection.create(grant=grant_recipient.grant, status=CollectionStatusEnum.CLOSED)
+            factories.form.create(collection=collection)
+
+            result = SubmissionHelper.get_access_submission_action(collection, grant_recipient, None)
+
+            assert result["label"] == "Did not start"
+            assert result["href"] is None
+
+        def test_view_report_when_collection_closed_with_submission(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            question = factories.question.create(
+                form__collection__grant=grant_recipient.grant,
+                form__collection__status=CollectionStatusEnum.CLOSED,
+            )
+            submission = factories.submission.create(
+                collection=question.form.collection, grant_recipient=grant_recipient
+            )
+
+            result = SubmissionHelper.get_access_submission_action(
+                question.form.collection, grant_recipient, submission
+            )
+
+            assert result["label"] == "View report"
+            assert result["href"]
+
+        def test_continue_report_when_in_progress(self, db_session, factories, submission_in_progress, grant_recipient):
+            result = SubmissionHelper.get_access_submission_action(
+                submission_in_progress.collection, grant_recipient, submission_in_progress
+            )
+
+            assert result["label"] == "Continue report"
+            assert result["href"]
+
+        def test_start_report_when_not_started(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            question = factories.question.create(
+                form__collection__grant=grant_recipient.grant,
+                form__collection__status=CollectionStatusEnum.OPEN,
+            )
+            submission = factories.submission.create(
+                collection=question.form.collection, grant_recipient=grant_recipient
+            )
+
+            result = SubmissionHelper.get_access_submission_action(
+                question.form.collection, grant_recipient, submission
+            )
+
+            assert result["label"] == "Start report"
+            assert result["href"]
+
+        def test_view_report_when_submitted(self, db_session, factories, submission_submitted, grant_recipient):
+            result = SubmissionHelper.get_access_submission_action(
+                submission_submitted.collection, grant_recipient, submission_submitted
+            )
+
+            assert result["label"] == "View report"
+            assert result["href"]
+
+        def test_raises_when_submission_does_not_belong_to_collection(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            collection_a = factories.collection.create(grant=grant_recipient.grant)
+            collection_b = factories.collection.create(grant=grant_recipient.grant)
+            factories.form.create(collection=collection_a)
+            submission = factories.submission.create(collection=collection_a, grant_recipient=grant_recipient)
+
+            with pytest.raises(ValueError, match="does not belong"):
+                SubmissionHelper.get_access_submission_action(collection_b, grant_recipient, submission)
 
     class TestGetAnswerForQuestion:
         def test_get_answer_for_question(self, factories):
@@ -1346,7 +1473,7 @@ class TestSubmissionHelper:
             submission_ready_to_submit.collection.status = CollectionStatusEnum.CLOSED
             helper = SubmissionHelper(submission_ready_to_submit)
 
-            with pytest.raises(ValueError, match="immutable state"):
+            with pytest.raises(ValueError, match="not ready to submit"):
                 helper.submit(data_provider_user)
 
             assert len(mock_notification_service_calls) == 0

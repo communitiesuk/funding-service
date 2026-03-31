@@ -10,7 +10,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
-from flask import current_app
+from flask import current_app, url_for
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import TypeAdapter
 from werkzeug.datastructures import FileStorage
@@ -76,6 +76,7 @@ if TYPE_CHECKING:
         Expression,
         Form,
         Grant,
+        GrantRecipient,
         Group,
         Question,
         Submission,
@@ -259,6 +260,60 @@ class SubmissionHelper:
         #       a batch job decision that is then added as a submission event rather than calculated by the server
         return self.collection.is_overdue and not self.is_submitted
 
+    @staticmethod
+    def get_access_submission_action(
+        collection: Collection, grant_recipient: GrantRecipient, submission: Submission | None
+    ) -> dict[str, str | None]:
+        if submission and collection and submission.collection != collection:
+            raise ValueError("Submission does not belong to the provided collection")
+
+        label = "Start report"
+        href = url_for(
+            "access_grant_funding.route_to_submission",
+            organisation_id=grant_recipient.organisation_id,
+            grant_id=grant_recipient.grant_id,
+            collection_id=collection.id,
+        )
+
+        collection_helper = CollectionHelper(collection)
+
+        if not submission and collection_helper.is_closed:
+            label = "Did not start"
+            href = None
+
+        elif submission:
+            helper = SubmissionHelper(submission)
+            if helper.status == SubmissionStatusEnum.NOT_SUBMITTED:
+                label = "View report"
+
+            elif helper.status == SubmissionStatusEnum.NOT_STARTED:
+                label = "Start report"
+
+            elif helper.status == SubmissionStatusEnum.IN_PROGRESS:
+                label = "Continue report"
+
+            else:
+                label = "View report"
+
+        return {
+            "href": href,
+            "label": label,
+        }
+
+    @staticmethod
+    def get_status(submission: Submission | None, collection: Collection) -> SubmissionStatusEnum:
+        if submission and collection and submission.collection != collection:
+            raise ValueError("Submission does not belong to the provided collection")
+
+        collection_helper = CollectionHelper(collection)
+        if not submission and collection_helper.is_closed:
+            return SubmissionStatusEnum.NOT_SUBMITTED
+
+        if not submission:
+            return SubmissionStatusEnum.NOT_STARTED
+
+        return SubmissionHelper(submission).status
+
     @property
     def status(self) -> SubmissionStatusEnum:
         submission_state = self.events.submission_state
@@ -266,6 +321,8 @@ class SubmissionHelper:
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
         if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_submitted:
             return SubmissionStatusEnum.SUBMITTED
+        elif self.collection_helper.is_closed:
+            return SubmissionStatusEnum.NOT_SUBMITTED
         elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
         elif (

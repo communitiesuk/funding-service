@@ -16,7 +16,7 @@ from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import RoleEnum, SubmissionStatusEnum
 from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
-from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.extensions import auto_commit_after_request
 from app.metrics import MetricEventName, emit_metric_count
 from app.types import FlashMessageType
@@ -32,7 +32,9 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
 
     # TODO refactor when we persist the collection status and/or implement multiple rounds
     submissions = []
+    collection_helpers = []
     for report in grant_recipient.grant.get_access_reports_for_user(user):
+        collection_helpers.append(CollectionHelper(collection=report))
         submissions.extend(
             [
                 SubmissionHelper(submission=submission)
@@ -50,7 +52,9 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
         organisation_id=organisation_id,
         grant=grant_recipient.grant,
         submissions=submissions,
+        collection_helpers=collection_helpers,
         grant_recipient=grant_recipient,
+        SubmissionHelper=SubmissionHelper,
     )
 
 
