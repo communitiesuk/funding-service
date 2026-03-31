@@ -809,10 +809,37 @@ class TestDeclineSignOff:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.route_to_submission",
+            "access_grant_funding.list_reports",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
-            collection_id=submission_in_progress.collection.id,
+        )
+
+    def test_decline_certification_redirects_when_collection_closed(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        factories,
+        grant_recipient,
+        submission_awaiting_sign_off,
+    ):
+        submission_awaiting_sign_off.collection.status = CollectionStatusEnum.CLOSED
+        helper = SubmissionHelper(submission_awaiting_sign_off)
+        assert helper.is_awaiting_sign_off
+        assert helper.in_immutable_state
+
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.decline_report",
+                organisation_id=grant_recipient.organisation_id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_awaiting_sign_off.id,
+            ),
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.view_locked_report",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submission_awaiting_sign_off.id,
         )
 
     def test_decline_sign_off_get(
@@ -902,6 +929,29 @@ class TestConfirmReportSubmission:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert get_h1_text(soup) == "Confirm sign off and submit report"
+
+    def test_get_certify_redirects_when_collection_closed(
+        self, authenticated_grant_recipient_certifier_client, submission_awaiting_sign_off
+    ):
+        grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
+        submission_awaiting_sign_off.collection.status = CollectionStatusEnum.CLOSED
+
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.confirm_report_submission_with_certify",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_awaiting_sign_off.id,
+            ),
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.view_locked_report",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submission_awaiting_sign_off.id,
+        )
 
     def test_get_redirects_if_requires_certification_and_not_awaiting_sign_off(
         self, authenticated_grant_recipient_certifier_client, submission_ready_to_submit

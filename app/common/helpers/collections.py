@@ -44,6 +44,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
 from app.common.data.types import (
+    CollectionStatusEnum,
     ComponentVisibilityState,
     ConditionsOperator,
     GrantRecipientModeEnum,
@@ -131,6 +132,7 @@ class SubmissionHelper:
         self.submission = submission
         self.collection = self.submission.collection
         self.data_sources = self.submission.data_sources
+        self.collection_helper = CollectionHelper(self.collection)
         self.events = SubmissionEventHelper(self.submission)
 
         self.cached_get_ordered_visible_questions = lru_cache(maxsize=None)(self._get_ordered_visible_questions)
@@ -287,8 +289,17 @@ class SubmissionHelper:
         return self.events.submission_state.submitted_at_utc
 
     @property
-    def is_locked_state(self) -> bool:
-        return self.is_submitted or self.is_awaiting_sign_off
+    def in_answers_locked_state(self) -> bool:
+        return self.is_submitted or self.is_awaiting_sign_off or self.in_immutable_state
+
+    @property
+    def in_immutable_state(self) -> bool:
+        """Returns True if no actions should be able to take place on the submission
+
+        This is different from `in_answers_locked_state` as it may not have been submitted; it could be that the
+        reporting round has closed.
+        """
+        return self.is_submitted or self.collection_helper.is_closed
 
     @property
     def is_submitted(self) -> bool:
@@ -743,10 +754,10 @@ class SubmissionHelper:
     def submit_answer_for_question(
         self, question_id: UUID, form: DynamicQuestionForm, user: User, *, add_another_index: int | None = None
     ) -> None:
-        if self.is_locked_state:
+        if self.in_answers_locked_state:
             raise ValueError(
                 f"Could not submit answer for question_id={question_id} "
-                f"because submission id={self.id} is already submitted."
+                f"because the answers are locked for submission id={self.id}."
             )
 
         question = self.get_question(question_id)
@@ -817,10 +828,10 @@ class SubmissionHelper:
         self._emit_submission_events_for_forms_reset_to_in_progress(current_form, current_form_statuses, user)
 
     def remove_entry_for_add_another(self, add_another_container: Group, add_another_index: int) -> None:
-        if self.is_locked_state:
+        if self.in_answers_locked_state:
             raise ValueError(
                 f"Could not remove entry for add another id={add_another_container.id} "
-                f"because submission id={self.id} is already submitted."
+                f"because the answers are locked for submission id={self.id}."
             )
 
         keys_to_delete = [
@@ -846,10 +857,10 @@ class SubmissionHelper:
         self.cached_get_ordered_visible_questions.cache_clear()
 
     def remove_answer_for_question(self, question_id: UUID, *, add_another_index: int | None = None) -> None:
-        if self.is_locked_state:
+        if self.in_answers_locked_state:
             raise ValueError(
                 f"Could not remove answer for question_id={question_id} "
-                f"because submission id={self.id} is already submitted."
+                f"because the answers are locked for submission id={self.id}."
             )
 
         question = self.get_question(question_id)
@@ -939,6 +950,9 @@ class SubmissionHelper:
                         RoleEnum.DATA_PROVIDER,
                     )
 
+        if self.in_immutable_state:
+            raise ValueError(f"Cannot submit {self.id} as it is in an immutable state.")
+
         SubmissionValidator(self).validate_all_reachable_questions()
 
         interfaces.collections.add_submission_event(
@@ -958,13 +972,15 @@ class SubmissionHelper:
             )
 
     def mark_as_sent_for_certification(self, user: User) -> None:
-        if self.is_locked_state:
-            return
-
         if not self.collection.requires_certification:
             raise ValueError(
                 f"Could not send submission id={self.id} for sign off because this report does not require "
                 f"certification."
+            )
+
+        if self.in_answers_locked_state:
+            raise ValueError(
+                f"Cannot send submission {self.id} for certification because it's in answers-locked state.",
             )
 
         SubmissionValidator(self).validate_all_reachable_questions()
@@ -1004,6 +1020,9 @@ class SubmissionHelper:
                 self.id,
                 RoleEnum.CERTIFIER,
             )
+
+        if self.in_immutable_state:
+            raise ValueError(f"Could not certify submission id={self.id} because it is in an immutable state.")
 
         if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             interfaces.collections.add_submission_event(
@@ -1055,6 +1074,9 @@ class SubmissionHelper:
                 RoleEnum.CERTIFIER,
             )
 
+        if self.in_immutable_state:
+            raise ValueError(f"Could not certify submission id={self.id} because it is in an immutable state.")
+
         if not self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             raise ValueError(
                 f"Could not approve certification for submission id={self.id} because it is not awaiting sign off."
@@ -1068,6 +1090,9 @@ class SubmissionHelper:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
         if is_complete == form_complete:
             return
+
+        if self.in_answers_locked_state:
+            raise ValueError(f"Could not certify submission id={self.id} because the answers are locked.")
 
         if is_complete:
             all_questions_answered = self.cached_get_all_questions_are_answered_for_form(form).all_answered
@@ -1423,6 +1448,19 @@ class AllSubmissionsHelper:
             submissions_data["submissions"].append(submission_data)
 
         return json.dumps(submissions_data)
+
+
+class CollectionHelper:
+    def __init__(self, collection: Collection):
+        self.collection = collection
+
+    @property
+    def id(self) -> UUID:
+        return self.collection.id
+
+    @property
+    def is_closed(self) -> bool:
+        return self.collection.status == CollectionStatusEnum.CLOSED
 
 
 def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -> AllAnswerTypes:

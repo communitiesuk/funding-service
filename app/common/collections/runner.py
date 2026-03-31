@@ -243,7 +243,7 @@ class FormRunner:
 
     @property
     def can_edit(self) -> bool:
-        if self.submission.is_locked_state:
+        if self.submission.in_answers_locked_state:
             return False
 
         if self.submission.submission.mode != SubmissionModeEnum.PREVIEW:
@@ -473,7 +473,7 @@ class FormRunner:
 
         if not self.submission.is_component_visible(self.component, self.runner_evaluation_context):
             self._valid = False
-        elif self.submission.is_locked_state:
+        elif self.submission.in_answers_locked_state:
             self._valid = False
         elif (
             self.is_clearing and self.linked_question and self.linked_question.data_type != QuestionDataType.FILE_UPLOAD

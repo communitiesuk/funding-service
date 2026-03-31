@@ -24,6 +24,7 @@ from app.common.collections.types import (
 from app.common.data import interfaces
 from app.common.data.models import Expression
 from app.common.data.types import (
+    CollectionStatusEnum,
     ExpressionType,
     ManagedExpressionsEnum,
     NumberTypeEnum,
@@ -126,8 +127,23 @@ class TestSubmissionHelper:
 
             assert str(e.value) == AnyStringMatching(
                 "Could not submit answer for question_id=[a-z0-9-]+ "
-                "because submission id=[a-z0-9-]+ is already submitted."
+                "because the answers are locked for submission id=[a-z0-9-]+."
             )
+
+        def test_cannot_submit_answer_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                form__collection__status=CollectionStatusEnum.CLOSED,
+            )
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+            )
+
+            with pytest.raises(ValueError, match="answers are locked"):
+                helper.submit_answer_for_question(question.id, form, submission.created_by)
 
         def test_submit_duplicate_submission_name_raises_conflict(self, db_session, factories):
             question = factories.question.create(
@@ -409,8 +425,19 @@ class TestSubmissionHelper:
 
             assert str(e.value) == AnyStringMatching(
                 "Could not remove answer for question_id=[a-z0-9-]+ "
-                "because submission id=[a-z0-9-]+ is already submitted."
+                "because the answers are locked for submission id=[a-z0-9-]+."
             )
+
+        def test_cannot_remove_answer_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                data={str(question.id): "some answer"},
+            )
+            helper = SubmissionHelper(submission)
+
+            with pytest.raises(ValueError, match="answers are locked"):
+                helper.remove_answer_for_question(question.id)
 
     class TestFormData:
         def test_no_submission_data(self, factories):
@@ -943,6 +970,38 @@ class TestSubmissionHelper:
                 r"Could not submit submission id=[a-z0-9-]+ because not all forms are complete."
             )
 
+        def test_in_immutable_state_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.in_immutable_state is True
+
+        def test_not_in_immutable_state_when_collection_open(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.OPEN)
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.in_immutable_state is False
+
+        def test_in_answers_locked_state_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.in_answers_locked_state is True
+
+        def test_cannot_toggle_form_completed_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                data={str(question.id): "some answer"},
+            )
+            helper = SubmissionHelper(submission)
+
+            with pytest.raises(ValueError, match="answers are locked"):
+                helper.toggle_form_completed(question.form, submission.created_by, True)
+
     class TestRequiresCertification:
         def test_decline_certification_requires_certification(self, factories, submission_awaiting_sign_off, user):
             collection = submission_awaiting_sign_off.collection
@@ -1280,6 +1339,18 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.SUBMITTED
             assert len(mock_notification_service_calls) == expected_email_recipients
 
+        def test_submit_when_collection_closed(
+            self, factories, submission_ready_to_submit, data_provider_user, mock_notification_service_calls
+        ):
+            submission_ready_to_submit.collection.requires_certification = False
+            submission_ready_to_submit.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_ready_to_submit)
+
+            with pytest.raises(ValueError, match="immutable state"):
+                helper.submit(data_provider_user)
+
+            assert len(mock_notification_service_calls) == 0
+
     class TestSentForCertification:
         def test_mark_as_sent_for_certification(
             self, data_provider_user, certifier_user, submission_ready_to_submit, mock_notification_service_calls
@@ -1352,6 +1423,17 @@ class TestSubmissionHelper:
             assert len(data_provider_emails) == expected_data_provider_emails
             assert len(certifier_emails) == expected_certifier_emails
 
+        def test_mark_as_sent_for_certification_when_collection_closed(
+            self, factories, submission_ready_to_submit, data_provider_user, mock_notification_service_calls
+        ):
+            submission_ready_to_submit.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_ready_to_submit)
+
+            with pytest.raises(ValueError, match="answers-locked state"):
+                helper.mark_as_sent_for_certification(data_provider_user)
+
+            assert len(mock_notification_service_calls) == 0
+
     class TestCertificationApproved:
         def test_certify(
             self, data_provider_user, certifier_user, submission_awaiting_sign_off, mock_notification_service_calls
@@ -1364,6 +1446,15 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
             assert len(mock_notification_service_calls) == 0
+
+        def test_certify_when_collection_closed(
+            self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
+        ):
+            submission_awaiting_sign_off.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+
+            with pytest.raises(ValueError, match="immutable state"):
+                helper.certify(certifier_user)
 
     class TestCertificationDeclined:
         def test_decline(
@@ -1435,6 +1526,17 @@ class TestSubmissionHelper:
 
             assert len(data_provider_emails) == expected_data_provider_emails
             assert len(certifier_emails) == expected_certifier_emails
+
+        def test_decline_when_collection_closed(
+            self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
+        ):
+            submission_awaiting_sign_off.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+
+            with pytest.raises(ValueError, match="immutable state"):
+                helper.decline_certification(certifier_user, "reason")
+
+            assert len(mock_notification_service_calls) == 0
 
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")

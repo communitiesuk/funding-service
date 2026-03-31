@@ -58,7 +58,7 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
         )
 
     submission_helper = SubmissionHelper(submission)
-    if submission_helper.is_locked_state:
+    if submission_helper.in_answers_locked_state:
         return redirect(
             url_for(
                 "access_grant_funding.view_locked_report",
@@ -155,7 +155,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
         grant_recipient_id=grant_recipient.id,
     )
 
-    if runner.submission.is_locked_state:
+    if runner.submission.in_answers_locked_state:
         return redirect(
             url_for(
                 "access_grant_funding.view_locked_report",
@@ -299,7 +299,7 @@ def check_your_answers(
 def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
-    if not submission_helper.is_locked_state:
+    if not submission_helper.in_answers_locked_state:
         return redirect(
             url_for(
                 "access_grant_funding.tasklist",
