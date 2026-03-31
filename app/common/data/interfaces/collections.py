@@ -412,6 +412,7 @@ def get_all_submissions_with_mode_for_collection(
         stmt = stmt.options(
             joinedload(Submission.created_by),
         )
+
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))
     return db.session.scalars(stmt).unique().all()
@@ -448,10 +449,10 @@ def get_submission(
 ) -> Submission:
     query = select(Submission).where(Submission.id == submission_id)
 
+    options = []
     if grant_recipient_id:
         query = query.where(Submission.grant_recipient_id == grant_recipient_id)
 
-    options = []
     if with_full_schema:
         options.extend(
             [

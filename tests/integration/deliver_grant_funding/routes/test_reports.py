@@ -8544,7 +8544,7 @@ class TestViewDataSource:
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
                 {
-                    "allocation": {
+                    "c_allocation": {
                         "data_type": QuestionDataType.NUMBER,
                         "original_column_name": "Allocation",
                         "presentation_options": {"prefix": "£", "suffix": ""},
@@ -8557,7 +8557,7 @@ class TestViewDataSource:
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            _data={"allocation": 500000},
+            _data={"c_allocation": 500000},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8591,7 +8591,7 @@ class TestViewDataSource:
             type=DataSourceType.PROJECT_LEVEL,
             schema=DataSourceSchema.model_validate(
                 {
-                    "project-name": {
+                    "c_project_name": {
                         "data_type": QuestionDataType.TEXT_SINGLE_LINE,
                         "original_column_name": "Project name",
                         "presentation_options": {},
@@ -8605,8 +8605,8 @@ class TestViewDataSource:
             data_source=data_source,
             external_id="E123",
             _data=[
-                {"project-name": "Roads"},
-                {"project-name": "Bridges"},
+                {"c_project_name": "Roads"},
+                {"c_project_name": "Bridges"},
             ],
         )
 
@@ -8663,7 +8663,7 @@ class TestViewDataSource:
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
                 {
-                    "notes": {
+                    "c_notes": {
                         "data_type": QuestionDataType.TEXT_SINGLE_LINE,
                         "original_column_name": "Notes",
                         "presentation_options": {},
@@ -8676,7 +8676,7 @@ class TestViewDataSource:
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            _data={"notes": None},
+            _data={"c_notes": None},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8715,7 +8715,7 @@ class TestViewDataSource:
             name="Test data set",
             schema=DataSourceSchema.model_validate(
                 {
-                    "notes": {
+                    "c_notes": {
                         "data_type": QuestionDataType.TEXT_SINGLE_LINE,
                         "original_column_name": "Notes",
                         "presentation_options": {},
@@ -8728,7 +8728,7 @@ class TestViewDataSource:
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            _data={"notes": "hello"},
+            _data={"c_notes": "hello"},
         )
 
         response = authenticated_grant_member_client.get(

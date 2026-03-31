@@ -178,11 +178,13 @@ class ExpressionContext(ChainMap[str, Any]):
         submission_data: dict[str, Any] | None = None,
         expression_context: dict[str, Any] | None = None,
         add_another_context: dict[str, Any] | None = None,
+        data_source_context: dict[str, Any] | None = None,
         question_form_context: dict[str, Any] | None = None,
     ):
         self._submission_data = submission_data or {}
         self._expression_context = expression_context or {}
         self._add_another_context = add_another_context or {}
+        self._data_source_context = data_source_context or {}
         self._question_form_context = question_form_context or {}
 
         super().__init__(*self._ordered_contexts)
@@ -232,6 +234,7 @@ class ExpressionContext(ChainMap[str, Any]):
             add_another_context=add_another_context,
             expression_context=self._expression_context,
             question_form_context=self._question_form_context,
+            data_source_context=self._data_source_context,
         )
 
     @property
@@ -243,6 +246,7 @@ class ExpressionContext(ChainMap[str, Any]):
                     self._question_form_context,
                     self._add_another_context,
                     self._submission_data,
+                    self._data_source_context,
                     self._expression_context,
                 ],
             )
@@ -269,6 +273,7 @@ class ExpressionContext(ChainMap[str, Any]):
             submission_data=self._submission_data,
             expression_context=self._expression_context,
             add_another_context=self._add_another_context,
+            data_source_context=self._data_source_context,
             question_form_context=submission_answers_from_form,
         )
 
@@ -296,6 +301,10 @@ class ExpressionContext(ChainMap[str, Any]):
             submission_helper=submission_helper,
         )
 
+        data_source_context = ExpressionContext._build_data_source_context(
+            mode=mode, submission_helper=submission_helper
+        )
+
         # TODO: FSPT-1142 centralise this iteration/filtering logic; duplicated below
         if mode == "interpolation":
             for form in collection.forms:
@@ -313,7 +322,23 @@ class ExpressionContext(ChainMap[str, Any]):
                     # TODO: FSPT-1142: do we show this always or only when different to current context?
                     submission_data.setdefault(question.safe_qid, f"(({question.data_reference_label}))")
 
-        return ExpressionContext(submission_data=submission_data)
+            # collection.data_sources is used here (rather than submission_helper.data_sources) as a fallback
+            # so that placeholder labels are always available in interpolation mode, eg when:
+            # 1. No submission_helper (grant admin editing a question in Deliver — no submission/GR exists)
+            # 2. Preview — submission_helper exists but data_sources is empty (no GR on a preview submission)
+            # 3. A data source was skipped in _build_data_source_context (no matching org item, no schema)
+            for data_source in collection.data_sources:
+                if data_source.schema and data_source.schema.root:
+                    data_source_context.setdefault(
+                        data_source.safe_did,
+                        {},
+                    )
+                    for column_name, column_schema in data_source.schema.root.items():
+                        data_source_context[data_source.safe_did].setdefault(
+                            column_name, f"(({data_source.name} → {column_schema.original_column_name}))"
+                        )
+
+        return ExpressionContext(submission_data=submission_data, data_source_context=data_source_context)
 
     @staticmethod
     def _build_submission_data(
@@ -349,6 +374,57 @@ class ExpressionContext(ChainMap[str, Any]):
         return submission_data
 
     @staticmethod
+    def _build_data_source_context(
+        mode: Literal["evaluation", "interpolation"],
+        submission_helper: SubmissionHelper | None = None,
+    ) -> dict[str, Any]:
+        # TODO: FSPT-1181: Fix when fixing Preview submissions with data source references
+        if not submission_helper or not submission_helper.data_sources:
+            return {}
+
+        data_source_context: dict[str, Any] = {}
+
+        for data_source in submission_helper.data_sources:
+            # In reality this shouldn't happen, it's more a type guard as data_source.schema is nullable ie. when CUSTOM
+            if not data_source.schema:
+                continue
+
+            if not data_source.schema.root:
+                raise ValueError(f"Data source {data_source.name} {data_source.id} has no schema or schema items")
+
+            org_item = data_source.get_filtered_organisation_item(
+                submission_helper.submission.grant_recipient.organisation.external_id
+            )
+
+            # TODO: Do we want to set this to None or do we want to raise here when a data source exists for this
+            # collection but this GR has no data row
+            if org_item is None:
+                data_source_context[data_source.safe_did] = {
+                    col_name: (
+                        None if mode == "evaluation" else f"(({data_source.name} → {col_schema.original_column_name}))"
+                    )
+                    for col_name, col_schema in data_source.schema.root.items()
+                }
+                continue
+
+            typed_data = org_item.data
+
+            # Type guard against non-GR level data sources - GR-level org items are always single-row data, if this ever
+            # isn't a dict something has gone wrong with the sources we're pulling in or it's a Project-level org item
+            if not isinstance(typed_data, dict):
+                continue
+
+            data_source_context[data_source.safe_did] = {
+                col_name: (
+                    value.get_value_for_evaluation() if mode == "evaluation" else value.get_value_for_interpolation()
+                )
+                for col_name, value in typed_data.items()
+                if value is not None
+            }
+
+        return data_source_context
+
+    @staticmethod
     def get_context_keys_and_labels(
         collection: Collection, expression_context_end_point: Component | None = None
     ) -> dict[str, str]:
@@ -360,7 +436,20 @@ class ExpressionContext(ChainMap[str, Any]):
         ec = ExpressionContext.build_expression_context(
             collection=collection, mode="interpolation", expression_context_end_point=expression_context_end_point
         )
-        return {k: v for k, v in ec.items()}
+
+        # Now we've got a data_source_context which is not a flat dictionary we need to flatten this out so
+        # that this function continue to work and the references can still be interpolated correctly
+        def flatten(d, prefix=""):
+            result = {}
+            for key, value in d.items():
+                full_key = f"{prefix}.{key}" if prefix else key
+                if isinstance(value, dict):
+                    result.update(flatten(value, full_key))
+                else:
+                    result[full_key] = value
+            return result
+
+        return flatten(ec)
 
     def is_valid_reference(self, reference: str) -> bool:
         """For a given ExpressionContext, work out if this reference resolves to a real value or not.

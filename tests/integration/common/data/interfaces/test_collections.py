@@ -718,99 +718,99 @@ class TestUpdateCollection:
         assert "submission period dates must be set" in str(exc_info.value)
 
 
-def test_get_submission(db_session, factories):
-    submission = factories.submission.create()
-    from_db = get_submission(submission_id=submission.id)
-    assert from_db is not None
+class TestGetSubmission:
+    def test_get_submission(self, db_session, factories):
+        submission = factories.submission.create()
+        from_db = get_submission(submission_id=submission.id)
+        assert from_db is not None
 
+    def test_get_submission_for_grant_recipient(self, db_session, factories):
+        grant_recipient = factories.grant_recipient.create()
+        grant_recipient2 = factories.grant_recipient.create()
+        submission = factories.submission.create(grant_recipient=grant_recipient)
+        from_db = get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient.id)
+        assert from_db is not None
 
-def test_get_submission_for_grant_recipient(db_session, factories):
-    grant_recipient = factories.grant_recipient.create()
-    grant_recipient2 = factories.grant_recipient.create()
-    submission = factories.submission.create(grant_recipient=grant_recipient)
-    from_db = get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient.id)
-    assert from_db is not None
+        with pytest.raises(NoResultFound):
+            get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient2.id)
 
-    with pytest.raises(NoResultFound):
-        get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient2.id)
+    def test_get_submissions_by_grant_recipient_collection_returns_single_submission(self, db_session, factories):
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        submission = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
 
+        from_db = get_submissions_by_grant_recipient_collection(
+            grant_recipient=grant_recipient, collection_id=collection.id
+        )
 
-def test_get_submissions_by_grant_recipient_collection_returns_single_submission(db_session, factories):
-    grant_recipient = factories.grant_recipient.create()
-    collection = factories.collection.create(grant=grant_recipient.grant)
-    submission = factories.submission.create(
-        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
-    )
+        assert len(from_db) == 1
+        assert from_db[0].id == submission.id
 
-    from_db = get_submissions_by_grant_recipient_collection(
-        grant_recipient=grant_recipient, collection_id=collection.id
-    )
+    def test_get_submissions_by_grant_recipient_collection_returns_multiple_submissions(self, db_session, factories):
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        submission_1 = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        submission_2 = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
 
-    assert len(from_db) == 1
-    assert from_db[0].id == submission.id
+        from_db = get_submissions_by_grant_recipient_collection(
+            grant_recipient=grant_recipient, collection_id=collection.id
+        )
 
+        assert len(from_db) == 2
+        assert {s.id for s in from_db} == {submission_1.id, submission_2.id}
 
-def test_get_submissions_by_grant_recipient_collection_returns_multiple_submissions(db_session, factories):
-    grant_recipient = factories.grant_recipient.create()
-    collection = factories.collection.create(grant=grant_recipient.grant)
-    submission_1 = factories.submission.create(
-        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
-    )
-    submission_2 = factories.submission.create(
-        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
-    )
+    def test_get_submissions_by_grant_recipient_collection_returns_empty_list_for_other_recipient(
+        self, db_session, factories
+    ):
+        grant_recipient = factories.grant_recipient.create()
+        grant_recipient2 = factories.grant_recipient.create(grant=grant_recipient.grant)
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
 
-    from_db = get_submissions_by_grant_recipient_collection(
-        grant_recipient=grant_recipient, collection_id=collection.id
-    )
+        from_db = get_submissions_by_grant_recipient_collection(
+            grant_recipient=grant_recipient2, collection_id=collection.id
+        )
 
-    assert len(from_db) == 2
-    assert {s.id for s in from_db} == {submission_1.id, submission_2.id}
+        assert from_db == []
 
+    def test_get_submission_with_full_schema(self, db_session, factories, track_sql_queries):
+        submission = factories.submission.create()
+        submission_id = submission.id
+        forms = factories.form.create_batch(3, collection=submission.collection)
+        for form in forms:
+            factories.question.create_batch(3, form=form)
 
-def test_get_submissions_by_grant_recipient_collection_returns_empty_list_for_other_recipient(db_session, factories):
-    grant_recipient = factories.grant_recipient.create()
-    grant_recipient2 = factories.grant_recipient.create(grant=grant_recipient.grant)
-    collection = factories.collection.create(grant=grant_recipient.grant)
-    factories.submission.create(collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE)
+        with track_sql_queries() as queries:
+            from_db = get_submission(submission_id=submission_id, with_full_schema=True)
+        assert from_db is not None
 
-    from_db = get_submissions_by_grant_recipient_collection(
-        grant_recipient=grant_recipient2, collection_id=collection.id
-    )
+        # Expected queries:
+        # * Load the submission with collection and forms(sections)
+        # * Load the submission events
+        # * For all forms, load the top-level components and their expressions
+        # * For all forms, load every component, their expressions, their nested components+expressions
+        # * For all forms, load every component's set of component references
+        assert len(queries) == 5
 
-    assert from_db == []
+        # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
+        count = 0
+        with track_sql_queries() as queries:
+            for f in from_db.collection.forms:
+                for q in f._all_components:
+                    for _e in q.expressions:
+                        count += 1
+                    for _ocr in q.owned_component_references:
+                        count += 1
 
-
-def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):
-    submission = factories.submission.create()
-    submission_id = submission.id
-    forms = factories.form.create_batch(3, collection=submission.collection)
-    for form in forms:
-        factories.question.create_batch(3, form=form)
-
-    with track_sql_queries() as queries:
-        from_db = get_submission(submission_id=submission_id, with_full_schema=True)
-    assert from_db is not None
-
-    # Expected queries:
-    # * Load the submission with collection and forms(sections)
-    # * Load the submission events
-    # * For all forms, load the top-level components and their expressions
-    # * For all forms, load every component, their expressions, their nested components+expressions
-    # * For all forms, load every component's set of component references
-    assert len(queries) == 5
-
-    # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
-    count = 0
-    with track_sql_queries() as queries:
-        for f in from_db.collection.forms:
-            for q in f._all_components:
-                for _e in q.expressions:
-                    count += 1
-                for _ocr in q.owned_component_references:
-                    count += 1
-
-    assert queries == []
+        assert queries == []
 
 
 class TestGetFormById:

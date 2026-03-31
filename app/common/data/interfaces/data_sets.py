@@ -1,10 +1,9 @@
 import uuid
 from decimal import Decimal
-from typing import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload, with_loader_criteria
+from sqlalchemy.orm import selectinload
 
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
@@ -42,30 +41,6 @@ def get_data_source(
         stmt = stmt.options(selectinload(DataSource.items))
 
     return db.session.execute(stmt).scalar_one()
-
-
-def get_grant_recipient_data_sources_for_collection(collection_id: uuid.UUID, external_id: str) -> Sequence[DataSource]:
-    """
-    Returns a sequence of all GRANT_RECIPIENT DataSources for a collection, and populates the
-    filtered_organisation_item relationship with the data_source_organisation_item filtered to only the item matching
-    the given external_id, or None if no matching item is found.
-    """
-    stmt = (
-        select(DataSource)
-        .where(
-            DataSource.collection_id == collection_id,
-            DataSource.type == DataSourceType.GRANT_RECIPIENT,
-        )
-        .options(
-            selectinload(DataSource.filtered_organisation_item),
-            with_loader_criteria(
-                DataSourceOrganisationItem,
-                DataSourceOrganisationItem.external_id == external_id,
-            ),
-        )
-    )
-
-    return db.session.scalars(stmt).unique().all()
 
 
 def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMapping]) -> DataSourceSchema:

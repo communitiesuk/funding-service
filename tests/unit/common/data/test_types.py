@@ -153,7 +153,7 @@ class TestDataSourceSchemaPostgresType:
     def test_bind_param_serialises_to_plain_dict(self):
         schema = DataSourceSchema.model_validate(
             {
-                "capital-allocation": DataSourceSchemaColumn(
+                "c_capital_allocation": DataSourceSchemaColumn(
                     data_type=QuestionDataType.NUMBER,
                     presentation_options=QuestionPresentationOptions(prefix="£"),
                     data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
@@ -165,16 +165,16 @@ class TestDataSourceSchemaPostgresType:
         result = DataSourceSchemaPostgresType().process_bind_param(schema, dialect=None)
 
         assert isinstance(result, dict)
-        assert "capital-allocation" in result
-        assert result["capital-allocation"]["original_column_name"] == "Capital allocation"
-        assert result["capital-allocation"]["data_type"] == QuestionDataType.NUMBER
-        assert result["capital-allocation"]["presentation_options"]["prefix"] == "£"
-        assert result["capital-allocation"]["data_options"]["number_type"] == NumberTypeEnum.DECIMAL
-        assert result["capital-allocation"]["data_options"]["max_decimal_places"] == 2
+        assert "c_capital_allocation" in result
+        assert result["c_capital_allocation"]["original_column_name"] == "Capital allocation"
+        assert result["c_capital_allocation"]["data_type"] == QuestionDataType.NUMBER
+        assert result["c_capital_allocation"]["presentation_options"]["prefix"] == "£"
+        assert result["c_capital_allocation"]["data_options"]["number_type"] == NumberTypeEnum.DECIMAL
+        assert result["c_capital_allocation"]["data_options"]["max_decimal_places"] == 2
 
     def test_result_value_deserialises_to_typed_schema(self):
         schema = {
-            "capital-allocation": {
+            "c_capital_allocation": {
                 "data_type": QuestionDataType.NUMBER,
                 "presentation_options": {"prefix": "£"},
                 "data_options": {"number_type": NumberTypeEnum.DECIMAL, "max_decimal_places": 2},
@@ -185,7 +185,7 @@ class TestDataSourceSchemaPostgresType:
         result = DataSourceSchemaPostgresType().process_result_value(schema, dialect=None)
 
         assert isinstance(result, DataSourceSchema)
-        col = result.root["capital-allocation"]
+        col = result.root["c_capital_allocation"]
         assert isinstance(col, DataSourceSchemaColumn)
         assert col.data_type == QuestionDataType.NUMBER
         assert col.presentation_options.prefix == "£"
@@ -195,7 +195,7 @@ class TestDataSourceSchemaPostgresType:
     def test_round_trip_preserves_all_fields(self):
         schema = DataSourceSchema.model_validate(
             {
-                "distance-travelled": DataSourceSchemaColumn(
+                "c_distance_travelled": DataSourceSchemaColumn(
                     data_type=QuestionDataType.NUMBER,
                     presentation_options=QuestionPresentationOptions(suffix="km"),
                     data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
@@ -207,7 +207,7 @@ class TestDataSourceSchemaPostgresType:
         serialised = DataSourceSchemaPostgresType().process_bind_param(schema, dialect=None)
         deserialised = DataSourceSchemaPostgresType().process_result_value(serialised, dialect=None)
 
-        schema_column = deserialised.root["distance-travelled"]
+        schema_column = deserialised.root["c_distance_travelled"]
         assert schema_column.data_options.number_type == NumberTypeEnum.INTEGER
         assert schema_column.presentation_options.suffix == "km"
         assert schema_column.original_column_name == "Distance travelled"
@@ -215,7 +215,7 @@ class TestDataSourceSchemaPostgresType:
     def test_bind_param_excludes_none_values(self):
         schema = DataSourceSchema.model_validate(
             {
-                "theme-name": DataSourceSchemaColumn(
+                "c_theme_name": DataSourceSchemaColumn(
                     data_type=QuestionDataType.TEXT_SINGLE_LINE,
                     presentation_options=QuestionPresentationOptions(),
                     data_options=QuestionDataOptions(),
@@ -226,5 +226,5 @@ class TestDataSourceSchemaPostgresType:
 
         result = DataSourceSchemaPostgresType().process_bind_param(schema, dialect=None)
 
-        assert "max_decimal_places" not in result["theme-name"].get("data_options", {})
-        assert "prefix" not in result["theme-name"].get("presentation_options", {})
+        assert "max_decimal_places" not in result["c_theme_name"].get("data_options", {})
+        assert "prefix" not in result["c_theme_name"].get("presentation_options", {})
