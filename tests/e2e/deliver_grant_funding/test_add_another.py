@@ -7,6 +7,11 @@ from playwright.sync_api import Page, expect
 from app.common.data.types import GroupDisplayOptions, QuestionDataType
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser, QuestionDict, QuestionGroupDict, QuestionResponse
+from tests.e2e.deliver_grant_funding.helpers import (
+    create_grant,
+    extract_uuid_from_url,
+    navigate_to_report_sections_page,
+)
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
     EditQuestionGroupPage,
@@ -14,12 +19,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     RunnerCheckYourAnswersPage,
     RunnerQuestionPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
-    create_grant,
-    create_question,
-    extract_uuid_from_url,
-    navigate_to_report_sections_page,
-)
+from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question
 from tests.e2e.helpers import delete_grant_through_admin
 
 _shared_setup_data: dict | None = None
