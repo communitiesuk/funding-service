@@ -14,12 +14,10 @@ from tests.e2e.deliver_grant_funding.helpers import (
 )
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
-    EditQuestionGroupPage,
-    ManageSectionPage,
     RunnerCheckYourAnswersPage,
     RunnerQuestionPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question
+from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question_or_group
 from tests.e2e.helpers import delete_grant_through_admin
 
 _shared_setup_data: dict | None = None
@@ -30,6 +28,7 @@ add_another_one_per_page_group: QuestionGroupDict = {
     "type": "group",
     "text": "Recipient",
     "display_options": GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
+    "add_another": True,
     "questions": [
         QuestionDict(
             {
@@ -49,28 +48,6 @@ add_another_one_per_page_group: QuestionGroupDict = {
         ),
     ],
 }
-
-
-def create_add_another_group(
-    question_definition: QuestionGroupDict,
-    manage_section_page: ManageSectionPage | EditQuestionGroupPage,
-    parent_group_name: str | None = None,
-) -> None:
-
-    add_question_group_page = manage_section_page.click_add_question_group(question_definition["text"])
-    add_question_group_page.fill_in_question_group_name()
-
-    group_display_options_page = add_question_group_page.click_continue()
-    group_display_options_page.click_question_group_display_type(question_definition["display_options"])
-
-    add_another_options_page = group_display_options_page.click_submit()
-    add_another_options_page.click_add_another(True)
-    edit_question_group_page = add_another_options_page.click_submit(parent_group_name)
-
-    for question in question_definition["questions"]:
-        create_question(question, edit_question_group_page, parent_group_name=question_definition["text"])
-
-    edit_question_group_page.click_section_breadcrumb()
 
 
 def test_add_another_setup(
@@ -105,7 +82,7 @@ def test_add_another_setup(
 
     # Add another group
     manage_section_page = report_sections_page.click_manage_section(section_name)
-    create_add_another_group(add_another_one_per_page_group, manage_section_page)
+    create_question_or_group(add_another_one_per_page_group, manage_section_page)
 
     _shared_setup_data = {
         "grant_name": grant_name,
