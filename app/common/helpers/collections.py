@@ -1,13 +1,13 @@
 import csv
 import json
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, NamedTuple, Sequence, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
 from flask import current_app
@@ -130,6 +130,7 @@ class SubmissionHelper:
         """
         self.submission = submission
         self.collection = self.submission.collection
+        self.data_sources = self.submission.data_sources
         self.events = SubmissionEventHelper(self.submission)
 
         self.cached_get_ordered_visible_questions = lru_cache(maxsize=None)(self._get_ordered_visible_questions)
@@ -140,7 +141,8 @@ class SubmissionHelper:
 
     @classmethod
     def load(cls, submission_id: uuid.UUID, *, grant_recipient_id: uuid.UUID | None = None) -> SubmissionHelper:
-        return cls(get_submission(submission_id, with_full_schema=True, grant_recipient_id=grant_recipient_id))
+        submission = get_submission(submission_id, with_full_schema=True, grant_recipient_id=grant_recipient_id)
+        return cls(submission)
 
     @staticmethod
     def get_interpolator(

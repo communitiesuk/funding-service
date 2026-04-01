@@ -8391,9 +8391,9 @@ class TestDataSetMissingData:
         assert data_source.grant_id == authenticated_grant_admin_client.grant.id
         schema = data_source.schema.root
         assert schema is not None
-        assert "capital-allocation" in schema
-        assert "revenue-allocation" in schema
-        revenue_allocation = schema["revenue-allocation"]
+        assert "c_capital_allocation" in schema
+        assert "c_revenue_allocation" in schema
+        revenue_allocation = schema["c_revenue_allocation"]
         assert revenue_allocation.presentation_options.prefix == "£"
 
         org_items = (
@@ -8405,7 +8405,7 @@ class TestDataSetMissingData:
         assert len(org_items) == 2
         assert org_items[0].external_id == grant_recipient.organisation.external_id
         assert org_items[1].external_id == grant_recipient_2.organisation.external_id
-        assert org_items[1]._data["revenue-allocation"] == "200.00"
+        assert org_items[1]._data["c_revenue_allocation"] == "200.00"
 
 
 class TestViewDataSource:
@@ -8544,7 +8544,7 @@ class TestViewDataSource:
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
                 {
-                    "allocation": {
+                    "c_allocation": {
                         "data_type": QuestionDataType.NUMBER,
                         "original_column_name": "Allocation",
                         "presentation_options": {"prefix": "£", "suffix": ""},
@@ -8557,7 +8557,7 @@ class TestViewDataSource:
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            _data={"allocation": 500000},
+            _data={"c_allocation": 500000},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8591,7 +8591,7 @@ class TestViewDataSource:
             type=DataSourceType.PROJECT_LEVEL,
             schema=DataSourceSchema.model_validate(
                 {
-                    "project-name": {
+                    "c_project_name": {
                         "data_type": QuestionDataType.TEXT_SINGLE_LINE,
                         "original_column_name": "Project name",
                         "presentation_options": {},
@@ -8605,8 +8605,8 @@ class TestViewDataSource:
             data_source=data_source,
             external_id="E123",
             _data=[
-                {"project-name": "Roads"},
-                {"project-name": "Bridges"},
+                {"c_project_name": "Roads"},
+                {"c_project_name": "Bridges"},
             ],
         )
 
@@ -8663,7 +8663,7 @@ class TestViewDataSource:
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
                 {
-                    "notes": {
+                    "c_notes": {
                         "data_type": QuestionDataType.TEXT_SINGLE_LINE,
                         "original_column_name": "Notes",
                         "presentation_options": {},
@@ -8676,7 +8676,7 @@ class TestViewDataSource:
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            _data={"notes": None},
+            _data={"c_notes": None},
         )
 
         response = authenticated_grant_member_client.get(
@@ -8715,7 +8715,7 @@ class TestViewDataSource:
             name="Test data set",
             schema=DataSourceSchema.model_validate(
                 {
-                    "notes": {
+                    "c_notes": {
                         "data_type": QuestionDataType.TEXT_SINGLE_LINE,
                         "original_column_name": "Notes",
                         "presentation_options": {},
@@ -8728,7 +8728,7 @@ class TestViewDataSource:
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            _data={"notes": "hello"},
+            _data={"c_notes": "hello"},
         )
 
         response = authenticated_grant_member_client.get(

@@ -6,8 +6,17 @@ from unittest.mock import PropertyMock
 import pytest
 
 from app.common.data.models import Expression
-from app.common.data.types import ExpressionType, QuestionDataType
-from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate
+from app.common.data.types import (
+    DataSourceSchema,
+    DataSourceSchemaColumn,
+    DataSourceType,
+    ExpressionType,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionDataType,
+    QuestionPresentationOptions,
+)
+from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate, interpolate
 from app.common.expressions.managed import BetweenDates, GreaterThan
 from app.common.helpers.collections import SubmissionHelper
 
@@ -98,6 +107,334 @@ class TestExpressionContext:
             context = ExpressionContext.build_expression_context(collection=collection, mode="interpolation")
 
             assert context[q.safe_qid] == "((My Collection → My Form → my question))"
+
+    class TestBuildDataSourceContext:
+        def test_returns_empty_dict_when_no_submission_helper(self):
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=None)
+            assert context == {}
+
+        def test_returns_empty_dict_when_data_sets_empty(self, factories):
+            submission = factories.submission.create()
+            helper = SubmissionHelper(submission)
+
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+            assert context == {}
+
+        def test_data_source_with_no_schema_continues(self, factories):
+            # This shouldn't ever happen in reality, but testing the behaviour anyway
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+            factories.data_source.create(
+                grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, schema=None
+            )
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+            assert context == {}
+
+        def test_data_source_with_empty_schema_root_raises_error(self, factories):
+            # This also shouldn't happen in reality but testing the behaviour anyway
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+            factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate({}),
+            )
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            with pytest.raises(ValueError):
+                ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+        def test_org_item_none_evaluation_exposes_none_values(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "capital_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(),
+                            original_column_name="Capital Allocation",
+                        )
+                    }
+                ),
+            )
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+            assert data_source.safe_did in context
+            assert context[data_source.safe_did]["capital_allocation"] is None
+
+        def test_org_item_none_interpolation_exposes_placeholder_labels(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+            data_source = factories.data_source.create(
+                name="Test data set",
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "capital_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(),
+                            original_column_name="Capital Allocation",
+                        )
+                    }
+                ),
+            )
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
+
+            assert data_source.safe_did in context
+            assert context[data_source.safe_did]["capital_allocation"] == "((Test data set → Capital Allocation))"
+
+        def test_non_dict_typed_data_is_skipped(self, factories, mocker):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "c_capital_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            original_column_name="Capital Allocation",
+                        )
+                    }
+                ),
+            )
+            org_item = factories.data_source_organisation_item.create(
+                data_source=data_source,
+                external_id=organisation.external_id,
+                _data={"c_capital_allocation": 1000},
+            )
+
+            mocker.patch.object(type(org_item), "data", new_callable=PropertyMock, return_value=[{"col": "val"}])
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+            assert context == {}
+
+        def test_real_org_item_evaluation_returns_typed_values(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "c_capital_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            original_column_name="Capital Allocation",
+                        )
+                    }
+                ),
+            )
+            factories.data_source_organisation_item.create(
+                data_source=data_source,
+                external_id=organisation.external_id,
+                _data={"c_capital_allocation": 1000},
+            )
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+            assert data_source.safe_did in context
+            assert context[data_source.safe_did]["c_capital_allocation"] == 1000
+
+        def test_data_source_organisation_item_filtering(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+
+            organisation_2 = factories.organisation.create()
+            grant_recipient_2 = factories.grant_recipient.create(grant=grant, organisation=organisation_2)
+            submission_2 = factories.submission.create(collection=collection, grant_recipient=grant_recipient_2)
+
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "c_capital_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(prefix="£"),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            original_column_name="Capital Allocation",
+                        )
+                    }
+                ),
+            )
+            factories.data_source_organisation_item.create(
+                data_source=data_source,
+                external_id=organisation.external_id,
+                _data={"c_capital_allocation": 1000},
+            )
+            factories.data_source_organisation_item.create(
+                data_source=data_source,
+                external_id=organisation_2.external_id,
+                _data={"c_capital_allocation": 9999},
+            )
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
+            assert context[data_source.safe_did]["c_capital_allocation"] == "£1,000"
+
+            helper = SubmissionHelper.load(submission_2.id, grant_recipient_id=grant_recipient_2.id)
+            context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
+            assert context[data_source.safe_did]["c_capital_allocation"] == "£9,999"
+
+        def test_real_org_item_interpolation_returns_formatted_string(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "c_capital_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(prefix="£"),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            original_column_name="Capital Allocation",
+                        )
+                    }
+                ),
+            )
+            factories.data_source_organisation_item.create(
+                data_source=data_source,
+                external_id=organisation.external_id,
+                _data={"c_capital_allocation": 1000},
+            )
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
+
+            assert data_source.safe_did in context
+            assert context[data_source.safe_did]["c_capital_allocation"] == "£1,000"
+
+        def test_none_column_value_in_org_item_not_in_context(self, factories):
+            # This is explicitly testing _build_data_source_context where _data with None values do not get added to
+            # the context. In interpolation, these then get injected with the fallback reference in the normal
+            # build_expression_context method.
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "c_capital_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(),
+                            original_column_name="Capital Allocation",
+                        )
+                    }
+                ),
+            )
+            factories.data_source_organisation_item.create(
+                data_source=data_source,
+                external_id=organisation.external_id,
+                _data={"c_capital_allocation": None},
+            )
+
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+            assert "c_capital_allocation" not in context[data_source.safe_did]
+
+        def test_multiple_data_sources_all_included(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            organisation = factories.organisation.create()
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+
+            ds1 = factories.data_source.create(
+                name="Test data set 1",
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "capital_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            original_column_name="Capital Allocation",
+                        )
+                    }
+                ),
+            )
+            ds2 = factories.data_source.create(
+                name="Test data set 2",
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "notes": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                            presentation_options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(),
+                            original_column_name="Notes",
+                        )
+                    }
+                ),
+            )
+            helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+            assert ds1.safe_did in context
+            assert ds2.safe_did in context
+            assert ds1.safe_did != ds2.safe_did
 
 
 class TestEvaluatingManagedExpressions:
@@ -411,3 +748,163 @@ class TestExtendingWithQuestionFormContext:
         question_form_expression_context = ex.with_question_form_context({"b": 3})
         assert question_form_expression_context["b"] == 3
         assert ex["b"] == 1
+
+    class TestDataSourceContextPreservedOnContextExtension:
+        def test_with_question_form_context_preserves_data_source_context(self):
+            ex = ExpressionContext(
+                submission_data={"q_abc": "answer"},
+                data_source_context={"d_abc": {"capital_allocation": 1000}},
+            )
+            new_context = ex.with_question_form_context({"q_abc": "updated_answer"})
+
+            assert new_context["d_abc"]["capital_allocation"] == 1000
+            assert new_context["q_abc"] == "updated_answer"
+            assert ex["q_abc"] == "answer"
+
+        def test_with_add_another_context_preserves_data_source_context(self, factories):
+            group = factories.group.create(add_another=True)
+            q1 = factories.question.create(parent=group)
+            submission = factories.submission.create(collection=group.form.collection)
+            submission.data = {str(group.id): [{str(q1.id): "v0"}]}
+
+            ex = ExpressionContext(
+                submission_data={q1.safe_qid: "answer"},
+                data_source_context={"d_abc": {"capital_allocation": 1000}},
+            )
+
+            helper = SubmissionHelper(submission=submission)
+            new_context = ex.with_add_another_context(component=q1, submission_helper=helper, add_another_index=0)
+
+            assert new_context["d_abc"]["capital_allocation"] == 1000
+
+
+class TestDataSourceInterpolation:
+    def test_data_source_reference_interpolated_with_real_value(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        organisation = factories.organisation.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+        submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=organisation.external_id,
+            _data={"c_capital_allocation": 1000},
+        )
+
+        helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+        ds_context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
+        context = ExpressionContext(data_source_context=ds_context)
+
+        result = interpolate(f"(({data_source.safe_did}.c_capital_allocation))", context)
+        assert result == "£1,000"
+
+    def test_data_source_reference_with_no_org_item_renders_placeholder(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        organisation = factories.organisation.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+        submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+        ds_context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
+        context = ExpressionContext(data_source_context=ds_context)
+
+        result = interpolate(f"(({data_source.safe_did}.capital_allocation))", context)
+        assert result == "((Test data set → Capital Allocation))"
+
+    def test_unknown_data_source_reference_renders_raw(self):
+        context = ExpressionContext(data_source_context={})
+
+        result = interpolate("((d_doesnotexist.some_col))", context)
+        assert result == "((d_doesnotexist.some_col))"
+
+
+class TestDataSourceEvaluation:
+    def test_real_column_value_evaluates_correctly(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        organisation = factories.organisation.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+        submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=organisation.external_id,
+            _data={"c_capital_allocation": 1000},
+        )
+
+        helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
+        ds_context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+        context = ExpressionContext(data_source_context=ds_context)
+
+        expr = Expression(
+            statement=f"{data_source.safe_did}.c_capital_allocation > 500",
+            type_=ExpressionType.CONDITION,
+        )
+        assert evaluate(expr, context) is True
+
+
+class TestIsValidReferenceWithDataSources:
+    def test_valid_data_source_column_reference(self):
+        context = ExpressionContext(data_source_context={"d_abc": {"c_capital_allocation": 1000}})
+        assert context.is_valid_reference("d_abc.c_capital_allocation") is True
+
+    def test_invalid_data_source_key(self):
+        context = ExpressionContext(data_source_context={"d_abc": {"c_capital_allocation": 1000}})
+        assert context.is_valid_reference("d_xyz.c_capital_allocation") is False
+
+    def test_invalid_data_source_column(self):
+        context = ExpressionContext(data_source_context={"d_abc": {"c_capital_allocation": 1000}})
+        assert context.is_valid_reference("d_abc.nonexistent_column") is False
+
+    def test_valid_data_source_column_with_none_value(self):
+        context = ExpressionContext(data_source_context={"d_abc": {"c_capital_allocation": None}})
+        assert context.is_valid_reference("d_abc.c_capital_allocation") is True
+
+    def test_data_source_key_without_column_returns_true(self):
+        context = ExpressionContext(data_source_context={"d_abc": {"c_capital_allocation": 1000}})
+        assert context.is_valid_reference("d_abc") is True

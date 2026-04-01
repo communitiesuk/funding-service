@@ -65,7 +65,7 @@ from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
-from app.common.qid import SafeQidMixin
+from app.common.safe_ids import SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
@@ -412,6 +412,7 @@ def get_all_submissions_with_mode_for_collection(
         stmt = stmt.options(
             joinedload(Submission.created_by),
         )
+
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))
     return db.session.scalars(stmt).unique().all()
@@ -448,10 +449,10 @@ def get_submission(
 ) -> Submission:
     query = select(Submission).where(Submission.id == submission_id)
 
+    options = []
     if grant_recipient_id:
         query = query.where(Submission.grant_recipient_id == grant_recipient_id)
 
-    options = []
     if with_full_schema:
         options.extend(
             [

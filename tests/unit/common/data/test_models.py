@@ -407,11 +407,11 @@ class TestDataSourceMakePydanticModel:
         data_source = factories.data_source.build(
             name="Test data set", type=DataSourceType.GRANT_RECIPIENT, schema=None
         )
-        assert data_source.build_typed_org_item_data({"capital-allocation": "1000"}) == {}
+        assert data_source.build_typed_org_item_data({"c_capital_allocation": "1000"}) == {}
 
     def test_returns_empty_list_when_no_schema_and_3d_data(self, factories):
         data_source = factories.data_source.build(name="Test data set", type=DataSourceType.PROJECT_LEVEL, schema=None)
-        assert data_source.build_typed_org_item_data([{"capital-allocation": "1000"}]) == []
+        assert data_source.build_typed_org_item_data([{"c_capital_allocation": "1000"}]) == []
 
     def test_text_column_returns_text_single_line_answer(self, factories):
         data_source = factories.data_source.build(

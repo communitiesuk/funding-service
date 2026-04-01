@@ -49,7 +49,7 @@ from app.common.expressions.custom import CustomExpression, get_custom_expressio
 from app.common.expressions.managed import (
     get_managed_expression,
 )
-from app.common.qid import SafeQidMixin
+from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import comma_join_items
 
 if TYPE_CHECKING:
@@ -349,6 +349,12 @@ class Submission(BaseModel):
     )
     created_by: Mapped[User] = relationship("User", back_populates="submissions")
     grant_recipient: Mapped[GrantRecipient] = relationship("GrantRecipient", back_populates="submissions")
+
+    data_sources: Mapped[list[DataSource]] = relationship(
+        "DataSource",
+        primaryjoin=lambda: Submission.collection_id == foreign(DataSource.collection_id),
+        viewonly=True,
+    )
 
     @property
     def s3_key_prefix(self) -> str:
@@ -961,7 +967,7 @@ class Expression(BaseModel):
         return {}
 
 
-class DataSource(BaseModel):
+class DataSource(BaseModel, SafeDidMixin):
     __tablename__ = "data_source"
 
     type: Mapped[DataSourceType] = mapped_column(
@@ -1002,24 +1008,22 @@ class DataSource(BaseModel):
         cascade="all, save-update, merge",
     )
 
+    # NOTE: This is a list of *all* organisation items for the data source and must be filtered down using the method
+    # below to retrieve just the organisation item for a specific grant recipient when using this in the context of
+    # a submission.
     organisation_items: Mapped[list[DataSourceOrganisationItem]] = relationship(
         "DataSourceOrganisationItem",
         back_populates="data_source",
         cascade="all, delete-orphan",
-        overlaps="filtered_organisation_item",
     )
 
-    # This relationship sets lazy="raise" as accessing it without an explicit selectinload from an interface should
-    # raise, preventing accidental unscoped access outside the interface.
-    # It is used for creating the data_source_context in the ExpressionContext, filtering down DataSourceOrgItems just
-    # to the grant recipient org completing that submission
-    filtered_organisation_item: Mapped[DataSourceOrganisationItem] = relationship(
-        "DataSourceOrganisationItem",
-        viewonly=True,
-        lazy="raise",
-        overlaps="organisation_items",
-        uselist=False,
-    )
+    def get_filtered_organisation_item(self, organisation_external_id: str) -> DataSourceOrganisationItem | None:
+        if not self.organisation_items:
+            return None
+
+        return next(
+            filter(lambda org_item: org_item.external_id == organisation_external_id, self.organisation_items), None
+        )
 
     __table_args__ = (
         CheckConstraint(
@@ -1044,6 +1048,11 @@ class DataSource(BaseModel):
             unique=True,
         ),
     )
+
+    @property
+    def data_source_id(self) -> uuid.UUID:
+        """A small proxy to support SafeDidMixin so that logic can be centralised."""
+        return self.id
 
     def build_typed_org_item_data(
         self,
