@@ -3913,7 +3913,8 @@ class TestAddCalculatedCondition:
                 "expression_name": "the name",
             },
             component=target_question,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_grant_admin_client.post(
@@ -3959,7 +3960,8 @@ class TestAddCalculatedCondition:
                 "expression_name": "new name",
             },
             component=target_question,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -4069,7 +4071,8 @@ class TestEditCalculatedCondition:
         wt_form = CalculatedConditionForm(
             data={"custom_expression": "68>70"},
             component=target_question,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
         response = authenticated_platform_admin_client.post(
             url_for(
@@ -4086,7 +4089,8 @@ class TestEditCalculatedCondition:
         wt_form = CalculatedConditionForm(
             data={"custom_expression": "100<900", "expression_name": "new name"},
             component=target_question,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
         response = authenticated_platform_admin_client.post(
             url_for(
@@ -4119,7 +4123,8 @@ class TestEditCalculatedCondition:
         wt_form = CalculatedConditionForm(
             data={"custom_expression": f"(({later_question.safe_qid}))>5", "expression_name": "new name"},
             component=target_question,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
         response = authenticated_platform_admin_client.post(
             url_for(
@@ -8973,7 +8978,8 @@ class TestAddCustomQuestionValidation:
                 f"(({q2.safe_qid}))",
             },
             question=q3,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9019,7 +9025,8 @@ class TestAddCustomQuestionValidation:
                 f"(({q2.safe_qid}))",
             },
             question=q3,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9059,7 +9066,8 @@ class TestAddCustomQuestionValidation:
                 f"((bad_reference))",
             },
             question=q3,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9105,7 +9113,8 @@ class TestAddCustomQuestionValidation:
                 f"(({q4.safe_qid}))",
             },
             question=q3,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9145,7 +9154,8 @@ class TestAddCustomQuestionValidation:
                 "add_context": "custom_expression",
             },
             question=q2,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9245,7 +9255,8 @@ class TestEditCustomQuestionValidation:
                 f"(({q2.safe_qid}))",
             },
             question=q3,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9300,7 +9311,8 @@ class TestEditCustomQuestionValidation:
                 f"(({q4.safe_qid}))",
             },
             question=q3,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(
@@ -9351,7 +9363,8 @@ class TestEditCustomQuestionValidation:
                 "add_context": "custom_expression",
             },
             question=q2,
-            expression_context=ExpressionContext(),
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
         )
 
         response = authenticated_platform_admin_client.post(

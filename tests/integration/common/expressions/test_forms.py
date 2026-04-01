@@ -31,7 +31,13 @@ class TestValidateCustomSyntax:
 
         assert (
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
             is None
         )
@@ -68,7 +74,13 @@ class TestValidateCustomSyntax:
 
         assert (
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
             is None
         )
@@ -88,7 +100,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(DependencyOrderException) as e:
             _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q1,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
         assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
 
@@ -129,7 +147,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(DependencyOrderException) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
         assert (
             e.value.form_error_message
@@ -168,7 +192,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(InvalidReferenceInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert e.value.form_error_message == "You cannot use ((some_bad_ref)) because it does not exist"
@@ -200,7 +230,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(InvalidReferenceInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert e.value.form_error_message == f"You cannot use (({q1.safe_qid})) because it does not exist"
@@ -233,7 +269,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(IncompatibleDataTypeInCalculationException) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert (
@@ -280,7 +322,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(UndefinedVariableInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert e.value.form_error_message == f"You cannot use {q1.safe_qid} because it does not exist"
@@ -299,7 +347,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(UndefinedFunctionInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert e.value.form_error_message == "You cannot use sum in calculations"
@@ -318,7 +372,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(DisallowedExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert (
@@ -340,7 +400,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(UndefinedOperatorInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert e.value.form_error_message == "You cannot use Pow() in calculations"
@@ -363,7 +429,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(DisallowedExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert e.value.form_error_message == "The expression must include exactly one reference to this question"
@@ -383,7 +455,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(DisallowedExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert e.value.form_error_message == "The expression must include exactly one reference to this question"
@@ -403,7 +481,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(InvalidEvaluationResult) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert e.value.form_error_message == "The expression must evaluate to true or false"
@@ -424,7 +508,13 @@ class TestValidateCustomSyntax:
 
         assert (
             _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q1,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
             is None
         )
@@ -453,7 +543,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(DisallowedExpression):
             _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q1,
+                expr_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=expr_context,
             )
 
         assert mock_sentry_metrics.call_count == 1
