@@ -1963,10 +1963,16 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
     wt_form = CalculatedConditionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
         component=component,
-        expression_context=(
+        interpolation_context=(
             ExpressionContext.build_expression_context(
                 component.form.collection,
                 "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                component.form.collection,
+                "evaluation",
             )
         ),
     )
@@ -2062,10 +2068,16 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
         obj=expression.custom if not add_context_data else None,
         component=component,
-        expression_context=(
+        interpolation_context=(
             ExpressionContext.build_expression_context(
                 component.form.collection,
                 "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                component.form.collection,
+                "evaluation",
             )
         ),
     )
@@ -2586,9 +2598,17 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
     wt_form = CustomValidationExpressionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
         question=question,
-        expression_context=ExpressionContext.build_expression_context(
-            question.form.collection,
-            "interpolation",
+        interpolation_context=(
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "evaluation",
+            )
         ),
     )
 
@@ -2676,9 +2696,17 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
         obj=expression.custom if not add_context_data else None,
         question=question,
-        expression_context=ExpressionContext.build_expression_context(
-            question.form.collection,
-            "interpolation",
+        interpolation_context=(
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "evaluation",
+            )
         ),
     )
     if wt_form and wt_form.is_submitted_to_add_context():

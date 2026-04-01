@@ -65,7 +65,7 @@ from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
-from app.common.safe_ids import SafeQidMixin
+from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
@@ -1511,8 +1511,12 @@ def _validate_reference(  # noqa:C901
             form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
         )
 
-    # If it's a question, check it is of the right data type
-    if question_id := SafeQidMixin.safe_qid_to_id(unwrapped_ref):
+    question_id = SafeQidMixin.safe_qid_to_id(unwrapped_ref)
+
+    # If it's a data source, we check this below in the elif
+    data_source_id, _column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(unwrapped_ref)
+
+    if question_id:
         referenced_question = db.session.get_one(Question, question_id)
 
         # for validation, the question being validated (ie attached to) needs to have the same data type as the question
@@ -1597,6 +1601,9 @@ def _validate_reference(  # noqa:C901
                 form_error_message=f"You cannot reference {referenced_question.name} because it can be answered more "
                 "than once",
             )
+    elif data_source_id:
+        db.session.get_one(DataSource, data_source_id)
+
     else:
         # TODO implement this once we can reference other things, eg. data uploads
         raise NotImplementedError(
@@ -1665,7 +1672,11 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 question_to_test=expr_impl.referenced_question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
             )
 
-            referenced_question = get_question_by_id(SafeQidMixin.safe_qid_to_id(valid_reference))  # type:ignore[arg-type]
+            # TODO: Add data_source wrangling for creating component references
+            question_id = SafeQidMixin.safe_qid_to_id(valid_reference)
+            if not question_id:
+                continue
+            referenced_question = get_question_by_id(question_id)
             referenced_questions.add(referenced_question)
 
     for referenced_question in referenced_questions:
@@ -1719,6 +1730,8 @@ def _validate_and_sync_component_references(component: Component, expression_con
                 question = db.session.get_one(Question, question_id)
 
                 references_to_set_up.add((component.id, question.id))
+
+            # TODO: Add data_source wrangling for creating component references
 
     for component_id, depends_on_component_id in references_to_set_up:
         db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))

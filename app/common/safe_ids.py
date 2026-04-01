@@ -47,6 +47,16 @@ class SafeDidMixin:
 
         return None
 
+    @staticmethod
+    def safe_ds_ref_to_id_and_column_name(data_source_reference: str) -> tuple[uuid.UUID, str] | tuple[None, None]:
+        if data_source_reference.count(".") != 1:
+            return None, None
+        safe_did, column_name = data_source_reference.split(".")
+        data_source_id = SafeDidMixin.safe_did_to_id(safe_did)
+        if data_source_id is None:
+            return None, None
+        return data_source_id, column_name
+
 
 def safe_column_id(text: str) -> str:
     """
