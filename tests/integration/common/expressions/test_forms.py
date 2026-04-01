@@ -2,7 +2,16 @@ import pytest
 
 from app.common.data.interfaces.collections import DependencyOrderException, IncompatibleDataTypeInCalculationException
 from app.common.data.interfaces.exceptions import InvalidReferenceInExpression
-from app.common.data.types import ExpressionType, NumberTypeEnum, QuestionDataOptions, QuestionDataType
+from app.common.data.types import (
+    DataSourceSchema,
+    DataSourceSchemaColumn,
+    DataSourceType,
+    ExpressionType,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionDataType,
+    QuestionPresentationOptions,
+)
 from app.common.expressions import (
     DisallowedExpression,
     ExpressionContext,
@@ -27,17 +36,24 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        interpolation_context = ExpressionContext.build_expression_context(db_form.collection, "interpolation")
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         assert (
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                interpolation_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
             is None
         )
         assert (
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
+                q3, interpolation_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
             )
             is None
         )
@@ -62,13 +78,19 @@ class TestValidateCustomSyntax:
             f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({previous_question.safe_qid}))"
         )
 
-        expr_context = ExpressionContext(
+        evaluation_context = ExpressionContext(
             submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, previous_question.safe_qid: 44}
         )
 
         assert (
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
             is None
         )
@@ -84,18 +106,24 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q1.safe_qid})) < (({q2.safe_qid}))"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(DependencyOrderException) as e:
             _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q1,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
         assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
 
         with pytest.raises(DependencyOrderException) as e:
             _validate_custom_syntax(
                 q1,
-                expr_context,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
                 f"The answer must be less than (({q2.safe_qid}))",
                 ExpressionType.VALIDATION,
                 "custom_message",
@@ -123,13 +151,19 @@ class TestValidateCustomSyntax:
             f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({later_form_question.safe_qid}))"
         )
 
-        expr_context = ExpressionContext(
+        evaluation_context = ExpressionContext(
             submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, later_form_question.safe_qid: 55}
         )
 
         with pytest.raises(DependencyOrderException) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
         assert (
             e.value.form_error_message
@@ -139,7 +173,7 @@ class TestValidateCustomSyntax:
         with pytest.raises(DependencyOrderException) as e:
             _validate_custom_syntax(
                 q3,
-                expr_context,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
                 (
                     f"The answer must be less than (({q2.safe_qid})) + (({q1.safe_qid})) + "
                     f"(({later_form_question.safe_qid}))"
@@ -164,11 +198,17 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + ((some_bad_ref))"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(InvalidReferenceInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert e.value.form_error_message == "You cannot use ((some_bad_ref)) because it does not exist"
@@ -176,7 +216,7 @@ class TestValidateCustomSyntax:
         with pytest.raises(InvalidReferenceInExpression) as e:
             _validate_custom_syntax(
                 q3,
-                expr_context,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
                 f"The answer must be less than (({q2.safe_qid})) + ((some_bad_ref))",
                 ExpressionType.VALIDATION,
                 "custom_message",
@@ -184,38 +224,6 @@ class TestValidateCustomSyntax:
             )
 
         assert e.value.form_error_message == "You cannot use ((some_bad_ref)) because it does not exist"
-
-    def test_invalid_expression_reference_missing_from_context(self, factories, mocker):
-        db_form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(
-            3,
-            form=db_form,
-            data_type=QuestionDataType.NUMBER,
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        )
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
-
-        # exclude q1 from the context
-        expr_context = ExpressionContext(submission_data={q2.safe_qid: 22, q3.safe_qid: 33})
-
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
-            )
-
-        assert e.value.form_error_message == f"You cannot use (({q1.safe_qid})) because it does not exist"
-
-        with pytest.raises(InvalidReferenceInExpression) as e:
-            _validate_custom_syntax(
-                q3,
-                expr_context,
-                f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
-                ExpressionType.VALIDATION,
-                "custom_message",
-                False,
-            )
-
-        assert e.value.form_error_message == f"You cannot use (({q1.safe_qid})) because it does not exist"
 
     def test_invalid_expression_incompatible_data_type(self, factories, mocker):
         db_form = factories.form.create()
@@ -229,11 +237,17 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(IncompatibleDataTypeInCalculationException) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert (
@@ -244,7 +258,7 @@ class TestValidateCustomSyntax:
         with pytest.raises(IncompatibleDataTypeInCalculationException) as e:
             _validate_custom_syntax(
                 q3,
-                expr_context,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
                 f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
                 ExpressionType.VALIDATION,
                 "custom_message",
@@ -267,7 +281,7 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
 
-        expr_context = ExpressionContext()
+        evaluation_context = ExpressionContext()
 
         side_effect = [q3.safe_qid, q2.safe_qid, None]
 
@@ -280,7 +294,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(UndefinedVariableInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert e.value.form_error_message == f"You cannot use {q1.safe_qid} because it does not exist"
@@ -295,11 +315,17 @@ class TestValidateCustomSyntax:
         )
         test_expression = f"(({q3.safe_qid})) < sum( (({q2.safe_qid})), (({q1.safe_qid})) )"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(UndefinedFunctionInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert e.value.form_error_message == "You cannot use sum in calculations"
@@ -314,11 +340,17 @@ class TestValidateCustomSyntax:
         )
         test_expression = f"(({q3.safe_qid})) < hello there"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(DisallowedExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert (
@@ -336,11 +368,17 @@ class TestValidateCustomSyntax:
         )
         test_expression = f"(({q3.safe_qid})) < 2**3"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(UndefinedOperatorInExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert e.value.form_error_message == "You cannot use Pow() in calculations"
@@ -359,11 +397,17 @@ class TestValidateCustomSyntax:
             f"(({q3.safe_qid})) + (({q3.safe_qid}))"
         )
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(DisallowedExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert e.value.form_error_message == "The expression must include exactly one reference to this question"
@@ -379,11 +423,17 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q2.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(DisallowedExpression) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert e.value.form_error_message == "The expression must include exactly one reference to this question"
@@ -399,14 +449,57 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q3.safe_qid})) + (({q2.safe_qid})) + (({q1.safe_qid}))"
 
-        expr_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
         with pytest.raises(InvalidEvaluationResult) as e:
             _validate_custom_syntax(
-                q3, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q3,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert e.value.form_error_message == "The expression must evaluate to true or false"
+
+    def test_can_reference_data_set_columns(self, factories):
+        db_form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(
+            3,
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        data_source = factories.data_source.create(
+            grant=db_form.collection.grant,
+            collection=db_form.collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
+
+        # Should not raise any errors
+        _validate_custom_syntax(
+            q3,
+            ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+            f"(({q3.safe_qid})) < (({data_source.safe_did}.c_capital_allocation))",
+            ExpressionType.VALIDATION,
+            "custom_expression",
+            validate_with_evaluation=True,
+            evaluation_context=evaluation_context,
+        )
 
     def test_metrics_success(self, factories, mock_sentry_metrics):
         q1 = factories.question.create(
@@ -416,7 +509,8 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q1.safe_qid})) < 5"
 
-        expr_context = ExpressionContext(
+        interpolation_context = ExpressionContext.build_expression_context(q1.form.collection, "interpolation")
+        evaluation_context = ExpressionContext(
             submission_data={
                 q1.safe_qid: 1,
             }
@@ -424,14 +518,20 @@ class TestValidateCustomSyntax:
 
         assert (
             _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q1,
+                interpolation_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
             is None
         )
         assert mock_sentry_metrics.call_count == 0
         assert (
             _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
+                q1, interpolation_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
             )
             is None
         )
@@ -445,7 +545,7 @@ class TestValidateCustomSyntax:
 
         test_expression = f"(({q1.safe_qid})) < syntax error"
 
-        expr_context = ExpressionContext(
+        evaluation_context = ExpressionContext(
             submission_data={
                 q1.safe_qid: 1,
             }
@@ -453,7 +553,13 @@ class TestValidateCustomSyntax:
 
         with pytest.raises(DisallowedExpression):
             _validate_custom_syntax(
-                q1, expr_context, test_expression, ExpressionType.VALIDATION, "custom_expression", True
+                q1,
+                ExpressionContext.build_expression_context(q1.form.collection, "interpolation"),
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
             )
 
         assert mock_sentry_metrics.call_count == 1

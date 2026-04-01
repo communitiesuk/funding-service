@@ -1514,7 +1514,7 @@ def _validate_reference(  # noqa:C901
     question_id = SafeQidMixin.safe_qid_to_id(unwrapped_ref)
 
     # If it's a data source, we check this below in the elif
-    data_source_id, column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(unwrapped_ref)
+    data_source_id, _column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(unwrapped_ref)
 
     if question_id:
         referenced_question = db.session.get_one(Question, question_id)
