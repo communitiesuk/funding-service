@@ -33,7 +33,9 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     # TODO refactor when we persist the collection status and/or implement multiple rounds
     submissions = []
     collection_helpers = []
-    for report in grant_recipient.grant.get_access_reports_for_user(user):
+    for report in grant_recipient.grant.get_access_reports_for_user(
+        user, user_organisation=grant_recipient.organisation
+    ):
         collection_helpers.append(CollectionHelper(collection=report))
         submissions.extend(
             [
