@@ -717,6 +717,27 @@ class TestUpdateCollection:
 
         assert "submission period dates must be set" in str(exc_info.value)
 
+    @pytest.mark.freeze_time("2025-01-30 10:00:00")
+    def test_update_collection_close_collection_before_submission_end_date_raises_error(self, db_session, factories):
+        collection = factories.collection.create(
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection,
+                status=CollectionStatusEnum.CLOSED,
+            )
+
+        assert (
+            f"You cannot close the report for submissions before the submission period "
+            f"end date of {collection.submission_period_end_date}"
+        ) in str(exc_info.value)
+
 
 class TestGetSubmission:
     def test_get_submission(self, db_session, factories):

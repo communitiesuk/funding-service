@@ -273,11 +273,20 @@ def update_collection(  # noqa: C901
             case (
                 CollectionStatusEnum.SCHEDULED,
                 CollectionStatusEnum.DRAFT,
-            ) | (
+            ):
+                pass
+            case (
                 CollectionStatusEnum.OPEN,
                 CollectionStatusEnum.CLOSED,
             ):
-                pass
+                assert collection.submission_period_end_date
+                if datetime.datetime.now(datetime.UTC) < datetime.datetime.combine(
+                    collection.submission_period_end_date, datetime.time.min, tzinfo=datetime.UTC
+                ):
+                    raise CollectionChronologyError(
+                        f"You cannot close the report for submissions before "
+                        f"the submission period end date of {collection.submission_period_end_date}"
+                    )
 
             case _:
                 raise StateTransitionError("Collection", collection.status, status)
