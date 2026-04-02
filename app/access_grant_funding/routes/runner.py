@@ -17,7 +17,7 @@ from app.common.data.interfaces.collections import get_collection, get_submissio
 from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext, interpolate
-from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.extensions import auto_commit_after_request, s3_service
 
 
@@ -94,6 +94,16 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
         raise abort(404)
     elif question is None:
         raise RuntimeError(f"Collection {collection_id} does not have a submission name question")
+
+    if CollectionHelper(collection).is_closed:
+        return redirect(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                collection_id=collection_id,
+            )
+        )
 
     evaluation_context = ExpressionContext.build_expression_context(collection=collection, mode="evaluation")
     interpolation_context = ExpressionContext.build_expression_context(collection=collection, mode="interpolation")

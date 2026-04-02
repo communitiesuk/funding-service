@@ -9,6 +9,7 @@ from flask import url_for
 from app.common.collections.types import FileUploadAnswer
 from app.common.data.models import Submission
 from app.common.data.types import (
+    CollectionStatusEnum,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -280,6 +281,30 @@ class TestStartNewMultipleSubmission:
                     collection_id=collection.id,
                 ),
             )
+
+    def test_redirects_to_submission_list_when_collection_closed(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        collection, question = self._create_multi_submission_collection(factories, grant_recipient.grant)
+        collection.status = CollectionStatusEnum.CLOSED
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_collection_submissions",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
 
     def test_post_creates_submission_and_redirects_to_tasklist(
         self, db_session, authenticated_grant_recipient_data_provider_client, factories
