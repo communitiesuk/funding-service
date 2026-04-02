@@ -1098,7 +1098,9 @@ class SubmissionHelper:
             )
 
         if self.in_immutable_state:
-            raise ValueError(f"Could not certify submission id={self.id} because it is in an immutable state.")
+            raise ValueError(
+                f"Could not decline certification for submission id={self.id} because it is in an immutable state."
+            )
 
         if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             interfaces.collections.add_submission_event(
@@ -1168,7 +1170,9 @@ class SubmissionHelper:
             return
 
         if self.in_answers_locked_state:
-            raise ValueError(f"Could not certify submission id={self.id} because the answers are locked.")
+            raise ValueError(
+                f"Could not toggle form completion for submission id={self.id} because the answers are locked."
+            )
 
         if is_complete:
             all_questions_answered = self.cached_get_all_questions_are_answered_for_form(form).all_answered
