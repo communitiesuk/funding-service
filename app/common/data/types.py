@@ -124,6 +124,7 @@ class SubmissionStatusEnum(enum.StrEnum):
     AWAITING_SIGN_OFF = "Awaiting sign off"
     SUBMITTED = "Submitted"
     NOT_SUBMITTED = "Not submitted"
+    PARTIALLY_SUBMITTED = "Partially submitted"
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):

@@ -49,7 +49,7 @@
 
           {% if report.allow_multiple_submissions %}
             {% set submission_status_html %}
-              {{ multiSubmissionStatusTag(report_submissions, report.is_overdue) }}
+              {{ multiSubmissionStatusTag(report_submissions, collection_helper, report.is_overdue) }}
             {% endset %}
             {% set report_action_html %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.route_to_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=report.id) }}">

@@ -288,12 +288,31 @@ class SubmissionHelper:
 
             elif helper.status == SubmissionStatusEnum.NOT_STARTED:
                 label = "Start report"
-
             elif helper.status == SubmissionStatusEnum.IN_PROGRESS:
                 label = "Continue report"
-
             else:
                 label = "View report"
+
+            if collection.allow_multiple_submissions:
+                # route to a generic in-progress submission can only work for non multi-submission collections
+                # this is partly duplicated logic with route to submission that was previously handled in separate
+                # templates
+                if helper.in_answers_locked_state:
+                    href = url_for(
+                        "access_grant_funding.view_locked_report",
+                        organisation_id=grant_recipient.organisation_id,
+                        grant_id=grant_recipient.grant_id,
+                        collection_id=collection.id,
+                        submission_id=submission.id,
+                    )
+                else:
+                    href = url_for(
+                        "access_grant_funding.tasklist",
+                        organisation_id=grant_recipient.organisation_id,
+                        grant_id=grant_recipient.grant_id,
+                        collection_id=collection.id,
+                        submission_id=submission.id,
+                    )
 
         return {
             "href": href,

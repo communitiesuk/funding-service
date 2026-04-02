@@ -49,13 +49,25 @@
   {{ govukTag({"text": status, "classes": classMap[status] }) }}
 {% endmacro %}
 
-{% macro multiSubmissionStatusTag(submissions, is_overdue) %}
-  {% if submissions | length == 0 %}
-    {% set multi_status = enum.submission_status.NOT_STARTED %}
-  {% elif submissions | selectattr("status", "equalto", enum.submission_status.SUBMITTED) | list | length == submissions | length %}
-    {% set multi_status = enum.submission_status.SUBMITTED %}
+{% macro multiSubmissionStatusTag(submissions, collection_helper, is_overdue) %}
+  {% if collection_helper.is_closed %}
+    {% if submissions | selectattr("status", "equalto", enum.submission_status.SUBMITTED) | list | length == submissions | length %}
+      {% set multi_status = enum.submission_status.SUBMITTED %}
+    {% elif submissions | selectattr("status", "equalto", enum.submission_status.SUBMITTED) | list | length > 0 %}
+      {% set multi_status = enum.submission_status.PARTIALLY_SUBMITTED %}
+    {% else %}
+      {% set multi_status = enum.submission_status.NOT_SUBMITTED %}
+    {% endif %}
   {% else %}
-    {% set multi_status = enum.submission_status.IN_PROGRESS %}
+    {% if submissions | length == 0 %}
+      {% set multi_status = enum.submission_status.NOT_STARTED %}
+    {% elif submissions | selectattr("status", "equalto", enum.submission_status.NOT_STARTED) | list | length == submissions | length %}
+      {% set multi_status = enum.submission_status.NOT_STARTED %}
+    {% elif submissions | selectattr("status", "equalto", enum.submission_status.SUBMITTED) | list | length == submissions | length %}
+      {% set multi_status = enum.submission_status.SUBMITTED %}
+    {% else %}
+      {% set multi_status = enum.submission_status.IN_PROGRESS %}
+    {% endif %}
   {% endif %}
   {% if multi_status == enum.submission_status.SUBMITTED %}
     <span class="govuk-body govuk-!-margin-bottom-0">{{ submissions | length }} submitted</span>
@@ -65,7 +77,7 @@
 {% endmacro %}
 
 {% macro submissionStatusTag(status, is_overdue) %}
-  {% set show_without_tag = [ enum.submission_status.SUBMITTED ] %}
+  {% set show_without_tag = [ enum.submission_status.SUBMITTED, enum.submission_status.PARTIALLY_SUBMITTED ] %}
   {%
     set classMap = {
         enum.submission_status.NOT_STARTED: "govuk-tag--grey",
