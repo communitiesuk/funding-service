@@ -3,7 +3,7 @@
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 
-{% set page_title = submission.long_collection_name if submission.is_submitted else ("Review report: " ~ submission.long_collection_name) %}
+{% set page_title = ("Review report: " ~ submission.long_collection_name) if submission.is_awaiting_sign_off else submission.long_collection_name %}
 
 {% set mainClasses = "app-full-screen-with-section-nav" %}
 
@@ -87,6 +87,19 @@
           <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.sent_for_certification_at_utc) }}</dd>
         </dl>
         <dl class="app-metadata govuk-!-margin-bottom-9">
+          <dt class="app-metadata__key">Status:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue) }}</dd>
+        </dl>
+      {% else %}
+        {# we should only show this page for a non-submitted report if the collection is locked #}
+        {# and we're showing the users incomplete answers #}
+        <p class="govuk-body govuk-!-margin-bottom-6">You cannot edit or submit this report.</p>
+
+        <dl class="app-metadata">
+          <dt class="app-metadata__key">Submission deadline:</dt>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.collection.submission_period_end_date) if submission.collection.submission_period_end_date else "Dates to be confirmed" }}</dd>
+        </dl>
+        <dl class="app-metadata">
           <dt class="app-metadata__key">Status:</dt>
           <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue) }}</dd>
         </dl>

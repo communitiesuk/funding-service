@@ -133,6 +133,34 @@ class TestViewLockedReport:
             "Date submitted:",
         ]
 
+    def test_get_view_locked_report_collection_closed(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        submission_collection_closed,
+    ):
+        grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_collection_closed.id,
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert get_h1_text(soup) == submission_collection_closed.collection.name
+
+        assert page_has_button(soup, button_text="Sign off and submit report") is None
+        assert page_has_link(soup, link_text="Decline sign off") is None
+
+        assert [key.text for key in soup.find_all("dt", class_="app-metadata__key")] == [
+            "Submission deadline:",
+            "Status:",
+        ]
+        assert "You cannot edit or submit this report." in soup.text
+
     def test_view_locked_report_not_locked_redirects(
         self,
         authenticated_grant_recipient_member_client,

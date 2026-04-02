@@ -30,7 +30,14 @@ from app import create_app
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_user import User
-from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum, SubmissionEventType, SubmissionModeEnum
+from app.common.data.types import (
+    AuthMethodEnum,
+    CollectionStatusEnum,
+    GrantStatusEnum,
+    RoleEnum,
+    SubmissionEventType,
+    SubmissionModeEnum,
+)
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
 from tests.integration.utils import TimeFreezer
@@ -644,6 +651,25 @@ def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient,
         submission=submission,
         event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
         created_by=user,
+    )
+    return cast(Submission, submission)
+
+
+@pytest.fixture(scope="function")
+def submission_collection_closed(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+    question = factories.question.create(
+        id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+        form__collection__grant=grant_recipient.grant,
+        form__collection__reporting_period_start_date=date.today() - timedelta(days=60),
+        form__collection__reporting_period_end_date=date.today() - timedelta(days=30),
+        form__collection__submission_period_end_date=date.today() - timedelta(days=30),
+        form__collection__status=CollectionStatusEnum.CLOSED,
+    )
+    submission = factories.submission.create(
+        grant_recipient=grant_recipient,
+        collection=question.form.collection,
+        mode=SubmissionModeEnum.LIVE,
+        data={str(question.id): "Question answer"},
     )
     return cast(Submission, submission)
 
