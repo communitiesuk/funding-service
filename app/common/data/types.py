@@ -57,6 +57,7 @@ class OrganisationType(enum.StrEnum):
     NORTHERN_IRELAND_AUTHORITY = "Northern Ireland District"
     SCOTTISH_UNITARY_AUTHORITY = "Scottish Unitary Authority"
     WELSH_UNITARY_AUTHORITY = "Welsh Unitary Authority"
+    OTHER = "Other"
 
 
 # TODO: Rename PermissionEnum
