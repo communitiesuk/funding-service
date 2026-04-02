@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 
 {% set page_title = ("Review report: " ~ submission.long_collection_name) if submission.is_awaiting_sign_off else submission.long_collection_name %}
 
@@ -93,7 +94,7 @@
       {% else %}
         {# we should only show this page for a non-submitted report if the collection is locked #}
         {# and we're showing the users incomplete answers #}
-        <p class="govuk-body govuk-!-margin-bottom-6">You cannot edit or submit this report.</p>
+        {{ govukInsetText({"text": "You cannot edit or submit this report."} ) }}
 
         <dl class="app-metadata">
           <dt class="app-metadata__key">Submission deadline:</dt>

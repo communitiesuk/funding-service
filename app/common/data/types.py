@@ -19,21 +19,6 @@ scalars = str | int | float | bool | None
 json_scalars = dict[str, Any]
 json_flat_scalars = dict[str, scalars]
 
-TRunnerUrlMap = dict[
-    "FormRunnerState",
-    Callable[
-        [
-            "FormRunner",
-            Optional["Question"],
-            Optional["Form"],
-            Optional["FormRunnerState"],
-            Optional[int],
-            Optional[str],
-        ],
-        str,
-    ],
-]
-
 
 class GrantStatusEnum(enum.StrEnum):
     DRAFT = "draft"
@@ -209,6 +194,31 @@ class FormRunnerState(enum.StrEnum):
     TASKLIST = "tasklist"
     QUESTION = "question"
     CHECK_YOUR_ANSWERS = "check-your-answers"
+    VIEW_REPORT_PAGE = "view-report-page"
+
+
+TRunnerUrlMapCallable = Callable[
+    [
+        "FormRunner",
+        Optional["Question"],
+        Optional["Form"],
+        Optional["FormRunnerState"],
+        Optional[int],
+        Optional[str],
+    ],
+    str,
+]
+
+
+TRunnerUrlMap = typing.TypedDict(
+    "TRunnerUrlMap",
+    {
+        FormRunnerState.TASKLIST: TRunnerUrlMapCallable,
+        FormRunnerState.QUESTION: TRunnerUrlMapCallable,
+        FormRunnerState.CHECK_YOUR_ANSWERS: TRunnerUrlMapCallable,
+        FormRunnerState.VIEW_REPORT_PAGE: TRunnerUrlMapCallable,
+    },
+)
 
 
 class MultilineTextInputRows(IntEnum):

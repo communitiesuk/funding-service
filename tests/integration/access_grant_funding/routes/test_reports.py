@@ -864,9 +864,10 @@ class TestDeclineSignOff:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.view_locked_report",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            submission_id=submission_in_progress.id,
         )
 
     def test_decline_certification_redirects_when_collection_closed(
@@ -891,9 +892,10 @@ class TestDeclineSignOff:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.view_locked_report",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            submission_id=submission_awaiting_sign_off.id,
         )
 
     def test_decline_sign_off_get(
@@ -1001,9 +1003,10 @@ class TestConfirmReportSubmission:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.view_locked_report",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            submission_id=submission_awaiting_sign_off.id,
         )
 
     def test_get_redirects_if_requires_certification_and_not_awaiting_sign_off(
@@ -1022,9 +1025,10 @@ class TestConfirmReportSubmission:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.view_locked_report",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            submission_id=submission_ready_to_submit.id,
         )
 
     def test_get_redirects_if_not_requires_certification_and_not_ready_to_submit(

@@ -210,7 +210,12 @@ def decline_report(
             extra={"user_id": user.id, "submission_id": submission_id},
         )
         return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
         )
 
     if submission_helper.in_immutable_state:
@@ -271,7 +276,12 @@ def confirm_report_submission_with_certify(
             extra={"user_id": user.id, "submission_id": submission_id},
         )
         return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
         )
 
     if submission_helper.in_immutable_state:

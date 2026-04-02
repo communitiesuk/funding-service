@@ -46,7 +46,7 @@ class FormRunner:
 
     This allows us to implement the form runner in different domain environments consistently."""
 
-    url_map: ClassVar[TRunnerUrlMap] = {}
+    url_map: ClassVar[TRunnerUrlMap]
     component: Question | Group | None
     questions: list[Question]
 
@@ -203,7 +203,7 @@ class FormRunner:
         elif form_id:
             form = submission.get_form(form_id)
 
-        return cls(
+        form_runner = cls(
             submission=submission,
             question=question,
             form=form,
@@ -212,6 +212,11 @@ class FormRunner:
             is_removing=is_removing,
             is_clearing=is_clearing,
         )
+
+        if form_runner.submission.in_immutable_state:
+            raise RedirectException(form_runner.to_url(FormRunnerState.VIEW_REPORT_PAGE))
+
+        return form_runner
 
     @property
     def question_form(self) -> DynamicQuestionForm:
@@ -382,7 +387,7 @@ class FormRunner:
         # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
         return self.url_map[state](
             self,
-            question or self.component,  # type: ignore[arg-type]
+            question or self.component,
             form or self.form,
             source,
             add_another_index,
@@ -625,6 +630,11 @@ class DGFFormRunner(FormRunner):
                 source=source,
             )
         ),
+        FormRunnerState.VIEW_REPORT_PAGE: lambda runner, _question, _form, source, _add_another_index, _action: url_for(
+            "deliver_grant_funding.view_submission",
+            grant_id=runner.submission.grant.id,
+            submission_id=runner.submission.id,
+        ),
     }
 
 
@@ -655,5 +665,11 @@ class AGFFormRunner(FormRunner):
                 section_id=form.id if form else runner.form.id if runner.form else None,
                 source=source,
             )
+        ),
+        FormRunnerState.VIEW_REPORT_PAGE: lambda runner, _question, _form, source, _add_another_index, _action: url_for(
+            "access_grant_funding.view_locked_report",
+            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+            grant_id=runner.submission.grant.id,
+            submission_id=runner.submission.id,
         ),
     }
