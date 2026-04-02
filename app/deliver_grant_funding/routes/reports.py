@@ -2794,6 +2794,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         helper=helper,
         submission_mode=submission_mode,
         delete_all_form=delete_all_form if submission_mode == SubmissionModeEnum.TEST else None,
+        SubmissionHelper=SubmissionHelper,
     )
 
 

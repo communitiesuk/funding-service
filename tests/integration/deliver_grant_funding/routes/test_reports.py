@@ -6299,6 +6299,33 @@ class TestListSubmissions:
         tag_texts = {tag.text.strip() for tag in submission_tags}
         assert "Not started" in tag_texts
 
+    def test_closed_collection_shows_not_submitted_for_grant_recipients_without_submissions(
+        self, authenticated_grant_member_client, factories, db_session
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Closed Report",
+            status=CollectionStatusEnum.CLOSED,
+        )
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Organisation Without Submission"
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        submission_tags = soup.select(".govuk-tag")
+        tag_texts = {tag.text.strip() for tag in submission_tags}
+        assert "Not submitted" in tag_texts
+
     def test_test_mode_shows_reset_all_link(self, authenticated_grant_member_client, factories, db_session):
         report = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
