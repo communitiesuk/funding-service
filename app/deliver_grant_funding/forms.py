@@ -564,14 +564,14 @@ class AddContextSelectSourceForm(FlaskForm):
         current_component: TOptional[Component],
         parent_component: TOptional[Group] = None,
         ff_show_new_context_sources: bool = False,  # TODO: remove when implementation is fully released
-        include_this_question: bool = False,
+        include_this_component: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
         self.form = form
         self.current_component = current_component
         self.parent_component = parent_component
-        self.include_this_question = include_this_question
+        self.include_this_component = include_this_component
 
         # TODO: remove this when implementation for referencing previous sections+collections is ready to release.
         if ff_show_new_context_sources:
@@ -587,7 +587,7 @@ class AddContextSelectSourceForm(FlaskForm):
                 ),
             ]
 
-        if include_this_question:
+        if include_this_component and current_component and current_component.is_question:
             self.data_source.choices.insert(
                 0,
                 (
@@ -599,7 +599,7 @@ class AddContextSelectSourceForm(FlaskForm):
     def validate_data_source(self, field: Field) -> None:
         choice = None
 
-        if field.data == "THIS_QUESTION" and not self.include_this_question:
+        if field.data == "THIS_QUESTION" and not self.include_this_component:
             raise ValidationError("You cannot select this question")
 
         try:
@@ -609,7 +609,10 @@ class AddContextSelectSourceForm(FlaskForm):
 
         if choice == ExpressionContext.ContextSources.SECTION:
             if not get_referenceable_questions(
-                form=self.form, current_component=self.current_component, parent_component=self.parent_component
+                form=self.form,
+                current_component=self.current_component,
+                parent_component=self.parent_component,
+                include_this_component=self.include_this_component,
             ):
                 raise ValidationError("There are no available questions before this one in the section")
 
@@ -655,9 +658,12 @@ class SelectDataSourceQuestionForm(FlaskForm):
         expression_type: TOptional[ExpressionType],
         managed_expression_name: TOptional[ManagedExpressionsEnum],
         parent_component: TOptional[Group] = None,
+        include_this_component: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
+        self.include_this_component = include_this_component
+
         # NOTE: I think this logic might sit better inside `get_referenceable_questions` or a separate helper for a
         # future refactor, but not no time to pull that thread currently - sorry future us.
         limit_to_data_types: set[QuestionDataType] = get_registered_data_types()
@@ -672,6 +678,7 @@ class SelectDataSourceQuestionForm(FlaskForm):
             current_component if current_component and current_component.form == form else None,
             parent_component if parent_component and parent_component.form == form else None,
             limit_to_data_type=limit_to_data_types,
+            include_this_component=self.include_this_component,
         )
 
         if referenceable_questions:
