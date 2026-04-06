@@ -11,7 +11,7 @@ import simpleeval
 from markupsafe import Markup, escape
 from pydantic import BaseModel
 
-from app.common.data.types import ManagedExpressionsEnum
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum
 from app.common.exceptions import WTFormRenderableException
 from app.common.safe_ids import SafeQidMixin
 from app.types import NOT_PROVIDED
@@ -283,13 +283,26 @@ class ExpressionContext(ChainMap[str, Any]):
         mode: Literal["evaluation", "interpolation"],
         expression_context_end_point: Component | None = None,
         submission_helper: SubmissionHelper | None = None,
+        include_children_of_context_end_point: bool | None = None,
     ) -> ExpressionContext:
-        """Pulls together all of the context that we want to be able to expose to an expression when evaluating it."""
+        """Pulls together all of the context that we want to be able to expose to an expression when evaluating it.
+
+        `include_children_of_context_end_point` should be set only when passing `expression_context_end_point`, which is
+        not used when the expression context is built for form running - only for form design/build in deliver. Set
+        `include_children_of_context_end_point` to True when creating validations; it should be False everywhere else.
+        """
 
         assert len(ExpressionContext.ContextSources) == 4, (
             "When defining a new source of context for expressions, "
             "update this method and the ContextSourceChoices enum"
         )
+
+        if (include_children_of_context_end_point is not None and expression_context_end_point is None) or (
+            include_children_of_context_end_point is None and expression_context_end_point is not None
+        ):
+            raise ValueError(
+                "include_children_of_context_end_point must be set only when expression_context_end_point is set"
+            )
 
         if submission_helper and submission_helper.collection.id != collection.id:
             raise ValueError("Mismatch between collection and submission.collection")
@@ -317,7 +330,14 @@ class ExpressionContext(ChainMap[str, Any]):
                             > form.global_component_index(expression_context_end_point)
                         )
                     ):
-                        continue
+                        if not include_children_of_context_end_point:
+                            continue
+
+                        if not (
+                            question == expression_context_end_point
+                            or question.is_descendent_of(expression_context_end_point)
+                        ):
+                            continue
 
                     # TODO: FSPT-1142: do we show this always or only when different to current context?
                     submission_data.setdefault(question.safe_qid, f"(({question.data_reference_label}))")
@@ -426,7 +446,9 @@ class ExpressionContext(ChainMap[str, Any]):
 
     @staticmethod
     def get_context_keys_and_labels(
-        collection: Collection, expression_context_end_point: Component | None = None
+        collection: Collection,
+        expression_context_end_point: Component | None = None,
+        expression_type: ExpressionType = ExpressionType.CONDITION,
     ) -> dict[str, str]:
         """A dict mapping the reference variables (eg question safe_qids) to human-readable labels
 
@@ -434,7 +456,12 @@ class ExpressionContext(ChainMap[str, Any]):
         find a way to include labels for eg DB model columns, such as the grant name
         """
         ec = ExpressionContext.build_expression_context(
-            collection=collection, mode="interpolation", expression_context_end_point=expression_context_end_point
+            collection=collection,
+            mode="interpolation",
+            expression_context_end_point=expression_context_end_point,
+            include_children_of_context_end_point=(
+                expression_type == ExpressionType.VALIDATION if expression_context_end_point else None
+            ),
         )
 
         # Now we've got a data_source_context which is not a flat dictionary we need to flatten this out so

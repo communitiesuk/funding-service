@@ -657,6 +657,16 @@ class Component(BaseModel):
     def data_reference_label(self) -> str:
         return f"{self.form.collection.name} → {self.form.title} → {self.name}"
 
+    def is_descendant_of(self, component: Component) -> bool:
+        parent = self.parent
+
+        while parent:
+            if parent == component:
+                return True
+            parent = parent.parent
+
+        return False
+
 
 class Question(Component, SafeQidMixin):
     __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
