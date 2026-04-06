@@ -23,6 +23,7 @@ from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     GroupContainsAddAnotherException,
+    GroupHasValidationsCannotBeOnePerPageException,
     IncompatibleDataTypeException,
     IncompatibleDataTypeInCalculationException,
     NestedGroupDisplayTypeSamePageException,
@@ -657,6 +658,11 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
         except NestedGroupDisplayTypeSamePageException:
             form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
                 "A question group cannot display on the same page if it contains a nested group"
+            )
+        except GroupHasValidationsCannotBeOnePerPageException:
+            form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
+                "A question group cannot display one question per page while it has validation rules attached. "
+                "Delete the group validations first."
             )
 
     return render_template(
@@ -1595,7 +1601,8 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
             and add_context_data.is_custom is True
             and target_expr_field_name == "custom_expression"
             and add_context_data.field == ExpressionType.VALIDATION
-            and current_component is not None and current_component.is_group
+            and current_component is not None
+            and current_component.is_group
         ),
     )
 

@@ -1196,6 +1196,34 @@ class TestUpdateGroup:
         )
         assert group.presentation_options.show_questions_on_the_same_page is False
 
+    def test_update_group_cannot_disable_same_page_when_group_has_validations(self, db_session, factories):
+        from app.common.data.interfaces.collections import GroupHasValidationsCannotBeOnePerPageException
+
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        question = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        user = factories.user.create()
+        add_component_validation(
+            group,
+            user,
+            CustomExpression(
+                custom_expression=f"(({question.safe_qid})) > 0",
+                custom_message="Must be positive",
+            ),
+        )
+
+        with pytest.raises(GroupHasValidationsCannotBeOnePerPageException):
+            update_group(
+                group,
+                expression_context=ExpressionContext(),
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+            )
+        assert group.presentation_options.show_questions_on_the_same_page is True
+
     def test_update_group_with_guidance_fields(self, db_session, factories):
         form = factories.form.create()
         group = create_group(

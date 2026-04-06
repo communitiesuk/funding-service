@@ -1017,6 +1017,13 @@ class NestedGroupDisplayTypeSamePageException(Exception, FlashableException):
         return flash_contexts
 
 
+class GroupHasValidationsCannotBeOnePerPageException(Exception):
+    def __init__(self, message: str, group: Group):
+        super().__init__(message)
+        self.message = message
+        self.group = group
+
+
 def _check_form_order_dependency(form: Form, swap_form: Form) -> None:
     # fetching the entire schema means whatever is calling this doesn't have to worry about
     # guaranteeing lazy loading performance behaviour
@@ -1295,6 +1302,16 @@ def update_group(  # noqa: C901
             except DependencyOrderException as e:
                 db.session.rollback()
                 raise e
+
+        if (
+            group.presentation_options.show_questions_on_the_same_page is True
+            and presentation_options.show_questions_on_the_same_page is False
+            and group.validations
+        ):
+            raise GroupHasValidationsCannotBeOnePerPageException(
+                "You cannot display this question group one question per page while it has validation rules attached",
+                group=group,
+            )
 
         # presentation options for groups can be spread out across multiple forms/ setting pages
         # override the provided fields without removing the existing settings for now, we might

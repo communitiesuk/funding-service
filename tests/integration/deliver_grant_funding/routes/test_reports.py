@@ -9790,6 +9790,57 @@ class TestListGroupQuestionsValidationsSection:
         assert page_has_link(soup, "Add more validation") is None
 
 
+class TestChangeGroupDisplayOptionsBlockedByValidations:
+    def test_post_change_to_one_per_page_blocked_when_validations_exist(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        question = factories.question.create(
+            form=db_form,
+            parent=group,
+            name="Capital spend",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        add_component_validation(
+            group,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({question.safe_qid})) > 0",
+                custom_message="Must be positive",
+            ),
+        )
+
+        form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "one-question-per-page"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_display_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "A question group cannot display one question per page while it has validation rules attached. "
+            "Delete the group validations first.",
+        )
+
+        db_session.expire_all()
+        reloaded = db_session.get(Group, group.id)
+        assert reloaded.presentation_options.show_questions_on_the_same_page is True
+
+
 class TestDetermineReturnUrlExpressionReferencedQuestion:
     def test_update_target_field_replace(self, factories):
         question = factories.question.create()
