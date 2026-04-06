@@ -92,17 +92,22 @@ def get_referenceable_questions(
         )
 
     # TODO: upcoming commit; make this work for questions that are child components of the current (group) component
-    include_this_component = (
-        True
-        if include_this_component is True and current_component is not None and current_component.is_question
-        else False
+    include_this_component_and_descendents = (
+        True if include_this_component is True and current_component is not None else False
     )
 
     if limit_to_components_before is not None:
         questions = [
             q
             for q in questions
-            if (include_this_component and q == current_component)
+            if (
+                include_this_component_and_descendents
+                and current_component
+                and (
+                    (current_component.is_question and q == current_component)
+                    or (current_component.is_group and q.is_descendant_of(current_component))
+                )
+            )
             or (
                 (not current_component or q != limit_to_components_before)
                 and form.global_component_index(q) <= form.global_component_index(limit_to_components_before)

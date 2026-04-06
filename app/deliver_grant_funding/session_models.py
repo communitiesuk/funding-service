@@ -99,6 +99,7 @@ class AddContextToExpressionsModel(BaseModel):
     expression_id: UUID | None = None
 
     is_custom: bool = False
+    is_group: bool = False
 
 
 class DataSetColumnMapping(BaseModel):

@@ -9515,6 +9515,281 @@ class TestEditCustomQuestionValidation:
             assert session["question"]["expression_form_data"]["custom_message"] == "Failed custom validation..."
 
 
+class TestAddGroupValidation:
+    def _make_same_page_group_with_questions(self, factories, grant):
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        capital = factories.question.create(
+            form=db_form,
+            parent=group,
+            name="Capital spend",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        revenue = factories.question.create(
+            form=db_form,
+            parent=group,
+            name="Revenue spend",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        return group, capital, revenue
+
+    def test_get(self, authenticated_grant_admin_client, factories, db_session):
+        group, _, _ = self._make_same_page_group_with_questions(factories, authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Create a group validation"
+
+    def test_get_redirects_when_group_is_not_same_page(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(
+            form=db_form,
+            name="Per-page group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(rf"/deliver/grant/[a-z0-9-]{{36}}/group/{group.id}/questions")
+
+    def test_post_success_referencing_questions_within_group(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group, capital, revenue = self._make_same_page_group_with_questions(
+            factories, authenticated_grant_admin_client.grant
+        )
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({capital.safe_qid})) + (({revenue.safe_qid})) <= 1000",
+                "custom_message": "Capital plus revenue must not exceed 1000",
+            },
+            component=group,
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(rf"/deliver/grant/[a-z0-9-]{{36}}/group/{group.id}/questions")
+
+        db_session.expire_all()
+        reloaded = db_session.get(Group, group.id)
+        assert len(reloaded.validations) == 1
+        validation = reloaded.validations[0]
+        assert validation.type_ == ExpressionType.VALIDATION
+        assert validation.managed_name is None
+        referenced_ids = {ref.depends_on_component_id for ref in validation.component_references}
+        assert referenced_ids == {capital.id, revenue.id}
+
+    def test_post_to_add_context_stores_is_group_in_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group, capital, _ = self._make_same_page_group_with_questions(factories, authenticated_grant_admin_client.grant)
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({capital.safe_qid})) <= ",
+                "custom_message": "Failed custom validation...",
+                "add_context": "custom_expression",
+            },
+            component=group,
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            data=get_form_data(form, submit=""),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert session["question"]["field"] == ExpressionType.VALIDATION
+            assert session["question"]["is_group"] is True
+            assert session["question"]["component_id"] == str(group.id)
+
+
+class TestEditGroupValidation:
+    def _setup_group_with_validation(self, factories, grant):
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        capital = factories.question.create(
+            form=db_form,
+            parent=group,
+            name="Capital spend",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        user = factories.user.create()
+        add_component_validation(
+            group,
+            user,
+            CustomExpression(
+                custom_expression=f"(({capital.safe_qid})) > 0",
+                custom_message="Must be positive",
+            ),
+        )
+        return group, capital
+
+    def test_get(self, authenticated_grant_admin_client, factories, db_session):
+        group, _capital = self._setup_group_with_validation(factories, authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                expression_id=group.validations[0].id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Edit a group validation"
+
+    def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
+        group, _capital = self._setup_group_with_validation(factories, authenticated_grant_admin_client.grant)
+        expression_id = group.validations[0].id
+
+        confirm_form = GenericConfirmDeletionForm(data={"confirm_deletion": "y"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                expression_id=expression_id,
+                delete="",
+            ),
+            data=get_form_data(confirm_form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(rf"/deliver/grant/[a-z0-9-]{{36}}/group/{group.id}/questions")
+
+        db_session.expire_all()
+        reloaded = db_session.get(Group, group.id)
+        assert reloaded.validations == []
+
+
+class TestListGroupQuestionsValidationsSection:
+    def test_section_renders_validations_when_same_page(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        question = factories.question.create(
+            form=db_form,
+            parent=group,
+            name="Capital spend",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        add_component_validation(
+            group,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({question.safe_qid})) > 0",
+                custom_message="Must be positive",
+            ),
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert any("Validations" == h.get_text(strip=True) for h in soup.find_all("h2"))
+        assert page_has_link(soup, "Add more validation") is not None
+        assert "Must be positive" in soup.text
+
+    def test_section_renders_placeholder_when_not_same_page(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(
+            form=db_form,
+            name="Per-page group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        factories.question.create(form=db_form, parent=group)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert any("Validations" == h.get_text(strip=True) for h in soup.find_all("h2"))
+        assert (
+            "Validation on groups is only available when the question group "
+            "is set to display all questions on the same page."
+        ) in soup.text
+        assert page_has_link(soup, "Add validation") is None
+        assert page_has_link(soup, "Add more validation") is None
+
+
 class TestDetermineReturnUrlExpressionReferencedQuestion:
     def test_update_target_field_replace(self, factories):
         question = factories.question.create()

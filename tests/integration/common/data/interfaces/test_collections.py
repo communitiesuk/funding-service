@@ -3231,6 +3231,64 @@ class TestExpressions:
         assert mock_sentry_metrics.call_count == 1
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.VALIDATION_CREATED_CUSTOM, 1)
 
+    def test_add_component_validation_to_same_page_group_with_internal_reference(self, db_session, factories):
+        from app.common.data.types import QuestionPresentationOptions
+
+        db_form = factories.form.create()
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        capital = factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        revenue = factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        user = factories.user.create()
+
+        custom_expression = CustomExpression(
+            custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) <= 1000",
+            custom_message="Capital plus revenue must not exceed 1000",
+        )
+
+        add_component_validation(group, user, custom_expression)
+
+        from_db = get_group_by_id(group.id)
+        assert len(from_db.validations) == 1
+        validation = from_db.validations[0]
+        assert validation.type_ == ExpressionType.VALIDATION
+        referenced_ids = {ref.depends_on_component_id for ref in validation.component_references}
+        assert referenced_ids == {capital.id, revenue.id}
+
+    def test_add_component_condition_on_group_cannot_reference_questions_inside_group(self, db_session, factories):
+        from app.common.data.types import QuestionPresentationOptions
+
+        db_form = factories.form.create()
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        inside_question = factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        user = factories.user.create()
+
+        with pytest.raises(DependencyOrderException):
+            add_component_condition(
+                group,
+                user,
+                GreaterThan(question_id=inside_question.id, minimum_value=0),
+            )
+
     def test_update_expression(self, db_session, factories):
         q0 = factories.question.create()
         question = factories.question.create(form=q0.form)

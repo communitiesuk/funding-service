@@ -338,7 +338,7 @@ class ExpressionContext(ChainMap[str, Any]):
 
                         if not (
                             question == expression_context_end_point
-                            or question.is_descendent_of(expression_context_end_point)
+                            or question.is_descendant_of(expression_context_end_point)
                         ):
                             continue
 
