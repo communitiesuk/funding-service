@@ -1762,11 +1762,11 @@ def add_component_condition(
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_question_validation(
-    question: Question, user: User, evaluatable_expression: "EvaluatableExpression"
-) -> Question:
+def add_component_validation(
+    component: Component, user: User, evaluatable_expression: "EvaluatableExpression"
+) -> Component:
     expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.VALIDATION, user)
-    question.expressions.append(expression)
+    component.expressions.append(expression)
     _validate_and_sync_expression_references(expression)
     emit_metric_count(
         MetricEventName.VALIDATION_CREATED_MANAGED
@@ -1775,7 +1775,7 @@ def add_question_validation(
         1,
         evaluatable_expression=evaluatable_expression,
     )
-    return question
+    return component
 
 
 def get_expression(expression_id: UUID) -> Expression:

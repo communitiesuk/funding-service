@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from app import CollectionStatusEnum, FlashMessageType, QuestionDataType
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
-    add_question_validation,
+    add_component_validation,
 )
 from app.common.data.models import (
     Collection,
@@ -1385,8 +1385,8 @@ class TestChangeGroupAddAnotherOptions:
         group_question = factories.question.create(form=db_form, parent=db_group)
         db_question = factories.question.create(form=db_form)
 
-        add_question_validation(
-            question=db_question,
+        add_component_validation(
+            component=db_question,
             user=factories.user.create(),
             evaluatable_expression=GreaterThan(question_id=group_question.id, minimum_value=100),
         )
@@ -3188,7 +3188,7 @@ class TestSelectContextSourceQuestion:
         expression_id = None
         if existing_expression:
             expression = GreaterThan(question_id=target_question.id, minimum_value=100)
-            interfaces.collections.add_question_validation(
+            interfaces.collections.add_component_validation(
                 target_question, interfaces.user.get_current_user(), expression
             )
             db_session.commit()
@@ -5156,7 +5156,7 @@ class TestAddQuestionValidation:
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
         expression = first_validation.get_expression(question)
-        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         duplicate_form = ValidationForm(
@@ -5387,7 +5387,7 @@ class TestEditQuestionValidation:
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
         expression = form.get_expression(question)
-        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         db_session.refresh(question)
@@ -5445,7 +5445,7 @@ class TestEditQuestionValidation:
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
         expression = form.get_expression(question)
-        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         db_session.refresh(question)
@@ -5479,7 +5479,7 @@ class TestEditQuestionValidation:
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
         expression = original_form.get_expression(question)
-        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         expression_id = question.expressions[0].id
@@ -5521,7 +5521,7 @@ class TestEditQuestionValidation:
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
         greater_than_expression = greater_than_form.get_expression(question)
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             question, interfaces.user.get_current_user(), greater_than_expression
         )
 
@@ -5529,7 +5529,7 @@ class TestEditQuestionValidation:
             data={"type": "Less than", "less_than_value": "100", "less_than_inclusive": True}
         )
         less_than_expression = less_than_form.get_expression(question)
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             question, interfaces.user.get_current_user(), less_than_expression
         )
         db_session.commit()
@@ -5573,7 +5573,7 @@ class TestEditQuestionValidation:
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
         expression = form.get_expression(question)
-        interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+        interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         expression_id = question.expressions[0].id
@@ -5613,7 +5613,7 @@ class TestEditQuestionValidation:
             maximum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=True,
         )
-        interfaces.collections.add_question_validation(target_question, interfaces.user.get_current_user(), expression)
+        interfaces.collections.add_component_validation(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         expression_id = target_question.expressions[0].id
@@ -5672,7 +5672,7 @@ class TestEditQuestionValidation:
         )
 
         expression = LessThan(question_id=target_question.id, maximum_value=1000)
-        interfaces.collections.add_question_validation(target_question, interfaces.user.get_current_user(), expression)
+        interfaces.collections.add_component_validation(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         expression_id = target_question.expressions[0].id
@@ -5733,7 +5733,7 @@ class TestEditQuestionValidation:
         )
 
         expression = LessThan(question_id=target_question.id, maximum_value=1000)
-        interfaces.collections.add_question_validation(target_question, interfaces.user.get_current_user(), expression)
+        interfaces.collections.add_component_validation(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         expression_id = target_question.expressions[0].id
@@ -9222,7 +9222,7 @@ class TestEditCustomQuestionValidation:
             data_type=QuestionDataType.NUMBER,
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             q3,
             authenticated_platform_admin_client.user,
             CustomExpression(
@@ -9263,7 +9263,7 @@ class TestEditCustomQuestionValidation:
             data_type=QuestionDataType.NUMBER,
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             q3,
             authenticated_platform_admin_client.user,
             CustomExpression(
@@ -9319,7 +9319,7 @@ class TestEditCustomQuestionValidation:
             data_type=QuestionDataType.NUMBER,
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             q3,
             authenticated_platform_admin_client.user,
             CustomExpression(
@@ -9372,7 +9372,7 @@ class TestEditCustomQuestionValidation:
             data_type=QuestionDataType.NUMBER,
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             q2,
             authenticated_platform_admin_client.user,
             CustomExpression(

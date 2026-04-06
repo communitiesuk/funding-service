@@ -2445,7 +2445,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         expression = form.get_expression(question)
 
         try:
-            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+            interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         except DuplicateValueError:
             # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
             #        complain to us about it before we think about a better way of handling it.
@@ -2628,7 +2628,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
         expression = CustomExpression.build_from_form(wt_form)
 
         try:
-            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+            interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
 
         except IncompatibleDataTypeException as e:
             wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
