@@ -9004,7 +9004,7 @@ class TestAddCustomQuestionValidation:
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
             },
-            question=q3,
+            component=q3,
             interpolation_context=ExpressionContext(),
             evaluation_context=ExpressionContext(),
         )
@@ -9051,7 +9051,7 @@ class TestAddCustomQuestionValidation:
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
             },
-            question=q3,
+            component=q3,
             interpolation_context=ExpressionContext(),
             evaluation_context=ExpressionContext(),
         )
@@ -9092,7 +9092,7 @@ class TestAddCustomQuestionValidation:
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"((bad_reference))",
             },
-            question=q3,
+            component=q3,
             interpolation_context=ExpressionContext(),
             evaluation_context=ExpressionContext(),
         )
@@ -9139,7 +9139,7 @@ class TestAddCustomQuestionValidation:
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q4.safe_qid}))",
             },
-            question=q3,
+            component=q3,
             interpolation_context=ExpressionContext(),
             evaluation_context=ExpressionContext(),
         )
@@ -9180,7 +9180,7 @@ class TestAddCustomQuestionValidation:
                 "custom_message": "Failed custom validation...",
                 "add_context": "custom_expression",
             },
-            question=q2,
+            component=q2,
             interpolation_context=ExpressionContext(),
             evaluation_context=ExpressionContext(),
         )
@@ -9281,7 +9281,7 @@ class TestEditCustomQuestionValidation:
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q2.safe_qid}))",
             },
-            question=q3,
+            component=q3,
             interpolation_context=ExpressionContext(),
             evaluation_context=ExpressionContext(),
         )
@@ -9337,7 +9337,7 @@ class TestEditCustomQuestionValidation:
                 "custom_message": f"Failed custom validation, needs to be less than (({q1.safe_qid})) + "
                 f"(({q4.safe_qid}))",
             },
-            question=q3,
+            component=q3,
             interpolation_context=ExpressionContext(),
             evaluation_context=ExpressionContext(),
         )
@@ -9389,7 +9389,7 @@ class TestEditCustomQuestionValidation:
                 "custom_message": "Failed custom validation...",
                 "add_context": "custom_expression",
             },
-            question=q2,
+            component=q2,
             interpolation_context=ExpressionContext(),
             evaluation_context=ExpressionContext(),
         )

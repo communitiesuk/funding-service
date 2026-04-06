@@ -334,13 +334,13 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
     def __init__(
         self,
         *args,
-        question: Question,
+        component: "Component",
         interpolation_context: ExpressionContext,
         evaluation_context: ExpressionContext,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.question = question
+        self.component = component
         self.interpolation_context = interpolation_context
         self.evaluation_context = evaluation_context
 
@@ -359,7 +359,7 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
 
         try:
             _validate_custom_syntax(
-                self.question,
+                self.component,
                 self.interpolation_context,
                 self.custom_expression.data,  # ty:ignore[invalid-argument-type]
                 ExpressionType.VALIDATION,
@@ -368,7 +368,7 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
                 evaluation_context=self.evaluation_context,
             )
             _validate_custom_syntax(
-                self.question,
+                self.component,
                 self.interpolation_context,
                 self.custom_message.data,  # ty:ignore[invalid-argument-type]
                 ExpressionType.VALIDATION,

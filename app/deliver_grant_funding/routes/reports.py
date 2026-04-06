@@ -2597,7 +2597,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
     )
     wt_form = CustomValidationExpressionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
-        question=question,
+        component=question,
         interpolation_context=(
             ExpressionContext.build_expression_context(
                 question.form.collection,
@@ -2695,7 +2695,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
     wt_form = CustomValidationExpressionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
         obj=expression.custom if not add_context_data else None,
-        question=question,
+        component=question,
         interpolation_context=(
             ExpressionContext.build_expression_context(
                 question.form.collection,
