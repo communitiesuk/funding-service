@@ -32,6 +32,7 @@ from app.common.data.types import (
     DataSourceFileMetadata,
     DataSourceFileTagEnum,
     DataSourceSchema,
+    DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -606,6 +607,36 @@ class TestListReportSections:
             assert preview_user.name in preview_list.text
         else:
             assert "1 previewers" not in soup.text
+
+    def test_get_preview_not_available_when_data_sources(self, authenticated_grant_member_client, factories):
+        grant = authenticated_grant_member_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        form = factories.form.create(collection=report)
+        factories.question.create(form=form)
+        factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Preview not available" in soup.text
+        assert not page_has_button(soup, button_text="Preview report")
 
     @pytest.mark.parametrize(
         "client_fixture, can_preview",
@@ -2024,6 +2055,73 @@ class TestListSectionQuestions:
             grant_id=authenticated_grant_admin_client.grant.id,
             form_id=form.id,
         )
+
+    def test_get_hides_preview_button_when_no_questions(self, factories, db_session, authenticated_grant_admin_client):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_section_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not page_has_button(soup, "Preview section")
+
+    def test_get_shows_preview_button_when_questions(self, factories, db_session, authenticated_grant_admin_client):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        factories.question.create(form=form)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_section_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Preview section")
+
+    def test_get_hides_preview_button_when_data_sources(self, factories, db_session, authenticated_grant_admin_client):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        form = factories.form.create(collection=report)
+        factories.question.create(form=form)
+        factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_section_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not page_has_button(soup, "Preview section")
+        assert "You cannot preview sections in this report because it requires uploaded data" in soup.text
 
 
 class TestMoveQuestion:
