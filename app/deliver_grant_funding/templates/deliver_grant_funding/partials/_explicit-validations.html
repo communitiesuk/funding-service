@@ -7,11 +7,11 @@
     {% if validation.is_custom %}
       {{ url_for('deliver_grant_funding.edit_custom_question_validation', grant_id=grant.id, question_id=component.id, expression_id=validation.id) }}
     {% else %}
-      {{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, question_id=component.id, expression_id=validation.id) }}
+      {{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, expression_id=validation.id) }}
     {% endif %}
   {% endset %}
   {% set value_html %}
-    <a class="govuk-link govuk-link--no-visited-state" href="{{ edit_validation_link }}" disabled>
+    <a class="govuk-link govuk-link--no-visited-state" href="{{ edit_validation_link }}">
       <span class="govuk-visually-hidden">Change validation for</span>
       {{ interpolate(validation.evaluatable_expression.message, with_interpolation_highlighting=True) }}
     </a>
