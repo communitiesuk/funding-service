@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field
@@ -12,6 +12,9 @@ from app.common.data.types import (
     TUnvalidatedDataSetRows,
 )
 from app.common.expressions import ExpressionContext
+
+if TYPE_CHECKING:
+    from app.common.data.models import Component
 
 
 class GrantSetupSession(BaseModel):
@@ -33,7 +36,12 @@ class GrantSetupSession(BaseModel):
         return cls.model_validate(session_data)
 
 
-class AddContextToComponentSessionModel(BaseModel):
+class _ReferenceDataSessionModel(BaseModel):
+    def include_current_component_when_referencing_data(self, current_component: Component | None) -> bool:
+        return False
+
+
+class AddContextToComponentSessionModel(_ReferenceDataSessionModel):
     model_config = ConfigDict(validate_assignment=True)
 
     data_type: QuestionDataType
@@ -49,7 +57,7 @@ class AddContextToComponentSessionModel(BaseModel):
     form_id: UUID | None = None
 
 
-class AddContextToComponentGuidanceSessionModel(BaseModel):
+class AddContextToComponentGuidanceSessionModel(_ReferenceDataSessionModel):
     model_config = ConfigDict(validate_assignment=True)
 
     field: Literal["guidance"] = "guidance"
@@ -66,7 +74,7 @@ class AddContextToComponentGuidanceSessionModel(BaseModel):
     data_source: ExpressionContext.ContextSources | None = None
 
 
-class AddConditionDependsOnSessionModel(BaseModel):
+class AddConditionDependsOnSessionModel(_ReferenceDataSessionModel):
     model_config = ConfigDict(validate_assignment=True)
 
     field: Literal["condition_depends_on"] = "condition_depends_on"
@@ -79,7 +87,7 @@ class AddConditionDependsOnSessionModel(BaseModel):
     data_source: ExpressionContext.ContextSources | None = None
 
 
-class AddContextToExpressionsModel(BaseModel):
+class AddContextToExpressionsModel(_ReferenceDataSessionModel):
     model_config = ConfigDict(validate_assignment=True)
 
     _prepared_form_data: dict[str, Any]
@@ -100,6 +108,19 @@ class AddContextToExpressionsModel(BaseModel):
 
     is_custom: bool = False
     is_group: bool = False
+
+    def include_current_component_when_referencing_data(self, current_component: Component | None) -> bool:
+        target_expr_field_name = self.expression_form_data["add_context"]
+
+        if (
+            self.is_custom is True
+            and target_expr_field_name == "custom_expression"
+            and self.field == ExpressionType.VALIDATION
+            and current_component is not None
+        ):
+            return True
+
+        return False
 
 
 class DataSetColumnMapping(BaseModel):

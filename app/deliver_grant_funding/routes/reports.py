@@ -1356,10 +1356,6 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     if not add_context_data:
         return abort(400)
 
-    target_expr_field_name = None
-    if isinstance(add_context_data, AddContextToExpressionsModel):
-        target_expr_field_name = add_context_data.expression_form_data["add_context"]
-
     this_component = get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None
 
     wtform = AddContextSelectSourceForm(
@@ -1367,14 +1363,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         current_component=this_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
         ff_show_new_context_sources=AuthorisationHelper.is_platform_member(get_current_user()),
-        include_this_component=(
-            isinstance(add_context_data, AddContextToExpressionsModel)
-            and add_context_data.is_custom is True
-            and target_expr_field_name == "custom_expression"
-            and add_context_data.field == ExpressionType.VALIDATION
-            and this_component is not None
-            and not this_component.is_group
-        ),
+        include_this_component=add_context_data.include_current_component_when_referencing_data(this_component),
     )
     if wtform.validate_on_submit():
         if wtform.data_source.data == "THIS_QUESTION":
@@ -1583,10 +1572,6 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         else None
     )
 
-    target_expr_field_name = None
-    if isinstance(add_context_data, AddContextToExpressionsModel):
-        target_expr_field_name = add_context_data.expression_form_data["add_context"]
-
     wtform = SelectDataSourceQuestionForm(
         form=target_form,
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
@@ -1596,14 +1581,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         managed_expression_name=add_context_data.managed_expression_name
         if isinstance(add_context_data, AddContextToExpressionsModel)
         else None,
-        include_this_component=(
-            isinstance(add_context_data, AddContextToExpressionsModel)
-            and add_context_data.is_custom is True
-            and target_expr_field_name == "custom_expression"
-            and add_context_data.field == ExpressionType.VALIDATION
-            and current_component is not None
-            and current_component.is_group
-        ),
+        include_this_component=add_context_data.include_current_component_when_referencing_data(current_component),
     )
 
     if wtform.validate_on_submit():
