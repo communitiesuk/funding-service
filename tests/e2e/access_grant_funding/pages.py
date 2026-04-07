@@ -30,8 +30,10 @@ class RequestALinkToSignInPage(CookieBannerMixin, BasePage):
         self.email_address = self.page.get_by_role("textbox", name="Email address")
         self.request_a_link = self.page.get_by_role("button", name="Request sign in link")
 
-    def navigate(self) -> None:
-        self.page.goto(f"{self.domain}/request-a-link-to-sign-in")
+    def navigate(self, *, wait_for_network_idle: bool = False) -> None:
+        self.page.goto(
+            f"{self.domain}/request-a-link-to-sign-in", wait_until="networkidle" if wait_for_network_idle else None
+        )
         expect(self.title).to_be_visible()
 
     def fill_email_address(self, email_address: str) -> None:
