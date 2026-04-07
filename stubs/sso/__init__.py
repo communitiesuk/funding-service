@@ -40,7 +40,7 @@ def create_sso_stub_app() -> Flask:
     app = Flask(__name__, static_folder="../../app/assets/dist/", static_url_path="/static")
     app.config["SECRET_KEY"] = "dummy-value"  # pragma: allowlist secret
     app.config["INTERNAL_DOMAINS"] = ("@communities.gov.uk", "@test.communities.gov.uk")
-    app.config["ASSETS_VITE_LIVE_ENABLED"] = os.environ.get("ASSETS_VITE_LIVE_ENABLED", False)
+    app.config["ASSETS_VITE_LIVE_ENABLED"] = os.environ.get("ASSETS_VITE_LIVE_ENABLED", "false").lower() == "true"
     app.config["FLASK_ENV"] = os.environ.get("FLASK_ENV", "local")
     app.config["ASSETS_VITE_BASE_URL"] = os.environ.get("ASSETS_VITE_BASE_URL", "http://localhost:5173")
 
