@@ -74,6 +74,8 @@ jobs:
           PULLPREVIEW_GOVUK_NOTIFY_API_KEY: ${{ secrets.PULLPREVIEW_GOVUK_NOTIFY_API_KEY }}
 
       - name: start docker compose
+        env:
+           ASSETS_VITE_LIVE_ENABLED: false
         run: docker compose -f docker-compose.yml up -d --wait
 
       - name: run e2e tests

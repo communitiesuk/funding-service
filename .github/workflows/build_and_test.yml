@@ -203,6 +203,9 @@ jobs:
       - name: Run JS tests
         run: npm test
 
+  # this is now be covered by a combination of using the production built assets
+  # in the CI end to end tests and validating that browser assets don't 4/5xx
+  # it should be able to be safely removed if it causes issues in the future
   verify_production_asset_build:
     runs-on: ubuntu-latest
     steps:
