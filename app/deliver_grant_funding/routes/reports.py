@@ -854,6 +854,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         delete_form=delete_wtform,
         group=group,
         interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+        ff_group_validation=AuthorisationHelper.is_platform_member(get_current_user()),
     )
 
 
@@ -2487,7 +2488,6 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         form=form,
         QuestionDataType=QuestionDataType,
         interpolate=SubmissionHelper.get_interpolator(question.form.collection),
-        ff_show_custom_expression_option=AuthorisationHelper.is_platform_member(get_current_user()),
     )
 
 

@@ -9721,8 +9721,11 @@ class TestEditGroupValidation:
 
 
 class TestListGroupQuestionsValidationsSection:
-    def test_section_renders_validations_when_same_page(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+    def test_section_renders_validations_when_same_page(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(
             form=db_form,
@@ -9745,10 +9748,10 @@ class TestListGroupQuestionsValidationsSection:
             ),
         )
 
-        response = authenticated_grant_admin_client.get(
+        response = authenticated_platform_admin_client.get(
             url_for(
                 "deliver_grant_funding.list_group_questions",
-                grant_id=authenticated_grant_admin_client.grant.id,
+                grant_id=grant.id,
                 group_id=group.id,
             )
         )
@@ -9760,9 +9763,10 @@ class TestListGroupQuestionsValidationsSection:
         assert "Must be positive" in soup.text
 
     def test_section_renders_placeholder_when_not_same_page(
-        self, authenticated_grant_admin_client, factories, db_session
+        self, authenticated_platform_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
         group = factories.group.create(
             form=db_form,
@@ -9771,10 +9775,10 @@ class TestListGroupQuestionsValidationsSection:
         )
         factories.question.create(form=db_form, parent=group)
 
-        response = authenticated_grant_admin_client.get(
+        response = authenticated_platform_admin_client.get(
             url_for(
                 "deliver_grant_funding.list_group_questions",
-                grant_id=authenticated_grant_admin_client.grant.id,
+                grant_id=grant.id,
                 group_id=group.id,
             )
         )

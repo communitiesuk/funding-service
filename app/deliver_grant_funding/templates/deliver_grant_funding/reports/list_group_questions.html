@@ -254,37 +254,39 @@
         }}
       </div>
 
-      <div class="govuk-body govuk-form-group">
-        <h2 class="govuk-heading-m govuk-!-margin-top-5">Validations</h2>
-        {% if group.same_page %}
-          <p class="govuk-body">Add validations to show an error message if a calculation including at least one answer from the question group does not meet a requirement.</p>
-          <p class="govuk-body">For example, validation to stop users from entering numbers that add up to more than a required amount.</p>
-          {% set rows = [] %}
-          {% with component=group %}
-            {% include 'deliver_grant_funding/partials/_explicit-validations.html' %}
-          {% endwith %}
+      {% if ff_group_validation %}
+        <div class="govuk-body govuk-form-group">
+          <h2 class="govuk-heading-m govuk-!-margin-top-5">Validations</h2>
+          {% if group.same_page %}
+            <p class="govuk-body">Add validations to show an error message if a calculation including at least one answer from the question group does not meet a requirement.</p>
+            <p class="govuk-body">For example, validation to stop users from entering numbers that add up to more than a required amount.</p>
+            {% set rows = [] %}
+            {% with component=group %}
+              {% include 'deliver_grant_funding/partials/_explicit-validations.html' %}
+            {% endwith %}
 
-          {% if rows %}
-            {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
-          {% endif %}
+            {% if rows %}
+              {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+            {% endif %}
 
-          {% if grant_admin %}
-            {{
-              govukButton({
-                "text": "Add more validation" if group.validations else "Add validation",
-                "href": url_for('deliver_grant_funding.add_group_validation', grant_id=grant.id, group_id=group.id),
-                "classes": "govuk-button--secondary govuk-!-margin-bottom-3",
-              })
-            }}
+            {% if grant_admin %}
+              {{
+                govukButton({
+                  "text": "Add more validation" if group.validations else "Add validation",
+                  "href": url_for('deliver_grant_funding.add_group_validation', grant_id=grant.id, group_id=group.id),
+                  "classes": "govuk-button--secondary govuk-!-margin-bottom-3",
+                })
+              }}
+            {% endif %}
+          {% else %}
+            {# TODO: content review #}
+            <p class="govuk-body">
+              Validation on groups is only available when the question group is set to display all questions on the same page. Change the display setting to 'show all questions on the same page' if you need to add validation across multiple
+              questions in this group.
+            </p>
           {% endif %}
-        {% else %}
-          {# TODO: content review #}
-          <p class="govuk-body">
-            Validation on groups is only available when the question group is set to display all questions on the same page. Change the display setting to 'show all questions on the same page' if you need to add validation across multiple
-            questions in this group.
-          </p>
-        {% endif %}
-      </div>
+        </div>
+      {% endif %}
 
       {% if grant_admin %}
         <div class="govuk-body govuk-form-group">
