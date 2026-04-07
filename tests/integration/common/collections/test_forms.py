@@ -78,10 +78,10 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
         name="test_integer",
     )
     user = factories.user.create()
-    interfaces.collections.add_question_validation(
+    interfaces.collections.add_component_validation(
         question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True)
     )
-    interfaces.collections.add_question_validation(
+    interfaces.collections.add_component_validation(
         question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
     )
 
@@ -131,10 +131,10 @@ def test_validation_attached_to_field_and_runs__decimal(factories, value, error_
         name="test_decimal",
     )
     user = factories.user.create()
-    interfaces.collections.add_question_validation(
+    interfaces.collections.add_component_validation(
         question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True)
     )
-    interfaces.collections.add_question_validation(
+    interfaces.collections.add_component_validation(
         question, user, LessThan(question_id=question.id, maximum_value=2000, inclusive=False)
     )
 
@@ -179,7 +179,7 @@ def test_validation_attached_to_multiple_fields(factories, db_session):
     q2 = factories.question.create(data_type=QuestionDataType.NUMBER)
     q3 = factories.question.create(data_type=QuestionDataType.YES_NO)
 
-    interfaces.collections.add_question_validation(
+    interfaces.collections.add_component_validation(
         q2, user, GreaterThan(question_id=q2.id, minimum_value=100, inclusive=True)
     )
 
@@ -210,7 +210,7 @@ def test_reference_data_validation__integer(factories, db_session):
     if hasattr(form, "cached_all_components"):
         del form.cached_all_components
 
-    interfaces.collections.add_question_validation(
+    interfaces.collections.add_component_validation(
         q2,
         user,
         GreaterThan(question_id=q2.id, minimum_value=None, minimum_expression=f"(({q1.safe_qid}))", inclusive=True),
@@ -241,7 +241,7 @@ def test_reference_data_validation__number__custom(factories, db_session):
     if hasattr(form, "cached_all_components"):
         del form.cached_all_components
 
-    interfaces.collections.add_question_validation(
+    interfaces.collections.add_component_validation(
         q3,
         user,
         CustomExpression(
@@ -274,7 +274,7 @@ def test_reference_data_validation__date(factories, db_session):
     if hasattr(form, "cached_all_components"):
         del form.cached_all_components
 
-    interfaces.collections.add_question_validation(
+    interfaces.collections.add_component_validation(
         q2,
         user,
         IsAfter(question_id=q2.id, earliest_value=None, earliest_expression=f"(({q1.safe_qid}))", inclusive=True),
@@ -440,7 +440,7 @@ def test_file_upload_field_validates_maximum_file_size(factories, max_file_size,
 class TestValidationMetrics:
     def test_validation_metrics_managed_success(self, factories, mock_sentry_metrics):
         q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             q1,
             factories.user.create(),
             GreaterThan(
@@ -464,7 +464,7 @@ class TestValidationMetrics:
 
     def test_validation_metrics_managed_failure(self, factories, mock_sentry_metrics):
         q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             q1,
             factories.user.create(),
             GreaterThan(
@@ -488,7 +488,7 @@ class TestValidationMetrics:
 
     def test_validation_metrics_custom_success(self, factories, mock_sentry_metrics):
         q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             q1,
             factories.user.create(),
             CustomExpression(
@@ -512,7 +512,7 @@ class TestValidationMetrics:
 
     def test_validation_metrics_custom_failures(self, factories, mock_sentry_metrics):
         q1 = factories.question.create(data_type=QuestionDataType.NUMBER)
-        interfaces.collections.add_question_validation(
+        interfaces.collections.add_component_validation(
             q1,
             factories.user.create(),
             CustomExpression(

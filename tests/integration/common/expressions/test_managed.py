@@ -830,7 +830,7 @@ class TestCustomExpression:
     def test_build_from_form(self, factories):
         question = factories.question.build()
         form = CustomValidationExpressionForm(
-            question=question, interpolation_context=ExpressionContext(), evaluation_context=ExpressionContext()
+            component=question, interpolation_context=ExpressionContext(), evaluation_context=ExpressionContext()
         )
         form.custom_expression.data = "some expression"
         form.custom_message.data = "a message"

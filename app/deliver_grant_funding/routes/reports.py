@@ -1101,7 +1101,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
 def _extract_add_context_data_from_session(
     session_model: type[SessionModelType] | None = None,
-    question_id: UUID | TNotProvided | None = NOT_PROVIDED,
+    component_id: UUID | TNotProvided | None = NOT_PROVIDED,
     expression_id: UUID | TNotProvided | None = NOT_PROVIDED,
 ) -> SessionModelType | None:
     add_context_data: SessionModelType | None = None
@@ -1109,25 +1109,25 @@ def _extract_add_context_data_from_session(
         match session_data["field"]:
             case "component":
                 add_context_data = AddContextToComponentSessionModel(**session_data)
-                if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
+                if component_id is not NOT_PROVIDED and component_id != add_context_data.component_id:
                     del session["question"]
                     return None
 
             case "guidance":
                 add_context_data = AddContextToComponentGuidanceSessionModel(**session_data)
-                if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
+                if component_id is not NOT_PROVIDED and component_id != add_context_data.component_id:
                     del session["question"]
                     return None
 
             case "condition_depends_on":
                 add_context_data = AddConditionDependsOnSessionModel(**session_data)
-                if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
+                if component_id is not NOT_PROVIDED and component_id != add_context_data.component_id:
                     del session["question"]
                     return None
 
             case ExpressionType.CONDITION | ExpressionType.VALIDATION:
                 add_context_data = AddContextToExpressionsModel(**session_data)
-                if (question_id is not NOT_PROVIDED and question_id != add_context_data.component_id) or (
+                if (component_id is not NOT_PROVIDED and component_id != add_context_data.component_id) or (
                     expression_id is not NOT_PROVIDED and expression_id != add_context_data.expression_id
                 ):
                     del session["question"]
@@ -1165,7 +1165,7 @@ def _store_question_state_and_redirect_to_add_context(
     | CalculatedConditionForm,
     grant_id: UUID,
     form_id: UUID,
-    question_id: UUID | None = None,
+    component_id: UUID | None = None,
     parent_id: UUID | None = None,
     form_data: dict[str, Any] | None = None,
     expression_type: ExpressionType | None = None,
@@ -1181,15 +1181,15 @@ def _store_question_state_and_redirect_to_add_context(
             add_context_data = AddContextToComponentSessionModel(
                 data_type=form._question_type,
                 component_form_data=cast(dict[str, Any], form_data),
-                component_id=question_id,
+                component_id=component_id,
                 parent_id=parent_id,
             )
         case AddGuidanceForm():
-            if question_id is None:
+            if component_id is None:
                 raise ValueError()
             add_context_data = AddContextToComponentGuidanceSessionModel(
                 component_form_data=cast(dict[str, Any], form_data),
-                component_id=question_id,
+                component_id=component_id,
                 parent_id=parent_id,
                 is_add_another_guidance=is_add_another_guidance,
             )
@@ -1198,7 +1198,7 @@ def _store_question_state_and_redirect_to_add_context(
                 field=expression_type,  # type: ignore[arg-type]
                 managed_expression_name=managed_expression_name,
                 expression_form_data=form_data,  # type: ignore[arg-type]
-                component_id=question_id,  # type: ignore[arg-type]
+                component_id=component_id,  # type: ignore[arg-type]
                 parent_id=parent_id,
                 expression_id=expression_id,
                 depends_on_question_id=depends_on_question_id,
@@ -1272,7 +1272,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     parent = get_group_by_id(parent_id) if parent_id else None
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToComponentSessionModel, question_id=None
+        session_model=AddContextToComponentSessionModel, component_id=None
     )
 
     wt_form = QuestionForm(
@@ -1657,7 +1657,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
     question = get_question_by_id(question_id=question_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToComponentSessionModel, question_id=question_id
+        session_model=AddContextToComponentSessionModel, component_id=question_id
     )
 
     wt_form = QuestionForm(
@@ -1672,7 +1672,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             wt_form,
             grant_id=grant_id,
             form_id=question.form_id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
         )
@@ -1788,7 +1788,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     group = get_component_by_id(component_id=group_id)
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToComponentGuidanceSessionModel, question_id=group_id
+        session_model=AddContextToComponentGuidanceSessionModel, component_id=group_id
     )
 
     form = AddGuidanceForm(
@@ -1804,7 +1804,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
             form,
             grant_id=grant_id,
             form_id=group.form_id,
-            question_id=group_id,
+            component_id=group_id,
             parent_id=group.parent_id,
             form_data=form_data,
             is_add_another_guidance=True,
@@ -1860,7 +1860,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_component_by_id(component_id=question_id)
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToComponentGuidanceSessionModel, question_id=question_id
+        session_model=AddContextToComponentGuidanceSessionModel, component_id=question_id
     )
 
     form = AddGuidanceForm(
@@ -1874,7 +1874,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
             form,
             grant_id=grant_id,
             form_id=question.form_id,
-            question_id=question_id,
+            component_id=question_id,
             parent_id=question.parent_id,
             form_data=form_data,
         )
@@ -1958,7 +1958,7 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
 
     component = get_component_by_id(component_id=component_id)
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=component.id
+        session_model=AddContextToExpressionsModel, component_id=component.id
     )
     wt_form = CalculatedConditionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
@@ -1982,7 +1982,7 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
             form=wt_form,
             grant_id=grant_id,
             form_id=component.form.id,
-            question_id=component.id,
+            component_id=component.id,
             parent_id=component.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
@@ -2042,7 +2042,7 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
     expression = get_expression_by_id(expression_id)
     component = expression.question
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=component.id, expression_id=expression_id
+        session_model=AddContextToExpressionsModel, component_id=component.id, expression_id=expression_id
     )
     confirm_deletion_form = GenericConfirmDeletionForm()
 
@@ -2087,7 +2087,7 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
             form=wt_form,
             grant_id=grant_id,
             form_id=component.form.id,
-            question_id=component.id,
+            component_id=component.id,
             expression_id=expression_id,
             parent_id=component.parent_id,
             form_data=form_data,
@@ -2209,7 +2209,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
     depends_on_question = get_question_by_id(depends_on_question_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=component_id
+        session_model=AddContextToExpressionsModel, component_id=component_id
     )
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
@@ -2225,7 +2225,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
             form=form,
             grant_id=grant_id,
             form_id=component.form.id,
-            question_id=component.id,
+            component_id=component.id,
             parent_id=component.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
@@ -2315,7 +2315,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         return redirect(return_url)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=component.id, expression_id=expression_id
+        session_model=AddContextToExpressionsModel, component_id=component.id, expression_id=expression_id
     )
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
@@ -2331,7 +2331,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
             form=form,
             grant_id=grant_id,
             form_id=component.form.id,
-            question_id=component.id,
+            component_id=component.id,
             parent_id=component.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
@@ -2394,7 +2394,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     question = get_question_by_id(question_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id
+        session_model=AddContextToExpressionsModel, component_id=question.id
     )
 
     ValidationForm = build_managed_expression_form(
@@ -2416,7 +2416,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
             form=form,
             grant_id=grant_id,
             form_id=question.form.id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
@@ -2445,7 +2445,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         expression = form.get_expression(question)
 
         try:
-            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+            interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         except DuplicateValueError:
             # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
             #        complain to us about it before we think about a better way of handling it.
@@ -2504,7 +2504,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         )
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id, expression_id=expression_id
+        session_model=AddContextToExpressionsModel, component_id=question.id, expression_id=expression_id
     )
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
@@ -2520,7 +2520,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
             form=form,
             grant_id=grant_id,
             form_id=question.form.id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
@@ -2593,11 +2593,11 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
     question = get_question_by_id(question_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id
+        session_model=AddContextToExpressionsModel, component_id=question.id
     )
     wt_form = CustomValidationExpressionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
-        question=question,
+        component=question,
         interpolation_context=(
             ExpressionContext.build_expression_context(
                 question.form.collection,
@@ -2618,7 +2618,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
             form=wt_form,
             grant_id=grant_id,
             form_id=question.form.id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
@@ -2628,7 +2628,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
         expression = CustomExpression.build_from_form(wt_form)
 
         try:
-            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+            interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
 
         except IncompatibleDataTypeException as e:
             wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
@@ -2675,7 +2675,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
     expression = get_expression_by_id(expression_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id, expression_id=expression_id
+        session_model=AddContextToExpressionsModel, component_id=question.id, expression_id=expression_id
     )
 
     confirm_deletion_form = GenericConfirmDeletionForm()
@@ -2695,7 +2695,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
     wt_form = CustomValidationExpressionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
         obj=expression.custom if not add_context_data else None,
-        question=question,
+        component=question,
         interpolation_context=(
             ExpressionContext.build_expression_context(
                 question.form.collection,
@@ -2715,7 +2715,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
             form=wt_form,
             grant_id=grant_id,
             form_id=question.form.id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,

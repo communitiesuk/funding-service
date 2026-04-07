@@ -20,7 +20,7 @@ from app.common.data.interfaces.collections import (
     _validate_and_sync_expression_references,
     _validate_reference,
     add_component_condition,
-    add_question_validation,
+    add_component_validation,
     add_submission_event,
     components_in_same_group_and_on_same_page,
     create_collection,
@@ -1308,8 +1308,8 @@ class TestUpdateGroup:
         q2 = factories.question.create(
             form=group.form,
         )
-        add_question_validation(
-            question=q2,
+        add_component_validation(
+            component=q2,
             user=factories.user.create(),
             evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
         )
@@ -1326,8 +1326,8 @@ class TestUpdateGroup:
         group = factories.group.create(add_another=False)
         q1 = factories.question.create(form=group.form, parent=group)
         q2 = factories.question.create(form=group.form, parent=group)
-        add_question_validation(
-            question=q2,
+        add_component_validation(
+            component=q2,
             user=factories.user.create(),
             evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
         )
@@ -2099,7 +2099,7 @@ class TestUpdateQuestion:
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
         )
-        add_question_validation(question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True))
+        add_component_validation(question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True))
 
         spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
         spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
@@ -3183,14 +3183,14 @@ class TestExpressions:
         add_component_condition(q3, user, GreaterThan(minimum_value=1000, question_id=q2.id))
         assert len(q3.expressions) == 1
 
-    def test_add_question_validation(self, db_session, factories, mock_sentry_metrics):
+    def test_add_component_validation(self, db_session, factories, mock_sentry_metrics):
         question = factories.question.create()
         user = factories.user.create()
 
         # configured by the user interface
         managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
-        add_question_validation(question, user, managed_expression)
+        add_component_validation(question, user, managed_expression)
 
         # check the serialisation and deserialisation is as expected
         from_db = get_question_by_id(question.id)
@@ -3205,7 +3205,7 @@ class TestExpressions:
         assert mock_sentry_metrics.call_count == 1
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.VALIDATION_CREATED_MANAGED, 1)
 
-    def test_add_question_validation_custom(self, db_session, factories, mock_sentry_metrics):
+    def test_add_component_validation_custom(self, db_session, factories, mock_sentry_metrics):
         form = factories.form.create()
         q1, q2 = factories.question.create_batch(2, form=form)
         user = factories.user.create()
@@ -3216,7 +3216,7 @@ class TestExpressions:
             custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
         )
 
-        add_question_validation(q2, user, custom_expression)
+        add_component_validation(q2, user, custom_expression)
 
         # check the serialisation and deserialisation is as expected
         from_db = get_question_by_id(q2.id)
@@ -3256,7 +3256,7 @@ class TestExpressions:
             custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
         )
 
-        add_question_validation(q2, user, custom_expression)
+        add_component_validation(q2, user, custom_expression)
 
         updated_expression = CustomExpression(
             custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid})) + 6",
@@ -3330,11 +3330,11 @@ class TestExpressions:
         user = factories.user.create()
         gt_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
-        add_question_validation(question, user, gt_expression)
+        add_component_validation(question, user, gt_expression)
 
         lt_expression = LessThan(maximum_value=5000, question_id=question.id)
 
-        add_question_validation(question, user, lt_expression)
+        add_component_validation(question, user, lt_expression)
         lt_db_expression = next(
             db_expr for db_expr in question.expressions if db_expr.managed_name == lt_expression._key
         )
@@ -3380,7 +3380,7 @@ class TestExpressions:
         question = factories.question.create(data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
         managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
-        add_question_validation(question, user, managed_expression)
+        add_component_validation(question, user, managed_expression)
 
         expression_id = question.expressions[0].id
         db_session.expunge_all()  # Clear SQLAlchemy cache to force queries to be emitted again
@@ -3402,7 +3402,7 @@ class TestExpressions:
         question = factories.question.create(data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
         managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
-        add_question_validation(question, user, managed_expression)
+        add_component_validation(question, user, managed_expression)
 
         with pytest.raises(NoResultFound):
             get_expression_by_id(uuid.uuid4())
@@ -5023,7 +5023,7 @@ class TestValidateReference:
             )
 
 
-class TestAddQuestionValidationCustomExpression:
+class TestAddComponentValidationCustomExpression:
     def test_create_custom_validation_expression_valid(self, factories):
         form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
@@ -5033,7 +5033,7 @@ class TestAddQuestionValidationCustomExpression:
             custom_message="Q3 must be less than Q1+Q2",
         )
 
-        collections.add_question_validation(question=q3, user=user, evaluatable_expression=custom_expr)
+        collections.add_component_validation(component=q3, user=user, evaluatable_expression=custom_expr)
 
         q3_from_db = get_question_by_id(q3.id)
         assert len(q3_from_db.expressions) == 1
