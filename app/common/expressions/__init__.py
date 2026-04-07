@@ -322,6 +322,9 @@ class ExpressionContext(ChainMap[str, Any]):
         if mode == "interpolation":
             for form in collection.forms:
                 for question in form.cached_questions:
+                    # TODO: the component order checks here are broadly duplicative of
+                    #  `is_component_dependency_order_valid`; can we refactor that function and reuse it here to have
+                    #  logic in one place?
                     if expression_context_end_point and (
                         form.order > expression_context_end_point.form.order
                         or (
