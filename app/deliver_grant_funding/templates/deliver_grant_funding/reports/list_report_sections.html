@@ -125,32 +125,36 @@
     <div class="govuk-grid-column-one-quarter">
       <div class="app-actions">
         <h3 class="govuk-heading-s">Actions</h3>
-        <form method="post" novalidate>
-          {{ form.csrf_token }}
-          <div class="govuk-button-group app-button-group--full-width-on-desktop">
-            {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
+        <div class="govuk-button-group app-button-group--full-width-on-desktop">
+          {% if report.data_sources | length == 0 %}
+            <form method="post" novalidate>
+              {{ form.csrf_token }}
+              {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
 
-            {% if previewers and authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
-              {% set previewer_list_html %}
-                <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
-                  {% for previewer in previewers %}
-                    <li>{{ previewer.name }}</li>
-                  {% endfor %}
-                </ul>
-              {% endset %}
-              {{
-                govukDetails({
-                  "id": "previewers-details",
-                  "summaryText": (previewers | length) ~ " previewers",
-                  "html": previewer_list_html
-                })
-              }}
-            {% endif %}
-            {% if user_can_test_grant_recipient_journey %}
-              <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, report_id=report.id) }}">Test grant recipient journey</a>
-            {% endif %}
-          </div>
-        </form>
+              {% if previewers and authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
+                {% set previewer_list_html %}
+                  <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+                    {% for previewer in previewers %}
+                      <li>{{ previewer.name }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endset %}
+                {{
+                  govukDetails({
+                    "id": "previewers-details",
+                    "summaryText": (previewers | length) ~ " previewers",
+                    "html": previewer_list_html
+                  })
+                }}
+              {% endif %}
+            </form>
+          {% else %}
+            <p class="govuk-body">Preview not available</p>
+          {% endif %}
+          {% if user_can_test_grant_recipient_journey %}
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, report_id=report.id) }}">Test grant recipient journey</a>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>

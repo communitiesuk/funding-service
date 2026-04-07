@@ -43,12 +43,18 @@
       {% endwith %}
 
       <h1 class="govuk-heading-l">{{ db_form.title }}</h1>
+      {% if (db_form.collection.data_sources | length > 0 and db_form.cached_questions | length > 0) %}
+        <p class="govuk-body">You cannot preview sections in this report because it requires uploaded data.</p>
+      {% endif %}
     </div>
+
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Preview section", "classes": "govuk-button--secondary", "disabled": true if db_form.cached_questions | length == 0 else false}) }}
-      </form>
+      {% if (db_form.cached_questions | length > 0 and db_form.collection.data_sources | length == 0) %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.submit(params={"text": "Preview section", "classes": "govuk-button--secondary" }) }}
+        </form>
+      {% endif %}
     </div>
   </div>
   <div class="govuk-grid-row">
