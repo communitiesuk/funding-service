@@ -619,6 +619,7 @@ def create_question_or_group(
     question_definition: TQuestionToTest,
     manage_section_page: ManageSectionPage | EditQuestionGroupPage,
     parent_group_name: str | None = None,
+    parent_add_another: bool = False,
 ):
     if question_definition["type"] == "group":
         add_question_group_page = manage_section_page.click_add_question_group(question_definition["text"])
@@ -626,12 +627,12 @@ def create_question_or_group(
         group_display_options_page = add_question_group_page.click_continue()
         group_display_options_page.click_question_group_display_type(question_definition["display_options"])
 
-        if parent_group_name is None:
+        if parent_add_another:
+            edit_question_group_page = group_display_options_page.click_submit_nested(parent_group_name)
+        else:
             add_another_options_page = group_display_options_page.click_submit()
             add_another_options_page.click_add_another(question_definition.get("add_another", False))
             edit_question_group_page = add_another_options_page.click_submit(parent_group_name)
-        else:
-            edit_question_group_page = group_display_options_page.click_submit_nested(parent_group_name)
         if (
             question_definition.get("guidance") is not None
             and question_definition.get("display_options") == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
@@ -640,7 +641,12 @@ def create_question_or_group(
         if question_definition.get("condition") is not None:
             add_condition(edit_question_group_page, question_definition["condition"])
         for question in question_definition["questions"]:
-            create_question_or_group(question, edit_question_group_page, parent_group_name=question_definition["text"])
+            create_question_or_group(
+                question,
+                edit_question_group_page,
+                parent_group_name=question_definition["text"],
+                parent_add_another=question_definition.get("add_another", False),
+            )
         if parent_group_name:
             edit_question_group_page.click_parent_group_breadcrumb()
         else:
