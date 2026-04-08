@@ -110,13 +110,15 @@ class AddContextToExpressionsModel(_ReferenceDataSessionModel):
     is_group: bool = False
 
     def include_current_component_when_referencing_data(self, current_component: Component | None) -> bool:
+        if not current_component:
+            return False
+
         target_expr_field_name = self.expression_form_data["add_context"]
 
         if (
             self.is_custom is True
             and target_expr_field_name == "custom_expression"
             and self.field == ExpressionType.VALIDATION
-            and current_component is not None
         ):
             return True
 

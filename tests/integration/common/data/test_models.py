@@ -90,6 +90,26 @@ class TestGrantModel:
         assert other_grant_recipient not in grant.grant_recipients
 
 
+class TestComponentModel:
+    def test_is_descendant_of(self, factories):
+        parent_group = factories.group.create()
+        child_group = factories.group.create(parent=parent_group)
+        child_question = factories.question.create(parent=child_group)
+        top_level_question = factories.question.create(form=parent_group.form)
+        other_form_question = factories.question.create()
+
+        assert child_group.is_descendant_of(parent_group)
+        assert child_question.is_descendant_of(parent_group)
+        assert child_question.is_descendant_of(child_group)
+
+        assert not parent_group.is_descendant_of(child_group)
+        assert not child_question.is_descendant_of(top_level_question)
+        assert not child_question.is_descendant_of(other_form_question)
+        assert not other_form_question.is_descendant_of(parent_group)
+        assert not other_form_question.is_descendant_of(child_group)
+        assert not other_form_question.is_descendant_of(child_question)
+
+
 class TestQuestionModel:
     def test_question_property_selects_expressions(self, factories):
         question = factories.question.create()
