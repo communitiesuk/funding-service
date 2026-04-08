@@ -1676,6 +1676,27 @@ class TestSubmissionHelper:
                 == ComponentVisibilityState.HIDDEN
             )
 
+        def test_get_group_visibility_if_has_validation_referencing_child_question(self, factories):
+            group = factories.group.build(
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+            )
+            question = factories.question.build(form=group.form, parent=group, data_type=QuestionDataType.NUMBER)
+
+            validation = factories.expression.build(
+                question=group, type_=ExpressionType.VALIDATION, statement=f"{question.safe_qid} < 1000"
+            )
+            group.owned_component_references = [
+                ComponentReference(component=group, expression=validation, depends_on_component=question)
+            ]
+
+            submission = factories.submission.build(collection=group.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert (
+                helper.get_component_visibility_state(group, helper.cached_evaluation_context)
+                == ComponentVisibilityState.VISIBLE
+            )
+
 
 class TestDeserialiseQuestionType:
     def test_number_integer(self, factories):
