@@ -79,7 +79,10 @@ class TestExpressionContext:
             q2 = factories.question.create(form=form2, name="later question")
 
             context = ExpressionContext.build_expression_context(
-                collection=collection, mode="interpolation", expression_context_end_point=q2
+                collection=collection,
+                mode="interpolation",
+                expression_context_end_point=q2,
+                include_children_of_context_end_point=True,
             )
 
             assert context.is_valid_reference(q1.safe_qid)
@@ -93,20 +96,97 @@ class TestExpressionContext:
             q2 = factories.question.create(form=form2, name="later question")
 
             context = ExpressionContext.build_expression_context(
-                collection=collection, mode="interpolation", expression_context_end_point=q1
+                collection=collection,
+                mode="interpolation",
+                expression_context_end_point=q1,
+                include_children_of_context_end_point=True,
             )
 
             assert context.is_valid_reference(q1.safe_qid)
             assert not context.is_valid_reference(q2.safe_qid)
 
-        def test_interpolation_labels_include_collection_and_form(self, factories):
+    class TestBuildExpressionContextEndPoints:
+        def test_value_error_from_invalid_end_point_combination(self, factories):
             collection = factories.collection.create(name="My Collection")
-            form = factories.form.create(collection=collection, title="My Form")
-            q = factories.question.create(form=form, name="my question")
+            form1 = factories.form.create(collection=collection, title="First Form")
+            q1 = factories.question.create(form=form1, name="earlier question")
 
-            context = ExpressionContext.build_expression_context(collection=collection, mode="interpolation")
+            with pytest.raises(
+                ValueError,
+                match="include_children_of_context_end_point must be set only when expression_context_end_point is set",
+            ):
+                ExpressionContext.build_expression_context(
+                    collection=collection,
+                    mode="interpolation",
+                    expression_context_end_point=q1,
+                )
+            with pytest.raises(
+                ValueError,
+                match="include_children_of_context_end_point must be set only when expression_context_end_point is set",
+            ):
+                ExpressionContext.build_expression_context(
+                    collection=collection,
+                    mode="interpolation",
+                    include_children_of_context_end_point=True,
+                )
+            with pytest.raises(
+                ValueError,
+                match="include_children_of_context_end_point must be set only when expression_context_end_point is set",
+            ):
+                ExpressionContext.build_expression_context(
+                    collection=collection,
+                    mode="interpolation",
+                    include_children_of_context_end_point=False,
+                )
 
-            assert context[q.safe_qid] == "((My Collection → My Form → my question))"
+        def test_always_includes_own_question(self, factories):
+            collection = factories.collection.create(name="My Collection")
+            form1 = factories.form.create(collection=collection, title="First Form")
+            q1 = factories.question.create(form=form1, name="earlier question")
+
+            context = ExpressionContext.build_expression_context(
+                collection=collection,
+                mode="interpolation",
+                expression_context_end_point=q1,
+                include_children_of_context_end_point=False,
+            )
+
+            assert context.is_valid_reference(q1.safe_qid)
+
+        def test_can_include_children_of_groups(self, factories):
+            collection = factories.collection.create(name="My Collection")
+            form = factories.form.create(collection=collection, title="First Form")
+            g1 = factories.group.create(form=form)
+            q1 = factories.question.create(form=form, parent=g1, name="q1")
+            q2 = factories.question.create(form=form, parent=g1, name="q2")
+
+            with_context = ExpressionContext.build_expression_context(
+                collection=collection,
+                mode="interpolation",
+                expression_context_end_point=g1,
+                include_children_of_context_end_point=True,
+            )
+            without_context = ExpressionContext.build_expression_context(
+                collection=collection,
+                mode="interpolation",
+                expression_context_end_point=g1,
+                include_children_of_context_end_point=False,
+            )
+
+            assert with_context.is_valid_reference(q1.safe_qid) is True
+            assert with_context.is_valid_reference(q2.safe_qid) is True
+
+            assert without_context.is_valid_reference(q1.safe_qid) is False
+            assert without_context.is_valid_reference(q2.safe_qid) is False
+
+    def test_interpolation_labels_include_collection_and_form(self, factories):
+        collection = factories.collection.create(name="My Collection")
+        form = factories.form.create(collection=collection, title="My Form")
+        q = factories.question.create(form=form, name="my question")
+
+        context = ExpressionContext.build_expression_context(collection=collection, mode="interpolation")
+
+        assert context[q.safe_qid] == "((My Collection → My Form → my question))"
 
     class TestBuildDataSourceContext:
         def test_returns_empty_dict_when_no_submission_helper(self):

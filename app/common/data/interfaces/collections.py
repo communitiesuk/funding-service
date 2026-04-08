@@ -1017,6 +1017,13 @@ class NestedGroupDisplayTypeSamePageException(Exception, FlashableException):
         return flash_contexts
 
 
+class GroupHasValidationsCannotBeOnePerPageException(Exception):
+    def __init__(self, message: str, group: Group):
+        super().__init__(message)
+        self.message = message
+        self.group = group
+
+
 def _check_form_order_dependency(form: Form, swap_form: Form) -> None:
     # fetching the entire schema means whatever is calling this doesn't have to worry about
     # guaranteeing lazy loading performance behaviour
@@ -1296,6 +1303,16 @@ def update_group(  # noqa: C901
                 db.session.rollback()
                 raise e
 
+        if (
+            group.presentation_options.show_questions_on_the_same_page is True
+            and presentation_options.show_questions_on_the_same_page is False
+            and group.validations
+        ):
+            raise GroupHasValidationsCannotBeOnePerPageException(
+                "You cannot display this question group one question per page while it has validation rules attached",
+                group=group,
+            )
+
         # presentation options for groups can be spread out across multiple forms/ setting pages
         # override the provided fields without removing the existing settings for now, we might
         # want to switch to mutating the existing object in the future instead
@@ -1506,11 +1523,6 @@ def _validate_reference(  # noqa:C901
         # TODO change this once we can create expressions to reuse, before they are attached to a component
         raise NotImplementedError("Cannot handle un-attached references yet")
 
-    if expression_type == ExpressionType.VALIDATION and not attached_to_component.is_question:
-        # TODO change this once we can attach validation to a question group
-        #  or an auto calculation to a whole section
-        raise NotImplementedError("Cannot handle validation expressions attached to non-question components yet")
-
     # Check the reference is valid in this expression context
     if not expression_context.is_valid_reference(unwrapped_ref):
         raise InvalidReferenceInExpression(
@@ -1529,9 +1541,10 @@ def _validate_reference(  # noqa:C901
         referenced_question = db.session.get_one(Question, question_id)
 
         # for validation, the question being validated (ie attached to) needs to have the same data type as the question
-        # being referenced
+        # being referenced. Groups have no data_type so this check is skipped for group-level validations.
         if (
             expression_type == ExpressionType.VALIDATION
+            and not attached_to_component.is_group
             and not attached_to_component.data_type == referenced_question.data_type
         ):
             raise IncompatibleDataTypeException(
@@ -1560,11 +1573,24 @@ def _validate_reference(  # noqa:C901
             )
         if not is_component_dependency_order_valid(attached_to_component, referenced_question):
             # Can't think of a better way right now for a custom validation expression to reference itself
-            if not (
+            # TODO: ideally this would check a pre-configured ExpressionContext that uses an
+            #       expression_context_end_point; if the reference is the expression context then we know it's valid and
+            #       don't need to have this logic in multiple places.
+            references_self_in_custom_validation = (
                 expression_type == ExpressionType.VALIDATION
                 and field_name_for_error_message == "custom_expression"
                 and referenced_question == attached_to_component
-            ):
+            )
+            # A validation attached to a group is allowed to reference any question nested within that group:
+            # the group only "resolves" once all its questions have been answered, so the dependency order is
+            # logically inverted compared to a normal question→question reference. This relaxation deliberately
+            # does NOT apply to conditions, where the expression is evaluated *before* the group is shown.
+            group_validation_references_own_descendant = (
+                expression_type == ExpressionType.VALIDATION
+                and attached_to_component.is_group
+                and referenced_question.is_descendant_of(attached_to_component)
+            )
+            if not (references_self_in_custom_validation or group_validation_references_own_descendant):
                 raise DependencyOrderException(
                     f"Cannot reference {referenced_question.id} because it comes after {attached_to_component.id}",
                     attached_to_component,
