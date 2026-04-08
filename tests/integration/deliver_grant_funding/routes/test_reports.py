@@ -3185,6 +3185,81 @@ class TestSelectContextSourceQuestion:
         assert reference_question.text in soup.text
         assert depends_on_question.text not in soup.text and skipped_question.text not in soup.text
 
+    def test_get_back_link_points_to_select_context_source_when_same_section(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        reference_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=report.id,
+                form_id=form.id,
+                component_id=reference_question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Back").get("href") == url_for(
+            "deliver_grant_funding.select_context_source",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            form_id=form.id,
+        )
+
+    def test_get_back_link_points_to_select_context_section_when_different_section(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form_1 = factories.form.create(collection=report)
+        form_2 = factories.form.create(collection=report)
+        reference_question = factories.question.create(form=form_2, data_type=QuestionDataType.NUMBER)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test text",
+                    "name": "Test name",
+                    "hint": "Test hint",
+                    "add_context": "text",
+                },
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=report.id,
+                form_id=form_1.id,
+                component_id=reference_question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form_2.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Back").get("href") == url_for(
+            "deliver_grant_funding.select_context_source_section",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            form_id=form_2.id,
+        )
+
     def test_post_redirects_to_component_and_updates_session(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=report)
