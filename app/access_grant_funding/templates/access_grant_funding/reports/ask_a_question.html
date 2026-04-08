@@ -1,5 +1,6 @@
 {% from "common/macros/collections.html" import collection_question_with_add_another_summary_page with context %}
 {% from "common/macros/collections.html" import collection_before with context %}
+{% from "common/macros/ask-a-question-error-summary.html" import formRunnerErrorSummary with context %}
 {% extends "access_grant_funding/base.html" %}
 
 {% set page_title = runner.interpolate(runner.component.text if (not runner.add_another_summary_context and not runner.is_removing) else runner.component.add_another_container.text) ~ " - " ~ runner.form.title %}
@@ -11,6 +12,10 @@
   {{ super() }}
   {{ collection_before(runner) }}
 {% endblock beforeContent %}
+
+{% block errorSummary %}
+  {{ formRunnerErrorSummary(form, runner) }}
+{% endblock errorSummary %}
 
 {% block content %}
   <div class="govuk-grid-row">
