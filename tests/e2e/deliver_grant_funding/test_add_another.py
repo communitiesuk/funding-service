@@ -53,7 +53,7 @@ add_another_one_per_page_group: QuestionGroupDict = {
 def test_add_another_setup(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
 ) -> None:
-    """creates a grant/eport with one section containing a single add-another group (one question per page)."""
+    """creates a grant/report with one section containing a single add-another group (one question per page)."""
     global _shared_setup_data
 
     grant_name_uuid = str(uuid.uuid4())
@@ -93,17 +93,35 @@ def test_add_another_setup(
     }
 
 
-def fill_entry(page: Page, grant_name: str, domain: str, first_name: str, last_name: str) -> None:
-    """Fill one complete add-another entry (first name → last name)."""
-    first_name_page = RunnerQuestionPage(page, domain, grant_name, "First name")
-    expect(first_name_page.heading).to_be_visible()
-    first_name_page.respond_to_question(QuestionDataType.TEXT_SINGLE_LINE, "First name", first_name)
-    first_name_page.click_continue()
+def fill_entry(
+    page: Page,
+    domain: str,
+    grant_name: str,
+    group: QuestionGroupDict,
+    answer_index: int,
+) -> None:
+    """Fill one add-another entry using the answer at answer_index, handling nested groups."""
+    for question in group["questions"]:
+        if question["type"] == "group":
+            fill_entry(page, domain, grant_name, question, answer_index)
+        else:
+            question_page = RunnerQuestionPage(
+                page,
+                domain,
+                grant_name,
+                question["display_text"],
+                is_in_a_same_page_group=group["display_options"] == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+            )
+            question_page.respond_to_question(
+                question_type=question["type"],
+                question_text=question["display_text"],
+                answer=question["answers"][answer_index].answer,
+            )
+        if group["display_options"] == GroupDisplayOptions.ONE_QUESTION_PER_PAGE:
+            question_page.click_continue()
 
-    last_name_page = RunnerQuestionPage(page, domain, grant_name, "Last name")
-    expect(last_name_page.heading).to_be_visible()
-    last_name_page.respond_to_question(QuestionDataType.TEXT_SINGLE_LINE, "Last name", last_name)
-    last_name_page.click_continue()
+    if group["display_options"] == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE:
+        question_page.click_continue()
 
 
 def test_add_another_preview_and_fill(
@@ -131,7 +149,7 @@ def test_add_another_preview_and_fill(
     page.get_by_role("button", name="Add the first answer").click()
 
     # Fill entry 1
-    fill_entry(page, data["grant_name"], domain, first_name="Alice", last_name="Smith")
+    fill_entry(page, domain, data["grant_name"], add_another_one_per_page_group, answer_index=0)
 
     # Back on summary
     expect(page.get_by_role("heading", name="Recipient", exact=True)).to_be_visible()
@@ -140,7 +158,7 @@ def test_add_another_preview_and_fill(
     page.get_by_role("button", name="Continue").click()
 
     # Fill entry 2
-    fill_entry(page, data["grant_name"], domain, first_name="Bob", last_name="Jones")
+    fill_entry(page, domain, data["grant_name"], add_another_one_per_page_group, answer_index=1)
 
     # Back on summary
     expect(page.get_by_role("heading", name="Recipient", exact=True)).to_be_visible()
