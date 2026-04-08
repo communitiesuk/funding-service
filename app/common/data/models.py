@@ -658,6 +658,8 @@ class Component(BaseModel):
         return f"{self.form.collection.name} → {self.form.title} → {self.name}"
 
     def is_descendant_of(self, component: Component) -> bool:
+        # NOTE: This might want to live on something like a CollectionDependencyGraph in the near future
+        #       eg in 577a7f75c049e9e3795111b34bd4350609d3f4b7
         parent = self.parent
 
         while parent:
@@ -893,6 +895,7 @@ class Expression(BaseModel):
         SqlEnum(ManagedExpressionsEnum, name="managed_expression_enum", validate_strings=True, nullable=True)
     )
 
+    # TODO: Rename this to `component_id` as expressions can be attached to groups as well now.
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
     question: Mapped[Component] = relationship("Component", back_populates="expressions")
 
