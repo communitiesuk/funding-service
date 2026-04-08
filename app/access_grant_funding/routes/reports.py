@@ -70,7 +70,7 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
     user = get_current_user()
     collection = get_collection(collection_id, grant_id=grant_id)
     if not collection.allow_multiple_submissions:
-        raise abort(404)
+        abort(404)
 
     submission_helpers = [
         SubmissionHelper(submission=submission)

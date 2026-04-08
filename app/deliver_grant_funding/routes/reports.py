@@ -2864,7 +2864,7 @@ def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -
     group = get_group_by_id(group_id)
     expression = get_expression_by_id(expression_id)
     if not expression.question or not expression.question.is_group or expression.question_id != group_id:
-        raise abort(404)
+        abort(404)
 
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToExpressionsModel, component_id=group.id, expression_id=expression_id
@@ -2961,7 +2961,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
     delete_all_form = GenericConfirmDeletionForm() if "delete_all" in request.args else None
     if delete_all_form and delete_all_form.validate_on_submit():
         if submission_mode != SubmissionModeEnum.TEST:
-            raise abort(400)
+            abort(400)
 
         reset_all_test_submissions(report)
         s3_service.delete_prefix(report.s3_key_prefix(submission_mode=submission_mode))

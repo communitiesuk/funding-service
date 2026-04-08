@@ -91,7 +91,6 @@ def get_referenceable_questions(
             else parent_component.cached_questions[-1]
         )
 
-    # TODO: upcoming commit; make this work for questions that are child components of the current (group) component
     include_this_component_and_descendents = (
         True if include_this_component is True and current_component is not None else False
     )
