@@ -1678,6 +1678,20 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
         expect(group_add_another_page.heading).to_be_visible()
         return group_add_another_page
 
+    def click_submit_nested(self, parent_group_name: str) -> EditQuestionGroupPage:
+        self.page.get_by_role("button", name="Add question group").click()
+        edit_question_group_page = EditQuestionGroupPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+            group_name=self.group_name,
+            parent_group_name=parent_group_name,
+        )
+        expect(edit_question_group_page.heading).to_be_visible()
+        return edit_question_group_page
+
 
 class AddQuestionGroupAddAnotherPage(ReportsBasePage):
     def __init__(

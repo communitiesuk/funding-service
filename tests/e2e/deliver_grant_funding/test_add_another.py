@@ -26,6 +26,7 @@ _shared_setup_data: dict | None = None
 
 recipient_section_name = "Add another one per page section"
 address_section_name = "Add another same page section"
+organisation_section_name = "Add another nested group section"
 
 add_another_one_per_page_group: QuestionGroupDict = {
     "type": "group",
@@ -77,6 +78,46 @@ add_another_all_on_same_page_group: QuestionGroupDict = {
     ],
 }
 
+add_another_nested_group: QuestionGroupDict = {
+    "type": "group",
+    "text": "Organisation",
+    "display_options": GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
+    "add_another": True,
+    "questions": [
+        QuestionDict(
+            {
+                "type": QuestionDataType.TEXT_SINGLE_LINE,
+                "text": "What is the organisation name?",
+                "display_text": "Organisation name",
+                "answers": [QuestionResponse("Acme Corp"), QuestionResponse("Globex")],
+            }
+        ),
+        {
+            "type": "group",
+            "text": "Contact details",
+            "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+            "questions": [
+                QuestionDict(
+                    {
+                        "type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "text": "What is the contact name?",
+                        "display_text": "Contact name",
+                        "answers": [QuestionResponse("Alice Smith"), QuestionResponse("Bob Jones")],
+                    }
+                ),
+                QuestionDict(
+                    {
+                        "type": QuestionDataType.EMAIL,
+                        "text": "What is the contact email?",
+                        "display_text": "Contact email",
+                        "answers": [QuestionResponse("alice@example.com"), QuestionResponse("bob@example.com")],
+                    }
+                ),
+            ],
+        },
+    ],
+}
+
 
 def test_add_another_setup(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
@@ -118,6 +159,15 @@ def test_add_another_setup(
     report_sections_page.check_section_exists(address_section_name)
     manage_section_page = report_sections_page.click_manage_section(address_section_name)
     create_question_or_group(add_another_all_on_same_page_group, manage_section_page)
+
+    # Section 3
+    report_sections_page = navigate_to_report_sections_page(page, domain, grant_name, report_name)
+    add_section_page = report_sections_page.click_add_section()
+    add_section_page.fill_in_section_name(organisation_section_name)
+    report_sections_page = add_section_page.click_add_section()
+    report_sections_page.check_section_exists(organisation_section_name)
+    manage_section_page = report_sections_page.click_manage_section(organisation_section_name)
+    create_question_or_group(add_another_nested_group, manage_section_page)
 
     _shared_setup_data = {
         "grant_name": grant_name,
@@ -267,6 +317,58 @@ def test_add_another_preview_and_fill(
     expect(check_your_answers_page.heading).to_be_visible()
     expect(page.get_by_role("heading", name="789 New Lane, Bristol", exact=False)).to_be_visible()
     expect(page.get_by_role("heading", name="456 Real Road, Manchester", exact=False)).not_to_be_visible()
+
+    check_your_answers_page.click_mark_as_complete_yes()
+    tasklist_page = check_your_answers_page.click_save_and_continue(report_name=data["report_name"])
+
+    # Scenario 3
+    tasklist_page.click_on_section(organisation_section_name)
+    organisation_summary = RunnerAddAnotherSummaryPage(page, domain, data["grant_name"], "Organisation")
+    organisation_summary.expect_empty()
+    organisation_summary.click_add_first_answer()
+
+    fill_entry(page, domain, data["grant_name"], add_another_nested_group, answer_index=0)
+
+    organisation_summary.expect_count(1)
+    organisation_summary.click_add_another_yes()
+
+    fill_entry(page, domain, data["grant_name"], add_another_nested_group, answer_index=1)
+
+    organisation_summary.expect_count(2)
+    organisation_summary.click_add_another_no()
+
+    check_your_answers_page = RunnerCheckYourAnswersPage(page, domain, data["grant_name"])
+    expect(check_your_answers_page.heading).to_be_visible()
+    expect(page.get_by_role("heading", name="Acme Corp", exact=False)).to_be_visible()
+    expect(page.get_by_role("heading", name="Globex", exact=False)).to_be_visible()
+
+    page.get_by_role("link", name="Back").click()
+    organisation_summary.click_change(index=0)
+
+    org_name_page = RunnerQuestionPage(page, domain, data["grant_name"], "Organisation name")
+    expect(org_name_page.heading).to_be_visible()
+    org_name_page.respond_to_question(QuestionDataType.TEXT_SINGLE_LINE, "Organisation name", "Acme Corp Ltd")
+    org_name_page.click_continue()
+
+    contact_page = RunnerQuestionPage(page, domain, data["grant_name"], "Contact name", is_in_a_same_page_group=True)
+    contact_page.respond_to_question(QuestionDataType.TEXT_SINGLE_LINE, "Contact name", "Alice Jones")
+    contact_page.respond_to_question(QuestionDataType.EMAIL, "Contact email", "alice.jones@example.com")
+    contact_page.click_continue()
+
+    expect(page.locator("span").filter(has_text=re.compile(r"^Acme Corp Ltd"))).to_be_visible()
+    organisation_summary.click_remove_last()
+
+    remove_page = RunnerAddAnotherRemovePage(page, domain, data["grant_name"])
+    remove_page.confirm_remove()
+
+    organisation_summary.expect_count(1)
+    expect(page.locator("span").filter(has_text=re.compile(r"^Globex"))).not_to_be_visible()
+    organisation_summary.click_add_another_no()
+
+    check_your_answers_page = RunnerCheckYourAnswersPage(page, domain, data["grant_name"])
+    expect(check_your_answers_page.heading).to_be_visible()
+    expect(page.get_by_role("heading", name="Acme Corp Ltd", exact=False)).to_be_visible()
+    expect(page.get_by_role("heading", name="Globex", exact=False)).not_to_be_visible()
 
     check_your_answers_page.click_mark_as_complete_yes()
     tasklist_page = check_your_answers_page.click_save_and_continue(report_name=data["report_name"])
