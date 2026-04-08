@@ -2863,6 +2863,8 @@ def add_group_validation(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
 def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     group = get_group_by_id(group_id)
     expression = get_expression_by_id(expression_id)
+    if not expression.question or not expression.question.is_group or expression.question_id != group_id:
+        raise abort(404)
 
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToExpressionsModel, component_id=group.id, expression_id=expression_id
