@@ -3317,6 +3317,38 @@ class TestExpressions:
                 GreaterThan(question_id=inside_question.id, minimum_value=0),
             )
 
+    def test_add_component_validation_on_group_rejects_reference_to_question_after_group(self, db_session, factories):
+        from app.common.data.types import QuestionPresentationOptions
+
+        db_form = factories.form.create()
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        question_after_group = factories.question.create(
+            form=db_form,
+            name="Later question",
+            data_type=QuestionDataType.NUMBER,
+        )
+        user = factories.user.create()
+
+        custom_expression = CustomExpression(
+            custom_expression=f"(({question_after_group.safe_qid})) > 0",
+            custom_message="Must be positive",
+        )
+
+        with pytest.raises(DependencyOrderException):
+            add_component_validation(group, user, custom_expression)
+
+        from_db = get_group_by_id(group.id)
+        assert from_db.validations == []
+
     def test_update_expression(self, db_session, factories):
         q0 = factories.question.create()
         question = factories.question.create(form=q0.form)

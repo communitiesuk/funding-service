@@ -9651,6 +9651,47 @@ class TestAddGroupValidation:
             assert session["question"]["is_group"] is True
             assert session["question"]["component_id"] == str(group.id)
 
+    def test_post_error_when_referencing_question_after_group(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group, capital, _ = self._make_same_page_group_with_questions(factories, authenticated_grant_admin_client.grant)
+        question_after_group = factories.question.create(
+            form=group.form,
+            name="Later question name",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({capital.safe_qid})) + (({question_after_group.safe_qid})) <= 1000",
+                "custom_message": "Capital plus later question must not exceed 1000",
+            },
+            component=group,
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            "You cannot use Later question name because it comes after this question group",
+        )
+
+        db_session.expire_all()
+        reloaded = db_session.get(Group, group.id)
+        assert reloaded.validations == []
+
 
 class TestEditGroupValidation:
     def _setup_group_with_validation(self, factories, grant):
@@ -9718,6 +9759,222 @@ class TestEditGroupValidation:
         db_session.expire_all()
         reloaded = db_session.get(Group, group.id)
         assert reloaded.validations == []
+
+    def test_get_with_delete_query_renders_confirm_banner(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group, _capital = self._setup_group_with_validation(factories, authenticated_grant_admin_client.grant)
+        expression_id = group.validations[0].id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                expression_id=expression_id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Are you sure you want to delete this group validation?" in soup.text
+        assert page_has_button(soup, "Yes, delete this validation")
+
+    def test_post_success(self, authenticated_grant_admin_client, factories, db_session):
+        group, capital = self._setup_group_with_validation(factories, authenticated_grant_admin_client.grant)
+        revenue = factories.question.create(
+            form=group.form,
+            parent=group,
+            name="Revenue spend",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        expression = group.validations[0]
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({capital.safe_qid})) + (({revenue.safe_qid})) <= 1000",
+                "custom_message": "Capital plus revenue must not exceed 1000",
+            },
+            component=group,
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                expression_id=expression.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(rf"/deliver/grant/[a-z0-9-]{{36}}/group/{group.id}/questions")
+
+        db_session.expire_all()
+        reloaded = db_session.get(Group, group.id)
+        assert len(reloaded.validations) == 1
+        updated_expression = reloaded.validations[0]
+        assert updated_expression.id == expression.id
+        assert updated_expression.statement == f"(({capital.safe_qid})) + (({revenue.safe_qid})) <= 1000"
+        referenced_ids = {ref.depends_on_component_id for ref in updated_expression.component_references}
+        assert referenced_ids == {capital.id, revenue.id}
+
+    def test_post_404_when_expression_belongs_to_a_question(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group, _capital = self._setup_group_with_validation(factories, authenticated_grant_admin_client.grant)
+        question = factories.question.create(
+            form=group.form,
+            name="Standalone question",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        add_component_validation(
+            question,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({question.safe_qid})) > 0",
+                custom_message="Must be positive",
+            ),
+        )
+        question_expression_id = question.expressions[0].id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                expression_id=question_expression_id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_post_404_when_expression_belongs_to_a_different_group(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group, _ = self._setup_group_with_validation(factories, authenticated_grant_admin_client.grant)
+        other_group = factories.group.create(
+            form=group.form,
+            name="Other group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        other_question = factories.question.create(
+            form=group.form,
+            parent=other_group,
+            name="Other capital",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+        add_component_validation(
+            other_group,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({other_question.safe_qid})) > 0",
+                custom_message="Must be positive",
+            ),
+        )
+        other_expression_id = other_group.validations[0].id
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                expression_id=other_expression_id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_post_to_add_context_stores_expression_id_and_is_group_in_session(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group, capital = self._setup_group_with_validation(factories, authenticated_grant_admin_client.grant)
+        expression = group.validations[0]
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({capital.safe_qid})) <= ",
+                "custom_message": "Failed custom validation...",
+                "add_context": "custom_expression",
+            },
+            component=group,
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                expression_id=expression.id,
+            ),
+            data=get_form_data(form, submit=""),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/add-context/select-source$"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            assert session["question"]["field"] == ExpressionType.VALIDATION
+            assert session["question"]["is_group"] is True
+            assert session["question"]["component_id"] == str(group.id)
+            assert session["question"]["expression_id"] == str(expression.id)
+
+    def test_post_error_when_referencing_question_after_group(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        group, capital = self._setup_group_with_validation(factories, authenticated_grant_admin_client.grant)
+        expression = group.validations[0]
+        question_after_group = factories.question.create(
+            form=group.form,
+            name="Later question name",
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        form = CustomValidationExpressionForm(
+            data={
+                "custom_expression": f"(({capital.safe_qid})) + (({question_after_group.safe_qid})) <= 1000",
+                "custom_message": "Capital plus later question must not exceed 1000",
+            },
+            component=group,
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_group_validation",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group.id,
+                expression_id=expression.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            "You cannot use Later question name because it comes after this question group",
+        )
+
+        db_session.expire_all()
+        reloaded = db_session.get(Group, group.id)
+        assert len(reloaded.validations) == 1
+        assert reloaded.validations[0].statement == f"(({capital.safe_qid})) > 0"
 
 
 class TestListGroupQuestionsValidationsSection:
