@@ -47,6 +47,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     ComponentVisibilityState,
     ConditionsOperator,
+    ExpressionType,
     GrantRecipientModeEnum,
     NumberTypeEnum,
     QuestionDataType,
@@ -619,6 +620,13 @@ class SubmissionHelper:
             if depends_on.id == component.id:
                 continue
             if not depends_on.is_question:
+                continue
+            if (
+                component.is_group
+                and ref.expression
+                and ref.expression.type_ == ExpressionType.VALIDATION
+                and depends_on.is_descendant_of(component)
+            ):
                 continue
             if ref.component.add_another_container and add_another_index is None:
                 continue
