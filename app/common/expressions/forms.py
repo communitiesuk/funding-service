@@ -367,6 +367,10 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
                 validate_with_evaluation=True,
                 evaluation_context=self.evaluation_context,
             )
+        except WTFormRenderableException as e:
+            self.handle_exception(e, field_name="custom_expression")
+            return False
+        try:
             _validate_custom_syntax(
                 self.component,
                 self.interpolation_context,
@@ -375,7 +379,6 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
                 "custom_message",
                 validate_with_evaluation=False,
             )
-
         except WTFormRenderableException as e:
             self.handle_exception(e, field_name="custom_message")
             return False
