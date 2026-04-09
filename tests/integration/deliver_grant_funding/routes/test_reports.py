@@ -9279,11 +9279,14 @@ class TestAddCustomQuestionValidation:
 
         assert response.status_code == 200
 
+        soup = BeautifulSoup(response.data, "html.parser")
+
         assert len(q3.expressions) == 0
         assert page_has_error(
-            BeautifulSoup(response.data, "html.parser"),
+            soup,
             "You cannot use Later question name because it comes after this question",
         )
+        assert soup.find("p", id="custom_expression-error") is not None
 
     def test_post_error_in_message(self, authenticated_platform_admin_client, factories, db_session):
         report = factories.collection.create(name="Test Report")
@@ -9321,10 +9324,13 @@ class TestAddCustomQuestionValidation:
         assert response.status_code == 200
 
         assert len(q3.expressions) == 0
+
+        soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(
-            BeautifulSoup(response.data, "html.parser"),
+            soup,
             "You cannot use ((bad_reference)) because it does not exist",
         )
+        assert soup.find("p", id="custom_message-error") is not None
 
     def test_post_error_in_expression_and_message(self, authenticated_platform_admin_client, factories, db_session):
         report = factories.collection.create(name="Test Report")
