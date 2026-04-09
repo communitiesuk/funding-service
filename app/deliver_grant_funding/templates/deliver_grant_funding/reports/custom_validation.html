@@ -1,9 +1,8 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
-{% from "deliver_grant_funding/macros/equation_symbols.html" import equation_symbols %}
+{% from "deliver_grant_funding/macros/render_calculated_form_fields.html" import render_calculated_validation_custom_expression_field, render_calculated_validation_custom_message_field with context %}
 
 {% set active_item_identifier = "reports" %}
 {% if expression %}
@@ -58,63 +57,9 @@
       }}
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        <div class="govuk-form-group">
-          {% set addDataToExpressionButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for expression</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
-          {% endset %}
-          {% set addDataToMessageButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for message</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_message"}) }}
-          {% endset %}
-
-          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
-            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
-            {{
-              form.custom_expression(params={
-              "hint":{"text":"Write an equation that defines what a valid answer would be. The equation must start with referencing this question, before specifying what the answer should be."},
-              "label": {"classes": "govuk-!-font-weight-bold", "text":"Add an equation"},
-                "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
-                "formGroup": {
-                  "classes": "app-context-aware--container",
-                  "afterInput": {"html": addDataToExpressionButton}
-                }
-              })
-            }}
-          </div>
-          {% set helpHtml %}
-            <p class="govuk-body"></p>
-            <p class="govuk-body">Use an equation to define what a valid answer would be for this question.</p>
-
-            <p class="govuk-body">For example, if this question asks for the total spend and the answer should equal previous answers for capital spend plus revenue spend, the equation would be:</p>
-            <p class="govuk-body">
-              <span class="app-context-aware-editor--valid-reference">((total spend)</span> == <span class="app-context-aware-editor--valid-reference">((capital spend))</span> +
-              <span class="app-context-aware-editor--valid-reference">((revenue spend))</span>
-            </p>
-
-            <p class="govuk-body">If the total spend answer does not pass the validation, the user will need to correct their answers to continue.</p>
-
-            {{ equation_symbols() }}
-          {% endset %}
-          {{
-            govukDetails({
-              "summaryText": "Calculations help",
-              "html": helpHtml
-            })
-          }}
-          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
-            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
-            {{
-              form.custom_message(params={
-              "label": {"classes": "govuk-!-font-weight-bold"},
-                "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
-                "formGroup": {
-                  "classes": "app-context-aware--container",
-                  "afterInput": {"html": addDataToMessageButton}
-                }
-              })
-            }}
-          </div>
-          {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
-        </div>
+        {{ render_calculated_validation_custom_expression_field(form) }}
+        {{ render_calculated_validation_custom_message_field(form) }}
+        {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
       </form>
     </div>
   </div>

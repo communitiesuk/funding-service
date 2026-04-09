@@ -1,0 +1,100 @@
+{% from "deliver_grant_funding/macros/calculation_symbols.html" import calculation_symbols %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+
+{% macro render_calculated_condition_custom_expression_field(form) %}
+  {% set addDataToExpressionButton %}
+    {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for calculation</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
+  {% endset %}
+  {% set customExpressionHint %}
+    <p class="govuk-body">Use number question references, calculation symbols and numbers to describe when to show this question to the user.</p>
+    <p class="govuk-body govuk-!-margin-bottom-0">For example, if you need to show the question when the capital spend value plus the revenue spend value is more than the funding value, the calculation would be:</p>
+
+    <div class="govuk-inset-text govuk-!-margin-top-0">
+      <span class="app-context-aware-editor--valid-reference">((capital spend))</span> + <span class="app-context-aware-editor--valid-reference">((revenue spend))</span> >
+      <span class="app-context-aware-editor--valid-reference">((funding))</span>
+    </div>
+  {% endset %}
+
+  <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
+    <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+    {{
+      form.custom_expression(params={
+      "hint":{"html": customExpressionHint},
+      "label": {"classes": "govuk-!-font-weight-bold", "text": form.custom_expression.label.text},
+        "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
+        "formGroup": {
+          "classes": "app-context-aware--container",
+          "afterInput": {"html": addDataToExpressionButton}
+        }
+      })
+    }}
+  </div>
+  {% set helpHtml %}
+    {{ calculation_symbols() }}
+  {% endset %}
+  {{
+    govukDetails({
+      "summaryText": "Calculations help",
+      "html": helpHtml
+    })
+  }}
+{% endmacro %}
+
+{% macro render_calculated_validation_custom_expression_field(form) %}
+  {% set addDataToExpressionButton %}
+    {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for calculation</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
+  {% endset %}
+  {% set customExpressionHint %}
+    <p class="govuk-body">Use number question references, calculation symbols and numbers to describe what the answer needs to be. Start with referencing this question.</p>
+
+    <p class="govuk-body govuk-!-margin-bottom-0">For example, if this question asks for the total spend and the answer should equal previous answers for capital spend plus revenue spend, the calculation would be:</p>
+
+    <div class="govuk-inset-text govuk-!-margin-top-0">
+      <span class="app-context-aware-editor--valid-reference">((total spend))</span> == <span class="app-context-aware-editor--valid-reference">((capital spend))</span> +
+      <span class="app-context-aware-editor--valid-reference">((revenue spend))</span>
+    </div>
+  {% endset %}
+
+  <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
+    <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+    {{
+      form.custom_expression(params={
+      "hint":{"html": customExpressionHint},
+      "label": {"classes": "govuk-!-font-weight-bold", "text": form.custom_expression.label.text},
+        "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
+        "formGroup": {
+          "classes": "app-context-aware--container",
+          "afterInput": {"html": addDataToExpressionButton}
+        }
+      })
+    }}
+  </div>
+  {% set helpHtml %}
+    {{ calculation_symbols() }}
+  {% endset %}
+  {{
+    govukDetails({
+      "summaryText": "Calculations help",
+      "html": helpHtml
+    })
+  }}
+{% endmacro %}
+
+{% macro render_calculated_validation_custom_message_field(form) %}
+  {% set addDataToMessageButton %}
+    {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for error message</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_message"}) }}
+  {% endset %}
+  <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
+    <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
+    {{
+      form.custom_message(params={
+      "label": {"classes": "govuk-!-font-weight-bold"},
+        "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
+        "formGroup": {
+          "classes": "app-context-aware--container",
+          "afterInput": {"html": addDataToMessageButton}
+        }
+      })
+    }}
+  </div>
+{% endmacro %}
