@@ -3803,6 +3803,23 @@ class TestValidateAndSyncExpressionReferences:
         assert reference.expression == expression
         assert reference.depends_on_component == referenced_question
 
+    def test_managed_validation_referencing_only_itself_creates_no_references(self, db_session, factories):
+        user = factories.user.create()
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            GreaterThan(question_id=question.id, minimum_value=0, inclusive=True),
+            ExpressionType.VALIDATION,
+            user,
+        )
+        question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        _validate_and_sync_expression_references(expression)
+
+        assert expression.component_references == []
+
     def test_replaces_existing_component_references(self, db_session, factories):
         user = factories.user.create()
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
@@ -3919,9 +3936,9 @@ class TestValidateAndSyncExpressionReferences:
             del form.cached_all_components
 
         _validate_and_sync_expression_references(expression)
-        assert len(expression.component_references) == 2
+        assert len(expression.component_references) == 1
         referenced_components = {ref.depends_on_component for ref in expression.component_references}
-        assert referenced_components == {target_question, first_referenced_question}
+        assert referenced_components == {first_referenced_question}
         assert all(ref.component == target_question for ref in expression.component_references)
 
     def test_raises_dependency_order_exception(self, db_session, factories):
@@ -4105,11 +4122,11 @@ class TestValidateAndSyncExpressionReferences:
 
         _validate_and_sync_expression_references(expression)
 
-        assert len(expression.component_references) == 4
+        assert len(expression.component_references) == 3
 
         assert all(ref.component == q3 for ref in expression.component_references)
         assert all(ref.expression == expression for ref in expression.component_references)
-        assert all(ref.depends_on_component in {q0, q1, q2, q3} for ref in expression.component_references)
+        assert all(ref.depends_on_component in {q0, q1, q2} for ref in expression.component_references)
 
     def test_creates_component_references_for_calculated_condition(self, db_session, factories):
         user = factories.user.create()
@@ -4916,4 +4933,4 @@ class TestAddComponentValidationCustomExpression:
 
         q3_from_db = get_question_by_id(q3.id)
         assert len(q3_from_db.expressions) == 1
-        assert len(q3_from_db.owned_component_references) == 3
+        assert len(q3_from_db.owned_component_references) == 2
