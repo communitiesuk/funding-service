@@ -844,7 +844,7 @@ class Group(Component):
             for component in self.cached_all_components
             # todo: sense check the lazy loading implications of this property
             for depends_on in component.depended_on_by
-            if depends_on.component not in self.cached_all_components
+            if depends_on.component not in (set(self.cached_all_components).union({self}))
         ]
         return bool(depended_on_outside_of_group_context)
 

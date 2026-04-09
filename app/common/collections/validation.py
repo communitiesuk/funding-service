@@ -46,7 +46,6 @@ class SubmissionValidator:
 
         for component in form.cached_all_components:
             if isinstance(component, Group):
-                # TODO[FSPT-1224]: run this for add-another groups with validations as well?
                 if (
                     component.validations
                     and component.add_another_container is None
@@ -72,20 +71,35 @@ class SubmissionValidator:
 
         return errors
 
-    def _validate_group(self, group: Group, form: Form) -> list[ValidationError]:
+    def _validate_group(self, group: Group, form: Form, add_another_index: int | None = None) -> list[ValidationError]:
         errors: list[ValidationError] = []
 
-        if not self.helper.is_component_visible(group, self.helper.cached_evaluation_context):
+        if not self.helper.is_component_visible(
+            group, self.helper.cached_evaluation_context, add_another_index=add_another_index
+        ):
             return errors
 
-        context = self.helper.cached_evaluation_context
+        if (add_another_index is not None and not group.add_another_container) or (
+            add_another_index is None and group.add_another_container
+        ):
+            raise ValueError(f"Cannot validate {group.add_another=} {group=} with {add_another_index=}")
+
+        if add_another_index is not None:
+            evaluation_context = self.helper.cached_evaluation_context.with_add_another_context(
+                group, self.helper, add_another_index=add_another_index, mode="evaluation"
+            )
+            interpolation_context = self.helper.cached_interpolation_context.with_add_another_context(
+                group, self.helper, add_another_index=add_another_index, mode="interpolation"
+            )
+        else:
+            evaluation_context = self.helper.cached_evaluation_context
+            interpolation_context = self.helper.cached_interpolation_context
 
         for validation_expr in group.validations:
             try:
-                if not evaluate(expression=validation_expr, context=context):
+                if not evaluate(expression=validation_expr, context=evaluation_context):
                     error_message = interpolate(
-                        validation_expr.evaluatable_expression.message,
-                        context=self.helper.cached_interpolation_context,
+                        validation_expr.evaluatable_expression.message, context=interpolation_context
                     )
                     errors.append(
                         ValidationError(
@@ -119,15 +133,18 @@ class SubmissionValidator:
         if not question.validations:
             return errors
 
-        context = self.helper.cached_evaluation_context
+        evaluation_context = self.helper.cached_evaluation_context
         if add_another_index is not None and question.add_another_container:
-            context = context.with_add_another_context(
-                question.add_another_container, submission_helper=self.helper, add_another_index=add_another_index
+            evaluation_context = evaluation_context.with_add_another_context(
+                question.add_another_container,
+                submission_helper=self.helper,
+                add_another_index=add_another_index,
+                mode="evaluation",
             )
 
         for validation_expr in question.validations:
             try:
-                if not evaluate(expression=validation_expr, context=context):
+                if not evaluate(expression=validation_expr, context=evaluation_context):
                     error_message = interpolate(
                         validation_expr.evaluatable_expression.message, context=self.helper.cached_interpolation_context
                     )
@@ -163,18 +180,22 @@ class SubmissionValidator:
 
         count = self.helper.get_count_for_add_another(container)
         for index in range(count):
-            context = self.helper.cached_evaluation_context.with_add_another_context(
-                container, submission_helper=self.helper, add_another_index=index
-            )
-
             questions = (
                 cast("Group", container).cached_questions if container.is_group else [cast("Question", container)]
             )
 
             for q in questions:
-                if self.helper.is_component_visible(q, context):
+                if self.helper.is_component_visible(q, self.helper.cached_evaluation_context, add_another_index=index):
                     answer = self.helper.cached_get_answer_for_question(q.id, add_another_index=index)
                     if answer is not None and answer != NOT_ANSWERED:
                         errors.extend(self._validate_question(q, form, add_another_index=index))
+
+            if container.is_group:
+                for group in set(cast(Group, container).cached_all_components).union({container}):
+                    if group.is_group:
+                        group = cast(Group, group)
+                        if group.validations and group.add_another_container is not None:
+                            errors.extend(self._validate_group(group, form, add_another_index=index))
+                        continue
 
         return errors

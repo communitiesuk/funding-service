@@ -3,8 +3,9 @@ import uuid
 import pytest
 
 from app.common.collections.validation import SubmissionValidator
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, QuestionPresentationOptions
 from app.common.exceptions import SubmissionValidationFailed
+from app.common.expressions.custom import CustomExpression
 from app.common.helpers.collections import SubmissionHelper
 
 
@@ -245,3 +246,98 @@ class TestSubmissionValidator:
         assert len(errors) == 1
         assert errors[0].question_id == q1.id
         assert errors[0].add_another_index == 1
+
+    def test_add_another_same_page_group_validation_caught(self, factories):
+        form = factories.form.build()
+        group = factories.group.build(
+            form=form,
+            id=uuid.uuid4(),
+            add_another=True,
+            order=0,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.build(
+            form=form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0
+        )
+        q2 = factories.question.build(
+            form=form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1
+        )
+
+        custom = CustomExpression(
+            custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) == 100",
+            custom_message="Total must be 100",
+        )
+        factories.expression.build(
+            question=group,
+            type_=ExpressionType.VALIDATION,
+            statement=custom.statement,
+            context=custom.model_dump(mode="json"),
+        )
+
+        submission = factories.submission.build(collection=form.collection)
+        submission.data = {
+            str(group.id): [
+                {str(q1.id): {"value": 60}, str(q2.id): {"value": 40}},
+                {str(q1.id): {"value": 30}, str(q2.id): {"value": 30}},
+            ]
+        }
+
+        helper = SubmissionHelper(submission)
+        validator = SubmissionValidator(helper)
+
+        with pytest.raises(SubmissionValidationFailed) as e:
+            validator.validate_all_reachable_questions()
+
+        errors = e.value.errors
+        assert len(errors) == 1
+        assert errors[0].question_id == group.id
+        assert errors[0].form_id == form.id
+        assert errors[0].error_message == "Total must be 100"
+
+    def test_add_another_nested_same_page_group_validation_caught(self, factories):
+        form = factories.form.build()
+        outer_group = factories.group.build(form=form, id=uuid.uuid4(), add_another=True, order=0)
+        inner_group = factories.group.build(
+            form=form,
+            parent=outer_group,
+            id=uuid.uuid4(),
+            order=0,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.build(
+            form=form, parent=inner_group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0
+        )
+        q2 = factories.question.build(
+            form=form, parent=inner_group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1
+        )
+
+        custom = CustomExpression(
+            custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) == 100",
+            custom_message="Total must be 100",
+        )
+        factories.expression.build(
+            question=inner_group,
+            type_=ExpressionType.VALIDATION,
+            statement=custom.statement,
+            context=custom.model_dump(mode="json"),
+        )
+
+        submission = factories.submission.build(collection=form.collection)
+        submission.data = {
+            str(outer_group.id): [
+                {str(q1.id): {"value": 60}, str(q2.id): {"value": 40}},
+                {str(q1.id): {"value": 30}, str(q2.id): {"value": 30}},
+            ]
+        }
+
+        helper = SubmissionHelper(submission)
+        validator = SubmissionValidator(helper)
+
+        with pytest.raises(SubmissionValidationFailed) as e:
+            validator.validate_all_reachable_questions()
+
+        errors = e.value.errors
+        assert len(errors) == 1
+        assert errors[0].question_id == inner_group.id
+        assert errors[0].form_id == form.id
+        assert errors[0].error_message == "Total must be 100"
