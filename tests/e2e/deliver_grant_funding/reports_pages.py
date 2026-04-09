@@ -859,11 +859,11 @@ class CreateCustomExpressionPage(ReportsBasePage):
         self.attached_question_name = question_name
         self.add_validation_button = self.page.get_by_role("button", name="Add custom validation")
 
-        self.custom_expression_textarea = get_context_aware_textbox_locator_by_name(page, "Add an equation")
-        self.add_data_to_expression_button = self.page.get_by_role("button", name="Reference data for expression")
+        self.custom_expression_textarea = get_context_aware_textbox_locator_by_name(page, "Calculation")
+        self.add_data_to_expression_button = self.page.get_by_role("button", name="Reference data for calculation")
 
-        self.custom_message_textarea = get_context_aware_textbox_locator_by_name(page, name="Message")
-        self.add_data_to_message_button = self.page.get_by_role("button", name="Reference data for message")
+        self.custom_message_textarea = get_context_aware_textbox_locator_by_name(page, name="Error message")
+        self.add_data_to_message_button = self.page.get_by_role("button", name="Reference data for error message")
 
     def configure_custom_expression(
         self, expression: str, expression_references: dict[str, DataReferenceConfig]

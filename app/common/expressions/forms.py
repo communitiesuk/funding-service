@@ -315,13 +315,13 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
 
     custom_expression = StringField(
-        "Expression",
+        "Calculation",
         widget=GovTextArea(),
         validators=[DataRequired()],
     )
     custom_message = StringField(
-        "Message",
-        description="Shown to the user if the answer is not valid",
+        "Error message",
+        description="For example, “Total spend cannot be more than capital spend plus revenue spend”",
         widget=GovTextArea(),
         validators=[DataRequired()],
     )

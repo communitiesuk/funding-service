@@ -1,10 +1,8 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
-{% from "deliver_grant_funding/macros/equation_symbols.html" import equation_symbols %}
-{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
+{% from "deliver_grant_funding/macros/render_calculated_form_fields.html" import render_calculated_condition_custom_expression_field with context %}
 
 {% set active_item_identifier = "reports" %}
 {% if expression %}
@@ -59,55 +57,11 @@
         {{ form.csrf_token }}
         {{
           form.expression_name(params={
-          "hint":{"text":'A brief description of what the calculated answer must be to meet the condition. For example, the question is shown when "Capital and revenue spend are more than the funding amount".'},
+          "hint":{"text":'A brief description of what the calculated answer must be to meet the condition. For example, the question is shown when “Capital and revenue spend are more than the funding amount”.'},
           "label": {"classes": "govuk-!-font-weight-bold"},})
         }}
-        {{ form.custom_expression.label(class="govuk-!-font-weight-bold govuk-label") }}
-        <p class="govuk-body">You can use number question references, calculation symbols and numbers to describe when to show this question to the user.</p>
-        <p class="govuk-body">For example, if you need to show the question when the capital spend value plus the revenue spend value is more than the funding value, the calculation would be:</p>
-        {% set calculation_example_html %}
-          <p class="govuk-body">
-            <span class="app-context-aware-editor--valid-reference">((capital spend))</span> + <span class="app-context-aware-editor--valid-reference">((revenue spend))</span> >
-            <span class="app-context-aware-editor--valid-reference">((funding amount))</span>
-          </p>
-        {% endset %}
-        {{ govukInsetText({"html":calculation_example_html}) }}
-        <div class="govuk-form-group">
-          {% set addDataToExpressionButton %}
-            {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for calculation</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
-          {% endset %}
-
-          <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
-            <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
-            {{
-              form.custom_expression(params={
-                "label":None,
-                "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
-                "formGroup": {
-                  "classes": "app-context-aware--container",
-                  "afterInput": {"html": addDataToExpressionButton}
-                }
-              })
-            }}
-          </div>
-          {% set helpHtml %}
-            <p class="govuk-body">For example, if this question should only be shown when the answer for total spend is greater than the answer for forecast spend, the calculation would be:</p>
-
-            <p class="govuk-body"><span class="app-context-aware-editor--valid-reference">((total spend))</span> > <span class="app-context-aware-editor--valid-reference">((forecast spend))</span></p>
-
-            <p class="govuk-body">If the user's answers meets the conditions because their total spend answer is greater than the forecast spend, the user will need to answer this conditional question.</p>
-
-            {{ equation_symbols() }}
-          {% endset %}
-          {{
-            govukDetails({
-              "summaryText": "Calculations help",
-              "html": helpHtml
-            })
-          }}
-
-          {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
-        </div>
+        {{ render_calculated_condition_custom_expression_field(form) }}
+        {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
       </form>
     </div>
   </div>
