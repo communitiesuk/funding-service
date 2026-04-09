@@ -438,6 +438,33 @@ class TestValidateCustomSyntax:
 
         assert e.value.form_error_message == "The expression must include exactly one reference to this question"
 
+    def test_invalid_validation_expression_no_references_to_questions_in_group(self, factories, mocker):
+        db_form = factories.form.create()
+        group = factories.group.create(form=db_form)
+        factories.question.create(
+            form=db_form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+        )
+
+        evaluation_context = ExpressionContext(submission_data={})
+
+        with pytest.raises(DisallowedExpression) as e:
+            _validate_custom_syntax(
+                group,
+                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+                "1 + 1 == 2",
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                validate_with_evaluation=True,
+                evaluation_context=evaluation_context,
+            )
+
+        assert (
+            e.value.form_error_message
+            == "The calculation must include at least one reference to a question in this group"
+        )
+
     def test_invalid_expression_does_not_evaluate_to_true_or_false(self, factories, mocker):
         db_form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(

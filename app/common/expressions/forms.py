@@ -29,7 +29,7 @@ from app.common.expressions.registry import (
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Expression, Question
+    from app.common.data.models import Component, Expression, Group, Question
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -262,16 +262,29 @@ def _validate_custom_syntax(  # noqa:C901
         if evaluation_context is None:
             raise ValueError("evaluation_context must be provided for validate_with_evaluation")
 
-        if expression_type == ExpressionType.VALIDATION and component.is_question:
-            references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
-            if references_to_self_count != 1:
-                raise DisallowedExpression(
-                    message=(
-                        f"Expression contains {references_to_self_count} references to question {component.id}, "
-                        "should contain exactly 1"
-                    ),
-                    form_error_message="The expression must include exactly one reference to this question",
-                )
+        if expression_type == ExpressionType.VALIDATION:
+            if component.is_question:
+                references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
+                if references_to_self_count != 1:
+                    raise DisallowedExpression(
+                        message=(
+                            f"Expression contains {references_to_self_count} references to question {component.id}, "
+                            "should contain exactly 1"
+                        ),
+                        form_error_message="The expression must include exactly one reference to this question",
+                    )
+            else:
+                component = cast("Group", component)
+                if not any(q.safe_qid in validated_references for q in component.cached_questions):
+                    raise DisallowedExpression(
+                        message=(
+                            f"Expression contains no references to questions in group {component.id}, "
+                            "should contain at least 1"
+                        ),
+                        form_error_message=(
+                            "The calculation must include at least one reference to a question in this group"
+                        ),
+                    )
 
         # Workaround: start - FSPT-1257
         # When ExpressionContexts populate data source data, they need the context of a submission to know
