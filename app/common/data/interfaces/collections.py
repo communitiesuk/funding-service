@@ -1615,7 +1615,9 @@ def _validate_reference(  # noqa:C901
                 form_error_message=f"You cannot use {question_to_test.name} because it comes after this question",
             )
 
-        if components_in_same_group_and_on_same_page(attached_to_component, referenced_question):
+        if attached_to_component.id != referenced_question.id and components_in_same_group_and_on_same_page(
+            attached_to_component, referenced_question
+        ):
             raise InvalidReferenceInExpression(
                 f"Reference is not valid: {wrapped_reference}",
                 field_name=field_name_for_error_message,
