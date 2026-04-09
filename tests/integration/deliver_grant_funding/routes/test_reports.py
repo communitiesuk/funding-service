@@ -2054,6 +2054,84 @@ class TestListGroupQuestions:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "You cannot delete an answer that other questions depend on" in soup.text
 
+    def test_can_delete_group_with_only_internal_group_validation(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(
+            form=db_form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.create(form=db_form, parent=group, data_type=QuestionDataType.NUMBER)
+        q2 = factories.question.create(form=db_form, parent=group, data_type=QuestionDataType.NUMBER)
+        add_component_validation(
+            group,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100",
+                custom_message="Total must exceed 100",
+            ),
+        )
+        db_session.commit()
+        group_id = group.id
+
+        confirm_form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group_id,
+                delete="",
+            ),
+            data=get_form_data(confirm_form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert db_session.get(Group, group_id) is None
+
+    def test_can_delete_outer_group_when_only_nested_group_has_internal_validation(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        outer_group = factories.group.create(form=db_form, name="Outer group")
+        inner_group = factories.group.create(
+            form=db_form,
+            parent=outer_group,
+            name="Inner group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.create(form=db_form, parent=inner_group, data_type=QuestionDataType.NUMBER)
+        q2 = factories.question.create(form=db_form, parent=inner_group, data_type=QuestionDataType.NUMBER)
+        add_component_validation(
+            inner_group,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100",
+                custom_message="Total must exceed 100",
+            ),
+        )
+        db_session.commit()
+        outer_group_id = outer_group.id
+
+        confirm_form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=outer_group_id,
+                delete="",
+            ),
+            data=get_form_data(confirm_form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert db_session.get(Group, outer_group_id) is None
+
 
 class TestListSectionQuestions:
     def test_404(self, authenticated_grant_member_client):

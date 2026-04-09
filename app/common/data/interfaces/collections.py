@@ -1057,9 +1057,13 @@ def raise_if_question_has_any_dependencies(question: Question | Group) -> Never 
     child_components_ids = [
         c.id for c in [question] + (question.cached_all_components if isinstance(question, Group) else [])
     ]
+    # Only consider references whose dependent component is *outside* the subtree being deleted.
+    # Internal references (e.g. a group validation that references its own child questions) will be
+    # cascaded away alongside the subtree, so they should not block deletion.
     component_reference = (
         db.session.query(ComponentReference)
         .where(ComponentReference.depends_on_component_id.in_(child_components_ids))
+        .where(ComponentReference.component_id.notin_(child_components_ids))
         .all()
     )
     if component_reference:
