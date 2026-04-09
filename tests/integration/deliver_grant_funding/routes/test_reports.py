@@ -638,6 +638,21 @@ class TestListReportSections:
         assert "Preview not available" in soup.text
         assert not page_has_button(soup, button_text="Preview report")
 
+    def test_get_preview_not_available_when_collection_closed(self, authenticated_grant_member_client, factories):
+        grant = authenticated_grant_member_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.CLOSED)
+        form = factories.form.create(collection=report)
+        factories.question.create(form=form)
+
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Preview not available" in soup.text
+        assert not page_has_button(soup, button_text="Preview report")
+
     @pytest.mark.parametrize(
         "client_fixture, can_preview",
         (
@@ -2122,6 +2137,29 @@ class TestListSectionQuestions:
         soup = BeautifulSoup(response.data, "html.parser")
         assert not page_has_button(soup, "Preview section")
         assert "You cannot preview sections in this report because it requires uploaded data" in soup.text
+
+    def test_get_hides_preview_button_when_collection_closed(
+        self, factories, db_session, authenticated_grant_admin_client
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.CLOSED)
+        form = factories.form.create(collection=report)
+        factories.question.create(form=form)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_section_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not page_has_button(soup, "Preview section")
+        # This message should only show if preview is disabled due to data source references - if a collection is closed
+        # or the section has no questions then it doesn't make sense to show it
+        assert "You cannot preview sections in this report because it requires uploaded data" not in soup.text
 
 
 class TestMoveQuestion:

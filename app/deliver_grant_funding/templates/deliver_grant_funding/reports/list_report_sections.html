@@ -10,6 +10,7 @@
 {% set page_title = report.name %}
 {% set active_item_identifier = "reports" %}
 {% set can_edit = authorisation_helper.can_edit_collection(current_user, report.id) %}
+{% set can_preview = report.data_sources | length == 0 and report.status != enum.collection_status.CLOSED %}
 
 {# this does kick off one more request to the database - we could revisit making this check more concise #}
 {% set user_can_test_grant_recipient_journey = grant.test_grant_recipients and grant in current_user.access_grants %}
@@ -126,7 +127,7 @@
       <div class="app-actions">
         <h3 class="govuk-heading-s">Actions</h3>
         <div class="govuk-button-group app-button-group--full-width-on-desktop">
-          {% if report.data_sources | length == 0 %}
+          {% if can_preview %}
             <form method="post" novalidate>
               {{ form.csrf_token }}
               {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
