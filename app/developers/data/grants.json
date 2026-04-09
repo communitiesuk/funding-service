@@ -120,6 +120,12 @@
           "id": "218df1d6-ffbd-4858-aa6f-b0859189a13d"
         },
         {
+          "component_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "depends_on_component_id": "bc31c9aa-7c57-45c5-a56f-a3820c0f4972",
+          "expression_id": "f0f93b94-10b0-4179-a114-a3f618889d3c",
+          "id": "296acbf1-b2c5-4e1e-88db-20a57603981f"
+        },
+        {
           "component_id": "4988b724-7b83-4b09-899b-3885fed52be1",
           "depends_on_component_id": "65664e18-722d-484f-8488-c851c5c5de36",
           "depends_on_data_source_item_id": "11dd117b-48b5-45a3-b838-a34d7e3fc405",
@@ -131,6 +137,12 @@
           "depends_on_component_id": "8b856525-892a-4117-8d00-3c72e85d5438",
           "expression_id": "14774416-72cc-46f8-b08a-a447a870f83f",
           "id": "365493a5-c0bc-4754-ae3c-d6a7a93af289"
+        },
+        {
+          "component_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "depends_on_component_id": "62b4a7ca-868f-49cc-9c45-eb04dbfd10b0",
+          "expression_id": "f0f93b94-10b0-4179-a114-a3f618889d3c",
+          "id": "3b203ccb-d4aa-4188-add1-48892ca951c2"
         },
         {
           "component_id": "ea608b3b-ff0c-4733-9ff4-29ac31868200",
@@ -235,6 +247,12 @@
           "id": "8ffc5f8f-342f-4ac7-b990-317ad1091a80"
         },
         {
+          "component_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "depends_on_component_id": "4580488e-8b3e-494f-ba27-9233bbe193ec",
+          "expression_id": "f0f93b94-10b0-4179-a114-a3f618889d3c",
+          "id": "9cbb5572-07ae-40c9-bea7-a5a3c35a16d7"
+        },
+        {
           "component_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0",
           "depends_on_component_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0",
           "expression_id": "cf097d73-7286-4c35-aca4-d68eb14718d8",
@@ -252,6 +270,12 @@
           "id": "a5df4911-602f-4f69-9d6d-11c5dc9baf74"
         },
         {
+          "component_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "depends_on_component_id": "8d6ff2ae-0476-4294-b41f-681e59142a69",
+          "expression_id": "f0f93b94-10b0-4179-a114-a3f618889d3c",
+          "id": "aa65243b-8ce8-4606-8a7a-ea5c7fed4248"
+        },
+        {
           "component_id": "946bd001-a1a3-4f09-ba2f-a61966871e33",
           "depends_on_component_id": "53915cda-b1a2-4fb7-9e29-ee41014964b3",
           "expression_id": "a70ef8d9-feb9-41c8-bfb7-f6b4c391f182",
@@ -267,6 +291,12 @@
           "component_id": "b67ee3f1-d942-416a-8710-348c841d58d9",
           "depends_on_component_id": "80d29ce3-9ad0-4ef5-bd6d-09609ef4fcc3",
           "id": "c34ed257-30b4-42cb-9159-0e0ff3887dcf"
+        },
+        {
+          "component_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "depends_on_component_id": "190f1e66-c064-46c6-874e-20ffd02c3eec",
+          "expression_id": "f0f93b94-10b0-4179-a114-a3f618889d3c",
+          "id": "da407736-8761-4390-8e35-1138a5dad5f9"
         },
         {
           "component_id": "0e6df617-b770-4525-9c06-6fdbcca72a10",
@@ -1326,6 +1356,19 @@
         },
         {
           "context": {
+            "custom_expression": "((q_8d6ff2ae04764294b41f681e59142a69)) >= ((q_bc31c9aa7c5745c5a56fa3820c0f4972)) + ((q_190f1e66c06446c6874e20ffd02c3eec)) + ((q_4580488e8b3e494fba279233bbe193ec)) + ((q_62b4a7ca868f49cc9c45eb04dbfd10b0))",
+            "custom_message": "Your total project spend cannot exceed the maximum project budget of ((q_8d6ff2ae04764294b41f681e59142a69))",
+            "expression_name": null,
+            "question_id": null
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "f0f93b94-10b0-4179-a114-a3f618889d3c",
+          "question_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "statement": "((q_8d6ff2ae04764294b41f681e59142a69)) >= ((q_bc31c9aa7c5745c5a56fa3820c0f4972)) + ((q_190f1e66c06446c6874e20ffd02c3eec)) + ((q_4580488e8b3e494fba279233bbe193ec)) + ((q_62b4a7ca868f49cc9c45eb04dbfd10b0))",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
             "question_id": "d99b94c3-66fa-4449-b4c4-ac5a2caeb8c9"
           },
           "created_by_id": "9ab212ee-6716-4921-b6a2-61a684bf2fe3",
@@ -1591,6 +1634,28 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "190f1e66-c064-46c6-874e-20ffd02c3eec",
+          "name": "project q2 spend",
+          "order": 2,
+          "parent_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-projects-q2-spend",
+          "text": "What is your project's Q2 spend?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "8506d7ef-2421-40d5-b120-daf870e09968",
@@ -1748,6 +1813,28 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "4580488e-8b3e-494f-ba27-9233bbe193ec",
+          "name": "project q3 spend",
+          "order": 3,
+          "parent_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-projects-q3-spend",
+          "text": "What is your project's Q3 spend?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
             "number_type": "Whole number"
           },
           "data_type": "A number",
@@ -1853,6 +1940,46 @@
           },
           "slug": "what-is-the-risk-status",
           "text": "What is the risk status?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": true,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "name": "projects",
+          "order": 5,
+          "presentation_options": {
+            "add_another_summary_line_question_ids": [
+              "a7b14644-ba27-4f3b-8657-35d5f32ee5ca"
+            ],
+            "show_questions_on_the_same_page": true
+          },
+          "slug": "projects",
+          "text": "projects",
+          "type": "GROUP"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "62b4a7ca-868f-49cc-9c45-eb04dbfd10b0",
+          "name": "project q4 spend",
+          "order": 4,
+          "parent_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-projects-q4-spend",
+          "text": "What is your project's Q4 spend?",
           "type": "QUESTION"
         },
         {
@@ -2091,6 +2218,27 @@
         {
           "add_another": false,
           "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "8d6ff2ae-0476-4294-b41f-681e59142a69",
+          "name": "per project budget",
+          "order": 4,
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-maximum-budget-per-project",
+          "text": "What is your maximum budget per project?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
           "data_options": {},
           "data_type": "Single line of text",
           "form_id": "cd5fc00f-13d0-4c89-af8c-9f16c5c77afe",
@@ -2207,6 +2355,22 @@
           },
           "slug": "when-did-the-last-reporting-period-start",
           "text": "When did the last reporting period start?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Single line of text",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "a7b14644-ba27-4f3b-8657-35d5f32ee5ca",
+          "name": "project name",
+          "order": 0,
+          "parent_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "presentation_options": {},
+          "slug": "what-is-the-project-name",
+          "text": "What is the project name?",
           "type": "QUESTION"
         },
         {
@@ -2348,6 +2512,28 @@
           },
           "slug": "what-kind-of-data-certifier-is-the-lead-contact",
           "text": "What kind of data certifier is the lead contact?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "549c1676-f5a5-4bfe-9ee7-ca22f7c785fe",
+          "hint": "",
+          "id": "bc31c9aa-7c57-45c5-a56f-a3820c0f4972",
+          "name": "project q1 spend",
+          "order": 1,
+          "parent_id": "5e7e9e11-08e8-422b-82a4-6a887b42f65d",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-projects-q1-spend",
+          "text": "What is your project's Q1 spend?",
           "type": "QUESTION"
         },
         {
