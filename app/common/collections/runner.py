@@ -129,6 +129,8 @@ class FormRunner:
                         self.questions,
                         evaluation_context=self.runner_evaluation_context,
                         interpolation_context=self.runner_interpolation_context,
+                        component=self.component,
+                        submission_helper=self.submission,
                     )
                     self._question_form = _QuestionForm(
                         data=self.submission.form_data(

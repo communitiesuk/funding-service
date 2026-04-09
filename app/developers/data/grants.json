@@ -127,6 +127,12 @@
           "id": "2f66be25-350e-4114-919c-67056e65b8f5"
         },
         {
+          "component_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "depends_on_component_id": "8b856525-892a-4117-8d00-3c72e85d5438",
+          "expression_id": "14774416-72cc-46f8-b08a-a447a870f83f",
+          "id": "365493a5-c0bc-4754-ae3c-d6a7a93af289"
+        },
+        {
           "component_id": "ea608b3b-ff0c-4733-9ff4-29ac31868200",
           "depends_on_component_id": "6452da2c-0154-4af1-8d96-f668edffa36a",
           "expression_id": "0ee9c50f-dcd4-40d8-bcd4-cb04de7c54d0",
@@ -161,6 +167,18 @@
           "depends_on_component_id": "53915cda-b1a2-4fb7-9e29-ee41014964b3",
           "expression_id": "dabee620-a538-43cf-b705-2a8e74cb07e7",
           "id": "4d7da4d2-3642-4b29-a10b-9092561d6554"
+        },
+        {
+          "component_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "depends_on_component_id": "76fcc01a-69e9-4f2f-ba98-8e77d71168e8",
+          "expression_id": "14774416-72cc-46f8-b08a-a447a870f83f",
+          "id": "51f16f52-8985-43b5-92e9-4ff30b9c0c4b"
+        },
+        {
+          "component_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "depends_on_component_id": "22cc35ec-113c-4bfc-9b97-c0158200a833",
+          "expression_id": "14774416-72cc-46f8-b08a-a447a870f83f",
+          "id": "539da6c1-cbdb-4e69-b676-53e0d7e88fda"
         },
         {
           "component_id": "c1f6fdab-3e79-48ae-9c75-1210588afc1c",
@@ -205,6 +223,12 @@
           "id": "8b09406d-7782-4447-bf57-7a66a3f78fe2"
         },
         {
+          "component_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "depends_on_component_id": "cd658c1f-dd9b-4982-936b-fed83afb7c5a",
+          "expression_id": "14774416-72cc-46f8-b08a-a447a870f83f",
+          "id": "8d906aae-3f32-4679-8606-d52bb17a8179"
+        },
+        {
           "component_id": "e3858acb-ac9a-46e3-af20-553b48a9af10",
           "depends_on_component_id": "46068ea5-7e83-476e-91f4-71e87a1cc1a0",
           "expression_id": "4a97de8f-078d-4a63-ac4e-bb8025309929",
@@ -232,6 +256,12 @@
           "depends_on_component_id": "53915cda-b1a2-4fb7-9e29-ee41014964b3",
           "expression_id": "a70ef8d9-feb9-41c8-bfb7-f6b4c391f182",
           "id": "b4246f83-681b-4cbf-ab11-546d871b2763"
+        },
+        {
+          "component_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "depends_on_component_id": "09ab93ac-a6a5-4d85-925a-c82fb44af982",
+          "expression_id": "14774416-72cc-46f8-b08a-a447a870f83f",
+          "id": "c137dfcd-24fa-497a-8ce3-5e46b35b5c50"
         },
         {
           "component_id": "b67ee3f1-d942-416a-8710-348c841d58d9",
@@ -1060,6 +1090,19 @@
           "question_id": "ea608b3b-ff0c-4733-9ff4-29ac31868200",
           "statement": "q_6452da2c01544af18d96f668edffa36a <0",
           "type_": "CONDITION"
+        },
+        {
+          "context": {
+            "custom_expression": "((q_22cc35ec113c4bfc9b97c0158200a833)) == ((q_8b856525892a41178d003c72e85d5438)) + ((q_cd658c1fdd9b4982936bfed83afb7c5a)) + ((q_09ab93aca6a54d85925ac82fb44af982)) + ((q_76fcc01a69e94f2fba988e77d71168e8))",
+            "custom_message": "The total of your spend breakdown must match your spend of ((q_22cc35ec113c4bfc9b97c0158200a833))",
+            "expression_name": null,
+            "question_id": null
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "14774416-72cc-46f8-b08a-a447a870f83f",
+          "question_id": "6ae7e5d7-1d1b-4f2d-a82f-4e980aedf4df",
+          "statement": "((q_22cc35ec113c4bfc9b97c0158200a833)) == ((q_8b856525892a41178d003c72e85d5438)) + ((q_cd658c1fdd9b4982936bfed83afb7c5a)) + ((q_09ab93aca6a54d85925ac82fb44af982)) + ((q_76fcc01a69e94f2fba988e77d71168e8))",
+          "type_": "VALIDATION"
         },
         {
           "context": {
@@ -4445,7 +4488,7 @@
       "user_id": "78371bda-d2e5-4113-8cee-3daad6dd55ab"
     },
     {
-      "id": "68e3b145-1ce2-4561-b0fc-0225c39f87ef",
+      "id": "003a0551-2703-403c-ac64-604183b3288b",
       "permissions": [
         "member",
         "admin"
@@ -4460,6 +4503,15 @@
         "certifier",
         "member",
         "data-provider"
+      ],
+      "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
+    },
+    {
+      "id": "6257300d-b34c-4de9-97b4-eef8a987d7bc",
+      "organisation_id": "<UUID:GB-GOV-27>",
+      "permissions": [
+        "admin",
+        "member"
       ],
       "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },

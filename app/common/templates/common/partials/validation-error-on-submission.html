@@ -1,5 +1,12 @@
 <ul class="govuk-list--bullet">
   {% for error in errors %}
-    <li>{{ error.form_title }} - {{ error.question_name }}: {{ error.answer.get_value_for_text_export() }}</li>
+    <li>
+      {{ error.form_title }} - {{ error.question_name }}:
+      {% if error.answer is not none %}
+        {{ error.answer.get_value_for_text_export() }}
+      {% else %}
+        {{ error.error_message }}
+      {% endif %}
+    </li>
   {% endfor %}
 </ul>

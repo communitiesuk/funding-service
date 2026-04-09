@@ -1,0 +1,40 @@
+{% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
+
+{% macro formRunnerErrorSummary(form, runner) %}
+  {% if form is defined and form.group_validation_error is defined and form.group_validation_error %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+        <div class="govuk-error-summary" data-module="govuk-error-summary">
+          <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+              <p>{{ form.group_validation_error.message }}</p>
+
+              {% if form.group_validation_error.on_page_entries %}
+                <p class="govuk-body">On this page:</p>
+                <ul class="govuk-list govuk-error-summary__list govuk-list--bullet">
+                  {% for entry in form.group_validation_error.on_page_entries %}
+                    <li><a href="{{ entry.input_href }}">{{ entry.error_message }} ({{ entry.answer }})</a></li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+
+              {% if form.group_validation_error.off_page_entries %}
+                <p class="govuk-body">On a different page:</p>
+                <ul class="govuk-list govuk-error-summary__list govuk-list--bullet">
+                  {% for entry in form.group_validation_error.off_page_entries %}
+                    <li>
+                      <a href="{{ runner.to_url(enum.form_runner_state.QUESTION, question=entry.question) }}">{{ entry.error_message }} ({{ entry.answer }})</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    {{ standardErrorSummary(form) }}
+  {% endif %}
+{% endmacro %}
