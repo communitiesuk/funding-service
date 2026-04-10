@@ -3,7 +3,12 @@ from unittest.mock import patch
 import pytest
 from flask import Flask
 
-from app.common.helpers.feature_flags import FeatureFlag, FeatureFlags
+from app.common.data.types import RoleEnum
+from app.common.helpers.feature_flags import (
+    FeatureFlag,
+    _check_grant_allows_pre_award,
+    _check_user_is_platform_member,
+)
 
 
 class TestFeatureFlag:
@@ -19,22 +24,42 @@ class TestFeatureFlag:
         assert bool(FeatureFlag(description="Always off", resolver=lambda: False)) is False
 
 
-class TestPreAwardFeaturesFlag:
+class TestCheckGrantAllowsPreAward:
+    flag = FeatureFlag(description="Pre award resolver", resolver=_check_grant_allows_pre_award)
+
     def test_enabled(self, app: Flask, factories) -> None:
         grant = factories.grant.build(allow_pre_award=True)
 
         with app.test_request_context(f"/deliver/grant/{grant.id}/reports"):
             with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
-                assert FeatureFlags.PRE_AWARD.is_enabled is True
+                assert self.flag.is_enabled is True
 
     def test_disabled(self, app: Flask, factories) -> None:
         grant = factories.grant.build(allow_pre_award=False)
 
         with app.test_request_context(f"/deliver/grant/{grant.id}/reports"):
             with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
-                assert FeatureFlags.PRE_AWARD.is_enabled is False
+                assert self.flag.is_enabled is False
 
     def test_raises(self, app: Flask) -> None:
         with app.test_request_context("/"):
             with pytest.raises(ValueError, match="grant_id required"):
-                assert FeatureFlags.PRE_AWARD.is_enabled
+                assert self.flag.is_enabled
+
+
+class TestCheckUserIsPlatformMember:
+    flag = FeatureFlag(description="User is platform member resolver", resolver=_check_user_is_platform_member)
+
+    def test_enabled(self, app: Flask, factories) -> None:
+        user = factories.user.build()
+        factories.user_role.build(user=user, organisation=None, grant=None, permissions=[RoleEnum.MEMBER])
+
+        with app.test_request_context("/"):
+            with patch("app.common.helpers.feature_flags.get_current_user", return_value=user):
+                assert self.flag.is_enabled is True
+
+    def test_disabled(self, app: Flask, factories) -> None:
+        user = factories.user.build()
+        with app.test_request_context("/"):
+            with patch("app.common.helpers.feature_flags.get_current_user", return_value=user):
+                assert self.flag.is_enabled is False

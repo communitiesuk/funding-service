@@ -28,7 +28,9 @@ from collections.abc import Callable
 
 from flask import request
 
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.grants import get_grant
+from app.common.data.interfaces.user import get_current_user
 
 
 class FeatureFlag:
@@ -54,8 +56,20 @@ def _check_grant_allows_pre_award() -> bool:
     return get_grant(grant_id).allow_pre_award
 
 
+def _check_user_is_platform_member() -> bool:
+    return AuthorisationHelper.is_platform_member(get_current_user())
+
+
 class FeatureFlags:
     PRE_AWARD = FeatureFlag(
         description="Grant supports pre-award features",
         resolver=_check_grant_allows_pre_award,
+    )
+    NEW_CONTEXT_SOURCES = FeatureFlag(
+        description="Show new work in progress context sources",
+        resolver=_check_user_is_platform_member,
+    )
+    GROUP_VALIDATION = FeatureFlag(
+        description="Show work in progress group validation",
+        resolver=_check_user_is_platform_member,
     )

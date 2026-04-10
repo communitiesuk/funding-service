@@ -854,7 +854,6 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         delete_form=delete_wtform,
         group=group,
         interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
-        ff_group_validation=AuthorisationHelper.is_platform_member(get_current_user()),
     )
 
 
@@ -1363,7 +1362,6 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         form=db_form,
         current_component=this_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
-        ff_show_new_context_sources=AuthorisationHelper.is_platform_member(get_current_user()),
         include_this_component=add_context_data.include_current_component_when_referencing_data(this_component),
     )
     if wtform.validate_on_submit():
