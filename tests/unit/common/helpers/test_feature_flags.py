@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 from flask import Flask
 
-from app.common.helpers.feature_flags import PRE_AWARD_FEATURES, FeatureFlag
+from app.common.helpers.feature_flags import FeatureFlag, FeatureFlags
 
 
 class TestFeatureFlag:
@@ -25,16 +25,16 @@ class TestPreAwardFeaturesFlag:
 
         with app.test_request_context(f"/deliver/grant/{grant.id}/reports"):
             with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
-                assert PRE_AWARD_FEATURES.is_enabled is True
+                assert FeatureFlags.PRE_AWARD.is_enabled is True
 
     def test_disabled(self, app: Flask, factories) -> None:
         grant = factories.grant.build(allow_pre_award=False)
 
         with app.test_request_context(f"/deliver/grant/{grant.id}/reports"):
             with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
-                assert PRE_AWARD_FEATURES.is_enabled is False
+                assert FeatureFlags.PRE_AWARD.is_enabled is False
 
     def test_raises(self, app: Flask) -> None:
         with app.test_request_context("/"):
             with pytest.raises(ValueError, match="grant_id required"):
-                assert PRE_AWARD_FEATURES.is_enabled
+                assert FeatureFlags.PRE_AWARD.is_enabled

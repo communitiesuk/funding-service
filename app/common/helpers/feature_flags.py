@@ -7,13 +7,20 @@ Feature flags can pull from:
 - environment variables through Flask config
 - contextual URL models like grant, organisation or grant recipient
 
-Usage:
-    from app.common.helpers.feature_flags import PRE_AWARD_FEATURES
+Usage in codebase:
+    from app.common.helpers.feature_flags import FeatureFlags
 
-    if PRE_AWARD_FEATURES.is_enabled:
+    if FeatureFlags.PRE_AWARD.is_enabled:
         ...
 
-    if bool(PRE_AWARD_FEATURES):
+    if bool(FeatureFlags.PRE_AWARD):
+        ...
+
+Usage in templates:
+    {% if feature_flags.PRE_AWARD.is_enabled %}
+        ...
+
+    {% if feature_flags.PRE_AWARD %}
         ...
 """
 
@@ -43,11 +50,12 @@ class FeatureFlag:
 def _check_grant_allows_pre_award() -> bool:
     grant_id = request.view_args.get("grant_id") if request.view_args else None
     if not grant_id:
-        raise ValueError("grant_id required in URL for PRE_AWARD_FEATURES feature flag")
+        raise ValueError("grant_id required in URL for PRE_AWARD feature flag")
     return get_grant(grant_id).allow_pre_award
 
 
-PRE_AWARD_FEATURES = FeatureFlag(
-    description="Grant supports pre-award features",
-    resolver=_check_grant_allows_pre_award,
-)
+class FeatureFlags:
+    PRE_AWARD = FeatureFlag(
+        description="Grant supports pre-award features",
+        resolver=_check_grant_allows_pre_award,
+    )
