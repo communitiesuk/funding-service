@@ -126,6 +126,7 @@ def update_collection(  # noqa: C901
     submission_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     submission_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
+    allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
@@ -192,6 +193,9 @@ def update_collection(  # noqa: C901
         collection.allow_multiple_submissions = allow_multiple_submissions
         if not allow_multiple_submissions:
             collection.submission_name_question_id = None
+
+    if allow_public_sign_up is not NOT_PROVIDED:
+        collection.allow_public_sign_up = allow_public_sign_up
 
     if submission_name_question_id is not NOT_PROVIDED:
         if not collection.allow_multiple_submissions:
