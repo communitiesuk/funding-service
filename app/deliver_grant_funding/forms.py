@@ -45,6 +45,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.registry import get_registered_data_types
+from app.common.filters import uppercase_first
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
@@ -53,7 +54,7 @@ from app.deliver_grant_funding.data_sets import CellError, DataTypeError, Decima
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Component, Form, GrantRecipient, Group, Question
+    from app.common.data.models import Collection, Component, DataSource, Form, GrantRecipient, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -705,6 +706,29 @@ class SelectDataSourceDataSetForm(FlaskForm):
         super().__init__(*args, **kwargs)
 
         self.data_set.choices = [(d.id, cast(str, d.name)) for d in collection.data_sources]
+
+
+class SelectDataSourceDataSetColumnForm(FlaskForm):
+    column = RadioField(
+        "Select a column",
+        choices=[],
+        validators=[DataRequired("Select a column")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        data_set: DataSource,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.column.choices = [
+            (safe_column_id, uppercase_first(column_schema.original_column_name))
+            for safe_column_id, column_schema in data_set.schema.root.items()
+        ]
 
 
 class GrantAddUserForm(FlaskForm):
