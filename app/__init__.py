@@ -51,7 +51,7 @@ from app.common.filters import (
     to_ordinal,
 )
 from app.common.helpers.collections import SubmissionAuthorisationError
-from app.common.utils import comma_join_items
+from app.common.utils import comma_join_items, uppercase_first
 from app.config import get_settings
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.extensions import (
@@ -274,6 +274,7 @@ def create_app() -> Flask:  # noqa: C901
         return str(current_app.config["FLASK_ENV"].value)
 
     app.jinja_env.filters["comma_join_items"] = comma_join_items
+    app.jinja_env.filters["uppercase_first"] = uppercase_first
 
     @app.context_processor
     def _jinja_template_context() -> dict[str, Any]:

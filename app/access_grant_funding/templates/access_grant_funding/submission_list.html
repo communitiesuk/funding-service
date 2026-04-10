@@ -65,7 +65,7 @@
           {% endset %}
           {%
             do rows.append([
-              {"text": submission_helper.submission_name},
+              {"text": submission_helper.submission_name },
               {"html": submission_status_html},
               {"html": action_html}
             ])
@@ -78,7 +78,7 @@
           govukTable(params={
                   "firstCellIsHeader": false,
                   "head":[
-                    {"text": (collection.submission_name_question.name[0]|upper + collection.submission_name_question.name[1:])},
+                    {"text": (collection.submission_name_question.name | uppercase_first )},
                     {"text": "Status"},
                     {"html": actions_html}
                   ],
