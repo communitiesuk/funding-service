@@ -443,7 +443,92 @@ class PlatformAdminScheduleReportForm(FlaskForm):
 
 
 class PlatformAdminMakeReportLiveForm(FlaskForm):
+    confirm_grant_recipients = BooleanField(
+        validators=[DataRequired("Confirm the number of grant recipients")], widget=GovCheckboxInput()
+    )
+    confirm_grant_recipient_users = BooleanField(
+        validators=[DataRequired("Confirm the number of grant recipient users")], widget=GovCheckboxInput()
+    )
+    confirm_privacy_policy = BooleanField(
+        "The privacy policy has been set up",
+        validators=[DataRequired("Confirm the privacy policy has been set up")],
+        widget=GovCheckboxInput(),
+    )
+    confirm_certification = BooleanField(
+        validators=[DataRequired("Confirm the certification setting")], widget=GovCheckboxInput()
+    )
+    confirm_submission_dates = BooleanField(
+        validators=[DataRequired("Confirm the submission dates")], widget=GovCheckboxInput()
+    )
+    confirm_multiple_submissions = BooleanField(
+        validators=[DataRequired("Confirm the multiple submissions setting")], widget=GovCheckboxInput()
+    )
+    confirm_managed_by_service = BooleanField(
+        validators=[DataRequired("Confirm the managed by service setting")], widget=GovCheckboxInput()
+    )
+    confirm_managed_submissions_count = BooleanField(
+        validators=[DataRequired("Confirm the number of managed submissions")], widget=GovCheckboxInput()
+    )
     submit = SubmitField("Open report for submissions", widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        collection: "Collection",
+        grant_recipients_count: int,
+        data_providers_count: int,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        from app.common.filters import format_date_short
+
+        bold = 'class="govuk-!-font-weight-bold"'
+        self.confirm_grant_recipients.label.text = Markup(
+            f"It is correct that this grant has <strong {bold}>"
+            f"{grant_recipients_count} grant recipient{'s' if grant_recipients_count != 1 else ''}"
+            f"</strong> set up and the grant team has reviewed this"
+        )
+        self.confirm_grant_recipient_users.label.text = Markup(
+            f"It is correct that this grant has <strong {bold}>"
+            f"{data_providers_count} grant recipient user{'s' if data_providers_count != 1 else ''}"
+            f"</strong> set up and the grant team has reviewed this"
+        )
+        certification_status = "enabled" if collection.requires_certification else "disabled"
+        self.confirm_certification.label.text = Markup(
+            f"It is correct that the report has certification <strong {bold}>{certification_status}</strong>"
+        )
+        if collection.submission_period_start_date and collection.submission_period_end_date:
+            start = format_date_short(collection.submission_period_start_date)
+            end = format_date_short(collection.submission_period_end_date)
+            self.confirm_submission_dates.label.text = Markup(
+                f"The submission dates are <strong {bold}>{start}</strong> until <strong {bold}>{end}</strong>"
+            )
+        else:
+            self.confirm_submission_dates.label.text = "The submission dates have been set"
+        multiple_status = "enabled" if collection.allow_multiple_submissions else "disabled"
+        self.confirm_multiple_submissions.label.text = Markup(
+            f"It is correct that multiple submissions are <strong {bold}>{multiple_status}</strong>"
+        )
+
+        if collection.allow_multiple_submissions:
+            managed_status = "" if collection.multiple_submissions_are_managed_by_service else "not"
+            self.confirm_managed_by_service.label.text = Markup(
+                f"It is correct that multiple submissions are "
+                f"<strong {bold}>{managed_status} managed</strong> by the service"
+            )
+            if collection.multiple_submissions_are_managed_by_service:
+                managed_count = len(collection.live_submissions)
+                self.confirm_managed_submissions_count.label.text = Markup(
+                    f"It is correct that this grant has "
+                    f"<strong {bold}>{managed_count} managed submission{'s' if managed_count != 1 else ''}</strong> "
+                    f"set up"
+                )
+            else:
+                del self.confirm_managed_submissions_count
+        else:
+            del self.confirm_managed_by_service
+            del self.confirm_managed_submissions_count
 
 
 class PlatformAdminCreateGrantOverrideCertifiersForm(FlaskForm):

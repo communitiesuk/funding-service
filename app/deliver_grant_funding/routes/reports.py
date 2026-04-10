@@ -23,13 +23,12 @@ from app.common.data.interfaces.collections import (
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     GroupContainsAddAnotherException,
+    GroupHasValidationsCannotBeOnePerPageException,
     IncompatibleDataTypeException,
     IncompatibleDataTypeInCalculationException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
     SectionDependencyOrderException,
-    _find_all_references_in_expression,
-    _validate_reference,
     create_collection,
     create_form,
     create_group,
@@ -87,21 +86,18 @@ from app.common.data.types import (
 )
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
-    DisallowedExpression,
     ExpressionContext,
-    InvalidEvaluationResult,
-    get_restricted_evaluator,
-    run_evaluation,
 )
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.forms import (
+    CalculatedConditionForm,
     CustomValidationExpressionForm,
     _ManagedExpressionForm,
     build_managed_expression_form,
 )
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
-from app.common.helpers.collections import CollectionHelper, SubmissionHelper
+from app.common.helpers.collections import AllSubmissionsHelper, SubmissionHelper
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -126,6 +122,7 @@ from app.deliver_grant_funding.forms import (
     MapNumberColumnsForm,
     QuestionForm,
     QuestionTypeForm,
+    SelectConditionCalculationForm,
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
     SetUpReportForm,
@@ -147,7 +144,7 @@ from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Expression, Group, Question
+    from app.common.data.models import Expression, Group, Question
 
 SessionModelType = (
     AddConditionDependsOnSessionModel
@@ -662,6 +659,11 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
             form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
                 "A question group cannot display on the same page if it contains a nested group"
             )
+        except GroupHasValidationsCannotBeOnePerPageException:
+            form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
+                "A question group cannot display one question per page while it has validation rules attached. "
+                "Delete the group validations first."
+            )
 
     return render_template(
         "deliver_grant_funding/reports/change_question_group_display_options.html",
@@ -852,6 +854,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         delete_form=delete_wtform,
         group=group,
         interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+        ff_group_validation=AuthorisationHelper.is_platform_member(get_current_user()),
     )
 
 
@@ -1105,7 +1108,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
 def _extract_add_context_data_from_session(
     session_model: type[SessionModelType] | None = None,
-    question_id: UUID | TNotProvided | None = NOT_PROVIDED,
+    component_id: UUID | TNotProvided | None = NOT_PROVIDED,
     expression_id: UUID | TNotProvided | None = NOT_PROVIDED,
 ) -> SessionModelType | None:
     add_context_data: SessionModelType | None = None
@@ -1113,25 +1116,25 @@ def _extract_add_context_data_from_session(
         match session_data["field"]:
             case "component":
                 add_context_data = AddContextToComponentSessionModel(**session_data)
-                if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
+                if component_id is not NOT_PROVIDED and component_id != add_context_data.component_id:
                     del session["question"]
                     return None
 
             case "guidance":
                 add_context_data = AddContextToComponentGuidanceSessionModel(**session_data)
-                if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
+                if component_id is not NOT_PROVIDED and component_id != add_context_data.component_id:
                     del session["question"]
                     return None
 
             case "condition_depends_on":
                 add_context_data = AddConditionDependsOnSessionModel(**session_data)
-                if question_id is not NOT_PROVIDED and question_id != add_context_data.component_id:
+                if component_id is not NOT_PROVIDED and component_id != add_context_data.component_id:
                     del session["question"]
                     return None
 
             case ExpressionType.CONDITION | ExpressionType.VALIDATION:
                 add_context_data = AddContextToExpressionsModel(**session_data)
-                if (question_id is not NOT_PROVIDED and question_id != add_context_data.component_id) or (
+                if (component_id is not NOT_PROVIDED and component_id != add_context_data.component_id) or (
                     expression_id is not NOT_PROVIDED and expression_id != add_context_data.expression_id
                 ):
                     del session["question"]
@@ -1162,10 +1165,14 @@ def _extract_add_context_data_from_session(
 
 
 def _store_question_state_and_redirect_to_add_context(
-    form: QuestionForm | AddGuidanceForm | _ManagedExpressionForm | CustomValidationExpressionForm,
+    form: QuestionForm
+    | AddGuidanceForm
+    | _ManagedExpressionForm
+    | CustomValidationExpressionForm
+    | CalculatedConditionForm,
     grant_id: UUID,
     form_id: UUID,
-    question_id: UUID | None = None,
+    component_id: UUID | None = None,
     parent_id: UUID | None = None,
     form_data: dict[str, Any] | None = None,
     expression_type: ExpressionType | None = None,
@@ -1174,6 +1181,7 @@ def _store_question_state_and_redirect_to_add_context(
     depends_on_question_id: UUID | None = None,
     is_add_another_guidance: bool | None = False,
     is_custom: bool | None = False,
+    is_group: bool = False,
 ) -> ResponseReturnValue:
     add_context_data: SessionModelType
     match form:
@@ -1181,28 +1189,29 @@ def _store_question_state_and_redirect_to_add_context(
             add_context_data = AddContextToComponentSessionModel(
                 data_type=form._question_type,
                 component_form_data=cast(dict[str, Any], form_data),
-                component_id=question_id,
+                component_id=component_id,
                 parent_id=parent_id,
             )
         case AddGuidanceForm():
-            if question_id is None:
+            if component_id is None:
                 raise ValueError()
             add_context_data = AddContextToComponentGuidanceSessionModel(
                 component_form_data=cast(dict[str, Any], form_data),
-                component_id=question_id,
+                component_id=component_id,
                 parent_id=parent_id,
                 is_add_another_guidance=is_add_another_guidance,
             )
-        case _ManagedExpressionForm() | CustomValidationExpressionForm():
+        case _ManagedExpressionForm() | CustomValidationExpressionForm() | CalculatedConditionForm():
             add_context_data = AddContextToExpressionsModel(  # type: ignore[call-arg]
                 field=expression_type,  # type: ignore[arg-type]
                 managed_expression_name=managed_expression_name,
                 expression_form_data=form_data,  # type: ignore[arg-type]
-                component_id=question_id,  # type: ignore[arg-type]
+                component_id=component_id,  # type: ignore[arg-type]
                 parent_id=parent_id,
                 expression_id=expression_id,
                 depends_on_question_id=depends_on_question_id,
                 is_custom=is_custom or False,
+                is_group=is_group,
             )
         case _:
             raise ValueError(f"Unexpected form type: {form}")
@@ -1272,7 +1281,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     parent = get_group_by_id(parent_id) if parent_id else None
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToComponentSessionModel, question_id=None
+        session_model=AddContextToComponentSessionModel, component_id=None
     )
 
     wt_form = QuestionForm(
@@ -1348,10 +1357,6 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     if not add_context_data:
         return abort(400)
 
-    target_expr_field_name = None
-    if isinstance(add_context_data, AddContextToExpressionsModel):
-        target_expr_field_name = add_context_data.expression_form_data["add_context"]
-
     this_component = get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None
 
     wtform = AddContextSelectSourceForm(
@@ -1359,11 +1364,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         current_component=this_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
         ff_show_new_context_sources=AuthorisationHelper.is_platform_member(get_current_user()),
-        include_this_question=(
-            isinstance(add_context_data, AddContextToExpressionsModel)
-            and add_context_data.is_custom is True
-            and target_expr_field_name == "custom_expression"
-        ),
+        include_this_component=add_context_data.include_current_component_when_referencing_data(this_component),
     )
     if wtform.validate_on_submit():
         if wtform.data_source.data == "THIS_QUESTION":
@@ -1476,21 +1477,49 @@ def _determine_return_url_and_update_session_after_choosing_referenced_question_
 
     if add_context_data.field == ExpressionType.CONDITION:
         if not add_context_data.expression_id:
-            return_url = url_for(
-                "deliver_grant_funding.add_question_condition",
-                grant_id=grant_id,
-                component_id=add_context_data.component_id,
-                depends_on_question_id=add_context_data.depends_on_question_id,
-            )
+            if add_context_data.managed_expression_name is None:
+                return_url = url_for(
+                    "deliver_grant_funding.add_calculated_condition",
+                    grant_id=grant_id,
+                    component_id=add_context_data.component_id,
+                )
+            else:
+                return_url = url_for(
+                    "deliver_grant_funding.add_question_condition",
+                    grant_id=grant_id,
+                    component_id=add_context_data.component_id,
+                    depends_on_question_id=add_context_data.depends_on_question_id,
+                )
         else:
-            return_url = url_for(
-                "deliver_grant_funding.edit_question_condition",
-                grant_id=grant_id,
-                expression_id=add_context_data.expression_id,
-            )
+            if add_context_data.managed_expression_name is None:
+                return_url = url_for(
+                    "deliver_grant_funding.edit_calculated_condition",
+                    grant_id=grant_id,
+                    expression_id=add_context_data.expression_id,
+                )
+            else:
+                return_url = url_for(
+                    "deliver_grant_funding.edit_question_condition",
+                    grant_id=grant_id,
+                    expression_id=add_context_data.expression_id,
+                )
     else:
-        if not add_context_data.expression_id:
-            if add_context_data.managed_expression_name is None:  #
+        if add_context_data.is_group:
+            if not add_context_data.expression_id:
+                return_url = url_for(
+                    "deliver_grant_funding.add_group_validation",
+                    grant_id=grant_id,
+                    group_id=add_context_data.component_id,
+                )
+            else:
+                return_url = url_for(
+                    "deliver_grant_funding.edit_group_validation",
+                    grant_id=grant_id,
+                    group_id=add_context_data.component_id,
+                    expression_id=add_context_data.expression_id,
+                )
+        elif not add_context_data.expression_id:
+            if add_context_data.managed_expression_name is None:
                 return_url = url_for(
                     "deliver_grant_funding.add_custom_question_validation",
                     grant_id=grant_id,
@@ -1503,7 +1532,7 @@ def _determine_return_url_and_update_session_after_choosing_referenced_question_
                     question_id=add_context_data.component_id,
                 )
         else:
-            if add_context_data.managed_expression_name is None:  #
+            if add_context_data.managed_expression_name is None:
                 return_url = url_for(
                     "deliver_grant_funding.edit_custom_question_validation",
                     grant_id=grant_id,
@@ -1549,13 +1578,11 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
         current_component=current_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
-        limit=(
-            "component_data_type"
-            if isinstance(add_context_data, AddContextToExpressionsModel)
-            else "any_expression_data_type"
-            if isinstance(add_context_data, AddConditionDependsOnSessionModel)
-            else None
-        ),
+        expression_type=add_context_data.field if isinstance(add_context_data, AddContextToExpressionsModel) else None,
+        managed_expression_name=add_context_data.managed_expression_name
+        if isinstance(add_context_data, AddContextToExpressionsModel)
+        else None,
+        include_this_component=add_context_data.include_current_component_when_referencing_data(current_component),
     )
 
     if wtform.validate_on_submit():
@@ -1645,7 +1672,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
     question = get_question_by_id(question_id=question_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToComponentSessionModel, question_id=question_id
+        session_model=AddContextToComponentSessionModel, component_id=question_id
     )
 
     wt_form = QuestionForm(
@@ -1660,7 +1687,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             wt_form,
             grant_id=grant_id,
             form_id=question.form_id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
         )
@@ -1776,7 +1803,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
     group = get_component_by_id(component_id=group_id)
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToComponentGuidanceSessionModel, question_id=group_id
+        session_model=AddContextToComponentGuidanceSessionModel, component_id=group_id
     )
 
     form = AddGuidanceForm(
@@ -1792,7 +1819,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
             form,
             grant_id=grant_id,
             form_id=group.form_id,
-            question_id=group_id,
+            component_id=group_id,
             parent_id=group.parent_id,
             form_data=form_data,
             is_add_another_guidance=True,
@@ -1848,7 +1875,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
 def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     question = get_component_by_id(component_id=question_id)
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToComponentGuidanceSessionModel, question_id=question_id
+        session_model=AddContextToComponentGuidanceSessionModel, component_id=question_id
     )
 
     form = AddGuidanceForm(
@@ -1862,7 +1889,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
             form,
             grant_id=grant_id,
             form_id=question.form_id,
-            question_id=question_id,
+            component_id=question_id,
             parent_id=question.parent_id,
             form_data=form_data,
         )
@@ -1927,12 +1954,236 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-calculated-condition",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+    # TODO remove once we un-feature-flag this
+    if not AuthorisationHelper.is_platform_member(get_current_user()):
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_calculation",
+                grant_id=grant_id,
+                component_id=component_id,
+            )
+        )
+
+    component = get_component_by_id(component_id=component_id)
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToExpressionsModel, component_id=component.id
+    )
+    wt_form = CalculatedConditionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        component=component,
+        interpolation_context=(
+            ExpressionContext.build_expression_context(
+                component.form.collection,
+                "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                component.form.collection,
+                "evaluation",
+            )
+        ),
+    )
+    if wt_form.is_submitted_to_add_context():
+        form_data = wt_form.get_expression_form_data()
+        return _store_question_state_and_redirect_to_add_context(
+            form=wt_form,
+            grant_id=grant_id,
+            form_id=component.form.id,
+            component_id=component.id,
+            parent_id=component.parent_id,
+            form_data=form_data,
+            expression_type=ExpressionType.CONDITION,
+            is_custom=True,
+        )
+
+    if wt_form.validate_on_submit():
+        expression = CustomExpression.build_from_form(wt_form)
+        interfaces.collections.add_component_condition(component, get_current_user(), expression)
+
+        if "question" in session:
+            del session["question"]
+        if component.is_question:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=component.id,
+                )
+            )
+
+        else:
+            return redirect(
+                url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=component_id)
+            )
+
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=component.form.collection, expression_context_end_point=component
+    )
+    return render_template(
+        "deliver_grant_funding/reports/calculated_condition.html",
+        grant=component.form.collection.grant,
+        component=component,
+        form=wt_form,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/calculated-condition/<uuid:expression_id>",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
+    # TODO remove once we un-feature-flag this
+    if not AuthorisationHelper.is_platform_member(get_current_user()):
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_reports",
+                grant_id=grant_id,
+            )
+        )
+
+    expression = get_expression_by_id(expression_id)
+    component = expression.question
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToExpressionsModel, component_id=component.id, expression_id=expression_id
+    )
+    confirm_deletion_form = GenericConfirmDeletionForm()
+
+    if component.is_question:
+        return_url = url_for(
+            "deliver_grant_funding.edit_question",
+            grant_id=grant_id,
+            question_id=component.id,
+        )
+
+    else:
+        return_url = url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=component.id)
+
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=component, expression=expression)
+        return redirect(return_url)
+
+    wt_form = CalculatedConditionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        obj=expression.custom if not add_context_data else None,
+        component=component,
+        interpolation_context=(
+            ExpressionContext.build_expression_context(
+                component.form.collection,
+                "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                component.form.collection,
+                "evaluation",
+            )
+        ),
+    )
+    if wt_form.is_submitted_to_add_context():
+        form_data = wt_form.get_expression_form_data()
+        return _store_question_state_and_redirect_to_add_context(
+            form=wt_form,
+            grant_id=grant_id,
+            form_id=component.form.id,
+            component_id=component.id,
+            expression_id=expression_id,
+            parent_id=component.parent_id,
+            form_data=form_data,
+            expression_type=ExpressionType.CONDITION,
+            is_custom=True,
+        )
+    if wt_form.validate_on_submit():
+        custom_expression = CustomExpression.build_from_form(wt_form)
+        interfaces.collections.update_question_expression(expression, custom_expression)
+
+        if "question" in session:
+            del session["question"]
+        return redirect(return_url)
+
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=component.form.collection, expression_context_end_point=component
+    )
+    return render_template(
+        "deliver_grant_funding/reports/calculated_condition.html",
+        grant=component.form.collection.grant,
+        expression=expression,
+        component=component,
+        form=wt_form,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection),
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/select-calculation",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def add_question_condition_select_calculation(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+
+    # TODO remove once we un-feature-flag this
+    if not AuthorisationHelper.is_platform_member(get_current_user()):
+        return redirect(
+            url_for(
+                "deliver_grant_funding.add_question_condition_select_question",
+                grant_id=grant_id,
+                component_id=component_id,
+            )
+        )
+    component = get_component_by_id(component_id)
+
+    wt_form = SelectConditionCalculationForm()
+
+    if wt_form.validate_on_submit():
+        if wt_form.need_calculation.data == "yes":
+            return redirect(
+                url_for("deliver_grant_funding.add_calculated_condition", grant_id=grant_id, component_id=component_id)
+            )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.add_question_condition_select_question",
+                    grant_id=grant_id,
+                    component_id=component_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/add_question_condition_select_calculation.html",
+        form=wt_form,
+        component=component,
+        grant=component.form.collection.grant,
+        interpolate=SubmissionHelper.get_interpolator(component.form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
+
     component = get_component_by_id(component_id)
 
     form = FlaskForm()
@@ -1973,7 +2224,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
     depends_on_question = get_question_by_id(depends_on_question_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=component_id
+        session_model=AddContextToExpressionsModel, component_id=component_id
     )
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
@@ -1989,7 +2240,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
             form=form,
             grant_id=grant_id,
             form_id=component.form.id,
-            question_id=component.id,
+            component_id=component.id,
             parent_id=component.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
@@ -2079,7 +2330,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         return redirect(return_url)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=component.id, expression_id=expression_id
+        session_model=AddContextToExpressionsModel, component_id=component.id, expression_id=expression_id
     )
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
@@ -2095,7 +2346,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
             form=form,
             grant_id=grant_id,
             form_id=component.form.id,
-            question_id=component.id,
+            component_id=component.id,
             parent_id=component.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
@@ -2158,7 +2409,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     question = get_question_by_id(question_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id
+        session_model=AddContextToExpressionsModel, component_id=question.id
     )
 
     ValidationForm = build_managed_expression_form(
@@ -2180,7 +2431,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
             form=form,
             grant_id=grant_id,
             form_id=question.form.id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
@@ -2209,7 +2460,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         expression = form.get_expression(question)
 
         try:
-            interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
+            interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         except DuplicateValueError:
             # FIXME: This is not the most user-friendly way of handling this error, but I'm happy to let our users
             #        complain to us about it before we think about a better way of handling it.
@@ -2237,7 +2488,6 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         form=form,
         QuestionDataType=QuestionDataType,
         interpolate=SubmissionHelper.get_interpolator(question.form.collection),
-        ff_show_custom_expression_option=AuthorisationHelper.is_platform_member(get_current_user()),
     )
 
 
@@ -2268,7 +2518,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         )
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id, expression_id=expression_id
+        session_model=AddContextToExpressionsModel, component_id=question.id, expression_id=expression_id
     )
 
     ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
@@ -2284,7 +2534,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
             form=form,
             grant_id=grant_id,
             form_id=question.form.id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
@@ -2348,7 +2598,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # noqa:C901
+def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(
@@ -2357,74 +2607,60 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
     question = get_question_by_id(question_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id
+        session_model=AddContextToExpressionsModel, component_id=question.id
     )
-    wt_form = CustomValidationExpressionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+    wt_form = CustomValidationExpressionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
+        component=question,
+        interpolation_context=(
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "evaluation",
+            )
+        ),
+    )
 
-    if wt_form and wt_form.is_submitted_to_add_context():
+    if wt_form.is_submitted_to_add_context():
         form_data = wt_form.get_expression_form_data()
         return _store_question_state_and_redirect_to_add_context(
             form=wt_form,
             grant_id=grant_id,
             form_id=question.form.id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
             is_custom=True,
         )
-    if wt_form and wt_form.validate_on_submit():
-        expression_context = ExpressionContext.build_expression_context(
-            question.form.collection,
-            "interpolation",
-        )
-        valid_to_save = True
+    if wt_form.validate_on_submit():
+        expression = CustomExpression.build_from_form(wt_form)
+
         try:
-            _validate_custom_syntax(
-                question,
-                expression_context,
-                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.VALIDATION,
-                "custom_expression",
-                validate_with_evaluation=True,
-            )
+            interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
+
+        except IncompatibleDataTypeException as e:
+            wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
         except WTFormRenderableException as e:
-            valid_to_save = False
-            wt_form.handle_exception(e, field_name="custom_expression")
-        try:
-            _validate_custom_syntax(
-                question,
-                expression_context,
-                wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.VALIDATION,
-                "custom_message",
-                validate_with_evaluation=False,
-            )
-        except WTFormRenderableException as e:
-            valid_to_save = False
-            wt_form.handle_exception(e, field_name="custom_message")
+            wt_form.handle_exception(e)
 
-        if valid_to_save:
-            expression = CustomExpression.build_from_form(wt_form)
-
-            try:
-                interfaces.collections.add_question_validation(question, interfaces.user.get_current_user(), expression)
-
-            except IncompatibleDataTypeException as e:
-                wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
-            except WTFormRenderableException as e:
-                wt_form.handle_exception(e)
-
-            else:
-                if "question" in session:
-                    del session["question"]
-                return redirect(
-                    url_for(
-                        "deliver_grant_funding.edit_question",
-                        grant_id=grant_id,
-                        question_id=question.id,
-                    )
+        else:
+            if "question" in session:
+                del session["question"]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
                 )
+            )
+
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )
@@ -2444,9 +2680,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def edit_custom_question_validation(  # noqa:C901
-    grant_id: UUID, question_id: UUID, expression_id: UUID
-) -> ResponseReturnValue:
+def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     # TODO remove once we un-feature-flag this
     if not AuthorisationHelper.is_platform_member(get_current_user()):
         return redirect(url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id))
@@ -2455,7 +2689,7 @@ def edit_custom_question_validation(  # noqa:C901
     expression = get_expression_by_id(expression_id)
 
     add_context_data = _extract_add_context_data_from_session(
-        session_model=AddContextToExpressionsModel, question_id=question.id, expression_id=expression_id
+        session_model=AddContextToExpressionsModel, component_id=question.id, expression_id=expression_id
     )
 
     confirm_deletion_form = GenericConfirmDeletionForm()
@@ -2475,6 +2709,19 @@ def edit_custom_question_validation(  # noqa:C901
     wt_form = CustomValidationExpressionForm(
         data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
         obj=expression.custom if not add_context_data else None,
+        component=question,
+        interpolation_context=(
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                question.form.collection,
+                "evaluation",
+            )
+        ),
     )
     if wt_form and wt_form.is_submitted_to_add_context():
         form_data = wt_form.get_expression_form_data()
@@ -2482,7 +2729,7 @@ def edit_custom_question_validation(  # noqa:C901
             form=wt_form,
             grant_id=grant_id,
             form_id=question.form.id,
-            question_id=question.id,
+            component_id=question.id,
             parent_id=question.parent_id,
             form_data=form_data,
             expression_type=ExpressionType.VALIDATION,
@@ -2490,56 +2737,27 @@ def edit_custom_question_validation(  # noqa:C901
             is_custom=True,
         )
     if wt_form and wt_form.validate_on_submit():
-        expression_context = ExpressionContext.build_expression_context(
-            question.form.collection,
-            "interpolation",
-        )
-        valid_to_save = True
+        custom_expression = CustomExpression.build_from_form(wt_form)
+
         try:
-            _validate_custom_syntax(
-                question,
-                expression_context,
-                wt_form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.VALIDATION,
-                "custom_expression",
-                validate_with_evaluation=True,
-            )
+            interfaces.collections.update_question_expression(expression, custom_expression)
+        except IncompatibleDataTypeException as e:
+            wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
         except WTFormRenderableException as e:
-            valid_to_save = False
-            wt_form.handle_exception(e, field_name="custom_expression")
-        try:
-            _validate_custom_syntax(
-                question,
-                expression_context,
-                wt_form.custom_message.data,  # ty:ignore[invalid-argument-type]
-                ExpressionType.VALIDATION,
-                "custom_message",
-                validate_with_evaluation=False,
-            )
-        except WTFormRenderableException as e:
-            valid_to_save = False
-            wt_form.handle_exception(e, field_name="custom_message")
+            wt_form.handle_exception(e)
 
-        if valid_to_save:
-            custom_expression = CustomExpression.build_from_form(wt_form)
-
-            try:
-                interfaces.collections.update_question_expression(expression, custom_expression)
-            except IncompatibleDataTypeException as e:
-                wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
-            except WTFormRenderableException as e:
-                wt_form.handle_exception(e)
-
-            else:
-                if "question" in session:
-                    del session["question"]
-                return redirect(
-                    url_for(
-                        "deliver_grant_funding.edit_question",
-                        grant_id=grant_id,
-                        question_id=question.id,
-                    )
+        else:
+            if "question" in session:
+                del session["question"]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.edit_question",
+                    grant_id=grant_id,
+                    question_id=question.id,
                 )
+            )
+
+    # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
         collection=question.form.collection, expression_context_end_point=question
     )
@@ -2550,6 +2768,183 @@ def edit_custom_question_validation(  # noqa:C901
         grant=question.form.collection.grant,
         expression=expression,
         interpolate=SubmissionHelper.get_interpolator(question.form.collection),
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/add-validation",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def add_group_validation(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    group = get_group_by_id(group_id)
+    if not group.same_page:
+        flash(
+            "Group validations are only available for question groups that show all questions on the same page.",
+            FlashMessageType.GROUP_VALIDATION_NOT_AVAILABLE.value,
+        )
+        return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group.id))
+
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToExpressionsModel, component_id=group.id
+    )
+    wt_form = CustomValidationExpressionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
+        component=group,
+        interpolation_context=(
+            ExpressionContext.build_expression_context(
+                group.form.collection,
+                "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                group.form.collection,
+                "evaluation",
+            )
+        ),
+    )
+
+    if wt_form.is_submitted_to_add_context():
+        form_data = wt_form.get_expression_form_data()
+        return _store_question_state_and_redirect_to_add_context(
+            form=wt_form,
+            grant_id=grant_id,
+            form_id=group.form.id,
+            component_id=group.id,
+            parent_id=group.parent_id,
+            form_data=form_data,
+            expression_type=ExpressionType.VALIDATION,
+            is_custom=True,
+            is_group=True,
+        )
+    if wt_form.validate_on_submit():
+        expression = CustomExpression.build_from_form(wt_form)
+
+        try:
+            interfaces.collections.add_component_validation(group, interfaces.user.get_current_user(), expression)
+        except IncompatibleDataTypeException as e:
+            wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
+        except WTFormRenderableException as e:
+            wt_form.handle_exception(e)
+        else:
+            if "question" in session:
+                del session["question"]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_group_questions",
+                    grant_id=grant_id,
+                    group_id=group.id,
+                )
+            )
+
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=group.form.collection, expression_context_end_point=group, expression_type=ExpressionType.VALIDATION
+    )
+    return render_template(
+        "deliver_grant_funding/reports/manage_group_validation.html",
+        form=wt_form,
+        group=group,
+        grant=group.form.collection.grant,
+        interpolate=SubmissionHelper.get_interpolator(group.form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/validation/<uuid:expression_id>",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -> ResponseReturnValue:
+    group = get_group_by_id(group_id)
+    expression = get_expression_by_id(expression_id)
+    if not expression.question or not expression.question.is_group or expression.question_id != group_id:
+        abort(404)
+
+    add_context_data = _extract_add_context_data_from_session(
+        session_model=AddContextToExpressionsModel, component_id=group.id, expression_id=expression_id
+    )
+
+    confirm_deletion_form = GenericConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=group, expression=expression)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=grant_id,
+                group_id=group.id,
+            )
+        )
+
+    wt_form = CustomValidationExpressionForm(
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        obj=expression.custom if not add_context_data else None,
+        component=group,
+        interpolation_context=(
+            ExpressionContext.build_expression_context(
+                group.form.collection,
+                "interpolation",
+            )
+        ),
+        evaluation_context=(
+            ExpressionContext.build_expression_context(
+                group.form.collection,
+                "evaluation",
+            )
+        ),
+    )
+    if wt_form.is_submitted_to_add_context():
+        form_data = wt_form.get_expression_form_data()
+        return _store_question_state_and_redirect_to_add_context(
+            form=wt_form,
+            grant_id=grant_id,
+            form_id=group.form.id,
+            component_id=group.id,
+            parent_id=group.parent_id,
+            form_data=form_data,
+            expression_type=ExpressionType.VALIDATION,
+            expression_id=expression.id,
+            is_custom=True,
+            is_group=True,
+        )
+    if wt_form.validate_on_submit():
+        custom_expression = CustomExpression.build_from_form(wt_form)
+        try:
+            interfaces.collections.update_question_expression(expression, custom_expression)
+        except IncompatibleDataTypeException as e:
+            wt_form.handle_exception(IncompatibleDataTypeInCalculationException(e))
+        except WTFormRenderableException as e:
+            wt_form.handle_exception(e)
+        else:
+            if "question" in session:
+                del session["question"]
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_group_questions",
+                    grant_id=grant_id,
+                    group_id=group.id,
+                )
+            )
+
+    g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
+        collection=group.form.collection, expression_context_end_point=group, expression_type=ExpressionType.VALIDATION
+    )
+    return render_template(
+        "deliver_grant_funding/reports/manage_group_validation.html",
+        form=wt_form,
+        group=group,
+        grant=group.form.collection.grant,
+        expression=expression,
+        interpolate=SubmissionHelper.get_interpolator(group.form.collection),
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
     )
 
@@ -2566,7 +2961,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
     delete_all_form = GenericConfirmDeletionForm() if "delete_all" in request.args else None
     if delete_all_form and delete_all_form.validate_on_submit():
         if submission_mode != SubmissionModeEnum.TEST:
-            raise abort(400)
+            abort(400)
 
         reset_all_test_submissions(report)
         s3_service.delete_prefix(report.s3_key_prefix(submission_mode=submission_mode))
@@ -2581,7 +2976,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
             )
         )
 
-    helper = CollectionHelper(collection=report, submission_mode=submission_mode)
+    helper = AllSubmissionsHelper(collection=report, submission_mode=submission_mode)
 
     return render_template(
         "deliver_grant_funding/reports/list_submissions.html",
@@ -2590,6 +2985,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         helper=helper,
         submission_mode=submission_mode,
         delete_all_form=delete_all_form if submission_mode == SubmissionModeEnum.TEST else None,
+        SubmissionHelper=SubmissionHelper,
     )
 
 
@@ -2604,7 +3000,7 @@ def export_report_submissions(
     report = interfaces.collections.get_collection(
         report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True
     )
-    helper = CollectionHelper(collection=report, submission_mode=submission_mode)
+    helper = AllSubmissionsHelper(collection=report, submission_mode=submission_mode)
 
     export_format = export_format.lower()
     match export_format:
@@ -3166,79 +3562,3 @@ def download_data_source_csv(grant_id: UUID, report_id: UUID, data_source_id: UU
     filename = secure_filename(data_source.file_metadata.original_filename)
 
     return send_file(io.BytesIO(file_bytes), mimetype="text/csv", as_attachment=True, download_name=filename, max_age=0)
-
-
-# TODO break this down so it's less complicated
-def _validate_custom_syntax(  # noqa:C901
-    component: Component,
-    expression_context: ExpressionContext,
-    statement: str,
-    expression_type: ExpressionType,
-    field_name: str,
-    validate_with_evaluation: bool = True,
-) -> None:
-
-    validated_references = []
-    try:
-        unvalidated_references = _find_all_references_in_expression(statement)
-        for ref in unvalidated_references:
-            unwrapped_ref = _validate_reference(
-                wrapped_reference=ref,
-                attached_to_component=component,
-                expression_context=expression_context,
-                expression_type=expression_type,
-                field_name_for_error_message=field_name,
-                question_to_test=None,
-            )
-            validated_references.append(unwrapped_ref)
-
-    except WTFormRenderableException as e:
-        if isinstance(e, IncompatibleDataTypeException):
-            raise IncompatibleDataTypeInCalculationException(e) from e
-        raise
-
-    if not validate_with_evaluation:
-        # No further validation needed for custom error message
-        return
-
-    if expression_type == ExpressionType.VALIDATION and component.is_question:
-        references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
-        if references_to_self_count != 1:
-            e = DisallowedExpression(
-                message=(
-                    f"Expression contains {references_to_self_count} references to question {component.id}, "
-                    "should contain exactly 1"
-                ),
-                form_error_message="The expression must include exactly one reference to this question",
-            )
-            emit_metric_count(
-                MetricEventName.CALCULATION_FIELD_INVALID,
-                1,
-                custom_attributes={
-                    MetricAttributeName.CALCULATION_INVALID_FIELD: field_name,
-                    MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
-                },
-            )
-            raise e
-
-    names = {}
-    for ref in validated_references:
-        # assume these are numbers as we can't do custom expressions unless using non number data
-        # types but we could check this
-        names[ref] = 1
-    evaluator = get_restricted_evaluator(names=names, required_functions={})
-
-    try:
-        result = run_evaluation(evaluator, statement)
-        if not isinstance(result, bool):
-            raise InvalidEvaluationResult(statement, result, bool)
-    except WTFormRenderableException as e:
-        emit_metric_count(
-            MetricEventName.CALCULATION_FIELD_INVALID,
-            1,
-            custom_attributes={
-                MetricAttributeName.CALCULATION_INVALID_FIELD: field_name,
-                MetricAttributeName.CALCULATION_INVALID_REASON: e.__class__.__name__,
-            },
-        )
-        raise

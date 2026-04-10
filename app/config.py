@@ -76,6 +76,12 @@ def make_development_csp() -> dict[str, list[str]]:
             "'sha256-1NkfmhNaD94k7thbpTCKG0dKnMcxprj9kdSKzKR6K/k='",  # Flask-DebugToolbar
         ]
     )
+    csp["connect-src"].extend(
+        [
+            "http://localhost:5173",  # Vite assets
+            "ws://localhost:5173",  # Vite assets
+        ]
+    )
     return csp
 
 

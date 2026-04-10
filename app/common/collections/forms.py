@@ -1,7 +1,10 @@
 from collections import defaultdict
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from functools import partial
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID
 
 from flask import current_app
 from flask_wtf import FlaskForm
@@ -21,9 +24,13 @@ from wtforms.fields.numeric import DecimalField, IntegerField
 from wtforms.fields.simple import EmailField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, InputRequired, Optional, ValidationError
 
-from app.common.data.models import Expression, Question
+from app.common.data.models import Expression, Group, Question
 from app.common.data.types import NumberTypeEnum, QuestionDataType
-from app.common.expressions import ExpressionContext, evaluate, interpolate
+from app.common.expressions import (
+    ExpressionContext,
+    evaluate,
+    interpolate,
+)
 from app.common.forms.fields import (
     DecimalWithCommasField,
     IntegerWithCommasField,
@@ -40,6 +47,10 @@ from app.common.forms.validators import (
 )
 from app.metrics import MetricEventName, emit_metric_count
 
+if TYPE_CHECKING:
+    from app.common.collections.types import AllAnswerTypes
+    from app.common.helpers.collections import SubmissionHelper
+
 _accepted_fields = (
     EmailField
     | StringField
@@ -54,6 +65,24 @@ _accepted_fields = (
 )
 
 
+@dataclass
+class ErrorListEntry:
+    question: Question
+    answer: str
+    input_href: str
+
+    @property
+    def error_message(self) -> str:
+        return f"Check your answer for {self.question.name}"
+
+
+@dataclass
+class GroupValidationError:
+    message: str
+    on_page_entries: list[ErrorListEntry] = dataclass_field(default_factory=list)
+    off_page_entries: list[ErrorListEntry] = dataclass_field(default_factory=list)
+
+
 # FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
 #        python doesn't currently support this. As of May 2025, it looks like we might be close to some progress on
 #        this in https://github.com/python/typing/issues/213.
@@ -64,6 +93,10 @@ class DynamicQuestionForm(FlaskForm):
     _evaluation_context: ExpressionContext
     _interpolation_context: ExpressionContext
     _questions: list[Question]
+    _component: Question | Group | None = None
+    _submission_helper: "SubmissionHelper | None" = None
+
+    group_validation_error: GroupValidationError | None = None
 
     submit: SubmitField
 
@@ -85,11 +118,11 @@ class DynamicQuestionForm(FlaskForm):
 
     def validate(self, extra_validators: Mapping[str, list[Any]] | None = None) -> Any:  # ty: ignore[invalid-method-override]
         """
-        Run the form's validation chain. This works in two steps:
+        Run the form's validation chain. This works in three steps:
         - WTForm's built-in field-level validation (eg for IntegerField, that data has been provided, and that it
           can be coerced to an integer value.
-        - Our own validation based on the expression framework. As of 27/06/2025, this supports only "managed"
-          validation, but we expect to support fully-custom user-provided validation using expressions as well.
+        - Our own per-question validation based on the expression framework (managed + custom validations).
+        - For same-page groups, any group-level validation rules attached to the group itself.
         """
         # Run the native WTForm field validation, which will do things like check data types are correct (eg for
         # IntegerFields.
@@ -100,20 +133,133 @@ class DynamicQuestionForm(FlaskForm):
         # Inject the latest data from this form submission into the context for validators to use. This will override
         # any existing data for expression contexts from the current state of the submission with the data submitted
         # in this form by the user.
-        evaluation_context = self._evaluation_context.with_question_form_context(self._extract_submission_answers())
+        submitted_evaluation_context = self._evaluation_context.with_question_form_context(
+            self._extract_submission_answers()
+        )
 
         for q in self._questions:
             # only add custom validators if that question hasn't already failed basic validation
             # (it's may not be well formed data of that type)
             if not self[q.safe_qid].errors:
                 extra_validators[q.safe_qid].extend(
-                    build_validators(q, evaluation_context, self._interpolation_context)
+                    build_validators(q, submitted_evaluation_context, self._interpolation_context)
                 )
 
         # Do a second validation pass that includes all of our managed/custom validation. This has a small bit of
         # redundancy because it will run the data validation checks again, but it means that all of our own
         # validators can rely on the data being, at the least, the right shape.
-        return super().validate(extra_validators)
+        individual_validation_passed = super().validate(extra_validators)
+
+        if not individual_validation_passed:
+            return False
+
+        if self._component is not None and self._component.is_group and self._component.validations:
+            return self._validate_group(submitted_evaluation_context=submitted_evaluation_context)
+
+        return True
+
+    def _validate_group(self, submitted_evaluation_context: ExpressionContext) -> bool:
+        """
+        Evaluate the validation expressions attached to a group, in order, stopping at the first failure.
+
+        Returns True if all rules pass.
+        Returns False after building self.group_validation_error and attaching field-level error markers to the
+        on-page question fields that contributed to the failure.
+        """
+        # this should never happen because the caller gates on this — narrow for type checker / safety
+        assert self._component is not None and self._component.is_group
+
+        group = cast(Group, self._component)
+
+        for validation in group.validations:
+            if evaluate(expression=validation, context=submitted_evaluation_context):
+                emit_metric_count(
+                    MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS
+                    if validation.is_managed
+                    else MetricEventName.SUBMISSION_CUSTOM_VALIDATION_SUCCESS,
+                    evaluatable_expression=validation.evaluatable_expression,
+                )
+
+            else:
+                emit_metric_count(
+                    MetricEventName.SUBMISSION_MANAGED_VALIDATION_ERROR
+                    if validation.is_managed
+                    else MetricEventName.SUBMISSION_CUSTOM_VALIDATION_ERROR,
+                    evaluatable_expression=validation.evaluatable_expression,
+                )
+
+                self.group_validation_error = self._build_group_validation_error(validation=validation)
+                return False
+
+        return True
+
+    def _build_group_validation_error(
+        self,
+        validation: Expression,
+    ) -> GroupValidationError:
+        from app.common.helpers.collections import _form_data_to_question_type
+
+        on_page_question_ids = {q.id for q in self._questions}
+
+        message = interpolate(
+            validation.evaluatable_expression.message,
+            context=self._interpolation_context.with_question_form_context(self._extract_submission_answers()),
+        )
+        error = GroupValidationError(message=message)
+
+        seen_on_page: set[UUID] = set()
+        seen_off_page: set[UUID] = set()
+
+        for reference in sorted(
+            filter(
+                lambda r: r.depends_on_component and r.depends_on_component.is_question, validation.component_references
+            ),
+            key=lambda r: (
+                r.depends_on_component.form.order,
+                r.depends_on_component.form.global_component_index(r.depends_on_component),
+            ),
+        ):
+            referenced = reference.depends_on_component
+            if referenced is None or not referenced.is_question:
+                continue
+
+            referenced_question = cast(Question, referenced)
+
+            if referenced_question.id in on_page_question_ids:
+                if referenced_question.id in seen_on_page:
+                    continue
+                seen_on_page.add(referenced_question.id)
+
+                answer_model: AllAnswerTypes | None = _form_data_to_question_type(referenced_question, self)
+                display_value = answer_model.get_value_for_text_export() if answer_model is not None else "not answered"
+
+                error_entry = ErrorListEntry(
+                    question=referenced_question,
+                    answer=display_value,
+                    input_href=f"#{referenced_question.safe_qid}",
+                )
+                error.on_page_entries.append(error_entry)
+                self.attach_error_for_question(referenced_question, error_entry.error_message)
+
+            else:
+                if referenced_question.id in seen_off_page:
+                    continue
+                seen_off_page.add(referenced_question.id)
+
+                display_value = "not answered"
+                if self._submission_helper is not None:
+                    persisted_answer = self._submission_helper.cached_get_answer_for_question(referenced_question.id)
+                    if persisted_answer is not None:
+                        display_value = persisted_answer.get_value_for_text_export()
+
+                error_entry = ErrorListEntry(
+                    question=referenced_question,
+                    answer=display_value,
+                    input_href=f"#{referenced_question.safe_qid}",
+                )
+                error.off_page_entries.append(error_entry)
+
+        return error
 
     @classmethod
     def attach_field(cls, question: Question, field: Field) -> None:
@@ -164,13 +310,19 @@ def build_validators(
 
 
 def build_question_form(  # noqa: C901
-    questions: list[Question], evaluation_context: ExpressionContext, interpolation_context: ExpressionContext
+    questions: list[Question],
+    evaluation_context: ExpressionContext,
+    interpolation_context: ExpressionContext,
+    component: "Question | Group | None" = None,
+    submission_helper: "SubmissionHelper | None" = None,
 ) -> type[DynamicQuestionForm]:
     # NOTE: Keep the fields+types in sync with the class of the same name above.
     class _DynamicQuestionForm(DynamicQuestionForm):  # noqa
         _evaluation_context = evaluation_context
         _interpolation_context = interpolation_context
         _questions = questions
+        _component = component
+        _submission_helper = submission_helper
 
         submit = SubmitField("Continue", widget=GovSubmitInput())
 

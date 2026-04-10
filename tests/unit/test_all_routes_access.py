@@ -74,6 +74,11 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.data_set_missing_data",
     "deliver_grant_funding.add_custom_question_validation",
     "deliver_grant_funding.edit_custom_question_validation",
+    "deliver_grant_funding.add_group_validation",
+    "deliver_grant_funding.edit_group_validation",
+    "deliver_grant_funding.add_question_condition_select_calculation",
+    "deliver_grant_funding.add_calculated_condition",
+    "deliver_grant_funding.edit_calculated_condition",
 ]
 routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.change_report_name",
@@ -105,6 +110,11 @@ routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.edit_question_validation",
     "deliver_grant_funding.add_custom_question_validation",
     "deliver_grant_funding.edit_custom_question_validation",
+    "deliver_grant_funding.add_group_validation",
+    "deliver_grant_funding.edit_group_validation",
+    "deliver_grant_funding.add_question_condition_select_calculation",
+    "deliver_grant_funding.add_calculated_condition",
+    "deliver_grant_funding.edit_calculated_condition",
 ]
 routes_with_expected_member_only_access = [
     "deliver_grant_funding.grant_homepage",
@@ -284,6 +294,7 @@ routes_with_access_controlled_by_flask_admin = [
     "reporting_lifecycle.send_emails_to_recipients",
     "reporting_lifecycle.download_data_providers_csv",
     "reporting_lifecycle.set_up_test_grant_recipient_users",
+    "reporting_lifecycle.close_report",
     "data_analysis.index",
     "data_analysis.download_certification_events_csv",
 ]

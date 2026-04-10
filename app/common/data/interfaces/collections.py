@@ -2,7 +2,7 @@ import datetime
 import uuid
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Literal, Never, Protocol, Unpack, overload
+from typing import Any, Literal, Never, Protocol, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
@@ -60,19 +60,16 @@ from app.common.expressions import (
     EvaluatableExpression,
     ExpressionContext,
 )
-from app.common.expressions.managed import BaseDataSourceManagedExpression, ManagedExpression
+from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
-from app.common.qid import SafeQidMixin
+from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
-
-if TYPE_CHECKING:
-    from app.common.expressions.managed import ManagedExpression
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
@@ -276,11 +273,20 @@ def update_collection(  # noqa: C901
             case (
                 CollectionStatusEnum.SCHEDULED,
                 CollectionStatusEnum.DRAFT,
-            ) | (
+            ):
+                pass
+            case (
                 CollectionStatusEnum.OPEN,
                 CollectionStatusEnum.CLOSED,
             ):
-                pass
+                assert collection.submission_period_end_date
+                if datetime.datetime.now(datetime.UTC) < datetime.datetime.combine(
+                    collection.submission_period_end_date, datetime.time.min, tzinfo=datetime.UTC
+                ):
+                    raise CollectionChronologyError(
+                        f"You cannot close the report for submissions before "
+                        f"the submission period end date of {collection.submission_period_end_date}"
+                    )
 
             case _:
                 raise StateTransitionError("Collection", collection.status, status)
@@ -356,6 +362,7 @@ def get_all_submissions_with_mode_for_collection(
         stmt = stmt.options(
             joinedload(Submission.created_by),
         )
+
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))
     return db.session.scalars(stmt).unique().all()
@@ -392,10 +399,10 @@ def get_submission(
 ) -> Submission:
     query = select(Submission).where(Submission.id == submission_id)
 
+    options = []
     if grant_recipient_id:
         query = query.where(Submission.grant_recipient_id == grant_recipient_id)
 
-    options = []
     if with_full_schema:
         options.extend(
             [
@@ -950,6 +957,13 @@ class NestedGroupDisplayTypeSamePageException(Exception, FlashableException):
         return flash_contexts
 
 
+class GroupHasValidationsCannotBeOnePerPageException(Exception):
+    def __init__(self, message: str, group: Group):
+        super().__init__(message)
+        self.message = message
+        self.group = group
+
+
 def _check_form_order_dependency(form: Form, swap_form: Form) -> None:
     # fetching the entire schema means whatever is calling this doesn't have to worry about
     # guaranteeing lazy loading performance behaviour
@@ -1229,6 +1243,16 @@ def update_group(  # noqa: C901
                 db.session.rollback()
                 raise e
 
+        if (
+            group.presentation_options.show_questions_on_the_same_page is True
+            and presentation_options.show_questions_on_the_same_page is False
+            and group.validations
+        ):
+            raise GroupHasValidationsCannotBeOnePerPageException(
+                "You cannot display this question group one question per page while it has validation rules attached",
+                group=group,
+            )
+
         # presentation options for groups can be spread out across multiple forms/ setting pages
         # override the provided fields without removing the existing settings for now, we might
         # want to switch to mutating the existing object in the future instead
@@ -1439,11 +1463,6 @@ def _validate_reference(  # noqa:C901
         # TODO change this once we can create expressions to reuse, before they are attached to a component
         raise NotImplementedError("Cannot handle un-attached references yet")
 
-    if expression_type == ExpressionType.VALIDATION and not attached_to_component.is_question:
-        # TODO change this once we can attach validation to a question group
-        #  or an auto calculation to a whole section
-        raise NotImplementedError("Cannot handle validation expressions attached to non-question components yet")
-
     # Check the reference is valid in this expression context
     if not expression_context.is_valid_reference(unwrapped_ref):
         raise InvalidReferenceInExpression(
@@ -1453,14 +1472,19 @@ def _validate_reference(  # noqa:C901
             form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
         )
 
-    # If it's a question, check it is of the right data type
-    if question_id := SafeQidMixin.safe_qid_to_id(unwrapped_ref):
+    question_id = SafeQidMixin.safe_qid_to_id(unwrapped_ref)
+
+    # If it's a data source, we check this below in the elif
+    data_source_id, _column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(unwrapped_ref)
+
+    if question_id:
         referenced_question = db.session.get_one(Question, question_id)
 
         # for validation, the question being validated (ie attached to) needs to have the same data type as the question
-        # being referenced
+        # being referenced. Groups have no data_type so this check is skipped for group-level validations.
         if (
             expression_type == ExpressionType.VALIDATION
+            and not attached_to_component.is_group
             and not attached_to_component.data_type == referenced_question.data_type
         ):
             raise IncompatibleDataTypeException(
@@ -1489,11 +1513,24 @@ def _validate_reference(  # noqa:C901
             )
         if not is_component_dependency_order_valid(attached_to_component, referenced_question):
             # Can't think of a better way right now for a custom validation expression to reference itself
-            if not (
+            # TODO: ideally this would check a pre-configured ExpressionContext that uses an
+            #       expression_context_end_point; if the reference is the expression context then we know it's valid and
+            #       don't need to have this logic in multiple places.
+            references_self_in_custom_validation = (
                 expression_type == ExpressionType.VALIDATION
                 and field_name_for_error_message == "custom_expression"
                 and referenced_question == attached_to_component
-            ):
+            )
+            # A validation attached to a group is allowed to reference any question nested within that group:
+            # the group only "resolves" once all its questions have been answered, so the dependency order is
+            # logically inverted compared to a normal question→question reference. This relaxation deliberately
+            # does NOT apply to conditions, where the expression is evaluated *before* the group is shown.
+            group_validation_references_own_descendant = (
+                expression_type == ExpressionType.VALIDATION
+                and attached_to_component.is_group
+                and referenced_question.is_descendant_of(attached_to_component)
+            )
+            if not (references_self_in_custom_validation or group_validation_references_own_descendant):
                 raise DependencyOrderException(
                     f"Cannot reference {referenced_question.id} because it comes after {attached_to_component.id}",
                     attached_to_component,
@@ -1518,7 +1555,9 @@ def _validate_reference(  # noqa:C901
                 form_error_message=f"You cannot use {question_to_test.name} because it comes after this question",
             )
 
-        if components_in_same_group_and_on_same_page(attached_to_component, referenced_question):
+        if attached_to_component.id != referenced_question.id and components_in_same_group_and_on_same_page(
+            attached_to_component, referenced_question
+        ):
             raise InvalidReferenceInExpression(
                 f"Reference is not valid: {wrapped_reference}",
                 field_name=field_name_for_error_message,
@@ -1539,6 +1578,9 @@ def _validate_reference(  # noqa:C901
                 form_error_message=f"You cannot reference {referenced_question.name} because it can be answered more "
                 "than once",
             )
+    elif data_source_id:
+        db.session.get_one(DataSource, data_source_id)
+
     else:
         # TODO implement this once we can reference other things, eg. data uploads
         raise NotImplementedError(
@@ -1607,7 +1649,11 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 question_to_test=expr_impl.referenced_question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
             )
 
-            referenced_question = get_question_by_id(SafeQidMixin.safe_qid_to_id(valid_reference))  # type:ignore[arg-type]
+            # TODO: Add data_source wrangling for creating component references
+            question_id = SafeQidMixin.safe_qid_to_id(valid_reference)
+            if not question_id:
+                continue
+            referenced_question = get_question_by_id(question_id)
             referenced_questions.add(referenced_question)
 
     for referenced_question in referenced_questions:
@@ -1662,13 +1708,17 @@ def _validate_and_sync_component_references(component: Component, expression_con
 
                 references_to_set_up.add((component.id, question.id))
 
+            # TODO: Add data_source wrangling for creating component references
+
     for component_id, depends_on_component_id in references_to_set_up:
         db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_component_condition(component: Component, user: User, managed_expression: ManagedExpression) -> Component:
-    expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
+def add_component_condition(
+    component: Component, user: User, evaluatable_expression: EvaluatableExpression
+) -> Component:
+    expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.CONDITION, user)
     component.expressions.append(expression)
 
     _validate_and_sync_expression_references(expression)
@@ -1680,11 +1730,11 @@ def add_component_condition(component: Component, user: User, managed_expression
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def add_question_validation(
-    question: Question, user: User, evaluatable_expression: "EvaluatableExpression"
-) -> Question:
+def add_component_validation(
+    component: Component, user: User, evaluatable_expression: "EvaluatableExpression"
+) -> Component:
     expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.VALIDATION, user)
-    question.expressions.append(expression)
+    component.expressions.append(expression)
     _validate_and_sync_expression_references(expression)
     emit_metric_count(
         MetricEventName.VALIDATION_CREATED_MANAGED
@@ -1693,7 +1743,7 @@ def add_question_validation(
         1,
         evaluatable_expression=evaluatable_expression,
     )
-    return question
+    return component
 
 
 def get_expression(expression_id: UUID) -> Expression:

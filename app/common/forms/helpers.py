@@ -50,6 +50,7 @@ def get_referenceable_questions(
     current_component: Component | None = None,
     parent_component: Group | None = None,
     limit_to_data_type: set[QuestionDataType] | None = None,
+    include_this_component: bool | None = None,
 ) -> list[Question]:
     """
     Return a list of questions from the current form that could be referenced from the current component, determined by:
@@ -90,11 +91,23 @@ def get_referenceable_questions(
             else parent_component.cached_questions[-1]
         )
 
+    include_this_component_and_descendents = (
+        True if include_this_component is True and current_component is not None else False
+    )
+
     if limit_to_components_before is not None:
         questions = [
             q
             for q in questions
             if (
+                include_this_component_and_descendents
+                and current_component
+                and (
+                    (current_component.is_question and q == current_component)
+                    or (current_component.is_group and q.is_descendant_of(current_component))
+                )
+            )
+            or (
                 (not current_component or q != limit_to_components_before)
                 and form.global_component_index(q) <= form.global_component_index(limit_to_components_before)
                 and not questions_in_same_page_group(q, limit_to_components_before)

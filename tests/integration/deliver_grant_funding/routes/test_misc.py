@@ -14,7 +14,7 @@ class TestListGrants:
         with track_sql_queries() as queries:
             result = authenticated_platform_admin_client.get("/deliver/grants")
         assert result.status_code == 200
-        assert len(templates_rendered.get("deliver_grant_funding.list_grants").context.get("grants")) == 5
+        assert len(templates_rendered.get("deliver_grant_funding.list_grants").context.get("grants")) == 6
         soup = BeautifulSoup(result.data, "html.parser")
         headers = soup.find_all("th")
         header_texts = [th.get_text(strip=True) for th in headers]
@@ -103,4 +103,4 @@ class TestListGrants:
         assert len(active_grant_rows) == 4  # 2 live and 2 onboarding
 
         draft_grant_rows = soup.select("#draft-grants tbody tr")
-        assert len(draft_grant_rows) == 2  # 2 draft
+        assert len(draft_grant_rows) == 3  # 3 draft as admin_client creates a grant itself

@@ -10,13 +10,11 @@ from app.common.data.interfaces.data_sets import (
     create_uploaded_data_source,
     delete_data_source,
     get_data_source,
-    get_grant_recipient_data_sources_for_collection,
 )
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.types import (
     DataSourceFileMetadata,
-    DataSourceSchema,
     DataSourceType,
     NumberTypeEnum,
     QuestionDataType,
@@ -114,12 +112,12 @@ class TestCreateUploadedDataSourceGrantRecipient:
             s3_key="data-set-uploads/test.csv",
         )
 
-        allocation_column = data_source.schema.root["capital-allocation"]
+        allocation_column = data_source.schema.root["c_capital_allocation"]
         assert allocation_column.data_type == QuestionDataType.NUMBER
         assert allocation_column.original_column_name == "Capital allocation"
         assert allocation_column.presentation_options.prefix == "£"
 
-        info_column = data_source.schema.root["additional-info"]
+        info_column = data_source.schema.root["c_additional_info"]
         assert info_column.data_type == QuestionDataType.TEXT_SINGLE_LINE
 
     def test_creates_organisation_items_one_per_grant_recipient(self, db_session, factories):
@@ -211,8 +209,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
         assert isinstance(org_item.data, dict)
-        assert org_item._data["capital-allocation"] == 500000
-        assert org_item._data["description"] == "A fine place"
+        assert org_item._data["c_capital_allocation"] == 500000
+        assert org_item._data["c_description"] == "A fine place"
 
     def test_cleans_prefix_and_suffix_from_number_values(self, db_session, factories):
         grant = factories.grant.create()
@@ -251,7 +249,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
-        assert org_item._data["amount"] == "1.50"
+        assert org_item._data["c_amount"] == "1.50"
 
     def test_excludes_identifier_columns_from_data_blob(self, db_session, factories):
         grant = factories.grant.create()
@@ -323,7 +321,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         )
 
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
-        assert org_item._data["notes"] is None
+        assert org_item._data["c_notes"] is None
 
 
 class TestCreateUploadedDataSourceProjectLevel:
@@ -433,10 +431,10 @@ class TestCreateUploadedDataSourceProjectLevel:
         org_item = db_session.query(DataSourceOrganisationItem).filter_by(data_source_id=data_source.id).one()
         assert isinstance(org_item._data, list)
         assert len(org_item._data) == 2
-        assert org_item._data[0]["project-name"] == "Roads"
-        assert org_item._data[0]["allocation"] == 5
-        assert org_item._data[1]["project-name"] == "Trees"
-        assert org_item._data[1]["allocation"] == 10
+        assert org_item._data[0]["c_project_name"] == "Roads"
+        assert org_item._data[0]["c_allocation"] == 5
+        assert org_item._data[1]["c_project_name"] == "Trees"
+        assert org_item._data[1]["c_allocation"] == 10
 
     def test_single_row_per_grant_recipient_is_still_list(self, db_session, factories):
         grant = factories.grant.create()
@@ -641,7 +639,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
             s3_key="data-set-uploads/test.csv",
         )
 
-        schema_col = data_source.schema.root["amount"]
+        schema_col = data_source.schema.root["c_amount"]
         assert schema_col.presentation_options.prefix == "£"
         assert schema_col.presentation_options.suffix == ""
         assert schema_col.data_options.number_type == NumberTypeEnum.DECIMAL
@@ -679,7 +677,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
             s3_key="data-set-uploads/test.csv",
         )
 
-        schema_col = data_source.schema.root["description"]
+        schema_col = data_source.schema.root["c_description"]
         assert schema_col.data_type == QuestionDataType.TEXT_SINGLE_LINE
         assert schema_col.original_column_name == "Description"
         assert schema_col.presentation_options.prefix is None
@@ -687,7 +685,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
         assert schema_col.data_options.number_type is None
         assert schema_col.data_options.max_decimal_places is None
 
-    def test_schema_keys_are_slugified(self, db_session, factories):
+    def test_schema_keys_use_safe_identifiers(self, db_session, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
         user = factories.user.create()
@@ -720,7 +718,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
             s3_key="data-set-uploads/test.csv",
         )
 
-        assert "capital-allocation" in data_source.schema.root
+        assert "c_capital_allocation" in data_source.schema.root
         assert "Capital Allocation (£)" not in data_source.schema.root
 
 
@@ -883,12 +881,12 @@ class TestDataSourceOrganisationItemDataProperty:
         typed_data = org_item.data
 
         assert isinstance(typed_data, dict)
-        allocation = typed_data["capital-allocation"]
+        allocation = typed_data["c_capital_allocation"]
         assert isinstance(allocation, DecimalAnswer)
         assert allocation.value == Decimal("1000.00")
         assert allocation.get_value_for_interpolation() == "£1,000.00"
 
-        notes = typed_data["additional-notes"]
+        notes = typed_data["c_additional_notes"]
         assert isinstance(notes, TextSingleLineAnswer)
         assert notes.get_value_for_interpolation() == "Nice place"
 
@@ -939,10 +937,10 @@ class TestDataSourceOrganisationItemDataProperty:
 
         assert isinstance(typed_data, list)
         assert len(typed_data) == 2
-        assert isinstance(typed_data[0]["project-name"], TextSingleLineAnswer)
-        assert isinstance(typed_data[0]["headcount"], IntegerAnswer)
-        assert typed_data[0]["headcount"].value == 10
-        assert typed_data[1]["headcount"].value == 20
+        assert isinstance(typed_data[0]["c_project_name"], TextSingleLineAnswer)
+        assert isinstance(typed_data[0]["c_headcount"], IntegerAnswer)
+        assert typed_data[0]["c_headcount"].value == 10
+        assert typed_data[1]["c_headcount"].value == 20
 
     def test_none_values_in_db_return_none_from_data_property(self, db_session, factories):
         grant = factories.grant.create()
@@ -985,12 +983,12 @@ class TestDataSourceOrganisationItemDataProperty:
         org_item = db_datasource.organisation_items[0]
 
         # Confirm raw _data stores None
-        assert org_item._data["notes"] is None
-        assert org_item._data["capital-allocation"] is None
+        assert org_item._data["c_notes"] is None
+        assert org_item._data["c_capital_allocation"] is None
 
         # Confirm typed .data returns None
-        assert org_item.data["notes"] is None
-        assert org_item.data["capital-allocation"] is None
+        assert org_item.data["c_notes"] is None
+        assert org_item.data["c_capital_allocation"] is None
 
     def test_3d_none_values_within_project_rows_return_none(self, db_session, factories):
         grant = factories.grant.create()
@@ -1037,258 +1035,9 @@ class TestDataSourceOrganisationItemDataProperty:
         typed_data = db_datasource.organisation_items[0].data
 
         # First row has values
-        assert isinstance(typed_data[0]["project-name"], TextSingleLineAnswer)
-        assert isinstance(typed_data[0]["headcount"], IntegerAnswer)
+        assert isinstance(typed_data[0]["c_project_name"], TextSingleLineAnswer)
+        assert isinstance(typed_data[0]["c_headcount"], IntegerAnswer)
 
         # Second row has None
-        assert typed_data[1]["project-name"] is None
-        assert typed_data[1]["headcount"] is None
-
-
-class TestGetGrantRecipientDataSourcesForCollection:
-    def test_returns_only_data_sources_for_specified_collection(self, db_session, factories):
-        grant = factories.grant.create()
-        collection_1 = factories.collection.create(grant=grant)
-        collection_2 = factories.collection.create(grant=grant)
-
-        ds_collection_1 = factories.data_source.create(
-            name="Test data set",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection_1,
-            items=None,
-        )
-        ds_collection_2 = factories.data_source.create(
-            name="Second test data set",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection_2,
-            items=None,
-        )
-        factories.data_source_organisation_item.create(data_source=ds_collection_1, external_id="E123")
-
-        result = get_grant_recipient_data_sources_for_collection(
-            collection_id=collection_1.id,
-            external_id="E123",
-        )
-
-        assert len(result) == 1
-        assert result[0].id == ds_collection_1.id
-        assert ds_collection_2.id not in {ds.id for ds in result}
-
-    def test_returns_multiple_data_sources_for_same_collection(self, db_session, factories):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-
-        ds_1 = factories.data_source.create(
-            name="Test data set",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection,
-            items=None,
-        )
-        ds_2 = factories.data_source.create(
-            name="Second test data set",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection,
-            items=None,
-        )
-        factories.data_source_organisation_item.create(data_source=ds_1, external_id="E123")
-        factories.data_source_organisation_item.create(data_source=ds_2, external_id="E123")
-
-        result = get_grant_recipient_data_sources_for_collection(
-            collection_id=collection.id,
-            external_id="E123",
-        )
-
-        assert len(result) == 2
-        assert {ds.id for ds in result} == {ds_1.id, ds_2.id}
-
-    def test_returns_only_grant_recipient_data_sources(self, db_session, factories):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-
-        gr_data_source = factories.data_source.create(
-            name="Test data set",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection,
-            items=None,
-        )
-        factories.data_source.create(
-            name="Project data set",
-            type=DataSourceType.PROJECT_LEVEL,
-            grant=grant,
-            collection=collection,
-            items=None,
-        )
-        factories.data_source.create(
-            name="Static data set",
-            type=DataSourceType.STATIC,
-            grant=grant,
-            collection=collection,
-            items=None,
-        )
-        factories.data_source.create(
-            name="Custom data set",
-            grant=grant,
-            collection=collection,
-        )
-        factories.data_source_organisation_item.create(data_source=gr_data_source, external_id="E123")
-
-        result = get_grant_recipient_data_sources_for_collection(
-            collection_id=collection.id,
-            external_id="E123",
-        )
-
-        assert len(result) == 1
-        assert result[0].id == gr_data_source.id
-        assert result[0].type == DataSourceType.GRANT_RECIPIENT
-
-    def test_returns_empty_list_when_no_data_sources_for_collection(self, db_session, factories):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-
-        result = get_grant_recipient_data_sources_for_collection(
-            collection_id=collection.id,
-            external_id="E123",
-        )
-
-        assert result == []
-
-    def test_filtered_organisation_item_filtered_to_matching_external_id(self, db_session, factories):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-
-        data_source = factories.data_source.create(
-            name="Test",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection,
-            items=None,
-        )
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
-        db_session.expire_all()
-
-        result = get_grant_recipient_data_sources_for_collection(
-            collection_id=collection.id,
-            external_id="E123",
-        )
-
-        assert len(result) == 1
-        assert result[0].filtered_organisation_item.external_id == "E123"
-
-    def test_filtered_organisation_item_empty_when_no_matching_external_id(self, db_session, factories):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-
-        data_source = factories.data_source.create(
-            name="Test",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection,
-            items=None,
-        )
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
-        db_session.expire_all()
-
-        result = get_grant_recipient_data_sources_for_collection(
-            collection_id=collection.id,
-            external_id="E123",
-        )
-
-        assert len(result) == 1
-        assert result[0].filtered_organisation_item is None
-
-    def test_filtered_organisation_item_data_returns_typed_answers(self, db_session, factories):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-
-        data_source = factories.data_source.create(
-            name="Test GR Data Set",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection,
-            items=None,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "capital-allocation": {
-                        "data_type": QuestionDataType.NUMBER,
-                        "original_column_name": "Capital allocation",
-                        "presentation_options": {"prefix": "£"},
-                        "data_options": {"number_type": NumberTypeEnum.DECIMAL, "max_decimal_places": 2},
-                    },
-                    "notes": {
-                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
-                        "original_column_name": "Notes",
-                        "presentation_options": {},
-                        "data_options": {},
-                    },
-                    "missing-value": {
-                        "data_type": QuestionDataType.NUMBER,
-                        "original_column_name": "Missing value",
-                        "presentation_options": {"suffix": "km"},
-                        "data_options": {"number_type": NumberTypeEnum.INTEGER},
-                    },
-                }
-            ),
-        )
-        factories.data_source_organisation_item.create(
-            data_source=data_source,
-            external_id="E123",
-            _data={
-                "capital-allocation": "1000.00",
-                "notes": "A fine place",
-                "missing-value": None,
-            },
-        )
-
-        result = get_grant_recipient_data_sources_for_collection(
-            collection_id=collection.id,
-            external_id="E123",
-        )
-
-        typed_data = result[0].filtered_organisation_item.data
-
-        allocation = typed_data["capital-allocation"]
-        assert isinstance(allocation, DecimalAnswer)
-        assert allocation.value == Decimal("1000.00")
-        assert allocation.get_value_for_interpolation() == "£1,000.00"
-
-        notes = typed_data["notes"]
-        assert isinstance(notes, TextSingleLineAnswer)
-        assert notes.get_value_for_interpolation() == "A fine place"
-
-        assert typed_data["missing-value"] is None
-
-    def test_filtered_organisation_item_eagerly_loaded(self, db_session, factories, track_sql_queries):
-        grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
-
-        data_source = factories.data_source.create(
-            name="Test GR Data Set",
-            type=DataSourceType.GRANT_RECIPIENT,
-            grant=grant,
-            collection=collection,
-            items=None,
-        )
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
-        db_session.expire_all()
-
-        result = get_grant_recipient_data_sources_for_collection(
-            collection_id=collection.id,
-            external_id="E123",
-        )
-
-        with track_sql_queries() as queries:
-            assert result[0].filtered_organisation_item is not None
-            assert result[0].filtered_organisation_item.external_id == "E123"
-        assert len(queries) == 0
-
-        with track_sql_queries() as queries:
-            assert len(result[0].organisation_items) == 2
-
-        assert len(queries) == 1
+        assert typed_data[1]["c_project_name"] is None
+        assert typed_data[1]["c_headcount"] is None

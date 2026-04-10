@@ -5,7 +5,7 @@
 
 {% set page_title = "Select a question - " ~ db_form.title %}
 {% set active_item_identifier = "reports" %}
-{% set back_url = url_for("deliver_grant_funding.select_context_source", grant_id=grant.id, form_id=db_form.id) %}
+{% set back_url = url_for("deliver_grant_funding.select_context_source", grant_id=grant.id, form_id=db_form.id) if db_form.id == add_context_data.form_id else url_for("deliver_grant_funding.select_context_source_section", grant_id=grant.id, form_id=db_form.id) %}
 
 {# Set heading caption and cancel button to for what initiated the `add data` flow #}
 {% set heading_caption = context_source_heading_caption(add_context_data) %}

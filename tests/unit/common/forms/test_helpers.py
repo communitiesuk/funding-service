@@ -247,6 +247,25 @@ class TestGetReferenceableQuestions:
 
         assert get_referenceable_questions(form, current_component=q2) == [q1]
 
+    def test_include_this_component(self, factories):
+        form = factories.form.build()
+        q1 = factories.question.build(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        group = factories.group.build(
+            add_another=True,
+            name="Your colour preferences",
+            form=form,
+        )
+        q2 = factories.question.build(parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        assert get_referenceable_questions(form, current_component=group, include_this_component=True) == [
+            q1,
+            q2,
+        ]
+        assert get_referenceable_questions(form, current_component=q2, include_this_component=True) == [
+            q1,
+            q2,
+        ]
+
 
 class TestAddAnother:
     def test_raise_if_add_another_not_valid_question_in_group(self, factories):

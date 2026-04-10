@@ -24,6 +24,7 @@ from app.common.collections.types import (
 from app.common.data import interfaces
 from app.common.data.models import Expression
 from app.common.data.types import (
+    CollectionStatusEnum,
     ExpressionType,
     ManagedExpressionsEnum,
     NumberTypeEnum,
@@ -39,7 +40,7 @@ from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan
 from app.common.helpers.collections import (
-    CollectionHelper,
+    AllSubmissionsHelper,
     SubmissionAuthorisationError,
     SubmissionHelper,
 )
@@ -126,8 +127,23 @@ class TestSubmissionHelper:
 
             assert str(e.value) == AnyStringMatching(
                 "Could not submit answer for question_id=[a-z0-9-]+ "
-                "because submission id=[a-z0-9-]+ is already submitted."
+                "because the answers are locked for submission id=[a-z0-9-]+."
             )
+
+        def test_cannot_submit_answer_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(
+                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                form__collection__status=CollectionStatusEnum.CLOSED,
+            )
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+            )
+
+            with pytest.raises(ValueError, match="answers are locked"):
+                helper.submit_answer_for_question(question.id, form, submission.created_by)
 
         def test_submit_duplicate_submission_name_raises_conflict(self, db_session, factories):
             question = factories.question.create(
@@ -409,8 +425,19 @@ class TestSubmissionHelper:
 
             assert str(e.value) == AnyStringMatching(
                 "Could not remove answer for question_id=[a-z0-9-]+ "
-                "because submission id=[a-z0-9-]+ is already submitted."
+                "because the answers are locked for submission id=[a-z0-9-]+."
             )
+
+        def test_cannot_remove_answer_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("some answer"))],
+            )
+            helper = SubmissionHelper(submission)
+
+            with pytest.raises(ValueError, match="answers are locked"):
+                helper.remove_answer_for_question(question.id)
 
     class TestFormData:
         def test_no_submission_data(self, factories):
@@ -951,6 +978,56 @@ class TestSubmissionHelper:
                 r"Could not submit submission id=[a-z0-9-]+ because not all forms are complete."
             )
 
+        def test_in_immutable_state_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.in_immutable_state is True
+
+        def test_not_in_immutable_state_when_collection_open(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.OPEN)
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.in_immutable_state is False
+
+        def test_in_answers_locked_state_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.in_answers_locked_state is True
+
+        def test_cannot_toggle_form_completed_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("some answer"))],
+            )
+            helper = SubmissionHelper(submission)
+
+            with pytest.raises(ValueError, match="answers are locked"):
+                helper.toggle_form_completed(question.form, submission.created_by, True)
+
+        def test_status_is_not_submitted_when_collection_closed(self, db_session, factories):
+            question = factories.question.create(form__collection__status=CollectionStatusEnum.CLOSED)
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("some answer"))],
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.status == SubmissionStatusEnum.NOT_SUBMITTED
+
+        def test_status_is_submitted_when_collection_closed_and_already_submitted(
+            self, db_session, factories, submission_submitted
+        ):
+            submission_submitted.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_submitted)
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
     class TestRequiresCertification:
         def test_decline_certification_requires_certification(self, factories, submission_awaiting_sign_off, user):
             collection = submission_awaiting_sign_off.collection
@@ -986,6 +1063,115 @@ class TestSubmissionHelper:
                 == f"Could not send submission id={submission_in_progress.id} for sign off because this report does "
                 f"not require certification."
             )
+
+    class TestGetStatus:
+        def test_returns_not_started_when_no_submission_and_open(self, db_session, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.OPEN)
+            factories.form.create(collection=collection)
+
+            assert SubmissionHelper.get_status(None, collection) == SubmissionStatusEnum.NOT_STARTED
+
+        def test_returns_not_submitted_when_no_submission_and_closed(self, db_session, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.CLOSED)
+            factories.form.create(collection=collection)
+
+            assert SubmissionHelper.get_status(None, collection) == SubmissionStatusEnum.NOT_SUBMITTED
+
+        def test_returns_submission_status_when_submission_exists(self, db_session, factories, submission_in_progress):
+            assert (
+                SubmissionHelper.get_status(submission_in_progress, submission_in_progress.collection)
+                == SubmissionStatusEnum.IN_PROGRESS
+            )
+
+        def test_raises_when_submission_does_not_belong_to_collection(self, db_session, factories):
+            collection_a = factories.collection.create()
+            collection_b = factories.collection.create()
+            factories.form.create(collection=collection_a)
+            submission = factories.submission.create(collection=collection_a)
+
+            with pytest.raises(ValueError, match="does not belong"):
+                SubmissionHelper.get_status(submission, collection_b)
+
+    class TestGetAccessSubmissionAction:
+        def test_start_report_when_no_submission_and_open(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            collection = factories.collection.create(grant=grant_recipient.grant, status=CollectionStatusEnum.OPEN)
+            factories.form.create(collection=collection)
+
+            result = SubmissionHelper.get_access_submission_action(collection, grant_recipient, None)
+
+            assert result["label"] == "Start report"
+            assert result["href"]
+
+        def test_did_not_start_when_no_submission_and_closed(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            collection = factories.collection.create(grant=grant_recipient.grant, status=CollectionStatusEnum.CLOSED)
+            factories.form.create(collection=collection)
+
+            result = SubmissionHelper.get_access_submission_action(collection, grant_recipient, None)
+
+            assert result["label"] == "Did not start"
+            assert result["href"] is None
+
+        def test_view_report_when_collection_closed_with_submission(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            question = factories.question.create(
+                form__collection__grant=grant_recipient.grant,
+                form__collection__status=CollectionStatusEnum.CLOSED,
+            )
+            submission = factories.submission.create(
+                collection=question.form.collection, grant_recipient=grant_recipient
+            )
+
+            result = SubmissionHelper.get_access_submission_action(
+                question.form.collection, grant_recipient, submission
+            )
+
+            assert result["label"] == "View report"
+            assert result["href"]
+
+        def test_continue_report_when_in_progress(self, db_session, factories, submission_in_progress, grant_recipient):
+            result = SubmissionHelper.get_access_submission_action(
+                submission_in_progress.collection, grant_recipient, submission_in_progress
+            )
+
+            assert result["label"] == "Continue report"
+            assert result["href"]
+
+        def test_start_report_when_not_started(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            question = factories.question.create(
+                form__collection__grant=grant_recipient.grant,
+                form__collection__status=CollectionStatusEnum.OPEN,
+            )
+            submission = factories.submission.create(
+                collection=question.form.collection, grant_recipient=grant_recipient
+            )
+
+            result = SubmissionHelper.get_access_submission_action(
+                question.form.collection, grant_recipient, submission
+            )
+
+            assert result["label"] == "Start report"
+            assert result["href"]
+
+        def test_view_report_when_submitted(self, db_session, factories, submission_submitted, grant_recipient):
+            result = SubmissionHelper.get_access_submission_action(
+                submission_submitted.collection, grant_recipient, submission_submitted
+            )
+
+            assert result["label"] == "View report"
+            assert result["href"]
+
+        def test_raises_when_submission_does_not_belong_to_collection(self, db_session, factories):
+            grant_recipient = factories.grant_recipient.create()
+            collection_a = factories.collection.create(grant=grant_recipient.grant)
+            collection_b = factories.collection.create(grant=grant_recipient.grant)
+            factories.form.create(collection=collection_a)
+            submission = factories.submission.create(collection=collection_a, grant_recipient=grant_recipient)
+
+            with pytest.raises(ValueError, match="does not belong"):
+                SubmissionHelper.get_access_submission_action(collection_b, grant_recipient, submission)
 
     class TestGetAnswerForQuestion:
         def test_get_answer_for_question(self, factories):
@@ -1282,6 +1468,18 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.SUBMITTED
             assert len(mock_notification_service_calls) == expected_email_recipients
 
+        def test_submit_when_collection_closed(
+            self, factories, submission_ready_to_submit, data_provider_user, mock_notification_service_calls
+        ):
+            submission_ready_to_submit.collection.requires_certification = False
+            submission_ready_to_submit.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_ready_to_submit)
+
+            with pytest.raises(ValueError, match="not ready to submit"):
+                helper.submit(data_provider_user)
+
+            assert len(mock_notification_service_calls) == 0
+
     class TestSentForCertification:
         def test_mark_as_sent_for_certification(
             self, data_provider_user, certifier_user, submission_ready_to_submit, mock_notification_service_calls
@@ -1354,6 +1552,17 @@ class TestSubmissionHelper:
             assert len(data_provider_emails) == expected_data_provider_emails
             assert len(certifier_emails) == expected_certifier_emails
 
+        def test_mark_as_sent_for_certification_when_collection_closed(
+            self, factories, submission_ready_to_submit, data_provider_user, mock_notification_service_calls
+        ):
+            submission_ready_to_submit.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_ready_to_submit)
+
+            with pytest.raises(ValueError, match="answers-locked state"):
+                helper.mark_as_sent_for_certification(data_provider_user)
+
+            assert len(mock_notification_service_calls) == 0
+
     class TestCertificationApproved:
         def test_certify(
             self, data_provider_user, certifier_user, submission_awaiting_sign_off, mock_notification_service_calls
@@ -1366,6 +1575,15 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
             assert len(mock_notification_service_calls) == 0
+
+        def test_certify_when_collection_closed(
+            self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
+        ):
+            submission_awaiting_sign_off.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+
+            with pytest.raises(ValueError, match="immutable state"):
+                helper.certify(certifier_user)
 
     class TestCertificationDeclined:
         def test_decline(
@@ -1437,6 +1655,17 @@ class TestSubmissionHelper:
 
             assert len(data_provider_emails) == expected_data_provider_emails
             assert len(certifier_emails) == expected_certifier_emails
+
+        def test_decline_when_collection_closed(
+            self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
+        ):
+            submission_awaiting_sign_off.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+
+            with pytest.raises(ValueError, match="immutable state"):
+                helper.decline_certification(certifier_user, "reason")
+
+            assert len(mock_notification_service_calls) == 0
 
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")
@@ -1791,25 +2020,25 @@ class TestFormResetOnAnswerChange:
         assert len(reset_events) == 1
 
 
-class TestCollectionHelper:
-    def test_init_collection_helper(self, factories):
+class TestSubmissionsHelper:
+    def test_init_submissions_helper(self, factories):
         collection = factories.collection.create(create_submissions__test=2, create_submissions__live=3)
         collection_from_db = interfaces.collections.get_collection(collection.id)
         assert len(collection_from_db._submissions) == 5
 
-        test_collection_helper = CollectionHelper(
+        test_submissions_helper = AllSubmissionsHelper(
             collection=collection_from_db, submission_mode=SubmissionModeEnum.TEST
         )
-        assert test_collection_helper.collection == collection
-        assert test_collection_helper.submission_mode == SubmissionModeEnum.TEST
-        assert len(test_collection_helper.submissions) == 2
+        assert test_submissions_helper.collection == collection
+        assert test_submissions_helper.submission_mode == SubmissionModeEnum.TEST
+        assert len(test_submissions_helper.submissions) == 2
 
-        live_collection_helper = CollectionHelper(
+        live_submissions_helper = AllSubmissionsHelper(
             collection=collection_from_db, submission_mode=SubmissionModeEnum.LIVE
         )
-        assert live_collection_helper.collection == collection
-        assert live_collection_helper.submission_mode == SubmissionModeEnum.LIVE
-        assert len(live_collection_helper.submissions) == 3
+        assert live_submissions_helper.collection == collection
+        assert live_submissions_helper.submission_mode == SubmissionModeEnum.LIVE
+        assert len(live_submissions_helper.submissions) == 3
 
     @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_check_correct_rows_for_multiple_simple_submissions_every_question_type(
@@ -1821,8 +2050,8 @@ class TestCollectionHelper:
             create_completed_submissions_each_question_type__test=num_test_submissions,
             create_completed_submissions_each_question_type__use_random_data=True,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         assert reader.fieldnames == [
@@ -1847,7 +2076,7 @@ class TestCollectionHelper:
             "[Export test form] Supporting document",
         ]
         expected_question_data = {}
-        for _, submission in c_helper.submission_helpers.items():
+        for _, submission in subs_helper.submission_helpers.items():
             expected_question_data[submission.reference] = {
                 f"[{question.form.title}] {question.name}": submission.submission.data_manager.get(
                     question
@@ -1857,7 +2086,7 @@ class TestCollectionHelper:
         rows = list(reader)
         for line in rows:
             submission_ref = line["Submission reference"]
-            s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+            s_helper = subs_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
             assert line["Created at"] == "2025-03-01 13:30:00"
             for header, value in expected_question_data[submission_ref].items():
@@ -1868,8 +2097,8 @@ class TestCollectionHelper:
     @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_skipped_questions(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         assert reader.fieldnames == [
@@ -1888,7 +2117,7 @@ class TestCollectionHelper:
         for _ in range(2):
             line = next(reader)
             submission_ref = line["Submission reference"]
-            s_helper = c_helper.get_submission_helper_by_reference(submission_ref)
+            s_helper = subs_helper.get_submission_helper_by_reference(submission_ref)
             assert line["Created by"] == s_helper.created_by_email
             assert line["Created at"] == "2025-03-01 13:30:00"
             number_of_cups_of_tea = line["[Export test form] Number of cups of tea"]
@@ -1902,7 +2131,7 @@ class TestCollectionHelper:
 
     def test_generate_csv_content_skipped_questions_previously_answered(self, factories):
         collection = factories.collection.create(create_completed_submissions_conditional_question__test=True)
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
         dependant_question = collection.forms[0].cached_questions[0]
         conditional_question = collection.forms[0].cached_questions[1]
 
@@ -1910,11 +2139,11 @@ class TestCollectionHelper:
         # previously been answered
         submission = next(
             helper.submission
-            for _, helper in c_helper.submission_helpers.items()
+            for _, helper in subs_helper.submission_helpers.items()
             if helper.cached_get_answer_for_question(dependant_question.id).get_value_for_text_export() == "20"
         )
         submission.data_manager.set(conditional_question, IntegerAnswer(value=120))
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         assert reader.fieldnames == [
@@ -1949,8 +2178,8 @@ class TestCollectionHelper:
             create_completed_submissions_each_question_type__test=1,
             create_completed_submissions_each_question_type__use_random_data=False,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.reader(StringIO(csv_content))
 
         rows = list(reader)
@@ -1978,9 +2207,9 @@ class TestCollectionHelper:
             "[Export test form] Supporting document",
         ]
         assert rows[1] == [
-            c_helper.submissions[0].reference,
-            c_helper.submissions[0].grant_recipient.organisation.name,
-            c_helper.submissions[0].created_by.email,
+            subs_helper.submissions[0].reference,
+            subs_helper.submissions[0].grant_recipient.organisation.name,
+            subs_helper.submissions[0].created_by.email,
             "2025-03-01 13:30:00",
             "",
             "",
@@ -2006,8 +2235,8 @@ class TestCollectionHelper:
             create_completed_submissions_add_another_nested_group__test=1,
             create_completed_submissions_add_another_nested_group__use_random_data=False,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         assert reader.fieldnames == [
@@ -2036,9 +2265,9 @@ class TestCollectionHelper:
         rows = list(reader)
 
         assert list(rows[0].values()) == [
-            c_helper.submissions[0].reference,
-            c_helper.submissions[0].grant_recipient.organisation.name,
-            c_helper.submissions[0].created_by.email,
+            subs_helper.submissions[0].reference,
+            subs_helper.submissions[0].grant_recipient.organisation.name,
+            subs_helper.submissions[0].created_by.email,
             "2025-03-01 13:30:00",
             "",
             "",
@@ -2066,6 +2295,7 @@ class TestCollectionHelper:
         factories.submission.create(
             collection=group.form.collection,
             mode=SubmissionModeEnum.TEST,
+            reference="TEST-001",
             answers=[
                 FactoryAnswer(question, TextSingleLineAnswer("first"), add_another_index=0),
                 FactoryAnswer(question, TextSingleLineAnswer("second"), add_another_index=1),
@@ -2075,11 +2305,12 @@ class TestCollectionHelper:
         factories.submission.create(
             collection=group.form.collection,
             mode=SubmissionModeEnum.TEST,
+            reference="TEST-002",
             answers=[FactoryAnswer(question, TextSingleLineAnswer("only first"), add_another_index=0)],
         )
 
-        c_helper = CollectionHelper(collection=group.form.collection, submission_mode=SubmissionModeEnum.TEST)
-        csv_content = c_helper.generate_csv_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=group.form.collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
         reader = csv.DictReader(StringIO(csv_content))
 
         rows = list(reader)
@@ -2097,8 +2328,8 @@ class TestCollectionHelper:
             create_completed_submissions_each_question_type__test=1,
             create_completed_submissions_each_question_type__use_random_data=False,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        json_data = c_helper.generate_json_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        json_data = subs_helper.generate_json_content_for_all_submissions()
         submissions = json.loads(json_data)
 
         assert submissions == {
@@ -2153,8 +2384,8 @@ class TestCollectionHelper:
             created_by=user,
             created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
-        json_data = c_helper.generate_json_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+        json_data = subs_helper.generate_json_content_for_all_submissions()
         submissions = json.loads(json_data)
 
         assert submissions == {
@@ -2199,8 +2430,8 @@ class TestCollectionHelper:
             create_completed_submissions_add_another_nested_group__test=1,
             create_completed_submissions_add_another_nested_group__use_random_data=False,
         )
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        json_data = c_helper.generate_json_content_for_all_submissions()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        json_data = subs_helper.generate_json_content_for_all_submissions()
         submissions = json.loads(json_data)
 
         assert submissions == {
@@ -2253,12 +2484,12 @@ class TestCollectionHelper:
         )
         factory_duration = datetime.now() - factory_start
         # FIXME Can we clear out the session cache here so we actually generate some queries?
-        create_collection_helper_start = datetime.now()
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        create_collection_helper_duration = datetime.now() - create_collection_helper_start
+        create_submissions_helper_start = datetime.now()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        create_submissions_helper_duration = datetime.now() - create_submissions_helper_start
         with track_sql_queries() as queries:
             start = datetime.now()
-            c_helper.generate_csv_content_for_all_submissions()
+            subs_helper.generate_csv_content_for_all_submissions()
             end = datetime.now()
             generate_csv_content_for_all_submissions_duration = end - start
         total_query_duration = sum(query.duration for query in queries)
@@ -2266,7 +2497,7 @@ class TestCollectionHelper:
             "num_test_submissions": num_test_submissions,
             "num_sql_queries": len(queries),
             "factory_duration": str(factory_duration.total_seconds()),
-            "create_collection_helper_duration": str(create_collection_helper_duration.total_seconds()),
+            "create_submissions_helper_duration": str(create_submissions_helper_duration.total_seconds()),
             "total_query_duration": str(total_query_duration),
             "generate_csv_content_for_all_submissions_duration": str(
                 generate_csv_content_for_all_submissions_duration.total_seconds()
@@ -2296,12 +2527,12 @@ class TestCollectionHelper:
             create_completed_submissions_conditional_question_random__test=num_test_submissions
         )
         factory_duration = datetime.now() - factory_start
-        create_collection_helper_start = datetime.now()
-        c_helper = CollectionHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
-        create_collection_helper_duration = datetime.now() - create_collection_helper_start
+        create_submissions_helper_start = datetime.now()
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        create_submissions_helper_duration = datetime.now() - create_submissions_helper_start
         with track_sql_queries() as queries:
             start = datetime.now()
-            c_helper.generate_csv_content_for_all_submissions()
+            subs_helper.generate_csv_content_for_all_submissions()
             end = datetime.now()
             generate_csv_content_for_all_submissions_duration = end - start
         total_query_duration = sum(query.duration for query in queries)
@@ -2309,7 +2540,7 @@ class TestCollectionHelper:
             "num_test_submissions": num_test_submissions,
             "num_sql_queries": len(queries),
             "factory_duration": str(factory_duration.total_seconds()),
-            "create_collection_helper_duration": str(create_collection_helper_duration.total_seconds()),
+            "create_submissions_helper_duration": str(create_submissions_helper_duration.total_seconds()),
             "total_query_duration": str(total_query_duration),
             "generate_csv_content_for_all_submissions_duration": str(
                 generate_csv_content_for_all_submissions_duration.total_seconds()
@@ -2353,7 +2584,10 @@ class TestSubmissionValidation:
         submission.data_manager.set(q1, IntegerAnswer(value=150))
         helper.cached_get_answer_for_question.cache_clear()
         helper.cached_evaluation_context = ExpressionContext.build_expression_context(
-            collection=submission.collection, data_manager=helper.submission.data_manager, mode="evaluation"
+            collection=submission.collection,
+            submission_helper=helper,
+            data_manager=helper.submission.data_manager,
+            mode="evaluation",
         )
 
         with pytest.raises(ValueError) as e:
@@ -2424,7 +2658,10 @@ class TestSubmissionValidation:
         submission.data_manager.set(q1, IntegerAnswer(value=150))
         helper.cached_get_answer_for_question.cache_clear()
         helper.cached_evaluation_context = ExpressionContext.build_expression_context(
-            collection=submission.collection, data_manager=helper.submission.data_manager, mode="evaluation"
+            collection=submission.collection,
+            submission_helper=helper,
+            data_manager=helper.submission.data_manager,
+            mode="evaluation",
         )
 
         with pytest.raises(ValueError) as e:

@@ -20,6 +20,7 @@ class FlashMessageType(StrEnum):
     SUBMISSION_TESTING_COMPLETE = "submission_testing_complete"
     QUESTION_CREATED = "question_created"
     NESTED_GROUP_ERROR = "nested_group_error"
+    GROUP_VALIDATION_NOT_AVAILABLE = "group_validation_not_available"
     SUBMISSION_SIGN_OFF_DECLINED = "submission_sign_off_declined"
     TESTING_GRANT_RECIPIENT_JOURNEY_STARTED = "testing_grant_recipient_journey_started"
     TEST_SUBMISSION_RESET = "test_submission_reset"

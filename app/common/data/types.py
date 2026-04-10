@@ -19,21 +19,6 @@ scalars = str | int | float | bool | None
 json_scalars = dict[str, Any]
 json_flat_scalars = dict[str, scalars]
 
-TRunnerUrlMap = dict[
-    "FormRunnerState",
-    Callable[
-        [
-            "FormRunner",
-            Optional["Question"],
-            Optional["Form"],
-            Optional["FormRunnerState"],
-            Optional[int],
-            Optional[str],
-        ],
-        str,
-    ],
-]
-
 
 class GrantStatusEnum(enum.StrEnum):
     DRAFT = "draft"
@@ -57,6 +42,7 @@ class OrganisationType(enum.StrEnum):
     NORTHERN_IRELAND_AUTHORITY = "Northern Ireland District"
     SCOTTISH_UNITARY_AUTHORITY = "Scottish Unitary Authority"
     WELSH_UNITARY_AUTHORITY = "Welsh Unitary Authority"
+    OTHER = "Other"
 
 
 # TODO: Rename PermissionEnum
@@ -122,6 +108,8 @@ class SubmissionStatusEnum(enum.StrEnum):
     READY_TO_SUBMIT = "Ready to submit"
     AWAITING_SIGN_OFF = "Awaiting sign off"
     SUBMITTED = "Submitted"
+    NOT_SUBMITTED = "Not submitted"
+    PARTIALLY_SUBMITTED = "Partially submitted"
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):
@@ -206,6 +194,31 @@ class FormRunnerState(enum.StrEnum):
     TASKLIST = "tasklist"
     QUESTION = "question"
     CHECK_YOUR_ANSWERS = "check-your-answers"
+    VIEW_REPORT_PAGE = "view-report-page"
+
+
+TRunnerUrlMapCallable = Callable[
+    [
+        "FormRunner",
+        Optional["Question"],
+        Optional["Form"],
+        Optional["FormRunnerState"],
+        Optional[int],
+        Optional[str],
+    ],
+    str,
+]
+
+
+TRunnerUrlMap = typing.TypedDict(
+    "TRunnerUrlMap",
+    {
+        FormRunnerState.TASKLIST: TRunnerUrlMapCallable,
+        FormRunnerState.QUESTION: TRunnerUrlMapCallable,
+        FormRunnerState.CHECK_YOUR_ANSWERS: TRunnerUrlMapCallable,
+        FormRunnerState.VIEW_REPORT_PAGE: TRunnerUrlMapCallable,
+    },
+)
 
 
 class MultilineTextInputRows(IntEnum):

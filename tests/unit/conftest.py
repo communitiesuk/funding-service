@@ -13,6 +13,7 @@ from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.models import Submission
 from app.common.data.types import SubmissionEventType, SubmissionModeEnum
 from tests.conftest import _Factories, _precompile_templates
+from tests.models import FactoryAnswer
 from tests.utils import build_db_config
 
 
@@ -80,8 +81,8 @@ def submission_awaiting_sign_off(factories: _Factories) -> Generator[Submission,
         grant_recipient=grant_recipient,
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
+        answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
-    submission.data_manager.set(question, TextSingleLineAnswer("Question answer"))
     submitted_by = factories.user.build(name="Submitter User", email="submitter@test.com")
 
     form = submission.collection.forms[0]

@@ -42,12 +42,14 @@ export default defineConfig({
         viteStaticCopy({
             targets: [
                 {
-                    src: "node_modules/govuk-frontend/dist/govuk/assets/*",
+                    src: "node_modules/govuk-frontend/dist/govuk/assets",
                     dest: "./assets",
+                    rename: { stripBase: 5 },
                 },
                 {
                     src: "app/assets/images",
                     dest: "./assets",
+                    rename: { stripBase: 2 },
                 },
             ],
         }),

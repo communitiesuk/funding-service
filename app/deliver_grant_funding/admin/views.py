@@ -48,6 +48,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.filters import format_date
+from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminAddSingleDataProviderForm,
@@ -748,7 +749,14 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
-        form = PlatformAdminMakeReportLiveForm()
+        grant_recipients_count = get_grant_recipients_count(grant)
+        data_providers_count = get_grant_recipient_data_providers_count(grant)
+
+        form = PlatformAdminMakeReportLiveForm(
+            collection=collection,
+            grant_recipients_count=grant_recipients_count,
+            data_providers_count=data_providers_count,
+        )
         if form.validate_on_submit():
             try:
                 update_collection(collection, status=CollectionStatusEnum.OPEN)
@@ -925,6 +933,40 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         )
 
         return send_file(csv_bytes, mimetype="text/csv", as_attachment=True, download_name=filename, max_age=1)
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/close-report", methods=["GET", "POST"])
+    @auto_commit_after_request
+    def close_report(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+        form = GenericSubmitForm()
+        if form.validate_on_submit():
+            try:
+                update_collection(collection, status=CollectionStatusEnum.CLOSED)
+                flash(
+                    (
+                        f"{markupsafe.escape(collection.name)} is now closed and grant recipients can make no more "
+                        f"changes. "
+                        "<strong>You must now send emails to grant recipient users to let them know the report is "
+                        "closed.</strong>"
+                    ),
+                    "success",
+                )
+                return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            except StateTransitionError as e:
+                form.form_errors.append(
+                    f"{collection.name} can only be closed from the 'open' state; it is currently {e.from_state}",
+                )
+            except CollectionChronologyError as e:
+                form.form_errors.append(str(e))
+
+        return self.render(
+            "deliver_grant_funding/admin/confirm-close-report.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+        )
 
 
 class PlatformAdminDataAnalysisView(FlaskAdminPlatformAdminDataAnalystAccessibleMixin, BaseView):

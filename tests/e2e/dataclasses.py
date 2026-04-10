@@ -88,3 +88,4 @@ class QuestionGroupDict(TypedDict):
     guidance: NotRequired[GuidanceText]
     condition: NotRequired[E2EManagedExpression]
     questions: list[QuestionDict]
+    add_another: NotRequired[bool]

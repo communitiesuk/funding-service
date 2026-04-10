@@ -352,7 +352,7 @@
   {% set submission = runner.submission %}
 
   <span class="govuk-caption-l">{{ form.title }}</span>
-  <h1 class="govuk-heading-l">{{ "Your submitted answers" if (submission.is_locked_state) else "Check your answers" }}</h1>
+  <h1 class="govuk-heading-l">{{ "Your submitted answers" if (submission.in_answers_locked_state) else "Check your answers" }}</h1>
 
   {{ summary_list_for_answers(form, runner) }}
 

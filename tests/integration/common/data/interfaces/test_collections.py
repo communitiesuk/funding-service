@@ -20,7 +20,7 @@ from app.common.data.interfaces.collections import (
     _validate_and_sync_expression_references,
     _validate_reference,
     add_component_condition,
-    add_question_validation,
+    add_component_validation,
     add_submission_event,
     components_in_same_group_and_on_same_page,
     create_collection,
@@ -721,100 +721,121 @@ class TestUpdateCollection:
 
         assert "submission period dates must be set" in str(exc_info.value)
 
+    @pytest.mark.freeze_time("2025-01-30 10:00:00")
+    def test_update_collection_close_collection_before_submission_end_date_raises_error(self, db_session, factories):
+        collection = factories.collection.create(
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
 
-def test_get_submission(db_session, factories):
-    submission = factories.submission.create()
-    from_db = get_submission(submission_id=submission.id)
-    assert from_db is not None
+        with pytest.raises(CollectionChronologyError) as exc_info:
+            update_collection(
+                collection,
+                status=CollectionStatusEnum.CLOSED,
+            )
 
-
-def test_get_submission_for_grant_recipient(db_session, factories):
-    grant_recipient = factories.grant_recipient.create()
-    grant_recipient2 = factories.grant_recipient.create()
-    submission = factories.submission.create(grant_recipient=grant_recipient)
-    from_db = get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient.id)
-    assert from_db is not None
-
-    with pytest.raises(NoResultFound):
-        get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient2.id)
-
-
-def test_get_submissions_by_grant_recipient_collection_returns_single_submission(db_session, factories):
-    grant_recipient = factories.grant_recipient.create()
-    collection = factories.collection.create(grant=grant_recipient.grant)
-    submission = factories.submission.create(
-        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
-    )
-
-    from_db = get_submissions_by_grant_recipient_collection(
-        grant_recipient=grant_recipient, collection_id=collection.id
-    )
-
-    assert len(from_db) == 1
-    assert from_db[0].id == submission.id
+        assert (
+            f"You cannot close the report for submissions before the submission period "
+            f"end date of {collection.submission_period_end_date}"
+        ) in str(exc_info.value)
 
 
-def test_get_submissions_by_grant_recipient_collection_returns_multiple_submissions(db_session, factories):
-    grant_recipient = factories.grant_recipient.create()
-    collection = factories.collection.create(grant=grant_recipient.grant)
-    submission_1 = factories.submission.create(
-        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
-    )
-    submission_2 = factories.submission.create(
-        collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
-    )
+class TestGetSubmission:
+    def test_get_submission(self, db_session, factories):
+        submission = factories.submission.create()
+        from_db = get_submission(submission_id=submission.id)
+        assert from_db is not None
 
-    from_db = get_submissions_by_grant_recipient_collection(
-        grant_recipient=grant_recipient, collection_id=collection.id
-    )
+    def test_get_submission_for_grant_recipient(self, db_session, factories):
+        grant_recipient = factories.grant_recipient.create()
+        grant_recipient2 = factories.grant_recipient.create()
+        submission = factories.submission.create(grant_recipient=grant_recipient)
+        from_db = get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient.id)
+        assert from_db is not None
 
-    assert len(from_db) == 2
-    assert {s.id for s in from_db} == {submission_1.id, submission_2.id}
+        with pytest.raises(NoResultFound):
+            get_submission(submission_id=submission.id, grant_recipient_id=grant_recipient2.id)
 
+    def test_get_submissions_by_grant_recipient_collection_returns_single_submission(self, db_session, factories):
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        submission = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
 
-def test_get_submissions_by_grant_recipient_collection_returns_empty_list_for_other_recipient(db_session, factories):
-    grant_recipient = factories.grant_recipient.create()
-    grant_recipient2 = factories.grant_recipient.create(grant=grant_recipient.grant)
-    collection = factories.collection.create(grant=grant_recipient.grant)
-    factories.submission.create(collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE)
+        from_db = get_submissions_by_grant_recipient_collection(
+            grant_recipient=grant_recipient, collection_id=collection.id
+        )
 
-    from_db = get_submissions_by_grant_recipient_collection(
-        grant_recipient=grant_recipient2, collection_id=collection.id
-    )
+        assert len(from_db) == 1
+        assert from_db[0].id == submission.id
 
-    assert from_db == []
+    def test_get_submissions_by_grant_recipient_collection_returns_multiple_submissions(self, db_session, factories):
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        submission_1 = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        submission_2 = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
 
+        from_db = get_submissions_by_grant_recipient_collection(
+            grant_recipient=grant_recipient, collection_id=collection.id
+        )
 
-def test_get_submission_with_full_schema(db_session, factories, track_sql_queries):
-    submission = factories.submission.create()
-    submission_id = submission.id
-    forms = factories.form.create_batch(3, collection=submission.collection)
-    for form in forms:
-        factories.question.create_batch(3, form=form)
+        assert len(from_db) == 2
+        assert {s.id for s in from_db} == {submission_1.id, submission_2.id}
 
-    with track_sql_queries() as queries:
-        from_db = get_submission(submission_id=submission_id, with_full_schema=True)
-    assert from_db is not None
+    def test_get_submissions_by_grant_recipient_collection_returns_empty_list_for_other_recipient(
+        self, db_session, factories
+    ):
+        grant_recipient = factories.grant_recipient.create()
+        grant_recipient2 = factories.grant_recipient.create(grant=grant_recipient.grant)
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
 
-    # Expected queries:
-    # * Load the submission with collection and forms(sections)
-    # * Load the submission events
-    # * For all forms, load the top-level components and their expressions
-    # * For all forms, load every component, their expressions, their nested components+expressions
-    # * For all forms, load every component's set of component references
-    assert len(queries) == 5
+        from_db = get_submissions_by_grant_recipient_collection(
+            grant_recipient=grant_recipient2, collection_id=collection.id
+        )
 
-    # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
-    count = 0
-    with track_sql_queries() as queries:
-        for f in from_db.collection.forms:
-            for q in f._all_components:
-                for _e in q.expressions:
-                    count += 1
-                for _ocr in q.owned_component_references:
-                    count += 1
+        assert from_db == []
 
-    assert queries == []
+    def test_get_submission_with_full_schema(self, db_session, factories, track_sql_queries):
+        submission = factories.submission.create()
+        submission_id = submission.id
+        forms = factories.form.create_batch(3, collection=submission.collection)
+        for form in forms:
+            factories.question.create_batch(3, form=form)
+
+        with track_sql_queries() as queries:
+            from_db = get_submission(submission_id=submission_id, with_full_schema=True)
+        assert from_db is not None
+
+        # Expected queries:
+        # * Load the submission with collection and forms(sections)
+        # * Load the submission events
+        # * For all forms, load the top-level components and their expressions
+        # * For all forms, load every component, their expressions, their nested components+expressions
+        # * For all forms, load every component's set of component references
+        assert len(queries) == 5
+
+        # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
+        count = 0
+        with track_sql_queries() as queries:
+            for f in from_db.collection.forms:
+                for q in f._all_components:
+                    for _e in q.expressions:
+                        count += 1
+                    for _ocr in q.owned_component_references:
+                        count += 1
+
+        assert queries == []
 
 
 class TestGetFormById:
@@ -1179,6 +1200,34 @@ class TestUpdateGroup:
         )
         assert group.presentation_options.show_questions_on_the_same_page is False
 
+    def test_update_group_cannot_disable_same_page_when_group_has_validations(self, db_session, factories):
+        from app.common.data.interfaces.collections import GroupHasValidationsCannotBeOnePerPageException
+
+        form = factories.form.create()
+        group = create_group(
+            form=form,
+            text="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        question = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        user = factories.user.create()
+        add_component_validation(
+            group,
+            user,
+            CustomExpression(
+                custom_expression=f"(({question.safe_qid})) > 0",
+                custom_message="Must be positive",
+            ),
+        )
+
+        with pytest.raises(GroupHasValidationsCannotBeOnePerPageException):
+            update_group(
+                group,
+                expression_context=ExpressionContext(),
+                presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+            )
+        assert group.presentation_options.show_questions_on_the_same_page is True
+
     def test_update_group_with_guidance_fields(self, db_session, factories):
         form = factories.form.create()
         group = create_group(
@@ -1291,8 +1340,8 @@ class TestUpdateGroup:
         q2 = factories.question.create(
             form=group.form,
         )
-        add_question_validation(
-            question=q2,
+        add_component_validation(
+            component=q2,
             user=factories.user.create(),
             evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
         )
@@ -1309,8 +1358,8 @@ class TestUpdateGroup:
         group = factories.group.create(add_another=False)
         q1 = factories.question.create(form=group.form, parent=group)
         q2 = factories.question.create(form=group.form, parent=group)
-        add_question_validation(
-            question=q2,
+        add_component_validation(
+            component=q2,
             user=factories.user.create(),
             evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
         )
@@ -2082,7 +2131,7 @@ class TestUpdateQuestion:
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
         )
-        add_question_validation(question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True))
+        add_component_validation(question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True))
 
         spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
         spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
@@ -3079,14 +3128,14 @@ class TestExpressions:
         add_component_condition(q3, user, GreaterThan(minimum_value=1000, question_id=q2.id))
         assert len(q3.expressions) == 1
 
-    def test_add_question_validation(self, db_session, factories, mock_sentry_metrics):
+    def test_add_component_validation(self, db_session, factories, mock_sentry_metrics):
         question = factories.question.create()
         user = factories.user.create()
 
         # configured by the user interface
         managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
-        add_question_validation(question, user, managed_expression)
+        add_component_validation(question, user, managed_expression)
 
         # check the serialisation and deserialisation is as expected
         from_db = get_question_by_id(question.id)
@@ -3101,7 +3150,7 @@ class TestExpressions:
         assert mock_sentry_metrics.call_count == 1
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.VALIDATION_CREATED_MANAGED, 1)
 
-    def test_add_question_validation_custom(self, db_session, factories, mock_sentry_metrics):
+    def test_add_component_validation_custom(self, db_session, factories, mock_sentry_metrics):
         form = factories.form.create()
         q1, q2 = factories.question.create_batch(2, form=form)
         user = factories.user.create()
@@ -3112,7 +3161,7 @@ class TestExpressions:
             custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
         )
 
-        add_question_validation(q2, user, custom_expression)
+        add_component_validation(q2, user, custom_expression)
 
         # check the serialisation and deserialisation is as expected
         from_db = get_question_by_id(q2.id)
@@ -3126,6 +3175,96 @@ class TestExpressions:
         assert from_db.expressions[0].is_custom is True
         assert mock_sentry_metrics.call_count == 1
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.VALIDATION_CREATED_CUSTOM, 1)
+
+    def test_add_component_validation_to_same_page_group_with_internal_reference(self, db_session, factories):
+        from app.common.data.types import QuestionPresentationOptions
+
+        db_form = factories.form.create()
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        capital = factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        revenue = factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        user = factories.user.create()
+
+        custom_expression = CustomExpression(
+            custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) <= 1000",
+            custom_message="Capital plus revenue must not exceed 1000",
+        )
+
+        add_component_validation(group, user, custom_expression)
+
+        from_db = get_group_by_id(group.id)
+        assert len(from_db.validations) == 1
+        validation = from_db.validations[0]
+        assert validation.type_ == ExpressionType.VALIDATION
+        referenced_ids = {ref.depends_on_component_id for ref in validation.component_references}
+        assert referenced_ids == {capital.id, revenue.id}
+
+    def test_add_component_condition_on_group_cannot_reference_questions_inside_group(self, db_session, factories):
+        from app.common.data.types import QuestionPresentationOptions
+
+        db_form = factories.form.create()
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        inside_question = factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        user = factories.user.create()
+
+        with pytest.raises(DependencyOrderException):
+            add_component_condition(
+                group,
+                user,
+                GreaterThan(question_id=inside_question.id, minimum_value=0),
+            )
+
+    def test_add_component_validation_on_group_rejects_reference_to_question_after_group(self, db_session, factories):
+        from app.common.data.types import QuestionPresentationOptions
+
+        db_form = factories.form.create()
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        question_after_group = factories.question.create(
+            form=db_form,
+            name="Later question",
+            data_type=QuestionDataType.NUMBER,
+        )
+        user = factories.user.create()
+
+        custom_expression = CustomExpression(
+            custom_expression=f"(({question_after_group.safe_qid})) > 0",
+            custom_message="Must be positive",
+        )
+
+        with pytest.raises(DependencyOrderException):
+            add_component_validation(group, user, custom_expression)
+
+        from_db = get_group_by_id(group.id)
+        assert from_db.validations == []
 
     def test_update_expression(self, db_session, factories):
         q0 = factories.question.create()
@@ -3152,7 +3291,7 @@ class TestExpressions:
             custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
         )
 
-        add_question_validation(q2, user, custom_expression)
+        add_component_validation(q2, user, custom_expression)
 
         updated_expression = CustomExpression(
             custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid})) + 6",
@@ -3226,11 +3365,11 @@ class TestExpressions:
         user = factories.user.create()
         gt_expression = GreaterThan(minimum_value=3000, question_id=question.id)
 
-        add_question_validation(question, user, gt_expression)
+        add_component_validation(question, user, gt_expression)
 
         lt_expression = LessThan(maximum_value=5000, question_id=question.id)
 
-        add_question_validation(question, user, lt_expression)
+        add_component_validation(question, user, lt_expression)
         lt_db_expression = next(
             db_expr for db_expr in question.expressions if db_expr.managed_name == lt_expression._key
         )
@@ -3276,7 +3415,7 @@ class TestExpressions:
         question = factories.question.create(data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
         managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
-        add_question_validation(question, user, managed_expression)
+        add_component_validation(question, user, managed_expression)
 
         expression_id = question.expressions[0].id
         db_session.expunge_all()  # Clear SQLAlchemy cache to force queries to be emitted again
@@ -3298,7 +3437,7 @@ class TestExpressions:
         question = factories.question.create(data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
         managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
-        add_question_validation(question, user, managed_expression)
+        add_component_validation(question, user, managed_expression)
 
         with pytest.raises(NoResultFound):
             get_expression_by_id(uuid.uuid4())
@@ -3930,7 +4069,7 @@ class TestValidateAndSyncExpressionReferences:
         with pytest.raises(AddAnotherDependencyException):
             _validate_and_sync_expression_references(expression)
 
-    def test_creates_component_references_for_custom_expression(self, db_session, factories):
+    def test_creates_component_references_for_custom_validation_expression(self, db_session, factories):
         user = factories.user.create()
         form = factories.form.create()
         q0, q1, q2, q3 = factories.question.create_batch(4, form=form, data_type=QuestionDataType.NUMBER)
@@ -3957,6 +4096,32 @@ class TestValidateAndSyncExpressionReferences:
         assert all(ref.component == q3 for ref in expression.component_references)
         assert all(ref.expression == expression for ref in expression.component_references)
         assert all(ref.depends_on_component in {q0, q1, q2, q3} for ref in expression.component_references)
+
+    def test_creates_component_references_for_calculated_condition(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        q0, q1, q2, q3 = factories.question.create_batch(4, form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            CustomExpression(
+                custom_expression=f"(({q0.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+            ),
+            ExpressionType.CONDITION,
+            user,
+        )
+        q3.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 0
+
+        _validate_and_sync_expression_references(expression)
+
+        assert len(expression.component_references) == 3
+
+        assert all(ref.component == q3 for ref in expression.component_references)
+        assert all(ref.expression == expression for ref in expression.component_references)
+        assert all(ref.depends_on_component in {q0, q1, q2} for ref in expression.component_references)
 
 
 class TestValidateAndSyncComponentReferences:
@@ -4511,6 +4676,27 @@ class TestValidateReference:
             == q2.safe_qid
         )
 
+    def test_validate_reference_to_self_in_custom_validation(self, factories):
+        form = factories.form.create()
+        group = factories.group.create(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        q1 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+
+        expression_context = ExpressionContext.build_expression_context(form.collection, "interpolation", None, None)
+
+        assert (
+            _validate_reference(
+                wrapped_reference=f"(({q1.safe_qid}))",
+                attached_to_component=q1,
+                expression_context=expression_context,
+                expression_type=ExpressionType.VALIDATION,
+                field_name_for_error_message="custom_expression",
+                question_to_test=None,
+            )
+            == q1.safe_qid
+        )
+
     def test_custom_expression_bad_order_validation(self, factories):
         form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
@@ -4702,7 +4888,7 @@ class TestValidateReference:
             )
 
 
-class TestAddQuestionValidationCustomExpression:
+class TestAddComponentValidationCustomExpression:
     def test_create_custom_validation_expression_valid(self, factories):
         form = factories.form.create()
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
@@ -4712,7 +4898,7 @@ class TestAddQuestionValidationCustomExpression:
             custom_message="Q3 must be less than Q1+Q2",
         )
 
-        collections.add_question_validation(question=q3, user=user, evaluatable_expression=custom_expr)
+        collections.add_component_validation(component=q3, user=user, evaluatable_expression=custom_expr)
 
         q3_from_db = get_question_by_id(q3.id)
         assert len(q3_from_db.expressions) == 1

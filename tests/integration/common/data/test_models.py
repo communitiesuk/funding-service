@@ -1,6 +1,6 @@
 import pytest
 from psycopg.errors import ForeignKeyViolation
-from sqlalchemy.exc import IntegrityError, InvalidRequestError
+from sqlalchemy.exc import IntegrityError
 
 from app import QuestionDataType
 from app.common.data.models import ComponentReference, Expression, Group
@@ -87,6 +87,26 @@ class TestGrantModel:
 
         assert set(grant.grant_recipients) == {grant_recipient_1, grant_recipient_2}
         assert other_grant_recipient not in grant.grant_recipients
+
+
+class TestComponentModel:
+    def test_is_descendant_of(self, factories):
+        parent_group = factories.group.create()
+        child_group = factories.group.create(parent=parent_group)
+        child_question = factories.question.create(parent=child_group)
+        top_level_question = factories.question.create(form=parent_group.form)
+        other_form_question = factories.question.create()
+
+        assert child_group.is_descendant_of(parent_group)
+        assert child_question.is_descendant_of(parent_group)
+        assert child_question.is_descendant_of(child_group)
+
+        assert not parent_group.is_descendant_of(child_group)
+        assert not child_question.is_descendant_of(top_level_question)
+        assert not child_question.is_descendant_of(other_form_question)
+        assert not other_form_question.is_descendant_of(parent_group)
+        assert not other_form_question.is_descendant_of(child_group)
+        assert not other_form_question.is_descendant_of(child_question)
 
 
 class TestQuestionModel:
@@ -720,20 +740,25 @@ class TestComponentReferenceModel:
         assert db_session.query(ComponentReference).count() == 0
 
 
-class TestDataSourceFilteredOrganisationItemsRaisesOutsideInterface:
-    def test_filtered_organisation_item_raises_without_explicit_load(self, factories):
-        """
-        The filtered_organisation_item sets lazy="raise" as accessing it without an explicit selectinload from an
-        interface should raise, preventing accidental unscoped access outside the interface.
-
-        It is used for creating the data_source_context in the ExpressionContext, filtering down DataSourceOrgItems just
-        to the grant recipient org completing that submission
-        """
+class TestDataSourceModel:
+    def test_filtering_organisation_items(self, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
+        org1, org2, org3, org4 = factories.organisation.create_batch(4)
         data_source = factories.data_source.create(
             name="Test data set", grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT, items=None
         )
+        org1_item = factories.data_source_organisation_item.create(
+            data_source=data_source, external_id=org1.external_id
+        )
+        org2_item = factories.data_source_organisation_item.create(
+            data_source=data_source, external_id=org2.external_id
+        )
+        org3_item = factories.data_source_organisation_item.create(
+            data_source=data_source, external_id=org3.external_id
+        )
 
-        with pytest.raises(InvalidRequestError):
-            _ = data_source.filtered_organisation_item
+        assert data_source.get_filtered_organisation_item(org1.external_id) == org1_item
+        assert data_source.get_filtered_organisation_item(org2.external_id) == org2_item
+        assert data_source.get_filtered_organisation_item(org3.external_id) == org3_item
+        assert data_source.get_filtered_organisation_item(org4.external_id) is None

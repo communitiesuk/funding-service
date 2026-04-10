@@ -854,7 +854,7 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     type = DataSourceType.CUSTOM
-    name = None
+    name = factory.LazyAttribute(lambda o: None if o.type == DataSourceType.CUSTOM else "Test data set")
     schema = factory.LazyAttribute(lambda o: None if o.type == DataSourceType.CUSTOM else DataSourceSchema({}))
     file_metadata = factory.LazyAttribute(
         lambda o: (

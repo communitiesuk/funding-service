@@ -4,9 +4,11 @@ import pytest
 
 from app.common.collections.types import IntegerAnswer, YesNoAnswer
 from app.common.collections.validation import SubmissionValidator
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, QuestionPresentationOptions
 from app.common.exceptions import SubmissionValidationFailed
+from app.common.expressions.custom import CustomExpression
 from app.common.helpers.collections import SubmissionHelper
+from tests.models import FactoryAnswer
 
 
 class TestSubmissionValidator:
@@ -23,9 +25,10 @@ class TestSubmissionValidator:
             context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
         )
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, IntegerAnswer(value=50))
-        submission.data_manager.set(q2, IntegerAnswer(value=100))
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[FactoryAnswer(q1, IntegerAnswer(value=50)), FactoryAnswer(q2, IntegerAnswer(value=100))],
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -44,9 +47,10 @@ class TestSubmissionValidator:
             context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
         )
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, IntegerAnswer(value=100))
-        submission.data_manager.set(q2, IntegerAnswer(value=50))
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[FactoryAnswer(q1, IntegerAnswer(value=100)), FactoryAnswer(q2, IntegerAnswer(value=50))],
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -80,10 +84,14 @@ class TestSubmissionValidator:
             context={"question_id": str(q3.id), "maximum_value": None, "maximum_expression": f"(({q1.safe_qid}))"},
         )
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, IntegerAnswer(value=50))
-        submission.data_manager.set(q2, IntegerAnswer(value=30))
-        submission.data_manager.set(q3, IntegerAnswer(value=70))
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=50)),
+                FactoryAnswer(q2, IntegerAnswer(value=30)),
+                FactoryAnswer(q3, IntegerAnswer(value=70)),
+            ],
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -116,9 +124,10 @@ class TestSubmissionValidator:
             context={"question_id": str(q2.id), "minimum_value": 100, "minimum_expression": None},
         )
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, YesNoAnswer(False))
-        submission.data_manager.set(q2, IntegerAnswer(value=50))
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[FactoryAnswer(q1, YesNoAnswer(False)), FactoryAnswer(q2, IntegerAnswer(value=50))],
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -137,9 +146,10 @@ class TestSubmissionValidator:
             context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
         )
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, IntegerAnswer(value=50))
-        submission.data_manager.set(q2, IntegerAnswer(value=100))
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[FactoryAnswer(q1, IntegerAnswer(value=50)), FactoryAnswer(q2, IntegerAnswer(value=100))],
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -162,9 +172,10 @@ class TestSubmissionValidator:
         q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0)
         q2 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1)
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, IntegerAnswer(value=50))
-        submission.data_manager.set(q2, IntegerAnswer(value=100))
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[FactoryAnswer(q1, IntegerAnswer(value=50)), FactoryAnswer(q2, IntegerAnswer(value=100))],
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -183,8 +194,9 @@ class TestSubmissionValidator:
             context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
         )
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, IntegerAnswer(value=50))
+        submission = factories.submission.build(
+            collection=form.collection, answers=[FactoryAnswer(q1, IntegerAnswer(value=50))]
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -206,10 +218,14 @@ class TestSubmissionValidator:
             context={"question_id": str(q1.id), "minimum_value": 0, "minimum_expression": None},
         )
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, IntegerAnswer(value=10), add_another_index=0)
-        submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=1)
-        submission.data_manager.set(q1, IntegerAnswer(value=30), add_another_index=2)
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=10), add_another_index=0),
+                FactoryAnswer(q1, IntegerAnswer(value=20), add_another_index=1),
+                FactoryAnswer(q1, IntegerAnswer(value=30), add_another_index=2),
+            ],
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -230,10 +246,14 @@ class TestSubmissionValidator:
             context={"question_id": str(q1.id), "minimum_value": 0, "minimum_expression": None},
         )
 
-        submission = factories.submission.build(collection=form.collection)
-        submission.data_manager.set(q1, IntegerAnswer(value=10), add_another_index=0)
-        submission.data_manager.set(q1, IntegerAnswer(value=-5), add_another_index=1)
-        submission.data_manager.set(q1, IntegerAnswer(value=30), add_another_index=2)
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=10), add_another_index=0),
+                FactoryAnswer(q1, IntegerAnswer(value=-5), add_another_index=1),
+                FactoryAnswer(q1, IntegerAnswer(value=30), add_another_index=2),
+            ],
+        )
 
         helper = SubmissionHelper(submission)
         validator = SubmissionValidator(helper)
@@ -245,3 +265,102 @@ class TestSubmissionValidator:
         assert len(errors) == 1
         assert errors[0].question_id == q1.id
         assert errors[0].add_another_index == 1
+
+    def test_add_another_same_page_group_validation_caught(self, factories):
+        form = factories.form.build()
+        group = factories.group.build(
+            form=form,
+            id=uuid.uuid4(),
+            add_another=True,
+            order=0,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.build(
+            form=form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0
+        )
+        q2 = factories.question.build(
+            form=form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1
+        )
+
+        custom = CustomExpression(
+            custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) == 100",
+            custom_message="Total must be 100",
+        )
+        factories.expression.build(
+            question=group,
+            type_=ExpressionType.VALIDATION,
+            statement=custom.statement,
+            context=custom.model_dump(mode="json"),
+        )
+
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=60), add_another_index=0),
+                FactoryAnswer(q2, IntegerAnswer(value=40), add_another_index=0),
+                FactoryAnswer(q1, IntegerAnswer(value=30), add_another_index=1),
+                FactoryAnswer(q2, IntegerAnswer(value=30), add_another_index=1),
+            ],
+        )
+
+        helper = SubmissionHelper(submission)
+        validator = SubmissionValidator(helper)
+
+        with pytest.raises(SubmissionValidationFailed) as e:
+            validator.validate_all_reachable_questions()
+
+        errors = e.value.errors
+        assert len(errors) == 1
+        assert errors[0].question_id == group.id
+        assert errors[0].form_id == form.id
+        assert errors[0].error_message == "Total must be 100"
+
+    def test_add_another_nested_same_page_group_validation_caught(self, factories):
+        form = factories.form.build()
+        outer_group = factories.group.build(form=form, id=uuid.uuid4(), add_another=True, order=0)
+        inner_group = factories.group.build(
+            form=form,
+            parent=outer_group,
+            id=uuid.uuid4(),
+            order=0,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.build(
+            form=form, parent=inner_group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0
+        )
+        q2 = factories.question.build(
+            form=form, parent=inner_group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1
+        )
+
+        custom = CustomExpression(
+            custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) == 100",
+            custom_message="Total must be 100",
+        )
+        factories.expression.build(
+            question=inner_group,
+            type_=ExpressionType.VALIDATION,
+            statement=custom.statement,
+            context=custom.model_dump(mode="json"),
+        )
+
+        submission = factories.submission.build(
+            collection=form.collection,
+            answers=[
+                FactoryAnswer(q1, IntegerAnswer(value=60), add_another_index=0),
+                FactoryAnswer(q2, IntegerAnswer(value=40), add_another_index=0),
+                FactoryAnswer(q1, IntegerAnswer(value=30), add_another_index=1),
+                FactoryAnswer(q2, IntegerAnswer(value=30), add_another_index=1),
+            ],
+        )
+
+        helper = SubmissionHelper(submission)
+        validator = SubmissionValidator(helper)
+
+        with pytest.raises(SubmissionValidationFailed) as e:
+            validator.validate_all_reachable_questions()
+
+        errors = e.value.errors
+        assert len(errors) == 1
+        assert errors[0].question_id == inner_group.id
+        assert errors[0].form_id == form.id
+        assert errors[0].error_message == "Total must be 100"

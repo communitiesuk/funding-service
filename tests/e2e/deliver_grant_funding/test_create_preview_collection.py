@@ -1,5 +1,4 @@
 import datetime
-import re
 import uuid
 from decimal import Decimal
 from typing import Union, cast
@@ -50,6 +49,11 @@ from tests.e2e.dataclasses import (
     QuestionResponse,
     TextFieldWithData,
 )
+from tests.e2e.deliver_grant_funding.helpers import (
+    create_grant,
+    extract_uuid_from_url,
+    navigate_to_report_sections_page,
+)
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage, GrantDetailsPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
     AddQuestionDetailsPage,
@@ -63,7 +67,6 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     OverrideGrantRecipientCertifiersPage,
     PlatformAdminGrantSettingsPage,
     PlatformAdminReportSettingsPage,
-    ReportSectionsPage,
     RunnerCheckYourAnswersPage,
     RunnerQuestionPage,
     RunnerTasklistPage,
@@ -79,19 +82,6 @@ from tests.e2e.helpers import (
     delete_grant_through_admin,
     wait_for_context_aware_textarea_to_be_ready,
 )
-
-
-def extract_uuid_from_url(url: str, pattern: str) -> str:
-    """Extract a UUID from a URL using a regex pattern.
-
-    The pattern should contain a named group 'uuid' for the UUID to extract.
-    Example: r"/grant/(?P<uuid>[a-f0-9-]+)/reports"
-    """
-    match = re.search(pattern, url)
-    if not match:
-        raise ValueError(f"Could not extract UUID from URL {url} using pattern {pattern}")
-    return match.group("uuid")
-
 
 TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
 
@@ -410,6 +400,38 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             },
         ),
     },
+    "calculated-condition-text": {
+        "type": QuestionDataType.TEXT_MULTI_LINE,
+        "text": "Enter the reason why suffix-integer was greater than the between and prefix integers added together",
+        "display_text": (
+            "Enter the reason why suffix-integer was greater than the between and prefix integers added together"
+        ),
+        "answers": [
+            QuestionResponse("I have my reasons"),
+        ],
+        "options": QuestionPresentationOptions(),
+        "data_options": QuestionDataOptions(),
+        "condition": E2EManagedExpression(
+            evaluatable_expression=CustomExpression(
+                custom_expression="((ref1)) > ((ref2)) + ((ref3))",
+                expression_name="Show if cost greater than weight plus number",
+            ),
+            expression_references={
+                "ref1": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Enter the total cost as a number",
+                ),
+                "ref2": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Enter the total weight as a number",
+                ),
+                "ref3": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Enter a number between 20 and 100",
+                ),
+            },
+        ),
+    },
     "yes-no": {
         "type": QuestionDataType.YES_NO,
         "text": "Yes or no",
@@ -593,26 +615,6 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
 }
 
 
-def create_grant(new_grant_name: str, grant_name_uuid: str, all_grants_page: AllGrantsPage) -> GrantDashboardPage:
-    grant_intro_page = all_grants_page.click_set_up_a_grant()
-    grant_ggis_page = grant_intro_page.click_continue()
-    grant_ggis_page.select_yes()
-    grant_ggis_page.fill_ggis_number()
-    grant_name_page = grant_ggis_page.click_save_and_continue()
-    grant_name_page.fill_name(new_grant_name)
-    grant_code_page = grant_name_page.click_save_and_continue()
-    grant_code_page.fill_code(f"E2E-{grant_name_uuid[:8].upper()}")
-    grant_description_page = grant_code_page.click_save_and_continue()
-    new_grant_description = f"Description for {new_grant_name}"
-    grant_description_page.fill_description(new_grant_description)
-    grant_contact_page = grant_description_page.click_save_and_continue()
-    grant_contact_page.fill_contact_name()
-    grant_contact_page.fill_contact_email()
-    grant_check_your_answers_page = grant_contact_page.click_save_and_continue()
-    grant_dashboard_page = grant_check_your_answers_page.click_add_grant()
-    return grant_dashboard_page
-
-
 def create_question_or_group(
     question_definition: TQuestionToTest,
     manage_section_page: ManageSectionPage | EditQuestionGroupPage,
@@ -625,7 +627,7 @@ def create_question_or_group(
         group_display_options_page.click_question_group_display_type(question_definition["display_options"])
 
         add_another_options_page = group_display_options_page.click_submit()
-        add_another_options_page.click_add_another(False)
+        add_another_options_page.click_add_another(question_definition.get("add_another", False))
         edit_question_group_page = add_another_options_page.click_submit(parent_group_name)
         if (
             question_definition.get("guidance") is not None
@@ -796,13 +798,25 @@ def add_condition(
     condition: E2EManagedExpression,
     presentation_options: QuestionPresentationOptions | None = None,
 ) -> None:
-    add_condition_page = edit_question_page.click_add_condition()
-    select_data_source_page = add_condition_page.click_reference_data_button()
-    _reference_data_flow(select_data_source_page, condition.conditional_on)
-    add_condition_page.configure_managed_condition(
-        condition.evaluatable_expression, condition.context_source, presentation_options
-    )
-    add_condition_page.click_add_condition(edit_question_page)
+    select_calculation_page = edit_question_page.click_add_condition()
+    if isinstance(condition.evaluatable_expression, CustomExpression):
+        select_calculation_page.click_yes_need_calculation()
+        calculated_condition_page = select_calculation_page.click_continue()
+        calculated_condition_page.fill_calculation_name(condition.evaluatable_expression.expression_name)
+        calculated_condition_page.configure_custom_expression(
+            expression=condition.evaluatable_expression.custom_expression,
+            expression_references=condition.expression_references,
+        )
+        calculated_condition_page.click_create_calculated_condition(edit_question_page)
+    else:
+        select_calculation_page.click_no_calculation()
+        add_condition_page = select_calculation_page.click_continue()
+        select_data_source_page = add_condition_page.click_reference_data_button()
+        _reference_data_flow(select_data_source_page, condition.conditional_on)
+        add_condition_page.configure_managed_condition(
+            condition.evaluatable_expression, condition.context_source, presentation_options
+        )
+        add_condition_page.click_add_condition(edit_question_page)
 
 
 def complete_question_group(
@@ -888,15 +902,6 @@ def task_check_your_answers(
 
     check_your_answers_page.click_mark_as_complete_yes()
     tasklist_page = check_your_answers_page.click_save_and_continue(report_name=report_name)
-
-
-def navigate_to_report_sections_page(page: Page, domain: str, grant_name: str, report_name: str) -> ReportSectionsPage:
-    all_grants_page = AllGrantsPage(page, domain)
-    all_grants_page.navigate()
-    grant_dashboard_page = all_grants_page.click_grant(grant_name)
-    grant_reports_page = grant_dashboard_page.click_reports(grant_name)
-    report_sections_page = grant_reports_page.click_manage_sections(grant_name=grant_name, report_name=report_name)
-    return report_sections_page
 
 
 def assert_question_visibility(question_page: RunnerQuestionPage, question_to_test: TQuestionToTest) -> None:
@@ -1015,7 +1020,7 @@ def test_setup_grant_and_collection(
     # Sense check that the test includes all question types
     assert (
         len(QuestionDataType) == 10
-        and len(section_2_questions_to_test) == 19
+        and len(section_2_questions_to_test) == 20
         and len(ManagedExpressionsEnum) == 11
         and len(NumberTypeEnum) == 2
     ), (

@@ -1,16 +1,16 @@
 import csv
 import json
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, NamedTuple, Sequence, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
-from flask import current_app
+from flask import current_app, url_for
 from pydantic import BaseModel as PydanticBaseModel
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -42,8 +42,10 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
 from app.common.data.types import (
+    CollectionStatusEnum,
     ComponentVisibilityState,
     ConditionsOperator,
+    ExpressionType,
     GrantRecipientModeEnum,
     NumberTypeEnum,
     QuestionDataType,
@@ -73,6 +75,7 @@ if TYPE_CHECKING:
         Expression,
         Form,
         Grant,
+        GrantRecipient,
         Group,
         Question,
         Submission,
@@ -128,6 +131,8 @@ class SubmissionHelper:
         """
         self.submission = submission
         self.collection = self.submission.collection
+        self.data_sources = self.submission.data_sources
+        self.collection_helper = CollectionHelper(self.collection)
         self.events = SubmissionEventHelper(self.submission)
 
         self.cached_get_ordered_visible_questions = lru_cache(maxsize=None)(self._get_ordered_visible_questions)
@@ -138,7 +143,8 @@ class SubmissionHelper:
 
     @classmethod
     def load(cls, submission_id: uuid.UUID, *, grant_recipient_id: uuid.UUID | None = None) -> SubmissionHelper:
-        return cls(get_submission(submission_id, with_full_schema=True, grant_recipient_id=grant_recipient_id))
+        submission = get_submission(submission_id, with_full_schema=True, grant_recipient_id=grant_recipient_id)
+        return cls(submission)
 
     @staticmethod
     def get_interpolator(
@@ -150,6 +156,7 @@ class SubmissionHelper:
             context=ExpressionContext.build_expression_context(
                 collection=collection,
                 mode="interpolation",
+                submission_helper=submission_helper,
                 data_manager=submission_helper.submission.data_manager if submission_helper else None,
             ),
         )
@@ -158,6 +165,7 @@ class SubmissionHelper:
     def cached_evaluation_context(self) -> ExpressionContext:
         return ExpressionContext.build_expression_context(
             collection=self.submission.collection,
+            submission_helper=self,
             data_manager=self.submission.data_manager,
             mode="evaluation",
         )
@@ -166,6 +174,7 @@ class SubmissionHelper:
     def cached_interpolation_context(self) -> ExpressionContext:
         return ExpressionContext.build_expression_context(
             collection=self.submission.collection,
+            submission_helper=self,
             data_manager=self.submission.data_manager,
             mode="interpolation",
         )
@@ -251,6 +260,79 @@ class SubmissionHelper:
         #       a batch job decision that is then added as a submission event rather than calculated by the server
         return self.collection.is_overdue and not self.is_submitted
 
+    @staticmethod
+    def get_access_submission_action(
+        collection: Collection, grant_recipient: GrantRecipient, submission: Submission | None
+    ) -> dict[str, str | None]:
+        if submission and collection and submission.collection != collection:
+            raise ValueError("Submission does not belong to the provided collection")
+
+        label = "Start report"
+        href = url_for(
+            "access_grant_funding.route_to_submission",
+            organisation_id=grant_recipient.organisation_id,
+            grant_id=grant_recipient.grant_id,
+            collection_id=collection.id,
+        )
+
+        collection_helper = CollectionHelper(collection)
+
+        if not submission and collection_helper.is_closed:
+            label = "Did not start"
+            href = None
+
+        elif submission:
+            helper = SubmissionHelper(submission)
+            if helper.status == SubmissionStatusEnum.NOT_SUBMITTED:
+                label = "View report"
+
+            elif helper.status == SubmissionStatusEnum.NOT_STARTED:
+                label = "Start report"
+            elif helper.status == SubmissionStatusEnum.IN_PROGRESS:
+                label = "Continue report"
+            else:
+                label = "View report"
+
+            if collection.allow_multiple_submissions:
+                # route to a generic in-progress submission can only work for non multi-submission collections
+                # this is partly duplicated logic with route to submission that was previously handled in separate
+                # templates
+                if helper.in_answers_locked_state:
+                    href = url_for(
+                        "access_grant_funding.view_locked_report",
+                        organisation_id=grant_recipient.organisation_id,
+                        grant_id=grant_recipient.grant_id,
+                        collection_id=collection.id,
+                        submission_id=submission.id,
+                    )
+                else:
+                    href = url_for(
+                        "access_grant_funding.tasklist",
+                        organisation_id=grant_recipient.organisation_id,
+                        grant_id=grant_recipient.grant_id,
+                        collection_id=collection.id,
+                        submission_id=submission.id,
+                    )
+
+        return {
+            "href": href,
+            "label": label,
+        }
+
+    @staticmethod
+    def get_status(submission: Submission | None, collection: Collection) -> SubmissionStatusEnum:
+        if submission and collection and submission.collection != collection:
+            raise ValueError("Submission does not belong to the provided collection")
+
+        collection_helper = CollectionHelper(collection)
+        if not submission and collection_helper.is_closed:
+            return SubmissionStatusEnum.NOT_SUBMITTED
+
+        if not submission:
+            return SubmissionStatusEnum.NOT_STARTED
+
+        return SubmissionHelper(submission).status
+
     @property
     def status(self) -> SubmissionStatusEnum:
         submission_state = self.events.submission_state
@@ -258,6 +340,8 @@ class SubmissionHelper:
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
         if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_submitted:
             return SubmissionStatusEnum.SUBMITTED
+        elif self.collection_helper.is_closed:
+            return SubmissionStatusEnum.NOT_SUBMITTED
         elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
         elif (
@@ -281,8 +365,17 @@ class SubmissionHelper:
         return self.events.submission_state.submitted_at_utc
 
     @property
-    def is_locked_state(self) -> bool:
-        return self.is_submitted or self.is_awaiting_sign_off
+    def in_answers_locked_state(self) -> bool:
+        return self.is_submitted or self.is_awaiting_sign_off or self.in_immutable_state
+
+    @property
+    def in_immutable_state(self) -> bool:
+        """Returns True if no actions should be able to take place on the submission
+
+        This is different from `in_answers_locked_state` as it may not have been submitted; it could be that the
+        reporting round has closed.
+        """
+        return self.is_submitted or self.collection_helper.is_closed
 
     @property
     def is_submitted(self) -> bool:
@@ -527,6 +620,13 @@ class SubmissionHelper:
                 continue
             if not depends_on.is_question:
                 continue
+            if (
+                component.is_group
+                and ref.expression
+                and ref.expression.type_ == ExpressionType.VALIDATION
+                and depends_on.is_descendant_of(component)
+            ):
+                continue
             if ref.component.add_another_container and add_another_index is None:
                 continue
 
@@ -734,10 +834,10 @@ class SubmissionHelper:
     def submit_answer_for_question(
         self, question_id: UUID, form: DynamicQuestionForm, user: User, *, add_another_index: int | None = None
     ) -> None:
-        if self.is_locked_state:
+        if self.in_answers_locked_state:
             raise ValueError(
                 f"Could not submit answer for question_id={question_id} "
-                f"because submission id={self.id} is already submitted."
+                f"because the answers are locked for submission id={self.id}."
             )
 
         question = self.get_question(question_id)
@@ -807,10 +907,10 @@ class SubmissionHelper:
         self._emit_submission_events_for_forms_reset_to_in_progress(current_form, current_form_statuses, user)
 
     def remove_entry_for_add_another(self, add_another_container: Group, add_another_index: int) -> None:
-        if self.is_locked_state:
+        if self.in_answers_locked_state:
             raise ValueError(
                 f"Could not remove entry for add another id={add_another_container.id} "
-                f"because submission id={self.id} is already submitted."
+                f"because the answers are locked for submission id={self.id}."
             )
 
         keys_to_delete = [
@@ -835,10 +935,10 @@ class SubmissionHelper:
         self.cached_get_ordered_visible_questions.cache_clear()
 
     def remove_answer_for_question(self, question_id: UUID, *, add_another_index: int | None = None) -> None:
-        if self.is_locked_state:
+        if self.in_answers_locked_state:
             raise ValueError(
                 f"Could not remove answer for question_id={question_id} "
-                f"because submission id={self.id} is already submitted."
+                f"because the answers are locked for submission id={self.id}."
             )
 
         question = self.get_question(question_id)
@@ -929,6 +1029,9 @@ class SubmissionHelper:
                         RoleEnum.DATA_PROVIDER,
                     )
 
+        if self.in_immutable_state:
+            raise ValueError(f"Cannot submit {self.id} as it is in an immutable state.")
+
         SubmissionValidator(self).validate_all_reachable_questions()
 
         interfaces.collections.add_submission_event(
@@ -948,13 +1051,15 @@ class SubmissionHelper:
             )
 
     def mark_as_sent_for_certification(self, user: User) -> None:
-        if self.is_locked_state:
-            return
-
         if not self.collection.requires_certification:
             raise ValueError(
                 f"Could not send submission id={self.id} for sign off because this report does not require "
                 f"certification."
+            )
+
+        if self.in_answers_locked_state:
+            raise ValueError(
+                f"Cannot send submission {self.id} for certification because it's in answers-locked state.",
             )
 
         SubmissionValidator(self).validate_all_reachable_questions()
@@ -993,6 +1098,11 @@ class SubmissionHelper:
                 user,
                 self.id,
                 RoleEnum.CERTIFIER,
+            )
+
+        if self.in_immutable_state:
+            raise ValueError(
+                f"Could not decline certification for submission id={self.id} because it is in an immutable state."
             )
 
         if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
@@ -1045,6 +1155,9 @@ class SubmissionHelper:
                 RoleEnum.CERTIFIER,
             )
 
+        if self.in_immutable_state:
+            raise ValueError(f"Could not certify submission id={self.id} because it is in an immutable state.")
+
         if not self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
             raise ValueError(
                 f"Could not approve certification for submission id={self.id} because it is not awaiting sign off."
@@ -1058,6 +1171,11 @@ class SubmissionHelper:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
         if is_complete == form_complete:
             return
+
+        if self.in_answers_locked_state:
+            raise ValueError(
+                f"Could not toggle form completion for submission id={self.id} because the answers are locked."
+            )
 
         if is_complete:
             all_questions_answered = self.cached_get_all_questions_are_answered_for_form(form).all_answered
@@ -1176,7 +1294,7 @@ class SubmissionHelper:
         return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
 
 
-class CollectionHelper:
+class AllSubmissionsHelper:
     collection: Collection
     submission_mode: SubmissionModeEnum
     submissions: list[Submission]
@@ -1281,7 +1399,9 @@ class CollectionHelper:
         csv_output = StringIO()
         csv_writer = csv.DictWriter(csv_output, fieldnames=all_headers)
         csv_writer.writeheader()
-        for submission in [value for key, value in self.submission_helpers.items()]:
+        for submission in sorted(
+            [helper for _submission_id, helper in self.submission_helpers.items()], key=lambda helper: helper.reference
+        ):
             submission_csv_data = {
                 "Submission reference": submission.reference,
                 "Grant recipient": (
@@ -1421,6 +1541,19 @@ class CollectionHelper:
             submissions_data["submissions"].append(submission_data)
 
         return json.dumps(submissions_data)
+
+
+class CollectionHelper:
+    def __init__(self, collection: Collection):
+        self.collection = collection
+
+    @property
+    def id(self) -> UUID:
+        return self.collection.id
+
+    @property
+    def is_closed(self) -> bool:
+        return self.collection.status == CollectionStatusEnum.CLOSED
 
 
 def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -> AllAnswerTypes:

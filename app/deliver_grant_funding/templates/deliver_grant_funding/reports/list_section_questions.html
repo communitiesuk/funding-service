@@ -8,6 +8,11 @@
 {% set active_item_identifier = "reports" %}
 {% set can_edit = authorisation_helper.can_edit_collection(current_user, db_form.collection_id) %}
 
+{% set form_has_questions = db_form.cached_questions | length > 0 %}
+{% set collection_has_data_sources = db_form.collection.data_sources | length > 0 %}
+{% set preview_blocked_by_data_sources = collection_has_data_sources and form_has_questions %}
+{% set can_preview = form_has_questions and not collection_has_data_sources and db_form.collection.status != enum.collection_status.CLOSED %}
+
 {% block beforeContent %}
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, this_page_breadcrumb_item={"text":db_form.title}) }}
 {% endblock beforeContent %}
@@ -43,12 +48,18 @@
       {% endwith %}
 
       <h1 class="govuk-heading-l">{{ db_form.title }}</h1>
+      {% if preview_blocked_by_data_sources and db_form.collection.status != enum.collection_status.CLOSED %}
+        <p class="govuk-body">You cannot preview sections in this report because it requires uploaded data.</p>
+      {% endif %}
     </div>
+
     <div class="govuk-grid-column-one-third govuk-!-text-align-right">
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Preview section", "classes": "govuk-button--secondary", "disabled": true if db_form.cached_questions | length == 0 else false}) }}
-      </form>
+      {% if can_preview %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.submit(params={"text": "Preview section", "classes": "govuk-button--secondary" }) }}
+        </form>
+      {% endif %}
     </div>
   </div>
   <div class="govuk-grid-row">

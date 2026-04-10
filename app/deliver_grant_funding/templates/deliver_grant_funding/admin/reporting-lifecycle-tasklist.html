@@ -216,6 +216,21 @@
         })
       %}
 
+      {% set closeReportStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
+
+      {% if collection.status == enum.collection_status.CLOSED %}
+        {% set closeReportStatus = {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
+      {% elif collection.status != enum.collection_status.OPEN or not collection.is_overdue %}
+        {% set closeReportStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
+      {% endif %}
+      {%
+        do rows.append({
+          "title": {"text": "Close the report", "classes": "govuk-link--no-visited-state"},
+          "status": closeReportStatus,
+          "href": url_for('reporting_lifecycle.close_report', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.OPEN and collection.is_overdue else "",
+        })
+      %}
+
       {{ govukTaskList({ "idPrefix": "report-tasks", "items": rows, "attributes": {"id": "report-tasks"} }) }}
 
       <h2 class="govuk-heading-m">Testing tasks</h2>

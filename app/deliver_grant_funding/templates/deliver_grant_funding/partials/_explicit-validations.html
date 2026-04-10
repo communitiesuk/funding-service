@@ -1,0 +1,27 @@
+{% for validation in component.validations %}
+  {% set key_html %}
+    {{ to_ordinal(loop.index) | capitalize }}
+    <span class="govuk-visually-hidden">validation</span>
+  {% endset %}
+  {% set edit_validation_link %}
+    {% if component.is_group %}
+      {{ url_for('deliver_grant_funding.edit_group_validation', grant_id=grant.id, group_id=component.id, expression_id=validation.id) }}
+    {% elif validation.is_custom %}
+      {{ url_for('deliver_grant_funding.edit_custom_question_validation', grant_id=grant.id, question_id=component.id, expression_id=validation.id) }}
+    {% else %}
+      {{ url_for('deliver_grant_funding.edit_question_validation', grant_id=grant.id, expression_id=validation.id) }}
+    {% endif %}
+  {% endset %}
+  {% set value_html %}
+    <a class="govuk-link govuk-link--no-visited-state" href="{{ edit_validation_link }}">
+      <span class="govuk-visually-hidden">Change validation for</span>
+      {{ interpolate(validation.evaluatable_expression.message, with_interpolation_highlighting=True) }}
+    </a>
+  {% endset %}
+  {%
+    do rows.append({
+      "key": { "html": key_html, "classes": "govuk-!-width-one-quarter" },
+      "value": { "html": value_html },
+    })
+  %}
+{% endfor %}

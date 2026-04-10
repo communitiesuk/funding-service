@@ -1,7 +1,7 @@
 import csv
 import io
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -33,8 +33,10 @@ from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
     DataSourceType,
+    ExpressionType,
     FileUploadTypes,
     GroupDisplayOptions,
+    ManagedExpressionsEnum,
     MaximumFileSize,
     MultilineTextInputRows,
     NumberInputWidths,
@@ -562,14 +564,14 @@ class AddContextSelectSourceForm(FlaskForm):
         current_component: TOptional[Component],
         parent_component: TOptional[Group] = None,
         ff_show_new_context_sources: bool = False,  # TODO: remove when implementation is fully released
-        include_this_question: bool = False,
+        include_this_component: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
         self.form = form
         self.current_component = current_component
         self.parent_component = parent_component
-        self.include_this_question = include_this_question
+        self.include_this_component = include_this_component
 
         # TODO: remove this when implementation for referencing previous sections+collections is ready to release.
         if ff_show_new_context_sources:
@@ -585,7 +587,7 @@ class AddContextSelectSourceForm(FlaskForm):
                 ),
             ]
 
-        if include_this_question:
+        if include_this_component and current_component and current_component.is_question:
             self.data_source.choices.insert(
                 0,
                 (
@@ -597,7 +599,7 @@ class AddContextSelectSourceForm(FlaskForm):
     def validate_data_source(self, field: Field) -> None:
         choice = None
 
-        if field.data == "THIS_QUESTION" and not self.include_this_question:
+        if field.data == "THIS_QUESTION" and not self.include_this_component:
             raise ValidationError("You cannot select this question")
 
         try:
@@ -607,7 +609,10 @@ class AddContextSelectSourceForm(FlaskForm):
 
         if choice == ExpressionContext.ContextSources.SECTION:
             if not get_referenceable_questions(
-                form=self.form, current_component=self.current_component, parent_component=self.parent_component
+                form=self.form,
+                current_component=self.current_component,
+                parent_component=self.parent_component,
+                include_this_component=self.include_this_component,
             ):
                 raise ValidationError("There are no available questions before this one in the section")
 
@@ -650,25 +655,30 @@ class SelectDataSourceQuestionForm(FlaskForm):
         interpolate: Callable[[str], str],
         current_component: TOptional[Component],
         *args: Any,
+        expression_type: TOptional[ExpressionType],
+        managed_expression_name: TOptional[ManagedExpressionsEnum],
         parent_component: TOptional[Group] = None,
-        limit: TOptional[Literal["component_data_type", "any_expression_data_type"]] = None,
+        include_this_component: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
+        self.include_this_component = include_this_component
 
-        limit_to_data_type: TOptional[set[QuestionDataType]] = (
-            {current_component.data_type}
-            if limit == "component_data_type" and current_component and current_component.data_type
-            else get_registered_data_types()
-            if limit == "any_expression_data_type"
-            else None
-        )
+        # NOTE: I think this logic might sit better inside `get_referenceable_questions` or a separate helper for a
+        # future refactor, but not no time to pull that thread currently - sorry future us.
+        limit_to_data_types: set[QuestionDataType] = get_registered_data_types()
+        if expression_type is not None:
+            if managed_expression_name is None:
+                limit_to_data_types = {QuestionDataType.NUMBER}
+            elif current_component and current_component.data_type:
+                limit_to_data_types = {current_component.data_type}
 
         referenceable_questions = get_referenceable_questions(
             form,
             current_component if current_component and current_component.form == form else None,
             parent_component if parent_component and parent_component.form == form else None,
-            limit_to_data_type=limit_to_data_type,
+            limit_to_data_type=limit_to_data_types,
+            include_this_component=self.include_this_component,
         )
 
         if referenceable_questions:
@@ -1181,3 +1191,16 @@ class MapNumberColumnsForm(FlaskForm):
             columns_error_list.append(subform_errors)
 
         return columns_error_list
+
+
+class SelectConditionCalculationForm(FlaskForm):
+    need_calculation = RadioField(
+        "Do you need a calculation for the condition?",
+        choices=[
+            ("yes", "Yes"),
+            ("no", "No"),
+        ],
+        widget=GovRadioInput(),
+        validators=[DataRequired("Please select an option")],
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())

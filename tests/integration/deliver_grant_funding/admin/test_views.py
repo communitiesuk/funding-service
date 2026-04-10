@@ -312,7 +312,7 @@ class TestReportingLifecycleTasklist:
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
         assert len(grant_task_items) == 6
-        assert len(report_task_items) == 7
+        assert len(report_task_items) == 8
 
         # TODO: update for testing task list
 
@@ -3756,6 +3756,123 @@ class TestMakeReportLive:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Test Grant Open the report for submissions"
 
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert (
+            "It is correct that this grant has 1 grant recipient set up and the grant team has reviewed this"
+            in checkbox_labels
+        )
+        assert (
+            "It is correct that this grant has 1 grant recipient user set up and the grant team has reviewed this"
+            in checkbox_labels
+        )
+        assert "The privacy policy has been set up" in checkbox_labels
+        assert "It is correct that the report has certification enabled" in checkbox_labels
+        assert "The submission dates are 1 April 2024 until 30 April 2024" in checkbox_labels
+        assert "It is correct that multiple submissions are disabled" in checkbox_labels
+
+    def test_get_confirm_page_shows_conditional_checkboxes_for_managed_multiple_submissions(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+            allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=True,
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert "It is correct that multiple submissions are enabled" in checkbox_labels
+        assert "It is correct that multiple submissions are managed by the service" in checkbox_labels
+        assert "It is correct that this grant has 0 managed submissions set up" in checkbox_labels
+
+    def test_get_confirm_page_hides_managed_submissions_count_when_not_managed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+            allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=False,
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert "It is correct that multiple submissions are enabled" in checkbox_labels
+        assert "It is correct that multiple submissions are not managed by the service" in checkbox_labels
+        assert not any("managed submissions set up" in label for label in checkbox_labels)
+
+    def test_post_fails_when_checkboxes_not_confirmed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        error_summary = soup.find("div", {"class": "govuk-error-summary"})
+        assert error_summary is not None
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
     @pytest.mark.freeze_time("2024-04-01 10:00:00")
     def test_post_makes_collection_open(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -3788,7 +3905,15 @@ class TestMakeReportLive:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
-            data={"submit": "y"},
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_submission_dates": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
             follow_redirects=True,
         )
         assert response.status_code == 200
@@ -3831,7 +3956,15 @@ class TestMakeReportLive:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
-            data={"submit": "y"},
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_submission_dates": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 200
@@ -3858,7 +3991,15 @@ class TestMakeReportLive:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
-            data={"submit": "y"},
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_submission_dates": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 200
@@ -3893,7 +4034,15 @@ class TestMakeReportLive:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
-            data={"submit": "y"},
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_submission_dates": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 200
@@ -3933,7 +4082,15 @@ class TestMakeReportLive:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
-            data={"submit": "y"},
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_submission_dates": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 200
@@ -3975,7 +4132,15 @@ class TestMakeReportLive:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/make-report-live",
-            data={"submit": "Open report for submissions"},
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_submission_dates": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "Open report for submissions",
+            },
             follow_redirects=False,
         )
         assert response.status_code == 200
@@ -4178,6 +4343,224 @@ class TestSetUpTestGrantRecipientUsers:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Existing Provider" in soup.text
         assert "existing@example.com" in soup.text
+
+
+class TestCloseReport:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_close_report_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        factories.user_role.create(
+            user=factories.user.create(),
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/close-report")
+        assert response.status_code == expected_code
+
+    def test_get_confirm_page_with_all_prerequisites_met(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/close-report"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Close the report" in get_h1_text(soup)
+
+    @pytest.mark.freeze_time("2024-05-01 10:00:00")
+    def test_post_closes_report(self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/close-report",
+            data={"submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.CLOSED
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Q1 Report is now closed and grant recipients can make no more changes")
+
+    @pytest.mark.freeze_time("2024-05-01 10:00:00")
+    def test_post_fails_when_grant_not_open(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.ONBOARDING)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/close-report",
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            f"{collection.name} can only be closed from the 'open' state; it is currently {collection.status.value}",
+        )
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    @pytest.mark.freeze_time("2024-04-20 10:00:00")
+    def test_post_fails_when_submission_dates_not_passed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.ONBOARDING)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/close-report",
+            data={"submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            (
+                f"You cannot close the report for submissions before the submission period end "
+                f"date of {collection.submission_period_end_date}"
+            ),
+        )
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.OPEN
 
 
 class TestPlatformAdminDataAnalysis:

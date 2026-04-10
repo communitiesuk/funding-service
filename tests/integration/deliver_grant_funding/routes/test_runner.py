@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.collections.types import FileUploadAnswer, IntegerAnswer, TextSingleLineAnswer, YesNoAnswer
+from app.common.data.interfaces.collections import add_component_validation
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
@@ -13,8 +14,9 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionModeEnum,
 )
+from app.common.expressions.custom import CustomExpression
 from tests.models import FactoryAnswer
-from tests.utils import get_h1_text, page_has_button
+from tests.utils import AnyStringMatching, get_h1_text, page_has_button
 
 
 class TestSubmissionTasklist:
@@ -835,6 +837,317 @@ class TestAskAQuestion:
 
             assert response.status_code == 302
             assert response.location.endswith(f"/{q1.id}/0")
+
+
+class TestGroupValidation:
+    @staticmethod
+    def _make_same_page_group_with_two_numbers(factories, grant, names=("capital", "revenue")):
+        group = factories.group.create(
+            name="Spend totals",
+            text="Spend totals",
+            form__title="Forecast spending",
+            form__collection__grant=grant,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        capital = factories.question.create(
+            name=names[0],
+            text=f"Forecast spend on {names[0]}",
+            data_type=QuestionDataType.NUMBER,
+            order=0,
+            parent=group,
+            form=group.form,
+        )
+        revenue = factories.question.create(
+            name=names[1],
+            text=f"Forecast spend on {names[1]}",
+            data_type=QuestionDataType.NUMBER,
+            order=1,
+            parent=group,
+            form=group.form,
+        )
+        return group, capital, revenue
+
+    def test_post_same_page_group_passing_validation_redirects(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        client = authenticated_grant_admin_client
+        group, capital, revenue = self._make_same_page_group_with_two_numbers(factories, client.grant)
+        add_component_validation(
+            group,
+            client.user,
+            CustomExpression(
+                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
+                custom_message="Capital plus revenue must equal 1000",
+            ),
+        )
+        submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=client.grant.id,
+                submission_id=submission.id,
+                question_id=capital.id,
+            ),
+            data={"submit": True, capital.safe_qid: "400", revenue.safe_qid: "600"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(r".*/check-yours-answers/.*"), (
+            "Should redirect to CYA page on success"
+        )
+
+        db_session.refresh(submission)
+        assert submission.data_manager.get(capital) == IntegerAnswer(value=400)
+        assert submission.data_manager.get(revenue) == IntegerAnswer(value=600)
+
+    def test_post_same_page_group_failing_validation_shows_on_page_summary(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        client = authenticated_grant_admin_client
+        group, capital, revenue = self._make_same_page_group_with_two_numbers(factories, client.grant)
+        add_component_validation(
+            group,
+            client.user,
+            CustomExpression(
+                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
+                custom_message="Capital plus revenue must equal 1000",
+            ),
+        )
+        submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=client.grant.id,
+                submission_id=submission.id,
+                question_id=capital.id,
+            ),
+            data={"submit": True, capital.safe_qid: "400", revenue.safe_qid: "500"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200, "Should return 200 and reload page on failure"
+        assert response.location is None
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        error_summary = soup.find("div", {"class": "govuk-error-summary"})
+        assert error_summary is not None
+        assert "Capital plus revenue must equal 1000" in error_summary.text
+        assert "On this page:" in error_summary.text
+        assert "On a different page:" not in error_summary.text
+
+        on_page_links = error_summary.find_all("a")
+        on_page_link_texts = [a.text.strip() for a in on_page_links]
+        assert any("capital" in t and "400" in t for t in on_page_link_texts)
+        assert any("revenue" in t and "500" in t for t in on_page_link_texts)
+        for link in on_page_links:
+            assert link.get("href", "").startswith("#")
+
+        for question in (capital, revenue):
+            field = soup.find("input", {"id": question.safe_qid})
+            assert field is not None
+            assert "govuk-input--error" in (field.get("class") or [])
+
+        db_session.refresh(submission)
+        assert submission.data_manager.get(capital) is None
+        assert submission.data_manager.get(revenue) is None
+
+    def test_post_same_page_group_failing_validation_with_off_page_reference(
+        self, authenticated_grant_admin_client, factories
+    ):
+        client = authenticated_grant_admin_client
+        form = factories.form.create(title="Forecast spending", collection__grant=client.grant)
+        total = factories.question.create(
+            name="quarter_total",
+            text="Forecast spend April to June 2026",
+            data_type=QuestionDataType.NUMBER,
+            order=0,
+            form=form,
+        )
+        group = factories.group.create(
+            name="Spend totals",
+            text="Spend totals",
+            form=form,
+            order=1,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        capital = factories.question.create(
+            name="capital",
+            text="Forecast spend on capital",
+            data_type=QuestionDataType.NUMBER,
+            order=0,
+            parent=group,
+            form=form,
+        )
+        revenue = factories.question.create(
+            name="revenue",
+            text="Forecast spend on revenue",
+            data_type=QuestionDataType.NUMBER,
+            order=1,
+            parent=group,
+            form=form,
+        )
+        add_component_validation(
+            group,
+            client.user,
+            CustomExpression(
+                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == (({total.safe_qid}))",
+                custom_message="Capital plus revenue must equal the quarter total",
+            ),
+        )
+
+        submission = factories.submission.create(
+            collection=form.collection,
+            created_by=client.user,
+            answers=[FactoryAnswer(total, IntegerAnswer(value=1500))],
+        )
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=client.grant.id,
+                submission_id=submission.id,
+                question_id=capital.id,
+            ),
+            data={"submit": True, capital.safe_qid: "400", revenue.safe_qid: "500"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        error_summary = soup.find("div", {"class": "govuk-error-summary"})
+        assert error_summary is not None
+        assert "Capital plus revenue must equal the quarter total" in error_summary.text
+        assert "On this page:" in error_summary.text
+        assert "On a different page:" in error_summary.text
+
+        expected_off_page_url = url_for(
+            "deliver_grant_funding.ask_a_question",
+            grant_id=client.grant.id,
+            submission_id=submission.id,
+            question_id=total.id,
+        )
+        off_page_links = [a for a in error_summary.find_all("a") if a.get("href") and not a.get("href").startswith("#")]
+        assert any(link.get("href") == expected_off_page_url for link in off_page_links)
+        assert any("quarter_total" in link.text and "1,500" in link.text for link in off_page_links)
+
+    def test_post_same_page_group_stops_at_first_failed_group_validation(
+        self, authenticated_grant_admin_client, factories
+    ):
+        client = authenticated_grant_admin_client
+        group, capital, revenue = self._make_same_page_group_with_two_numbers(factories, client.grant)
+        add_component_validation(
+            group,
+            client.user,
+            CustomExpression(
+                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
+                custom_message="Rule A: capital plus revenue must equal 1000",
+            ),
+        )
+        add_component_validation(
+            group,
+            client.user,
+            CustomExpression(
+                custom_expression=f"(({capital.safe_qid})) > 0",
+                custom_message="Rule B: capital must be positive",
+            ),
+        )
+        submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=client.grant.id,
+                submission_id=submission.id,
+                question_id=capital.id,
+            ),
+            data={"submit": True, capital.safe_qid: "100", revenue.safe_qid: "100"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Rule A: capital plus revenue must equal 1000" in soup.text
+        assert "Rule B: capital must be positive" not in soup.text
+
+    def test_post_same_page_group_individual_validation_failure_short_circuits_group(
+        self, authenticated_grant_admin_client, factories
+    ):
+        client = authenticated_grant_admin_client
+        group, capital, revenue = self._make_same_page_group_with_two_numbers(factories, client.grant)
+        add_component_validation(
+            group,
+            client.user,
+            CustomExpression(
+                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
+                custom_message="Group rule should not appear",
+            ),
+        )
+        submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=client.grant.id,
+                submission_id=submission.id,
+                question_id=capital.id,
+            ),
+            data={"submit": True, capital.safe_qid: "", revenue.safe_qid: "500"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Enter the capital" in soup.text
+        assert "Group rule should not appear" not in soup.text
+
+    def test_post_submission_tasklist_blocks_when_group_validation_fails(
+        self, authenticated_grant_admin_client, factories
+    ):
+        client = authenticated_grant_admin_client
+        group, capital, revenue = self._make_same_page_group_with_two_numbers(factories, client.grant)
+        add_component_validation(
+            group,
+            client.user,
+            CustomExpression(
+                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
+                custom_message="Capital plus revenue must equal 1000",
+            ),
+        )
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            created_by=client.user,
+            answers=[
+                FactoryAnswer(capital, IntegerAnswer(value=200)),
+                FactoryAnswer(revenue, IntegerAnswer(value=300)),
+            ],
+        )
+        factories.submission_event.create(
+            created_by=client.user,
+            submission=submission,
+            related_entity_id=group.form.id,
+        )
+
+        with client.session_transaction() as session:
+            session["test_submission_form_id"] = group.form.id
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.submission_tasklist",
+                grant_id=client.grant.id,
+                submission_id=submission.id,
+                form_id=group.form.id,
+            ),
+            data={"submit": True},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You cannot submit because you need to review some answers" in soup.text
+        assert "Capital plus revenue must equal 1000" in soup.text
 
 
 class TestCheckYourAnswers:

@@ -13,10 +13,10 @@ from app.common.auth.decorators import has_access_grant_role
 from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection, get_collection
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
+from app.common.data.types import RoleEnum, SubmissionStatusEnum
 from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
-from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.extensions import auto_commit_after_request
 from app.metrics import MetricEventName, emit_metric_count
 from app.types import FlashMessageType
@@ -32,7 +32,11 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
 
     # TODO refactor when we persist the collection status and/or implement multiple rounds
     submissions = []
-    for report in grant_recipient.grant.get_access_reports_for_user(user):
+    collection_helpers = []
+    for report in grant_recipient.grant.get_access_reports_for_user(
+        user, user_organisation=grant_recipient.organisation
+    ):
+        collection_helpers.append(CollectionHelper(collection=report))
         submissions.extend(
             [
                 SubmissionHelper(submission=submission)
@@ -50,7 +54,9 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
         organisation_id=organisation_id,
         grant=grant_recipient.grant,
         submissions=submissions,
+        collection_helpers=collection_helpers,
         grant_recipient=grant_recipient,
+        SubmissionHelper=SubmissionHelper,
     )
 
 
@@ -64,7 +70,7 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
     user = get_current_user()
     collection = get_collection(collection_id, grant_id=grant_id)
     if not collection.allow_multiple_submissions:
-        raise abort(404)
+        abort(404)
 
     submission_helpers = [
         SubmissionHelper(submission=submission)
@@ -83,6 +89,7 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
         can_create_submissions=(
             not collection.multiple_submissions_are_managed_by_service
             and AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
+            and not CollectionHelper(collection).is_closed
         ),
     )
 
@@ -97,7 +104,7 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
 
     submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
-    if not submission.is_locked_state:
+    if not submission.in_answers_locked_state:
         # note we're not redirecting to the route to submission as you might have been directed from
         # there, go somewhere we know will load consistently and the user can step back in
         return redirect(
@@ -196,18 +203,30 @@ def decline_report(
     submission_id: UUID,
 ) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
-
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    user = get_current_user()
 
-    if not (
-        submission_helper.is_awaiting_sign_off and submission_helper.collection.type == CollectionType.MONITORING_REPORT
-    ):
+    if not submission_helper.is_awaiting_sign_off:
+        current_app.logger.warning(
+            "Decline certification loaded incorrectly by %(user_id)s for submission %(submission_id)s",
+            extra={"user_id": user.id, "submission_id": submission_id},
+        )
         return redirect(
             url_for(
-                "access_grant_funding.route_to_submission",
+                "access_grant_funding.view_locked_report",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
-                collection_id=submission_helper.collection_id,
+                submission_id=submission_id,
+            )
+        )
+
+    if submission_helper.in_immutable_state:
+        return redirect(
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
             )
         )
 
@@ -259,7 +278,22 @@ def confirm_report_submission_with_certify(
             extra={"user_id": user.id, "submission_id": submission_id},
         )
         return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
+        )
+
+    if submission_helper.in_immutable_state:
+        return redirect(
+            url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
         )
 
     form = GenericSubmitForm()

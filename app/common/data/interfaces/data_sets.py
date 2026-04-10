@@ -1,10 +1,9 @@
 import uuid
 from decimal import Decimal
-from typing import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload, with_loader_criteria
+from sqlalchemy.orm import selectinload
 
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
@@ -21,7 +20,7 @@ from app.common.data.types import (
     TUnvalidatedDataSetRow,
     TUnvalidatedDataSetRows,
 )
-from app.common.utils import slugify
+from app.common.safe_ids import safe_column_id
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 from app.extensions import db, s3_service
@@ -44,30 +43,6 @@ def get_data_source(
     return db.session.execute(stmt).scalar_one()
 
 
-def get_grant_recipient_data_sources_for_collection(collection_id: uuid.UUID, external_id: str) -> Sequence[DataSource]:
-    """
-    Returns a sequence of all GRANT_RECIPIENT DataSources for a collection, and populates the
-    filtered_organisation_item relationship with the data_source_organisation_item filtered to only the item matching
-    the given external_id, or None if no matching item is found.
-    """
-    stmt = (
-        select(DataSource)
-        .where(
-            DataSource.collection_id == collection_id,
-            DataSource.type == DataSourceType.GRANT_RECIPIENT,
-        )
-        .options(
-            selectinload(DataSource.filtered_organisation_item),
-            with_loader_criteria(
-                DataSourceOrganisationItem,
-                DataSourceOrganisationItem.external_id == external_id,
-            ),
-        )
-    )
-
-    return db.session.scalars(stmt).unique().all()
-
-
 def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMapping]) -> DataSourceSchema:
     schema_dict = {}
     for mapping in column_mappings:
@@ -84,7 +59,7 @@ def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMappin
             presentation_options = QuestionPresentationOptions()
             data_options = QuestionDataOptions()
 
-        schema_dict[slugify(mapping.column_name)] = DataSourceSchemaColumn(
+        schema_dict[safe_column_id(mapping.column_name)] = DataSourceSchemaColumn(
             data_type=mapping.data_type,
             presentation_options=presentation_options,
             data_options=data_options,
@@ -120,7 +95,7 @@ def _build_data_blob(
     identifier_columns: list[str],
 ) -> dict[str, str | int | None]:
     return {
-        slugify(col): _clean_value(row.get(col, ""), mappings[col])
+        safe_column_id(col): _clean_value(row.get(col, ""), mappings[col])
         for col in row
         if col not in identifier_columns and col in mappings
     }

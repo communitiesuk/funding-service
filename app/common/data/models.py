@@ -50,7 +50,7 @@ from app.common.expressions.custom import CustomExpression, get_custom_expressio
 from app.common.expressions.managed import (
     get_managed_expression,
 )
-from app.common.qid import SafeQidMixin
+from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import comma_join_items
 
 if TYPE_CHECKING:
@@ -351,6 +351,12 @@ class Submission(BaseModel):
     )
     created_by: Mapped[User] = relationship("User", back_populates="submissions")
     grant_recipient: Mapped[GrantRecipient] = relationship("GrantRecipient", back_populates="submissions")
+
+    data_sources: Mapped[list[DataSource]] = relationship(
+        "DataSource",
+        primaryjoin=lambda: Submission.collection_id == foreign(DataSource.collection_id),
+        viewonly=True,
+    )
 
     @property
     def s3_key_prefix(self) -> str:
@@ -662,6 +668,18 @@ class Component(BaseModel):
     def data_reference_label(self) -> str:
         return f"{self.form.collection.name} → {self.form.title} → {self.name}"
 
+    def is_descendant_of(self, component: Component) -> bool:
+        # NOTE: This might want to live on something like a CollectionDependencyGraph in the near future
+        #       eg in 577a7f75c049e9e3795111b34bd4350609d3f4b7
+        parent = self.parent
+
+        while parent:
+            if parent == component:
+                return True
+            parent = parent.parent
+
+        return False
+
 
 class Question(Component, SafeQidMixin):
     __mapper_args__ = {"polymorphic_identity": ComponentType.QUESTION}
@@ -837,7 +855,7 @@ class Group(Component):
             for component in self.cached_all_components
             # todo: sense check the lazy loading implications of this property
             for depends_on in component.depended_on_by
-            if depends_on.component not in self.cached_all_components
+            if depends_on.component not in (set(self.cached_all_components).union({self}))
         ]
         return bool(depended_on_outside_of_group_context)
 
@@ -888,6 +906,7 @@ class Expression(BaseModel):
         SqlEnum(ManagedExpressionsEnum, name="managed_expression_enum", validate_strings=True, nullable=True)
     )
 
+    # TODO: Rename this to `component_id` as expressions can be attached to groups as well now.
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
     question: Mapped[Component] = relationship("Component", back_populates="expressions")
 
@@ -972,7 +991,7 @@ class Expression(BaseModel):
         return {}
 
 
-class DataSource(BaseModel):
+class DataSource(BaseModel, SafeDidMixin):
     __tablename__ = "data_source"
 
     type: Mapped[DataSourceType] = mapped_column(
@@ -1013,24 +1032,22 @@ class DataSource(BaseModel):
         cascade="all, save-update, merge",
     )
 
+    # NOTE: This is a list of *all* organisation items for the data source and must be filtered down using the method
+    # below to retrieve just the organisation item for a specific grant recipient when using this in the context of
+    # a submission.
     organisation_items: Mapped[list[DataSourceOrganisationItem]] = relationship(
         "DataSourceOrganisationItem",
         back_populates="data_source",
         cascade="all, delete-orphan",
-        overlaps="filtered_organisation_item",
     )
 
-    # This relationship sets lazy="raise" as accessing it without an explicit selectinload from an interface should
-    # raise, preventing accidental unscoped access outside the interface.
-    # It is used for creating the data_source_context in the ExpressionContext, filtering down DataSourceOrgItems just
-    # to the grant recipient org completing that submission
-    filtered_organisation_item: Mapped[DataSourceOrganisationItem] = relationship(
-        "DataSourceOrganisationItem",
-        viewonly=True,
-        lazy="raise",
-        overlaps="organisation_items",
-        uselist=False,
-    )
+    def get_filtered_organisation_item(self, organisation_external_id: str) -> DataSourceOrganisationItem | None:
+        if not self.organisation_items:
+            return None
+
+        return next(
+            filter(lambda org_item: org_item.external_id == organisation_external_id, self.organisation_items), None
+        )
 
     __table_args__ = (
         CheckConstraint(
@@ -1055,6 +1072,11 @@ class DataSource(BaseModel):
             unique=True,
         ),
     )
+
+    @property
+    def data_source_id(self) -> uuid.UUID:
+        """A small proxy to support SafeDidMixin so that logic can be centralised."""
+        return self.id
 
     def build_typed_org_item_data(
         self,

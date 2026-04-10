@@ -1,7 +1,7 @@
 {% extends "govuk_frontend_jinja/template.html" %}
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
-{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
 
 {% set assetPath = vite_asset('assets') %}
 {% set cspNonce = csp_nonce() %}
@@ -37,13 +37,7 @@
       {% block mainWrapper %}
         <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
           {% block errorSummary %}
-            <div class="govuk-grid-row">
-              <div class="govuk-grid-column-two-thirds">
-                {% if form is defined and form.errors %}
-                  {{ govukErrorSummary(wtforms_errors(form)) }}
-                {% endif %}
-              </div>
-            </div>
+            {{ standardErrorSummary(form) }}
           {% endblock errorSummary %}
 
           {% block content %}

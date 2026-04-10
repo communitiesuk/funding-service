@@ -8,6 +8,7 @@ from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan
 from app.common.helpers.collections import SubmissionHelper
+from tests.models import FactoryAnswer
 
 
 class TestFormRunner:
@@ -49,8 +50,9 @@ class TestFormRunner:
 
     def test_form_runner_correctly_configures_dynamic_question_form(self, factories):
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
-        submission = factories.submission.build(collection=question.form.collection)
-        submission.data_manager.set(question, TextSingleLineAnswer("An answer"))
+        submission = factories.submission.build(
+            collection=question.form.collection, answers=[FactoryAnswer(question, TextSingleLineAnswer("An answer"))]
+        )
         helper = SubmissionHelper(submission)
 
         runner = FormRunner(submission=helper, question=question, source=None)
@@ -92,9 +94,13 @@ class TestFormRunner:
         )
         q1 = factories.question.build(parent=group, form=group.form)
         q2 = factories.question.build(parent=group, form=group.form)
-        submission = factories.submission.build(collection=group.form.collection)
-        submission.data_manager.set(q1, TextSingleLineAnswer("An answer for q1"))
-        submission.data_manager.set(q2, TextSingleLineAnswer("An answer for q2"))
+        submission = factories.submission.build(
+            collection=group.form.collection,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("An answer for q1")),
+                FactoryAnswer(q2, TextSingleLineAnswer("An answer for q2")),
+            ],
+        )
         helper = SubmissionHelper(submission)
 
         runner = FormRunner(submission=helper, question=q1, source=None)

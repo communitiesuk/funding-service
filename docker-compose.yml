@@ -34,7 +34,10 @@ services:
       SEED_SYSTEM_DATA=false flask db upgrade && \
       flask developers seed-grants
 
-      npm run dev -- --host &
+      if [ $$ASSETS_VITE_LIVE_ENABLED = true ]; then
+        npm install && npm run dev -- --host &
+      fi
+
       PYDEVD_DISABLE_FILE_VALIDATION=1 uv run python -m watchdog.watchmedo auto-restart --directory=./app --patterns='*.py' --recursive -- python -m debugpy --listen 0.0.0.0:8081 -m flask run --host 0.0.0.0 --port 8080 --no-reload --debug --cert=/app/certs/cert.pem --key=/app/certs/key.pem
       "
     env_file:
@@ -49,6 +52,7 @@ services:
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
       REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
       WERKZEUG_DEBUG_PIN: off
+      ASSETS_VITE_LIVE_ENABLED: ${ASSETS_VITE_LIVE_ENABLED:-true}
     depends_on:
       - db
       - localstack
@@ -84,7 +88,7 @@ services:
     environment:
       FLASK_APP: "stubs.sso:create_sso_stub_app"
       WERKZEUG_DEBUG_PIN: off
-      ASSETS_VITE_LIVE_ENABLED: true
+      ASSETS_VITE_LIVE_ENABLED: ${ASSETS_VITE_LIVE_ENABLED:-true}
       FLASK_ENV: local
     networks:
       ofs:
