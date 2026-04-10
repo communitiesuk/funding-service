@@ -58,6 +58,8 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.select_context_source_collection",
     "deliver_grant_funding.select_context_source_section",
     "deliver_grant_funding.select_context_source_question",
+    "deliver_grant_funding.select_context_source_data_set",
+    "deliver_grant_funding.select_context_source_data_set_column",
     "deliver_grant_funding.edit_question",
     "deliver_grant_funding.manage_guidance",
     "deliver_grant_funding.manage_add_another_guidance",

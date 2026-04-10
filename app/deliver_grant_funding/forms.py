@@ -54,7 +54,7 @@ from app.deliver_grant_funding.data_sets import CellError, DataTypeError, Decima
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Form, GrantRecipient, Group, Question
+    from app.common.data.models import Collection, Component, Form, GrantRecipient, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -684,6 +684,26 @@ class SelectDataSourceQuestionForm(FlaskForm):
             self.question.choices = [("", "")] + [
                 (str(question.id), interpolate(question.text)) for question in referenceable_questions
             ]
+
+
+class SelectDataSourceDataSetForm(FlaskForm):
+    data_set = RadioField(
+        "Select uploaded data set",
+        choices=[],
+        validators=[DataRequired("Select a data set")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        collection: Collection,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.data_set.choices = [(d.id, cast(str, d.name)) for d in collection.data_sources]
 
 
 class GrantAddUserForm(FlaskForm):
