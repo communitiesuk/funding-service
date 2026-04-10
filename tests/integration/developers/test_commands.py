@@ -3,6 +3,7 @@ import io
 import pytest
 from sqlalchemy import select
 
+from app.common.collections.types import SingleChoiceFromListAnswer, TextSingleLineAnswer
 from app.common.data.models import Submission
 from app.common.data.types import (
     GrantRecipientModeEnum,
@@ -13,6 +14,7 @@ from app.common.data.types import (
 from app.common.helpers.collections import SubmissionHelper
 from app.developers.commands import create_multi_submissions
 from app.extensions import db
+from tests.models import FactoryAnswer
 
 # Unwrap Flask's with_appcontext / click.pass_context wrappers so we can call
 # the function directly within the test's existing app context and DB session.
@@ -106,7 +108,7 @@ class TestCreateMultiSubmissions:
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): {"key": "alpha", "label": "Alpha"}},
+            answers=[FactoryAnswer(question, SingleChoiceFromListAnswer(key="alpha", label="Alpha"))],
         )
 
         csv_file = _make_csv([("ORG-001", "Alpha"), ("ORG-001", "Beta")])
@@ -329,7 +331,7 @@ class TestCreateMultiSubmissions:
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): {"key": "alpha", "label": "Alpha"}},
+            answers=[FactoryAnswer(question, SingleChoiceFromListAnswer(key="alpha", label="Alpha"))],
         )
 
         csv_file = _make_csv([("ORG-001", "Alpha"), ("ORG-001", "Beta")])
@@ -374,7 +376,10 @@ class TestCreateMultiSubmissions:
             collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
-            data={str(question.id): {"key": "alpha", "label": "Alpha"}, str(q2.id): "Other answer"},
+            answers=[
+                FactoryAnswer(question, SingleChoiceFromListAnswer(key="alpha", label="Alpha")),
+                FactoryAnswer(q2, TextSingleLineAnswer("Other answer")),
+            ],
         )
 
         csv_file = _make_csv([("ORG-001", "Alpha")])

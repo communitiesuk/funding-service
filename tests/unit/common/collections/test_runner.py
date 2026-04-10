@@ -8,6 +8,7 @@ from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan
 from app.common.helpers.collections import SubmissionHelper
+from tests.models import FactoryAnswer
 
 
 class TestFormRunner:
@@ -50,8 +51,7 @@ class TestFormRunner:
     def test_form_runner_correctly_configures_dynamic_question_form(self, factories):
         question = factories.question.build(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         submission = factories.submission.build(
-            collection=question.form.collection,
-            data={str(question.id): TextSingleLineAnswer("An answer").get_value_for_submission()},
+            collection=question.form.collection, answers=[FactoryAnswer(question, TextSingleLineAnswer("An answer"))]
         )
         helper = SubmissionHelper(submission)
 
@@ -96,10 +96,10 @@ class TestFormRunner:
         q2 = factories.question.build(parent=group, form=group.form)
         submission = factories.submission.build(
             collection=group.form.collection,
-            data={
-                str(q1.id): TextSingleLineAnswer("An answer for q1").get_value_for_submission(),
-                str(q2.id): TextSingleLineAnswer("An answer for q2").get_value_for_submission(),
-            },
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("An answer for q1")),
+                FactoryAnswer(q2, TextSingleLineAnswer("An answer for q2")),
+            ],
         )
         helper = SubmissionHelper(submission)
 
@@ -180,9 +180,7 @@ class TestFormRunner:
         third_question = factories.question.build(form=question.form)
         submission = factories.submission.build(
             collection=question.form.collection,
-            data={
-                str(second_question.id): TextSingleLineAnswer("hi").get_value_for_submission(),
-            },
+            answers=[FactoryAnswer(second_question, TextSingleLineAnswer("hi"))],
         )
         helper = SubmissionHelper(submission)
 
@@ -213,11 +211,9 @@ class TestFormRunner:
         question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
         submission = factories.submission.build(
             collection=question.form.collection,
-            data={
-                str(question.id): FileUploadAnswer(
-                    filename="text_file.txt", size=0, mime_type="text/plain"
-                ).get_value_for_submission()
-            },
+            answers=[
+                FactoryAnswer(question, FileUploadAnswer(filename="text_file.txt", size=0, mime_type="text/plain"))
+            ],
         )
         helper = SubmissionHelper(submission)
 
@@ -285,11 +281,9 @@ class TestFormRunner:
         question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
         submission = factories.submission.build(
             collection=question.form.collection,
-            data={
-                str(question.id): FileUploadAnswer(
-                    filename="text_file.txt", size=0, mime_type="text/plain"
-                ).get_value_for_submission()
-            },
+            answers=[
+                FactoryAnswer(question, FileUploadAnswer(filename="text_file.txt", size=0, mime_type="text/plain"))
+            ],
         )
         helper = SubmissionHelper(submission)
 
@@ -450,7 +444,10 @@ class TestFormRunner:
             q_b.owned_component_references = [
                 ComponentReference(component=q_b, depends_on_component=q_a),
             ]
-            submission = factories.submission.build(collection=collection, data={str(q_a.id): "answered"})
+            submission = factories.submission.build(
+                collection=collection,
+                answers=[FactoryAnswer(q_a, TextSingleLineAnswer("answered"))],
+            )
             helper = SubmissionHelper(submission)
 
             runner = FormRunner(submission=helper, question=q_b, source=None)

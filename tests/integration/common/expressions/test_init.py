@@ -5,6 +5,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
+from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.models import Expression
 from app.common.data.types import (
     DataSourceSchema,
@@ -19,6 +20,7 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate, interpolate
 from app.common.expressions.managed import BetweenDates, GreaterThan
 from app.common.helpers.collections import SubmissionHelper
+from tests.models import FactoryAnswer
 
 
 class TestExpressionContext:
@@ -728,25 +730,28 @@ class TestExtendingWithAddAnotherContext:
         group = factories.group.create(add_another=True)
         q1 = factories.question.create(parent=group)
         q2 = factories.question.create(parent=group)
-        submission = factories.submission.create(collection=group.form.collection)
-        submission.data = {
-            str(group.id): [
-                {str(q1.id): "v0", str(q2.id): "e0"},
-                {str(q1.id): "v1", str(q2.id): "e1"},
-                {str(q1.id): "v2"},
-            ]
-        }
-
-        helper = SubmissionHelper(submission=submission)
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("v0"), add_another_index=0),
+                FactoryAnswer(q2, TextSingleLineAnswer("e0"), add_another_index=0),
+                FactoryAnswer(q1, TextSingleLineAnswer("v1"), add_another_index=1),
+                FactoryAnswer(q2, TextSingleLineAnswer("e1"), add_another_index=1),
+                FactoryAnswer(q1, TextSingleLineAnswer("v2"), add_another_index=2),
+            ],
+        )
 
         context = ExpressionContext.build_expression_context(
             collection=group.form.collection,
-            submission_helper=helper,
+            submission_helper=SubmissionHelper(submission),
+            data_manager=submission.data_manager,
             mode="evaluation",
         )
         assert context.get(q1.safe_qid) is None
 
-        context = context.with_add_another_context(component=q1, submission_helper=helper, add_another_index=1)
+        context = context.with_add_another_context(
+            component=q1, data_manager=submission.data_manager, add_another_index=1
+        )
         assert context.get(q1.safe_qid) == "v1"
         assert context.get(q2.safe_qid) == "e1"
 
@@ -755,50 +760,49 @@ class TestExtendingWithAddAnotherContext:
         q1 = factories.question.create(parent=group)
         q2 = factories.question.create(parent=group)
         q3 = factories.question.create(parent=group)
-        submission = factories.submission.create(collection=group.form.collection)
-        submission.data = {
-            str(group.id): [
-                {str(q1.id): "v0", str(q2.id): "e0"},
-                {str(q2.id): "e1"},
-                {str(q1.id): "v2"},
-            ]
-        }
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("v0"), add_another_index=0),
+                FactoryAnswer(q2, TextSingleLineAnswer("e0"), add_another_index=0),
+                FactoryAnswer(q2, TextSingleLineAnswer("e1"), add_another_index=1),
+                FactoryAnswer(q1, TextSingleLineAnswer("v2"), add_another_index=2),
+            ],
+        )
 
-        helper = SubmissionHelper(submission=submission)
         context = ExpressionContext.build_expression_context(
             collection=group.form.collection,
-            submission_helper=helper,
+            submission_helper=SubmissionHelper(submission),
+            data_manager=submission.data_manager,
             mode="evaluation",
         )
         assert context.get(q1.safe_qid) is None
         assert context.get(q2.safe_qid) is None
         assert context.get(q3.safe_qid) is None
 
-        context = context.with_add_another_context(component=q1, submission_helper=helper, add_another_index=1)
+        context = context.with_add_another_context(
+            component=q1, data_manager=submission.data_manager, add_another_index=1
+        )
         assert context.get(q1.safe_qid) is None
         assert context.get(q2.safe_qid) == "e1"
         assert context.get(q3.safe_qid) is None
 
     def test_extending_with_new_add_another_index(self, factories):
         component = factories.question.create(add_another=True)
-        submission = factories.submission.create(collection=component.form.collection)
-        submission.data = {str(component.id): [{str(component.id): 1}]}
-        helper = SubmissionHelper(submission=submission)
+        submission = factories.submission.create(
+            collection=component.form.collection,
+            answers=[FactoryAnswer(component, TextSingleLineAnswer("1"), add_another_index=0)],
+        )
         context = ExpressionContext.build_expression_context(
             collection=component.form.collection,
-            submission_helper=helper,
+            submission_helper=SubmissionHelper(submission),
+            data_manager=submission.data_manager,
             mode="evaluation",
         )
 
-        with pytest.raises(ValueError) as e:
-            context.with_add_another_context(component, submission_helper=helper, add_another_index=1)
-        assert str(e.value) == "no add another entry exists at this index"
-
         # if the add another entry hasn't been created yet we'd expect the context to be unchanged
         assert (
-            context.with_add_another_context(
-                component, submission_helper=helper, add_another_index=1, allow_new_index=True
-            )
+            context.with_add_another_context(component, data_manager=submission.data_manager, add_another_index=1)
             == context
         )
 
@@ -807,7 +811,9 @@ class TestExtendingWithAddAnotherContext:
         submission = factories.submission.create(collection=component.form.collection)
         ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1}, add_another_context={"a": 1})
         with pytest.raises(ValueError) as e:
-            ex.with_add_another_context(component, submission_helper=SubmissionHelper(submission), add_another_index=0)
+            ex.with_add_another_context(
+                component, data_manager=SubmissionHelper(submission).submission.data_manager, add_another_index=0
+            )
         assert str(e.value) == "add_another_context is already set on this ExpressionContext"
 
     def test_extending_with_non_add_another_component(self, factories):
@@ -815,7 +821,9 @@ class TestExtendingWithAddAnotherContext:
         submission = factories.submission.create(collection=component.form.collection)
         ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1})
         with pytest.raises(ValueError) as e:
-            ex.with_add_another_context(component, submission_helper=SubmissionHelper(submission), add_another_index=0)
+            ex.with_add_another_context(
+                component, data_manager=SubmissionHelper(submission).submission.data_manager, add_another_index=0
+            )
         assert str(e.value) == "add_another_context can only be set for add another components"
 
 
@@ -844,8 +852,10 @@ class TestExtendingWithQuestionFormContext:
         def test_with_add_another_context_preserves_data_source_context(self, factories):
             group = factories.group.create(add_another=True)
             q1 = factories.question.create(parent=group)
-            submission = factories.submission.create(collection=group.form.collection)
-            submission.data = {str(group.id): [{str(q1.id): "v0"}]}
+            submission = factories.submission.create(
+                collection=group.form.collection,
+                answers=[FactoryAnswer(q1, TextSingleLineAnswer("v0"), add_another_index=0)],
+            )
 
             ex = ExpressionContext(
                 submission_data={q1.safe_qid: "answer"},
@@ -853,7 +863,9 @@ class TestExtendingWithQuestionFormContext:
             )
 
             helper = SubmissionHelper(submission=submission)
-            new_context = ex.with_add_another_context(component=q1, submission_helper=helper, add_another_index=0)
+            new_context = ex.with_add_another_context(
+                component=q1, data_manager=helper.submission.data_manager, add_another_index=0
+            )
 
             assert new_context["d_abc"]["capital_allocation"] == 1000
 

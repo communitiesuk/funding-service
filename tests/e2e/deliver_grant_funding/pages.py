@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC
 
 from playwright.sync_api import Locator, Page, expect

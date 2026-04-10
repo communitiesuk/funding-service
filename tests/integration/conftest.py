@@ -27,6 +27,7 @@ from testcontainers.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
 from app import create_app
+from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_user import User
@@ -41,6 +42,7 @@ from app.common.data.types import (
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
 from tests.integration.utils import TimeFreezer
+from tests.models import FactoryAnswer
 from tests.types import TemplateRenderRecord, TTemplatesRendered
 from tests.utils import build_db_config
 
@@ -554,7 +556,7 @@ def submission_in_progress(factories: _Factories, grant_recipient: GrantRecipien
         grant_recipient=grant_recipient,
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
-        data={str(question.id): "Question answer"},
+        answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
     return cast(Submission, submission)
 
@@ -572,7 +574,7 @@ def submission_ready_to_submit(factories: _Factories, grant_recipient: GrantReci
         grant_recipient=grant_recipient,
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
-        data={str(question.id): "Question answer"},
+        answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
     factories.submission_event.create(
         submission=submission,
@@ -597,7 +599,7 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
         grant_recipient=grant_recipient,
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
-        data={str(question.id): "Question answer"},
+        answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
     factories.submission_event.create(
         submission=submission,
@@ -629,7 +631,7 @@ def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient,
         grant_recipient=grant_recipient,
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
-        data={str(question.id): "Question answer"},
+        answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
     factories.submission_event.create(
         submission=submission,
@@ -669,7 +671,7 @@ def submission_collection_closed(factories: _Factories, grant_recipient: GrantRe
         grant_recipient=grant_recipient,
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
-        data={str(question.id): "Question answer"},
+        answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
     return cast(Submission, submission)
 

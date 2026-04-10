@@ -6,6 +6,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from app import ReportAdminEmailTypeEnum
+from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
 from app.common.data.interfaces.user import get_user, get_user_by_email
 from app.common.data.models import Organisation
@@ -23,7 +24,7 @@ from app.common.data.types import (
     SubmissionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
-from tests.models import _get_grant_managing_organisation
+from tests.models import FactoryAnswer, _get_grant_managing_organisation
 from tests.utils import get_h1_text, get_h2_text, page_has_error, page_has_flash
 
 
@@ -1141,18 +1142,18 @@ class TestSendEmailsToRecipients:
         factories.submission.create(
             mode=SubmissionModeEnum.LIVE,
             collection=collection,
-            data={str(question.id): "answer 1"},
             created_by=user_1,
             grant_recipient=gr1,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("answer 1"))],
         )
 
         # org 2 has submitted their report, so should not be in the list
         submission_2 = factories.submission.create(
             mode=SubmissionModeEnum.LIVE,
             collection=collection,
-            data={str(question.id): "answer 2"},
             created_by=user_3,
             grant_recipient=gr2,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("answer 2"))],
         )
         factories.submission_event.create(
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
@@ -1236,9 +1237,9 @@ class TestSendEmailsToRecipients:
         submitted_submission = factories.submission.create(
             mode=SubmissionModeEnum.LIVE,
             collection=collection,
-            data={str(question.id): "Area Alpha"},
             created_by=user,
             grant_recipient=grant_recipient,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Area Alpha"))],
         )
         factories.submission_event.create(
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
@@ -1256,9 +1257,9 @@ class TestSendEmailsToRecipients:
         factories.submission.create(
             mode=SubmissionModeEnum.LIVE,
             collection=collection,
-            data={str(question.id): "Area Bravo"},
             created_by=user,
             grant_recipient=grant_recipient,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Area Bravo"))],
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
