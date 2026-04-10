@@ -76,6 +76,8 @@ class Grant(BaseModel):
     grant_recipients: Mapped[list[GrantRecipient]] = relationship("GrantRecipient", back_populates="grant")
     privacy_policy_markdown: Mapped[str | None]
 
+    allow_pre_award: Mapped[bool] = mapped_column(default=False)
+
     invitations: Mapped[list[Invitation]] = relationship(
         "Invitation",
         back_populates="grant",

@@ -51,6 +51,7 @@ from app.common.filters import (
     to_ordinal,
 )
 from app.common.helpers.collections import SubmissionAuthorisationError
+from app.common.helpers.feature_flags import FeatureFlags
 from app.common.utils import comma_join_items, uppercase_first
 from app.config import get_settings
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -317,6 +318,7 @@ def create_app() -> Flask:  # noqa: C901
                 maximum_file_size_enum=MaximumFileSize,
                 data_source_type_enum=DataSourceType,
             ),
+            feature_flags=FeatureFlags,
         )
 
     # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not
