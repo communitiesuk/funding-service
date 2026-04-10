@@ -331,7 +331,7 @@ class Submission(BaseModel):
 
     reference: Mapped[CIStr] = mapped_column(unique=True)
 
-    _data: Mapped[json_scalars] = mapped_column("data", mutable_json_type(dbtype=JSONB, nested=True), default=dict)
+    _data: Mapped[json_scalars] = mapped_column("data", default=dict)
 
     mode: Mapped[SubmissionModeEnum] = mapped_column(
         SqlEnum(SubmissionModeEnum, name="submission_mode_enum", validate_strings=True)
