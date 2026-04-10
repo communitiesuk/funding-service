@@ -231,9 +231,21 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
     column_list = ["name", "code", "status", "ggis_number", "organisation.name"]
     column_filters = ["name", "code", "status", "ggis_number", "organisation.name"]
     column_searchable_list = ["name", "code", "ggis_number"]
-    column_labels = {"ggis_number": "GGIS number", "organisation.name": "Organisation name"}
+    column_labels = {
+        "ggis_number": "GGIS number",
+        "organisation.name": "Organisation name",
+        "allow_pre_award": "Allow pre-award features",
+    }
 
-    form_columns = ["name", "code", "organisation", "ggis_number", "status", "privacy_policy_markdown"]
+    form_columns = [
+        "name",
+        "code",
+        "organisation",
+        "ggis_number",
+        "status",
+        "privacy_policy_markdown",
+        "allow_pre_award",
+    ]
 
     form_args = {
         "organisation": {
