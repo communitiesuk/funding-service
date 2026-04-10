@@ -3468,6 +3468,220 @@ class TestSelectContextSourceQuestion:
                 )
 
 
+class TestSelectContextSourceDataSet:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant)
+        form = factories.form.create(collection=report)
+
+        with client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    def test_get_fails_with_empty_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 400
+
+    def test_get_shows_available_data_set_choices(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        report_2 = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        data_source = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        data_source_2 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Second data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        data_source_3 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report_2,
+            name="Data set that shouldn't be shown",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select a data set" in soup.text
+        assert data_source.name in soup.text
+        assert data_source_2.name in soup.text
+        assert data_source_3.name not in soup.text
+
+    def test_get_shows_text_when_no_data_sets(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select a data set" in soup.text
+        assert "There are no data sets to reference in this collection" in soup.text
+
+    def test_post_redirects_to_select_data_set_column_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        data_source = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"data_set": data_source.id},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/section/"
+            f"{form.id}/add-context/select-data-set-column"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            assert question_data["data_set_id"] == str(data_source.id)
+
+
 class TestEditQuestion:
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(

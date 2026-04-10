@@ -123,6 +123,7 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     SelectConditionCalculationForm,
+    SelectDataSourceDataSetForm,
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
     SetUpReportForm,
@@ -1404,6 +1405,13 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                         )
                     )
 
+                case ExpressionContext.ContextSources.DATASET:
+                    redirect_response = redirect(
+                        url_for(
+                            "deliver_grant_funding.select_context_source_data_set", grant_id=grant_id, form_id=form_id
+                        )
+                    )
+
                 case _:
                     wtform.form_errors.append("Unknown data source selected")
 
@@ -1463,6 +1471,50 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
         form=wtform,
         add_context_data=add_context_data,
     )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-data-set", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+
+    add_context_data = _extract_add_context_data_from_session()
+    if not add_context_data:
+        return abort(400)
+
+    wtform = SelectDataSourceDataSetForm(collection=db_form.collection)
+
+    if wtform.validate_on_submit():
+        reference_data_set = get_data_source(uuid.UUID(wtform.data_set.data))
+        add_context_data.data_set_id = reference_data_set.id
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=grant_id,
+                form_id=form_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/reports/select_context_source_data_set.html",
+        grant=db_form.collection.grant,
+        form=wtform,
+        db_form=db_form,
+        add_context_data=add_context_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-data-set-column", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def select_context_source_data_set_column(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    return abort(404)
 
 
 def _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
