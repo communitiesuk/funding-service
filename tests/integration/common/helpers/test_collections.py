@@ -1193,26 +1193,6 @@ class TestSubmissionHelper:
 
             assert answer is None
 
-        def test_get_answer_for_add_another_question_group_missing_index(self, factories):
-            group = factories.group.create(add_another=True)
-            question = factories.question.create(form=group.form, parent=group)
-            submission = factories.submission.create(collection=group.form.collection)
-
-            helper = SubmissionHelper(submission)
-            with pytest.raises(ValueError) as e:
-                helper._get_answer_for_question(question_id=question.id)
-            assert str(e.value) == "add_another_index must be provided for questions within an add another container"
-
-        def test_get_answer_for_add_another_question_group_invalid_idnex(self, factories):
-            group = factories.group.create(add_another=True)
-            question = factories.question.create(form=group.form, parent=group)
-            submission = factories.submission.create(collection=group.form.collection)
-
-            helper = SubmissionHelper(submission)
-            with pytest.raises(ValueError) as e:
-                helper._get_answer_for_question(question_id=question.id, add_another_index=0)
-            assert str(e.value) == "no add another entry exists at this index"
-
         def test_get_answer_for_add_another_question_group_at_index(self, factories):
             collection = factories.collection.create(
                 create_completed_submissions_add_another_nested_group__test=1,

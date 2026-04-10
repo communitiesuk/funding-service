@@ -4,7 +4,7 @@ import pytest
 
 from app import QuestionDataType
 from app.common.collections.types import TextSingleLineAnswer
-from app.common.data.submission_data_manager import SubmissionDataManager
+from app.common.data.submission_data_manager import SubmissionDataAddAnotherIndexInvalid, SubmissionDataManager
 from tests.conftest import _Factories
 
 
@@ -30,19 +30,31 @@ class TestSubmissionDataManager:
             assert data.get(question, add_another_index=0) == TextSingleLineAnswer("entry0")
             assert data.get(question, add_another_index=1) == TextSingleLineAnswer("entry1")
 
-        def test_returns_none_for_out_of_bounds_add_another_index(self, factories: _Factories):
-            group = factories.group.build(add_another=True)
-            question = factories.question.build(form=group.form, parent=group)
-            data = SubmissionDataManager({str(group.id): [{str(question.id): "entry0"}]})
-
-            assert data.get(question, add_another_index=5) is None
-
-        def test_returns_none_for_missing_add_another_group(self, factories: _Factories):
+        def test_returns_none_for_next_add_another_group(self, factories: _Factories):
             group = factories.group.build(add_another=True)
             question = factories.question.build(form=group.form, parent=group)
             data = SubmissionDataManager({})
 
             assert data.get(question, add_another_index=0) is None
+
+        def test_raises_if_no_index_for_add_another_question(self, factories):
+            group = factories.group.build(add_another=True)
+            question = factories.question.build(form=group.form, parent=group)
+
+            data = SubmissionDataManager({})
+            with pytest.raises(SubmissionDataAddAnotherIndexInvalid) as e:
+                data.get(question)
+            assert str(e.value) == "add_another_index must be provided for questions within an add another container"
+
+        def test_raises_for_beyond_next_add_another_group(self, factories):
+            group = factories.group.build(add_another=True)
+            question = factories.question.build(form=group.form, parent=group)
+
+            data = SubmissionDataManager({})
+            data.get(question, add_another_index=0)
+            with pytest.raises(SubmissionDataAddAnotherIndexInvalid) as e:
+                data.get(question, add_another_index=1)
+            assert str(e.value) == "no add another entry exists at this index"
 
     class TestSetAnswer:
         def test_sets_single_question_answer(self, factories: _Factories):

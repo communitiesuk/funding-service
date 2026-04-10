@@ -802,9 +802,7 @@ class TestExtendingWithAddAnotherContext:
 
         # if the add another entry hasn't been created yet we'd expect the context to be unchanged
         assert (
-            context.with_add_another_context(
-                component, data_manager=submission.data_manager, add_another_index=1, allow_new_index=True
-            )
+            context.with_add_another_context(component, data_manager=submission.data_manager, add_another_index=1)
             == context
         )
 

@@ -294,7 +294,7 @@ class FormRunner:
                 if (
                     question.data_type == QuestionDataType.FILE_UPLOAD
                     and self.submission.cached_get_answer_for_question(
-                        question.id, add_another_index=self.add_another_index, allow_new_index=True
+                        question.id, add_another_index=self.add_another_index
                     )
                     is not None
                 ):
@@ -585,7 +585,6 @@ class FormRunner:
                 self.component,
                 data_manager=self.submission.submission.data_manager,
                 add_another_index=self.add_another_index,
-                allow_new_index=True,
             )
         return self.submission.cached_evaluation_context
 
@@ -597,7 +596,6 @@ class FormRunner:
                 data_manager=self.submission.submission.data_manager,
                 add_another_index=self.add_another_index,
                 mode="interpolation",
-                allow_new_index=True,
             )
         return self.submission.cached_interpolation_context
 

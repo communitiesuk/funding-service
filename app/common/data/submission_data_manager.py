@@ -51,11 +51,16 @@ def _deserialise_question_type(question: Question, serialised_data: str | int | 
     raise ValueError(f"Could not deserialise data for question type={question.data_type}")
 
 
+class SubmissionDataAddAnotherIndexInvalid(ValueError):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
 class SubmissionDataManager:
     """A helper to handle creating/updating/deleting answers in the `data` blob of a submission.
 
     This makes a deep copy of the submission data so that any changes do not get persisted/synced with SQLAlchemy until
-    they are persisted explicitly with a call to `update_submission_data`. Q for review: is this good or bad?
+    they are persisted explicitly with a call to `update_submission_data`.
 
     This is *only* concerned with managing the structure of the `submission.data` blob, not any higher-level concerns
     such as 'how complete is this submission' or 'what is the current state of the submission'.
@@ -69,10 +74,19 @@ class SubmissionDataManager:
     def get(self, question: Question, *, add_another_index: int | None = None) -> AllAnswerTypes | None:
         if question.add_another_container:
             entries = self.data.get(str(question.add_another_container.id), [])
-            if add_another_index is None or add_another_index < 0 or add_another_index >= len(entries):
-                return None
+            if add_another_index is None:
+                raise SubmissionDataAddAnotherIndexInvalid(
+                    "add_another_index must be provided for questions within an add another container"
+                )
 
-            raw_answer = entries[add_another_index].get(str(question.id))
+            if add_another_index < 0 or add_another_index > len(entries):
+                raise SubmissionDataAddAnotherIndexInvalid("no add another entry exists at this index")
+
+            if add_another_index == len(entries):
+                # Always allow looking at the 'next' add another group - so that you can add more sets of answers.
+                raw_answer = None
+            else:
+                raw_answer = entries[add_another_index].get(str(question.id))
 
         else:
             raw_answer = self.data.get(str(question.id))

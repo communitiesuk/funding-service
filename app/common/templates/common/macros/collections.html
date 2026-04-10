@@ -112,7 +112,7 @@
       }}
     {% endif %}
   {% elif question.data_type == enum.question_type.FILE_UPLOAD %}
-    {% set existing_file_upload_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none, allow_new_index=true) %}
+    {% set existing_file_upload_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none) %}
 
     {% if existing_file_upload_answer %}
       {% if questionAsPageHeading %}

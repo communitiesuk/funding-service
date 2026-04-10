@@ -716,7 +716,6 @@ class SubmissionHelper:
                     component,
                     data_manager=self.submission.data_manager,
                     add_another_index=add_another_index,
-                    allow_new_index=True,
                 )
             # Note that to check component visibility we separate reference and condition checks
             # (instead of relying on full_condition_chain)
@@ -813,22 +812,9 @@ class SubmissionHelper:
                 )
 
     def _get_answer_for_question(
-        self, question_id: UUID, add_another_index: int | None = None, allow_new_index: bool = False
+        self, question_id: UUID, add_another_index: int | None = None
     ) -> AllAnswerTypes | None:
         question = self.get_question(question_id)
-
-        if question.add_another_container:
-            if add_another_index is None:
-                raise ValueError("add_another_index must be provided for questions within an add another container")
-            if add_another_index >= self.submission.data_manager.get_count_for_add_another(
-                question.add_another_container
-            ):
-                if allow_new_index:
-                    return None
-                # we raise here instead of returning None as the consuming code should never ask for an answer to an
-                # add another entry that doesn't exist
-                raise ValueError("no add another entry exists at this index")
-
         return self.submission.data_manager.get(question, add_another_index=add_another_index)
 
     def submit_answer_for_question(
@@ -1238,7 +1224,6 @@ class SubmissionHelper:
                 question,
                 data_manager=self.submission.data_manager,
                 add_another_index=add_another_index,
-                allow_new_index=True,
             )
 
         questions = self.cached_get_ordered_visible_questions(
