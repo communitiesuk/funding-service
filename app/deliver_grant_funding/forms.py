@@ -849,6 +849,16 @@ class CollectionSettingsForm(FlaskForm):
         return super().validate(extra_validators)
 
 
+class PublicSignUpSettingsForm(FlaskForm):
+    allow_public_sign_up = RadioField(
+        "Should this collection allow public self sign up?",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[DataRequired("Select whether the collection should allow public sign up")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
 class CollectionSettingsSelectSectionForm(FlaskForm):
     section = RadioField(
         "Select a section",
