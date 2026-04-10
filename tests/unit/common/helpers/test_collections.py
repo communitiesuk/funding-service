@@ -305,11 +305,14 @@ class TestSubmissionHelper:
             q3 = factories.question.build(parent=group, order=2)
             q4 = factories.question.build(form=form, order=2)
 
-            submission = factories.submission.build(collection=form.collection)
+            submission = factories.submission.build(
+                collection=form.collection,
+                answers=[
+                    FactoryAnswer(q1, IntegerAnswer(value=55), add_another_index=0),
+                    FactoryAnswer(q1, IntegerAnswer(value=20), add_another_index=1),
+                ],
+            )
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
-
-            submission.data_manager.set(q1, IntegerAnswer(value=55), add_another_index=0)
-            submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=1)
 
             helper = SubmissionHelper(submission)
 
@@ -388,11 +391,14 @@ class TestSubmissionHelper:
             q3 = factories.question.build(parent=group, order=2)
             q4 = factories.question.build(form=form, order=2)
 
-            submission = factories.submission.build(collection=form.collection)
+            submission = factories.submission.build(
+                collection=form.collection,
+                answers=[
+                    FactoryAnswer(q1, IntegerAnswer(value=55), add_another_index=0),
+                    FactoryAnswer(q1, IntegerAnswer(value=20), add_another_index=1),
+                ],
+            )
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
-
-            submission.data_manager.set(q1, IntegerAnswer(value=55), add_another_index=0)
-            submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=1)
 
             helper = SubmissionHelper(submission)
 
@@ -500,11 +506,15 @@ class TestSubmissionHelper:
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(form=group.form, parent=group, data_type=QuestionDataType.NUMBER)
             q2 = factories.question.build(form=group.form, parent=group)
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, IntegerAnswer(value=20), add_another_index=0)
-            submission.data_manager.set(q1, IntegerAnswer(value=55), add_another_index=1)
-            submission.data_manager.set(q2, TextSingleLineAnswer("answer 2"), add_another_index=1)
-            submission.data_manager.set(q1, IntegerAnswer(value=60), add_another_index=2)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, IntegerAnswer(value=20), add_another_index=0),
+                    FactoryAnswer(q1, IntegerAnswer(value=55), add_another_index=1),
+                    FactoryAnswer(q2, TextSingleLineAnswer("answer 2"), add_another_index=1),
+                    FactoryAnswer(q1, IntegerAnswer(value=60), add_another_index=2),
+                ],
+            )
             factories.expression.build(question=q2, type_=ExpressionType.CONDITION, statement=f"{q1.safe_qid} > 50")
             helper = SubmissionHelper(submission)
 
@@ -588,8 +598,10 @@ class TestSubmissionHelper:
                 requires_certification=False,
             )
             question = factories.question.build(form__collection=collection)
-            submission = factories.submission.build(collection=collection)
-            submission.data_manager.set(question, TextSingleLineAnswer("test answer"))
+            submission = factories.submission.build(
+                collection=collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("test answer"))],
+            )
             submission.events = [
                 factories.submission_event.build(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
@@ -654,9 +666,13 @@ class TestSubmissionHelper:
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(form=group.form, parent=group)
             q2 = factories.question.build(form=group.form, parent=group)
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("True"), add_another_index=0)
-            submission.data_manager.set(q1, TextSingleLineAnswer("False"), add_another_index=1)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("True"), add_another_index=0),
+                    FactoryAnswer(q1, TextSingleLineAnswer("False"), add_another_index=1),
+                ],
+            )
             helper = SubmissionHelper(submission)
 
             factories.expression.build(
@@ -748,8 +764,10 @@ class TestSubmissionHelper:
             q1 = factories.question.build(order=0)
             q2 = factories.question.build(form=q1.form, order=1)
             q2.owned_component_references = [ComponentReference(component=q2, depends_on_component=q1)]
-            submission = factories.submission.build(collection=q1.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("answer"))
+            submission = factories.submission.build(
+                collection=q1.form.collection,
+                answers=[FactoryAnswer(q1, TextSingleLineAnswer("answer"))],
+            )
             helper = SubmissionHelper(submission)
 
             assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
@@ -853,10 +871,14 @@ class TestSubmissionHelper:
         def test_with_answers(self, db_session, factories):
             group = factories.group.build(add_another=True)
             question = factories.question.build(form=group.form, parent=group)
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(question, TextSingleLineAnswer("answer 0"), add_another_index=0)
-            submission.data_manager.set(question, TextSingleLineAnswer("answer 1"), add_another_index=1)
-            submission.data_manager.set(question, TextSingleLineAnswer("answer 2"), add_another_index=2)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(question, TextSingleLineAnswer("answer 0"), add_another_index=0),
+                    FactoryAnswer(question, TextSingleLineAnswer("answer 1"), add_another_index=1),
+                    FactoryAnswer(question, TextSingleLineAnswer("answer 2"), add_another_index=2),
+                ],
+            )
 
             helper = SubmissionHelper(submission)
             assert helper.get_count_for_add_another(group) == 3
@@ -866,13 +888,17 @@ class TestSubmissionHelper:
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(parent=group)
             q2 = factories.question.build(parent=group)
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0),
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1),
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2),
+                ],
+            )
             helper = SubmissionHelper(submission)
             assert (
                 helper.get_answer_summary_for_add_another(group, add_another_index=0).summary
@@ -887,13 +913,17 @@ class TestSubmissionHelper:
             group.question_presentation_options = QuestionPresentationOptions(
                 add_another_summary_line_question_ids=[uuid.uuid4(), uuid.uuid4()]
             )
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0),
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1),
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2),
+                ],
+            )
             helper = SubmissionHelper(submission)
             assert (
                 helper.get_answer_summary_for_add_another(group, add_another_index=0).summary
@@ -906,13 +936,17 @@ class TestSubmissionHelper:
             q2 = factories.question.build(parent=group)
 
             group.presentation_options = QuestionPresentationOptions(add_another_summary_line_question_ids=[q1.id])
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2)
-            submission.data_manager.set(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 0 answer 1"), add_another_index=0),
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 1 answer 0"), add_another_index=1),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 1 answer 1"), add_another_index=1),
+                    FactoryAnswer(q1, TextSingleLineAnswer("line 2 answer 0"), add_another_index=2),
+                    FactoryAnswer(q2, TextSingleLineAnswer("line 2 answer 1"), add_another_index=2),
+                ],
+            )
             helper = SubmissionHelper(submission)
             assert helper.get_answer_summary_for_add_another(group, add_another_index=0).summary == "line 0 answer 0"
 
@@ -926,8 +960,10 @@ class TestSubmissionHelper:
 
         def test_valid_summary_line_for_single_add_another_question(self, factories):
             q1 = factories.question.build(add_another=True)
-            submission = factories.submission.build(collection=q1.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)
+            submission = factories.submission.build(
+                collection=q1.form.collection,
+                answers=[FactoryAnswer(q1, TextSingleLineAnswer("line 0 answer 0"), add_another_index=0)],
+            )
             helper = SubmissionHelper(submission)
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=0).summary == "line 0 answer 0"
 
@@ -944,11 +980,15 @@ class TestSubmissionHelper:
             group = factories.group.build(add_another=True)
             q1 = factories.question.build(form=group.form, parent=group)
             q2 = factories.question.build(form=group.form, parent=group)
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("True"), add_another_index=0)
-            submission.data_manager.set(q1, TextSingleLineAnswer("False"), add_another_index=1)
-            submission.data_manager.set(q1, TextSingleLineAnswer("True"), add_another_index=2)
-            submission.data_manager.set(q2, TextSingleLineAnswer("True"), add_another_index=2)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("True"), add_another_index=0),
+                    FactoryAnswer(q1, TextSingleLineAnswer("False"), add_another_index=1),
+                    FactoryAnswer(q1, TextSingleLineAnswer("True"), add_another_index=2),
+                    FactoryAnswer(q2, TextSingleLineAnswer("True"), add_another_index=2),
+                ],
+            )
             helper = SubmissionHelper(submission)
 
             factories.expression.build(
@@ -1046,8 +1086,10 @@ class TestSubmissionHelper:
             q_b.owned_component_references = [
                 ComponentReference(component=q_b, depends_on_component=q_a),
             ]
-            submission = factories.submission.build(collection=collection)
-            submission.data_manager.set(q_a, TextSingleLineAnswer("answered"))
+            submission = factories.submission.build(
+                collection=collection,
+                answers=[FactoryAnswer(q_a, TextSingleLineAnswer("answered"))],
+            )
 
             helper = SubmissionHelper(submission)
             assert helper.can_start_form(form_b) is True
@@ -1194,8 +1236,10 @@ class TestSubmissionHelper:
             q_b.owned_component_references = [
                 ComponentReference(component=q_b, depends_on_component=q_a),
             ]
-            submission = factories.submission.build(collection=collection)
-            submission.data_manager.set(q_a, TextSingleLineAnswer("answered"))
+            submission = factories.submission.build(
+                collection=collection,
+                answers=[FactoryAnswer(q_a, TextSingleLineAnswer("answered"))],
+            )
 
             helper = SubmissionHelper(submission)
             assert helper.get_tasklist_status_for_form(form_b) == TasklistSectionStatusEnum.NOT_STARTED
@@ -1333,8 +1377,10 @@ class TestSubmissionHelper:
                 ComponentReference(component=q4, expression=cond_q4, depends_on_component=q3)
             ]
 
-            submission = factories.submission.build(collection=form.collection)
-            submission.data_manager.set(q1, IntegerAnswer(value=6))
+            submission = factories.submission.build(
+                collection=form.collection,
+                answers=[FactoryAnswer(q1, IntegerAnswer(value=6))],
+            )
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1378,8 +1424,10 @@ class TestSubmissionHelper:
                 ComponentReference(component=q4, expression=cond_q4, depends_on_component=q3)
             ]
 
-            submission = factories.submission.build(collection=form.collection)
-            submission.data_manager.set(q1, IntegerAnswer(value=11))
+            submission = factories.submission.build(
+                collection=form.collection,
+                answers=[FactoryAnswer(q1, IntegerAnswer(value=11))],
+            )
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1424,8 +1472,10 @@ class TestSubmissionHelper:
             q1 = factories.question.build(order=0)
             q2 = factories.question.build(form=q1.form, order=1)
             q2.owned_component_references = [ComponentReference(component=q2, depends_on_component=q1)]
-            submission = factories.submission.build(collection=q1.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("answer"))
+            submission = factories.submission.build(
+                collection=q1.form.collection,
+                answers=[FactoryAnswer(q1, TextSingleLineAnswer("answer"))],
+            )
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1473,9 +1523,13 @@ class TestSubmissionHelper:
             q3.owned_component_references = [
                 ComponentReference(component=q3, expression=condition, depends_on_component=q2)
             ]
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("Test answer"), add_another_index=0)
-            submission.data_manager.set(q1, TextSingleLineAnswer("Test answer"), add_another_index=1)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("Test answer"), add_another_index=0),
+                    FactoryAnswer(q1, TextSingleLineAnswer("Test answer"), add_another_index=1),
+                ],
+            )
 
             helper = SubmissionHelper(submission)
 
@@ -1498,9 +1552,13 @@ class TestSubmissionHelper:
             q2.owned_component_references = [
                 ComponentReference(component=q2, expression=condition, depends_on_component=q1)
             ]
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("yes"), add_another_index=0)
-            submission.data_manager.set(q1, TextSingleLineAnswer("no"), add_another_index=1)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("yes"), add_another_index=0),
+                    FactoryAnswer(q1, TextSingleLineAnswer("no"), add_another_index=1),
+                ],
+            )
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1524,8 +1582,10 @@ class TestSubmissionHelper:
             q3.owned_component_references = [
                 ComponentReference(component=q3, expression=condition, depends_on_component=q2)
             ]
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("Test answer"), add_another_index=0)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[FactoryAnswer(q1, TextSingleLineAnswer("Test answer"), add_another_index=0)],
+            )
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1546,10 +1606,14 @@ class TestSubmissionHelper:
             q_conditional.owned_component_references = [
                 ComponentReference(component=q_conditional, expression=condition, depends_on_component=q_trigger)
             ]
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q_trigger, TextSingleLineAnswer("show"), add_another_index=0)
-            submission.data_manager.set(q_trigger, TextSingleLineAnswer("hide"), add_another_index=1)
-            submission.data_manager.set(q1, TextSingleLineAnswer("anything"), add_another_index=2)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q_trigger, TextSingleLineAnswer("show"), add_another_index=0),
+                    FactoryAnswer(q_trigger, TextSingleLineAnswer("hide"), add_another_index=1),
+                    FactoryAnswer(q1, TextSingleLineAnswer("anything"), add_another_index=2),
+                ],
+            )
 
             helper = SubmissionHelper(submission)
 
@@ -1634,9 +1698,13 @@ class TestSubmissionHelper:
                 ComponentReference(component=q3, expression=cond_q3, depends_on_component=q2)
             ]
 
-            submission = factories.submission.build(collection=group.form.collection)
-            submission.data_manager.set(q1, TextSingleLineAnswer("yes"), add_another_index=0)
-            submission.data_manager.set(q1, TextSingleLineAnswer("no"), add_another_index=1)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(q1, TextSingleLineAnswer("yes"), add_another_index=0),
+                    FactoryAnswer(q1, TextSingleLineAnswer("no"), add_another_index=1),
+                ],
+            )
             helper = SubmissionHelper(submission)
 
             assert (
@@ -1666,10 +1734,14 @@ class TestSubmissionHelper:
                 ComponentReference(component=q3, expression=cond_q3, depends_on_component=q2)
             ]
 
-            submission = factories.submission.build(collection=form.collection)
-            submission.data_manager.set(q1, YesNoAnswer(False))
-            submission.data_manager.set(q2, YesNoAnswer(True))
-            submission.data_manager.set(q3, TextSingleLineAnswer("yes"))
+            submission = factories.submission.build(
+                collection=form.collection,
+                answers=[
+                    FactoryAnswer(q1, YesNoAnswer(False)),
+                    FactoryAnswer(q2, YesNoAnswer(True)),
+                    FactoryAnswer(q3, TextSingleLineAnswer("yes")),
+                ],
+            )
             helper = SubmissionHelper(submission)
 
             assert (

@@ -178,8 +178,10 @@ class TestFormRunner:
         question = factories.question.build()
         second_question = factories.question.build(form=question.form)
         third_question = factories.question.build(form=question.form)
-        submission = factories.submission.build(collection=question.form.collection)
-        submission.data_manager.set(second_question, TextSingleLineAnswer("hi"))
+        submission = factories.submission.build(
+            collection=question.form.collection,
+            answers=[FactoryAnswer(second_question, TextSingleLineAnswer("hi"))],
+        )
         helper = SubmissionHelper(submission)
 
         question_mock = Mock(side_effect=lambda r, q, f, s, i, rm: f"mock_question_url_{str(q.id)}")
@@ -207,10 +209,11 @@ class TestFormRunner:
 
     def test_next_url_returns_to_the_same_question_when_clearing_answer(self, factories):
         question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
-        submission = factories.submission.build(collection=question.form.collection)
-        submission.data_manager.set(
-            question,
-            FileUploadAnswer(filename="text_file.txt", size=0, mime_type="text/plain"),
+        submission = factories.submission.build(
+            collection=question.form.collection,
+            answers=[
+                FactoryAnswer(question, FileUploadAnswer(filename="text_file.txt", size=0, mime_type="text/plain"))
+            ],
         )
         helper = SubmissionHelper(submission)
 
@@ -276,10 +279,11 @@ class TestFormRunner:
 
     def test_back_url_returns_to_the_same_question_when_clearing_answer(self, factories):
         question = factories.question.build(data_type=QuestionDataType.FILE_UPLOAD)
-        submission = factories.submission.build(collection=question.form.collection)
-        submission.data_manager.set(
-            question,
-            FileUploadAnswer(filename="text_file.txt", size=0, mime_type="text/plain"),
+        submission = factories.submission.build(
+            collection=question.form.collection,
+            answers=[
+                FactoryAnswer(question, FileUploadAnswer(filename="text_file.txt", size=0, mime_type="text/plain"))
+            ],
         )
         helper = SubmissionHelper(submission)
 
@@ -440,8 +444,10 @@ class TestFormRunner:
             q_b.owned_component_references = [
                 ComponentReference(component=q_b, depends_on_component=q_a),
             ]
-            submission = factories.submission.build(collection=collection)
-            submission.data_manager.set(q_a, TextSingleLineAnswer("answered"))
+            submission = factories.submission.build(
+                collection=collection,
+                answers=[FactoryAnswer(q_a, TextSingleLineAnswer("answered"))],
+            )
             helper = SubmissionHelper(submission)
 
             runner = FormRunner(submission=helper, question=q_b, source=None)
