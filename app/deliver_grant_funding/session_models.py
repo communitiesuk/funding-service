@@ -56,6 +56,9 @@ class AddContextToComponentSessionModel(_ReferenceDataSessionModel):
     collection_id: UUID | None = None
     form_id: UUID | None = None
 
+    data_set_id: UUID | None = None
+    data_set_safe_column_id: str | None = None
+
 
 class AddContextToComponentGuidanceSessionModel(_ReferenceDataSessionModel):
     model_config = ConfigDict(validate_assignment=True)
@@ -73,6 +76,9 @@ class AddContextToComponentGuidanceSessionModel(_ReferenceDataSessionModel):
 
     data_source: ExpressionContext.ContextSources | None = None
 
+    data_set_id: UUID | None = None
+    data_set_safe_column_id: str | None = None
+
 
 class AddConditionDependsOnSessionModel(_ReferenceDataSessionModel):
     model_config = ConfigDict(validate_assignment=True)
@@ -85,6 +91,9 @@ class AddConditionDependsOnSessionModel(_ReferenceDataSessionModel):
     form_id: UUID | None = None
 
     data_source: ExpressionContext.ContextSources | None = None
+
+    data_set_id: UUID | None = None
+    data_set_safe_column_id: str | None = None
 
 
 class AddContextToExpressionsModel(_ReferenceDataSessionModel):
@@ -105,6 +114,9 @@ class AddContextToExpressionsModel(_ReferenceDataSessionModel):
     data_source: ExpressionContext.ContextSources | None = None
     depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None
+
+    data_set_id: UUID | None = None
+    data_set_safe_column_id: str | None = None
 
     is_custom: bool = False
     is_group: bool = False
