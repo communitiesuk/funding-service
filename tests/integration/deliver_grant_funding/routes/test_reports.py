@@ -971,6 +971,39 @@ class TestConfigurePublicSignUp:
         assert response.status_code == 403
 
 
+class TestReportSectionsConfigurePublicSignUp:
+    def test_link_hidden_when_grant_pre_award_disabled(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_report_sections",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Configure public sign up" not in soup.text
+
+    def test_link_hidden_when_grant_pre_award_enabled(self, authenticated_grant_admin_client, factories):
+        authenticated_grant_admin_client.grant.allow_pre_award = True
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_report_sections",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Configure public sign up" in soup.text
+
+
 class TestSetGuidanceForMultipleSubmissions:
     def test_get_renders_form(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(
