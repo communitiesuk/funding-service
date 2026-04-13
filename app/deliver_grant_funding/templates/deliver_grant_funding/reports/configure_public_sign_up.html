@@ -18,8 +18,8 @@
     <div class="govuk-grid-column-two-thirds">
       <form method="post" novalidate>
         {{ form.csrf_token }}
-
-        {% set sign_up_url = request.host_url ~ "access/grants/" ~ grant.code %}
+        <!-- display sign_up_url here once the public sign up endpoint is registered -->
+        {% set sign_up_url = report.public_sign_up %}
 
         {{
           form.allow_public_sign_up(params={

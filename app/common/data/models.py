@@ -5,7 +5,7 @@ from decimal import Decimal
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from flask import current_app
+from flask import current_app, url_for
 from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, and_, or_, select, text
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
@@ -327,6 +327,12 @@ class Collection(BaseModel):
         if not self.submission_period_end_date:
             return False
         return self.submission_period_end_date < datetime.date.today()
+
+    @property
+    def public_sign_up(self) -> str:
+        # TODO: link to the grants/ collection public sign up page when registered as an endpoint in Access
+        # url is just a placeholder for now
+        return url_for("auth.request_a_link_to_sign_in", _external=True)
 
 
 class Submission(BaseModel):
