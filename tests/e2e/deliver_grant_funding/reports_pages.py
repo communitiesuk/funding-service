@@ -1476,6 +1476,76 @@ class RunnerCheckYourAnswersPage(ReportsBasePage):
         return task_list_page
 
 
+class RunnerAddAnotherSummaryPage(ReportsBasePage):
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_name: str,
+        group_name: str,
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=group_name, exact=True),
+        )
+        self.group_name = group_name
+
+    def expect_empty(self) -> None:
+        expect(self.heading).to_be_visible()
+        expect(self.page.get_by_text(f"You have not added any {self.group_name}.")).to_be_visible()
+
+    def expect_count(self, count: int) -> None:
+        expect(self.heading).to_be_visible()
+        expect(self.page.get_by_text(f"You have added {count} {self.group_name}")).to_be_visible()
+
+    def click_add_first_answer(self) -> None:
+        self.page.get_by_role("button", name="Add the first answer").click()
+
+    def click_add_another_yes(self) -> None:
+        self.page.get_by_role("radio", name="Yes").click()
+        self.page.get_by_role("button", name="Continue").click()
+
+    def click_add_another_no(self) -> None:
+        self.page.get_by_role("radio", name="No").click()
+        self.page.get_by_role("button", name="Continue").click()
+
+    def click_change(self, index: int = 0) -> None:
+        self.page.get_by_role("link", name="Change", exact=False).nth(index).click()
+
+    def click_remove_first(self) -> None:
+        self.page.get_by_role("link", name="Remove", exact=False).first.click()
+
+    def click_remove_last(self) -> None:
+        self.page.get_by_role("link", name="Remove", exact=False).last.click()
+
+
+class RunnerAddAnotherRemovePage(ReportsBasePage):
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_name: str,
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Are you sure you want to remove", exact=False),
+        )
+
+    def confirm_remove(self) -> None:
+        expect(self.heading).to_be_visible()
+        self.page.get_by_role("radio", name="Yes").click()
+        self.page.get_by_role("button", name="Continue").click()
+
+    def cancel_remove(self) -> None:
+        expect(self.heading).to_be_visible()
+        self.page.get_by_role("radio", name="No").click()
+        self.page.get_by_role("button", name="Continue").click()
+
+
 class SubmissionsListPage(ReportsBasePage):
     report_name: str
 
@@ -1607,6 +1677,20 @@ class AddQuestionGroupDisplayOptionsPage(ReportsBasePage):
         )
         expect(group_add_another_page.heading).to_be_visible()
         return group_add_another_page
+
+    def click_submit_nested(self, parent_group_name: str) -> EditQuestionGroupPage:
+        self.page.get_by_role("button", name="Add question group").click()
+        edit_question_group_page = EditQuestionGroupPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+            group_name=self.group_name,
+            parent_group_name=parent_group_name,
+        )
+        expect(edit_question_group_page.heading).to_be_visible()
+        return edit_question_group_page
 
 
 class AddQuestionGroupAddAnotherPage(ReportsBasePage):
