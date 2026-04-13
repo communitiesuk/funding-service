@@ -48,6 +48,7 @@ from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
+from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.data_sets import CellError, DataTypeError, DecimalError, PrefixError, SuffixError
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
@@ -563,7 +564,6 @@ class AddContextSelectSourceForm(FlaskForm):
         form: Form,
         current_component: TOptional[Component],
         parent_component: TOptional[Group] = None,
-        ff_show_new_context_sources: bool = False,  # TODO: remove when implementation is fully released
         include_this_component: bool = False,
         **kwargs: Any,
     ):
@@ -573,8 +573,7 @@ class AddContextSelectSourceForm(FlaskForm):
         self.parent_component = parent_component
         self.include_this_component = include_this_component
 
-        # TODO: remove this when implementation for referencing previous sections+collections is ready to release.
-        if ff_show_new_context_sources:
+        if FeatureFlags.NEW_CONTEXT_SOURCES.is_enabled:
             # A soft feature flag that will (when implemented) allow platform admins to test new context sources
             # before releasing to a wider audience eg form builders.
             self.data_source.choices = [(choice.name, choice.value) for choice in ExpressionContext.ContextSources]
