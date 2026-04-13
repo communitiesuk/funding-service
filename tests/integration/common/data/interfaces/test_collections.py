@@ -470,6 +470,20 @@ class TestUpdateCollection:
         assert updated.allow_multiple_submissions is True
         assert updated.submission_name_question_id == question.id
 
+    def test_update_collection_enable_public_sign_Up(self, db_session, factories):
+        collection = factories.collection.create()
+
+        updated = update_collection(collection, allow_public_sign_up=True)
+
+        assert updated.allow_public_sign_up is True
+
+    def test_update_collection_disable_public_sign_up(self, db_session, factories):
+        collection = factories.collection.create(allow_public_sign_up=True)
+
+        updated = update_collection(collection, allow_public_sign_up=False)
+
+        assert updated.allow_public_sign_up is False
+
     def test_update_collection_disable_multiple_submissions_clears_question(self, db_session, factories):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         collection = question.form.collection

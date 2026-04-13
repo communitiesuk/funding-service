@@ -116,6 +116,11 @@
         <li>
           <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_multiple_submissions', grant_id=grant.id, report_id=report.id) }}"> Configure multiple submissions </a>
         </li>
+        {% if feature_flags.PRE_AWARD.is_enabled %}
+          <li>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_public_sign_up', grant_id=grant.id, report_id=report.id) }}"> Configure public sign up </a>
+          </li>
+        {% endif %}
         {% if report.allow_multiple_submissions %}
           <li>
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.set_guidance_for_multiple_submissions', grant_id=grant.id, report_id=report.id) }}"> Set guidance for multiple submissions </a>

@@ -866,6 +866,144 @@ class TestConfigureMultipleSubmissions:
         assert page_has_error(soup, "Select a question to use as the submission name")
 
 
+class TestConfigurePublicSignUp:
+    def test_get_configure_public_sign_up(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Should this collection allow public self sign up?" in soup.text
+
+    def test_get_configure_public_sign_up_prepopulates_when_already_enabled(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_public_sign_up=True,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        yes_radio = soup.find("input", {"value": "True"})
+        assert yes_radio is not None
+
+    def test_post_enable_public_sign_up(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"allow_public_sign_up": True, "submit": "Save"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert report.allow_public_sign_up is True
+
+    def test_post_disable_public_sign_up(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_public_sign_up=True,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"allow_public_sign_up": False, "submit": "Save"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert report.allow_public_sign_up is False
+
+    def test_post_shows_error_when_collection_not_editable(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            status=CollectionStatusEnum.OPEN,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            ),
+            data={"allow_public_sign_up": True, "submit": "Save"},
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "You cannot change this setting as the collection is not currently editable")
+
+    def test_grant_member_cannot_access(self, authenticated_grant_member_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 403
+
+
+class TestReportSectionsConfigurePublicSignUp:
+    def test_link_hidden_when_grant_pre_award_disabled(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_report_sections",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Configure public sign up" not in soup.text
+
+    def test_link_hidden_when_grant_pre_award_enabled(self, authenticated_grant_admin_client, factories):
+        authenticated_grant_admin_client.grant.allow_pre_award = True
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_report_sections",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                report_id=report.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Configure public sign up" in soup.text
+
+
 class TestSetGuidanceForMultipleSubmissions:
     def test_get_renders_form(self, authenticated_grant_admin_client, factories):
         report = factories.collection.create(

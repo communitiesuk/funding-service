@@ -120,6 +120,7 @@ from app.deliver_grant_funding.forms import (
     GroupForm,
     MapDataSetColumnsForm,
     MapNumberColumnsForm,
+    PublicSignUpSettingsForm,
     QuestionForm,
     QuestionTypeForm,
     SelectConditionCalculationForm,
@@ -337,6 +338,33 @@ def collection_configure_multiple_submissions(grant_id: UUID, report_id: UUID) -
 
     return render_template(
         "deliver_grant_funding/reports/configure_multiple_submissions.html",
+        grant=report.grant,
+        report=report,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/report/<uuid:report_id>/configure-public-sign-up", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def collection_configure_public_sign_up(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+
+    form = PublicSignUpSettingsForm(obj=report if request.method == "GET" else None)
+
+    if form.validate_on_submit():
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), report.id):
+            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
+        else:
+            update_collection(report, allow_public_sign_up=form.allow_public_sign_up.data == "True")
+            return redirect(
+                url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
+            )
+
+    return render_template(
+        "deliver_grant_funding/reports/configure_public_sign_up.html",
         grant=report.grant,
         report=report,
         form=form,
