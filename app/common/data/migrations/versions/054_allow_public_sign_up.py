@@ -1,7 +1,7 @@
-"""empty message
+"""Add allow_public_sign_up to collection
 
-Revision ID: 053_collection_allow_public_sign_up
-Revises: 052_other_org
+Revision ID: 054_allow_public_sign_up
+Revises: 053_pre_award_flag
 Create Date: 2026-04-09 15:17:40.054174
 
 """
@@ -9,8 +9,8 @@ Create Date: 2026-04-09 15:17:40.054174
 import sqlalchemy as sa
 from alembic import op
 
-revision = "053_allow_public_sign_up"
-down_revision = "052_other_org"
+revision = "054_allow_public_sign_up"
+down_revision = "053_pre_award_flag"
 branch_labels = None
 depends_on = None
 
