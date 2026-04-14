@@ -1050,6 +1050,14 @@ class DataSource(BaseModel, SafeDidMixin):
         cascade="all, delete-orphan",
     )
 
+    depended_on_by_columns: Mapped[list[ComponentReference]] = relationship(
+        "ComponentReference",
+        back_populates="depends_on_data_source",
+        # explicitly disable cascading deletes so that ComponentReference can protect the DataSource
+        passive_deletes="all",
+        foreign_keys="ComponentReference.depends_on_data_source_id",
+    )
+
     def get_filtered_organisation_item(self, organisation_external_id: str) -> DataSourceOrganisationItem | None:
         if not self.organisation_items:
             return None
@@ -1226,7 +1234,8 @@ class DataSourceOrganisationItem(BaseModel):
 
 
 class ComponentReference(BaseModel):
-    """A table to track when components (and their expressions) create a dependency upon another component.
+    """A table to track when components (and their expressions) create a dependency upon another component
+    or an uploaded reference-dataset column.
 
     As of creating this table, the common examples are:
 
@@ -1235,6 +1244,10 @@ class ComponentReference(BaseModel):
 
     q2 has text that shows the answer to q1:
       => ComponentReference(component_id=q2.id, expression_id=None, depends_on_component_id=q1.id)
+
+    q2 has text that shows a column value from an uploaded reference dataset d1:
+      => ComponentReference(component_id=q2.id, expression_id=None,
+                            depends_on_data_source_id=d1.id, depends_on_column_name="c_allocation")
     """
 
     __tablename__ = "component_reference"
@@ -1247,22 +1260,54 @@ class ComponentReference(BaseModel):
     expression_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("expression.id"))
     expression: Mapped[Expression | None] = relationship("Expression")
 
-    depends_on_component_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("component.id"))
-    depends_on_component: Mapped[Component] = relationship(
+    depends_on_component_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"))
+    depends_on_component: Mapped[Component | None] = relationship(
         "Component", foreign_keys=[depends_on_component_id], back_populates="depended_on_by"
     )
 
+    # NOTE: When pointing at a CUSTOM data source item, we also store `depends_on_component_id` - maybe we shouldn't?
+    #       When we add STATIC data sources, it would be nice for CUSTOM+STATIC to be treated the same in terms of
+    #       component references?
     depends_on_data_source_item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("data_source_item.id"))
     depends_on_data_source_item: Mapped[DataSourceItem | None] = relationship("DataSourceItem")
 
-    # Mirror columns from the referenced component for ordering the Component.component_references relationship
-    _sort_form_id: Mapped[uuid.UUID] = column_property(
+    depends_on_data_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("data_source.id", ondelete="RESTRICT")
+    )
+    depends_on_data_source: Mapped[DataSource | None] = relationship(
+        "DataSource", back_populates="depended_on_by_columns"
+    )
+    # NOTE: should we store dataset columns in a separate table so we can link to specific FKs here for more in-depth
+    #       integrity checks?
+    depends_on_column_name: Mapped[str | None]
+
+    __table_args__ = (
+        # A reference points at exactly one target kind: either a component (optionally paired with a
+        # specific data-source item for CUSTOM radio choices), or a data-source column.
+        CheckConstraint(
+            "(depends_on_component_id IS NOT NULL) != (depends_on_data_source_id IS NOT NULL)",
+            name="ck_component_reference_component_xor_data_source",
+        ),
+        CheckConstraint(
+            "depends_on_data_source_item_id IS NULL OR depends_on_component_id IS NOT NULL",
+            name="ck_component_reference_item_requires_component",
+        ),
+        CheckConstraint(
+            "(depends_on_data_source_id IS NULL) = (depends_on_column_name IS NULL)",
+            name="ck_component_reference_data_source_requires_column",
+        ),
+    )
+
+    # Mirror columns from the referenced component for ordering the Component.component_references relationship.
+    # Column-level references (depends_on_data_source_id set) leave these NULL — they don't participate in
+    # form ordering.
+    _sort_form_id: Mapped[uuid.UUID | None] = column_property(
         select(Component.form_id).where(Component.id == foreign(depends_on_component_id)).scalar_subquery()
     )
     _sort_parent_id: Mapped[uuid.UUID | None] = column_property(
         select(Component.parent_id).where(Component.id == foreign(depends_on_component_id)).scalar_subquery()
     )
-    _sort_order: Mapped[int] = column_property(
+    _sort_order: Mapped[int | None] = column_property(
         select(Component.order).where(Component.id == foreign(depends_on_component_id)).scalar_subquery()
     )
 

@@ -739,6 +739,97 @@ class TestComponentReferenceModel:
 
         assert db_session.query(ComponentReference).count() == 0
 
+    def test_column_reference_round_trips(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, items=None
+        )
+        question = factories.question.create(form__collection=collection)
+
+        cr = ComponentReference(
+            component=question,
+            depends_on_data_source=data_source,
+            depends_on_column_name="c_allocation",
+        )
+        db_session.add(cr)
+        db_session.commit()
+
+        loaded = db_session.get(ComponentReference, cr.id)
+        assert loaded is not None
+        assert loaded.depends_on_component_id is None
+        assert loaded.depends_on_data_source == data_source
+        assert loaded.depends_on_column_name == "c_allocation"
+        assert data_source.depended_on_by_columns == [loaded]
+
+    def test_reference_with_no_target_is_rejected(self, factories, db_session):
+        question = factories.question.create()
+
+        with pytest.raises(IntegrityError):
+            db_session.add(ComponentReference(component=question))
+            db_session.commit()
+
+    def test_reference_with_both_component_and_data_source_is_rejected(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, items=None
+        )
+        q1 = factories.question.create(form__collection=collection)
+        q2 = factories.question.create(form=q1.form)
+
+        with pytest.raises(IntegrityError):
+            db_session.add(
+                ComponentReference(
+                    component=q2,
+                    depends_on_component=q1,
+                    depends_on_data_source=data_source,
+                    depends_on_column_name="c_allocation",
+                )
+            )
+            db_session.commit()
+
+    def test_data_source_reference_without_column_name_is_rejected(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, items=None
+        )
+        question = factories.question.create(form__collection=collection)
+
+        with pytest.raises(IntegrityError):
+            db_session.add(ComponentReference(component=question, depends_on_data_source=data_source))
+            db_session.commit()
+
+    def test_column_name_without_data_source_reference_is_rejected(self, factories, db_session):
+        question = factories.question.create()
+
+        with pytest.raises(IntegrityError):
+            db_session.add(ComponentReference(component=question, depends_on_column_name="c_allocation"))
+            db_session.commit()
+
+    def test_deleting_a_data_source_with_a_column_reference_is_blocked(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, items=None
+        )
+        question = factories.question.create(form__collection=collection)
+        db_session.add(
+            ComponentReference(
+                component=question,
+                depends_on_data_source=data_source,
+                depends_on_column_name="c_allocation",
+            )
+        )
+        db_session.commit()
+
+        with pytest.raises(IntegrityError) as e:
+            db_session.delete(data_source)
+            db_session.commit()
+
+        assert isinstance(e.value.__cause__, ForeignKeyViolation)
+
 
 class TestDataSourceModel:
     def test_filtering_organisation_items(self, factories):

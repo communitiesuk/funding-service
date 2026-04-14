@@ -1090,6 +1090,7 @@ def raise_if_group_questions_depend_on_each_other(group: Group) -> Never | None:
         .all()
     )
     if component_reference:
+        assert component_reference[0].depends_on_component
         raise DependencyOrderException(
             f"Group {group.id} cannot be set to same page because {component_reference[0].component.id} "
             f"depends on {component_reference[0].depends_on_component.id}",
