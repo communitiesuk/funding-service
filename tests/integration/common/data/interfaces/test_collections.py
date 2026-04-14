@@ -84,6 +84,9 @@ from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
     ConditionsOperator,
+    DataSourceSchema,
+    DataSourceSchemaColumn,
+    DataSourceType,
     ExpressionType,
     GrantStatusEnum,
     ManagedExpressionsEnum,
@@ -4405,6 +4408,123 @@ class TestValidateAndSyncComponentReferences:
                 ExpressionContext.build_expression_context(
                     collection=referenced_question.form.collection, mode="interpolation"
                 ),
+            )
+
+    def test_creates_reference_for_data_source_column_in_text(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                    )
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form)
+
+        question.text = f"Your allocation is (({data_source.safe_did}.c_allocation))"
+
+        _validate_and_sync_component_references(
+            question,
+            ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+        )
+        db_session.flush()
+
+        refs = db_session.query(ComponentReference).filter_by(component=question).all()
+        assert len(refs) == 1
+        assert refs[0].depends_on_component is None
+        assert refs[0].depends_on_data_source == data_source
+        assert refs[0].depends_on_column_name == "c_allocation"
+
+    def test_regenerates_column_references_after_edit(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                    ),
+                    "c_theme": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Theme",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form)
+
+        question.text = f"Allocation: (({data_source.safe_did}.c_allocation))"
+        _validate_and_sync_component_references(
+            question,
+            ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+        )
+        db_session.flush()
+
+        refs = db_session.query(ComponentReference).filter_by(component=question).all()
+        assert {ref.depends_on_column_name for ref in refs} == {"c_allocation"}
+
+        question.text = f"Theme: (({data_source.safe_did}.c_theme))"
+        _validate_and_sync_component_references(
+            question,
+            ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+        )
+        db_session.flush()
+
+        refs = db_session.query(ComponentReference).filter_by(component=question).all()
+        assert {ref.depends_on_column_name for ref in refs} == {"c_theme"}
+
+    def test_rejects_reference_to_unknown_column(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form)
+
+        question.text = f"(({data_source.safe_did}.c_nonexistent))"
+
+        with pytest.raises(InvalidReferenceInExpression):
+            _validate_and_sync_component_references(
+                question,
+                ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
             )
 
 

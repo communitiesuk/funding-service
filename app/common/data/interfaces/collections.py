@@ -1588,7 +1588,14 @@ def _validate_reference(  # noqa:C901
                 "than once",
             )
     elif data_source_id:
-        db.session.get_one(DataSource, data_source_id)
+        data_source = db.session.get_one(DataSource, data_source_id)
+        if not data_source.schema or _column_name not in data_source.schema.root:
+            raise InvalidReferenceInExpression(
+                f"Column {_column_name} does not exist on data source {data_source_id}",
+                field_name=field_name_for_error_message,
+                bad_reference=wrapped_reference,
+                form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
+            )
 
     else:
         # TODO implement this once we can reference other things, eg. data uploads
@@ -1701,7 +1708,8 @@ def _validate_and_sync_component_references(component: Component, expression_con
     for expression in component.expressions:
         _validate_and_sync_expression_references(expression)
 
-    references_to_set_up: set[tuple[UUID, UUID]] = set()
+    component_refs_to_set_up: set[tuple[UUID, UUID]] = set()
+    column_refs_to_set_up: set[tuple[UUID, str]] = set()
     field_names = ["text", "hint", "guidance_body", "add_another_guidance_body"]
     for field_name in field_names:
         value = getattr(component, field_name)
@@ -1721,15 +1729,26 @@ def _validate_and_sync_component_references(component: Component, expression_con
 
             if question_id := SafeQidMixin.safe_qid_to_id(reference):
                 question = db.session.get_one(Question, question_id)
+                component_refs_to_set_up.add((component.id, question.id))
+                continue
 
-                references_to_set_up.add((component.id, question.id))
+            data_source_id, column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(reference)
+            if data_source_id and column_name:
+                column_refs_to_set_up.add((data_source_id, column_name))
 
-            # TODO: Add data_source wrangling for creating component references
-
-    for component_id, depends_on_component_id in references_to_set_up:
+    for component_id, depends_on_component_id in component_refs_to_set_up:
         if component_id == depends_on_component_id:
             continue
         db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))
+
+    for data_source_id, column_name in column_refs_to_set_up:
+        db.session.add(
+            ComponentReference(
+                component_id=component.id,
+                depends_on_data_source_id=data_source_id,
+                depends_on_column_name=column_name,
+            )
+        )
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
