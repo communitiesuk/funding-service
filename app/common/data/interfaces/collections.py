@@ -756,7 +756,7 @@ def get_component_by_id(component_id: UUID) -> Component:
 
 
 class FlashableException(Protocol):
-    def as_flash_context(self) -> dict[str, str | bool]: ...
+    def as_flash_context(self) -> dict[str, Any]: ...
 
 
 class DependencyOrderException(WTFormRenderableException, FlashableException):
@@ -847,6 +847,34 @@ class IncompatibleDataTypeException(WTFormRenderableException):
             "question_text": self.question.text,
             "depends_on_question_id": str(self.depends_on_question.id),
             "depends_on_question_text": self.depends_on_question.text,
+        }
+
+
+class DataSourceHasReferencesException(Exception, FlashableException):
+    def __init__(
+        self,
+        message: str,
+        data_source_id: uuid.UUID,
+        data_source_name: str,
+        grant_id: uuid.UUID,
+        referenced_columns: set[str],
+        references: list[dict[str, Any]],
+    ):
+        super().__init__(message)
+        self.message = message
+        self.data_source_id = data_source_id
+        self.data_source_name = data_source_name
+        self.grant_id = grant_id
+        self.referenced_columns = referenced_columns
+        self.references = references
+
+    def as_flash_context(self) -> dict[str, Any]:
+        return {
+            "message": self.message,
+            "data_source_name": self.data_source_name,
+            "grant_id": str(self.grant_id),
+            "referenced_columns": sorted(self.referenced_columns),
+            "references": sorted(self.references, key=lambda r: (r["component_text"], r["reference_type"])),
         }
 
 
@@ -1122,6 +1150,49 @@ def raise_if_data_source_item_reference_dependency(
             data_source_item_dependency_map=data_source_item_dependency_map,
         )
     return None
+
+
+def raise_if_data_source_has_references(data_source: DataSource) -> Never | None:
+    references = list(data_source.depended_on_by_columns)
+    if not references:
+        return None
+
+    seen_keys: set[tuple[UUID, str]] = set()
+    references_for_flash: list[dict[str, Any]] = []
+    for ref in references:
+        if ref.component is None:
+            continue
+        if ref.expression is not None:
+            reference_type = "Validation" if ref.expression.type_ == ExpressionType.VALIDATION else "Condition"
+        else:
+            reference_type = "Group" if ref.component.is_group else "Question"
+
+        key = (ref.component.id, reference_type)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        references_for_flash.append(
+            {
+                "component_id": str(ref.component.id),
+                "component_text": ref.component.text or "",
+                "is_group": ref.component.is_group,
+                "reference_type": reference_type,
+            }
+        )
+
+    if data_source.grant_id is None:
+        # Should not happen for non-CUSTOM data sources (see check constraint on DataSource), so we treat this
+        # as a programmer error rather than trying to build a half-broken flash message.
+        raise RuntimeError(f"DataSource {data_source.id} has references but no grant_id")
+
+    raise DataSourceHasReferencesException(
+        "You cannot delete this data set because it's being referenced in the form. You need to remove references in:",
+        data_source_id=data_source.id,
+        data_source_name=data_source.name or "",
+        grant_id=data_source.grant_id,
+        referenced_columns={ref.depends_on_column_name or "" for ref in references},
+        references=references_for_flash,
+    )
 
 
 class AddAnotherDependencyException(WTFormRenderableException, FlashableException):

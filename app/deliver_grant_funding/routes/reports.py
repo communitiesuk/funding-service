@@ -20,6 +20,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
     AddAnotherNotValidException,
+    DataSourceHasReferencesException,
     DataSourceItemReferenceDependencyException,
     DependencyOrderException,
     GroupContainsAddAnotherException,
@@ -47,6 +48,7 @@ from app.common.data.interfaces.collections import (
     move_component_up,
     move_form_down,
     move_form_up,
+    raise_if_data_source_has_references,
     raise_if_nested_group_creation_not_valid_here,
     raise_if_question_has_any_dependencies,
     remove_question_expression,
@@ -3548,12 +3550,25 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
                     data_source_id=data_source_id,
                 )
             )
-        if delete_wtform.validate_on_submit():
-            name = data_source.name
-            delete_data_source(data_source)
-            flash(Markup(f"'{escape(name)}' data set has been deleted."))
+        try:
+            raise_if_data_source_has_references(data_source)
+
+            if delete_wtform.validate_on_submit():
+                name = data_source.name
+                delete_data_source(data_source)
+                flash(Markup(f"'{escape(name)}' data set has been deleted."))
+                return redirect(
+                    url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant_id, report_id=report_id)
+                )
+        except DataSourceHasReferencesException as e:
+            flash(e.as_flash_context(), FlashMessageType.DATA_SOURCE_REFERENCE_ERROR.value)  # type: ignore[arg-type]
             return redirect(
-                url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant_id, report_id=report_id)
+                url_for(
+                    "deliver_grant_funding.view_data_source",
+                    grant_id=grant_id,
+                    report_id=report_id,
+                    data_source_id=data_source_id,
+                )
             )
 
     return render_template(
@@ -3563,6 +3578,7 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
         data_source=data_source,
         delete_form=delete_wtform,
         grant_recipient_name_by_external_id=grant_recipient_name_by_external_id,
+        interpolate=SubmissionHelper.get_interpolator(collection=report),
     )
 
 

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
+from app.common.data.interfaces.collections import raise_if_data_source_has_references
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
 from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.models_user import User
@@ -187,7 +188,8 @@ def create_uploaded_data_source(
 
 @flush_and_rollback_on_exceptions
 def delete_data_source(data_source: DataSource) -> None:
-    # TODO: Add guardrails against deleting datasource where it's been used in a reference
+    raise_if_data_source_has_references(data_source)
+
     if data_source.file_metadata and data_source.file_metadata.s3_key:
         s3_service.delete_file(data_source.file_metadata.s3_key)
 

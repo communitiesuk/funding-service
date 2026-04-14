@@ -9354,6 +9354,202 @@ class TestViewDataSource:
         assert db_session.get(DataSource, data_source.id) is None
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
 
+    def test_delete_blocked_when_column_is_referenced_shows_flash_before_confirmation(
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=report)
+        question = factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source.safe_did}.c_allocation))",
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+                delete="",
+            ),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert db_session.get(DataSource, data_source.id) is not None
+        assert mock_s3_service_calls.delete_file_calls == []
+        soup = BeautifulSoup(response.data, "html.parser")
+        banner = page_has_flash(
+            soup,
+            "You cannot delete this data set because it's being referenced in the form. "
+            "You need to remove references in:",
+        )
+        assert banner is not None
+        # The confirmation banner must NOT be rendered when the deletion has already been blocked.
+        assert "Are you sure you want to delete this data set?" not in soup.text
+        links = banner.select(".govuk-notification-banner__link")
+        assert len(links) == 1
+        assert links[0]["href"] == url_for(
+            "deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id
+        )
+        assert "Your allocation is" in links[0].text
+        assert "(Question)" in links[0].text
+
+    def test_delete_blocked_links_to_group_when_reference_is_on_a_group(
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=report)
+        group = factories.group.create(form=form, text=f"Allocation overview (({data_source.safe_did}.c_allocation))")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+                delete="",
+            ),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        banner = page_has_flash(soup, "You cannot delete this data set")
+        assert banner is not None
+        links = banner.select(".govuk-notification-banner__link")
+        assert len(links) == 1
+        assert links[0]["href"] == url_for(
+            "deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=group.id
+        )
+        assert "(Group)" in links[0].text
+
+    def test_delete_blocked_labels_validation_and_question_refs_separately(
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        user = factories.user.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=report)
+        question_id = uuid.uuid4()
+        factories.question.create(
+            id=question_id,
+            form=form,
+            data_type=QuestionDataType.NUMBER,
+            text=f"How much did you spend? (({data_source.safe_did}.c_allocation))",
+            expressions=[
+                Expression.from_evaluatable_expression(
+                    GreaterThan(
+                        question_id=question_id,
+                        minimum_value=None,
+                        minimum_expression=f"(({data_source.safe_did}.c_allocation))",
+                    ),
+                    ExpressionType.VALIDATION,
+                    user,
+                ),
+            ],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+                delete="",
+            ),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        banner = page_has_flash(soup, "You cannot delete this data set")
+        assert banner is not None
+        link_texts = [link.text.strip() for link in banner.select(".govuk-notification-banner__link")]
+        assert any("(Question)" in t for t in link_texts)
+        assert any("(Validation)" in t for t in link_texts)
+
+    def test_delete_shows_confirmation_banner_when_data_set_has_no_references(
+        self, authenticated_grant_admin_client, factories
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Are you sure you want to delete this data set?" in soup.text
+        assert page_has_flash(soup, "You cannot delete this data set") is None
+
 
 class TestDownloadDataSourceCsv:
     def test_404(self, authenticated_grant_member_client):
