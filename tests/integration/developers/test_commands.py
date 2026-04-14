@@ -1,4 +1,5 @@
 import io
+import json
 
 import click
 import pytest
@@ -13,7 +14,7 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
-from app.developers.commands import create_multi_submissions, seed_grants
+from app.developers.commands import create_multi_submissions, export_grants, seed_grants
 from app.extensions import db
 from tests.models import FactoryAnswer
 
@@ -28,6 +29,7 @@ def _unwrap(command):
 # Unwrap Flask's with_appcontext / click.pass_context wrappers so we can call
 # the function directly within the test's existing app context and DB session.
 _create_multi_submissions = _unwrap(create_multi_submissions)
+_export_grants = _unwrap(export_grants)
 _seed_grants = _unwrap(seed_grants)
 
 
@@ -407,6 +409,84 @@ class TestCreateMultiSubmissions:
         helper = SubmissionHelper(submission)
         assert helper.cached_get_all_questions_are_answered_for_form(question.form).all_answered is True
         assert helper.get_status_for_form(question.form) != TasklistSectionStatusEnum.COMPLETED
+
+
+def _extract_stdout_json(captured_out: str) -> dict:
+    start = captured_out.index("{")
+    end = captured_out.rindex("}") + 1
+    return json.loads(captured_out[start:end])
+
+
+class TestExportGrants:
+    def test_exclude_users_collapses_to_placeholder(self, db_session, factories, capsys):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        grant = question.form.collection.grant
+
+        _export_grants(grant_ids=[grant.id], output="stdout", s3_key=None, exclude_users=True)
+
+        payload = _extract_stdout_json(capsys.readouterr().out)
+
+        assert payload["users"] == [
+            {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "email": "placeholder@communities.test.gov.localhost",
+                "name": "Placeholder User",
+            }
+        ]
+        assert payload["user_roles"] == []
+
+        grant_data = payload["grants"][0]
+        assert grant_data["collections"][0]["created_by_id"] == "00000000-0000-0000-0000-000000000001"
+
+    def test_production_forces_exclude_users_and_warns_on_opt_out(
+        self, app, monkeypatch, db_session, factories, capsys
+    ):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        grant = question.form.collection.grant
+        monkeypatch.setitem(app.config, "IS_PRODUCTION", True)
+
+        _export_grants(grant_ids=[grant.id], output="stdout", s3_key=None, exclude_users=False)
+
+        captured = capsys.readouterr().out
+        assert "--no-exclude-users is ignored in production" in captured
+
+        payload = _extract_stdout_json(captured)
+        assert [u["id"] for u in payload["users"]] == ["00000000-0000-0000-0000-000000000001"]
+        assert payload["grants"][0]["collections"][0]["created_by_id"] == "00000000-0000-0000-0000-000000000001"
+
+    def test_s3_output_uploads_export(self, db_session, factories, mock_s3_service_calls):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        grant = question.form.collection.grant
+
+        _export_grants(
+            grant_ids=[grant.id],
+            output="s3",
+            s3_key="grant-exports/test-export.json",
+            exclude_users=True,
+        )
+
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
+        call = mock_s3_service_calls.upload_file_calls[0]
+        uploaded_file = call.args[0]
+        assert call.kwargs["key"] == "grant-exports/test-export.json"
+        uploaded_file.stream.seek(0)
+        payload = json.loads(uploaded_file.stream.read().decode("utf-8"))
+        assert [u["id"] for u in payload["users"]] == ["00000000-0000-0000-0000-000000000001"]
+        assert payload["grants"][0]["grant"]["id"] == str(grant.id)
+
+    def test_s3_output_requires_key(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        grant = question.form.collection.grant
+
+        with pytest.raises(click.ClickException, match="--s3-key is required"):
+            _export_grants(grant_ids=[grant.id], output="s3", s3_key=None, exclude_users=True)
+
+    def test_s3_output_rejects_key_outside_prefix(self, db_session, factories):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        grant = question.form.collection.grant
+
+        with pytest.raises(click.ClickException, match="must start with 'grant-exports/'"):
+            _export_grants(grant_ids=[grant.id], output="s3", s3_key="exports/test.json", exclude_users=True)
 
 
 class TestSeedGrants:
