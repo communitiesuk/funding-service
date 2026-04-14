@@ -1,5 +1,6 @@
 import io
 
+import click
 import pytest
 from sqlalchemy import select
 
@@ -12,15 +13,22 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
-from app.developers.commands import create_multi_submissions
+from app.developers.commands import create_multi_submissions, seed_grants
 from app.extensions import db
 from tests.models import FactoryAnswer
 
+
+def _unwrap(command):
+    fn = command.callback
+    while hasattr(fn, "__wrapped__"):
+        fn = fn.__wrapped__
+    return fn
+
+
 # Unwrap Flask's with_appcontext / click.pass_context wrappers so we can call
 # the function directly within the test's existing app context and DB session.
-_create_multi_submissions = create_multi_submissions.callback
-while hasattr(_create_multi_submissions, "__wrapped__"):
-    _create_multi_submissions = _create_multi_submissions.__wrapped__
+_create_multi_submissions = _unwrap(create_multi_submissions)
+_seed_grants = _unwrap(seed_grants)
 
 
 def _make_csv(rows: list[tuple[str, str]]) -> io.StringIO:
@@ -399,3 +407,10 @@ class TestCreateMultiSubmissions:
         helper = SubmissionHelper(submission)
         assert helper.cached_get_all_questions_are_answered_for_form(question.form).all_answered is True
         assert helper.get_status_for_form(question.form) != TasklistSectionStatusEnum.COMPLETED
+
+
+class TestSeedGrants:
+    def test_refuses_to_run_in_production(self, app, monkeypatch):
+        monkeypatch.setitem(app.config, "IS_PRODUCTION", True)
+        with pytest.raises(click.ClickException, match="must not be run in production"):
+            _seed_grants()

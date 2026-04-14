@@ -295,6 +295,9 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
 def seed_grants() -> None:  # noqa: C901
+    if current_app.config["IS_PRODUCTION"]:
+        raise click.ClickException("seed-grants must not be run in production; it deletes and recreates grants.")
+
     with open(export_path) as infile:
         raw_export_json = infile.read()
         export_data: ExportData = json.loads(raw_export_json)
