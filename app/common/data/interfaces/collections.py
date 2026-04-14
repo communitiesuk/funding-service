@@ -1653,6 +1653,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
         if expr_impl.referenced_question != expression.question:  # ty:ignore[unresolved-attribute]
             referenced_questions.add(expr_impl.referenced_question)  # ty:ignore[unresolved-attribute]
 
+    referenced_columns: set[tuple[UUID, str]] = set()
     for field in expr_impl.reference_aware_fields:
         field_value = getattr(expr_impl, field)
         if not field_value:
@@ -1670,12 +1671,17 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 question_to_test=expr_impl.referenced_question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
             )
 
-            # TODO: Add data_source wrangling for creating component references
-            question_id = SafeQidMixin.safe_qid_to_id(valid_reference)
-            if not question_id:
+            if question_id := SafeQidMixin.safe_qid_to_id(valid_reference):
+                referenced_question = get_question_by_id(question_id)
+                referenced_questions.add(referenced_question)
                 continue
-            referenced_question = get_question_by_id(question_id)
-            referenced_questions.add(referenced_question)
+
+            data_source_id, column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(valid_reference)
+            if data_source_id and column_name:
+                referenced_columns.add((data_source_id, column_name))
+                continue
+
+            raise ValueError(f"Unhandled reference '{valid_reference}' in component '{expression.question_id}'")
 
     for referenced_question in referenced_questions:
         if referenced_question == expression.question:
@@ -1684,6 +1690,16 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
             component=expression.question,
             expression=expression,
             depends_on_component=referenced_question,
+        )
+        db.session.add(cr)
+        references.append(cr)
+
+    for data_source_id, column_name in referenced_columns:
+        cr = ComponentReference(
+            component=expression.question,
+            expression=expression,
+            depends_on_data_source_id=data_source_id,
+            depends_on_column_name=column_name,
         )
         db.session.add(cr)
         references.append(cr)
@@ -1735,6 +1751,9 @@ def _validate_and_sync_component_references(component: Component, expression_con
             data_source_id, column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(reference)
             if data_source_id and column_name:
                 column_refs_to_set_up.add((data_source_id, column_name))
+                continue
+
+            raise ValueError(f"Unhandled reference '{reference}' in component '{component.id}'")
 
     for component_id, depends_on_component_id in component_refs_to_set_up:
         if component_id == depends_on_component_id:

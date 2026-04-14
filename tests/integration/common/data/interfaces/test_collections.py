@@ -4157,6 +4157,200 @@ class TestValidateAndSyncExpressionReferences:
         assert all(ref.expression == expression for ref in expression.component_references)
         assert all(ref.depends_on_component in {q0, q1, q2} for ref in expression.component_references)
 
+    def test_creates_column_reference_for_reference_aware_field(self, db_session, factories):
+        user = factories.user.create()
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_threshold": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Threshold",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            GreaterThan(
+                question_id=question.id,
+                minimum_value=None,
+                minimum_expression=f"(({data_source.safe_did}.c_threshold))",
+            ),
+            ExpressionType.VALIDATION,
+            user,
+        )
+        question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        _validate_and_sync_expression_references(expression)
+        db_session.flush()
+
+        assert len(expression.component_references) == 1
+        ref = expression.component_references[0]
+        assert ref.component == question
+        assert ref.expression == expression
+        assert ref.depends_on_component is None
+        assert ref.depends_on_data_source == data_source
+        assert ref.depends_on_column_name == "c_threshold"
+
+    def test_creates_column_references_for_both_between_bounds(self, db_session, factories):
+        user = factories.user.create()
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_min": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Min",
+                    ),
+                    "c_max": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Max",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            Between(
+                question_id=question.id,
+                minimum_value=None,
+                minimum_expression=f"(({data_source.safe_did}.c_min))",
+                maximum_value=None,
+                maximum_expression=f"(({data_source.safe_did}.c_max))",
+            ),
+            ExpressionType.VALIDATION,
+            user,
+        )
+        question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        _validate_and_sync_expression_references(expression)
+        db_session.flush()
+
+        assert {ref.depends_on_column_name for ref in expression.component_references} == {"c_min", "c_max"}
+        assert all(ref.depends_on_data_source == data_source for ref in expression.component_references)
+        assert all(ref.expression == expression for ref in expression.component_references)
+
+    def test_mixes_question_and_column_references_in_one_field(self, db_session, factories):
+        user = factories.user.create()
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_min": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Min",
+                    ),
+                    "c_max": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Max",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        min_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            Between(
+                question_id=target_question.id,
+                minimum_value=None,
+                minimum_expression=f"(({min_question.safe_qid}))",
+                maximum_value=None,
+                maximum_expression=f"(({data_source.safe_did}.c_max))",
+            ),
+            ExpressionType.VALIDATION,
+            user,
+        )
+        target_question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        _validate_and_sync_expression_references(expression)
+        db_session.flush()
+
+        component_refs = [ref for ref in expression.component_references if ref.depends_on_component_id]
+        column_refs = [ref for ref in expression.component_references if ref.depends_on_data_source_id]
+        assert {ref.depends_on_component for ref in component_refs} == {min_question}
+        assert {ref.depends_on_column_name for ref in column_refs} == {"c_max"}
+
+    def test_rejects_column_reference_to_missing_column(self, db_session, factories):
+        user = factories.user.create()
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_threshold": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Threshold",
+                    ),
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        expression = Expression.from_evaluatable_expression(
+            GreaterThan(
+                question_id=question.id,
+                minimum_value=None,
+                minimum_expression=f"(({data_source.safe_did}.c_missing))",
+            ),
+            ExpressionType.VALIDATION,
+            user,
+        )
+        question.expressions.append(expression)
+        db_session.add(expression)
+        db_session.flush()
+
+        with pytest.raises(InvalidReferenceInExpression):
+            _validate_and_sync_expression_references(expression)
+
 
 class TestValidateAndSyncComponentReferences:
     def test_creates_references_for_supported_fields(self, db_session, factories):
