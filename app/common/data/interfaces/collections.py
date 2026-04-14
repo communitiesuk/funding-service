@@ -1057,9 +1057,13 @@ def raise_if_question_has_any_dependencies(question: Question | Group) -> Never 
     child_components_ids = [
         c.id for c in [question] + (question.cached_all_components if isinstance(question, Group) else [])
     ]
+    # Only consider references whose dependent component is *outside* the subtree being deleted.
+    # Internal references (e.g. a group validation that references its own child questions) will be
+    # cascaded away alongside the subtree, so they should not block deletion.
     component_reference = (
         db.session.query(ComponentReference)
         .where(ComponentReference.depends_on_component_id.in_(child_components_ids))
+        .where(ComponentReference.component_id.notin_(child_components_ids))
         .all()
     )
     if component_reference:
@@ -1634,7 +1638,12 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 question_to_test=None,
             )
 
-        referenced_questions.add(expr_impl.referenced_question)  # ty:ignore[unresolved-attribute]
+        # For a managed validation attached to a question, expr_impl.referenced_question *is* the
+        # question the expression is attached to (the answer being validated). Don't record a
+        # self-reference — it would create a bogus ComponentReference row that falsely blocks
+        # deletion and same-page grouping.
+        if expr_impl.referenced_question != expression.question:  # ty:ignore[unresolved-attribute]
+            referenced_questions.add(expr_impl.referenced_question)  # ty:ignore[unresolved-attribute]
 
     for field in expr_impl.reference_aware_fields:
         field_value = getattr(expr_impl, field)
@@ -1661,6 +1670,8 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
             referenced_questions.add(referenced_question)
 
     for referenced_question in referenced_questions:
+        if referenced_question == expression.question:
+            continue
         cr = ComponentReference(
             component=expression.question,
             expression=expression,
@@ -1715,6 +1726,8 @@ def _validate_and_sync_component_references(component: Component, expression_con
             # TODO: Add data_source wrangling for creating component references
 
     for component_id, depends_on_component_id in references_to_set_up:
+        if component_id == depends_on_component_id:
+            continue
         db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))
 
 

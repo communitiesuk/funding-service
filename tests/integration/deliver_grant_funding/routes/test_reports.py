@@ -1390,6 +1390,39 @@ class TestChangeGroupDisplayOptions:
             soup, "A question group cannot display on the same page if questions depend on answers within the group"
         )
 
+    def test_post_change_same_page_allowed_with_only_self_referencing_validations(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        db_group = factories.group.create(
+            form=db_form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        q1 = factories.question.create(form=db_form, parent=db_group, data_type=QuestionDataType.NUMBER)
+        q2 = factories.question.create(form=db_form, parent=db_group, data_type=QuestionDataType.NUMBER)
+        user = factories.user.create()
+        add_component_validation(q1, user, GreaterThan(question_id=q1.id, minimum_value=0, inclusive=True))
+        add_component_validation(q2, user, GreaterThan(question_id=q2.id, minimum_value=0, inclusive=True))
+        db_session.commit()
+
+        form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "all-questions-on-same-page"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_display_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.presentation_options.show_questions_on_the_same_page is True
+
     def test_post_change_same_page_with_internal_question_references(
         self, authenticated_grant_admin_client, factories, db_session
     ):
@@ -2020,6 +2053,84 @@ class TestListGroupQuestions:
         response = authenticated_grant_admin_client.get(response.location)
         soup = BeautifulSoup(response.data, "html.parser")
         assert "You cannot delete an answer that other questions depend on" in soup.text
+
+    def test_can_delete_group_with_only_internal_group_validation(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        group = factories.group.create(
+            form=db_form,
+            name="Test group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.create(form=db_form, parent=group, data_type=QuestionDataType.NUMBER)
+        q2 = factories.question.create(form=db_form, parent=group, data_type=QuestionDataType.NUMBER)
+        add_component_validation(
+            group,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100",
+                custom_message="Total must exceed 100",
+            ),
+        )
+        db_session.commit()
+        group_id = group.id
+
+        confirm_form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=group_id,
+                delete="",
+            ),
+            data=get_form_data(confirm_form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert db_session.get(Group, group_id) is None
+
+    def test_can_delete_outer_group_when_only_nested_group_has_internal_validation(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        outer_group = factories.group.create(form=db_form, name="Outer group")
+        inner_group = factories.group.create(
+            form=db_form,
+            parent=outer_group,
+            name="Inner group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        q1 = factories.question.create(form=db_form, parent=inner_group, data_type=QuestionDataType.NUMBER)
+        q2 = factories.question.create(form=db_form, parent=inner_group, data_type=QuestionDataType.NUMBER)
+        add_component_validation(
+            inner_group,
+            factories.user.create(),
+            CustomExpression(
+                custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100",
+                custom_message="Total must exceed 100",
+            ),
+        )
+        db_session.commit()
+        outer_group_id = outer_group.id
+
+        confirm_form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.list_group_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=outer_group_id,
+                delete="",
+            ),
+            data=get_form_data(confirm_form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert db_session.get(Group, outer_group_id) is None
 
 
 class TestListSectionQuestions:
@@ -4042,6 +4153,40 @@ class TestEditQuestion:
         expected_q1_href = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=q1.id)
         assert links[1]["href"] == expected_q1_href
         assert links[1].get_text(strip=True) == q1.text
+
+    def test_post_can_delete_question_with_only_self_referencing_managed_validation(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        question = factories.question.create(
+            form=db_form,
+            text="Self-validated number",
+            data_type=QuestionDataType.NUMBER,
+        )
+        add_component_validation(
+            question,
+            factories.user.create(),
+            GreaterThan(question_id=question.id, minimum_value=0, inclusive=True),
+        )
+        db_session.commit()
+        question_id = question.id
+
+        confirm_form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant.id,
+                question_id=question_id,
+                delete="",
+            ),
+            data=get_form_data(confirm_form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert db_session.get(Question, question_id) is None
 
     def test_restore_from_session_when_returning_from_add_session_flow(
         self, authenticated_grant_admin_client, factories
@@ -9655,7 +9800,7 @@ class TestEditCustomQuestionValidation:
 
         assert len(q3.expressions) == 1
         expression = q3.expressions[0]
-        assert len(expression.component_references) == 3
+        assert len(expression.component_references) == 2
 
     def test_post_error_in_expression_and_message(self, authenticated_platform_admin_client, factories, db_session):
         report = factories.collection.create(name="Test Report")
