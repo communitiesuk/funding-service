@@ -3,6 +3,7 @@ import hashlib
 import json
 import uuid
 from collections import defaultdict
+from io import BytesIO
 from pathlib import Path
 from typing import Any, TextIO, TypedDict, cast
 from uuid import UUID
@@ -12,7 +13,7 @@ from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy import delete, inspect, or_, select
 from sqlalchemy.exc import NoResultFound
-from werkzeug.datastructures import MultiDict
+from werkzeug.datastructures import FileStorage, MultiDict
 
 from app.common.collections.forms import build_question_form
 from app.common.data.base import BaseModel
@@ -62,7 +63,7 @@ from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import SubmissionHelper
 from app.common.utils import slugify
 from app.developers import developers_blueprint
-from app.extensions import db
+from app.extensions import db, s3_service
 
 export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
@@ -173,17 +174,38 @@ def _import_organisations_and_handle_org_ids(export_data: ExportData) -> ExportD
 
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
 @click.argument("grant_ids", nargs=-1, type=click.UUID)
-@click.option("--output", type=click.Choice(["file", "stdout"]), default="file")
-def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C901
+@click.option("--output", type=click.Choice(["file", "stdout", "s3"]), default="file")
+@click.option("--s3-key", help="S3 object key to upload to. Required when --output=s3.")
+@click.option(
+    "--exclude-users/--no-exclude-users",
+    default=None,
+    help="Replace all user associations when exporting with a single placeholder user. Forced on for production.",
+)
+def export_grants(  # noqa: C901
+    grant_ids: list[uuid.UUID], output: str, s3_key: str | None, exclude_users: bool | None
+) -> None:
     from faker import Faker
 
-    if not export_path.exists():
-        raise RuntimeError(
-            f"Could not find the exported data at {export_path}. "
-            f"Make sure you're running this command from the root of the repository."
-        )
+    if current_app.config["IS_PRODUCTION"]:
+        if exclude_users is False:
+            click.echo("Warning: --no-exclude-users is ignored in production; user data will be stripped.")
+        exclude_users = True
+    else:
+        exclude_users = bool(exclude_users)
+
+    if output == "s3":
+        if not s3_key:
+            raise click.ClickException("--s3-key is required when --output=s3")
+        required_prefix = current_app.config["GRANT_EXPORT_FILES_PREFIX"].rstrip("/") + "/"
+        if not s3_key.startswith(required_prefix):
+            raise click.ClickException(f"--s3-key must start with {required_prefix!r}")
 
     if len(grant_ids) == 0:
+        if not export_path.exists():
+            raise click.ClickException(
+                f"Could not find the exported data at {export_path}. "
+                f"Make sure you're running this command from the root of the repository."
+            )
         with open(export_path) as infile:
             previous_export_data = json.load(infile)
         grant_ids = [uuid.UUID(grant_data["grant"]["id"]) for grant_data in previous_export_data["grants"]]
@@ -248,31 +270,45 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
         for user in grant.grant_team_users:
             users.add(user)
 
-    org_ids = {org["id"] for org in export_data["organisations"]}
-    for user in users:
-        if user.id in [u["id"] for u in export_data["users"]]:
-            continue
+    if exclude_users:
+        placeholder_user = User(
+            id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            email="placeholder@communities.test.gov.localhost",
+            name="Placeholder User",
+        )
 
-        user_data = to_dict(user)
+        for user in users:
+            export_data = __replace_id(export_data, str(user.id), str(placeholder_user.id))
 
-        # Anonymise the user, but in a consistent way
-        if user.email not in USERS_NOT_TO_ANONYMISE:
-            faker = Faker()
-            faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
-            first_name = faker.first_name()
-            last_name = faker.last_name()
-            user_data["email"] = f"{first_name.lower()}.{last_name.lower()}@test.communities.gov.uk"
-            user_data["name"] = f"{first_name} {last_name}"
+        export_data["users"] = [to_dict(placeholder_user)]
+        export_data["user_roles"] = []
 
-        export_data["users"].append(user_data)
-
-        for role in user.roles:
-            if (role.organisation_id and role.organisation_id not in org_ids) or (
-                role.grant_id and role.grant_id not in grant_ids
-            ):
+    else:
+        org_ids = {org["id"] for org in export_data["organisations"]}
+        for user in users:
+            if user.id in [u["id"] for u in export_data["users"]]:
                 continue
 
-            export_data["user_roles"].append(to_dict(role))
+            user_data = to_dict(user)
+
+            # Anonymise the user, but in a consistent way.
+            if user.email not in USERS_NOT_TO_ANONYMISE:
+                faker = Faker()
+                faker.seed_instance(int(hashlib.md5(str(user_data["id"]).encode()).hexdigest(), 16))
+                first_name = faker.first_name()
+                last_name = faker.last_name()
+                user_data["email"] = f"{first_name.lower()}.{last_name.lower()}@test.communities.gov.uk"
+                user_data["name"] = f"{first_name} {last_name}"
+
+            export_data["users"].append(user_data)
+
+            for role in user.roles:
+                if (role.organisation_id and role.organisation_id not in org_ids) or (
+                    role.grant_id and role.grant_id not in grant_ids
+                ):
+                    continue
+
+                export_data["user_roles"].append(to_dict(role))
 
     _sort_export_data_in_place(export_data)
     export_data = _handle_org_ids_for_export(export_data)
@@ -292,9 +328,23 @@ def export_grants(grant_ids: list[uuid.UUID], output: str) -> None:  # noqa: C90
             click.echo("\n\n\n")
             click.echo(f"Written {len(grants)} grants to stdout")
 
+        case "s3":
+            assert s3_key is not None
+            buf = FileStorage(
+                stream=BytesIO(export_json.encode("utf-8")),
+                filename=s3_key,
+                content_type="application/json",
+            )
+            s3_service.upload_file(buf, key=s3_key)
+            bucket = current_app.config["AWS_S3_BUCKET_NAME"]
+            click.echo(f"Written {len(grants)} grants to s3://{bucket}/{s3_key}")
+
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
 def seed_grants() -> None:  # noqa: C901
+    if current_app.config["IS_PRODUCTION"]:
+        raise click.ClickException("seed-grants must not be run in production; it deletes and recreates grants.")
+
     with open(export_path) as infile:
         raw_export_json = infile.read()
         export_data: ExportData = json.loads(raw_export_json)
