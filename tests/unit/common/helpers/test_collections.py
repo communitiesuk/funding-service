@@ -790,6 +790,16 @@ class TestSubmissionHelper:
 
             assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
 
+        def test_is_component_visible_ignores_data_source_column_references(self, factories):
+            q1 = factories.question.build()
+            q1.owned_component_references = [
+                ComponentReference(component=q1, depends_on_data_source_id=uuid.uuid4(), depends_on_column_name="c_x")
+            ]
+            submission = factories.submission.build(collection=q1.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.is_component_visible(q1, helper.cached_evaluation_context) is True
+
         def test_any_operator_with_hidden_referenced_question(self, factories):
             """Scenario: Q1 yes/no, Q2 yes/no (show if Q1=yes), Q3 text (show if Q1=no OR Q2=yes).
 
@@ -1131,6 +1141,20 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
             result = helper.get_referenced_forms_with_unanswered_references(form_b)
             assert result == [form_a]
+
+        def test_ignores_data_source_column_references(self, factories):
+            collection = factories.collection.build()
+            form_a = factories.form.build(collection=collection, order=0)
+            form_b = factories.form.build(collection=collection, order=1)
+            factories.question.build(form=form_a)
+            q_b = factories.question.build(form=form_b)
+            q_b.owned_component_references = [
+                ComponentReference(component=q_b, depends_on_data_source_id=uuid.uuid4(), depends_on_column_name="c_x"),
+            ]
+            submission = factories.submission.build(collection=collection)
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_referenced_forms_with_unanswered_references(form_b) == []
 
         def test_returns_sorted_by_form_order(self, factories):
             collection = factories.collection.build()

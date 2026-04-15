@@ -517,6 +517,9 @@ class SubmissionHelper:
         for component in form.cached_all_components:
             for ref in component.owned_component_references:
                 depends_on = ref.depends_on_component
+                if depends_on is None:
+                    # Data-source column references don't depend on a component, so they can't hold a form back.
+                    continue
                 if depends_on.form_id != form.id:
                     if depends_on.is_question:
                         answer = self.cached_get_answer_for_question(depends_on.id)
@@ -616,6 +619,9 @@ class SubmissionHelper:
 
         for ref in component.owned_component_references:
             depends_on = ref.depends_on_component
+            if depends_on is None:
+                # Data-source column references are always available — they can't gate visibility.
+                continue
             if depends_on.id == component.id:
                 continue
             if not depends_on.is_question:

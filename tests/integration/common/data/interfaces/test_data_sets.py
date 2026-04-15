@@ -6,19 +6,28 @@ from sqlalchemy import func, select
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.common.collections.types import DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
+from app.common.data.interfaces.collections import (
+    DataSourceHasReferencesException,
+    _validate_and_sync_component_references,
+)
 from app.common.data.interfaces.data_sets import (
     create_uploaded_data_source,
     delete_data_source,
     get_data_source,
 )
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError
-from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
+from app.common.data.models import ComponentReference, DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.types import (
     DataSourceFileMetadata,
+    DataSourceSchema,
+    DataSourceSchemaColumn,
     DataSourceType,
     NumberTypeEnum,
+    QuestionDataOptions,
     QuestionDataType,
+    QuestionPresentationOptions,
 )
+from app.common.expressions import ExpressionContext
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
@@ -836,6 +845,91 @@ class TestDeleteDataSource:
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 1
         assert db_session.get(DataSourceOrganisationItem, org_item_1.id) is None
         assert db_session.get(DataSourceOrganisationItem, org_item_2.id) is not None
+
+    def test_delete_blocked_when_column_is_referenced(self, db_session, factories, mock_s3_service_calls):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                    )
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source.safe_did}.c_allocation))",
+        )
+        _validate_and_sync_component_references(
+            question,
+            ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+        )
+        db_session.flush()
+
+        with pytest.raises(DataSourceHasReferencesException) as e:
+            delete_data_source(data_source)
+
+        assert e.value.data_source_id == data_source.id
+        assert e.value.data_source_name == "Budget data"
+        assert e.value.referenced_columns == {"c_allocation"}
+        assert db_session.get(DataSource, data_source.id) is not None
+        assert mock_s3_service_calls.delete_file_calls == []
+
+    def test_delete_allowed_after_references_removed(self, db_session, factories, mock_s3_service_calls):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                    )
+                }
+            ),
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source.safe_did}.c_allocation))",
+        )
+        _validate_and_sync_component_references(
+            question,
+            ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+        )
+        db_session.flush()
+
+        question.text = "Static text with no reference"
+        _validate_and_sync_component_references(
+            question,
+            ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+        )
+        db_session.flush()
+
+        assert db_session.query(ComponentReference).count() == 0
+
+        delete_data_source(data_source)
+        db_session.flush()
+
+        assert db_session.get(DataSource, data_source.id) is None
 
 
 class TestDataSourceOrganisationItemDataProperty:
