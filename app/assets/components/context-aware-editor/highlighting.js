@@ -1,7 +1,7 @@
 // Reference highlighting functionality
 // Refactored from reference-overlay to work as part of combined editor
 
-const REFERENCE_REGEX = /\(\([^)]+\)\)/g;
+const REFERENCE_REGEX = /\(\((?!\()((?:[^()]|\([^()]*\))*)\)\)/g;
 
 const parseReferences = (text, mappings = null) => {
     const references = [];
@@ -439,4 +439,4 @@ const parseReferenceMappings = (mappingData) => {
     return { mappings, reverseMappings };
 };
 
-export { createHighlighting, parseReferenceMappings };
+export { createHighlighting, parseReferenceMappings, parseReferences };

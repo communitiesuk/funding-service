@@ -22,11 +22,17 @@ if TYPE_CHECKING:
     from app.common.helpers.collections import SubmissionHelper
     from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 
-INTERPOLATE_REGEX = re.compile(r"\(\(([^\(]+?)\)\)")
+# This is tested by `test_find_references_in_expression_shared_fixtures` - look there for test cases
+INTERPOLATE_REGEX = re.compile(r"\(\((?!\()((?:[^()]|\([^()]*\))*)\)\)")
+
 # If any interpolation references contain characters other than alphanumeric, full stops or underscores,
 # then we'll hard stop that for now. As of this implementation, only single variable references are allowed.
 # We expect to want complex expressions in the future, but are hard limiting that for now as a specific
 # product/tech edge case restriction.
+# This is stricter than we allow for INTERPOLATE_REGEX, which allows anything that the frontend JS regex allows
+#    (which works for highlighting human-readable labels which may contain other characters like arrows or parens).
+#    Once those are accepted and normalised to ExpressionContext references, everything should only be dot-notated
+#    python-variable-like names.
 ALLOWED_INTERPOLATION_REGEX = re.compile(r"[^A-Za-z0-9_.]")
 
 
