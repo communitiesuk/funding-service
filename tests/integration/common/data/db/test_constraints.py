@@ -75,7 +75,7 @@ class TestExpressionConstraints:
             type_=ExpressionType.CONDITION,
             statement="",
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
-            context={"question_id": "abc"},
+            context={"subject_reference": "q_abc"},
         )
 
         with pytest.raises(IntegrityError):
@@ -85,7 +85,7 @@ class TestExpressionConstraints:
                 type_=ExpressionType.CONDITION,
                 statement="",
                 managed_name=ManagedExpressionsEnum.GREATER_THAN,
-                context={"question_id": "abc"},
+                context={"subject_reference": "q_abc"},
             )
 
     def test_can_add_two_custom_validations_to_a_question(self, factories):

@@ -55,6 +55,7 @@ from app.common.expressions.forms import (
     build_managed_expression_form,
 )
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
+from app.common.expressions.references import ExpressionReference
 from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -1168,7 +1169,9 @@ class TestMoveSection:
             form=forms[1],
             expressions=[
                 Expression.from_evaluatable_expression(
-                    IsYes(question_id=q1.id), ExpressionType.CONDITION, authenticated_grant_admin_client.user
+                    IsYes(subject_reference=ExpressionReference.from_question(q1)),
+                    ExpressionType.CONDITION,
+                    authenticated_grant_admin_client.user,
                 )
             ],
         )
@@ -1368,7 +1371,9 @@ class TestChangeGroupDisplayOptions:
             parent=db_group,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=db_question1.id, minimum_value=1000), ExpressionType.CONDITION, db_user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(db_question1), minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    db_user,
                 )
             ],
         )
@@ -1404,8 +1409,16 @@ class TestChangeGroupDisplayOptions:
         q1 = factories.question.create(form=db_form, parent=db_group, data_type=QuestionDataType.NUMBER)
         q2 = factories.question.create(form=db_form, parent=db_group, data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
-        add_component_validation(q1, user, GreaterThan(question_id=q1.id, minimum_value=0, inclusive=True))
-        add_component_validation(q2, user, GreaterThan(question_id=q2.id, minimum_value=0, inclusive=True))
+        add_component_validation(
+            q1,
+            user,
+            GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=0, inclusive=True),
+        )
+        add_component_validation(
+            q2,
+            user,
+            GreaterThan(subject_reference=ExpressionReference.from_question(q2), minimum_value=0, inclusive=True),
+        )
         db_session.commit()
 
         form = GroupDisplayOptionsForm(data={"show_questions_on_the_same_page": "all-questions-on-same-page"})
@@ -1607,7 +1620,9 @@ class TestChangeGroupAddAnotherOptions:
         add_component_validation(
             component=db_question,
             user=factories.user.create(),
-            evaluatable_expression=GreaterThan(question_id=group_question.id, minimum_value=100),
+            evaluatable_expression=GreaterThan(
+                subject_reference=ExpressionReference.from_question(group_question), minimum_value=100
+            ),
         )
 
         assert db_group.add_another is False
@@ -2034,7 +2049,9 @@ class TestListGroupQuestions:
             order=1,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=question.id, minimum_value=1000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(question), minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -3649,7 +3666,9 @@ class TestSelectContextSourceQuestion:
 
         expression_id = None
         if existing_expression:
-            expression = GreaterThan(question_id=target_question.id, minimum_value=100)
+            expression = GreaterThan(
+                subject_reference=ExpressionReference.from_question(target_question), minimum_value=100
+            )
             interfaces.collections.add_component_validation(
                 target_question, interfaces.user.get_current_user(), expression
             )
@@ -4043,7 +4062,7 @@ class TestEditQuestion:
             expressions=[
                 Expression.from_evaluatable_expression(
                     AnyOf(
-                        question_id=q1.id,
+                        subject_reference=ExpressionReference.from_question(q1),
                         items=[
                             {"key": q1.data_source.items[0].key, "label": q1.data_source.items[0].label},
                         ],
@@ -4116,7 +4135,9 @@ class TestEditQuestion:
             data_type=QuestionDataType.NUMBER,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=100), ExpressionType.CONDITION, factories.user.create()
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=100),
+                    ExpressionType.CONDITION,
+                    factories.user.create(),
                 )
             ],
         )
@@ -4168,7 +4189,7 @@ class TestEditQuestion:
         add_component_validation(
             question,
             factories.user.create(),
-            GreaterThan(question_id=question.id, minimum_value=0, inclusive=True),
+            GreaterThan(subject_reference=ExpressionReference.from_question(question), minimum_value=0, inclusive=True),
         )
         db_session.commit()
         question_id = question.id
@@ -4819,7 +4840,10 @@ class TestAddQuestionCondition:
             data_type=QuestionDataType.EMAIL,
         )
 
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5065,7 +5089,10 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5120,7 +5147,10 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5154,7 +5184,10 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5194,7 +5227,10 @@ class TestEditQuestionCondition:
             data_type=QuestionDataType.YES_NO,
         )
         target_question = factories.group.create(form=db_form)
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5239,12 +5275,18 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        yes_expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        yes_expression = IsYes(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(
             target_question, interfaces.user.get_current_user(), yes_expression
         )
 
-        no_expression = IsNo(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        no_expression = IsNo(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(
             target_question, interfaces.user.get_current_user(), no_expression
         )
@@ -5291,7 +5333,10 @@ class TestEditQuestionCondition:
             name="email question",
             data_type=QuestionDataType.EMAIL,
         )
-        expression = IsYes(question_id=depends_on_question.id, referenced_question=depends_on_question)
+        expression = IsYes(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            referenced_question=depends_on_question,
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5337,7 +5382,10 @@ class TestEditQuestionCondition:
             data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
 
-        expression = IsAfter(question_id=depends_on_question.id, earliest_value=date(2025, 1, 1))
+        expression = IsAfter(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            earliest_value=date(2025, 1, 1),
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5388,7 +5436,7 @@ class TestEditQuestionCondition:
         target_question = factories.question.create(form=db_form, data_type=QuestionDataType.TEXT_MULTI_LINE)
 
         expression = IsAfter(
-            question_id=depends_on_question.id,
+            subject_reference=ExpressionReference.from_question(depends_on_question),
             earliest_value=None,
             earliest_expression=f"(({reference_data_question.safe_qid}))",
             inclusive=True,
@@ -5464,7 +5512,10 @@ class TestEditQuestionCondition:
             data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
 
-        expression = IsAfter(question_id=depends_on_question.id, earliest_value=date(2025, 12, 1))
+        expression = IsAfter(
+            subject_reference=ExpressionReference.from_question(depends_on_question),
+            earliest_value=date(2025, 12, 1),
+        )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -6104,7 +6155,7 @@ class TestEditQuestionValidation:
         target_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
 
         expression = LessThan(
-            question_id=target_question.id,
+            subject_reference=ExpressionReference.from_question(target_question),
             maximum_value=None,
             maximum_expression=f"(({referenced_question.safe_qid}))",
             inclusive=True,
@@ -6167,7 +6218,7 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        expression = LessThan(question_id=target_question.id, maximum_value=1000)
+        expression = LessThan(subject_reference=ExpressionReference.from_question(target_question), maximum_value=1000)
         interfaces.collections.add_component_validation(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -6228,7 +6279,7 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        expression = LessThan(question_id=target_question.id, maximum_value=1000)
+        expression = LessThan(subject_reference=ExpressionReference.from_question(target_question), maximum_value=1000)
         interfaces.collections.add_component_validation(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -9464,7 +9515,6 @@ class TestViewDataSource:
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        user = factories.user.create()
         report = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
             name="Budget data",
@@ -9484,23 +9534,19 @@ class TestViewDataSource:
             ),
         )
         form = factories.form.create(collection=report)
-        question_id = uuid.uuid4()
-        factories.question.create(
-            id=question_id,
+        question = factories.question.create(
             form=form,
             data_type=QuestionDataType.NUMBER,
             text=f"How much did you spend? (({data_source.safe_did}.c_allocation))",
-            expressions=[
-                Expression.from_evaluatable_expression(
-                    GreaterThan(
-                        question_id=question_id,
-                        minimum_value=None,
-                        minimum_expression=f"(({data_source.safe_did}.c_allocation))",
-                    ),
-                    ExpressionType.VALIDATION,
-                    user,
-                ),
-            ],
+        )
+        interfaces.collections.add_component_validation(
+            question,
+            authenticated_grant_admin_client.user,
+            GreaterThan(
+                subject_reference=ExpressionReference.from_question(question),
+                minimum_value=None,
+                minimum_expression=f"(({data_source.safe_did}.c_allocation))",
+            ),
         )
 
         response = authenticated_grant_admin_client.get(

@@ -1177,7 +1177,9 @@ class TestUpdateGroup:
             parent=group,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=100), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=100),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -1206,7 +1208,9 @@ class TestUpdateGroup:
 
         q2.expressions.append(
             Expression.from_evaluatable_expression(
-                GreaterThan(question_id=q1.id, minimum_value=100), ExpressionType.CONDITION, user
+                GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=100),
+                ExpressionType.CONDITION,
+                user,
             )
         )
 
@@ -1360,7 +1364,9 @@ class TestUpdateGroup:
         add_component_validation(
             component=q2,
             user=factories.user.create(),
-            evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
+            evaluatable_expression=GreaterThan(
+                subject_reference=ExpressionReference.from_question(q1), minimum_value=100
+            ),
         )
 
         with pytest.raises(AddAnotherDependencyException) as e:
@@ -1378,7 +1384,9 @@ class TestUpdateGroup:
         add_component_validation(
             component=q2,
             user=factories.user.create(),
-            evaluatable_expression=GreaterThan(question_id=q1.id, minimum_value=100),
+            evaluatable_expression=GreaterThan(
+                subject_reference=ExpressionReference.from_question(q1), minimum_value=100
+            ),
         )
 
         update_group(group, expression_context=ExpressionContext(), add_another=True)
@@ -1393,7 +1401,11 @@ class TestUpdateGroup:
             text="Test group",
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
-        add_component_condition(group, user, GreaterThan(question_id=q1.id, minimum_value=100))
+        add_component_condition(
+            group,
+            user,
+            GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=100),
+        )
 
         spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
         spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
@@ -1896,7 +1908,8 @@ class TestUpdateQuestion:
 
         items = referenced_question.data_source.items
         anyof_expression = AnyOf(
-            question_id=referenced_question.id, items=[{"key": items[1].key, "label": items[1].label}]
+            subject_reference=ExpressionReference.from_question(referenced_question),
+            items=[{"key": items[1].key, "label": items[1].label}],
         )
 
         first_dependent_question = factories.question.create(form=form)
@@ -1937,7 +1950,7 @@ class TestUpdateQuestion:
 
         items = referenced_question.data_source.items
         specifically_expression = Specifically(
-            question_id=referenced_question.id,
+            subject_reference=ExpressionReference.from_question(referenced_question),
             item={"key": items[1].key, "label": items[1].label},
         )
 
@@ -2148,7 +2161,11 @@ class TestUpdateQuestion:
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
         )
-        add_component_validation(question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True))
+        add_component_validation(
+            question,
+            user,
+            GreaterThan(subject_reference=ExpressionReference.from_question(question), minimum_value=0, inclusive=True),
+        )
 
         spy_validate1 = mocker.spy(collections, "_validate_and_sync_component_references")
         spy_validate2 = mocker.spy(collections, "_validate_and_sync_expression_references")
@@ -2257,7 +2274,9 @@ class TestMoveComponent:
             form=form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q2.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q2), minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2317,7 +2336,9 @@ class TestMoveComponent:
             form=form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q2.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q2), minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2350,7 +2371,9 @@ class TestMoveComponent:
             parent=group,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2375,7 +2398,9 @@ class TestMoveComponent:
             form=form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=nested_q1.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(nested_q1), minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2402,7 +2427,9 @@ class TestMoveComponent:
             parent=group2,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=nested_q1.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(nested_q1), minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2430,7 +2457,12 @@ class TestNestedGroupDependencies:
             form=form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(
+                        subject_reference=ExpressionReference.from_question(q1_in_parent_group),
+                        minimum_value=3000,
+                    ),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
             parent=child_group,
@@ -2461,7 +2493,12 @@ class TestNestedGroupDependencies:
             parent=parent_group,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(
+                        subject_reference=ExpressionReference.from_question(q1_in_child_group),
+                        minimum_value=3000,
+                    ),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2491,7 +2528,12 @@ class TestNestedGroupDependencies:
             parent=parent_group,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1_in_child_group.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(
+                        subject_reference=ExpressionReference.from_question(q1_in_child_group),
+                        minimum_value=3000,
+                    ),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2511,7 +2553,12 @@ class TestNestedGroupDependencies:
             form=form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1_in_parent_group.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(
+                        subject_reference=ExpressionReference.from_question(q1_in_parent_group),
+                        minimum_value=3000,
+                    ),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
             parent=child_group,
@@ -2542,7 +2589,9 @@ class TestDependencyExceptionHelpers:
             form=form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=1000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2563,7 +2612,11 @@ class TestDependencyExceptionHelpers:
             form=form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=nested_question.id, minimum_value=1000), ExpressionType.CONDITION, user
+                    GreaterThan(
+                        subject_reference=ExpressionReference.from_question(nested_question), minimum_value=1000
+                    ),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2587,7 +2640,9 @@ class TestDependencyExceptionHelpers:
             form=form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=1000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=1000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -2612,7 +2667,8 @@ class TestDependencyExceptionHelpers:
         )
         items = referenced_question.data_source.items
         anyof_expression = AnyOf(
-            question_id=referenced_question.id, items=[{"key": items[0].key, "label": items[0].label}]
+            subject_reference=ExpressionReference.from_question(referenced_question),
+            items=[{"key": items[0].key, "label": items[0].label}],
         )
 
         dependent_question = factories.question.create(form=form)
@@ -2641,7 +2697,7 @@ class TestDependencyExceptionHelpers:
         )
         items = referenced_question.data_source.items
         specifically_expression = Specifically(
-            question_id=referenced_question.id,
+            subject_reference=ExpressionReference.from_question(referenced_question),
             item={"key": items[0].key, "label": items[0].label},
         )
 
@@ -2988,7 +3044,7 @@ class TestExpressions:
         user = factories.user.create()
 
         # configured by the user interface
-        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
+        managed_expression = GreaterThan(minimum_value=3000, subject_reference=ExpressionReference.from_question(q0))
 
         add_component_condition(question, user, managed_expression)
 
@@ -3036,7 +3092,7 @@ class TestExpressions:
         q1 = factories.question.create(form=group.form, parent=group)
         user = factories.user.create()
 
-        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
+        managed_expression = GreaterThan(minimum_value=3000, subject_reference=ExpressionReference.from_question(q0))
 
         with pytest.raises(InvalidReferenceInExpression):
             add_component_condition(q1, user, managed_expression)
@@ -3052,7 +3108,7 @@ class TestExpressions:
 
         # configured by the user interface
         managed_expression = AnyOf(
-            question_id=q0.id,
+            subject_reference=ExpressionReference.from_question(q0),
             items=[{"key": items[0].key, "label": items[0].label}, {"key": items[1].key, "label": items[1].label}],
         )
 
@@ -3083,7 +3139,10 @@ class TestExpressions:
         user = factories.user.create()
 
         # configured by the user interface
-        managed_expression = Specifically(question_id=q0.id, item={"key": items[0].key, "label": items[0].label})
+        managed_expression = Specifically(
+            subject_reference=ExpressionReference.from_question(q0),
+            item={"key": items[0].key, "label": items[0].label},
+        )
 
         add_component_condition(question, user, managed_expression)
 
@@ -3109,11 +3168,19 @@ class TestExpressions:
         q2 = factories.question.create(form=q1.form)
 
         with pytest.raises(DependencyOrderException) as e:
-            add_component_condition(q1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+            add_component_condition(
+                q1,
+                user,
+                GreaterThan(minimum_value=1000, subject_reference=ExpressionReference.from_question(q2)),
+            )
         assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
 
         with pytest.raises(DependencyOrderException) as e:
-            add_component_condition(g1, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+            add_component_condition(
+                g1,
+                user,
+                GreaterThan(minimum_value=1000, subject_reference=ExpressionReference.from_question(q2)),
+            )
         assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question group"
 
     def test_add_question_condition_blocks_on_add_another_question(self, db_session, factories):
@@ -3122,7 +3189,11 @@ class TestExpressions:
         q2 = factories.question.create(form=q1.form)
 
         with pytest.raises(AddAnotherDependencyException) as e:
-            add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
+            add_component_condition(
+                q2,
+                user,
+                GreaterThan(minimum_value=1000, subject_reference=ExpressionReference.from_question(q1)),
+            )
         assert e.value.form_error_message == f"You cannot reference {q1.name} because it can be answered more than once"
 
     def test_add_question_condition_blocks_on_add_another_question_outside_group(self, db_session, factories):
@@ -3132,7 +3203,11 @@ class TestExpressions:
         q2 = factories.question.create(form=q1.form, parent=g1)
 
         with pytest.raises(AddAnotherDependencyException) as e:
-            add_component_condition(q2, user, GreaterThan(minimum_value=1000, question_id=q1.id))
+            add_component_condition(
+                q2,
+                user,
+                GreaterThan(minimum_value=1000, subject_reference=ExpressionReference.from_question(q1)),
+            )
         assert e.value.form_error_message == f"You cannot reference {q1.name} because it can be answered more than once"
 
     def test_add_question_condition_succeeds_add_another_question_inside_same_group(self, db_session, factories):
@@ -3142,7 +3217,9 @@ class TestExpressions:
         q2 = factories.question.create(form=q1.form, parent=g1)
         q3 = factories.question.create(form=q1.form, parent=g1)
 
-        add_component_condition(q3, user, GreaterThan(minimum_value=1000, question_id=q2.id))
+        add_component_condition(
+            q3, user, GreaterThan(minimum_value=1000, subject_reference=ExpressionReference.from_question(q2))
+        )
         assert len(q3.expressions) == 1
 
     def test_add_component_validation(self, db_session, factories, mock_sentry_metrics):
@@ -3150,7 +3227,9 @@ class TestExpressions:
         user = factories.user.create()
 
         # configured by the user interface
-        managed_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+        managed_expression = GreaterThan(
+            minimum_value=3000, subject_reference=ExpressionReference.from_question(question)
+        )
 
         add_component_validation(question, user, managed_expression)
 
@@ -3248,7 +3327,7 @@ class TestExpressions:
             add_component_condition(
                 group,
                 user,
-                GreaterThan(question_id=inside_question.id, minimum_value=0),
+                GreaterThan(subject_reference=ExpressionReference.from_question(inside_question), minimum_value=0),
             )
 
     def test_add_component_validation_on_group_rejects_reference_to_question_after_group(self, db_session, factories):
@@ -3287,11 +3366,11 @@ class TestExpressions:
         q0 = factories.question.create()
         question = factories.question.create(form=q0.form)
         user = factories.user.create()
-        managed_expression = GreaterThan(minimum_value=3000, question_id=q0.id)
+        managed_expression = GreaterThan(minimum_value=3000, subject_reference=ExpressionReference.from_question(q0))
 
         add_component_condition(question, user, managed_expression)
 
-        updated_expression = GreaterThan(minimum_value=5000, question_id=q0.id)
+        updated_expression = GreaterThan(minimum_value=5000, subject_reference=ExpressionReference.from_question(q0))
 
         update_question_expression(question.expressions[0], updated_expression)
 
@@ -3326,13 +3405,16 @@ class TestExpressions:
         user = factories.user.create()
 
         managed_expression = AnyOf(
-            question_id=q0.id,
+            subject_reference=ExpressionReference.from_question(q0),
             items=[{"key": items[0].key, "label": items[0].label}, {"key": items[1].key, "label": items[1].label}],
         )
 
         add_component_condition(question, user, managed_expression)
 
-        updated_expression = AnyOf(question_id=q0.id, items=[{"key": items[2].key, "label": items[2].label}])
+        updated_expression = AnyOf(
+            subject_reference=ExpressionReference.from_question(q0),
+            items=[{"key": items[2].key, "label": items[2].label}],
+        )
 
         update_question_expression(question.expressions[0], updated_expression)
 
@@ -3354,12 +3436,15 @@ class TestExpressions:
         items = q0.data_source.items
         user = factories.user.create()
 
-        managed_expression = Specifically(question_id=q0.id, item={"key": items[0].key, "label": items[0].label})
+        managed_expression = Specifically(
+            subject_reference=ExpressionReference.from_question(q0),
+            item={"key": items[0].key, "label": items[0].label},
+        )
 
         add_component_condition(question, user, managed_expression)
 
         updated_expression = Specifically(
-            question_id=q0.id,
+            subject_reference=ExpressionReference.from_question(q0),
             item={"key": items[1].key, "label": items[1].label},
         )
 
@@ -3380,11 +3465,11 @@ class TestExpressions:
     def test_update_expression_errors_on_validation_overlap(self, db_session, factories):
         question = factories.question.create()
         user = factories.user.create()
-        gt_expression = GreaterThan(minimum_value=3000, question_id=question.id)
+        gt_expression = GreaterThan(minimum_value=3000, subject_reference=ExpressionReference.from_question(question))
 
         add_component_validation(question, user, gt_expression)
 
-        lt_expression = LessThan(maximum_value=5000, question_id=question.id)
+        lt_expression = LessThan(maximum_value=5000, subject_reference=ExpressionReference.from_question(question))
 
         add_component_validation(question, user, lt_expression)
         lt_db_expression = next(
@@ -3395,16 +3480,16 @@ class TestExpressions:
             update_question_expression(lt_db_expression, gt_expression)
 
     def test_remove_expression(self, db_session, factories):
-        qid = uuid.uuid4()
         user = factories.user.create()
-        question = factories.question.create(
-            id=qid,
-            expressions=[
-                Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=qid, minimum_value=3000), ExpressionType.VALIDATION, user
-                ),
-            ],
-        )
+        question = factories.question.create()
+        question.expressions = [
+            Expression.from_evaluatable_expression(
+                GreaterThan(subject_reference=ExpressionReference.from_question(question), minimum_value=3000),
+                ExpressionType.VALIDATION,
+                user,
+            ),
+        ]
+        db_session.flush()
 
         assert len(question.expressions) == 1
         expression_id = question.expressions[0].id
@@ -3431,7 +3516,9 @@ class TestExpressions:
     def test_get_expression_by_id(self, db_session, factories, track_sql_queries):
         question = factories.question.create(data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
-        managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
+        managed_expression = GreaterThan(
+            minimum_value=100, subject_reference=ExpressionReference.from_question(question)
+        )
         add_component_validation(question, user, managed_expression)
 
         expression_id = question.expressions[0].id
@@ -3453,7 +3540,9 @@ class TestExpressions:
     def test_get_expression_by_id_missing(self, db_session, factories):
         question = factories.question.create(data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
-        managed_expression = GreaterThan(minimum_value=100, question_id=question.id)
+        managed_expression = GreaterThan(
+            minimum_value=100, subject_reference=ExpressionReference.from_question(question)
+        )
         add_component_validation(question, user, managed_expression)
 
         with pytest.raises(NoResultFound):
@@ -3463,7 +3552,7 @@ class TestExpressions:
         referenced_question = factories.question.create(data_type=QuestionDataType.RADIOS)
         items = referenced_question.data_source.items
         managed_expression = AnyOf(
-            question_id=referenced_question.id,
+            subject_reference=ExpressionReference.from_question(referenced_question),
             items=[{"key": items[0].key, "label": items[0].label}, {"key": items[1].key, "label": items[1].label}],
         )
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(managed_expression)
@@ -3474,7 +3563,8 @@ class TestExpressions:
         referenced_question = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
         items = referenced_question.data_source.items
         managed_expression = Specifically(
-            question_id=referenced_question.id, item={"key": items[0].key, "label": items[0].label}
+            subject_reference=ExpressionReference.from_question(referenced_question),
+            item={"key": items[0].key, "label": items[0].label},
         )
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(managed_expression)
         assert len(referenced_data_source_items) == 1
@@ -3773,7 +3863,9 @@ class TestValidateAndSyncExpressionReferences:
         dependent_question = factories.question.create(form=referenced_question.form)
 
         expression = Expression.from_evaluatable_expression(
-            GreaterThan(question_id=referenced_question.id, minimum_value=100), ExpressionType.CONDITION, user
+            GreaterThan(subject_reference=ExpressionReference.from_question(referenced_question), minimum_value=100),
+            ExpressionType.CONDITION,
+            user,
         )
         dependent_question.expressions.append(expression)
         db_session.add(expression)
@@ -3794,7 +3886,7 @@ class TestValidateAndSyncExpressionReferences:
         question = factories.question.create(data_type=QuestionDataType.NUMBER)
 
         expression = Expression.from_evaluatable_expression(
-            GreaterThan(question_id=question.id, minimum_value=0, inclusive=True),
+            GreaterThan(subject_reference=ExpressionReference.from_question(question), minimum_value=0, inclusive=True),
             ExpressionType.VALIDATION,
             user,
         )
@@ -3811,7 +3903,9 @@ class TestValidateAndSyncExpressionReferences:
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         dependent_question = factories.question.create(form=referenced_question.form)
 
-        managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
+        managed_expression = GreaterThan(
+            subject_reference=ExpressionReference.from_question(referenced_question), minimum_value=100
+        )
         expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
         dependent_question.expressions.append(expression)
         db_session.add(expression)
@@ -3841,7 +3935,7 @@ class TestValidateAndSyncExpressionReferences:
         dependent_question = factories.question.create(form=referenced_question.form)
 
         managed_expression = Specifically(
-            question_id=referenced_question.id,
+            subject_reference=ExpressionReference.from_question(referenced_question),
             item={
                 "key": referenced_question.data_source.items[0].key,
                 "label": referenced_question.data_source.items[0].label,
@@ -3867,7 +3961,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             Between(
-                question_id=depends_on_question.id,
+                subject_reference=ExpressionReference.from_question(depends_on_question),
                 minimum_value=None,
                 minimum_expression=f"(({first_referenced_question.safe_qid}))",
                 maximum_value=None,
@@ -3905,7 +3999,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             GreaterThan(
-                question_id=target_question.id,
+                subject_reference=ExpressionReference.from_question(target_question),
                 minimum_value=None,
                 minimum_expression=f"(({first_referenced_question.safe_qid}))",
             ),
@@ -3936,7 +4030,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             Between(
-                question_id=target_question.id,
+                subject_reference=ExpressionReference.from_question(target_question),
                 minimum_value=None,
                 minimum_expression=f"(({first_referenced_question.safe_qid}))",
                 maximum_value=None,
@@ -3967,7 +4061,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             Between(
-                question_id=target_question.id,
+                subject_reference=ExpressionReference.from_question(target_question),
                 minimum_value=None,
                 minimum_expression=f"(({first_referenced_question.safe_qid}))",
                 maximum_value=None,
@@ -3999,7 +4093,7 @@ class TestValidateAndSyncExpressionReferences:
         conditional_question = factories.question.create(form=form)
         expression = Expression.from_evaluatable_expression(
             Between(
-                question_id=target_question.id,
+                subject_reference=ExpressionReference.from_question(target_question),
                 minimum_value=None,
                 minimum_expression=f"(({first_referenced_question.safe_qid}))",
                 maximum_value=None,
@@ -4032,7 +4126,7 @@ class TestValidateAndSyncExpressionReferences:
         conditional_question = factories.question.create(form=form)
         expression = Expression.from_evaluatable_expression(
             Between(
-                question_id=target_question.id,
+                subject_reference=ExpressionReference.from_question(target_question),
                 minimum_value=None,
                 minimum_expression=f"(({first_referenced_question.safe_qid}))",
                 maximum_value=None,
@@ -4067,7 +4161,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             GreaterThan(
-                question_id=second_referenced_question.id,
+                subject_reference=ExpressionReference.from_question(second_referenced_question),
                 minimum_value=None,
                 minimum_expression=f"(({first_referenced_question.safe_qid}))",
             ),
@@ -4166,7 +4260,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             GreaterThan(
-                question_id=question.id,
+                subject_reference=ExpressionReference.from_question(question),
                 minimum_value=None,
                 minimum_expression=f"(({data_source.safe_did}.c_threshold))",
             ),
@@ -4220,7 +4314,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             Between(
-                question_id=question.id,
+                subject_reference=ExpressionReference.from_question(question),
                 minimum_value=None,
                 minimum_expression=f"(({data_source.safe_did}.c_min))",
                 maximum_value=None,
@@ -4273,7 +4367,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             Between(
-                question_id=target_question.id,
+                subject_reference=ExpressionReference.from_question(target_question),
                 minimum_value=None,
                 minimum_expression=f"(({min_question.safe_qid}))",
                 maximum_value=None,
@@ -4320,7 +4414,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             GreaterThan(
-                question_id=question.id,
+                subject_reference=ExpressionReference.from_question(question),
                 minimum_value=None,
                 minimum_expression=f"(({data_source.safe_did}.c_missing))",
             ),
@@ -4394,7 +4488,9 @@ class TestValidateAndSyncComponentReferences:
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
         dependent_question = factories.question.create(form=referenced_question.form)
 
-        managed_expression = GreaterThan(question_id=referenced_question.id, minimum_value=100)
+        managed_expression = GreaterThan(
+            subject_reference=ExpressionReference.from_question(referenced_question), minimum_value=100
+        )
         expression = Expression.from_evaluatable_expression(managed_expression, ExpressionType.CONDITION, user)
         dependent_question.expressions.append(expression)
         db_session.add(expression)

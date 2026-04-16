@@ -22,7 +22,11 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            context={
+                "subject_reference": q2.safe_qid,
+                "minimum_value": None,
+                "minimum_expression": f"(({q1.safe_qid}))",
+            },
         )
 
         submission = factories.submission.build(
@@ -44,7 +48,11 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            context={
+                "subject_reference": q2.safe_qid,
+                "minimum_value": None,
+                "minimum_expression": f"(({q1.safe_qid}))",
+            },
         )
 
         submission = factories.submission.build(
@@ -73,7 +81,11 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            context={
+                "subject_reference": q2.safe_qid,
+                "minimum_value": None,
+                "minimum_expression": f"(({q1.safe_qid}))",
+            },
         )
 
         factories.expression.build(
@@ -81,7 +93,11 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.LESS_THAN,
             statement=f"(({q3.safe_qid})) < (({q1.safe_qid}))",
-            context={"question_id": str(q3.id), "maximum_value": None, "maximum_expression": f"(({q1.safe_qid}))"},
+            context={
+                "subject_reference": q3.safe_qid,
+                "maximum_value": None,
+                "maximum_expression": f"(({q1.safe_qid}))",
+            },
         )
 
         submission = factories.submission.build(
@@ -113,7 +129,7 @@ class TestSubmissionValidator:
             type_=ExpressionType.CONDITION,
             managed_name=ManagedExpressionsEnum.IS_YES,
             statement=f"{q1.safe_qid} is True",
-            context={"question_id": str(q1.id)},
+            context={"subject_reference": q1.safe_qid},
         )
 
         factories.expression.build(
@@ -121,7 +137,7 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q2.safe_qid})) > 100",
-            context={"question_id": str(q2.id), "minimum_value": 100, "minimum_expression": None},
+            context={"subject_reference": q2.safe_qid, "minimum_value": 100, "minimum_expression": None},
         )
 
         submission = factories.submission.build(
@@ -143,7 +159,11 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            context={
+                "subject_reference": q2.safe_qid,
+                "minimum_value": None,
+                "minimum_expression": f"(({q1.safe_qid}))",
+            },
         )
 
         submission = factories.submission.build(
@@ -191,7 +211,11 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            context={
+                "subject_reference": q2.safe_qid,
+                "minimum_value": None,
+                "minimum_expression": f"(({q1.safe_qid}))",
+            },
         )
 
         submission = factories.submission.build(
@@ -215,7 +239,7 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q1.safe_qid})) > 0",
-            context={"question_id": str(q1.id), "minimum_value": 0, "minimum_expression": None},
+            context={"subject_reference": q1.safe_qid, "minimum_value": 0, "minimum_expression": None},
         )
 
         submission = factories.submission.build(
@@ -243,7 +267,7 @@ class TestSubmissionValidator:
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
             statement=f"(({q1.safe_qid})) > 0",
-            context={"question_id": str(q1.id), "minimum_value": 0, "minimum_expression": None},
+            context={"subject_reference": q1.safe_qid, "minimum_value": 0, "minimum_expression": None},
         )
 
         submission = factories.submission.build(

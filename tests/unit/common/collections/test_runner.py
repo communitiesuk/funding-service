@@ -7,6 +7,7 @@ from app.common.collections.types import FileUploadAnswer, TextSingleLineAnswer
 from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan
+from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
 
@@ -71,7 +72,9 @@ class TestFormRunner:
             form=group.form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q0.id, minimum_value=100), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q0), minimum_value=100),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )

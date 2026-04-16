@@ -122,7 +122,7 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION,
                 question_text="Do you want to show question groups?",
             ),
-            evaluatable_expression=IsYes(question_id=uuid.uuid4()),
+            evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
         ),
         "questions": [
             {
@@ -213,7 +213,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         ],
         validation=E2EManagedExpression(
             evaluatable_expression=BetweenDates(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
                 earliest_value=datetime.date(2020, 1, 1),
                 earliest_inclusive=True,
                 latest_value=datetime.date(2025, 1, 1),
@@ -240,7 +240,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         options=QuestionPresentationOptions(approximate_date=True),
         validation=E2EManagedExpression(
             evaluatable_expression=BetweenDates(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
                 earliest_value=datetime.date(2020, 4, 1),
                 earliest_inclusive=True,
                 latest_value=datetime.date(2022, 3, 1),
@@ -259,11 +259,15 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS, approximate_date=True),
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
-            evaluatable_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False)
+            evaluatable_expression=GreaterThan(
+                subject_reference="q_00000000000000000000000000001234",
+                minimum_value=1,
+                inclusive=False,
+            )
         ),
         "condition": E2EManagedExpression(
             evaluatable_expression=BetweenDates(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
                 earliest_value=datetime.date(2020, 4, 1),
                 earliest_inclusive=False,
                 latest_value=None,
@@ -290,7 +294,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
             evaluatable_expression=LessThan(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
                 maximum_value=None,
                 maximum_expression="",
                 inclusive=True,
@@ -303,7 +307,11 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total cost as a number"
             ),
-            evaluatable_expression=GreaterThan(question_id=uuid.uuid4(), minimum_value=1, inclusive=False),
+            evaluatable_expression=GreaterThan(
+                subject_reference="q_00000000000000000000000000001234",
+                minimum_value=1,
+                inclusive=False,
+            ),
         ),
     },
     "between-integer": {
@@ -318,7 +326,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
             evaluatable_expression=Between(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
                 maximum_value=100,
                 maximum_inclusive=False,
                 minimum_value=20,
@@ -329,7 +337,11 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total weight as a number"
             ),
-            evaluatable_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True),
+            evaluatable_expression=LessThan(
+                subject_reference="q_00000000000000000000000000001234",
+                maximum_value=100,
+                inclusive=True,
+            ),
         ),
     },
     "suffix-decimal": {
@@ -344,7 +356,11 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "options": QuestionPresentationOptions(suffix="%", width=NumberInputWidths.BILLIONS),
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
         "validation": E2EManagedExpression(
-            evaluatable_expression=LessThan(question_id=uuid.uuid4(), maximum_value=100, inclusive=True)
+            evaluatable_expression=LessThan(
+                subject_reference="q_00000000000000000000000000001234",
+                maximum_value=100,
+                inclusive=True,
+            )
         ),
     },
     "between-decimal": {
@@ -361,7 +377,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=5),
         "validation": E2EManagedExpression(
             evaluatable_expression=Between(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
                 maximum_value=Decimal("1.12345"),
                 maximum_inclusive=True,
                 minimum_value=Decimal("0.22334"),
@@ -444,7 +460,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter a number between 20 and 100"
             ),
             evaluatable_expression=Between(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
                 maximum_value=40,
                 maximum_inclusive=True,
                 minimum_value=15,
@@ -464,7 +480,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
             ),
-            evaluatable_expression=IsYes(question_id=uuid.uuid4()),
+            evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
         ),
     },
     "autocomplete": {
@@ -481,7 +497,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Select an option"
             ),
             evaluatable_expression=AnyOf(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
                 items=[{"key": "option-2", "label": "option 2"}, {"key": "option-3", "label": "option 3"}],
             ),
         ),
@@ -500,7 +516,10 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION,
                 question_text="Select an option from the accessible autocomplete",
             ),
-            evaluatable_expression=AnyOf(question_id=uuid.uuid4(), items=[{"key": "other", "label": "Other"}]),
+            evaluatable_expression=AnyOf(
+                subject_reference="q_00000000000000000000000000001234",
+                items=[{"key": "other", "label": "Other"}],
+            ),
         ),
     },
     "email": {
@@ -516,7 +535,8 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Select one or more options"
             ),
             evaluatable_expression=Specifically(
-                question_id=uuid.uuid4(), item={"key": "option-2", "label": "option 2"}
+                subject_reference="q_00000000000000000000000000001234",
+                item={"key": "option-2", "label": "option 2"},
             ),
         ),
     },
@@ -530,7 +550,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         ],
         "validation": E2EManagedExpression(
             evaluatable_expression=UKPostcode(
-                question_id=uuid.uuid4(),
+                subject_reference="q_00000000000000000000000000001234",
             )
         ),  # question_id does not matter here
         "guidance": GuidanceText(
@@ -579,7 +599,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
             conditional_on=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
             ),
-            evaluatable_expression=IsNo(question_id=uuid.uuid4()),
+            evaluatable_expression=IsNo(subject_reference="q_00000000000000000000000000001234"),
         ),
     },
     "cross-section-reference": {
@@ -603,7 +623,10 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         ],
         "validation": E2EManagedExpression(
             evaluatable_expression=LessThan(
-                question_id=uuid.uuid4(), maximum_value=None, maximum_expression="", inclusive=False
+                subject_reference="q_00000000000000000000000000001234",
+                maximum_value=None,
+                maximum_expression="",
+                inclusive=False,
             ),
             context_source=DataReferenceConfig(
                 data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,

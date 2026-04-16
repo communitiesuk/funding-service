@@ -944,7 +944,7 @@ class Expression(BaseModel):
             "type",
             "question_id",
             "managed_name",
-            text("(context ->> 'question_id')"),
+            text("(context ->> 'subject_reference')"),
             postgresql_where=(
                 f"type = '{ExpressionType.CONDITION.value}'::expression_type_enum AND managed_name IS NOT NULL"
             ),
