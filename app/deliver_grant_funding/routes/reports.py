@@ -1497,6 +1497,7 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
 def _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
     grant_id: UUID, add_context_data: AddContextToExpressionsModel, referenced_question: Question
 ) -> str:
+    # TODO[FSPT-1284]: use `expression.managed.subject_reference` instead?
     if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
         target_field = add_context_data.expression_form_data["add_context"]
         reference = ExpressionReference.from_question(referenced_question)
@@ -2259,7 +2260,11 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
         session_model=AddContextToExpressionsModel, component_id=component_id
     )
 
-    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+    # TODO[FSPT-1284]: we should refactor the URL here to pass the expression reference rather than build it from
+    #                  `depends_on_question_id`
+    ConditionForm = build_managed_expression_form(
+        ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
+    )
     form = (
         ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ConditionForm
@@ -2291,7 +2296,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
         return redirect(request.url)
 
     if form and form.validate_on_submit():
-        expression = form.get_expression(depends_on_question)
+        expression = form.get_expression(ExpressionReference.from_question(depends_on_question))
 
         try:
             interfaces.collections.add_component_condition(component, interfaces.user.get_current_user(), expression)
@@ -2344,6 +2349,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
 def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
     component = expression.question
+    # TODO[FSPT-1284]: use `expression.managed.subject_reference` instead?
     depends_on_question = expression.managed.referenced_question
 
     return_url = (
@@ -2365,7 +2371,9 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         session_model=AddContextToExpressionsModel, component_id=component.id, expression_id=expression_id
     )
 
-    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question, expression)
+    ConditionForm = build_managed_expression_form(
+        ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question), expression
+    )
     form = (
         ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ConditionForm
@@ -2399,7 +2407,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         return redirect(request.url)
 
     if form and form.validate_on_submit():
-        updated_managed_expression = form.get_expression(depends_on_question)
+        updated_managed_expression = form.get_expression(ExpressionReference.from_question(depends_on_question))
 
         try:
             interfaces.collections.update_question_expression(expression, updated_managed_expression)
@@ -2446,7 +2454,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
 
     ValidationForm = build_managed_expression_form(
         ExpressionType.VALIDATION,
-        question,
+        ExpressionReference.from_question(question),
         show_calculated_validation_option=(
             AuthorisationHelper.is_platform_member(get_current_user()) and question.data_type == QuestionDataType.NUMBER
         ),
@@ -2489,7 +2497,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
                 )
             )
 
-        expression = form.get_expression(question)
+        expression = form.get_expression(ExpressionReference.from_question(question))
 
         try:
             interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
@@ -2553,7 +2561,9 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         session_model=AddContextToExpressionsModel, component_id=question.id, expression_id=expression_id
     )
 
-    ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, cast("Question", question), expression)
+    ValidationForm = build_managed_expression_form(
+        ExpressionType.VALIDATION, ExpressionReference.from_question(cast("Question", question)), expression
+    )
     form = (
         ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ValidationForm
@@ -2586,7 +2596,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 
     if form and form.validate_on_submit():
         # todo: any time we're dealing with the dependant component its a question - make sure this makes sense
-        updated_managed_expression = form.get_expression(cast("Question", question))
+        updated_managed_expression = form.get_expression(ExpressionReference.from_question(cast("Question", question)))
         try:
             interfaces.collections.update_question_expression(expression, updated_managed_expression)
         except DuplicateValueError:

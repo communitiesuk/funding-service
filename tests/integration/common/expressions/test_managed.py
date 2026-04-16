@@ -5,11 +5,15 @@ import pytest
 from app.common.data.interfaces.collections import get_question_by_id
 from app.common.data.models import Expression
 from app.common.data.types import (
+    DataSourceSchema,
+    DataSourceSchemaColumn,
+    DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
     NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
+    QuestionPresentationOptions,
 )
 from app.common.expressions import ExpressionContext, evaluate
 from app.common.expressions.custom import CustomExpression
@@ -418,6 +422,31 @@ class TestAnyOfExpression:
             is expected_result
         )
 
+    def test_needs_a_question_subject_reference(self, factories):
+        collection = factories.collection.create()
+        allocation_column = DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(prefix="£"),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            original_column_name="Allocation",
+        )
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate({"c_allocation": allocation_column}),
+        )
+        data_source_ref = ExpressionReference.from_data_source_column(data_source, "c_allocation")
+        items: list[TRadioItem] = [{"key": "red", "label": "Red"}]
+
+        expr = AnyOf(subject_reference=data_source_ref, items=items)
+
+        with pytest.raises(
+            ValueError, match="AnyOf managed expressions are only implemented for questions with data sources"
+        ):
+            expr.get_form_fields(data_source_ref)
+
 
 class TestIsYesExpression:
     @pytest.mark.parametrize(
@@ -471,6 +500,31 @@ class TestSpecificallyExpression:
             evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answers}))
             is expected_result
         )
+
+    def test_needs_a_question_subject_reference(self, factories):
+        collection = factories.collection.create()
+        allocation_column = DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(prefix="£"),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            original_column_name="Allocation",
+        )
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+            schema=DataSourceSchema.model_validate({"c_allocation": allocation_column}),
+        )
+        data_source_ref = ExpressionReference.from_data_source_column(data_source, "c_allocation")
+        item: TRadioItem = {"key": "red", "label": "Red"}
+
+        expr = Specifically(subject_reference=data_source_ref, item=item)
+
+        with pytest.raises(
+            ValueError, match="Specifically managed expressions are only implemented for questions with data sources"
+        ):
+            expr.get_form_fields(data_source_ref)
 
 
 class TestIsBeforeExpression:

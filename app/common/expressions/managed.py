@@ -108,7 +108,9 @@ class ManagedExpression(EvaluatableExpression):
     # that are defined in `question_data_types`.
     @staticmethod
     @abc.abstractmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         """
         A hook used by `build_managed_expression_form`. It should return the set of form fields which need to be
         added to the managed expression form. The fields returned should collect the data needed to define an instance
@@ -162,7 +164,9 @@ class ManagedExpression(EvaluatableExpression):
         ...
 
     @classmethod
-    def concatenate_all_wtf_fields_html(cls, form: _ManagedExpressionForm, referenced_question: Question) -> Markup:
+    def concatenate_all_wtf_fields_html(
+        cls, form: _ManagedExpressionForm, subject_reference: ExpressionReference
+    ) -> Markup:
         """
         A hook used by `build_managed_expression_form` to support conditionally-revealed the fields that a user needs
         to complete when they select this managed expression type from the radio list of available managed expressions.
@@ -177,23 +181,25 @@ class ManagedExpression(EvaluatableExpression):
         # FIXME: Re-using cls.get_form_fields() is a 🤏 bit wasteful (building form fields that aren't used).
         fields = [
             getattr(form, field_name)()
-            for field_name in cls.get_form_fields(referenced_question=referenced_question).keys()
+            for field_name in cls.get_form_fields(subject_reference=subject_reference).keys()
         ]
 
         return Markup("\n".join(fields))
 
     @staticmethod
     @abc.abstractmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> ManagedExpression:
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> ManagedExpression:
         """
         A hook used by `build_managed_expression_form`. If this managed expression type has been selected during form
         submission, this hook will be called. It should pull data from the form and use that to instantiate and return
         the managed expression.
 
         Eg:
-            def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "GreaterThan":
+            def build_from_form(
+                form: "_ManagedExpressionForm", subject_reference: "ExpressionReference"
+            ) -> "GreaterThan":
                 return GreaterThan(
-                    subject_reference=ExpressionReference.from_question(question),
+                    subject_reference=subject_reference,
                     minimum_value=form.greater_than_value.data,
                     inclusive=form.greater_than_inclusive.data,
                 )
@@ -261,7 +267,7 @@ class GreaterThan(ManagedExpression):
 
     @staticmethod
     def get_form_fields(
-        referenced_question: Question,
+        subject_reference: ExpressionReference,
         expression: TOptional[Expression] = None,
     ) -> dict[str, Field]:
         return {
@@ -307,10 +313,12 @@ class GreaterThan(ManagedExpression):
 
     @staticmethod
     def build_from_form(
-        form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
+        form: _ManagedExpressionForm,
+        subject_reference: ExpressionReference,
+        expression: TOptional[Expression] = None,
     ) -> GreaterThan:
         return GreaterThan(
-            subject_reference=ExpressionReference.from_question(question),
+            subject_reference=subject_reference,
             minimum_value=form.greater_than_value.data if not form.greater_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             minimum_expression=form.greater_than_expression.data if form.greater_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.greater_than_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -367,7 +375,9 @@ class LessThan(ManagedExpression):
         return {"maximum_expression"}
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         return {
             "less_than_value": DecimalWithCommasField(
                 "Maximum value",
@@ -410,9 +420,9 @@ class LessThan(ManagedExpression):
         form.less_than_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> LessThan:
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> LessThan:
         return LessThan(
-            subject_reference=ExpressionReference.from_question(question),
+            subject_reference=subject_reference,
             maximum_value=form.less_than_value.data if not form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             maximum_expression=form.less_than_expression.data if form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.less_than_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -484,7 +494,9 @@ class Between(ManagedExpression):
         return {"minimum_expression", "maximum_expression"}
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         return {
             "between_bottom_of_range": DecimalWithCommasField(
                 "Minimum value",
@@ -562,9 +574,9 @@ class Between(ManagedExpression):
         )
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> Between:
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> Between:
         return Between(
-            subject_reference=ExpressionReference.from_question(question),
+            subject_reference=subject_reference,
             minimum_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
             if not form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             else None,
@@ -619,16 +631,19 @@ class AnyOf(BaseDataSourceManagedExpression):
         return f"{self.subject_reference.unwrapped} in {item_keys}"
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
-        if referenced_question is None or referenced_question.data_source is None:
-            raise ValueError("The question for the AnyOf expression must have a data source")
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
+        question = subject_reference.question
+        if not question or question.data_source is None:
+            raise ValueError("AnyOf managed expressions are only implemented for questions with data sources")
 
         return {
             "any_of": SelectMultipleField(
                 "Choose from the list of options",
                 default=[item["key"] for item in expression.context["items"]] if expression else None,  # type: ignore[index, union-attr]
                 widget=GovCheckboxesInput(),
-                choices=[(item.key, item.label) for item in referenced_question.data_source.items],
+                choices=[(item.key, item.label) for item in question.data_source.items],
                 validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
@@ -641,14 +656,16 @@ class AnyOf(BaseDataSourceManagedExpression):
         ]
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> AnyOf:
-        assert question.data_source is not None
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> AnyOf:
+        question = subject_reference.question
+        if not question or question.data_source is None:
+            raise ValueError("AnyOf managed expressions are only implemented for questions with data sources")
 
         item_labels = {choice.key: choice.label for choice in question.data_source.items}
 
         items = [TRadioItem(key=key, label=item_labels[key]) for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
         return AnyOf(
-            subject_reference=ExpressionReference.from_question(question),
+            subject_reference=subject_reference,
             items=items,
         )
 
@@ -679,7 +696,9 @@ class IsYes(ManagedExpression):
         return f"{self.subject_reference.unwrapped} is True"
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         return {}
 
     @staticmethod
@@ -687,8 +706,8 @@ class IsYes(ManagedExpression):
         pass
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsYes:
-        return IsYes(subject_reference=ExpressionReference.from_question(question))
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> IsYes:
+        return IsYes(subject_reference=subject_reference)
 
 
 @register_managed_expression
@@ -713,7 +732,9 @@ class IsNo(ManagedExpression):
         return f"{self.subject_reference.unwrapped} is False"
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         return {}
 
     @staticmethod
@@ -721,8 +742,8 @@ class IsNo(ManagedExpression):
         pass
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsNo:
-        return IsNo(subject_reference=ExpressionReference.from_question(question))
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> IsNo:
+        return IsNo(subject_reference=subject_reference)
 
 
 @register_managed_expression
@@ -750,16 +771,19 @@ class Specifically(BaseDataSourceManagedExpression):
         return f"{self.item['key']!r} in {self.subject_reference.unwrapped}"
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
-        if referenced_question is None or referenced_question.data_source is None:
-            raise ValueError("The question for the Specifically expression must have a data source")
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
+        question = subject_reference.question
+        if not question or question.data_source is None:
+            raise ValueError("Specifically managed expressions are only implemented for questions with data sources")
 
         return {
             "specifically": SelectField(
                 "Choose from the list of options",
                 default=expression.context["item"]["key"] if expression else None,  # type: ignore[index]
                 widget=GovRadioInput(),
-                choices=[(item.key, item.label) for item in referenced_question.data_source.items],
+                choices=[(item.key, item.label) for item in question.data_source.items],
                 validators=[DataRequired("Choose one option")],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
@@ -770,13 +794,15 @@ class Specifically(BaseDataSourceManagedExpression):
         pass
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> Specifically:
-        assert question.data_source is not None
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> Specifically:
+        question = subject_reference.question
+        if not question or question.data_source is None:
+            raise ValueError("Specifically managed expressions are only implemented for questions with data sources")
 
         item_labels = {item.key: item.label for item in question.data_source.items}
         selected_key = form.specifically.data  # ty: ignore[unresolved-attribute]
         item: TRadioItem = {"key": selected_key, "label": item_labels[selected_key]}
-        return Specifically(subject_reference=ExpressionReference.from_question(question), item=item)
+        return Specifically(subject_reference=subject_reference, item=item)
 
     @property
     def referenced_data_source_items(self) -> list[TRadioItem]:
@@ -807,7 +833,7 @@ class IsBefore(ManagedExpression):
         if self.latest_value:
             formatted_latest_value = (
                 format_date_short(self.latest_value)
-                if not self.referenced_question.approximate_date
+                if not self.subject_reference.presentation_options.approximate_date
                 else format_date_approximate(self.latest_value)
             )
         return f"The answer must be {'on or ' if self.inclusive else ''}before " + (
@@ -836,17 +862,21 @@ class IsBefore(ManagedExpression):
         return {"latest_expression"}
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         return {
             "latest_value": DateField(
                 "Latest date",
                 default=datetime.datetime.strptime(cast(str, latest_value), "%Y-%m-%d").date()
                 if expression and (latest_value := expression.context.get("latest_value"))
                 else None,
-                widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
+                widget=GovDateInput()
+                if not subject_reference.presentation_options.approximate_date
+                else MHCLGApproximateDateInput(),
                 validators=[Optional()],
                 format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
-                if not referenced_question.approximate_date
+                if not subject_reference.presentation_options.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
             "latest_expression": StringField(
@@ -881,9 +911,9 @@ class IsBefore(ManagedExpression):
         form.latest_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsBefore:
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> IsBefore:
         return IsBefore(
-            subject_reference=ExpressionReference.from_question(question),
+            subject_reference=subject_reference,
             latest_value=form.latest_value.data if not form.latest_expression.data else None,  # ty: ignore[unresolved-attribute]
             latest_expression=form.latest_expression.data if form.latest_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.latest_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -927,7 +957,7 @@ class IsAfter(ManagedExpression):
         if self.earliest_value:
             formatted_earliest_value = (
                 format_date_short(self.earliest_value)
-                if not self.referenced_question.approximate_date
+                if not self.subject_reference.presentation_options.approximate_date
                 else format_date_approximate(self.earliest_value)
             )
         return f"The answer must be {'on or ' if self.inclusive else ''}after " + (
@@ -954,17 +984,21 @@ class IsAfter(ManagedExpression):
         return {"earliest_expression"}
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         return {
             "earliest_value": DateField(
                 "Earliest date",
                 default=datetime.datetime.strptime(cast(str, earliest_value), "%Y-%m-%d").date()
                 if expression and (earliest_value := expression.context.get("earliest_value"))
                 else None,
-                widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
+                widget=GovDateInput()
+                if not subject_reference.presentation_options.approximate_date
+                else MHCLGApproximateDateInput(),
                 validators=[Optional()],
                 format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
-                if not referenced_question.approximate_date
+                if not subject_reference.presentation_options.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
             "earliest_expression": StringField(
@@ -999,9 +1033,9 @@ class IsAfter(ManagedExpression):
         form.earliest_expression.validators = [ReadOnly()]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsAfter:
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> IsAfter:
         return IsAfter(
-            subject_reference=ExpressionReference.from_question(question),
+            subject_reference=subject_reference,
             earliest_value=form.earliest_value.data if not form.earliest_expression.data else None,  # ty: ignore[unresolved-attribute]
             earliest_expression=form.earliest_expression.data if form.earliest_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.earliest_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -1048,13 +1082,13 @@ class BetweenDates(ManagedExpression):
         if self.earliest_value:
             formatted_earliest_value = (
                 format_date_short(self.earliest_value)
-                if not self.referenced_question.approximate_date
+                if not self.subject_reference.presentation_options.approximate_date
                 else format_date_approximate(self.earliest_value)
             )
         if self.latest_value:
             formatted_latest_value = (
                 format_date_short(self.latest_value)
-                if not self.referenced_question.approximate_date
+                if not self.subject_reference.presentation_options.approximate_date
                 else format_date_approximate(self.latest_value)
             )
         return (
@@ -1102,17 +1136,21 @@ class BetweenDates(ManagedExpression):
         return {"earliest_expression", "latest_expression"}
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         return {
             "between_bottom_of_range": DateField(
                 "Earliest date",
                 default=datetime.datetime.strptime(cast(str, earliest_value), "%Y-%m-%d").date()
                 if expression and (earliest_value := expression.context.get("earliest_value"))
                 else None,
-                widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
+                widget=GovDateInput()
+                if not subject_reference.presentation_options.approximate_date
+                else MHCLGApproximateDateInput(),
                 validators=[Optional()],
                 format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
-                if not referenced_question.approximate_date
+                if not subject_reference.presentation_options.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
             "between_bottom_of_range_expression": StringField(
@@ -1132,10 +1170,12 @@ class BetweenDates(ManagedExpression):
                 default=datetime.datetime.strptime(cast(str, latest_value), "%Y-%m-%d").date()
                 if expression and (latest_value := expression.context.get("latest_value"))
                 else None,
-                widget=GovDateInput() if not referenced_question.approximate_date else MHCLGApproximateDateInput(),
+                widget=GovDateInput()
+                if not subject_reference.presentation_options.approximate_date
+                else MHCLGApproximateDateInput(),
                 validators=[Optional()],
                 format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
-                if not referenced_question.approximate_date
+                if not subject_reference.presentation_options.approximate_date
                 else ["%m %Y", "%b %Y", "%B %Y"],  # multiple formats to help user input
             ),
             "between_top_of_range_expression": StringField(
@@ -1184,9 +1224,9 @@ class BetweenDates(ManagedExpression):
         )
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> BetweenDates:
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> BetweenDates:
         return BetweenDates(
-            subject_reference=ExpressionReference.from_question(question),
+            subject_reference=subject_reference,
             earliest_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
             if not form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             else None,
@@ -1253,7 +1293,9 @@ class UKPostcode(ManagedExpression):
         return {"uk_postcode_match": uk_postcode_match}
 
     @staticmethod
-    def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
+    def get_form_fields(
+        subject_reference: ExpressionReference, expression: TOptional[Expression] = None
+    ) -> dict[str, Field]:
         return {}
 
     @staticmethod
@@ -1261,8 +1303,8 @@ class UKPostcode(ManagedExpression):
         pass
 
     @staticmethod
-    def build_from_form(form: _ManagedExpressionForm, question: Question) -> UKPostcode:
-        return UKPostcode(subject_reference=ExpressionReference.from_question(question))
+    def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> UKPostcode:
+        return UKPostcode(subject_reference=subject_reference)
 
 
 def get_managed_expression(expression: Expression) -> ManagedExpression:

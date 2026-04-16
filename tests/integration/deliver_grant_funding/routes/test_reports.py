@@ -4754,7 +4754,9 @@ class TestAddQuestionCondition:
 
         assert len(target_question.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
+        )
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -4795,7 +4797,9 @@ class TestAddQuestionCondition:
 
         assert len(target_group.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
+        )
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -4847,7 +4851,9 @@ class TestAddQuestionCondition:
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
-        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
+        )
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -4887,7 +4893,9 @@ class TestAddQuestionCondition:
 
         assert len(target_question.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
+        )
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -4944,7 +4952,9 @@ class TestAddQuestionCondition:
         with authenticated_grant_admin_client.session_transaction() as session:
             session["question"] = session_data.model_dump(mode="json")
 
-        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
+        )
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -5011,7 +5021,9 @@ class TestAddQuestionCondition:
             data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
 
-        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, depends_on_question)
+        ConditionForm = build_managed_expression_form(
+            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
+        )
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -5195,7 +5207,9 @@ class TestEditQuestionCondition:
         assert target_question.expressions[0].managed_name == "Yes"
 
         ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+            ExpressionType.CONDITION,
+            ExpressionReference.from_question(depends_on_question),
+            target_question.expressions[0],
         )
         form = ConditionForm(data={"type": "No"})
 
@@ -5238,7 +5252,9 @@ class TestEditQuestionCondition:
         assert target_question.expressions[0].managed_name == "Yes"
 
         ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+            ExpressionType.CONDITION,
+            ExpressionReference.from_question(depends_on_question),
+            target_question.expressions[0],
         )
         form = ConditionForm(data={"type": "No"})
 
@@ -5300,7 +5316,9 @@ class TestEditQuestionCondition:
                 break
 
         ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+            ExpressionType.CONDITION,
+            ExpressionReference.from_question(depends_on_question),
+            target_question.expressions[0],
         )
         form = ConditionForm(data={"type": "No"})
 
@@ -5395,7 +5413,9 @@ class TestEditQuestionCondition:
         assert target_question.expressions[0].managed_name == "Is after"
 
         ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+            ExpressionType.CONDITION,
+            ExpressionReference.from_question(depends_on_question),
+            target_question.expressions[0],
         )
         form = ConditionForm(
             data={
@@ -5447,7 +5467,9 @@ class TestEditQuestionCondition:
         expression_id = target_question.expressions[0].id
 
         ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+            ExpressionType.CONDITION,
+            ExpressionReference.from_question(depends_on_question),
+            target_question.expressions[0],
         )
         form = ConditionForm(
             data={
@@ -5524,7 +5546,9 @@ class TestEditQuestionCondition:
         assert target_question.expressions[0].managed_name == "Is after"
 
         ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, depends_on_question, target_question.expressions[0]
+            ExpressionType.CONDITION,
+            ExpressionReference.from_question(depends_on_question),
+            target_question.expressions[0],
         )
         form = ConditionForm(
             data={
@@ -5663,7 +5687,9 @@ class TestAddQuestionValidation:
 
         assert len(question.expressions) == 0
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question)
+        )
         form = ValidationForm(
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
@@ -5698,11 +5724,13 @@ class TestAddQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question)
+        )
         first_validation = ValidationForm(
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
-        expression = first_validation.get_expression(question)
+        expression = first_validation.get_expression(ExpressionReference.from_question(question))
         interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5738,7 +5766,9 @@ class TestAddQuestionValidation:
 
         assert len(target_question.expressions) == 0
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, target_question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(target_question)
+        )
         form = ValidationForm(
             data={
                 "type": "Less than",
@@ -5797,7 +5827,9 @@ class TestAddQuestionValidation:
         with authenticated_grant_admin_client.session_transaction() as session:
             session["question"] = session_data.model_dump(mode="json")
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, target_question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(target_question)
+        )
         form = ValidationForm(
             data={
                 "type": "Between",
@@ -5858,7 +5890,9 @@ class TestAddQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, target_question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(target_question)
+        )
         form = ValidationForm(
             data={
                 "type": "Less than",
@@ -5929,11 +5963,13 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question)
+        )
         form = ValidationForm(
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
-        expression = form.get_expression(question)
+        expression = form.get_expression(ExpressionReference.from_question(question))
         interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -5987,11 +6023,13 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question)
+        )
         form = ValidationForm(
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
-        expression = form.get_expression(question)
+        expression = form.get_expression(ExpressionReference.from_question(question))
         interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -6021,18 +6059,22 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question)
+        )
         original_form = ValidationForm(
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
-        expression = original_form.get_expression(question)
+        expression = original_form.get_expression(ExpressionReference.from_question(question))
         interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
         expression_id = question.expressions[0].id
         assert question.expressions[0].managed_name == "Greater than"
 
-        UpdateForm = build_managed_expression_form(ExpressionType.VALIDATION, question, question.expressions[0])
+        UpdateForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question), question.expressions[0]
+        )
         form = UpdateForm(data={"type": "Less than", "less_than_value": "100", "less_than_inclusive": True})
 
         response = authenticated_grant_admin_client.post(
@@ -6063,11 +6105,13 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question)
+        )
         greater_than_form = ValidationForm(
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
-        greater_than_expression = greater_than_form.get_expression(question)
+        greater_than_expression = greater_than_form.get_expression(ExpressionReference.from_question(question))
         interfaces.collections.add_component_validation(
             question, interfaces.user.get_current_user(), greater_than_expression
         )
@@ -6075,7 +6119,7 @@ class TestEditQuestionValidation:
         less_than_form = ValidationForm(
             data={"type": "Less than", "less_than_value": "100", "less_than_inclusive": True}
         )
-        less_than_expression = less_than_form.get_expression(question)
+        less_than_expression = less_than_form.get_expression(ExpressionReference.from_question(question))
         interfaces.collections.add_component_validation(
             question, interfaces.user.get_current_user(), less_than_expression
         )
@@ -6088,7 +6132,9 @@ class TestEditQuestionValidation:
                 greater_than_expression_id = expr.id
                 break
 
-        UpdateForm = build_managed_expression_form(ExpressionType.VALIDATION, question, question.expressions[0])
+        UpdateForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question), question.expressions[0]
+        )
         form = UpdateForm(data={"type": "Less than", "less_than_value": "100", "less_than_inclusive": True})
 
         response = authenticated_grant_admin_client.post(
@@ -6115,11 +6161,13 @@ class TestEditQuestionValidation:
             data_type=QuestionDataType.NUMBER,
         )
 
-        ValidationForm = build_managed_expression_form(ExpressionType.VALIDATION, question)
+        ValidationForm = build_managed_expression_form(
+            ExpressionType.VALIDATION, ExpressionReference.from_question(question)
+        )
         form = ValidationForm(
             data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
         )
-        expression = form.get_expression(question)
+        expression = form.get_expression(ExpressionReference.from_question(question))
         interfaces.collections.add_component_validation(question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
@@ -6168,7 +6216,9 @@ class TestEditQuestionValidation:
         assert len(target_question.expressions) == 1
 
         ValidationForm = build_managed_expression_form(
-            ExpressionType.VALIDATION, target_question, target_question.expressions[0]
+            ExpressionType.VALIDATION,
+            ExpressionReference.from_question(target_question),
+            target_question.expressions[0],
         )
         form = ValidationForm(
             data={
@@ -6227,7 +6277,9 @@ class TestEditQuestionValidation:
         assert len(target_question.expressions) == 1
 
         ValidationForm = build_managed_expression_form(
-            ExpressionType.VALIDATION, target_question, target_question.expressions[0]
+            ExpressionType.VALIDATION,
+            ExpressionReference.from_question(target_question),
+            target_question.expressions[0],
         )
         form = ValidationForm(
             data={
@@ -6288,7 +6340,9 @@ class TestEditQuestionValidation:
         assert len(target_question.expressions) == 1
 
         ValidationForm = build_managed_expression_form(
-            ExpressionType.VALIDATION, target_question, target_question.expressions[0]
+            ExpressionType.VALIDATION,
+            ExpressionReference.from_question(target_question),
+            target_question.expressions[0],
         )
         form = ValidationForm(
             data={

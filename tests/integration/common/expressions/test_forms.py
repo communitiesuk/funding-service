@@ -1,4 +1,7 @@
+from datetime import date
+
 import pytest
+from werkzeug.datastructures import MultiDict
 
 from app.common.data.interfaces.collections import DependencyOrderException, IncompatibleDataTypeInCalculationException
 from app.common.data.interfaces.exceptions import InvalidReferenceInExpression
@@ -7,6 +10,7 @@ from app.common.data.types import (
     DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
+    ManagedExpressionsEnum,
     NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
@@ -20,8 +24,142 @@ from app.common.expressions import (
     UndefinedOperatorInExpression,
     UndefinedVariableInExpression,
 )
-from app.common.expressions.forms import _validate_custom_syntax
+from app.common.expressions.forms import _validate_custom_syntax, build_managed_expression_form
+from app.common.expressions.managed import Between
+from app.common.expressions.references import ExpressionReference
 from app.metrics import MetricAttributeName, MetricEventName
+
+
+class TestBuildManagedExpressionForm:
+    # Not intended to be an exhaustive check against all question data types, but to prove that fundamentally the
+    # system/framework is capable.
+
+    def test_integer_data_type(self, factories):
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        _FormClass = build_managed_expression_form(
+            ExpressionType.CONDITION, ExpressionReference.from_question(question)
+        )
+        assert _FormClass
+        form = _FormClass()
+
+        assert form.type.choices == [
+            (ManagedExpressionsEnum.GREATER_THAN, ManagedExpressionsEnum.GREATER_THAN),
+            (ManagedExpressionsEnum.LESS_THAN, ManagedExpressionsEnum.LESS_THAN),
+            (ManagedExpressionsEnum.BETWEEN, ManagedExpressionsEnum.BETWEEN),
+        ]
+
+    def test_recognises_invalid_data_for_a_managed_expression(self, factories):
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        _FormClass = build_managed_expression_form(
+            ExpressionType.CONDITION, ExpressionReference.from_question(question)
+        )
+        assert _FormClass
+        form = _FormClass(
+            formdata=MultiDict(
+                {
+                    "type": "Between",
+                    "between_bottom_of_range": "",
+                    "between_bottom_inclusive": "",
+                    "between_top_of_range": "",
+                    "between_top_inclusive": "",
+                }
+            )
+        )
+        assert form.validate() is False
+        assert form.errors == {
+            "between_bottom_of_range": [
+                "Enter the minimum value allowed for this question",
+            ],
+            "between_top_of_range": [
+                "Enter the maximum value allowed for this question",
+            ],
+        }
+
+    def test_can_build_a_managed_expression_from_valid_data(self, factories):
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        subject_reference = ExpressionReference.from_question(question)
+
+        _FormClass = build_managed_expression_form(ExpressionType.CONDITION, subject_reference)
+        assert _FormClass
+        form = _FormClass(
+            formdata=MultiDict(
+                {
+                    "type": "Between",
+                    "between_bottom_of_range": "0",
+                    "between_bottom_inclusive": "",
+                    "between_top_of_range": "100",
+                    "between_top_inclusive": "1",
+                }
+            )
+        )
+        assert form.validate()
+        expression: Between = form.get_expression(subject_reference)
+        assert expression.name == "Between"
+        assert expression.minimum_value == 0
+        assert expression.minimum_inclusive is False
+        assert expression.maximum_value == 100
+        assert expression.maximum_inclusive is True
+
+    def test_can_build_a_managed_expression_with_valid_reference_data__integer(self, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.NUMBER)
+        subject_reference = ExpressionReference.from_question(question)
+
+        _FormClass = build_managed_expression_form(ExpressionType.VALIDATION, subject_reference)
+        assert _FormClass
+        form = _FormClass(
+            formdata=MultiDict(
+                {
+                    "type": "Between",
+                    "between_bottom_of_range": "0",
+                    "between_bottom_inclusive": "",
+                    "between_top_of_range": "",
+                    "between_top_of_range_expression": ExpressionReference.from_question(referenced_question),
+                    "between_top_inclusive": "1",
+                }
+            )
+        )
+        assert form.validate()
+        expression: Between = form.get_expression(subject_reference)
+        assert expression.name == "Between"
+        assert expression.minimum_value == 0
+        assert expression.minimum_expression is None
+        assert expression.minimum_inclusive is False
+        assert expression.maximum_value is None
+        assert expression.maximum_expression == referenced_question.safe_qid
+        assert expression.maximum_expression.wrapped == f"(({referenced_question.safe_qid}))"
+        assert expression.maximum_inclusive is True
+
+    def test_can_build_a_managed_expression_with_valid_reference_data__date(self, factories):
+        referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
+        question = factories.question.create(form=referenced_question.form, data_type=QuestionDataType.DATE)
+        subject_reference = ExpressionReference.from_question(question)
+
+        _FormClass = build_managed_expression_form(ExpressionType.VALIDATION, subject_reference)
+        assert _FormClass
+        form = _FormClass(
+            formdata=MultiDict(
+                {
+                    "type": "Between dates",
+                    "between_bottom_of_range": "1 1 2025",
+                    "between_bottom_of_range_expression": "",
+                    "between_bottom_inclusive": "",
+                    "between_top_of_range": "",
+                    "between_top_of_range_expression": ExpressionReference.from_question(referenced_question),
+                    "between_top_inclusive": "1",
+                }
+            )
+        )
+        assert form.validate()
+        expression: Between = form.get_expression(subject_reference)
+        assert expression.name == "Between dates"
+        assert expression.earliest_value == date(2025, 1, 1)
+        assert expression.earliest_expression is None
+        assert expression.earliest_inclusive is False
+        assert expression.latest_value is None
+        assert expression.latest_expression == referenced_question.safe_qid
+        assert expression.latest_expression.wrapped == f"(({referenced_question.safe_qid}))"
+        assert expression.latest_inclusive is True
 
 
 class TestValidateCustomSyntax:

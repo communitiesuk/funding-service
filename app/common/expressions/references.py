@@ -10,7 +10,12 @@ from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 
 if TYPE_CHECKING:
     from app.common.data.models import DataSource, Question
-    from app.common.data.types import DataSourceSchemaColumn, QuestionDataType
+    from app.common.data.types import (
+        DataSourceSchemaColumn,
+        QuestionDataOptions,
+        QuestionDataType,
+        QuestionPresentationOptions,
+    )
 
 
 def _try_unwrap(text: str) -> str | None:
@@ -150,6 +155,30 @@ class ExpressionReference(str):
             return column.data_type
 
         raise ValueError(f"Can't resolve ExpressionReference {self!r} to a specific data type; unknown reference shape")
+
+    @property
+    def presentation_options(self) -> QuestionPresentationOptions:
+        if question := self.question:
+            return question.presentation_options
+
+        if column := self.data_source_column:
+            return column.presentation_options
+
+        raise ValueError(
+            f"Can't resolve ExpressionReference {self!r} to a specific presentation options; unknown reference shape"
+        )
+
+    @property
+    def data_options(self) -> QuestionDataOptions:
+        if question := self.question:
+            return question.data_options
+
+        if column := self.data_source_column:
+            return column.data_options
+
+        raise ValueError(
+            f"Can't resolve ExpressionReference {self!r} to a specific data options; unknown reference shape"
+        )
 
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
