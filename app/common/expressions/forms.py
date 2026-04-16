@@ -101,7 +101,7 @@ class _ManagedExpressionForm(FlaskForm):
 
 def build_managed_expression_form(
     type_: ExpressionType,
-    referenced_question: Question,
+    referenced_question: Question,  # TODO[FSPT-1284]: make this the ExpressionReference?
     expression: Expression | None = None,
     show_calculated_validation_option: bool = False,
 ) -> type[_ManagedExpressionForm] | None:

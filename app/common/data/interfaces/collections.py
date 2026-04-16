@@ -1483,6 +1483,9 @@ def add_submission_event(
 def get_referenced_data_source_items_by_managed_expression(
     managed_expression: BaseDataSourceManagedExpression,
 ) -> Sequence[DataSourceItem]:
+    # TODO[FSPT-1284]: handle not a `referenced_question` here explicitly? Probably just throw an error because
+    #                  data source managed expressions might legitimately only ever be able to reference other questions
+    #                  rather than anything in expression context (eg uplaoded data sets)?
     referenced_data_source_items = db.session.scalars(
         select(DataSourceItem).where(
             DataSourceItem.data_source == managed_expression.referenced_question.data_source,

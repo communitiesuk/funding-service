@@ -44,7 +44,12 @@ if TYPE_CHECKING:
 
 class ManagedExpression(EvaluatableExpression):
     name: ClassVar[ManagedExpressionsEnum]
-    question_id: UUID
+
+    # This is the 'center' of the managed expression:
+    # For managed conditions, the value that should be compared against
+    # For managed validations, the question that is to be validated
+    subject_reference: ExpressionReference
+
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
     supported_validator_data_types: ClassVar[set[QuestionDataType]]
     managed_expression_form_template: ClassVar[str | None]
@@ -73,13 +78,19 @@ class ManagedExpression(EvaluatableExpression):
 
     @property
     def referenced_question(self) -> Question:
-        # todo: split up the collections interface to let us sensibly reason about whats importing what
-        from app.common.data.interfaces.collections import get_question_by_id
-
-        # todo: this will do a database query per expression on the question - for now we'd anticipate
+        # todo: this might do a database query per expression on the question - for now we'd anticipate
         #       questions only have one or two managed expressions but in the future we should probably
         #       optimise this to fetch the full schema once and then re-use that throughout these helpers
-        return get_question_by_id(self.question_id)
+
+        # TODO[FSPT-1284]: we need to remove this and - probably - just point at the `subject_reference` here instead?
+        #                  That will need a helper to identify what the data type is for the reference; used by
+        #                  `build_managed_expression_form` in order to limit what can be selected to compare against
+        if not (question := self.subject_reference.question):
+            raise ValueError(
+                f"ManagedExpression.referenced_question called on {self!r} whose subject_reference "
+                f"is not a question reference"
+            )
+        return question
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
@@ -182,7 +193,7 @@ class ManagedExpression(EvaluatableExpression):
         Eg:
             def build_from_form(form: "_ManagedExpressionForm", question: "Question") -> "GreaterThan":
                 return GreaterThan(
-                    question_id=question.id,
+                    subject_reference=ExpressionReference.from_question(question),
                     minimum_value=form.greater_than_value.data,
                     inclusive=form.greater_than_inclusive.data,
                 )
@@ -215,7 +226,6 @@ class GreaterThan(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
     minimum_value: int | Decimal | None
     minimum_expression: ExpressionReference | None = None
     inclusive: bool = False
@@ -235,7 +245,7 @@ class GreaterThan(ManagedExpression):
     def statement(self) -> str:
         min_value_for_stmt = f"Decimal('{self.minimum_value}')"
         return (
-            f"{self.safe_qid} >{'=' if self.inclusive else ''} "
+            f"{self.subject_reference.unwrapped} >{'=' if self.inclusive else ''} "
             + f"{self.minimum_expression.unwrapped if self.minimum_expression else min_value_for_stmt}"
         )
 
@@ -300,7 +310,7 @@ class GreaterThan(ManagedExpression):
         form: _ManagedExpressionForm, question: Question, expression: TOptional[Expression] = None
     ) -> GreaterThan:
         return GreaterThan(
-            question_id=question.id,
+            subject_reference=ExpressionReference.from_question(question),
             minimum_value=form.greater_than_value.data if not form.greater_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             minimum_expression=form.greater_than_expression.data if form.greater_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.greater_than_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -322,7 +332,6 @@ class LessThan(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
     maximum_value: int | Decimal | None
     maximum_expression: ExpressionReference | None = None
     inclusive: bool = False
@@ -342,7 +351,7 @@ class LessThan(ManagedExpression):
     def statement(self) -> str:
         max_value_for_stmt = f"Decimal('{self.maximum_value}')"
         return (
-            f"{self.safe_qid} <{'=' if self.inclusive else ''} "
+            f"{self.subject_reference.unwrapped} <{'=' if self.inclusive else ''} "
             + f"{self.maximum_expression.unwrapped if self.maximum_expression else max_value_for_stmt}"
         )
 
@@ -403,7 +412,7 @@ class LessThan(ManagedExpression):
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> LessThan:
         return LessThan(
-            question_id=question.id,
+            subject_reference=ExpressionReference.from_question(question),
             maximum_value=form.less_than_value.data if not form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             maximum_expression=form.less_than_expression.data if form.less_than_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.less_than_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -425,7 +434,6 @@ class Between(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
     minimum_value: int | Decimal | None
     minimum_expression: ExpressionReference | None = None
     minimum_inclusive: bool = False
@@ -454,7 +462,7 @@ class Between(ManagedExpression):
         return (
             f"{self.minimum_expression.unwrapped if self.minimum_expression else min_value_for_stmt} "
             f"<{'=' if self.minimum_inclusive else ''} "
-            f"{self.safe_qid} "
+            f"{self.subject_reference.unwrapped} "
             f"<{'=' if self.maximum_inclusive else ''} "
             f"{self.maximum_expression.unwrapped if self.maximum_expression else max_value_for_stmt}"
         )
@@ -556,7 +564,7 @@ class Between(ManagedExpression):
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> Between:
         return Between(
-            question_id=question.id,
+            subject_reference=ExpressionReference.from_question(question),
             minimum_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
             if not form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             else None,
@@ -592,7 +600,6 @@ class AnyOf(BaseDataSourceManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
     items: list[TRadioItem]
 
     @property
@@ -609,7 +616,7 @@ class AnyOf(BaseDataSourceManagedExpression):
     @property
     def statement(self) -> str:
         item_keys = {str(item["key"]) for item in self.items}
-        return f"{self.safe_qid} in {item_keys}"
+        return f"{self.subject_reference.unwrapped} in {item_keys}"
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -641,7 +648,7 @@ class AnyOf(BaseDataSourceManagedExpression):
 
         items = [TRadioItem(key=key, label=item_labels[key]) for key in form.any_of.data]  # ty: ignore[unresolved-attribute]
         return AnyOf(
-            question_id=question.id,
+            subject_reference=ExpressionReference.from_question(question),
             items=items,
         )
 
@@ -659,8 +666,6 @@ class IsYes(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
-
     @property
     def description(self) -> str:
         return "is yes"
@@ -671,7 +676,7 @@ class IsYes(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} is True"
+        return f"{self.subject_reference.unwrapped} is True"
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -683,7 +688,7 @@ class IsYes(ManagedExpression):
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsYes:
-        return IsYes(question_id=question.id)
+        return IsYes(subject_reference=ExpressionReference.from_question(question))
 
 
 @register_managed_expression
@@ -695,8 +700,6 @@ class IsNo(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
-
     @property
     def description(self) -> str:
         return "is no"
@@ -707,7 +710,7 @@ class IsNo(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        return f"{self.safe_qid} is False"
+        return f"{self.subject_reference.unwrapped} is False"
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -719,7 +722,7 @@ class IsNo(ManagedExpression):
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsNo:
-        return IsNo(question_id=question.id)
+        return IsNo(subject_reference=ExpressionReference.from_question(question))
 
 
 @register_managed_expression
@@ -731,7 +734,6 @@ class Specifically(BaseDataSourceManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
     item: TRadioItem
 
     @property
@@ -745,7 +747,7 @@ class Specifically(BaseDataSourceManagedExpression):
     @property
     def statement(self) -> str:
         # TODO: This a bit fragile - another reason for referencing a data source item?
-        return f"{self.item['key']!r} in {self.safe_qid}"
+        return f"{self.item['key']!r} in {self.subject_reference.unwrapped}"
 
     @staticmethod
     def get_form_fields(referenced_question: Question, expression: TOptional[Expression] = None) -> dict[str, Field]:
@@ -774,7 +776,7 @@ class Specifically(BaseDataSourceManagedExpression):
         item_labels = {item.key: item.label for item in question.data_source.items}
         selected_key = form.specifically.data  # ty: ignore[unresolved-attribute]
         item: TRadioItem = {"key": selected_key, "label": item_labels[selected_key]}
-        return Specifically(question_id=question.id, item=item)
+        return Specifically(subject_reference=ExpressionReference.from_question(question), item=item)
 
     @property
     def referenced_data_source_items(self) -> list[TRadioItem]:
@@ -792,7 +794,6 @@ class IsBefore(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
     latest_value: datetime.date | None
     latest_expression: ExpressionReference | None = None
     inclusive: bool = False
@@ -822,7 +823,7 @@ class IsBefore(ManagedExpression):
             if self.latest_expression
             else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
-        return f"{self.safe_qid} <{'=' if self.inclusive else ''} {date_expression}"
+        return f"{self.subject_reference.unwrapped} <{'=' if self.inclusive else ''} {date_expression}"
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
@@ -882,7 +883,7 @@ class IsBefore(ManagedExpression):
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsBefore:
         return IsBefore(
-            question_id=question.id,
+            subject_reference=ExpressionReference.from_question(question),
             latest_value=form.latest_value.data if not form.latest_expression.data else None,  # ty: ignore[unresolved-attribute]
             latest_expression=form.latest_expression.data if form.latest_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.latest_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -913,7 +914,6 @@ class IsAfter(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
     earliest_value: datetime.date | None
     earliest_expression: ExpressionReference | None = None
     inclusive: bool = False
@@ -941,7 +941,7 @@ class IsAfter(ManagedExpression):
             if self.earliest_expression
             else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
-        return f"{self.safe_qid} >{'=' if self.inclusive else ''} {date_expression}"
+        return f"{self.subject_reference.unwrapped} >{'=' if self.inclusive else ''} {date_expression}"
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
@@ -1001,7 +1001,7 @@ class IsAfter(ManagedExpression):
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> IsAfter:
         return IsAfter(
-            question_id=question.id,
+            subject_reference=ExpressionReference.from_question(question),
             earliest_value=form.earliest_value.data if not form.earliest_expression.data else None,  # ty: ignore[unresolved-attribute]
             earliest_expression=form.earliest_expression.data if form.earliest_expression.data else None,  # ty: ignore[unresolved-attribute]
             inclusive=form.earliest_inclusive.data,  # ty: ignore[unresolved-attribute]
@@ -1032,7 +1032,6 @@ class BetweenDates(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
     earliest_value: datetime.date | None
     earliest_expression: ExpressionReference | None = None
     earliest_inclusive: bool = False
@@ -1081,7 +1080,7 @@ class BetweenDates(ManagedExpression):
         return (
             f"{earliest_date_expression} "
             + f"<{'=' if self.earliest_inclusive else ''} "
-            + f"{self.safe_qid} "
+            + f"{self.subject_reference.unwrapped} "
             + f"<{'=' if self.latest_inclusive else ''} "
             + latest_date_expression
         )
@@ -1187,7 +1186,7 @@ class BetweenDates(ManagedExpression):
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> BetweenDates:
         return BetweenDates(
-            question_id=question.id,
+            subject_reference=ExpressionReference.from_question(question),
             earliest_value=form.between_bottom_of_range.data  # ty: ignore[unresolved-attribute]
             if not form.between_bottom_of_range_expression.data  # ty: ignore[unresolved-attribute]
             else None,
@@ -1230,8 +1229,6 @@ class UKPostcode(ManagedExpression):
 
     _key: ManagedExpressionsEnum = name
 
-    question_id: UUID
-
     @property
     def description(self) -> str:
         return "Must be a UK postcode"
@@ -1242,7 +1239,7 @@ class UKPostcode(ManagedExpression):
 
     @property
     def statement(self) -> str:
-        return f"uk_postcode_match({self.safe_qid})"
+        return f"uk_postcode_match({self.subject_reference.unwrapped})"
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
@@ -1265,7 +1262,7 @@ class UKPostcode(ManagedExpression):
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, question: Question) -> UKPostcode:
-        return UKPostcode(question_id=question.id)
+        return UKPostcode(subject_reference=ExpressionReference.from_question(question))
 
 
 def get_managed_expression(expression: Expression) -> ManagedExpression:
