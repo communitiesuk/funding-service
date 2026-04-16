@@ -102,6 +102,7 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
+from app.common.expressions.references import ExpressionReference
 from app.common.forms.helpers import components_in_valid_add_another_combination
 from app.metrics import MetricEventName
 from tests.models import FactoryAnswer
@@ -4894,7 +4895,7 @@ class TestValidateReference:
 
         assert (
             _validate_reference(
-                wrapped_reference=f"(({q1.safe_qid}))",
+                reference=ExpressionReference(q1.safe_qid),
                 attached_to_component=q2,
                 expression_context=expression_context,
                 expression_type=ExpressionType.VALIDATION,
@@ -4905,7 +4906,7 @@ class TestValidateReference:
         )
         assert (
             _validate_reference(
-                wrapped_reference=f"(({q1.safe_qid}))",
+                reference=ExpressionReference(q1.safe_qid),
                 attached_to_component=q2,
                 expression_context=expression_context,
                 expression_type=ExpressionType.CONDITION,
@@ -4920,7 +4921,7 @@ class TestValidateReference:
         g = factories.group.create(form=q1.form, add_another=True)
         assert (
             _validate_reference(
-                wrapped_reference=f"(({q1.safe_qid}))",
+                reference=ExpressionReference(q1.safe_qid),
                 attached_to_component=g,
                 expression_context=ExpressionContext.build_expression_context(
                     q1.form.collection, "interpolation", None, None
@@ -4938,7 +4939,7 @@ class TestValidateReference:
         q2 = factories.question.create(form=q1.form)
         with pytest.raises(DependencyOrderException):
             _validate_reference(
-                wrapped_reference=f"(({q2.safe_qid}))",
+                reference=ExpressionReference(q2.safe_qid),
                 attached_to_component=g,
                 expression_context=ExpressionContext.build_expression_context(
                     q1.form.collection, "interpolation", None, None
@@ -4950,7 +4951,7 @@ class TestValidateReference:
         g1_q1 = factories.question.create(parent=g)
         with pytest.raises(DependencyOrderException):
             _validate_reference(
-                wrapped_reference=f"(({g1_q1.safe_qid}))",
+                reference=ExpressionReference(g1_q1.safe_qid),
                 attached_to_component=g,
                 expression_context=ExpressionContext.build_expression_context(
                     q1.form.collection, "interpolation", None, None
@@ -4968,7 +4969,7 @@ class TestValidateReference:
 
         with pytest.raises(DependencyOrderException):
             _validate_reference(
-                wrapped_reference=f"(({q2.safe_qid}))",
+                reference=ExpressionReference(q2.safe_qid),
                 attached_to_component=q2,
                 expression_context=expression_context,
                 expression_type=ExpressionType.VALIDATION,
@@ -4977,7 +4978,7 @@ class TestValidateReference:
             )
         with pytest.raises(DependencyOrderException):
             _validate_reference(
-                wrapped_reference=f"(({q2.safe_qid}))",
+                reference=ExpressionReference(q2.safe_qid),
                 attached_to_component=q2,
                 expression_context=expression_context,
                 expression_type=ExpressionType.CONDITION,
@@ -4993,7 +4994,7 @@ class TestValidateReference:
 
         assert (
             _validate_reference(
-                wrapped_reference=f"(({q2.safe_qid}))",
+                reference=ExpressionReference(q2.safe_qid),
                 attached_to_component=q2,
                 expression_context=expression_context,
                 expression_type=ExpressionType.VALIDATION,
@@ -5014,7 +5015,7 @@ class TestValidateReference:
 
         assert (
             _validate_reference(
-                wrapped_reference=f"(({q1.safe_qid}))",
+                reference=ExpressionReference(q1.safe_qid),
                 attached_to_component=q1,
                 expression_context=expression_context,
                 expression_type=ExpressionType.VALIDATION,
@@ -5030,7 +5031,7 @@ class TestValidateReference:
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
         with pytest.raises(DependencyOrderException) as e:
             _validate_reference(
-                wrapped_reference=f"(({q3.safe_qid}))",
+                reference=ExpressionReference(q3.safe_qid),
                 attached_to_component=q2,
                 expression_context=context,
                 expression_type=ExpressionType.VALIDATION,
@@ -5047,7 +5048,7 @@ class TestValidateReference:
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
         with pytest.raises(DependencyOrderException) as e:
             _validate_reference(
-                wrapped_reference=f"(({q3.safe_qid}))",
+                reference=ExpressionReference(q3.safe_qid),
                 attached_to_component=q2,
                 expression_context=context,
                 expression_type=ExpressionType.CONDITION,
@@ -5060,7 +5061,7 @@ class TestValidateReference:
 
         with pytest.raises(DependencyOrderException) as e:
             _validate_reference(
-                wrapped_reference=f"(({q1.safe_qid}))",
+                reference=ExpressionReference(q1.safe_qid),
                 attached_to_component=q2,
                 expression_context=context,
                 expression_type=ExpressionType.CONDITION,
@@ -5077,7 +5078,7 @@ class TestValidateReference:
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
         with pytest.raises(InvalidReferenceInExpression) as e:
             _validate_reference(
-                wrapped_reference="((q_bad_ref))",
+                reference=ExpressionReference("q_bad_ref"),
                 attached_to_component=q2,
                 expression_context=context,
                 expression_type=ExpressionType.VALIDATION,
@@ -5095,7 +5096,7 @@ class TestValidateReference:
         context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
         with pytest.raises(IncompatibleDataTypeException) as e:
             _validate_reference(
-                wrapped_reference=f"(({q1.safe_qid}))",
+                reference=ExpressionReference(q1.safe_qid),
                 attached_to_component=q2,
                 expression_context=context,
                 expression_type=ExpressionType.VALIDATION,
@@ -5118,7 +5119,7 @@ class TestValidateReference:
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_reference(
-                wrapped_reference=f"(({g1_q1.safe_qid}))",
+                reference=ExpressionReference(g1_q1.safe_qid),
                 attached_to_component=q1,
                 expression_context=expression_context,
                 expression_type=ExpressionType.VALIDATION,
@@ -5127,7 +5128,7 @@ class TestValidateReference:
             )
         with pytest.raises(AddAnotherDependencyException):
             _validate_reference(
-                wrapped_reference=f"(({g1_q1.safe_qid}))",
+                reference=ExpressionReference(g1_q1.safe_qid),
                 attached_to_component=q1,
                 expression_context=expression_context,
                 expression_type=None,
@@ -5137,7 +5138,7 @@ class TestValidateReference:
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_reference(
-                wrapped_reference=f"(({q1.safe_qid}))",
+                reference=ExpressionReference(q1.safe_qid),
                 attached_to_component=q2,
                 expression_context=expression_context,
                 expression_type=ExpressionType.VALIDATION,
@@ -5147,7 +5148,7 @@ class TestValidateReference:
 
         with pytest.raises(DependencyOrderException):
             _validate_reference(
-                wrapped_reference=f"(({g1_q2.safe_qid}))",
+                reference=ExpressionReference(g1_q2.safe_qid),
                 attached_to_component=g1_q1,
                 expression_context=expression_context,
                 expression_type=ExpressionType.VALIDATION,
@@ -5157,7 +5158,7 @@ class TestValidateReference:
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_reference(
-                wrapped_reference=f"(({g1_q2.safe_qid}))",
+                reference=ExpressionReference(g1_q2.safe_qid),
                 attached_to_component=q2,
                 expression_context=expression_context,
                 expression_type=ExpressionType.CONDITION,
@@ -5175,7 +5176,7 @@ class TestValidateReference:
         expression_context = ExpressionContext.build_expression_context(form.collection, "interpolation", None, None)
 
         _validate_reference(
-            wrapped_reference=f"(({q1.safe_qid}))",
+            reference=ExpressionReference(q1.safe_qid),
             attached_to_component=g1_q1,
             expression_context=expression_context,
             expression_type=ExpressionType.VALIDATION,
@@ -5184,7 +5185,7 @@ class TestValidateReference:
         )
 
         _validate_reference(
-            wrapped_reference=f"(({g1_q1.safe_qid}))",
+            reference=ExpressionReference(g1_q1.safe_qid),
             attached_to_component=g1_q2,
             expression_context=expression_context,
             expression_type=ExpressionType.CONDITION,
@@ -5204,7 +5205,7 @@ class TestValidateReference:
         with pytest.raises(InvalidReferenceInExpression):
             assert (
                 _validate_reference(
-                    wrapped_reference=f"(({q1.safe_qid}))",
+                    reference=ExpressionReference(q1.safe_qid),
                     attached_to_component=q2,
                     expression_context=expression_context,
                     expression_type=ExpressionType.VALIDATION,

@@ -30,6 +30,7 @@ from wtforms.validators import DataRequired, InputRequired, Optional, ReadOnly, 
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import EvaluatableExpression
+from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import DecimalWithCommasField, MHCLGApproximateDateInput
@@ -216,7 +217,7 @@ class GreaterThan(ManagedExpression):
 
     question_id: UUID
     minimum_value: int | Decimal | None
-    minimum_expression: str | None = None
+    minimum_expression: ExpressionReference | None = None
     inclusive: bool = False
 
     @property
@@ -227,7 +228,7 @@ class GreaterThan(ManagedExpression):
     def message(self) -> str:
         return (
             f"The answer must be greater than {'or equal to ' if self.inclusive else ''}"
-            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+            + f"{self.minimum_expression.wrapped if self.minimum_expression else self.minimum_value}"
         )
 
     @property
@@ -235,7 +236,7 @@ class GreaterThan(ManagedExpression):
         min_value_for_stmt = f"Decimal('{self.minimum_value}')"
         return (
             f"{self.safe_qid} >{'=' if self.inclusive else ''} "
-            + f"{self.minimum_expression if self.minimum_expression else min_value_for_stmt}"
+            + f"{self.minimum_expression.unwrapped if self.minimum_expression else min_value_for_stmt}"
         )
 
     @property
@@ -244,9 +245,8 @@ class GreaterThan(ManagedExpression):
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
-        if self.minimum_expression:
-            if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
-                return [question_id]
+        if self.minimum_expression and (question_id := self.minimum_expression.question_id):
+            return [question_id]
         return []
 
     @staticmethod
@@ -266,7 +266,9 @@ class GreaterThan(ManagedExpression):
             ),
             "greater_than_expression": StringField(
                 "Minimum value",
-                default=expression.context.get("minimum_expression") or "" if expression else "",  # type: ignore[arg-type]
+                default=ExpressionReference(str(minimum_expression)).wrapped
+                if expression and (minimum_expression := expression.context.get("minimum_expression"))
+                else "",
                 widget=GovTextArea(),
             ),
             "greater_than_inclusive": BooleanField(
@@ -322,7 +324,7 @@ class LessThan(ManagedExpression):
 
     question_id: UUID
     maximum_value: int | Decimal | None
-    maximum_expression: str | None = None
+    maximum_expression: ExpressionReference | None = None
     inclusive: bool = False
 
     @property
@@ -333,21 +335,21 @@ class LessThan(ManagedExpression):
     def message(self) -> str:
         return (
             f"The answer must be less than {'or equal to ' if self.inclusive else ''}"
-            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+            + f"{self.maximum_expression.wrapped if self.maximum_expression else self.maximum_value}"
         )
 
     @property
     def statement(self) -> str:
         max_value_for_stmt = f"Decimal('{self.maximum_value}')"
         return (
-            f"{self.safe_qid} <{'=' if self.inclusive else ''}"
-            + f"{self.maximum_expression if self.maximum_expression else max_value_for_stmt}"
+            f"{self.safe_qid} <{'=' if self.inclusive else ''} "
+            + f"{self.maximum_expression.unwrapped if self.maximum_expression else max_value_for_stmt}"
         )
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         if self.maximum_expression:
-            if question_id := self.safe_qid_to_id(self.maximum_expression.strip("() ")):
+            if question_id := self.maximum_expression.question_id:
                 return [question_id]
         return []
 
@@ -369,7 +371,9 @@ class LessThan(ManagedExpression):
             ),
             "less_than_expression": StringField(
                 "Maximum value",
-                default=expression.context.get("maximum_expression") or "" if expression else "",  # type: ignore[arg-type]
+                default=ExpressionReference(str(maximum_expression)).wrapped
+                if expression and (maximum_expression := expression.context.get("maximum_expression"))
+                else "",
                 widget=GovTextArea(),
             ),
             "less_than_inclusive": BooleanField(
@@ -423,10 +427,10 @@ class Between(ManagedExpression):
 
     question_id: UUID
     minimum_value: int | Decimal | None
-    minimum_expression: str | None = None
+    minimum_expression: ExpressionReference | None = None
     minimum_inclusive: bool = False
     maximum_value: int | Decimal | None
-    maximum_expression: str | None = None
+    maximum_expression: ExpressionReference | None = None
     maximum_inclusive: bool = False
 
     @property
@@ -437,9 +441,9 @@ class Between(ManagedExpression):
     def message(self) -> str:
         return (
             "The answer must be between "
-            + f"{self.minimum_expression if self.minimum_expression else self.minimum_value}"
+            + f"{self.minimum_expression.wrapped if self.minimum_expression else self.minimum_value}"
             + f"{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
-            + f"{self.maximum_expression if self.maximum_expression else self.maximum_value}"
+            + f"{self.maximum_expression.wrapped if self.maximum_expression else self.maximum_value}"
             + f"{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
         )
 
@@ -448,24 +452,22 @@ class Between(ManagedExpression):
         max_value_for_stmt = f"Decimal('{self.maximum_value}')"
         min_value_for_stmt = f"Decimal('{self.minimum_value}')"
         return (
-            f"{self.minimum_expression if self.minimum_expression else min_value_for_stmt} "
+            f"{self.minimum_expression.unwrapped if self.minimum_expression else min_value_for_stmt} "
             f"<{'=' if self.minimum_inclusive else ''} "
             f"{self.safe_qid} "
             f"<{'=' if self.maximum_inclusive else ''} "
-            f"{self.maximum_expression if self.maximum_expression else max_value_for_stmt}"
+            f"{self.maximum_expression.unwrapped if self.maximum_expression else max_value_for_stmt}"
         )
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
         referenced_ids = []
 
-        if self.minimum_expression:
-            if question_id := self.safe_qid_to_id(self.minimum_expression.strip("() ")):
-                referenced_ids.append(question_id)
+        if self.minimum_expression and (question_id := self.minimum_expression.question_id):
+            referenced_ids.append(question_id)
 
-        if self.maximum_expression:
-            if question_id := self.safe_qid_to_id(self.maximum_expression.strip("() ")):
-                referenced_ids.append(question_id)
+        if self.maximum_expression and (question_id := self.maximum_expression.question_id):
+            referenced_ids.append(question_id)
 
         return referenced_ids
 
@@ -487,7 +489,9 @@ class Between(ManagedExpression):
             ),
             "between_bottom_of_range_expression": StringField(
                 "Minimum value",
-                default=expression.context.get("minimum_expression") or "" if expression else "",  # type: ignore[arg-type]
+                default=ExpressionReference(str(minimum_expression)).wrapped
+                if expression and (minimum_expression := expression.context.get("minimum_expression"))
+                else "",
                 widget=GovTextArea(),
             ),
             "between_bottom_inclusive": BooleanField(
@@ -506,7 +510,9 @@ class Between(ManagedExpression):
             ),
             "between_top_of_range_expression": StringField(
                 "Maximum value",
-                default=expression.context.get("maximum_expression") or "" if expression else "",  # type: ignore[arg-type]
+                default=ExpressionReference(str(maximum_expression)).wrapped
+                if expression and (maximum_expression := expression.context.get("maximum_expression"))
+                else "",
                 widget=GovTextArea(),
             ),
             "between_top_inclusive": BooleanField(
@@ -788,7 +794,7 @@ class IsBefore(ManagedExpression):
 
     question_id: UUID
     latest_value: datetime.date | None
-    latest_expression: str | None = None
+    latest_expression: ExpressionReference | None = None
     inclusive: bool = False
 
     @property
@@ -804,7 +810,7 @@ class IsBefore(ManagedExpression):
                 else format_date_approximate(self.latest_value)
             )
         return f"The answer must be {'on or ' if self.inclusive else ''}before " + (
-            self.latest_expression if self.latest_expression else formatted_latest_value
+            self.latest_expression.wrapped if self.latest_expression else formatted_latest_value
         )
 
     @property
@@ -812,7 +818,7 @@ class IsBefore(ManagedExpression):
         if not self.latest_expression:
             assert self.latest_value
         date_expression = (
-            self.latest_expression
+            self.latest_expression.unwrapped
             if self.latest_expression
             else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
@@ -820,9 +826,8 @@ class IsBefore(ManagedExpression):
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
-        if self.latest_expression:
-            if question_id := self.safe_qid_to_id(self.latest_expression.strip("() ")):
-                return [question_id]
+        if self.latest_expression and (question_id := self.latest_expression.question_id):
+            return [question_id]
         return []
 
     @property
@@ -845,7 +850,9 @@ class IsBefore(ManagedExpression):
             ),
             "latest_expression": StringField(
                 "Latest date",
-                default=cast(str, expression.context.get("latest_expression") or "" if expression else ""),
+                default=ExpressionReference(str(latest_expression)).wrapped
+                if expression and (latest_expression := expression.context.get("latest_expression"))
+                else "",
                 widget=GovTextArea(),
             ),
             "latest_inclusive": BooleanField(
@@ -908,7 +915,7 @@ class IsAfter(ManagedExpression):
 
     question_id: UUID
     earliest_value: datetime.date | None
-    earliest_expression: str | None = None
+    earliest_expression: ExpressionReference | None = None
     inclusive: bool = False
 
     @property
@@ -924,13 +931,13 @@ class IsAfter(ManagedExpression):
                 else format_date_approximate(self.earliest_value)
             )
         return f"The answer must be {'on or ' if self.inclusive else ''}after " + (
-            self.earliest_expression if self.earliest_expression else formatted_earliest_value
+            self.earliest_expression.wrapped if self.earliest_expression else formatted_earliest_value
         )
 
     @property
     def statement(self) -> str:
         date_expression = (
-            self.earliest_expression
+            self.earliest_expression.unwrapped
             if self.earliest_expression
             else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
@@ -938,9 +945,8 @@ class IsAfter(ManagedExpression):
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
-        if self.earliest_expression:
-            if question_id := self.safe_qid_to_id(self.earliest_expression.strip("() ")):
-                return [question_id]
+        if self.earliest_expression and (question_id := self.earliest_expression.question_id):
+            return [question_id]
         return []
 
     @property
@@ -963,7 +969,9 @@ class IsAfter(ManagedExpression):
             ),
             "earliest_expression": StringField(
                 "Earliest date",
-                default=cast(str, expression.context.get("earliest_expression") or "" if expression else ""),
+                default=ExpressionReference(str(earliest_expression)).wrapped
+                if expression and (earliest_expression := expression.context.get("earliest_expression"))
+                else "",
                 widget=GovTextArea(),
             ),
             "earliest_inclusive": BooleanField(
@@ -1026,10 +1034,10 @@ class BetweenDates(ManagedExpression):
 
     question_id: UUID
     earliest_value: datetime.date | None
-    earliest_expression: str | None = None
+    earliest_expression: ExpressionReference | None = None
     earliest_inclusive: bool = False
     latest_value: datetime.date | None
-    latest_expression: str | None = None
+    latest_expression: ExpressionReference | None = None
     latest_inclusive: bool = False
 
     @property
@@ -1052,26 +1060,26 @@ class BetweenDates(ManagedExpression):
             )
         return (
             "The answer must be between "
-            + (self.earliest_expression if self.earliest_expression else formatted_earliest_value)
+            + (self.earliest_expression.wrapped if self.earliest_expression else formatted_earliest_value)
             + f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'} and "
-            + (self.latest_expression if self.latest_expression else formatted_latest_value)
+            + (self.latest_expression.wrapped if self.latest_expression else formatted_latest_value)
             + f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
         )
 
     @property
     def statement(self) -> str:
         earliest_date_expression = (
-            self.earliest_expression
+            self.earliest_expression.unwrapped
             if self.earliest_expression
             else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
         latest_date_expression = (
-            self.latest_expression
+            self.latest_expression.unwrapped
             if self.latest_expression
             else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
         return (
-            earliest_date_expression
+            f"{earliest_date_expression} "
             + f"<{'=' if self.earliest_inclusive else ''} "
             + f"{self.safe_qid} "
             + f"<{'=' if self.latest_inclusive else ''} "
@@ -1082,13 +1090,11 @@ class BetweenDates(ManagedExpression):
     def expression_referenced_question_ids(self) -> list[UUID]:
         referenced_ids = []
 
-        if self.earliest_expression:
-            if question_id := self.safe_qid_to_id(self.earliest_expression.strip("() ")):
-                referenced_ids.append(question_id)
+        if self.earliest_expression and (question_id := self.earliest_expression.question_id):
+            referenced_ids.append(question_id)
 
-        if self.latest_expression:
-            if question_id := self.safe_qid_to_id(self.latest_expression.strip("() ")):
-                referenced_ids.append(question_id)
+        if self.latest_expression and (question_id := self.latest_expression.question_id):
+            referenced_ids.append(question_id)
 
         return referenced_ids
 
@@ -1112,7 +1118,9 @@ class BetweenDates(ManagedExpression):
             ),
             "between_bottom_of_range_expression": StringField(
                 "Earliest date",
-                default=expression.context.get("earliest_expression") or "" if expression else "",  # type: ignore[arg-type]
+                default=ExpressionReference(str(earliest_expression)).wrapped
+                if expression and (earliest_expression := expression.context.get("earliest_expression"))
+                else "",
                 widget=GovTextArea(),
             ),
             "between_bottom_inclusive": BooleanField(
@@ -1133,7 +1141,9 @@ class BetweenDates(ManagedExpression):
             ),
             "between_top_of_range_expression": StringField(
                 "Latest date",
-                default=expression.context.get("latest_expression") or "" if expression else "",  # type: ignore[arg-type]
+                default=ExpressionReference(str(latest_expression)).wrapped
+                if expression and (latest_expression := expression.context.get("latest_expression"))
+                else "",
                 widget=GovTextArea(),
             ),
             "between_top_inclusive": BooleanField(

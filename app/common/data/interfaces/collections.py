@@ -61,11 +61,11 @@ from app.common.expressions import (
     ExpressionContext,
 )
 from app.common.expressions.managed import BaseDataSourceManagedExpression
+from app.common.expressions.references import DataSourceReference, ExpressionReference
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
 from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
-from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import slugify
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
@@ -1494,10 +1494,10 @@ def get_referenced_data_source_items_by_managed_expression(
 
 def _find_all_references_in_expression(
     value: str,
-) -> list[str]:
-    references = list()
+) -> list[ExpressionReference]:
+    references: list[ExpressionReference] = []
     for match in INTERPOLATE_REGEX.finditer(value):
-        references.append(match.group(0))
+        references.append(ExpressionReference.from_wrapped(match.group(0)))
     return references
 
 
@@ -1516,23 +1516,24 @@ def components_in_same_group_and_on_same_page(component1: Component, component2:
 
 # TODO separate out more checks into little functions
 def _validate_reference(  # noqa:C901
-    wrapped_reference: str,
+    reference: ExpressionReference,
     attached_to_component: Component | None,
     expression_context: ExpressionContext,
     expression_type: ExpressionType | None,  # None if it's not an expression, eg. guidance text
     field_name_for_error_message: str,
     question_to_test: Question | None,
-) -> str:
-    unwrapped_ref = wrapped_reference.strip("() ")
+) -> ExpressionReference:
+    wrapped_reference = reference.wrapped
+    unwrapped_reference = reference.unwrapped
 
-    if not unwrapped_ref:
+    if not unwrapped_reference:
         raise InvalidReferenceInExpression(
             f"You cannot use {wrapped_reference} because it does not exist",
             field_name=field_name_for_error_message,
             bad_reference=wrapped_reference,
             form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
         )
-    if ALLOWED_INTERPOLATION_REGEX.search(unwrapped_ref) is not None:
+    if ALLOWED_INTERPOLATION_REGEX.search(unwrapped_reference) is not None:
         raise InvalidReferenceInExpression(
             f"Reference is not valid: {wrapped_reference}",
             field_name=field_name_for_error_message,
@@ -1544,7 +1545,7 @@ def _validate_reference(  # noqa:C901
         raise NotImplementedError("Cannot handle un-attached references yet")
 
     # Check the reference is valid in this expression context
-    if not expression_context.is_valid_reference(unwrapped_ref):
+    if not expression_context.is_valid_reference(unwrapped_reference):
         raise InvalidReferenceInExpression(
             f"You cannot use {wrapped_reference} because it does not exist",
             field_name=field_name_for_error_message,
@@ -1552,14 +1553,7 @@ def _validate_reference(  # noqa:C901
             form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
         )
 
-    question_id = SafeQidMixin.safe_qid_to_id(unwrapped_ref)
-
-    # If it's a data source, we check this below in the elif
-    data_source_id, _column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(unwrapped_ref)
-
-    if question_id:
-        referenced_question = db.session.get_one(Question, question_id)
-
+    if referenced_question := reference.question:
         # for validation, the question being validated (ie attached to) needs to have the same data type as the question
         # being referenced. Groups have no data_type so this check is skipped for group-level validations.
         if (
@@ -1658,11 +1652,14 @@ def _validate_reference(  # noqa:C901
                 form_error_message=f"You cannot reference {referenced_question.name} because it can be answered more "
                 "than once",
             )
-    elif data_source_id:
-        data_source = db.session.get_one(DataSource, data_source_id)
-        if not data_source.schema or _column_name not in data_source.schema.root:
+    elif data_source_reference := reference.data_source_reference:
+        data_source_column = reference.data_source_column
+        if not data_source_column:
             raise InvalidReferenceInExpression(
-                f"Column {_column_name} does not exist on data source {data_source_id}",
+                (
+                    f"Column {data_source_reference.column_name} does not exist "
+                    f"on data source {data_source_reference.data_source_id}"
+                ),
                 field_name=field_name_for_error_message,
                 bad_reference=wrapped_reference,
                 form_error_message=f"You cannot use {wrapped_reference} because it does not exist",
@@ -1673,7 +1670,7 @@ def _validate_reference(  # noqa:C901
         raise NotImplementedError(
             f"Reference is not a valid question ID: {wrapped_reference}",
         )
-    return unwrapped_ref
+    return reference
 
 
 def _validate_and_sync_expression_references(expression: Expression) -> None:  # noqa:C901
@@ -1683,14 +1680,15 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
         expr_impl = expression.custom
 
     referenced_questions = set()
-    references: list[ComponentReference] = []
+    component_references: list[ComponentReference] = []
+    data_source_references: set[DataSourceReference] = set()
 
     if isinstance(expr_impl, BaseDataSourceManagedExpression):
         referenced_data_source_items = get_referenced_data_source_items_by_managed_expression(
             managed_expression=expr_impl
         )
 
-        # TODO: Support data sources that are independent of components(questions), eg when ee have platform-level
+        # TODO: Support data sources that are independent of components(questions), eg when we have platform-level
         #       data sources.
         for referenced_data_source_item in referenced_data_source_items:
             cr = ComponentReference(
@@ -1702,12 +1700,12 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 depends_on_data_source_item=referenced_data_source_item,
             )
             db.session.add(cr)
-            references.append(cr)
+            component_references.append(cr)
     elif expression.is_managed:
         if expression.type_ == ExpressionType.CONDITION:
             # validate the referenced question - the one that is compared against the expression
-            valid_reference = _validate_reference(
-                wrapped_reference=f"(({expr_impl.referenced_question.safe_qid}))",  # ty:ignore[unresolved-attribute]
+            _validate_reference(
+                reference=ExpressionReference.from_question(expr_impl.referenced_question),  # ty:ignore[unresolved-attribute]
                 attached_to_component=expression.question,
                 expression_context=ExpressionContext.build_expression_context(
                     expression.question.form.collection, "interpolation", None, None
@@ -1724,15 +1722,20 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
         if expr_impl.referenced_question != expression.question:  # ty:ignore[unresolved-attribute]
             referenced_questions.add(expr_impl.referenced_question)  # ty:ignore[unresolved-attribute]
 
-    referenced_columns: set[tuple[UUID, str]] = set()
     for field in expr_impl.reference_aware_fields:
         field_value = getattr(expr_impl, field)
         if not field_value:
             continue
-        unvalidated_references = set(_find_all_references_in_expression(field_value))
-        for wrapped_reference in unvalidated_references:
+        # An ExpressionReference-typed field is itself a single reference; a plain str field is
+        # free text that may contain zero or more ((…)) references to scan out.
+        references = (
+            [field_value]
+            if isinstance(field_value, ExpressionReference)
+            else list(set(_find_all_references_in_expression(field_value)))
+        )
+        for reference in references:
             valid_reference = _validate_reference(
-                wrapped_reference=wrapped_reference,
+                reference=reference,
                 attached_to_component=expression.question,
                 expression_context=ExpressionContext.build_expression_context(
                     expression.question.form.collection, "interpolation", None, None
@@ -1742,14 +1745,12 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 question_to_test=expr_impl.referenced_question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
             )
 
-            if question_id := SafeQidMixin.safe_qid_to_id(valid_reference):
-                referenced_question = get_question_by_id(question_id)
+            if referenced_question := valid_reference.question:
                 referenced_questions.add(referenced_question)
                 continue
 
-            data_source_id, column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(valid_reference)
-            if data_source_id and column_name:
-                referenced_columns.add((data_source_id, column_name))
+            if data_source_reference := valid_reference.data_source_reference:
+                data_source_references.add(data_source_reference)
                 continue
 
             raise ValueError(f"Unhandled reference '{valid_reference}' in component '{expression.question_id}'")
@@ -1763,19 +1764,19 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
             depends_on_component=referenced_question,
         )
         db.session.add(cr)
-        references.append(cr)
+        component_references.append(cr)
 
-    for data_source_id, column_name in referenced_columns:
+    for data_source_reference in data_source_references:
         cr = ComponentReference(
             component=expression.question,
             expression=expression,
-            depends_on_data_source_id=data_source_id,
-            depends_on_column_name=column_name,
+            depends_on_data_source_id=data_source_reference.data_source_id,
+            depends_on_column_name=data_source_reference.column_name,
         )
         db.session.add(cr)
-        references.append(cr)
+        component_references.append(cr)
 
-    expression.component_references = references
+    expression.component_references = component_references
 
 
 def _validate_and_sync_component_references(component: Component, expression_context: ExpressionContext) -> None:  # noqa: C901
@@ -1796,7 +1797,7 @@ def _validate_and_sync_component_references(component: Component, expression_con
         _validate_and_sync_expression_references(expression)
 
     component_refs_to_set_up: set[tuple[UUID, UUID]] = set()
-    column_refs_to_set_up: set[tuple[UUID, str]] = set()
+    data_source_refs_to_set_up: set[DataSourceReference] = set()
     field_names = ["text", "hint", "guidance_body", "add_another_guidance_body"]
     for field_name in field_names:
         value = getattr(component, field_name)
@@ -1804,9 +1805,9 @@ def _validate_and_sync_component_references(component: Component, expression_con
             continue
 
         unvalidated_references = set(_find_all_references_in_expression(value))
-        for wrapped_reference in unvalidated_references:
-            reference = _validate_reference(
-                wrapped_reference=wrapped_reference,
+        for unvalidated_reference in unvalidated_references:
+            validated_reference = _validate_reference(
+                reference=unvalidated_reference,
                 attached_to_component=component,
                 expression_context=expression_context,
                 expression_type=None,
@@ -1814,29 +1815,29 @@ def _validate_and_sync_component_references(component: Component, expression_con
                 question_to_test=None,
             )
 
-            if question_id := SafeQidMixin.safe_qid_to_id(reference):
+            # TODO: make a match statement for clearer unhandled case
+            if question_id := validated_reference.question_id:
                 question = db.session.get_one(Question, question_id)
                 component_refs_to_set_up.add((component.id, question.id))
                 continue
 
-            data_source_id, column_name = SafeDidMixin.safe_ds_ref_to_id_and_column_name(reference)
-            if data_source_id and column_name:
-                column_refs_to_set_up.add((data_source_id, column_name))
+            if data_source_reference := validated_reference.data_source_reference:
+                data_source_refs_to_set_up.add(data_source_reference)
                 continue
 
-            raise ValueError(f"Unhandled reference '{reference}' in component '{component.id}'")
+            raise ValueError(f"Unhandled reference '{validated_reference}' in component '{component.id}'")
 
     for component_id, depends_on_component_id in component_refs_to_set_up:
         if component_id == depends_on_component_id:
             continue
         db.session.add(ComponentReference(component_id=component_id, depends_on_component_id=depends_on_component_id))
 
-    for data_source_id, column_name in column_refs_to_set_up:
+    for data_source_reference in data_source_refs_to_set_up:
         db.session.add(
             ComponentReference(
                 component_id=component.id,
-                depends_on_data_source_id=data_source_id,
-                depends_on_column_name=column_name,
+                depends_on_data_source_id=data_source_reference.data_source_id,
+                depends_on_column_name=data_source_reference.column_name,
             )
         )
 

@@ -5516,7 +5516,7 @@ class TestEditQuestionCondition:
         assert expression.type_ == ExpressionType.CONDITION
         assert expression.managed_name == "Is after"
         assert expression.managed.referenced_question.id == depends_on_question.id
-        assert expression.statement == f"{depends_on_question.safe_qid} > (({reference_data_question.safe_qid}))"
+        assert expression.statement == f"{depends_on_question.safe_qid} > {reference_data_question.safe_qid}"
 
         with authenticated_grant_admin_client.session_transaction() as session:
             assert "question" not in session
@@ -6280,7 +6280,7 @@ class TestEditQuestionValidation:
         assert expression.type_ == ExpressionType.VALIDATION
         assert expression.managed_name == "Less than"
         assert expression.managed.referenced_question.id == target_question.id
-        assert expression.statement == f"{target_question.safe_qid} <=(({reference_data_question.safe_qid}))"
+        assert expression.statement == f"{target_question.safe_qid} <= {reference_data_question.safe_qid}"
 
         with authenticated_grant_admin_client.session_transaction() as session:
             assert "question" not in session

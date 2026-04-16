@@ -98,7 +98,8 @@ class TestBuildManagedExpressionForm:
         assert expression.minimum_expression is None
         assert expression.minimum_inclusive is False
         assert expression.maximum_value is None
-        assert expression.maximum_expression == f"(({referenced_question.safe_qid}))"
+        assert expression.maximum_expression == referenced_question.safe_qid
+        assert expression.maximum_expression.wrapped == f"(({referenced_question.safe_qid}))"
         assert expression.maximum_inclusive is True
 
     def test_can_build_a_managed_expression_with_valid_reference_data__date(self, factories):
@@ -127,5 +128,6 @@ class TestBuildManagedExpressionForm:
         assert expression.earliest_expression is None
         assert expression.earliest_inclusive is False
         assert expression.latest_value is None
-        assert expression.latest_expression == f"(({referenced_question.safe_qid}))"
+        assert expression.latest_expression == referenced_question.safe_qid
+        assert expression.latest_expression.wrapped == f"(({referenced_question.safe_qid}))"
         assert expression.latest_inclusive is True
