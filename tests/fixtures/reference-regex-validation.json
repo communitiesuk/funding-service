@@ -1,0 +1,50 @@
+{
+    "comment": "This file is used to hold a set of test cases that run against both JavaScript (highlighting.test.js) and Python (unit/common/data/interfaces/test_collections.py).",
+    "test_cases": [
+        {
+            "pattern": "Text with no references",
+            "references": []
+        },
+        {
+            "pattern": "Text with a ((reference))",
+            "references": [
+                "((reference))"
+            ]
+        },
+        {
+            "pattern": "Text with a partial ((reference)",
+            "references": []
+        },
+        {
+            "pattern": "Text with a ((reference)) and ((another reference))",
+            "references": [
+                "((reference))",
+                "((another reference))"
+            ]
+        },
+        {
+            "pattern": "Text with a (( spaced reference ))",
+            "references": [
+                "(( spaced reference ))"
+            ]
+        },
+        {
+            "pattern": "Text with some (( reference(s) ))",
+            "references": [
+                "(( reference(s) ))"
+            ]
+        },
+        {
+            "pattern": "Text with some literal parens around the (((reference)))",
+            "references": [
+                "((reference))"
+            ]
+        },
+        {
+            "pattern": "Text with some literal parens around maybe plural (((reference(s))))",
+            "references": [
+                "((reference(s)))"
+            ]
+        }
+    ]
+}
