@@ -232,6 +232,7 @@ def ask_a_question(
     action: str | None = None,
 ) -> ResponseReturnValue:
     source = request.args.get("source")
+    check_entries = request.args.get("check_entries")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 
     runner = AGFFormRunner.load(
@@ -242,6 +243,7 @@ def ask_a_question(
         grant_recipient_id=grant_recipient.id,
         is_removing=action == "remove",
         is_clearing=action == "clear",
+        check_entries=int(check_entries) if check_entries else None,
     )
 
     if not runner.validate_can_show_question_page():

@@ -638,7 +638,7 @@ class DGFFormRunner(FormRunner):
                 add_another_index=add_another_index,
                 action=action if action else None,
                 check_entries=check_entries,
-            ),
+            )
         ),
         FormRunnerState.TASKLIST: (
             lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
@@ -646,7 +646,7 @@ class DGFFormRunner(FormRunner):
                 grant_id=runner.submission.grant.id,
                 submission_id=runner.submission.id,
                 form_id=runner.form.id if runner.form else None,
-            ),
+            )
         ),
         FormRunnerState.CHECK_YOUR_ANSWERS: (
             lambda runner, _question, form, source, _add_another_index, _action, _check_entries: url_for(
@@ -655,14 +655,14 @@ class DGFFormRunner(FormRunner):
                 submission_id=runner.submission.id,
                 form_id=form.id if form else runner.form.id if runner.form else None,
                 source=source,
-            ),
+            )
         ),
         FormRunnerState.VIEW_REPORT_PAGE: (
             lambda runner, _question, _form, source, _add_another_index, _action, _check_entries: url_for(
                 "deliver_grant_funding.view_submission",
                 grant_id=runner.submission.grant.id,
                 submission_id=runner.submission.id,
-            ),
+            )
         ),
     }
 
@@ -680,7 +680,7 @@ class AGFFormRunner(FormRunner):
                 add_another_index=add_another_index,
                 action=action if action else None,
                 check_entries=check_entries,
-            ),
+            )
         ),
         FormRunnerState.TASKLIST: (
             lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
@@ -688,7 +688,7 @@ class AGFFormRunner(FormRunner):
                 organisation_id=runner.submission.submission.grant_recipient.organisation.id,
                 grant_id=runner.submission.submission.grant_recipient.grant.id,
                 submission_id=runner.submission.id,
-            ),
+            )
         ),
         FormRunnerState.CHECK_YOUR_ANSWERS: (
             lambda runner, _question, form, source, _add_another_index, _action, _check_entries: url_for(
@@ -698,7 +698,7 @@ class AGFFormRunner(FormRunner):
                 submission_id=runner.submission.id,
                 section_id=form.id if form else runner.form.id if runner.form else None,
                 source=source,
-            ),
+            )
         ),
         FormRunnerState.VIEW_REPORT_PAGE: (
             lambda runner, _question, _form, source, _add_another_index, _action, _check_entries: url_for(
@@ -706,6 +706,6 @@ class AGFFormRunner(FormRunner):
                 organisation_id=runner.submission.submission.grant_recipient.organisation.id,
                 grant_id=runner.submission.grant.id,
                 submission_id=runner.submission.id,
-            ),
+            )
         ),
     }
