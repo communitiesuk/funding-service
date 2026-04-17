@@ -2693,7 +2693,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
         collection=question.form.collection, expression_context_end_point=question
     )
     return render_template(
-        "deliver_grant_funding/reports/custom_validation.html",
+        "deliver_grant_funding/reports/calculated_validation.html",
         form=wt_form,
         question=question,
         grant=question.form.collection.grant,
@@ -2790,7 +2790,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
         collection=question.form.collection, expression_context_end_point=question
     )
     return render_template(
-        "deliver_grant_funding/reports/custom_validation.html",
+        "deliver_grant_funding/reports/calculated_validation.html",
         form=wt_form,
         question=question,
         grant=question.form.collection.grant,

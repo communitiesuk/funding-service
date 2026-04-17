@@ -850,12 +850,12 @@ class CreateCustomExpressionPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Create a custom validation"),
+            heading=page.get_by_role("heading", name="Create a calculated validation"),
         )
         self.report_name = report_name
         self.section_name = section_name
         self.attached_question_name = question_name
-        self.add_validation_button = self.page.get_by_role("button", name="Add custom validation")
+        self.add_validation_button = self.page.get_by_role("button", name="Add calculated validation")
 
         self.custom_expression_textarea = get_context_aware_textbox_locator_by_name(page, "Calculation")
         self.add_data_to_expression_button = self.page.get_by_role("button", name="Reference data for calculation")
