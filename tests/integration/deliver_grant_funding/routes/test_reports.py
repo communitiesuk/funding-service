@@ -4934,7 +4934,7 @@ class TestAddQuestionCondition:
             expression_form_data={
                 "type": "Greater than",
                 "greater_than_value": None,
-                "greater_than_expression": f"(({reference_data_question.safe_qid}))",
+                "greater_than_expression": ExpressionReference.from_question(reference_data_question),
                 "greater_than_inclusive": True,
             },
             component_id=target_question.id,
@@ -4949,7 +4949,7 @@ class TestAddQuestionCondition:
             data={
                 "type": "Greater than",
                 "greater_than_value": None,
-                "greater_than_expression": f"(({reference_data_question.safe_qid}))",
+                "greater_than_expression": ExpressionReference.from_question(reference_data_question),
                 "greater_than_inclusive": False,
                 "remove_context": "greater_than_expression",
             }
@@ -5016,7 +5016,7 @@ class TestAddQuestionCondition:
             data={
                 "type": "Greater than",
                 "greater_than_value": None,
-                "greater_than_expression": f"(({reference_data_question.safe_qid}))",
+                "greater_than_expression": ExpressionReference.from_question(reference_data_question),
                 "greater_than_inclusive": False,
             }
         )
@@ -5438,7 +5438,7 @@ class TestEditQuestionCondition:
         expression = IsAfter(
             subject_reference=ExpressionReference.from_question(depends_on_question),
             earliest_value=None,
-            earliest_expression=f"(({reference_data_question.safe_qid}))",
+            earliest_expression=ExpressionReference.from_question(reference_data_question),
             inclusive=True,
         )
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
@@ -5453,7 +5453,7 @@ class TestEditQuestionCondition:
             data={
                 "type": "Is after",
                 "earliest_value": None,
-                "earliest_expression": f"(({reference_data_question.safe_qid}))",
+                "earliest_expression": ExpressionReference.from_question(reference_data_question),
                 "earliest_inclusive": False,
                 "remove_context": "earliest_expression",
             }
@@ -5530,7 +5530,7 @@ class TestEditQuestionCondition:
             data={
                 "type": "Is after",
                 "earliest_value": None,
-                "earliest_expression": f"(({reference_data_question.safe_qid}))",
+                "earliest_expression": ExpressionReference.from_question(reference_data_question),
             }
         )
 
@@ -5785,7 +5785,7 @@ class TestAddQuestionValidation:
             expression_form_data={
                 "type": "Between",
                 "between_bottom_of_range": None,
-                "between_bottom_of_range_expression": f"(({referenced_question.safe_qid}))",
+                "between_bottom_of_range_expression": ExpressionReference.from_question(referenced_question),
                 "between_bottom_inclusive": True,
                 "between_top_of_range": 100,
                 "between_top_of_range_expression": "",
@@ -5802,7 +5802,7 @@ class TestAddQuestionValidation:
             data={
                 "type": "Between",
                 "between_bottom_of_range": None,
-                "between_bottom_of_range_expression": f"(({referenced_question.safe_qid}))",
+                "between_bottom_of_range_expression": ExpressionReference.from_question(referenced_question),
                 "between_bottom_inclusive": False,
                 "between_top_of_range": 100,
                 "between_top_of_range_expression": "",
@@ -5863,7 +5863,7 @@ class TestAddQuestionValidation:
             data={
                 "type": "Less than",
                 "less_than_value": None,
-                "less_than_expression": f"(({reference_data_question.safe_qid}))",
+                "less_than_expression": ExpressionReference.from_question(reference_data_question),
                 "less_than_inclusive": True,
             }
         )
@@ -6157,7 +6157,7 @@ class TestEditQuestionValidation:
         expression = LessThan(
             subject_reference=ExpressionReference.from_question(target_question),
             maximum_value=None,
-            maximum_expression=f"(({referenced_question.safe_qid}))",
+            maximum_expression=ExpressionReference.from_question(referenced_question),
             inclusive=True,
         )
         interfaces.collections.add_component_validation(target_question, interfaces.user.get_current_user(), expression)
@@ -6174,7 +6174,7 @@ class TestEditQuestionValidation:
             data={
                 "type": "Less than",
                 "less_than_value": None,
-                "less_than_expression": f"(({referenced_question.safe_qid}))",
+                "less_than_expression": ExpressionReference.from_question(referenced_question),
                 "less_than_inclusive": False,
                 "remove_context": "less_than_expression",
             }
@@ -6294,7 +6294,7 @@ class TestEditQuestionValidation:
             data={
                 "type": "Less than",
                 "less_than_value": 1000,
-                "less_than_expression": f"(({reference_data_question.safe_qid}))",
+                "less_than_expression": ExpressionReference.from_question(reference_data_question),
                 "less_than_inclusive": True,
             }
         )
@@ -9545,7 +9545,7 @@ class TestViewDataSource:
             GreaterThan(
                 subject_reference=ExpressionReference.from_question(question),
                 minimum_value=None,
-                minimum_expression=f"(({data_source.safe_did}.c_allocation))",
+                minimum_expression=ExpressionReference.from_data_source_column(data_source, "c_allocation"),
             ),
         )
 

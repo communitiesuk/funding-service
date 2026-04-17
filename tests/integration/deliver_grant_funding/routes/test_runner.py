@@ -14,6 +14,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionModeEnum,
 )
+from app.common.expressions import ExpressionReference
 from app.common.expressions.custom import CustomExpression
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching, get_h1_text, page_has_button
@@ -140,11 +141,11 @@ class TestSubmissionTasklist:
             created_by=client.user,
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
-            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
+            statement=f"{q2.safe_qid} > {q1.safe_qid}",
             context={
-                "subject_reference": q2.safe_qid,
+                "subject_reference": ExpressionReference.from_question(q2),
                 "minimum_value": None,
-                "minimum_expression": f"(({q1.safe_qid}))",
+                "minimum_expression": ExpressionReference.from_question(q1),
             },
         )
 
@@ -285,7 +286,7 @@ class TestAskAQuestion:
             question=question_2,
             created_by=authenticated_grant_admin_client.user,
             type_=ExpressionType.CONDITION,
-            context={"subject_reference": question.safe_qid},
+            context={"subject_reference": ExpressionReference.from_question(question)},
             statement=f"{question.safe_qid} is True",
             managed_name=ManagedExpressionsEnum.IS_YES,
         )

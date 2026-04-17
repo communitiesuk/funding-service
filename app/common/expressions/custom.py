@@ -18,6 +18,13 @@ class CustomExpression(EvaluatableExpression):
 
     @property
     def statement(self) -> str:
+        # NOTE: Custom expression statements must currently wrap any ExpressionReferences (eg q_123) in double parens
+        #       as if they're an interpolation eg `((q_123)) + ((q_234)) == 100` in order for ComponentReferences to be
+        #       set up correctly. Ideally this would not be a requirement, but these are processed by
+        #       `_validate_and_sync_expression_references` which searches for references using the interpolation regex.
+        #       In the long term we should address this so that references can still be extracted without expecting
+        #       double parens here. Those are meant to be reserved for interpolation, where we're embedding some
+        #       expression within text strings.
         return self.custom_expression
 
     @property

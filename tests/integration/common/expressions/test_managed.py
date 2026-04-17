@@ -159,7 +159,7 @@ class TestGreaterThanExpression:
         expr = GreaterThan(
             subject_reference=ExpressionReference.from_question(target_question),
             minimum_value=None,
-            minimum_expression=f"(({referenced_question.safe_qid}))",
+            minimum_expression=ExpressionReference.from_question(referenced_question),
             inclusive=inclusive,
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
@@ -177,7 +177,7 @@ class TestGreaterThanExpression:
         expr = GreaterThan(
             subject_reference=ExpressionReference.from_question(target_question),
             minimum_value=None,
-            minimum_expression=f"(({referenced_question.safe_qid}))",
+            minimum_expression=ExpressionReference.from_question(referenced_question),
         )
         assert expr.expression_referenced_question_ids == [referenced_question.id]
 
@@ -245,7 +245,7 @@ class TestLessThanExpression:
         expr = LessThan(
             subject_reference=ExpressionReference.from_question(target_question),
             maximum_value=None,
-            maximum_expression=f"(({referenced_question.safe_qid}))",
+            maximum_expression=ExpressionReference.from_question(referenced_question),
             inclusive=inclusive,
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
@@ -263,7 +263,7 @@ class TestLessThanExpression:
         expr = LessThan(
             subject_reference=ExpressionReference.from_question(target_question),
             maximum_value=None,
-            maximum_expression=f"(({referenced_question.safe_qid}))",
+            maximum_expression=ExpressionReference.from_question(referenced_question),
         )
         assert expr.expression_referenced_question_ids == [referenced_question.id]
 
@@ -366,7 +366,7 @@ class TestBetweenExpression:
             minimum_value=minimum_value,
             minimum_inclusive=minimum_inclusive,
             maximum_value=None,
-            maximum_expression=f"(({referenced_question.safe_qid}))",
+            maximum_expression=ExpressionReference.from_question(referenced_question),
             maximum_inclusive=maximum_inclusive,
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
@@ -390,9 +390,9 @@ class TestBetweenExpression:
         expr = Between(
             subject_reference=ExpressionReference.from_question(target_question),
             minimum_value=None,
-            minimum_expression=f"(({first_referenced_question.safe_qid}))",
+            minimum_expression=ExpressionReference.from_question(first_referenced_question),
             maximum_value=None,
-            maximum_expression=f"(({second_referenced_question.safe_qid}))",
+            maximum_expression=ExpressionReference.from_question(second_referenced_question),
         )
         assert expr.expression_referenced_question_ids == [first_referenced_question.id, second_referenced_question.id]
 
@@ -516,7 +516,7 @@ class TestIsBeforeExpression:
         expr = IsBefore(
             subject_reference=ExpressionReference.from_question(target_question),
             latest_value=None,
-            latest_expression=f"(({referenced_question.safe_qid}))",
+            latest_expression=ExpressionReference.from_question(referenced_question),
             inclusive=inclusive,
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
@@ -553,7 +553,7 @@ class TestIsBeforeExpression:
         expr = IsBefore(
             subject_reference=ExpressionReference.from_question(target_question),
             latest_value=None,
-            latest_expression=f"(({referenced_question.safe_qid}))",
+            latest_expression=ExpressionReference.from_question(referenced_question),
         )
         assert expr.expression_referenced_question_ids == [referenced_question.id]
 
@@ -601,7 +601,7 @@ class TestIsAfterExpression:
         expr = IsAfter(
             subject_reference=ExpressionReference.from_question(target_question),
             earliest_value=None,
-            earliest_expression=f"(({referenced_question.safe_qid}))",
+            earliest_expression=ExpressionReference.from_question(referenced_question),
             inclusive=inclusive,
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
@@ -639,7 +639,7 @@ class TestIsAfterExpression:
         expr = IsAfter(
             subject_reference=ExpressionReference.from_question(target_question),
             earliest_value=None,
-            earliest_expression=f"(({referenced_question.safe_qid}))",
+            earliest_expression=ExpressionReference.from_question(referenced_question),
         )
         assert expr.expression_referenced_question_ids == [referenced_question.id]
 
@@ -711,7 +711,7 @@ class TestIsBetweenDatesExpression:
             earliest_value=self.min_value,
             earliest_expression=None,
             latest_value=None,
-            latest_expression=f"(({referenced_question.safe_qid}))",
+            latest_expression=ExpressionReference.from_question(referenced_question),
             earliest_inclusive=earliest_inc,
             latest_inclusive=latest_inc,
         )
@@ -736,7 +736,7 @@ class TestIsBetweenDatesExpression:
             expression_form_data={
                 "type": "Between dates",
                 "between_bottom_of_range": "2025-01-01",
-                "between_top_of_range_expression": f"(({referenced_question.safe_qid}))",
+                "between_top_of_range_expression": ExpressionReference.from_question(referenced_question),
                 "between_bottom_inclusive": True,
                 "between_top_inclusive": False,
             },
@@ -747,7 +747,9 @@ class TestIsBetweenDatesExpression:
 
         assert prepared_data["between_bottom_of_range"] == datetime.date(2025, 1, 1)
         assert "between_top_of_range" not in prepared_data
-        assert prepared_data["between_top_of_range_expression"] == f"(({referenced_question.safe_qid}))"
+        assert prepared_data["between_top_of_range_expression"] == ExpressionReference.from_question(
+            referenced_question
+        )
 
     def test_expression_referenced_question_ids(self, factories):
         first_referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
@@ -760,9 +762,9 @@ class TestIsBetweenDatesExpression:
         expr = BetweenDates(
             subject_reference=ExpressionReference.from_question(target_question),
             earliest_value=None,
-            earliest_expression=f"(({first_referenced_question.safe_qid}))",
+            earliest_expression=ExpressionReference.from_question(first_referenced_question),
             latest_value=None,
-            latest_expression=f"(({second_referenced_question.safe_qid}))",
+            latest_expression=ExpressionReference.from_question(second_referenced_question),
         )
         assert expr.expression_referenced_question_ids == [first_referenced_question.id, second_referenced_question.id]
 

@@ -227,7 +227,7 @@ def test_reference_data_validation__integer(factories, db_session):
         GreaterThan(
             subject_reference=ExpressionReference.from_question(q2),
             minimum_value=None,
-            minimum_expression=f"(({q1.safe_qid}))",
+            minimum_expression=ExpressionReference.from_question(q1),
             inclusive=True,
         ),
     )
@@ -296,7 +296,7 @@ def test_reference_data_validation__date(factories, db_session):
         IsAfter(
             subject_reference=ExpressionReference.from_question(q2),
             earliest_value=None,
-            earliest_expression=f"(({q1.safe_qid}))",
+            earliest_expression=ExpressionReference.from_question(q1),
             inclusive=True,
         ),
     )
