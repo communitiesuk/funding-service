@@ -97,6 +97,7 @@ from app.common.expressions.forms import (
     _ManagedExpressionForm,
     build_managed_expression_form,
 )
+from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import AllSubmissionsHelper, SubmissionHelper
@@ -1498,10 +1499,11 @@ def _determine_return_url_and_update_session_after_choosing_referenced_question_
 ) -> str:
     if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
         target_field = add_context_data.expression_form_data["add_context"]
+        reference = ExpressionReference.from_question(referenced_question)
         if add_context_data.managed_expression_name is None:
-            add_context_data.expression_form_data[target_field] += f"(({referenced_question.safe_qid}))"
+            add_context_data.expression_form_data[target_field] += reference.wrapped
         else:
-            add_context_data.expression_form_data[target_field] = f"(({referenced_question.safe_qid}))"
+            add_context_data.expression_form_data[target_field] = reference.wrapped
 
     if add_context_data.field == ExpressionType.CONDITION:
         if not add_context_data.expression_id:
@@ -1647,7 +1649,8 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
 
                 if add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
-                    add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
+                    reference = ExpressionReference.from_question(referenced_question)
+                    add_context_data.component_form_data[target_field] += " " + reference.wrapped
 
             case AddContextToComponentGuidanceSessionModel():
                 return_url = (
@@ -1665,7 +1668,8 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                 )
                 if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
-                    add_context_data.component_form_data[target_field] += f" (({referenced_question.safe_qid}))"
+                    reference = ExpressionReference.from_question(referenced_question)
+                    add_context_data.component_form_data[target_field] += " " + reference.wrapped
 
             case AddContextToExpressionsModel():
                 return_url = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
