@@ -64,6 +64,7 @@ class FormRunner:
         add_another_index: int | None = None,
         is_removing: bool = False,
         is_clearing: bool = False,
+        check_entries: int | None = None,
     ):
         if question and form:
             raise ValueError("Expected only one of question or form")
@@ -75,6 +76,7 @@ class FormRunner:
         self.linked_question = question
         self.is_removing = is_removing
         self.is_clearing = is_clearing
+        self.check_entries = check_entries
 
         self._valid: bool | None = None
 
@@ -168,6 +170,7 @@ class FormRunner:
         grant_recipient_id: UUID | None = None,
         is_removing: bool = False,
         is_clearing: bool = False,
+        check_entries: int | None = None,
     ) -> FormRunner:
         if question_id and form_id:
             raise ValueError("Expected only one of question_id or form_id")
@@ -213,6 +216,7 @@ class FormRunner:
             add_another_index=add_another_index,
             is_removing=is_removing,
             is_clearing=is_clearing,
+            check_entries=check_entries,
         )
 
         if form_runner.submission.in_immutable_state:
@@ -284,6 +288,13 @@ class FormRunner:
         if self.is_clearing and self.linked_question:
             if self.confirm_remove_form.validate_on_submit():
                 if self.confirm_remove_form.confirm_remove.data == "yes":
+                    if self.check_entries and self.component.add_another_container:
+                        if self.check_entries != self.submission.get_count_for_add_another(
+                            self.component.add_another_container
+                        ):
+                            # the number of entries has changed since we loaded the page
+                            # return to the add another summary page with a no-op
+                            return True
                     self.submission.remove_answer_for_question(
                         question_id=self.linked_question.id, add_another_index=self.add_another_index
                     )
@@ -386,14 +397,18 @@ class FormRunner:
         add_another_index: int | None = None,
         action: str | None = None,
     ) -> str:
+        check_entries = None
+        if (
+            action == "remove"
+            and self.add_another_summary_context
+            and self.component
+            and self.component.add_another_container
+        ):
+            check_entries = self.submission.get_count_for_add_another(self.component.add_another_container)
+
         # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
         return self.url_map[state](
-            self,
-            question or self.component,
-            form or self.form,
-            source,
-            add_another_index,
-            action,
+            self, question or self.component, form or self.form, source, add_another_index, action, check_entries
         )
 
     @property
@@ -497,6 +512,13 @@ class FormRunner:
         if self._valid:
             if self.component.is_question and not self.can_edit_question(self.component):  # type: ignore[arg-type]
                 self._valid = False
+
+        if self._valid:
+            if self.check_entries is not None and self.component.add_another_container:
+                if self.check_entries != self.submission.get_count_for_add_another(
+                    self.component.add_another_container
+                ):
+                    self._valid = False
 
         return self._valid
 
@@ -606,70 +628,84 @@ def add_another_suffix(heading: str, add_another_index: int) -> str:
 
 class DGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index, action: url_for(
-            "deliver_grant_funding.ask_a_question",
-            grant_id=runner.submission.grant.id,
-            submission_id=runner.submission.id,
-            question_id=question.id if question else None,
-            source=source,
-            add_another_index=add_another_index,
-            action=action if action else None,
+        FormRunnerState.QUESTION: (
+            lambda runner, question, _form, source, add_another_index, action, check_entries: url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=runner.submission.grant.id,
+                submission_id=runner.submission.id,
+                question_id=question.id if question else None,
+                source=source,
+                add_another_index=add_another_index,
+                action=action if action else None,
+                check_entries=check_entries,
+            ),
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index, _action: url_for(
-            "deliver_grant_funding.submission_tasklist",
-            grant_id=runner.submission.grant.id,
-            submission_id=runner.submission.id,
-            form_id=runner.form.id if runner.form else None,
+        FormRunnerState.TASKLIST: (
+            lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
+                "deliver_grant_funding.submission_tasklist",
+                grant_id=runner.submission.grant.id,
+                submission_id=runner.submission.id,
+                form_id=runner.form.id if runner.form else None,
+            ),
         ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index, _action: (
-            url_for(
+        FormRunnerState.CHECK_YOUR_ANSWERS: (
+            lambda runner, _question, form, source, _add_another_index, _action, _check_entries: url_for(
                 "deliver_grant_funding.check_your_answers",
                 grant_id=runner.submission.grant.id,
                 submission_id=runner.submission.id,
                 form_id=form.id if form else runner.form.id if runner.form else None,
                 source=source,
-            )
+            ),
         ),
-        FormRunnerState.VIEW_REPORT_PAGE: lambda runner, _question, _form, source, _add_another_index, _action: url_for(
-            "deliver_grant_funding.view_submission",
-            grant_id=runner.submission.grant.id,
-            submission_id=runner.submission.id,
+        FormRunnerState.VIEW_REPORT_PAGE: (
+            lambda runner, _question, _form, source, _add_another_index, _action, _check_entries: url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=runner.submission.grant.id,
+                submission_id=runner.submission.id,
+            ),
         ),
     }
 
 
 class AGFFormRunner(FormRunner):
     url_map: ClassVar[TRunnerUrlMap] = {
-        FormRunnerState.QUESTION: lambda runner, question, _form, source, add_another_index, action: url_for(
-            "access_grant_funding.ask_a_question",
-            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
-            grant_id=runner.submission.submission.grant_recipient.grant.id,
-            submission_id=runner.submission.id,
-            question_id=question.id if question else None,
-            source=source,
-            add_another_index=add_another_index,
-            action=action if action else None,
+        FormRunnerState.QUESTION: (
+            lambda runner, question, _form, source, add_another_index, action, check_entries: url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+                grant_id=runner.submission.submission.grant_recipient.grant.id,
+                submission_id=runner.submission.id,
+                question_id=question.id if question else None,
+                source=source,
+                add_another_index=add_another_index,
+                action=action if action else None,
+                check_entries=check_entries,
+            ),
         ),
-        FormRunnerState.TASKLIST: lambda runner, _question, _form, _source, _add_another_index, _action: url_for(
-            "access_grant_funding.tasklist",
-            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
-            grant_id=runner.submission.submission.grant_recipient.grant.id,
-            submission_id=runner.submission.id,
+        FormRunnerState.TASKLIST: (
+            lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+                grant_id=runner.submission.submission.grant_recipient.grant.id,
+                submission_id=runner.submission.id,
+            ),
         ),
-        FormRunnerState.CHECK_YOUR_ANSWERS: lambda runner, _question, form, source, _add_another_index, _action: (
-            url_for(
+        FormRunnerState.CHECK_YOUR_ANSWERS: (
+            lambda runner, _question, form, source, _add_another_index, _action, _check_entries: url_for(
                 "access_grant_funding.check_your_answers",
                 organisation_id=runner.submission.submission.grant_recipient.organisation.id,
                 grant_id=runner.submission.submission.grant_recipient.grant.id,
                 submission_id=runner.submission.id,
                 section_id=form.id if form else runner.form.id if runner.form else None,
                 source=source,
-            )
+            ),
         ),
-        FormRunnerState.VIEW_REPORT_PAGE: lambda runner, _question, _form, source, _add_another_index, _action: url_for(
-            "access_grant_funding.view_locked_report",
-            organisation_id=runner.submission.submission.grant_recipient.organisation.id,
-            grant_id=runner.submission.grant.id,
-            submission_id=runner.submission.id,
+        FormRunnerState.VIEW_REPORT_PAGE: (
+            lambda runner, _question, _form, source, _add_another_index, _action, _check_entries: url_for(
+                "access_grant_funding.view_locked_report",
+                organisation_id=runner.submission.submission.grant_recipient.organisation.id,
+                grant_id=runner.submission.grant.id,
+                submission_id=runner.submission.id,
+            ),
         ),
     }
