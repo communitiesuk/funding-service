@@ -208,9 +208,6 @@ class ExpressionContext(ChainMap[str, Any]):
         Creates a new `ExpressionContext` with `add_another_context` set to the provided `add_another_context`, and the
         other contexts set to the same values as this context
         """
-        if self._add_another_context:
-            raise ValueError("add_another_context is already set on this ExpressionContext")
-
         if not component.add_another_container:
             raise ValueError("add_another_context can only be set for add another components")
 
@@ -228,6 +225,12 @@ class ExpressionContext(ChainMap[str, Any]):
             if answer is not None:
                 add_another_context[question.safe_qid] = (
                     answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
+                )
+
+        if self._add_another_context:
+            if self._add_another_context != add_another_context:
+                raise ValueError(
+                    "overriding with different add_another_context where it is already set on this ExpressionContext"
                 )
 
         return ExpressionContext(

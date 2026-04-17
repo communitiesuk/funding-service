@@ -806,15 +806,48 @@ class TestExtendingWithAddAnotherContext:
             == context
         )
 
-    def test_extending_with_existing_context(self, factories):
+    def test_extending_with_different_add_another_context(self, factories):
         component = factories.question.create(add_another=True)
-        submission = factories.submission.create(collection=component.form.collection)
-        ex = ExpressionContext(submission_data={"a": [1, 2, 3], "b": 1, "c": 1}, add_another_context={"a": 1})
-        with pytest.raises(ValueError) as e:
+        submission = factories.submission.create(
+            collection=component.form.collection,
+            answers=[
+                FactoryAnswer(component, TextSingleLineAnswer("1"), add_another_index=0),
+                FactoryAnswer(component, TextSingleLineAnswer("2"), add_another_index=1),
+                FactoryAnswer(component, TextSingleLineAnswer("3"), add_another_index=2),
+            ],
+        )
+        submission_helper = SubmissionHelper(submission)
+        ex = submission_helper.cached_evaluation_context
+        with pytest.raises(
+            ValueError,
+            match="overriding with different add_another_context",
+        ):
             ex.with_add_another_context(
-                component, data_manager=SubmissionHelper(submission).submission.data_manager, add_another_index=0
+                component, data_manager=submission_helper.submission.data_manager, add_another_index=0
+            ).with_add_another_context(
+                component, data_manager=submission_helper.submission.data_manager, add_another_index=1
             )
-        assert str(e.value) == "add_another_context is already set on this ExpressionContext"
+
+    def test_extending_with_same_add_another_context(self, factories):
+        component = factories.question.create(add_another=True)
+        submission = factories.submission.create(
+            collection=component.form.collection,
+            answers=[
+                FactoryAnswer(component, TextSingleLineAnswer("1"), add_another_index=0),
+                FactoryAnswer(component, TextSingleLineAnswer("2"), add_another_index=1),
+                FactoryAnswer(component, TextSingleLineAnswer("3"), add_another_index=2),
+            ],
+        )
+
+        submission_helper = SubmissionHelper(submission)
+        ex = submission_helper.cached_evaluation_context
+
+        # adding the same add another context should not raise
+        ex.with_add_another_context(
+            component, data_manager=submission_helper.submission.data_manager, add_another_index=0
+        ).with_add_another_context(
+            component, data_manager=submission_helper.submission.data_manager, add_another_index=0
+        )
 
     def test_extending_with_non_add_another_component(self, factories):
         component = factories.question.create(add_another=False)
