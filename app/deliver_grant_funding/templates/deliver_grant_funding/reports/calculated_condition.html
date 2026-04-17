@@ -51,7 +51,8 @@
         "rows": [{
           "key": { "text": "This question" if not component.is_group else "This group" },
           "value": { "text": interpolate(component.text) },
-        }, ]})
+        }, ],
+          "classes": "govuk-summary-list--no-border"})
       }}
       <form method="post" novalidate>
         {{ form.csrf_token }}
