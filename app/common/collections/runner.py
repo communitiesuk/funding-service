@@ -288,13 +288,6 @@ class FormRunner:
         if self.is_clearing and self.linked_question:
             if self.confirm_remove_form.validate_on_submit():
                 if self.confirm_remove_form.confirm_remove.data == "yes":
-                    if self.check_entries and self.component.add_another_container:
-                        if self.check_entries != self.submission.get_count_for_add_another(
-                            self.component.add_another_container
-                        ):
-                            # the number of entries has changed since we loaded the page
-                            # return to the add another summary page with a no-op
-                            return True
                     self.submission.remove_answer_for_question(
                         question_id=self.linked_question.id, add_another_index=self.add_another_index
                     )
@@ -331,6 +324,13 @@ class FormRunner:
         if self.is_removing:
             if self.confirm_remove_form.validate_on_submit():
                 if self.confirm_remove_form.confirm_remove.data == "yes":
+                    if self.check_entries is not None and self.component.add_another_container:
+                        if self.check_entries != self.submission.get_count_for_add_another(
+                            self.component.add_another_container
+                        ):
+                            # the number of entries has changed since we loaded the page
+                            # return to the add another summary page with a no-op
+                            return True
                     self.submission.remove_entry_for_add_another(
                         add_another_container=cast("Group", self.component.add_another_container),
                         add_another_index=self.add_another_index,
@@ -514,7 +514,7 @@ class FormRunner:
                 self._valid = False
 
         if self._valid:
-            if self.check_entries is not None and self.component.add_another_container:
+            if self.is_removing and self.check_entries is not None and self.component.add_another_container:
                 if self.check_entries != self.submission.get_count_for_add_another(
                     self.component.add_another_container
                 ):

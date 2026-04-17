@@ -73,7 +73,7 @@ def ask_a_question(
     action: str | None = None,
 ) -> ResponseReturnValue:
     source = request.args.get("source")
-    check_entries = request.args.get("check_entries")
+    check_entries = request.args.get("check_entries", type=int)
     runner = DGFFormRunner.load(
         submission_id=submission_id,
         question_id=question_id,
@@ -81,7 +81,7 @@ def ask_a_question(
         add_another_index=add_another_index,
         is_removing=action == "remove",
         is_clearing=action == "clear",
-        check_entries=int(check_entries) if check_entries else None,
+        check_entries=check_entries,
     )
 
     if not runner.validate_can_show_question_page():
