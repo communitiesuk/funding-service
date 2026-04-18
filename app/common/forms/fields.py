@@ -5,6 +5,9 @@ from govuk_frontend_wtf.gov_form_base import GovFormBase, GovIterableBase
 from govuk_frontend_wtf.wtforms_widgets import GovSelect
 from wtforms import DecimalField, Field
 from wtforms.fields.numeric import IntegerField as WTFormsIntegerField
+from wtforms.fields.simple import StringField
+
+from app.common.expressions.references import EvaluationStatement, InterpolationStatement
 
 
 class IntegerWithCommasField(WTFormsIntegerField):
@@ -224,3 +227,31 @@ class MHCLGApproximateDateInput(GovFormBase):
             ],
         )
         return params
+
+
+class EvaluationStatementField(StringField):
+    # Narrows the inherited `data: str | None` for static type checkers
+    data: EvaluationStatement | None
+
+    def process_formdata(self, valuelist: list[str]) -> None:
+        if valuelist:
+            self.data = EvaluationStatement(valuelist[0])
+        else:
+            self.data = None
+
+    def process_data(self, value: object) -> None:
+        self.data = None if value is None else EvaluationStatement(value)
+
+
+class InterpolationStatementField(StringField):
+    # Narrows the inherited `data: str | None` for static type checkers
+    data: InterpolationStatement | None
+
+    def process_formdata(self, valuelist: list[str]) -> None:
+        if valuelist:
+            self.data = InterpolationStatement(valuelist[0])
+        else:
+            self.data = None
+
+    def process_data(self, value: object) -> None:
+        self.data = None if value is None else InterpolationStatement(value)
