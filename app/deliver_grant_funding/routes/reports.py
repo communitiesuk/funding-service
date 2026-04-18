@@ -97,7 +97,7 @@ from app.common.expressions.forms import (
     _ManagedExpressionForm,
     build_managed_expression_form,
 )
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import AllSubmissionsHelper, SubmissionHelper
@@ -1041,7 +1041,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
         try:
             add_another = False if skip_add_another else (wt_form.question_group_is_add_another.data == "yes")
             group = create_group(
-                text=add_question_group.group_name,
+                text=InterpolationStatement(add_question_group.group_name),
                 form=form,
                 parent=parent,
                 presentation_options=QuestionPresentationOptions(
@@ -1333,8 +1333,8 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
 
             question = create_question(
                 form=form,
-                text=wt_form.text.data,
-                hint=wt_form.hint.data,
+                text=InterpolationStatement(wt_form.text.data),
+                hint=InterpolationStatement(wt_form.hint.data),
                 name=wt_form.name.data,
                 data_type=question_data_type_enum,
                 items=wt_form.normalised_data_source_items,
@@ -1765,8 +1765,8 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
                 expression_context=ExpressionContext.build_expression_context(
                     collection=question.form.collection, mode="interpolation"
                 ),
-                text=wt_form.text.data,
-                hint=wt_form.hint.data,
+                text=InterpolationStatement(wt_form.text.data),
+                hint=InterpolationStatement(wt_form.hint.data),
                 name=wt_form.name.data,
                 items=wt_form.normalised_data_source_items,
                 presentation_options=QuestionPresentationOptions.from_question_form(wt_form),

@@ -35,7 +35,7 @@ from app.common.forms.fields import EvaluationStatementField, InterpolationState
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Expression, Group
+    from app.common.data.models import Component, Expression, Group, Question
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -266,7 +266,7 @@ def _validate_custom_syntax(  # noqa:C901
         if expression_type == ExpressionType.VALIDATION:
             if component.is_question:
                 references_to_self_count = cast(InterpolationStatement, statement).count_references(
-                    ExpressionReference.from_question(component)
+                    ExpressionReference.from_question(cast(Question, component))
                 )
                 if references_to_self_count != 1:
                     raise DisallowedExpression(

@@ -17,10 +17,10 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
 )
-from app.common.expressions import EvaluationStatement, ExpressionContext
+from app.common.expressions import ExpressionContext
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
-from app.common.expressions.references import ExpressionReference, InterpolationStatement
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.metrics import MetricEventName
 
@@ -165,8 +165,8 @@ def test_special_radio_field_enhancement_to_autocomplete(factories, app, db_sess
     q = create_question(
         expression_context=EC(),
         form=form,
-        text="Question text",
-        hint="Question hint",
+        text=InterpolationStatement("Question text"),
+        hint=InterpolationStatement("Question hint"),
         name="question",
         data_type=QuestionDataType.RADIOS,
         items=[str(i) for i in range(25)],

@@ -28,6 +28,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.references import InterpolationStatement
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
@@ -917,7 +918,7 @@ class TestDeleteDataSource:
         )
         db_session.flush()
 
-        question.text = "Static text with no reference"
+        question.text = InterpolationStatement("Static text with no reference")
         _validate_and_sync_component_references(
             question,
             ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),

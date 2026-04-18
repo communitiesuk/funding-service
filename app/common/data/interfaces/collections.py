@@ -610,8 +610,8 @@ def _update_data_source(question: Question, items: list[str]) -> None:
 def create_question(
     form: Form,
     *,
-    text: str,
-    hint: str,
+    text: InterpolationStatement,
+    hint: InterpolationStatement,
     name: str,
     data_type: QuestionDataType,
     expression_context: ExpressionContext,
@@ -697,7 +697,7 @@ def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -
 def create_group(
     form: Form,
     *,
-    text: str,
+    text: InterpolationStatement,
     name: str | None = None,
     parent: Group | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
@@ -1300,15 +1300,16 @@ def update_group(  # noqa: C901
     *,
     name: str | TNotProvided = NOT_PROVIDED,
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
-    guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
-    guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    guidance_heading: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
+    guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     add_another: bool | TNotProvided = NOT_PROVIDED,
-    add_another_guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    add_another_guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name
-        group.text = name
+        # `name` stays str (it's the group's name/slug source); wrap once for the text column.
+        group.text = InterpolationStatement(name)
         group.slug = slugify(name)
 
     if presentation_options is not NOT_PROVIDED:
@@ -1378,13 +1379,13 @@ def update_question(
     question: Question,
     expression_context: ExpressionContext,
     *,
-    text: str | TNotProvided = NOT_PROVIDED,
+    text: InterpolationStatement | TNotProvided = NOT_PROVIDED,
     name: str | TNotProvided = NOT_PROVIDED,
-    hint: str | None | TNotProvided = NOT_PROVIDED,
+    hint: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     items: list[str] | None | TNotProvided = NOT_PROVIDED,
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
-    guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
-    guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    guidance_heading: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
+    guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
     data_options: QuestionDataOptions | TNotProvided = NOT_PROVIDED,
 ) -> Question:
