@@ -30,7 +30,7 @@ from wtforms.validators import DataRequired, InputRequired, Optional, ReadOnly, 
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import EvaluatableExpression
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
 from app.common.filters import format_date_approximate, format_date_short
 from app.common.forms.fields import DecimalWithCommasField, MHCLGApproximateDateInput
@@ -241,16 +241,16 @@ class GreaterThan(ManagedExpression):
         return f"Is greater than{' or equal to' if self.inclusive else ''}"
 
     @property
-    def message(self) -> str:
-        return (
+    def message(self) -> InterpolationStatement:
+        return InterpolationStatement(
             f"The answer must be greater than {'or equal to ' if self.inclusive else ''}"
             + f"{self.minimum_expression.wrapped if self.minimum_expression else self.minimum_value}"
         )
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         min_value_for_stmt = f"Decimal('{self.minimum_value}')"
-        return (
+        return EvaluationStatement(
             f"{self.subject_reference.unwrapped} >{'=' if self.inclusive else ''} "
             + f"{self.minimum_expression.unwrapped if self.minimum_expression else min_value_for_stmt}"
         )
@@ -349,16 +349,16 @@ class LessThan(ManagedExpression):
         return f"Is less than{' or equal to' if self.inclusive else ''}"
 
     @property
-    def message(self) -> str:
-        return (
+    def message(self) -> InterpolationStatement:
+        return InterpolationStatement(
             f"The answer must be less than {'or equal to ' if self.inclusive else ''}"
             + f"{self.maximum_expression.wrapped if self.maximum_expression else self.maximum_value}"
         )
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         max_value_for_stmt = f"Decimal('{self.maximum_value}')"
-        return (
+        return EvaluationStatement(
             f"{self.subject_reference.unwrapped} <{'=' if self.inclusive else ''} "
             + f"{self.maximum_expression.unwrapped if self.maximum_expression else max_value_for_stmt}"
         )
@@ -456,8 +456,8 @@ class Between(ManagedExpression):
         return "Is between"
 
     @property
-    def message(self) -> str:
-        return (
+    def message(self) -> InterpolationStatement:
+        return InterpolationStatement(
             "The answer must be between "
             + f"{self.minimum_expression.wrapped if self.minimum_expression else self.minimum_value}"
             + f"{' (inclusive)' if self.minimum_inclusive else ' (exclusive)'} and "
@@ -466,10 +466,10 @@ class Between(ManagedExpression):
         )
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         max_value_for_stmt = f"Decimal('{self.maximum_value}')"
         min_value_for_stmt = f"Decimal('{self.minimum_value}')"
-        return (
+        return EvaluationStatement(
             f"{self.minimum_expression.unwrapped if self.minimum_expression else min_value_for_stmt} "
             f"<{'=' if self.minimum_inclusive else ''} "
             f"{self.subject_reference.unwrapped} "
@@ -619,16 +619,16 @@ class AnyOf(BaseDataSourceManagedExpression):
         return "any of"
 
     @property
-    def message(self) -> str:
+    def message(self) -> InterpolationStatement:
         if len(self.items) == 1:
-            return f"The answer is “{self.items[0]['label']}”"
+            return InterpolationStatement(f"The answer is “{self.items[0]['label']}”")
 
-        return f"The answer is one of “{'”, “'.join(c['label'] for c in self.items)}”"
+        return InterpolationStatement(f"The answer is one of “{'”, “'.join(c['label'] for c in self.items)}”")
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         item_keys = {str(item["key"]) for item in self.items}
-        return f"{self.subject_reference.unwrapped} in {item_keys}"
+        return EvaluationStatement(f"{self.subject_reference.unwrapped} in {item_keys}")
 
     @staticmethod
     def get_form_fields(
@@ -688,12 +688,12 @@ class IsYes(ManagedExpression):
         return "is yes"
 
     @property
-    def message(self) -> str:
-        return "The answer is “yes”"
+    def message(self) -> InterpolationStatement:
+        return InterpolationStatement("The answer is “yes”")
 
     @property
-    def statement(self) -> str:
-        return f"{self.subject_reference.unwrapped} is True"
+    def statement(self) -> EvaluationStatement:
+        return EvaluationStatement(f"{self.subject_reference.unwrapped} is True")
 
     @staticmethod
     def get_form_fields(
@@ -724,12 +724,12 @@ class IsNo(ManagedExpression):
         return "is no"
 
     @property
-    def message(self) -> str:
-        return "The answer is “no”"
+    def message(self) -> InterpolationStatement:
+        return InterpolationStatement("The answer is “no”")
 
     @property
-    def statement(self) -> str:
-        return f"{self.subject_reference.unwrapped} is False"
+    def statement(self) -> EvaluationStatement:
+        return EvaluationStatement(f"{self.subject_reference.unwrapped} is False")
 
     @staticmethod
     def get_form_fields(
@@ -762,13 +762,13 @@ class Specifically(BaseDataSourceManagedExpression):
         return "specifically"
 
     @property
-    def message(self) -> str:
-        return f"The answer is “{self.item['label']}”"
+    def message(self) -> InterpolationStatement:
+        return InterpolationStatement(f"The answer is “{self.item['label']}”")
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         # TODO: This a bit fragile - another reason for referencing a data source item?
-        return f"{self.item['key']!r} in {self.subject_reference.unwrapped}"
+        return EvaluationStatement(f"{self.item['key']!r} in {self.subject_reference.unwrapped}")
 
     @staticmethod
     def get_form_fields(
@@ -829,19 +829,20 @@ class IsBefore(ManagedExpression):
         return f"Is {'on or ' if self.inclusive else ''}before"
 
     @property
-    def message(self) -> str:
+    def message(self) -> InterpolationStatement:
         if self.latest_value:
             formatted_latest_value = (
                 format_date_short(self.latest_value)
                 if not self.subject_reference.presentation_options.approximate_date
                 else format_date_approximate(self.latest_value)
             )
-        return f"The answer must be {'on or ' if self.inclusive else ''}before " + (
-            self.latest_expression.wrapped if self.latest_expression else formatted_latest_value
+        return InterpolationStatement(
+            f"The answer must be {'on or ' if self.inclusive else ''}before "
+            + (self.latest_expression.wrapped if self.latest_expression else formatted_latest_value)
         )
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         if not self.latest_expression:
             assert self.latest_value
         date_expression = (
@@ -849,7 +850,9 @@ class IsBefore(ManagedExpression):
             if self.latest_expression
             else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
-        return f"{self.subject_reference.unwrapped} <{'=' if self.inclusive else ''} {date_expression}"
+        return EvaluationStatement(
+            f"{self.subject_reference.unwrapped} <{'=' if self.inclusive else ''} {date_expression}"
+        )
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
@@ -953,25 +956,28 @@ class IsAfter(ManagedExpression):
         return f"Is {'on or ' if self.inclusive else ''}after"
 
     @property
-    def message(self) -> str:
+    def message(self) -> InterpolationStatement:
         if self.earliest_value:
             formatted_earliest_value = (
                 format_date_short(self.earliest_value)
                 if not self.subject_reference.presentation_options.approximate_date
                 else format_date_approximate(self.earliest_value)
             )
-        return f"The answer must be {'on or ' if self.inclusive else ''}after " + (
-            self.earliest_expression.wrapped if self.earliest_expression else formatted_earliest_value
+        return InterpolationStatement(
+            f"The answer must be {'on or ' if self.inclusive else ''}after "
+            + (self.earliest_expression.wrapped if self.earliest_expression else formatted_earliest_value)
         )
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         date_expression = (
             self.earliest_expression.unwrapped
             if self.earliest_expression
             else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # type: ignore[union-attr]
         )
-        return f"{self.subject_reference.unwrapped} >{'=' if self.inclusive else ''} {date_expression}"
+        return EvaluationStatement(
+            f"{self.subject_reference.unwrapped} >{'=' if self.inclusive else ''} {date_expression}"
+        )
 
     @property
     def expression_referenced_question_ids(self) -> list[UUID]:
@@ -1078,7 +1084,7 @@ class BetweenDates(ManagedExpression):
         return "Is between"
 
     @property
-    def message(self) -> str:
+    def message(self) -> InterpolationStatement:
         if self.earliest_value:
             formatted_earliest_value = (
                 format_date_short(self.earliest_value)
@@ -1091,7 +1097,7 @@ class BetweenDates(ManagedExpression):
                 if not self.subject_reference.presentation_options.approximate_date
                 else format_date_approximate(self.latest_value)
             )
-        return (
+        return InterpolationStatement(
             "The answer must be between "
             + (self.earliest_expression.wrapped if self.earliest_expression else formatted_earliest_value)
             + f"{' (inclusive)' if self.earliest_inclusive else ' (exclusive)'} and "
@@ -1100,7 +1106,7 @@ class BetweenDates(ManagedExpression):
         )
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         earliest_date_expression = (
             self.earliest_expression.unwrapped
             if self.earliest_expression
@@ -1111,7 +1117,7 @@ class BetweenDates(ManagedExpression):
             if self.latest_expression
             else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # type: ignore[union-attr]
         )
-        return (
+        return EvaluationStatement(
             f"{earliest_date_expression} "
             + f"<{'=' if self.earliest_inclusive else ''} "
             + f"{self.subject_reference.unwrapped} "
@@ -1274,12 +1280,12 @@ class UKPostcode(ManagedExpression):
         return "Must be a UK postcode"
 
     @property
-    def message(self) -> str:
-        return "The answer must be a UK postcode"
+    def message(self) -> InterpolationStatement:
+        return InterpolationStatement("The answer must be a UK postcode")
 
     @property
-    def statement(self) -> str:
-        return f"uk_postcode_match({self.subject_reference.unwrapped})"
+    def statement(self) -> EvaluationStatement:
+        return EvaluationStatement(f"uk_postcode_match({self.subject_reference.unwrapped})")
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
