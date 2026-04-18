@@ -2300,14 +2300,14 @@ class TestMoveComponent:
         # q3 can't move above its dependency q2
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(q3)
-        assert e.value.question == q3  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q3
+        assert e.value.depends_on_question == q2
 
         # q2 can't move below q3 which depends on it
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(q2)
-        assert e.value.question == q3  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q3
+        assert e.value.depends_on_question == q2
 
         # q1 can freely move up and down as it has no dependencies
         move_component_down(q1)
@@ -2336,14 +2336,14 @@ class TestMoveComponent:
         # q3 can't move above its dependency q2
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(q3)
-        assert e.value.question == q3  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q3
+        assert e.value.depends_on_question == q2
 
         # q2 can't move below q3 which depends on it
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(q2)
-        assert e.value.question == q3  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q3
+        assert e.value.depends_on_question == q2
 
         # q1 can freely move up and down as it has no dependencies
         move_component_down(q1)
@@ -2365,14 +2365,14 @@ class TestMoveComponent:
         # group can't move above its dependency q2
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(group)
-        assert e.value.question == group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == group
+        assert e.value.depends_on_question == q2
 
         # q2 can't move below group which depends on it
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(q2)
-        assert e.value.question == group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == group
+        assert e.value.depends_on_question == q2
 
         # q1 can freely move up and down as it has no dependencies
         move_component_down(q1)
@@ -2398,14 +2398,14 @@ class TestMoveComponent:
         # group can't move above its dependency q2
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(group)
-        assert e.value.question == group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == group
+        assert e.value.depends_on_question == q2
 
         # q2 can't move below group which depends on it
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(q2)
-        assert e.value.question == group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == group
+        assert e.value.depends_on_question == q2
 
         # q1 can freely move up and down as it has no dependencies
         move_component_down(q1)
@@ -2433,13 +2433,13 @@ class TestMoveComponent:
         # you can't move a group above a question that something in the group depends on
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(group)
-        assert e.value.question == group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+        assert e.value.question == group
+        assert e.value.depends_on_question == q1
 
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(q1)
-        assert e.value.question == group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+        assert e.value.question == group
+        assert e.value.depends_on_question == q1
 
     def test_move_question_with_group_dependencies(db_session, factories):
         form = factories.form.create()
@@ -2460,13 +2460,13 @@ class TestMoveComponent:
         # you can't move a question above a group that it depends on a question in
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(q2)
-        assert e.value.question == q2  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q2
+        assert e.value.depends_on_question == group
 
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(group)
-        assert e.value.question == q2  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q2
+        assert e.value.depends_on_question == group
 
     def test_move_group_with_group_dependencies(db_session, factories):
         form = factories.form.create()
@@ -2489,13 +2489,13 @@ class TestMoveComponent:
         # you can't move a group above a question in a group that it depends on
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(group2)
-        assert e.value.question == group2  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == group2
+        assert e.value.depends_on_question == group
 
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(group)
-        assert e.value.question == group2  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == group2
+        assert e.value.depends_on_question == group
 
 
 class TestNestedGroupDependencies:
@@ -2523,13 +2523,13 @@ class TestNestedGroupDependencies:
         # you can't move a nested group above a question it depends on
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(child_group)
-        assert e.value.question == child_group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q1_in_parent_group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == child_group
+        assert e.value.depends_on_question == q1_in_parent_group
 
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(q1_in_parent_group)
-        assert e.value.question == child_group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q1_in_parent_group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == child_group
+        assert e.value.depends_on_question == q1_in_parent_group
 
     def test_move_question_with_dependencies_on_nested_group(db_session, factories):
         form = factories.form.create()
@@ -2558,13 +2558,13 @@ class TestNestedGroupDependencies:
         # you can't move a nested group below a quetsion that depends on it
         with pytest.raises(DependencyOrderException) as e:
             move_component_down(child_group)
-        assert e.value.question == q2_in_parent_group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == child_group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q2_in_parent_group
+        assert e.value.depends_on_question == child_group
 
         with pytest.raises(DependencyOrderException) as e:
             move_component_up(q2_in_parent_group)
-        assert e.value.question == q2_in_parent_group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == child_group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q2_in_parent_group
+        assert e.value.depends_on_question == child_group
 
     def test_delete_depended_on_nested_group(db_session, factories):
         form = factories.form.create()
@@ -2592,8 +2592,8 @@ class TestNestedGroupDependencies:
         # you can't delete a nested group that a quetsion depends on
         with pytest.raises(DependencyOrderException) as e:
             delete_question(child_group)
-        assert e.value.question == q2_in_parent_group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == child_group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q2_in_parent_group
+        assert e.value.depends_on_question == child_group
 
     def test_delete_question_depended_on_by_nested_group(db_session, factories):
         form = factories.form.create()
@@ -2619,8 +2619,8 @@ class TestNestedGroupDependencies:
         # You can't delete a question that is depended on by a question in a nested group
         with pytest.raises(DependencyOrderException) as e:
             delete_question(q1_in_parent_group)
-        assert e.value.question == q1_in_child_group  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q1_in_parent_group  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q1_in_child_group
+        assert e.value.depends_on_question == q1_in_parent_group
 
 
 class TestDependencyExceptionHelpers:
@@ -2652,8 +2652,8 @@ class TestDependencyExceptionHelpers:
 
         with pytest.raises(DependencyOrderException) as e:
             raise_if_component_or_section_has_any_dependencies(q1)
-        assert e.value.question == q2  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q2
+        assert e.value.depends_on_question == q1
 
     def test_raise_if_group_has_any_dependencies(db_session, factories):
         form = factories.form.create()
@@ -2679,7 +2679,7 @@ class TestDependencyExceptionHelpers:
         with pytest.raises(DependencyOrderException) as e:
             raise_if_component_or_section_has_any_dependencies(group)
 
-        assert e.value.question == q2  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q2
         assert e.value.depends_on_question == group  # ty: ignore[unresolved
 
     def test_raise_if_section_has_any_dependencies(db_session, factories):
@@ -2728,8 +2728,8 @@ class TestDependencyExceptionHelpers:
 
         with pytest.raises(DependencyOrderException) as e:
             raise_if_group_questions_depend_on_each_other(group)
-        assert e.value.question == q2  # ty: ignore[unresolved-attribute]
-        assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
+        assert e.value.question == q2
+        assert e.value.depends_on_question == q1
 
     def test_raise_if_radios_data_source_item_reference_dependency(db_session, factories):
         form = factories.form.create()
