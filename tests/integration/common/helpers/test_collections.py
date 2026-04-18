@@ -528,7 +528,7 @@ class TestSubmissionHelper:
                     FactoryAnswer(q1, TextSingleLineAnswer("answer")),
                     FactoryAnswer(q2, TextMultiLineAnswer("answer\nthis")),
                     FactoryAnswer(q3, IntegerAnswer(value=50)),
-                    FactoryAnswer(q4, YesNoAnswer(True)),  # ty: ignore[missing-argument]
+                    FactoryAnswer(q4, YesNoAnswer(True)),
                     FactoryAnswer(q5, SingleChoiceFromListAnswer(key="my-key", label="My label")),
                     FactoryAnswer(q6, TextSingleLineAnswer("name@example.com")),
                     FactoryAnswer(q7, TextSingleLineAnswer("https://example.com")),
@@ -695,7 +695,7 @@ class TestSubmissionHelper:
                     FactoryAnswer(q1, TextSingleLineAnswer("answer")),
                     FactoryAnswer(q2, TextMultiLineAnswer("answer\nthis")),
                     FactoryAnswer(q3, IntegerAnswer(value=50)),
-                    FactoryAnswer(q4, YesNoAnswer(True)),  # ty: ignore[missing-argument]
+                    FactoryAnswer(q4, YesNoAnswer(True)),
                     FactoryAnswer(q5, SingleChoiceFromListAnswer(key="my-key", label="My label")),
                     FactoryAnswer(q6, TextSingleLineAnswer("name@example.com")),
                     FactoryAnswer(q7, TextSingleLineAnswer("https://example.com")),
