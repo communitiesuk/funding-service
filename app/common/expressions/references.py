@@ -315,6 +315,19 @@ class ExpressionStatement(PExpressionReferences, str):
         """Returns the number of times the given reference appears in the statement."""
         return sum(1 for ref in self._all_references if ref == reference)
 
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        def _from_str(value: str) -> ExpressionStatement:
+            if isinstance(value, cls):
+                return value
+            return cls(value)
+
+        return core_schema.no_info_after_validator_function(
+            _from_str,
+            core_schema.str_schema(),
+            serialization=core_schema.plain_serializer_function_ser_schema(str),
+        )
+
 
 class EvaluationStatement(ExpressionStatement):
     """A Python-like expression to evaluate, with unwrapped references (e.g. ``q_abc > 100``).

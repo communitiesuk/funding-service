@@ -6,7 +6,7 @@ from app.common.collections.types import IntegerAnswer, YesNoAnswer
 from app.common.collections.validation import SubmissionValidator
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType, QuestionPresentationOptions
 from app.common.exceptions import SubmissionValidationFailed
-from app.common.expressions import ExpressionReference
+from app.common.expressions import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.expressions.custom import CustomExpression
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
@@ -318,8 +318,8 @@ class TestSubmissionValidator:
         )
 
         custom = CustomExpression(
-            custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) == 100",
-            custom_message="Total must be 100",
+            custom_expression=EvaluationStatement(f"(({q1.safe_qid})) + (({q2.safe_qid})) == 100"),
+            custom_message=InterpolationStatement("Total must be 100"),
         )
         factories.expression.build(
             question=group,
@@ -368,8 +368,8 @@ class TestSubmissionValidator:
         )
 
         custom = CustomExpression(
-            custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) == 100",
-            custom_message="Total must be 100",
+            custom_expression=EvaluationStatement(f"(({q1.safe_qid})) + (({q2.safe_qid})) == 100"),
+            custom_message=InterpolationStatement("Total must be 100"),
         )
         factories.expression.build(
             question=inner_group,
