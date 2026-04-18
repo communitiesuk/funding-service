@@ -69,6 +69,11 @@ from app.common.expressions.custom import CustomExpression, get_custom_expressio
 from app.common.expressions.managed import (
     get_managed_expression,
 )
+from app.common.expressions.references import (
+    CIInterpolationStatementType,
+    EvaluationStatement,
+    InterpolationStatement,
+)
 from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import comma_join_items
 
@@ -662,10 +667,10 @@ def get_ordered_nested_components(components: list[Component]) -> list[Component
 class Component(BaseModel):
     __tablename__ = "component"
 
-    text: Mapped[CIStr]
+    text: Mapped[InterpolationStatement] = mapped_column(CIInterpolationStatementType())
     slug: Mapped[str]
     order: Mapped[int]
-    hint: Mapped[str | None]
+    hint: Mapped[InterpolationStatement | None]
     data_type: Mapped[QuestionDataType | None] = mapped_column(
         SqlEnum(
             QuestionDataType,
@@ -689,9 +694,9 @@ class Component(BaseModel):
     )
     parent_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"))
     data_source_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("data_source.id"))
-    guidance_heading: Mapped[str | None]
-    guidance_body: Mapped[str | None]
-    add_another_guidance_body: Mapped[str | None]
+    guidance_heading: Mapped[InterpolationStatement | None]
+    guidance_body: Mapped[InterpolationStatement | None]
+    add_another_guidance_body: Mapped[InterpolationStatement | None]
     add_another: Mapped[bool] = mapped_column(default=False)
     conditions_operator: Mapped[ConditionsOperator] = mapped_column(
         SqlEnum(ConditionsOperator, name="conditions_operator_enum", validate_strings=True),
@@ -1114,7 +1119,7 @@ class SubmissionEvent(BaseModel):
 class Expression(BaseModel):
     __tablename__ = "expression"
 
-    statement: Mapped[str]
+    statement: Mapped[EvaluationStatement]
 
     context: Mapped[json_flat_scalars] = mapped_column(mutable_json_type(dbtype=JSONB, nested=True))
 

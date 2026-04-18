@@ -21,7 +21,11 @@ from app.common.data.types import (
     SubmissionStatusEnum,
 )
 from app.common.expressions.managed import GreaterThan, Specifically
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import (
+    EvaluationStatement,
+    ExpressionReference,
+    InterpolationStatement,
+)
 from tests.models import FactoryAnswer
 
 
@@ -142,6 +146,27 @@ class TestGrantModel:
 
 
 class TestComponentModel:
+    def test_interpolation_fields_round_trip_as_interpolation_statements(self, db_session, factories):
+        question = factories.question.create(
+            text="What is your name?",
+            hint="Your hint here",
+            guidance_heading="Heading",
+            guidance_body="Some guidance body text",
+        )
+        db_session.expire_all()
+        reloaded = db_session.get(type(question), question.id)
+        assert isinstance(reloaded.text, InterpolationStatement)
+        assert isinstance(reloaded.hint, InterpolationStatement)
+        assert isinstance(reloaded.guidance_heading, InterpolationStatement)
+        assert isinstance(reloaded.guidance_body, InterpolationStatement)
+
+    def test_expression_statement_round_trips_as_evaluation_statement(self, db_session, factories):
+        expression = factories.expression.create(statement="q_abc > 1", type_=ExpressionType.CONDITION)
+        db_session.expire_all()
+        reloaded = db_session.get(Expression, expression.id)
+        assert isinstance(reloaded.statement, EvaluationStatement)
+        assert reloaded.statement == "q_abc > 1"
+
     def test_is_descendant_of(self, factories):
         parent_group = factories.group.create()
         child_group = factories.group.create(parent=parent_group)
