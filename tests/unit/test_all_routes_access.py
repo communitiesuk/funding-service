@@ -382,7 +382,7 @@ def test_accessibility_for_user_role_to_each_endpoint(app, subtests):  # noqa: C
             else:
                 raise pytest.fail(
                     f"Unexpected endpoint {rule.endpoint}. Add this to the expected_route_access mapping."
-                )  # ty: ignore[call-non-callable]
+                )
 
             if rule.endpoint in routes_with_expected_collection_is_editable_decorator:
                 assert "@collection_is_editable(" in " ".join(decorators)
