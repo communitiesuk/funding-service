@@ -42,7 +42,7 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.exceptions import RedirectException
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.filters import (
     format_date,
     format_date_approximate,
@@ -302,8 +302,12 @@ def create_app() -> Flask:  # noqa: C901
     def get_current_env_name() -> str:
         return str(current_app.config["FLASK_ENV"].value)
 
+    def as_interpolation_statement(statement: str) -> InterpolationStatement:
+        return InterpolationStatement(statement)
+
     app.jinja_env.filters["comma_join_items"] = comma_join_items
     app.jinja_env.filters["uppercase_first"] = uppercase_first
+    app.jinja_env.filters["as_interpolation_statement"] = as_interpolation_statement
     app.jinja_env.globals["csrf_token"] = generate_csrf  # ty: ignore[invalid-assignment]
 
     @app.context_processor

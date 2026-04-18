@@ -9,14 +9,14 @@
     <p class="govuk-body govuk-!-font-weight-bold">{{ error.message }}</p>
     <p class="govuk-body govuk-!-font-weight-bold">
       {{ "Question group" if error.question_is_group else "Question" }}:
-      <a class="govuk-notification-banner__link" href="{{ question_link }}">{{ interpolate(error.question_text) }}</a>
+      <a class="govuk-notification-banner__link" href="{{ question_link }}">{{ interpolate(error.question_text | as_interpolation_statement) }}</a>
     </p>
     <p class="govuk-body govuk-!-font-weight-bold">
       Depends on the answer to:
-      <a class="govuk-notification-banner__link" href="{{ depends_on_link }}">{{ interpolate(error.depends_on_question_text) }}</a>
+      <a class="govuk-notification-banner__link" href="{{ depends_on_link }}">{{ interpolate(error.depends_on_question_text | as_interpolation_statement) }}</a>
     </p>
     {% if "depends_on_items_text" in error %}
-      <p class="govuk-body govuk-!-font-weight-bold">Depends on the options: {{ interpolate(error.depends_on_items_text) }}</p>
+      <p class="govuk-body govuk-!-font-weight-bold">Depends on the options: {{ interpolate(error.depends_on_items_text | as_interpolation_statement) }}</p>
     {% endif %}
   {% endset %}
 
@@ -52,7 +52,7 @@
         {% set section_link = url_for("deliver_grant_funding.list_section_questions", grant_id=error.grant_id, form_id=ref.section_id) %}
         <li class="govuk-body govuk-!-font-weight-bold">
           {% if ref.reference_type in ("validation", "condition") %}{{ ref.reference_type | uppercase_first }} for{% endif %}
-          <a class="govuk-notification-banner__link" href="{{ component_link }}">{{ interpolate(ref.component_text) }}</a>
+          <a class="govuk-notification-banner__link" href="{{ component_link }}">{{ interpolate(ref.component_text | as_interpolation_statement) }}</a>
           in
           <a class="govuk-notification-banner__link" href="{{ section_link }}">{{ ref.section_title }}</a>
         </li>

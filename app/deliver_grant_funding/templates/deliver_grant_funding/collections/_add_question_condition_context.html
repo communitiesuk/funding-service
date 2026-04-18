@@ -17,7 +17,7 @@
       "value": { "text": interpolate(component.text) },
     }, {
       "key": { "text": "Depends on" },
-      "value": { "html": depends_on_html } if not subject_reference else { "text": interpolate(subject_reference.question.text if subject_reference.question else subject_reference.label, with_interpolation_highlighting=True) },
+      "value": { "html": depends_on_html } if not subject_reference else { "text": interpolate(subject_reference.question.text if subject_reference.question else (subject_reference.label | as_interpolation_statement), with_interpolation_highlighting=True) },
     }],
     "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
   })
