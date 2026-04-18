@@ -14,7 +14,12 @@ from pydantic import BaseModel
 from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.exceptions import WTFormRenderableException
-from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
+from app.common.expressions.references import (
+    EvaluationStatement,
+    ExpressionReference,
+    ExpressionStatement,
+    InterpolationStatement,
+)
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
@@ -617,7 +622,11 @@ def run_evaluation(evaluator: simpleeval.SimpleEval, statement: str) -> Any:
         raise UndefinedOperatorInExpression(e.message, e.attr) from e
 
 
-def _evaluate_expression_with_context(expression: Expression, context: ExpressionContext | None = None) -> Any:
+def _evaluate_expression_with_context(
+    statement: ExpressionStatement,
+    context: ExpressionContext | None = None,
+    required_functions: dict[str, Callable] | None = None,
+) -> Any:
     """
     The base evaluator to use for handling all expressions.
 
@@ -628,42 +637,43 @@ def _evaluate_expression_with_context(expression: Expression, context: Expressio
     The addition of any new AST nodes should be well-tested and intentional consideration should be given to any
     ways of exploit or misuse.
     """
-    if context is None:
-        context = ExpressionContext()
-    context.expression_context = expression.context or {}
+    evaluator = get_restricted_evaluator(names=context, required_functions=required_functions or {})
 
-    evaluator = get_restricted_evaluator(names=context, required_functions=expression.required_functions)
-
-    result = run_evaluation(evaluator, expression.statement)
+    result = run_evaluation(evaluator, statement)
 
     return result
 
 
 @overload
 def interpolate(
-    text: str | None, context: ExpressionContext | None, *, with_interpolation_highlighting: Literal[False] = False
+    text: InterpolationStatement | None,
+    context: ExpressionContext | None,
+    *,
+    with_interpolation_highlighting: Literal[False] = False,
 ) -> str: ...
 
 
 @overload
 def interpolate(
-    text: str | None, context: ExpressionContext | None, *, with_interpolation_highlighting: Literal[True]
+    text: InterpolationStatement | None,
+    context: ExpressionContext | None,
+    *,
+    with_interpolation_highlighting: Literal[True],
 ) -> Markup: ...
 
 
 def interpolate(
-    text: str | None, context: ExpressionContext | None, *, with_interpolation_highlighting: bool = False
+    text: InterpolationStatement | None,
+    context: ExpressionContext | None,
+    *,
+    with_interpolation_highlighting: bool = False,
 ) -> str | Markup:
-    from app.common.data.models import Expression
-
     if text is None:
         return "" if not with_interpolation_highlighting else Markup("")
 
     def _interpolate(matchobj: re.Match[Any]) -> str:
-        expr = Expression(statement=matchobj.group(0))
-
         try:
-            value = _evaluate_expression_with_context(expr, context)
+            value = _evaluate_expression_with_context(matchobj.group(0), context)
             if with_interpolation_highlighting:
                 return f'<span class="app-context-aware-editor--valid-reference">{escape(value)}</span>'
         except (
@@ -676,10 +686,7 @@ def interpolate(
 
         return str(value)
 
-    result = INTERPOLATE_REGEX.sub(
-        _interpolate,
-        text,
-    )
+    result = text.interpolate(_interpolate)
 
     if with_interpolation_highlighting:
         return Markup(result)
@@ -687,7 +694,7 @@ def interpolate(
 
 
 def evaluate(expression: Expression, context: ExpressionContext | None = None) -> bool:
-    result = _evaluate_expression_with_context(expression, context)
+    result = _evaluate_expression_with_context(expression.statement, context, expression.required_functions)
 
     # do we want these to evalaute to non-bool types like int/str ever?
     if not isinstance(result, bool):

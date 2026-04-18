@@ -127,12 +127,11 @@ class TestGreaterThanExpression:
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
-            expr.subject_reference.unwrapped: answer,
             "subject_reference": expr.subject_reference,
             "minimum_value": expr.minimum_value,
             "inclusive": expr.inclusive,
         }
-        assert evaluate(expression) is expected_result
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     @pytest.mark.parametrize(
         "inclusive, minimum_value, answer, expected_result",
@@ -167,11 +166,21 @@ class TestGreaterThanExpression:
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             "subject_reference": expr.subject_reference,
-            referenced_question.safe_qid: minimum_value,
-            target_question.safe_qid: answer,
             "minimum_value": expr.minimum_value,
         }
-        assert evaluate(expression) is expected_result
+
+        assert (
+            evaluate(
+                expression,
+                ExpressionContext(
+                    {
+                        ExpressionReference.from_question(referenced_question): minimum_value,
+                        ExpressionReference.from_question(target_question): answer,
+                    }
+                ),
+            )
+            is expected_result
+        )
 
     def test_expression_referenced_question_ids(self, factories):
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
@@ -214,11 +223,10 @@ class TestLessThanExpression:
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
-            expr.subject_reference.unwrapped: answer,
             "subject_reference": expr.subject_reference,
             "maximum_value": expr.maximum_value,
         }
-        assert evaluate(expression) is expected_result
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     @pytest.mark.parametrize(
         "inclusive, maximum_value, answer, expected_result",
@@ -253,11 +261,20 @@ class TestLessThanExpression:
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             "subject_reference": expr.subject_reference,
-            referenced_question.safe_qid: maximum_value,
-            target_question.safe_qid: answer,
             "maximum_value": expr.maximum_value,
         }
-        assert evaluate(expression) is expected_result
+        assert (
+            evaluate(
+                expression,
+                ExpressionContext(
+                    {
+                        ExpressionReference.from_question(referenced_question): maximum_value,
+                        ExpressionReference.from_question(target_question): answer,
+                    }
+                ),
+            )
+            is expected_result
+        )
 
     def test_expression_referenced_question_ids(self, factories):
         referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
@@ -312,14 +329,13 @@ class TestBetweenExpression:
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, factories.user.build())
         expression.context = {
-            expr.subject_reference.unwrapped: answer,
             "subject_reference": expr.subject_reference,
             "maximum_value": expr.maximum_value,
             "minimum_value": expr.maximum_value,
             "minimum_inclusive": expr.minimum_inclusive,
             "maximum_inclusive": expr.maximum_inclusive,
         }
-        assert evaluate(expression) is expected_result
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     @pytest.mark.parametrize(
         "minimum_value,minimum_inclusive,maximum_value, maximum_inclusive, answer, expected_result",
@@ -374,12 +390,21 @@ class TestBetweenExpression:
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             "subject_reference": expr.subject_reference,
-            referenced_question.safe_qid: maximum_value,
-            target_question.safe_qid: answer,
             "minimum_value": expr.minimum_value,
             "maximum_value": expr.maximum_value,
         }
-        assert evaluate(expression) is expected_result
+        assert (
+            evaluate(
+                expression,
+                ExpressionContext(
+                    {
+                        ExpressionReference.from_question(referenced_question): maximum_value,
+                        ExpressionReference.from_question(target_question): answer,
+                    }
+                ),
+            )
+            is expected_result
+        )
 
     def test_expression_referenced_question_ids(self, factories):
         first_referenced_question = factories.question.create(data_type=QuestionDataType.NUMBER)
@@ -415,10 +440,8 @@ class TestAnyOfExpression:
     )
     def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool, factories):
         expr = AnyOf(subject_reference=ExpressionReference.from_question(factories.question.build()), items=items)
-        assert (
-            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answer}))
-            is expected_result
-        )
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.build())
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     def test_needs_a_question_subject_reference(self, factories):
         collection = factories.collection.create()
@@ -448,10 +471,8 @@ class TestIsYesExpression:
     )
     def test_evaluate(self, answer: str, expected_result: bool, factories):
         expr = IsYes(subject_reference=ExpressionReference.from_question(factories.question.build()))
-        assert (
-            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answer}))
-            is expected_result
-        )
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.build())
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
 
 class TestIsNoExpression:
@@ -464,10 +485,8 @@ class TestIsNoExpression:
     )
     def test_evaluate(self, answer: str, expected_result: bool, factories):
         expr = IsNo(subject_reference=ExpressionReference.from_question(factories.question.build()))
-        assert (
-            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answer}))
-            is expected_result
-        )
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.build())
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
 
 class TestSpecificallyExpression:
@@ -486,10 +505,8 @@ class TestSpecificallyExpression:
     )
     def test_evaluate(self, item: TRadioItem, answers: set[str], expected_result: bool, factories):
         expr = Specifically(subject_reference=ExpressionReference.from_question(factories.question.build()), item=item)
-        assert (
-            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answers}))
-            is expected_result
-        )
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.build())
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answers})) is expected_result
 
     def test_needs_a_question_subject_reference(self, factories):
         collection = factories.collection.create()
@@ -530,11 +547,10 @@ class TestIsBeforeExpression:
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            expr.subject_reference.unwrapped: answer,
             "subject_reference": expr.subject_reference,
             "latest_value": expr.latest_value,
         }
-        assert evaluate(expression) is expected_result
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     @pytest.mark.parametrize(
         "inclusive, answer, expected_result",
@@ -558,11 +574,20 @@ class TestIsBeforeExpression:
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             "subject_reference": expr.subject_reference,
-            referenced_question.safe_qid: self.maximum_value,
-            target_question.safe_qid: answer,
             "latest_value": expr.latest_value,
         }
-        assert evaluate(expression) is expected_result
+        assert (
+            evaluate(
+                expression,
+                ExpressionContext(
+                    {
+                        ExpressionReference.from_question(referenced_question): self.maximum_value,
+                        ExpressionReference.from_question(target_question): answer,
+                    }
+                ),
+            )
+            is expected_result
+        )
 
     def test_is_before_prepare_form_data_converts_date_string(self, factories):
         question = factories.question.create(data_type=QuestionDataType.DATE)
@@ -615,11 +640,10 @@ class TestIsAfterExpression:
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            expr.subject_reference.unwrapped: answer,
             "subject_reference": expr.subject_reference,
             "earliest_value": expr.earliest_value,
         }
-        assert evaluate(expression) is expected_result
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     @pytest.mark.parametrize(
         " inclusive, answer, expected_result",
@@ -643,12 +667,21 @@ class TestIsAfterExpression:
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             "subject_reference": expr.subject_reference,
-            referenced_question.safe_qid: self.min_value,
-            target_question.safe_qid: answer,
             "earliest_value": expr.earliest_value,
         }
 
-        assert evaluate(expression) is expected_result
+        assert (
+            evaluate(
+                expression,
+                ExpressionContext(
+                    {
+                        ExpressionReference.from_question(referenced_question): self.min_value,
+                        ExpressionReference.from_question(target_question): answer,
+                    }
+                ),
+            )
+            is expected_result
+        )
 
     def test_is_after_prepare_form_data_converts_date_string(self, factories):
         question = factories.question.create(data_type=QuestionDataType.DATE)
@@ -712,14 +745,13 @@ class TestIsBetweenDatesExpression:
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            expr.subject_reference.unwrapped: answer,
             "subject_reference": expr.subject_reference,
             "earliest_value": expr.earliest_value,
             "latest_value": expr.latest_value,
             "earliest_inclusive": expr.earliest_inclusive,
             "latest_inclusive": expr.latest_inclusive,
         }
-        assert evaluate(expression) is expected_result
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     @pytest.mark.parametrize(
         "earliest_inc, latest_inc, answer, expected_result",
@@ -754,14 +786,23 @@ class TestIsBetweenDatesExpression:
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
             "subject_reference": expr.subject_reference,
-            referenced_question.safe_qid: self.max_value,
-            target_question.safe_qid: answer,
             "earliest_value": expr.earliest_value,
             "latest_value": expr.latest_value,
             "earliest_inclusive": expr.earliest_inclusive,
             "latest_inclusive": expr.latest_inclusive,
         }
-        assert evaluate(expression) is expected_result
+        assert (
+            evaluate(
+                expression,
+                ExpressionContext(
+                    {
+                        ExpressionReference.from_question(referenced_question): self.max_value,
+                        ExpressionReference.from_question(target_question): answer,
+                    }
+                ),
+            )
+            is expected_result
+        )
 
     def test_between_dates_prepare_form_data_handles_partial_dates(self, factories):
         referenced_question = factories.question.create(data_type=QuestionDataType.DATE)
@@ -835,10 +876,9 @@ class TestUKPostcodeExpression:
         expr = UKPostcode(subject_reference=ExpressionReference.from_question(factories.question.build()))
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            expr.subject_reference.unwrapped: answer,
             "subject_reference": expr.subject_reference,
         }
-        assert evaluate(expression) is expected_result
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
 
 class TestCustomExpression:
@@ -904,15 +944,24 @@ class TestCustomExpression:
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
             "subject_reference": expr.subject_reference,
-            q1.safe_qid: 10,
-            q2.safe_qid: 20,
-            q3.safe_qid: 30,
-            q4.safe_qid: decimal.Decimal("40.4"),
             "custom_expression": expr.custom_expression,
             "custom_message": expr.custom_message,
         }
 
-        assert evaluate(expression) is expected_result
+        assert (
+            evaluate(
+                expression,
+                ExpressionContext(
+                    {
+                        ExpressionReference.from_question(q1): 10,
+                        ExpressionReference.from_question(q2): 20,
+                        ExpressionReference.from_question(q3): 30,
+                        ExpressionReference.from_question(q4): decimal.Decimal("40.4"),
+                    }
+                ),
+            )
+            is expected_result
+        )
 
     def test_build_from_form(self, factories):
         question = factories.question.build()

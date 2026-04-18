@@ -1003,7 +1003,7 @@ class TestCreateGroup:
         form = factories.form.create()
         group = create_group(
             form=form,
-            text="Test Group",
+            text=InterpolationStatement("Test Group"),
         )
 
         assert group is not None
@@ -1013,7 +1013,7 @@ class TestCreateGroup:
         form = factories.form.create()
         group = create_group(
             form=form,
-            text="Test Group",
+            text=InterpolationStatement("Test Group"),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
 
@@ -1026,13 +1026,13 @@ class TestCreateGroup:
 
         group = create_group(
             form=form,
-            text="Test Group",
+            text=InterpolationStatement("Test Group"),
         )
 
         create_question(
             form=form,
-            text="Top Level Question",
-            hint="Top Level Question Hint",
+            text=InterpolationStatement("Top Level Question"),
+            hint=InterpolationStatement("Top Level Question Hint"),
             name="Top Level Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             expression_context=ExpressionContext(),
@@ -1047,14 +1047,16 @@ class TestCreateGroup:
             for i in range(2):
                 create_question(
                     form=form,
-                    text=f"Sub Question {current_depth} {i}",
-                    hint=f"Sub Question Hint {current_depth} {i}",
+                    text=InterpolationStatement(f"Sub Question {current_depth} {i}"),
+                    hint=InterpolationStatement(f"Sub Question Hint {current_depth} {i}"),
                     name=f"Sub Question Name {current_depth} {i}",
                     data_type=QuestionDataType.TEXT_SINGLE_LINE,
                     expression_context=ExpressionContext(),
                     parent=parent,
                 )
-            sub_group = create_group(form=form, text=f"Sub Group {current_depth}", parent=parent)
+            sub_group = create_group(
+                form=form, text=InterpolationStatement(f"Sub Group {current_depth}"), parent=parent
+            )
             if current_depth < depth:
                 add_sub_group(sub_group, current_depth + 1)
 
@@ -1093,14 +1095,14 @@ class TestCreateGroup:
         form = factories.form.create()
         parent_group = create_group(
             form=form,
-            text="Test group top",
+            text=InterpolationStatement("Test group top"),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
 
         with pytest.raises(NestedGroupDisplayTypeSamePageException):
             create_group(
                 form=form,
-                text="Test group child",
+                text=InterpolationStatement("Test group child"),
                 parent=parent_group,
             )
 
@@ -1111,18 +1113,18 @@ class TestCreateGroup:
         form = factories.form.create()
         grand_parent_group = create_group(
             form=form,
-            text="Level 1",
+            text=InterpolationStatement("Level 1"),
         )
         parent_group = create_group(
             form=form,
-            text="Level 2",
+            text=InterpolationStatement("Level 2"),
             parent=grand_parent_group,
         )
 
         with pytest.raises(NestedGroupException):
             create_group(
                 form=form,
-                text="Child group Level 3",
+                text=InterpolationStatement("Child group Level 3"),
                 parent=parent_group,
             )
 
@@ -1179,10 +1181,10 @@ class TestUpdateGroup:
 
     def test_update_group_unique_overlap(self, db_session, factories):
         form = factories.form.create()
-        create_group(form=form, text="Overlap group name")
+        create_group(form=form, text=InterpolationStatement("Overlap group name"))
         group = create_group(
             form=form,
-            text="Test group",
+            text=InterpolationStatement("Test group"),
         )
 
         with pytest.raises(DuplicateValueError):
@@ -1196,12 +1198,12 @@ class TestUpdateGroup:
         form = factories.form.create()
         parent_group = create_group(
             form=form,
-            text="Test group top",
+            text=InterpolationStatement("Test group top"),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
         )
         create_group(
             form=form,
-            text="Test group child",
+            text=InterpolationStatement("Test group child"),
             parent=parent_group,
         )
 
@@ -1217,7 +1219,7 @@ class TestUpdateGroup:
         form = factories.form.create()
         group = create_group(
             form=form,
-            text="Test group",
+            text=InterpolationStatement("Test group"),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
         )
         user = factories.user.create()
@@ -1246,7 +1248,7 @@ class TestUpdateGroup:
         form = factories.form.create()
         group = create_group(
             form=form,
-            text="Test group",
+            text=InterpolationStatement("Test group"),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
         user = factories.user.create()
@@ -1277,7 +1279,7 @@ class TestUpdateGroup:
         form = factories.form.create()
         group = create_group(
             form=form,
-            text="Test group",
+            text=InterpolationStatement("Test group"),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
         question = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
@@ -1303,7 +1305,7 @@ class TestUpdateGroup:
         form = factories.form.create()
         group = create_group(
             form=form,
-            text="Test Question Name",
+            text=InterpolationStatement("Test Question Name"),
         )
 
         assert group.guidance_heading is None
@@ -1313,9 +1315,9 @@ class TestUpdateGroup:
         updated_group = update_group(
             group=group,
             expression_context=ExpressionContext(),
-            guidance_heading="How to answer this question",
-            guidance_body="This is detailed guidance with **markdown** formatting.",
-            add_another_guidance_body="What to expect when filling in this groups answers",
+            guidance_heading=InterpolationStatement("How to answer this question"),
+            guidance_body=InterpolationStatement("This is detailed guidance with **markdown** formatting."),
+            add_another_guidance_body=InterpolationStatement("What to expect when filling in this groups answers"),
         )
 
         assert updated_group.guidance_heading == "How to answer this question"
@@ -1327,7 +1329,7 @@ class TestUpdateGroup:
         q1 = factories.question.create(
             form=form,
         )
-        group = create_group(form=form, text="Test Question Name", add_another=True)
+        group = create_group(form=form, text=InterpolationStatement("Test Question Name"), add_another=True)
 
         assert group.guidance_heading is None
         assert group.guidance_body is None
@@ -1336,16 +1338,16 @@ class TestUpdateGroup:
         updated_group = update_group(
             group=group,
             expression_context=ExpressionContext.build_expression_context(form.collection, "interpolation", None, None),
-            guidance_heading="How to answer this question",
-            guidance_body="This is detailed guidance with **markdown** formatting.",
-            add_another_guidance_body=f"Reference to first question (({q1.safe_qid}))",
+            guidance_heading=InterpolationStatement("How to answer this question"),
+            guidance_body=InterpolationStatement("This is detailed guidance with **markdown** formatting."),
+            add_another_guidance_body=InterpolationStatement(f"Reference to first question (({q1.safe_qid}))"),
         )
 
         assert updated_group.add_another_guidance_body == f"Reference to first question (({q1.safe_qid}))"
 
     def test_update_group_with_add_another_presentation_options(self, db_session, factories):
         form = factories.form.create()
-        group = create_group(form=form, text="Test group name")
+        group = create_group(form=form, text=InterpolationStatement("Test group name"))
         q1 = factories.question.create(parent=group, form=group.form)
         q2 = factories.question.create(parent=group, form=group.form)
 
@@ -1363,7 +1365,7 @@ class TestUpdateGroup:
         form = factories.form.create()
         group = create_group(
             form=form,
-            text="Test group name",
+            text=InterpolationStatement("Test group name"),
             presentation_options=QuestionPresentationOptions(
                 add_another_summary_line_question_ids=[], show_questions_on_the_same_page=False
             ),
@@ -1448,7 +1450,7 @@ class TestUpdateGroup:
         q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         group = create_group(
             form=form,
-            text="Test group",
+            text=InterpolationStatement("Test group"),
             presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
         )
         add_component_condition(
@@ -1507,8 +1509,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=question_type,
             expression_context=ExpressionContext(),
@@ -1528,8 +1530,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
@@ -1554,8 +1556,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
@@ -1581,8 +1583,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_MULTI_LINE,
             expression_context=ExpressionContext(),
@@ -1605,8 +1607,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.YES_NO,
             expression_context=ExpressionContext(),
@@ -1626,8 +1628,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
             expression_context=ExpressionContext(),
@@ -1651,8 +1653,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.CHECKBOXES,
             expression_context=ExpressionContext(),
@@ -1676,8 +1678,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.DATE,
             expression_context=ExpressionContext(),
@@ -1697,8 +1699,8 @@ class TestCreateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.FILE_UPLOAD,
             expression_context=ExpressionContext(),
@@ -1722,8 +1724,8 @@ class TestCreateQuestion:
         with pytest.raises(IntegrityError) as e:
             create_question(
                 form=form,
-                text="Test Question",
-                hint="Test Hint",
+                text=InterpolationStatement("Test Question"),
+                hint=InterpolationStatement("Test Hint"),
                 name="Test Question Name",
                 data_type=None,
                 expression_context=ExpressionContext(),
@@ -1735,8 +1737,8 @@ class TestCreateQuestion:
         group = factories.group.create(form=form, order=0)
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             expression_context=ExpressionContext(),
@@ -1752,8 +1754,8 @@ class TestCreateQuestion:
 
         create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             expression_context=ExpressionContext(),
@@ -1776,8 +1778,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=question_type,
             expression_context=ExpressionContext(),
@@ -1788,8 +1790,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question",
-            hint="Updated Hint",
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
             name="Updated Question Name",
         )
 
@@ -1804,8 +1806,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
@@ -1819,8 +1821,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question",
-            hint="Updated Hint",
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
             name="Updated Question Name",
             presentation_options=QuestionPresentationOptions(
                 prefix="$", suffix="lbs", width=NumberInputWidths.MILLIONS
@@ -1843,8 +1845,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_MULTI_LINE,
             expression_context=ExpressionContext(),
@@ -1855,8 +1857,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question",
-            hint="Updated Hint",
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
             name="Updated Question Name",
             presentation_options=QuestionPresentationOptions(rows=MultilineTextInputRows.LARGE, word_limit=None),
         )
@@ -1873,8 +1875,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.YES_NO,
             expression_context=ExpressionContext(),
@@ -1884,8 +1886,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question",
-            hint="Updated Hint",
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
             name="Updated Question Name",
         )
 
@@ -1899,8 +1901,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
             expression_context=ExpressionContext(),
@@ -1915,8 +1917,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question",
-            hint="Updated Hint",
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
             name="Updated Question Name",
             items=["option 3", "option 4", "option-1"],
             presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
@@ -1946,8 +1948,8 @@ class TestUpdateQuestion:
         user = factories.user.create()
         referenced_question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
             expression_context=ExpressionContext(),
@@ -1972,8 +1974,8 @@ class TestUpdateQuestion:
             update_question(
                 question=referenced_question,
                 expression_context=ExpressionContext(),
-                text="Updated Question",
-                hint="Updated Hint",
+                text=InterpolationStatement("Updated Question"),
+                hint=InterpolationStatement("Updated Hint"),
                 name="Updated Question Name",
                 items=["option 3", "option 4", "option-1"],
             )
@@ -1988,8 +1990,8 @@ class TestUpdateQuestion:
         user = factories.user.create()
         referenced_question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.CHECKBOXES,
             expression_context=ExpressionContext(),
@@ -2014,8 +2016,8 @@ class TestUpdateQuestion:
             update_question(
                 question=referenced_question,
                 expression_context=ExpressionContext(),
-                text="Updated Question",
-                hint="Updated Hint",
+                text=InterpolationStatement("Updated Question"),
+                hint=InterpolationStatement("Updated Hint"),
                 name="Updated Question Name",
                 items=["option 3", "option 4", "option-1"],
             )
@@ -2029,8 +2031,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.CHECKBOXES,
             expression_context=ExpressionContext(),
@@ -2045,8 +2047,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question",
-            hint="Updated Hint",
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
             name="Updated Question Name",
             items=["option 3", "option 4", "option-1"],
             presentation_options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
@@ -2075,8 +2077,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.DATE,
             expression_context=ExpressionContext(),
@@ -2091,8 +2093,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question",
-            hint="Updated Hint",
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
             name="Updated Question Name",
         )
 
@@ -2106,8 +2108,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.FILE_UPLOAD,
             expression_context=ExpressionContext(),
@@ -2117,8 +2119,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question",
-            hint="Updated Hint",
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
             name="Updated Question Name",
         )
 
@@ -2135,8 +2137,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             expression_context=ExpressionContext(),
@@ -2145,8 +2147,8 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            guidance_heading="How to answer this question",
-            guidance_body="This is detailed guidance with **markdown** formatting.",
+            guidance_heading=InterpolationStatement("How to answer this question"),
+            guidance_body=InterpolationStatement("This is detailed guidance with **markdown** formatting."),
         )
 
         assert updated_question.guidance_heading == "How to answer this question"
@@ -2156,20 +2158,20 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             expression_context=ExpressionContext(),
         )
 
-        question.guidance_heading = "Initial heading"
-        question.guidance_body = "Initial body"
+        question.guidance_heading = InterpolationStatement("Initial heading")
+        question.guidance_body = InterpolationStatement("Initial body")
 
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            text="Updated Question Text",
+            text=InterpolationStatement("Updated Question Text"),
         )
 
         assert updated_question.text == "Updated Question Text"
@@ -2180,15 +2182,15 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             expression_context=ExpressionContext(),
         )
 
-        question.guidance_heading = "Initial heading"
-        question.guidance_body = "Initial body"
+        question.guidance_heading = InterpolationStatement("Initial heading")
+        question.guidance_body = InterpolationStatement("Initial body")
 
         updated_question = update_question(
             question=question,
@@ -2205,8 +2207,8 @@ class TestUpdateQuestion:
         user = factories.user.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.NUMBER,
             expression_context=ExpressionContext(),
@@ -2234,8 +2236,8 @@ class TestUpdateQuestion:
         form = factories.form.create()
         question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             expression_context=ExpressionContext(),
@@ -2734,8 +2736,8 @@ class TestDependencyExceptionHelpers:
         user = factories.user.create()
         referenced_question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.RADIOS,
             expression_context=ExpressionContext(),
@@ -2764,8 +2766,8 @@ class TestDependencyExceptionHelpers:
         user = factories.user.create()
         referenced_question = create_question(
             form=form,
-            text="Test Question",
-            hint="Test Hint",
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
             name="Test Question Name",
             data_type=QuestionDataType.CHECKBOXES,
             expression_context=ExpressionContext(),
@@ -4640,8 +4642,10 @@ class TestValidateAndSyncComponentReferences:
             form=text_question.form,
             text=f"Reference to (({text_question.safe_qid}))",
             hint=f"Reference to (({hint_question.safe_qid}))",
-            guidance_body=f"Reference to (({guidance_body_question.safe_qid}))",
-            add_another_guidance_body=f"Reference to (({add_another_guidance_body_question.safe_qid}))",
+            guidance_body=InterpolationStatement(f"Reference to (({guidance_body_question.safe_qid}))"),
+            add_another_guidance_body=InterpolationStatement(
+                f"Reference to (({add_another_guidance_body_question.safe_qid}))"
+            ),
         )
 
         # The factories create component references automatically; this will generally be the desirable behaviour
@@ -4713,7 +4717,7 @@ class TestValidateAndSyncComponentReferences:
     def test_throws_error_on_referencing_later_question_in_form(self, db_session, factories):
         dependent_question = factories.question.create()
         referenced_question = factories.question.create(form=dependent_question.form, data_type=QuestionDataType.NUMBER)
-        dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
+        dependent_question.text = InterpolationStatement(f"Reference to (({referenced_question.safe_qid}))")
 
         with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
@@ -4725,7 +4729,7 @@ class TestValidateAndSyncComponentReferences:
 
     def test_throws_error_on_referencing_same_question_in_form(self, db_session, factories):
         question = factories.question.create()
-        question.text = f"Reference to (({question.safe_qid}))"
+        question.text = InterpolationStatement(f"Reference to (({question.safe_qid}))")
 
         with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
@@ -4737,7 +4741,7 @@ class TestValidateAndSyncComponentReferences:
         dependent_question = factories.question.create()
 
         # Set the text with an invalid reference after creation so that ComponentReferences aren't created; they'd error
-        dependent_question.text = "Reference to ((some.non.question.ref)) here"
+        dependent_question.text = InterpolationStatement("Reference to ((some.non.question.ref)) here")
 
         with pytest.raises(InvalidReferenceInExpression):
             _validate_and_sync_component_references(
@@ -4749,40 +4753,6 @@ class TestValidateAndSyncComponentReferences:
 
         refs = db_session.query(ComponentReference).filter_by(component=dependent_question).all()
         assert len(refs) == 0
-
-    def test_raises_complex_expression_exception(self, db_session, factories):
-        referenced_question = factories.question.create()
-        dependent_question = factories.question.create(form=referenced_question.form, text="Initial text")
-
-        dependent_question.text = f"Complex expression (({referenced_question.safe_qid} + 100)) not allowed"
-
-        with pytest.raises(InvalidReferenceInExpression) as exc_info:
-            _validate_and_sync_component_references(
-                dependent_question,
-                ExpressionContext.build_expression_context(
-                    collection=dependent_question.form.collection, mode="interpolation"
-                ),
-            )
-
-        assert exc_info.value.field_name == "text"
-        assert exc_info.value.bad_reference == f"(({referenced_question.safe_qid} + 100))"
-
-    def test_raises_complex_expression_for_special_characters(self, db_session, factories):
-        dependent_question = factories.question.create(text="Initial text")
-
-        # Update after creation because the factory would try to create a ComponentReference and throw an error
-        dependent_question.text = "Invalid expression ((question.id & something)) here"
-
-        with pytest.raises(InvalidReferenceInExpression) as exc_info:
-            _validate_and_sync_component_references(
-                dependent_question,
-                ExpressionContext.build_expression_context(
-                    collection=dependent_question.form.collection, mode="interpolation"
-                ),
-            )
-
-        assert exc_info.value.field_name == "text"
-        assert exc_info.value.bad_reference == "((question.id & something))"
 
     def test_removes_existing_references_before_creating_new_ones(self, db_session, factories):
         old_referenced_question = factories.question.create()
@@ -4796,7 +4766,7 @@ class TestValidateAndSyncComponentReferences:
         assert len(refs) == 1
         assert refs[0].depends_on_component == old_referenced_question
 
-        dependent_question.text = f"Now references (({new_referenced_question.safe_qid}))"
+        dependent_question.text = InterpolationStatement(f"Now references (({new_referenced_question.safe_qid}))")
 
         _validate_and_sync_component_references(
             dependent_question,
@@ -4859,7 +4829,7 @@ class TestValidateAndSyncComponentReferences:
         later_form = factories.form.create(collection=collection)
         referenced_question = factories.question.create(form=later_form)
         dependent_question = factories.question.create(form=earlier_form)
-        dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
+        dependent_question.text = InterpolationStatement(f"Reference to (({referenced_question.safe_qid}))")
 
         with pytest.raises(DependencyOrderException):
             _validate_and_sync_component_references(
@@ -4875,7 +4845,7 @@ class TestValidateAndSyncComponentReferences:
 
         referenced_question = factories.question.create(form=form, parent=group)
         dependent_question = factories.question.create(form=form, parent=group)
-        dependent_question.text = f"Reference to (({referenced_question.safe_qid}))"
+        dependent_question.text = InterpolationStatement(f"Reference to (({referenced_question.safe_qid}))")
         with pytest.raises(InvalidReferenceInExpression):
             _validate_and_sync_component_references(
                 dependent_question,
@@ -4895,7 +4865,7 @@ class TestValidateAndSyncComponentReferences:
         form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
 
-        question.text = f"Your allocation is (({data_source.safe_did}.c_allocation))"
+        question.text = InterpolationStatement(f"Your allocation is (({data_source.safe_did}.c_allocation))")
 
         _validate_and_sync_component_references(
             question,
@@ -4936,7 +4906,7 @@ class TestValidateAndSyncComponentReferences:
         form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
 
-        question.text = f"Allocation: (({data_source.safe_did}.c_allocation))"
+        question.text = InterpolationStatement(f"Allocation: (({data_source.safe_did}.c_allocation))")
         _validate_and_sync_component_references(
             question,
             ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
@@ -4946,7 +4916,7 @@ class TestValidateAndSyncComponentReferences:
         refs = db_session.query(ComponentReference).filter_by(component=question).all()
         assert {ref.depends_on_column_name for ref in refs} == {"c_allocation"}
 
-        question.text = f"Theme: (({data_source.safe_did}.c_theme))"
+        question.text = InterpolationStatement(f"Theme: (({data_source.safe_did}.c_theme))")
         _validate_and_sync_component_references(
             question,
             ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
@@ -4967,7 +4937,7 @@ class TestValidateAndSyncComponentReferences:
         form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
 
-        question.text = f"(({data_source.safe_did}.c_nonexistent))"
+        question.text = InterpolationStatement(f"(({data_source.safe_did}.c_nonexistent))")
 
         with pytest.raises(InvalidReferenceInExpression):
             _validate_and_sync_component_references(

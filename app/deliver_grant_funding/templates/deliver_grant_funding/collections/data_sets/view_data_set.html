@@ -22,6 +22,7 @@
           {% set reference_error_html %}
             <p class="govuk-body govuk-!-font-weight-bold">{{ flash.message }}</p>
             {% for ref in flash.references %}
+              {% set ref = ReferenceFlash.model_validate(ref) %}
               {% set component_link = url_for("deliver_grant_funding.edit_question", grant_id=flash.grant_id, question_id=ref.component_id) if not ref.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=flash.grant_id, group_id=ref.component_id) %}
               <p class="govuk-body govuk-!-font-weight-bold">
                 <a class="govuk-notification-banner__link" href="{{ component_link }}">{{ interpolate(ref.component_text | as_interpolation_statement) }} ({{ ref.reference_type }})</a>
