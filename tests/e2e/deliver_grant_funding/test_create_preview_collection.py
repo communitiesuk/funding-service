@@ -17,7 +17,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
 )
-from app.common.expressions import ExpressionContext
+from app.common.expressions import EvaluationStatement, ExpressionContext, InterpolationStatement
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import (
     AnyOf,
@@ -179,8 +179,10 @@ report_with_all_question_types: ReportDict = {
                     ),
                     validation=E2EManagedExpression(
                         evaluatable_expression=CustomExpression(
-                            custom_expression="((ref1)) + ((ref2)) + ((ref3)) <= ((ref4))",
-                            custom_message="The total of the three amounts must not exceed the allowed amount",
+                            custom_expression=EvaluationStatement("((ref1)) + ((ref2)) + ((ref3)) <= ((ref4))"),
+                            custom_message=InterpolationStatement(
+                                "The total of the three amounts must not exceed the allowed amount"
+                            ),
                         ),
                         expression_references={
                             "ref1": DataReferenceConfig(
@@ -503,9 +505,10 @@ report_with_all_question_types: ReportDict = {
                     data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
                     validation=E2EManagedExpression(
                         evaluatable_expression=CustomExpression(
-                            custom_expression="((ref1)) > ((ref2)) + ((ref3))",
-                            custom_message="The answer must be greater than the weight plus the number from the "
-                            "previous section",
+                            custom_expression=EvaluationStatement("((ref1)) > ((ref2)) + ((ref3))"),
+                            custom_message=InterpolationStatement(
+                                "The answer must be greater than the weight plus the number from the previous section"
+                            ),
                         ),
                         expression_references={
                             "ref1": DataReferenceConfig(data_source="THIS_QUESTION"),
@@ -536,7 +539,7 @@ report_with_all_question_types: ReportDict = {
                     data_options=QuestionDataOptions(),
                     condition=E2EManagedExpression(
                         evaluatable_expression=CustomExpression(
-                            custom_expression="((ref1)) > ((ref2)) + ((ref3))",
+                            custom_expression=EvaluationStatement("((ref1)) > ((ref2)) + ((ref3))"),
                             expression_name="Show if cost greater than weight plus number",
                         ),
                         expression_references={

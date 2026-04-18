@@ -16,7 +16,12 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.forms import GenericConfirmDeletionForm
-from tests.utils import AnyStringMatching, get_form_data, page_has_button, page_has_link
+from tests.utils import (
+    AnyStringMatching,
+    get_form_data,
+    page_has_button,
+    page_has_link,
+)
 
 
 class TestListReports:
