@@ -110,6 +110,24 @@ class TestExpressionStatement:
         with pytest.raises(NotImplementedError):
             _ = statement.references
 
+    def test_pydantic_round_trip_preserves_subclass(self):
+        class Container(BaseModel):
+            stmt: EvaluationStatement
+            msg: InterpolationStatement | None = None
+
+        container = Container(
+            stmt=EvaluationStatement("((q_1)) + 5"),
+            msg=InterpolationStatement("Value was ((q_1))"),
+        )
+        dumped = container.model_dump(mode="json")
+        assert dumped == {"stmt": "((q_1)) + 5", "msg": "Value was ((q_1))"}
+
+        restored = Container.model_validate(dumped)
+        assert isinstance(restored.stmt, EvaluationStatement)
+        assert isinstance(restored.msg, InterpolationStatement)
+        assert restored.stmt.references == [ExpressionReference("q_1")]
+        assert restored.msg.references == [ExpressionReference("q_1")]
+
 
 class TestEvaluationStatementReferences:
     def test_empty_returns_no_references(self):

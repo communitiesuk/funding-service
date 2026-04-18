@@ -29,7 +29,7 @@ from app.common.expressions.managed import (
     Specifically,
     UKPostcode,
 )
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import TRadioItem
 
@@ -846,8 +846,8 @@ class TestCustomExpression:
         user = factories.user.create()
         question = factories.question.create()
         expr = CustomExpression(
-            custom_expression="(({question_id})) > 5",
-            custom_message="Failed validation",
+            custom_expression=EvaluationStatement("(({question_id})) > 5"),
+            custom_message=InterpolationStatement("Failed validation"),
             expression_name="my short name",
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
@@ -899,7 +899,7 @@ class TestCustomExpression:
         )
         expr = CustomExpression(
             custom_expression=expression.format(q1=q1.safe_qid, q2=q2.safe_qid, q3=q3.safe_qid, q4=q4.safe_qid),
-            custom_message="a message",
+            custom_message=InterpolationStatement("a message"),
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {

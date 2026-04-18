@@ -16,7 +16,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
 )
-from app.common.expressions import ExpressionContext
+from app.common.expressions import EvaluationStatement, ExpressionContext, InterpolationStatement
 from app.common.expressions.managed import (
     AnyOf,
     Between,
@@ -867,17 +867,21 @@ class CreateCustomExpressionPage(ReportsBasePage):
         self.add_data_to_message_button = self.page.get_by_role("button", name="Reference data for error message")
 
     def configure_custom_expression(
-        self, expression: str, expression_references: dict[str, DataReferenceConfig]
+        self, expression: EvaluationStatement, expression_references: dict[str, DataReferenceConfig]
     ) -> None:
         wait_for_context_aware_textarea_to_be_ready(self.page, "custom_expression")
         _fill_custom_field(
             self, self.custom_expression_textarea, self.add_data_to_expression_button, expression, expression_references
         )
 
-    def configure_custom_message(self, expression: str, message_references: dict[str, DataReferenceConfig]) -> None:
+    def configure_custom_message(
+        self, message: InterpolationStatement | None, message_references: dict[str, DataReferenceConfig]
+    ) -> None:
+        if message is None:
+            return
         wait_for_context_aware_textarea_to_be_ready(self.page, "custom_message")
         _fill_custom_field(
-            self, self.custom_message_textarea, self.add_data_to_message_button, expression, message_references
+            self, self.custom_message_textarea, self.add_data_to_message_button, message, message_references
         )
 
     def click_create_custom_validation_expression(self) -> "EditQuestionPage":

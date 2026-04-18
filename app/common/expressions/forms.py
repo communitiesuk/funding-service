@@ -27,6 +27,7 @@ from app.common.expressions.registry import (
     get_managed_validators_by_data_type,
     lookup_managed_expression,
 )
+from app.common.forms.fields import EvaluationStatementField, InterpolationStatementField
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
@@ -328,12 +329,12 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
     def is_submitted_to_add_context(self) -> bool:
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)
 
-    custom_expression = StringField(
+    custom_expression = EvaluationStatementField(
         "Calculation",
         widget=GovTextArea(),
         validators=[DataRequired()],
     )
-    custom_message = StringField(
+    custom_message = InterpolationStatementField(
         "Error message",
         widget=GovTextArea(),
         validators=[DataRequired()],

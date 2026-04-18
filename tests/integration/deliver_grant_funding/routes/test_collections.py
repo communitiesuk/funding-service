@@ -58,7 +58,7 @@ from app.common.expressions.forms import (
     build_managed_expression_form,
 )
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -2247,8 +2247,8 @@ class TestListGroupQuestions:
             group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100",
-                custom_message="Total must exceed 100",
+                custom_expression=EvaluationStatement(f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100"),
+                custom_message=InterpolationStatement("Total must exceed 100"),
             ),
         )
         db_session.commit()
@@ -2287,8 +2287,8 @@ class TestListGroupQuestions:
             inner_group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100",
-                custom_message="Total must exceed 100",
+                custom_expression=EvaluationStatement(f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100"),
+                custom_message=InterpolationStatement("Total must exceed 100"),
             ),
         )
         db_session.commit()
@@ -12226,8 +12226,8 @@ class TestEditGroupValidation:
             group,
             user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({capital.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
         return group, capital
@@ -12351,8 +12351,8 @@ class TestEditGroupValidation:
             question,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
         question_expression_id = question.expressions[0].id
@@ -12388,8 +12388,8 @@ class TestEditGroupValidation:
             other_group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({other_question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({other_question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
         other_expression_id = other_group.validations[0].id
@@ -12512,8 +12512,8 @@ class TestListGroupQuestionsValidationsSection:
             group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
 
@@ -12584,8 +12584,8 @@ class TestChangeGroupDisplayOptionsBlockedByValidations:
             group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
 
