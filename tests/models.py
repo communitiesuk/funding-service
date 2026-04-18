@@ -77,7 +77,7 @@ from app.common.data.types import (
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import AnyOf, GreaterThan, Specifically
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions import db
@@ -1007,7 +1007,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
         exclude = ("needs_data_source",)
 
     id = factory.LazyFunction(uuid4)
-    text = factory.Sequence(lambda n: "Question %d" % n)
+    text = factory.Sequence(lambda n: InterpolationStatement("Question %d" % n))
     name = factory.Sequence(lambda n: "Question name %d" % n)
     slug = factory.Sequence(lambda n: "question-%d" % n)
     order = factory.LazyAttribute(
@@ -1059,6 +1059,15 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             db.session.commit()
 
     @factory.post_generation
+    def _fix_interpolation(obj: "Question", create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if not isinstance(obj.text, InterpolationStatement | None):
+            obj.text = InterpolationStatement(obj.text)
+        if not isinstance(obj.hint, InterpolationStatement | None):
+            obj.hint = InterpolationStatement(obj.hint)
+        if not isinstance(obj.guidance_body, InterpolationStatement | None):
+            obj.guidance_body = InterpolationStatement(obj.guidance_body)
+
+    @factory.post_generation
     def _references(obj: "Question", create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not create:
             return
@@ -1080,7 +1089,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
-    text = factory.Sequence(lambda n: "Group %d" % n)
+    text = factory.Sequence(lambda n: InterpolationStatement("Group %d" % n))
     name = factory.Sequence(lambda n: "Group name %d" % n)
     slug = factory.Sequence(lambda n: "group-%d" % n)
     order = factory.LazyAttribute(
@@ -1115,6 +1124,17 @@ class _GroupFactory(SQLAlchemyModelFactory):
 
         if create:
             db.session.commit()
+
+    @factory.post_generation
+    def _fix_interpolation(obj: "Group", create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if not isinstance(obj.text, InterpolationStatement | None):
+            obj.text = InterpolationStatement(obj.text)
+        if not isinstance(obj.hint, InterpolationStatement | None):
+            obj.hint = InterpolationStatement(obj.hint)
+        if not isinstance(obj.guidance_body, InterpolationStatement | None):
+            obj.guidance_body = InterpolationStatement(obj.guidance_body)
+        if not isinstance(obj.add_another_guidance_body, InterpolationStatement | None):
+            obj.add_another_guidance_body = InterpolationStatement(obj.add_another_guidance_body)
 
     @factory.post_generation
     def _references(obj: "Group", create: bool, extracted: list[Any], **kwargs: Any) -> None:
@@ -1168,6 +1188,11 @@ class _ExpressionFactory(SQLAlchemyModelFactory):
     #       makes some kind of sense for the question type
     statement = factory.LazyFunction(_required)
     type_ = factory.LazyFunction(_required)
+
+    @factory.post_generation
+    def _fix_statements(obj: "Expression", create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if not isinstance(obj.statement, EvaluationStatement | None):
+            obj.statement = EvaluationStatement(obj.statement)
 
 
 class _InvitationFactory(SQLAlchemyModelFactory):

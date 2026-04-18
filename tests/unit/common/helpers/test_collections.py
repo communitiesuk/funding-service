@@ -30,6 +30,7 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.references import EvaluationStatement
 from app.common.helpers.collections import SubmissionHelper, _form_data_to_question_type
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching
@@ -615,7 +616,7 @@ class TestSubmissionHelper:
             assert helper.is_component_visible(question, helper.cached_evaluation_context) is False
 
             # if the parents condition changes this is reflected
-            expression.statement = "True"
+            expression.statement = EvaluationStatement("True")
             assert helper.is_component_visible(question, helper.cached_evaluation_context) is True
 
         def test_is_component_visible_visible_with_add_another_expression_index(self, factories):

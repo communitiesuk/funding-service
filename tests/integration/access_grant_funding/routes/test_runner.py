@@ -20,6 +20,7 @@ from app.common.data.types import (
     SubmissionStatusEnum,
 )
 from app.common.expressions import ExpressionReference
+from app.common.expressions.references import InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_h2, page_has_link
@@ -1971,7 +1972,7 @@ class TestCheckYourAnswers:
     ):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
         question = factories.question.create(
-            text="What's your favourite colour?",
+            text=InterpolationStatement("What's your favourite colour?"),
             form__title="Colour information",
             form__collection__grant=grant_recipient.grant,
         )
@@ -1981,7 +1982,7 @@ class TestCheckYourAnswers:
             add_another=True,
         )
         nested_question_1 = factories.question.create(
-            text="Why do you like this colour?", parent=group, form=group.form
+            text=InterpolationStatement("Why do you like this colour?"), parent=group, form=group.form
         )
         submission = factories.submission.create(
             collection=question.form.collection,

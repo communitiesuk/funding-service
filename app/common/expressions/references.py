@@ -1,7 +1,8 @@
 import ast
+import re
 from collections import namedtuple
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 from uuid import UUID
 
 from pydantic import GetCoreSchemaHandler
@@ -337,6 +338,14 @@ class EvaluationStatement(ExpressionStatement):
     without a separate regex pass.
     """
 
+    def validate_syntax(self):
+        try:
+            ast.parse(str(self).strip(), mode="eval")
+        except SyntaxError as e:
+            from app.common.expressions import DisallowedExpression
+
+            raise DisallowedExpression(message=f"Expression {self=} could not be parsed due to a syntax error.") from e
+
     @property
     def _all_references(self) -> list[ExpressionReference]:
         """Returns a list of all references found in the statement, including duplicates, in the order they appear."""
@@ -344,6 +353,7 @@ class EvaluationStatement(ExpressionStatement):
             tree = ast.parse(str(self).strip(), mode="eval")
         except SyntaxError:
             return []
+
         extractor = _ReferenceExtractor()
         extractor.visit(tree)
         return extractor.references
@@ -377,6 +387,14 @@ class InterpolationStatement(ExpressionStatement):
             out.append(ref)
 
         return out
+
+    def interpolate(self, interpolation_function: Callable[[re.Match[Any]], str]) -> str:
+        from app.common.expressions import INTERPOLATE_REGEX
+
+        return INTERPOLATE_REGEX.sub(
+            interpolation_function,
+            self,
+        )
 
 
 class InterpolationStatementType(TypeDecorator):
