@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum
 from app.common.exceptions import WTFormRenderableException
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
@@ -123,7 +123,7 @@ class EvaluatableExpression(BaseModel):
 
     @property
     @abc.abstractmethod
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         raise NotImplementedError
 
     @property
@@ -132,7 +132,7 @@ class EvaluatableExpression(BaseModel):
 
     @property
     @abc.abstractmethod
-    def message(self) -> str: ...
+    def message(self) -> InterpolationStatement | None: ...
 
     @property
     def reference_aware_fields(self) -> set[str]:
