@@ -27,7 +27,7 @@ from app.common.exceptions import (
     SubmissionAnswerConflict,
     SubmissionValidationFailed,
 )
-from app.common.expressions import interpolate
+from app.common.expressions import InterpolationStatement, interpolate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 
@@ -355,7 +355,7 @@ class FormRunner:
         # Returns True if it was successful; at the moment this cannot fail (vs `save_question_answer`)
         return True
 
-    def interpolate(self, text: str, *, context: ExpressionContext | None = None) -> str:
+    def interpolate(self, text: InterpolationStatement, *, context: ExpressionContext | None = None) -> str:
         return interpolate(text, context=context or self.runner_interpolation_context)
 
     def save_is_form_completed(self, user: User) -> bool:

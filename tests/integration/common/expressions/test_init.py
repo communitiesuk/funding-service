@@ -18,7 +18,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate, interpolate
 from app.common.expressions.managed import BetweenDates, GreaterThan
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
 
@@ -867,7 +867,8 @@ class TestDataSourceInterpolation:
         ds_context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
         context = ExpressionContext(data_source_context=ds_context)
 
-        result = interpolate(f"(({data_source.safe_did}.c_allocation))", context)
+        ds_ref = ExpressionReference.from_data_source_column(data_source, "c_allocation")
+        result = interpolate(InterpolationStatement(ds_ref.wrapped), context)
         assert result == "£1,000"
 
     def test_data_source_reference_with_no_org_item_renders_placeholder(self, factories):
@@ -886,13 +887,14 @@ class TestDataSourceInterpolation:
         ds_context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
         context = ExpressionContext(data_source_context=ds_context)
 
-        result = interpolate(f"(({data_source.safe_did}.c_allocation))", context)
+        ds_ref = ExpressionReference.from_data_source_column(data_source, "c_allocation")
+        result = interpolate(InterpolationStatement(ds_ref.wrapped), context)
         assert result == "((Allocation from Grant allocation data set))"
 
     def test_unknown_data_source_reference_renders_raw(self):
         context = ExpressionContext(data_source_context={})
 
-        result = interpolate("((d_doesnotexist.some_col))", context)
+        result = interpolate(InterpolationStatement("((d_doesnotexist.some_col))"), context)
         assert result == "((d_doesnotexist.some_col))"
 
 
@@ -915,8 +917,9 @@ class TestDataSourceEvaluation:
         ds_context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
         context = ExpressionContext(data_source_context=ds_context)
 
+        ds_ref = ExpressionReference.from_data_source_column(data_source, "c_allocation")
         expr = Expression(
-            statement=f"{data_source.safe_did}.c_allocation > 500",
+            statement=EvaluationStatement(f"{ds_ref} > 500"),
             type_=ExpressionType.CONDITION,
         )
         assert evaluate(expr, context) is True

@@ -236,7 +236,7 @@
           })
         %}
 
-        {% set key_text = runner.interpolate(question.add_another_container.name) %}
+        {% set key_text = runner.interpolate(question.add_another_container.text) %}
 
         {# the add another context has been fully answered and should be checked on this page #}
         {% if count and status.all_answered %}

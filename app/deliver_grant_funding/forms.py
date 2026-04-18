@@ -47,7 +47,7 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext
 from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import get_registered_data_types
-from app.common.forms.fields import MHCLGAccessibleAutocomplete
+from app.common.forms.fields import InterpolationStatementField, MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.feature_flags import FeatureFlags
@@ -848,7 +848,7 @@ class AddSectionForm(FlaskForm):
 
 
 class AddGuidanceForm(FlaskForm):
-    guidance_heading = StringField(
+    guidance_heading = InterpolationStatementField(
         "Give your page a heading",
         description=(
             "When you add guidance your question text will no longer be the main page heading, "
@@ -858,7 +858,7 @@ class AddGuidanceForm(FlaskForm):
         widget=GovTextInput(),
         filters=[strip_string_if_not_empty],
     )
-    guidance_body = StringField(
+    guidance_body = InterpolationStatementField(
         "Add guidance text",
         description="Use Markdown if you need to format your guidance content. Formatting help can be found below.",
         widget=GovTextArea(),

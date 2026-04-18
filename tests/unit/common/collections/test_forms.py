@@ -33,6 +33,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.references import InterpolationStatement
 from app.common.forms.fields import MHCLGCheckboxesInput, MHCLGRadioInput
 from app.common.forms.validators import MaxNumberOfDecimalPlacesValidator, URLWithoutProtocol, WordRange
 from tests.conftest import FundingServiceTestClient
@@ -107,7 +108,7 @@ class TestBuildQuestionForm:
     def test_expected_fields_exist(self, app):
         q = Question(
             id=uuid.UUID("31673d51-95b0-4589-b254-33b866dfd94f"),
-            text="Question text",
+            text=InterpolationStatement("Question text"),
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
         form = build_question_form([q], evaluation_context=EC(), interpolation_context=EC())

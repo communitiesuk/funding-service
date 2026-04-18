@@ -8080,7 +8080,7 @@ class TestManageAddAnotherGuidance:
     def test_post_update_guidance(self, authenticated_grant_admin_client, factories, db_session):
         group = factories.group.create(
             form__collection__grant=authenticated_grant_admin_client.grant,
-            add_another_guidance_body="Old body",
+            add_another_guidance_body=InterpolationStatement("Old body"),
         )
 
         response = authenticated_grant_admin_client.post(
