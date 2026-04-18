@@ -17,10 +17,10 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
 )
-from app.common.expressions import ExpressionContext
+from app.common.expressions import EvaluationStatement, ExpressionContext
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.metrics import MetricEventName
 
@@ -261,8 +261,10 @@ def test_reference_data_validation__number__custom(factories, db_session):
         q3,
         user,
         CustomExpression(
-            custom_expression=f"(({q3.safe_qid}))<(({q1.safe_qid}))+(({q2.safe_qid}))",
-            custom_message=f"The answer must be less than q1 ((({q1.safe_qid}))) + q2 ((({q2.safe_qid})))",
+            custom_expression=EvaluationStatement(f"(({q3.safe_qid}))<(({q1.safe_qid}))+(({q2.safe_qid}))"),
+            custom_message=InterpolationStatement(
+                f"The answer must be less than q1 ((({q1.safe_qid}))) + q2 ((({q2.safe_qid})))"
+            ),
         ),
     )
 
@@ -513,8 +515,8 @@ class TestValidationMetrics:
             q1,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({q1.safe_qid}))<5",
-                custom_message="failure message",
+                custom_expression=EvaluationStatement(f"(({q1.safe_qid}))<5"),
+                custom_message=InterpolationStatement("failure message"),
             ),
         )
 
@@ -537,8 +539,8 @@ class TestValidationMetrics:
             q1,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({q1.safe_qid}))<5",
-                custom_message="failure message",
+                custom_expression=EvaluationStatement(f"(({q1.safe_qid}))<5"),
+                custom_message=InterpolationStatement("failure message"),
             ),
         )
 

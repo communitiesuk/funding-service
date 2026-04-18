@@ -16,7 +16,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
 )
-from app.common.expressions import ExpressionContext
+from app.common.expressions import EvaluationStatement, ExpressionContext, InterpolationStatement
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import (
     AnyOf,
@@ -399,8 +399,10 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         "validation": E2EManagedExpression(
             evaluatable_expression=CustomExpression(
-                custom_expression="((ref1)) > ((ref2)) + ((ref3))",
-                custom_message="The answer must be greater than the weight plus the number from the previous section",
+                custom_expression=EvaluationStatement("((ref1)) > ((ref2)) + ((ref3))"),
+                custom_message=InterpolationStatement(
+                    "The answer must be greater than the weight plus the number from the previous section"
+                ),
             ),
             expression_references={
                 "ref1": DataReferenceConfig(data_source="THIS_QUESTION"),
@@ -429,7 +431,7 @@ section_2_questions_to_test: dict[str, TQuestionToTest] = {
         "data_options": QuestionDataOptions(),
         "condition": E2EManagedExpression(
             evaluatable_expression=CustomExpression(
-                custom_expression="((ref1)) > ((ref2)) + ((ref3))",
+                custom_expression=EvaluationStatement("((ref1)) > ((ref2)) + ((ref3))"),
                 expression_name="Show if cost greater than weight plus number",
             ),
             expression_references={

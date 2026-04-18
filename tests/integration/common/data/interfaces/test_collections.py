@@ -99,10 +99,10 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
 )
-from app.common.expressions import ExpressionContext
+from app.common.expressions import EvaluationStatement, ExpressionContext
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.forms.helpers import components_in_valid_add_another_combination
 from app.metrics import MetricEventName
 from tests.models import FactoryAnswer
@@ -1236,8 +1236,8 @@ class TestUpdateGroup:
             group,
             user,
             CustomExpression(
-                custom_expression=f"(({question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
 
@@ -3068,7 +3068,8 @@ class TestExpressions:
 
         # configured by the user interface
         custom_expr = CustomExpression(
-            custom_expression=f"(({q1.safe_qid})) > (({q2.safe_qid}))", custom_message="Failed condition"
+            custom_expression=EvaluationStatement(f"(({q1.safe_qid})) > (({q2.safe_qid}))"),
+            custom_message=InterpolationStatement("Failed condition"),
         )
 
         add_component_condition(q3, user, custom_expr)
@@ -3253,8 +3254,8 @@ class TestExpressions:
 
         # configured by the user interface
         custom_expression = CustomExpression(
-            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid}))",
-            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
+            custom_expression=EvaluationStatement(f"(({q2.safe_qid})) >= (({q1.safe_qid}))"),
+            custom_message=InterpolationStatement(f"The answer must be greater than or equal to (({q1.safe_qid}))"),
         )
 
         add_component_validation(q2, user, custom_expression)
@@ -3294,8 +3295,8 @@ class TestExpressions:
         user = factories.user.create()
 
         custom_expression = CustomExpression(
-            custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) <= 1000",
-            custom_message="Capital plus revenue must not exceed 1000",
+            custom_expression=EvaluationStatement(f"(({capital.safe_qid})) + (({revenue.safe_qid})) <= 1000"),
+            custom_message=InterpolationStatement("Capital plus revenue must not exceed 1000"),
         )
 
         add_component_validation(group, user, custom_expression)
@@ -3352,8 +3353,8 @@ class TestExpressions:
         user = factories.user.create()
 
         custom_expression = CustomExpression(
-            custom_expression=f"(({question_after_group.safe_qid})) > 0",
-            custom_message="Must be positive",
+            custom_expression=EvaluationStatement(f"(({question_after_group.safe_qid})) > 0"),
+            custom_message=InterpolationStatement("Must be positive"),
         )
 
         with pytest.raises(DependencyOrderException):
@@ -3383,15 +3384,15 @@ class TestExpressions:
 
         # configured by the user interface
         custom_expression = CustomExpression(
-            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid}))",
-            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
+            custom_expression=EvaluationStatement(f"(({q2.safe_qid})) >= (({q1.safe_qid}))"),
+            custom_message=InterpolationStatement(f"The answer must be greater than or equal to (({q1.safe_qid}))"),
         )
 
         add_component_validation(q2, user, custom_expression)
 
         updated_expression = CustomExpression(
-            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid})) + 6",
-            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid})) + 6",
+            custom_expression=EvaluationStatement(f"(({q2.safe_qid})) >= (({q1.safe_qid})) + 6"),
+            custom_message=InterpolationStatement(f"The answer must be greater than or equal to (({q1.safe_qid})) + 6"),
         )
 
         update_question_expression(q2.expressions[0], updated_expression)
@@ -4187,9 +4188,11 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             CustomExpression(
-                custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
-                custom_message=f"The answer must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
-                f" and a random reference to (({q0.safe_qid}))",
+                custom_expression=EvaluationStatement(f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))"),
+                custom_message=InterpolationStatement(
+                    f"The answer must be less than (({q1.safe_qid}))+(({q2.safe_qid}))"
+                    f" and a random reference to (({q0.safe_qid}))"
+                ),
             ),
             ExpressionType.VALIDATION,
             user,
@@ -4215,7 +4218,7 @@ class TestValidateAndSyncExpressionReferences:
 
         expression = Expression.from_evaluatable_expression(
             CustomExpression(
-                custom_expression=f"(({q0.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
+                custom_expression=EvaluationStatement(f"(({q0.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))"),
             ),
             ExpressionType.CONDITION,
             user,
@@ -5318,8 +5321,8 @@ class TestAddComponentValidationCustomExpression:
         q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
         custom_expr = CustomExpression(
-            custom_expression=f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))",
-            custom_message="Q3 must be less than Q1+Q2",
+            custom_expression=EvaluationStatement(f"(({q3.safe_qid})) <= (({q1.safe_qid})) + (({q2.safe_qid}))"),
+            custom_message=InterpolationStatement("Q3 must be less than Q1+Q2"),
         )
 
         collections.add_component_validation(component=q3, user=user, evaluatable_expression=custom_expr)

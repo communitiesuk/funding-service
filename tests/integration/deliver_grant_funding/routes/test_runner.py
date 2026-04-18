@@ -14,7 +14,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionModeEnum,
 )
-from app.common.expressions import ExpressionReference
+from app.common.expressions import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.expressions.custom import CustomExpression
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching, get_h1_text, page_has_button
@@ -881,8 +881,8 @@ class TestGroupValidation:
             group,
             client.user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
-                custom_message="Capital plus revenue must equal 1000",
+                custom_expression=EvaluationStatement(f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000"),
+                custom_message=InterpolationStatement("Capital plus revenue must equal 1000"),
             ),
         )
         submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
@@ -916,8 +916,8 @@ class TestGroupValidation:
             group,
             client.user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
-                custom_message="Capital plus revenue must equal 1000",
+                custom_expression=EvaluationStatement(f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000"),
+                custom_message=InterpolationStatement("Capital plus revenue must equal 1000"),
             ),
         )
         submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
@@ -998,8 +998,10 @@ class TestGroupValidation:
             group,
             client.user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == (({total.safe_qid}))",
-                custom_message="Capital plus revenue must equal the quarter total",
+                custom_expression=EvaluationStatement(
+                    f"(({capital.safe_qid})) + (({revenue.safe_qid})) == (({total.safe_qid}))"
+                ),
+                custom_message=InterpolationStatement("Capital plus revenue must equal the quarter total"),
             ),
         )
 
@@ -1047,16 +1049,16 @@ class TestGroupValidation:
             group,
             client.user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
-                custom_message="Rule A: capital plus revenue must equal 1000",
+                custom_expression=EvaluationStatement(f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000"),
+                custom_message=InterpolationStatement("Rule A: capital plus revenue must equal 1000"),
             ),
         )
         add_component_validation(
             group,
             client.user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) > 0",
-                custom_message="Rule B: capital must be positive",
+                custom_expression=EvaluationStatement(f"(({capital.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Rule B: capital must be positive"),
             ),
         )
         submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
@@ -1086,8 +1088,8 @@ class TestGroupValidation:
             group,
             client.user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
-                custom_message="Group rule should not appear",
+                custom_expression=EvaluationStatement(f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000"),
+                custom_message=InterpolationStatement("Group rule should not appear"),
             ),
         )
         submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
@@ -1117,8 +1119,8 @@ class TestGroupValidation:
             group,
             client.user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
-                custom_message="Capital plus revenue must equal 1000",
+                custom_expression=EvaluationStatement(f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000"),
+                custom_message=InterpolationStatement("Capital plus revenue must equal 1000"),
             ),
         )
         submission = factories.submission.create(

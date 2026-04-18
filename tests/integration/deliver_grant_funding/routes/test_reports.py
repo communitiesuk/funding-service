@@ -55,7 +55,7 @@ from app.common.expressions.forms import (
     build_managed_expression_form,
 )
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -2087,8 +2087,8 @@ class TestListGroupQuestions:
             group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100",
-                custom_message="Total must exceed 100",
+                custom_expression=EvaluationStatement(f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100"),
+                custom_message=InterpolationStatement("Total must exceed 100"),
             ),
         )
         db_session.commit()
@@ -2127,8 +2127,8 @@ class TestListGroupQuestions:
             inner_group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100",
-                custom_message="Total must exceed 100",
+                custom_expression=EvaluationStatement(f"(({q1.safe_qid})) + (({q2.safe_qid})) > 100"),
+                custom_message=InterpolationStatement("Total must exceed 100"),
             ),
         )
         db_session.commit()
@@ -4517,7 +4517,7 @@ class TestEditCalculatedCondition:
             form=form,
         )
         group_condition = Expression.from_evaluatable_expression(
-            evaluatable_expression=CustomExpression(custom_expression="6>5"),
+            evaluatable_expression=CustomExpression(custom_expression=EvaluationStatement("6>5")),
             expression_type=ExpressionType.CONDITION,
             created_by=factories.user.create(),
         )
@@ -4526,7 +4526,7 @@ class TestEditCalculatedCondition:
 
         target_question = factories.question.create(form=form)
         question_condition = Expression.from_evaluatable_expression(
-            evaluatable_expression=CustomExpression(custom_expression="4>5"),
+            evaluatable_expression=CustomExpression(custom_expression=EvaluationStatement("4>5")),
             expression_type=ExpressionType.CONDITION,
             created_by=factories.user.create(),
         )
@@ -4568,7 +4568,7 @@ class TestEditCalculatedCondition:
             form=form,
         )
         group_condition = Expression.from_evaluatable_expression(
-            evaluatable_expression=CustomExpression(custom_expression="6>5"),
+            evaluatable_expression=CustomExpression(custom_expression=EvaluationStatement("6>5")),
             expression_type=ExpressionType.CONDITION,
             created_by=factories.user.create(),
         )
@@ -4577,7 +4577,9 @@ class TestEditCalculatedCondition:
 
         target_question = factories.question.create(form=form)
         question_condition = Expression.from_evaluatable_expression(
-            evaluatable_expression=CustomExpression(custom_expression="4>5", expression_name="test name"),
+            evaluatable_expression=CustomExpression(
+                custom_expression=EvaluationStatement("4>5"), expression_name="test name"
+            ),
             expression_type=ExpressionType.CONDITION,
             created_by=factories.user.create(),
         )
@@ -4629,7 +4631,9 @@ class TestEditCalculatedCondition:
         target_question = factories.question.create(form=form)
         later_question = factories.question.create(form=form)
         question_condition = Expression.from_evaluatable_expression(
-            evaluatable_expression=CustomExpression(custom_expression="4>5", expression_name="test name"),
+            evaluatable_expression=CustomExpression(
+                custom_expression=EvaluationStatement("4>5"), expression_name="test name"
+            ),
             expression_type=ExpressionType.CONDITION,
             created_by=factories.user.create(),
         )
@@ -10020,8 +10024,8 @@ class TestEditCustomQuestionValidation:
             q3,
             authenticated_platform_admin_client.user,
             CustomExpression(
-                custom_expression="True",
-                custom_message="Failed",
+                custom_expression=EvaluationStatement("True"),
+                custom_message=InterpolationStatement("Failed"),
             ),
         )
 
@@ -10061,8 +10065,8 @@ class TestEditCustomQuestionValidation:
             q3,
             authenticated_platform_admin_client.user,
             CustomExpression(
-                custom_expression="True",
-                custom_message="Failed",
+                custom_expression=EvaluationStatement("True"),
+                custom_message=InterpolationStatement("Failed"),
             ),
         )
 
@@ -10117,8 +10121,8 @@ class TestEditCustomQuestionValidation:
             q3,
             authenticated_platform_admin_client.user,
             CustomExpression(
-                custom_expression="True",
-                custom_message="Failed",
+                custom_expression=EvaluationStatement("True"),
+                custom_message=InterpolationStatement("Failed"),
             ),
         )
 
@@ -10170,8 +10174,8 @@ class TestEditCustomQuestionValidation:
             q2,
             authenticated_platform_admin_client.user,
             CustomExpression(
-                custom_expression="True",
-                custom_message="Failed",
+                custom_expression=EvaluationStatement("True"),
+                custom_message=InterpolationStatement("Failed"),
             ),
         )
 
@@ -10410,8 +10414,8 @@ class TestEditGroupValidation:
             group,
             user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({capital.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
         return group, capital
@@ -10535,8 +10539,8 @@ class TestEditGroupValidation:
             question,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
         question_expression_id = question.expressions[0].id
@@ -10572,8 +10576,8 @@ class TestEditGroupValidation:
             other_group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({other_question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({other_question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
         other_expression_id = other_group.validations[0].id
@@ -10696,8 +10700,8 @@ class TestListGroupQuestionsValidationsSection:
             group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
 
@@ -10769,8 +10773,8 @@ class TestChangeGroupDisplayOptionsBlockedByValidations:
             group,
             factories.user.create(),
             CustomExpression(
-                custom_expression=f"(({question.safe_qid})) > 0",
-                custom_message="Must be positive",
+                custom_expression=EvaluationStatement(f"(({question.safe_qid})) > 0"),
+                custom_message=InterpolationStatement("Must be positive"),
             ),
         )
 
