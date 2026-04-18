@@ -73,7 +73,11 @@ from app.common.data.types import (
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import AnyOf, GreaterThan, Specifically
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import (
+    EvaluationStatement,
+    ExpressionReference,
+    InterpolationStatement,
+)
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions import db
 from app.types import TRadioItem
@@ -81,6 +85,17 @@ from app.types import TRadioItem
 
 def _required() -> None:
     raise ValueError("Value must be set explicitly for tests")
+
+
+_INTERPOLATION_FIELDS = ("text", "hint", "guidance_heading", "guidance_body", "add_another_guidance_body")
+
+
+def _coerce_component_interpolation_fields(kwargs: dict[str, Any]) -> dict[str, Any]:
+    for field_name in _INTERPOLATION_FIELDS:
+        value = kwargs.get(field_name)
+        if value is not None and not isinstance(value, InterpolationStatement):
+            kwargs[field_name] = InterpolationStatement(value)
+    return kwargs
 
 
 def _get_grant_managing_organisation() -> Organisation:
@@ -897,8 +912,16 @@ class _QuestionFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
         exclude = ("needs_data_source",)
 
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        return super()._create(model_class, *args, **_coerce_component_interpolation_fields(kwargs))
+
+    @classmethod
+    def _build(cls, model_class, *args, **kwargs):
+        return super()._build(model_class, *args, **_coerce_component_interpolation_fields(kwargs))
+
     id = factory.LazyFunction(uuid4)
-    text = factory.Sequence(lambda n: "Question %d" % n)
+    text = factory.Sequence(lambda n: InterpolationStatement("Question %d" % n))
     name = factory.Sequence(lambda n: "Question name %d" % n)
     slug = factory.Sequence(lambda n: "question-%d" % n)
     order = factory.LazyAttribute(
@@ -977,8 +1000,16 @@ class _GroupFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
 
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        return super()._create(model_class, *args, **_coerce_component_interpolation_fields(kwargs))
+
+    @classmethod
+    def _build(cls, model_class, *args, **kwargs):
+        return super()._build(model_class, *args, **_coerce_component_interpolation_fields(kwargs))
+
     id = factory.LazyFunction(uuid4)
-    text = factory.Sequence(lambda n: "Group %d" % n)
+    text = factory.Sequence(lambda n: InterpolationStatement("Group %d" % n))
     name = factory.Sequence(lambda n: "Group name %d" % n)
     slug = factory.Sequence(lambda n: "group-%d" % n)
     order = factory.LazyAttribute(
@@ -1060,6 +1091,18 @@ class _ExpressionFactory(SQLAlchemyModelFactory):
         model = Expression
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        if (stmt := kwargs.get("statement")) is not None and not isinstance(stmt, EvaluationStatement):
+            kwargs["statement"] = EvaluationStatement(stmt)
+        return super()._create(model_class, *args, **kwargs)
+
+    @classmethod
+    def _build(cls, model_class, *args, **kwargs):
+        if (stmt := kwargs.get("statement")) is not None and not isinstance(stmt, EvaluationStatement):
+            kwargs["statement"] = EvaluationStatement(stmt)
+        return super()._build(model_class, *args, **kwargs)
 
     id = factory.LazyFunction(uuid4)
     question_id = factory.LazyAttribute(lambda o: o.question.id)

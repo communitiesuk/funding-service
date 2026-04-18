@@ -9,7 +9,6 @@ from wtforms.validators import DataRequired
 from app.common.data.interfaces.collections import (
     IncompatibleDataTypeException,
     IncompatibleDataTypeInCalculationException,
-    _find_all_references_in_expression,
     _validate_reference,
 )
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
@@ -21,7 +20,12 @@ from app.common.expressions import (
     get_restricted_evaluator,
     run_evaluation,
 )
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import (
+    EvaluationStatement,
+    ExpressionReference,
+    ExpressionStatement,
+    InterpolationStatement,
+)
 from app.common.expressions.registry import (
     get_managed_conditions_by_data_type,
     get_managed_validators_by_data_type,
@@ -31,7 +35,7 @@ from app.common.forms.fields import EvaluationStatementField, InterpolationState
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Expression, Group, Question
+    from app.common.data.models import Component, Expression, Group
     from app.common.expressions.managed import ManagedExpression
 
 
@@ -232,7 +236,7 @@ def _fake_data_source_data(component: Component) -> dict[str, dict[str, str | in
 def _validate_custom_syntax(  # noqa:C901
     component: Component,
     interpolation_context: ExpressionContext,
-    statement: str,
+    statement: ExpressionStatement,
     expression_type: ExpressionType,
     field_name: str,
     validate_with_evaluation: bool = True,
@@ -241,8 +245,7 @@ def _validate_custom_syntax(  # noqa:C901
     validated_references = []
 
     try:
-        unvalidated_references = _find_all_references_in_expression(statement)
-        for ref in unvalidated_references:
+        for ref in statement.references:
             validated_ref = _validate_reference(
                 reference=ref,
                 attached_to_component=component,
@@ -262,7 +265,9 @@ def _validate_custom_syntax(  # noqa:C901
 
         if expression_type == ExpressionType.VALIDATION:
             if component.is_question:
-                references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
+                references_to_self_count = cast(InterpolationStatement, statement).count_references(
+                    ExpressionReference.from_question(component)
+                )
                 if references_to_self_count != 1:
                     raise DisallowedExpression(
                         message=(
@@ -372,7 +377,7 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
             _validate_custom_syntax(
                 self.component,
                 self.interpolation_context,
-                self.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                EvaluationStatement(self.custom_expression.data or ""),
                 ExpressionType.VALIDATION,
                 "custom_expression",
                 validate_with_evaluation=True,
@@ -385,7 +390,7 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
             _validate_custom_syntax(
                 self.component,
                 self.interpolation_context,
-                self.custom_message.data,  # ty:ignore[invalid-argument-type]
+                InterpolationStatement(self.custom_message.data or ""),
                 ExpressionType.VALIDATION,
                 "custom_message",
                 validate_with_evaluation=False,
@@ -444,7 +449,7 @@ class CalculatedConditionForm(ExceptionRenderingFormMixin, FlaskForm):
             _validate_custom_syntax(
                 self.component,
                 self.interpolation_context,
-                self.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                EvaluationStatement(self.custom_expression.data or ""),
                 ExpressionType.CONDITION,
                 "custom_expression",
                 validate_with_evaluation=True,

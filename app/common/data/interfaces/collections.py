@@ -2,7 +2,7 @@ import datetime
 import uuid
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Literal, Never, Protocol, Unpack, overload
+from typing import Any, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
 
 from flask import current_app
@@ -56,12 +56,16 @@ from app.common.data.utils import generate_submission_reference
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
     ALLOWED_INTERPOLATION_REGEX,
-    INTERPOLATE_REGEX,
     EvaluatableExpression,
     ExpressionContext,
 )
 from app.common.expressions.managed import BaseDataSourceManagedExpression
-from app.common.expressions.references import DataSourceReference, ExpressionReference
+from app.common.expressions.references import (
+    DataSourceReference,
+    ExpressionReference,
+    InterpolationStatement,
+    PExpressionReferences,
+)
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
@@ -1495,15 +1499,6 @@ def get_referenced_data_source_items_by_managed_expression(
     return referenced_data_source_items
 
 
-def _find_all_references_in_expression(
-    value: str,
-) -> list[ExpressionReference]:
-    references: list[ExpressionReference] = []
-    for match in INTERPOLATE_REGEX.finditer(value):
-        references.append(ExpressionReference.from_wrapped(match.group(0)))
-    return references
-
-
 def components_in_same_group_and_on_same_page(component1: Component, component2: Component) -> bool:
     # got parents
     if not component1.parent or not component2.parent:
@@ -1726,17 +1721,10 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
             referenced_questions.add(expr_impl.referenced_question)  # ty:ignore[unresolved-attribute]
 
     for field in expr_impl.reference_aware_fields:
-        field_value = getattr(expr_impl, field)
+        field_value = cast(PExpressionReferences | None, getattr(expr_impl, field))
         if not field_value:
             continue
-        # An ExpressionReference-typed field is itself a single reference; a plain str field is
-        # free text that may contain zero or more ((…)) references to scan out.
-        references = (
-            [field_value]
-            if isinstance(field_value, ExpressionReference)
-            else list(set(_find_all_references_in_expression(field_value)))
-        )
-        for reference in references:
+        for reference in field_value.references:
             valid_reference = _validate_reference(
                 reference=reference,
                 attached_to_component=expression.question,
@@ -1803,12 +1791,11 @@ def _validate_and_sync_component_references(component: Component, expression_con
     data_source_refs_to_set_up: set[DataSourceReference] = set()
     field_names = ["text", "hint", "guidance_body", "add_another_guidance_body"]
     for field_name in field_names:
-        value = getattr(component, field_name)
+        value = cast(InterpolationStatement | None, getattr(component, field_name))
         if value is None:
             continue
 
-        unvalidated_references = set(_find_all_references_in_expression(value))
-        for unvalidated_reference in unvalidated_references:
+        for unvalidated_reference in value.references:
             validated_reference = _validate_reference(
                 reference=unvalidated_reference,
                 attached_to_component=component,
