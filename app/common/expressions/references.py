@@ -1,6 +1,7 @@
 import ast
+import re
 from collections import namedtuple
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 from uuid import UUID
 
 from pydantic import GetCoreSchemaHandler
@@ -352,6 +353,14 @@ class InterpolationStatement(ExpressionStatement):
                 out.append(ref)
 
         return out
+
+    def interpolate(self, interpolation_function: Callable[[re.Match[Any]], str]) -> str:
+        from app.common.expressions import INTERPOLATE_REGEX
+
+        return INTERPOLATE_REGEX.sub(
+            interpolation_function,
+            self,
+        )
 
 
 class InterpolationStatementType(TypeDecorator):
