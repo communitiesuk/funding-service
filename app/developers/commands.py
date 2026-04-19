@@ -3,7 +3,8 @@ import hashlib
 import json
 import uuid
 from collections import defaultdict
-from io import BytesIO
+from difflib import SequenceMatcher
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Any, TextIO, TypedDict, cast
 from uuid import UUID
@@ -800,3 +801,99 @@ def create_multi_submissions(  # noqa: C901
         click.echo(f"\nDone. Created {created} submissions, skipped {skipped}.")
     else:
         click.echo(f"\nDry run complete. Would create {created} submissions, would skip {skipped}.")
+
+
+def _render_char_diff(stored: str, generated: str) -> tuple[str, str]:
+    matcher = SequenceMatcher(a=stored, b=generated, autojunk=False)
+    stored_out: list[str] = []
+    generated_out: list[str] = []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            stored_out.append(stored[i1:i2])
+            generated_out.append(generated[j1:j2])
+            continue
+        if i1 != i2:
+            stored_out.append(click.style(stored[i1:i2], fg="red", bold=True))
+        if j1 != j2:
+            generated_out.append(click.style(generated[j1:j2], fg="green", bold=True))
+    return "".join(stored_out), "".join(generated_out)
+
+
+@developers_blueprint.cli.command(
+    "check-managed-statements",
+    help="Diff each managed expression's stored statement against one regenerated from its ManagedExpression.",
+)
+@click.option("--output", type=click.Choice(["stdout", "s3"]), default="stdout")
+@click.option("--s3-key", help="S3 object key to upload the report to. Required when --output=s3.")
+@click.option(
+    "--force-colour",
+    is_flag=True,
+    default=False,
+    help="Force ANSI colour codes in output even when stdout is not a TTY (e.g. ECS/CloudWatch, S3).",
+)
+@click.pass_context
+def check_managed_statements(ctx: click.Context, output: str, s3_key: str | None, force_colour: bool) -> None:
+    if force_colour:
+        ctx.color = True
+
+    if output == "s3" and not s3_key:
+        raise click.ClickException("--s3-key is required when --output=s3")
+
+    buf: StringIO | None = StringIO() if output == "s3" else None
+
+    def emit(line: str = "") -> None:
+        click.echo(line)
+        if buf is not None:
+            click.echo(line, file=buf)
+
+    expressions = (
+        db.session.query(Expression)
+        .where(Expression.managed_name.isnot(None))
+        .order_by(Expression.managed_name, Expression.id)
+        .all()
+    )
+
+    mismatches = 0
+    errors = 0
+    for expression in expressions:
+        assert expression.managed_name is not None
+        header = f"expression {expression.id} ({expression.managed_name.value}) on component {expression.question_id}"
+
+        try:
+            generated = expression.managed.statement
+        except Exception as exc:
+            errors += 1
+            emit(f"{header}:")
+            emit(f"  stored:    {expression.statement}")
+            emit(f"  {click.style('could not regenerate: ' + type(exc).__name__ + ': ' + str(exc), fg='yellow')}")
+            emit()
+            continue
+
+        stored = expression.statement
+        if stored == generated:
+            continue
+
+        mismatches += 1
+        stored_coloured, generated_coloured = _render_char_diff(stored, generated)
+        emit(f"{header}:")
+        emit(f"  - {stored_coloured}")
+        emit(f"  + {generated_coloured}")
+        emit()
+
+    emit(
+        f"Checked {len(expressions)} managed expressions; {mismatches} mismatch(es), {errors} reconstruction error(s)."
+    )
+
+    if buf is not None:
+        assert s3_key is not None
+        file_storage = FileStorage(
+            stream=BytesIO(buf.getvalue().encode("utf-8")),
+            filename=s3_key,
+            content_type="text/plain; charset=utf-8",
+        )
+        s3_service.upload_file(file_storage, key=s3_key)
+        bucket = current_app.config["AWS_S3_BUCKET_NAME"]
+        click.echo(f"Report uploaded to s3://{bucket}/{s3_key}")
+
+    if mismatches or errors:
+        raise click.exceptions.Exit(1)
