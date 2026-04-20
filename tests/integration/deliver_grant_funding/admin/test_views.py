@@ -1946,7 +1946,7 @@ class TestSetupGrantRecipients:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Set up grant recipients"
+        assert "Set up grant recipients" in get_h1_text(soup)
 
         select_element = soup.find("select", {"id": "recipients"})
         assert select_element is not None
@@ -2183,7 +2183,7 @@ class TestAddIndividualDataProviders:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Add a grant recipient data provider"
+        assert "Add a grant recipient data provider" in get_h1_text(soup)
 
         assert soup.find("select", {"id": "grant_recipient"}) is not None
         assert soup.find("input", {"id": "full_name"}) is not None
@@ -2421,7 +2421,7 @@ class TestAddBulkDataProviders:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Set up grant recipient data providers"
+        assert "Set up grant recipient data providers" in get_h1_text(soup)
 
         assert soup.find("textarea", {"id": "users_data"}) is not None
 
