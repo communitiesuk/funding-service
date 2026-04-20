@@ -891,6 +891,57 @@ class CreateCustomExpressionPage(ReportsBasePage):
         return edit_question_page
 
 
+class AddGroupValidationPage(ReportsBasePage):
+    add_validation_button: Locator
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str, group_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Create a group validation"),
+        )
+        self.report_name = report_name
+        self.section_name = section_name
+        self.group_name = group_name
+        self.add_validation_button = self.page.get_by_role("button", name="Add group validation")
+
+        self.custom_expression_textarea = get_context_aware_textbox_locator_by_name(page, "Calculation")
+        self.add_data_to_expression_button = self.page.get_by_role("button", name="Reference data for calculation")
+
+        self.custom_message_textarea = get_context_aware_textbox_locator_by_name(page, name="Error message")
+        self.add_data_to_message_button = self.page.get_by_role("button", name="Reference data for error message")
+
+    def configure_custom_expression(
+        self, expression: str, expression_references: dict[str, DataReferenceConfig]
+    ) -> None:
+        wait_for_context_aware_textarea_to_be_ready(self.page, "custom_expression")
+        _fill_custom_field(
+            self, self.custom_expression_textarea, self.add_data_to_expression_button, expression, expression_references
+        )
+
+    def configure_custom_message(self, expression: str, message_references: dict[str, DataReferenceConfig]) -> None:
+        wait_for_context_aware_textarea_to_be_ready(self.page, "custom_message")
+        _fill_custom_field(
+            self, self.custom_message_textarea, self.add_data_to_message_button, expression, message_references
+        )
+
+    def click_create_group_validation_expression(self) -> "EditQuestionGroupPage":
+        self.add_validation_button.click()
+        edit_question_group_page = EditQuestionGroupPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+            group_name=self.group_name,
+        )
+        expect(edit_question_group_page.heading).to_be_visible()
+        return edit_question_group_page
+
+
 class CreateCalculatedConditionPage(ReportsBasePage):
     add_condition_button: Locator
 
@@ -1773,6 +1824,22 @@ class EditQuestionGroupPage(ReportsBasePage):
         self.change_display_options_link = self.page.get_by_role("link", name="Change")
         self.change_guidance_link = self.page.get_by_role("link", name="Change  page heading")
         self.add_question_group_button = self.page.get_by_role("link", name="Add a question group", exact=True)
+        self.add_validation_button = self.page.get_by_role("button", name="Add validation").or_(
+            self.page.get_by_role("button", name="Add more validation")
+        )
+
+    def click_add_validation(self) -> AddGroupValidationPage:
+        self.add_validation_button.click()
+        add_group_validation_page = AddGroupValidationPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+            group_name=self.group_name,
+        )
+        expect(add_group_validation_page.heading).to_be_visible()
+        return add_group_validation_page
 
     def click_section_breadcrumb(self) -> ManageSectionPage:
         self.section_breadcrumb.click()

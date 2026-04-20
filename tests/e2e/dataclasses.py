@@ -87,5 +87,6 @@ class QuestionGroupDict(TypedDict):
     display_options: GroupDisplayOptions
     guidance: NotRequired[GuidanceText]
     condition: NotRequired[E2EManagedExpression]
+    validation: NotRequired[E2EManagedExpression]
     questions: list[QuestionDict]
     add_another: NotRequired[bool]
