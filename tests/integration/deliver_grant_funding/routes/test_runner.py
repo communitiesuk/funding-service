@@ -1497,3 +1497,75 @@ class TestRemoveAddAnotherEntry:
 
         assert submission.data_manager.get_count_for_add_another(group) == 2
         assert submission.data_manager.get(q1, add_another_index=0) == TextSingleLineAnswer("Entry 1")
+
+    def test_post_remove_add_another_entry_with_matching_check_entries(
+        self, authenticated_grant_admin_client, factories
+    ):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(
+            add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant
+        )
+        q1 = factories.question.create(form=group.form, parent=group)
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 1"), add_another_index=0),
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 2"), add_another_index=1),
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 3"), add_another_index=2),
+            ],
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=q1.id,
+                add_another_index=0,
+                action="remove",
+                check_entries=3,
+            ),
+            data={"confirm_remove": "yes"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert submission.data_manager.get_count_for_add_another(group) == 2
+        assert submission.data_manager.get(q1, add_another_index=0) == TextSingleLineAnswer("Entry 2")
+
+    def test_post_remove_add_another_entry_with_mismatched_check_entries_redirects(
+        self, authenticated_grant_admin_client, factories
+    ):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(
+            add_another=True, name="Test groups", text="Test groups", form__collection__grant=grant
+        )
+        q1 = factories.question.create(form=group.form, parent=group)
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            created_by=authenticated_grant_admin_client.user,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 1"), add_another_index=0),
+                FactoryAnswer(q1, TextSingleLineAnswer("Entry 2"), add_another_index=1),
+            ],
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=q1.id,
+                add_another_index=0,
+                action="remove",
+                check_entries=3,
+            ),
+            data={"confirm_remove": "yes"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        # no entries are removed
+        assert submission.data_manager.get_count_for_add_another(group) == 2
