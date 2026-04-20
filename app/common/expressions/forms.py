@@ -101,7 +101,7 @@ class _ManagedExpressionForm(FlaskForm):
 
 def build_managed_expression_form(
     type_: ExpressionType,
-    referenced_question: Question,
+    referenced_question: Question,  # TODO[FSPT-1284]: make this the ExpressionReference?
     expression: Expression | None = None,
     show_calculated_validation_option: bool = False,
 ) -> type[_ManagedExpressionForm] | None:
@@ -245,15 +245,15 @@ def _validate_custom_syntax(  # noqa:C901
     try:
         unvalidated_references = _find_all_references_in_expression(statement)
         for ref in unvalidated_references:
-            unwrapped_ref = _validate_reference(
-                wrapped_reference=ref,
+            validated_ref = _validate_reference(
+                reference=ref,
                 attached_to_component=component,
                 expression_context=interpolation_context,
                 expression_type=expression_type,
                 field_name_for_error_message=field_name,
                 question_to_test=None,
             )
-            validated_references.append(unwrapped_ref)
+            validated_references.append(validated_ref)
 
         if not validate_with_evaluation:
             # No further validation needed for custom error message

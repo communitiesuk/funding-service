@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 
 class CustomExpression(EvaluatableExpression):
     name: ClassVar[Literal["CUSTOM"]] = "CUSTOM"
-    question_id: None = None
     _key: None = None
     expression_name: str | None = None
     custom_expression: str

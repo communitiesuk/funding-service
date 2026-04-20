@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from app.common.data.interfaces.collections import _find_all_references_in_expression
+from app.common.expressions.references import ExpressionReference
 
 
 class TestReferenceValidation:
@@ -15,4 +16,6 @@ class TestReferenceValidation:
         ids=lambda case: case["pattern"],
     )
     def test_find_references_in_expression_shared_fixtures(self, case):
-        assert _find_all_references_in_expression(case["pattern"]) == case["references"]
+        assert _find_all_references_in_expression(case["pattern"]) == [
+            ExpressionReference(ref).unwrapped for ref in case["references"]
+        ]

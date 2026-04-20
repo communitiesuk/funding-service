@@ -116,7 +116,7 @@ class TestGreaterThanExpression:
         expr = GreaterThan(question_id=uuid.uuid4(), minimum_value=minimum_value, inclusive=inclusive)
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
-            expr.safe_qid: answer,
+            expr.subject_reference.unwrapped: answer,
             "minimum_value": expr.minimum_value,
             "inclusive": expr.inclusive,
             "question_id": expr.question_id,
@@ -199,7 +199,7 @@ class TestLessThanExpression:
         expr = LessThan(question_id=uuid.uuid4(), maximum_value=maximum_value, inclusive=inclusive)
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
         expression.context = {
-            expr.safe_qid: answer,
+            expr.subject_reference.unwrapped: answer,
             "maximum_value": expr.maximum_value,
             "question_id": expr.question_id,
         }
@@ -297,7 +297,7 @@ class TestBetweenExpression:
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, factories.user.build())
         expression.context = {
-            expr.safe_qid: answer,
+            expr.subject_reference.unwrapped: answer,
             "maximum_value": expr.maximum_value,
             "minimum_value": expr.maximum_value,
             "minimum_inclusive": expr.minimum_inclusive,
@@ -400,7 +400,10 @@ class TestAnyOfExpression:
     )
     def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool):
         expr = AnyOf(question_id=uuid.uuid4(), items=items)
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert (
+            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answer}))
+            is expected_result
+        )
 
 
 class TestIsYesExpression:
@@ -413,7 +416,10 @@ class TestIsYesExpression:
     )
     def test_evaluate(self, answer: str, expected_result: bool):
         expr = IsYes(question_id=uuid.uuid4())
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert (
+            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answer}))
+            is expected_result
+        )
 
 
 class TestIsNoExpression:
@@ -426,7 +432,10 @@ class TestIsNoExpression:
     )
     def test_evaluate(self, answer: str, expected_result: bool):
         expr = IsNo(question_id=uuid.uuid4())
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answer})) is expected_result
+        assert (
+            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answer}))
+            is expected_result
+        )
 
 
 class TestSpecificallyExpression:
@@ -445,7 +454,10 @@ class TestSpecificallyExpression:
     )
     def test_evaluate(self, item: TRadioItem, answers: set[str], expected_result: bool):
         expr = Specifically(question_id=uuid.uuid4(), item=item)
-        assert evaluate(Expression(statement=expr.statement, context={expr.safe_qid: answers})) is expected_result
+        assert (
+            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answers}))
+            is expected_result
+        )
 
 
 class TestIsBeforeExpression:
@@ -464,7 +476,11 @@ class TestIsBeforeExpression:
         user = factories.user.create()
         expr = IsBefore(question_id=uuid.uuid4(), latest_value=self.maximum_value, inclusive=inclusive)
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
-        expression.context = {expr.safe_qid: answer, "latest_value": expr.latest_value, "question_id": expr.question_id}
+        expression.context = {
+            expr.subject_reference.unwrapped: answer,
+            "latest_value": expr.latest_value,
+            "question_id": expr.question_id,
+        }
         assert evaluate(expression) is expected_result
 
     @pytest.mark.parametrize(
@@ -542,7 +558,7 @@ class TestIsAfterExpression:
         expr = IsAfter(question_id=uuid.uuid4(), earliest_value=self.min_value, inclusive=inclusive)
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            expr.safe_qid: answer,
+            expr.subject_reference.unwrapped: answer,
             "earliest_value": expr.earliest_value,
             "question_id": expr.question_id,
         }
@@ -639,7 +655,7 @@ class TestIsBetweenDatesExpression:
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
         expression.context = {
-            expr.safe_qid: answer,
+            expr.subject_reference.unwrapped: answer,
             "earliest_value": expr.earliest_value,
             "latest_value": expr.latest_value,
             "earliest_inclusive": expr.earliest_inclusive,
@@ -759,7 +775,7 @@ class TestUKPostcodeExpression:
         user = factories.user.create()
         expr = UKPostcode(question_id=uuid.uuid4())
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
-        expression.context = {expr.safe_qid: answer, "question_id": expr.question_id}
+        expression.context = {expr.subject_reference.unwrapped: answer, "question_id": expr.question_id}
         assert evaluate(expression) is expected_result
 
 
@@ -790,6 +806,7 @@ class TestCustomExpression:
         assert from_db.custom.custom_message == expr.custom_message
         assert from_db.context == {
             "question_id": None,
+            "subject_reference": None,
             "custom_expression": "(({question_id})) > 5",
             "custom_message": "Failed validation",
             "expression_name": "my short name",

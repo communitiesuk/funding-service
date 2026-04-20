@@ -294,7 +294,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             text="What size pack of teabags do you usually buy?",
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=30), ExpressionType.CONDITION, _UserFactory.create()
+                    GreaterThan(question_id=q1.id, minimum_value=30),  # ty:ignore[missing-argument, unknown-argument]
+                    ExpressionType.CONDITION,
+                    _UserFactory.create(),
                 )
             ],
         )
@@ -359,7 +361,9 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             text="Do you buy teabags in bulk?",
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=30), ExpressionType.CONDITION, _UserFactory.create()
+                    GreaterThan(question_id=q1.id, minimum_value=30),  # ty:ignore[missing-argument, unknown-argument]
+                    ExpressionType.CONDITION,
+                    _UserFactory.create(),
                 )
             ],
         )
@@ -383,13 +387,13 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             expressions=[
                 Expression.from_evaluatable_expression(
                     AnyOf(
-                        question_id=q4.id,
+                        question_id=q4.id,  # ty:ignore[unknown-argument]
                         items=[
                             cast(
                                 TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
                             )
                         ],
-                    ),
+                    ),  # ty:ignore[missing-argument]
                     ExpressionType.CONDITION,
                     _UserFactory.create(),
                 )
@@ -409,11 +413,11 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             expressions=[
                 Expression.from_evaluatable_expression(
                     Specifically(
-                        question_id=q4.id,
+                        question_id=q4.id,  # ty:ignore[unknown-argument]
                         item=cast(
                             TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
                         ),
-                    ),
+                    ),  # ty:ignore[missing-argument]
                     ExpressionType.CONDITION,
                     _UserFactory.create(),
                 )

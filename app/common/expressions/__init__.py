@@ -9,12 +9,12 @@ from uuid import UUID
 
 import simpleeval
 from markupsafe import Markup, escape
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field, model_validator
 
 from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum
 from app.common.exceptions import WTFormRenderableException
-from app.common.safe_ids import SafeQidMixin
+from app.common.expressions.references import ExpressionReference
 from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
@@ -115,12 +115,45 @@ class InvalidEvaluationResult(
         )
 
 
-class EvaluatableExpression(BaseModel, SafeQidMixin):
+class EvaluatableExpression(BaseModel):
     # Defining this as a ClassVar allows direct access from the class and excludes it from pydantic instance
     name: ClassVar[ManagedExpressionsEnum | Literal["CUSTOM"]]
-    question_id: UUID | None = None
+    subject_reference: ExpressionReference | None = None
 
     _key: ManagedExpressionsEnum | None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_legacy_question_id(cls, data: Any) -> Any:
+        """Accept inputs that still use the pre-rename ``question_id: UUID`` key.
+
+        Legacy JSONB rows in ``Expression.context`` and legacy construction sites that pass
+        ``question_id=<uuid>`` are rewritten here to ``subject_reference=<q_hex>``. Keep
+        until the next deploy has backfilled every row and the dual-write shim below has been
+        removed.
+        """
+        if isinstance(data, dict) and "question_id" in data and "subject_reference" not in data:
+            data = dict(data)
+            question_id = data.pop("question_id")
+            if question_id is not None:
+                question_uuid = UUID(str(question_id)) if not isinstance(question_id, UUID) else question_id
+                # Hack together the safe qid - this will be removed in the next PR
+                data["subject_reference"] = f"q_{question_uuid.hex}"
+        return data
+
+    @computed_field
+    @property
+    def question_id(self) -> UUID | None:
+        """Dual-write shim: emit the pre-rename ``question_id`` key on every ``model_dump()``.
+
+        This keeps JSONB blobs written by the new code backwards-compatible with code that still
+        expects the old key shape, and keeps the ``uq_type_condition_unique_question`` index
+        (which uses ``context ->> 'question_id'``) populated while both code versions coexist.
+        Remove once the follow-up deploy has swapped the index to ``subject_reference``.
+        """
+        if self.subject_reference is None:
+            return None
+        return self.subject_reference.question_id
 
     @property
     @abc.abstractmethod
