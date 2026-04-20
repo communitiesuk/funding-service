@@ -4,6 +4,7 @@ from datetime import date
 from werkzeug.datastructures import MultiDict
 
 from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
+from app.common.expressions import ExpressionReference
 from app.common.expressions.forms import build_managed_expression_form
 from app.common.expressions.managed import Between
 
@@ -86,7 +87,7 @@ class TestBuildManagedExpressionForm:
                     "between_bottom_of_range": "0",
                     "between_bottom_inclusive": "",
                     "between_top_of_range": "",
-                    "between_top_of_range_expression": f"(({referenced_question.safe_qid}))",
+                    "between_top_of_range_expression": ExpressionReference.from_question(referenced_question),
                     "between_top_inclusive": "1",
                 }
             )
@@ -116,7 +117,7 @@ class TestBuildManagedExpressionForm:
                     "between_bottom_of_range_expression": "",
                     "between_bottom_inclusive": "",
                     "between_top_of_range": "",
-                    "between_top_of_range_expression": f"(({referenced_question.safe_qid}))",
+                    "between_top_of_range_expression": ExpressionReference.from_question(referenced_question),
                     "between_top_inclusive": "1",
                 }
             )

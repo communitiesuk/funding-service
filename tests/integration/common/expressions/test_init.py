@@ -19,6 +19,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate, interpolate
 from app.common.expressions.managed import BetweenDates, GreaterThan
+from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
 
@@ -528,7 +529,7 @@ class TestEvaluatingManagedExpressions:
         )
         question.expressions.append(
             Expression.from_evaluatable_expression(
-                GreaterThan(question_id=q0.id, minimum_value=3000),
+                GreaterThan(subject_reference=ExpressionReference.from_question(q0), minimum_value=3000),
                 ExpressionType.CONDITION,
                 user,
             )
@@ -548,7 +549,7 @@ class TestEvaluatingManagedExpressions:
             expressions=[
                 Expression.from_evaluatable_expression(
                     GreaterThan(
-                        question_id=q0.id,
+                        subject_reference=ExpressionReference.from_question(q0),
                         minimum_value=Decimal("3000.01"),
                     ),
                     ExpressionType.CONDITION,
@@ -586,9 +587,9 @@ class TestEvaluatingManagedExpressions:
         q1.expressions.append(
             Expression.from_evaluatable_expression(
                 GreaterThan(
-                    question_id=qid,
+                    subject_reference=ExpressionReference.from_question(q1),
                     minimum_value=None,
-                    minimum_expression=f"(({q0.safe_qid}))",
+                    minimum_expression=ExpressionReference.from_question(q0),
                 ),
                 ExpressionType.VALIDATION,
                 user,
@@ -621,11 +622,11 @@ class TestEvaluatingManagedExpressions:
         q2.expressions.append(
             Expression.from_evaluatable_expression(
                 BetweenDates(
-                    question_id=qid,
+                    subject_reference=ExpressionReference.from_question(q2),
                     earliest_value=None,
                     latest_value=None,
-                    earliest_expression=f"(({q0.safe_qid}))",
-                    latest_expression=f"(({q1.safe_qid}))",
+                    earliest_expression=ExpressionReference.from_question(q0),
+                    latest_expression=ExpressionReference.from_question(q1),
                 ),
                 ExpressionType.VALIDATION,
                 user,

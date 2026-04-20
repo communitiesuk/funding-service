@@ -73,6 +73,7 @@ from app.common.data.types import (
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import AnyOf, GreaterThan, Specifically
+from app.common.expressions.references import ExpressionReference
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions import db
 from app.types import TRadioItem
@@ -294,7 +295,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             text="What size pack of teabags do you usually buy?",
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=30),  # ty:ignore[missing-argument, unknown-argument]
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=30),
                     ExpressionType.CONDITION,
                     _UserFactory.create(),
                 )
@@ -361,7 +362,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             text="Do you buy teabags in bulk?",
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=30),  # ty:ignore[missing-argument, unknown-argument]
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=30),
                     ExpressionType.CONDITION,
                     _UserFactory.create(),
                 )
@@ -387,13 +388,13 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             expressions=[
                 Expression.from_evaluatable_expression(
                     AnyOf(
-                        question_id=q4.id,  # ty:ignore[unknown-argument]
+                        subject_reference=ExpressionReference.from_question(q4),
                         items=[
                             cast(
                                 TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
                             )
                         ],
-                    ),  # ty:ignore[missing-argument]
+                    ),
                     ExpressionType.CONDITION,
                     _UserFactory.create(),
                 )
@@ -413,11 +414,11 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             expressions=[
                 Expression.from_evaluatable_expression(
                     Specifically(
-                        question_id=q4.id,  # ty:ignore[unknown-argument]
+                        subject_reference=ExpressionReference.from_question(q4),
                         item=cast(
                             TRadioItem, {"key": q4.data_source.items[0].key, "label": q4.data_source.items[0].label}
                         ),
-                    ),  # ty:ignore[missing-argument]
+                    ),
                     ExpressionType.CONDITION,
                     _UserFactory.create(),
                 )

@@ -13,6 +13,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions.managed import GreaterThan, Specifically
+from app.common.expressions.references import ExpressionReference
 
 
 class TestSubmissionModel:
@@ -658,7 +659,9 @@ class TestComponentReferenceModel:
             form=q1.form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -677,7 +680,9 @@ class TestComponentReferenceModel:
             form=q1.form,
             expressions=[
                 Expression.from_evaluatable_expression(
-                    GreaterThan(question_id=q1.id, minimum_value=3000), ExpressionType.CONDITION, user
+                    GreaterThan(subject_reference=ExpressionReference.from_question(q1), minimum_value=3000),
+                    ExpressionType.CONDITION,
+                    user,
                 )
             ],
         )
@@ -695,7 +700,7 @@ class TestComponentReferenceModel:
             expressions=[
                 Expression.from_evaluatable_expression(
                     Specifically(
-                        question_id=q1.id,
+                        subject_reference=ExpressionReference.from_question(q1),
                         item={
                             "key": q1.data_source.items[0].key,
                             "label": q1.data_source.items[0].label,
@@ -722,7 +727,7 @@ class TestComponentReferenceModel:
             expressions=[
                 Expression.from_evaluatable_expression(
                     Specifically(
-                        question_id=q1.id,
+                        subject_reference=ExpressionReference.from_question(q1),
                         item={
                             "key": q1.data_source.items[0].key,
                             "label": q1.data_source.items[0].label,

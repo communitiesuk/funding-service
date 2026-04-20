@@ -17,6 +17,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
+from app.common.expressions import ExpressionReference
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
@@ -1252,8 +1253,12 @@ class TestConfirmReportSubmission:
             created_by=client.user,
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
-            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            statement=f"{q2.safe_qid} > {q1.safe_qid}",
+            context={
+                "subject_reference": ExpressionReference.from_question(q2),
+                "minimum_value": None,
+                "minimum_expression": ExpressionReference.from_question(q1),
+            },
         )
 
         submission = factories.submission.create(

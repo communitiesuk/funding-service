@@ -20,6 +20,7 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
+from app.common.expressions.references import ExpressionReference
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.metrics import MetricEventName
 
@@ -79,10 +80,14 @@ def test_validation_attached_to_field_and_runs__integer(factories, value, error_
     )
     user = factories.user.create()
     interfaces.collections.add_component_validation(
-        question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True)
+        question,
+        user,
+        GreaterThan(subject_reference=ExpressionReference.from_question(question), minimum_value=0, inclusive=True),
     )
     interfaces.collections.add_component_validation(
-        question, user, LessThan(question_id=question.id, maximum_value=100, inclusive=False)
+        question,
+        user,
+        LessThan(subject_reference=ExpressionReference.from_question(question), maximum_value=100, inclusive=False),
     )
 
     _FormClass = build_question_form(
@@ -132,10 +137,14 @@ def test_validation_attached_to_field_and_runs__decimal(factories, value, error_
     )
     user = factories.user.create()
     interfaces.collections.add_component_validation(
-        question, user, GreaterThan(question_id=question.id, minimum_value=0, inclusive=True)
+        question,
+        user,
+        GreaterThan(subject_reference=ExpressionReference.from_question(question), minimum_value=0, inclusive=True),
     )
     interfaces.collections.add_component_validation(
-        question, user, LessThan(question_id=question.id, maximum_value=2000, inclusive=False)
+        question,
+        user,
+        LessThan(subject_reference=ExpressionReference.from_question(question), maximum_value=2000, inclusive=False),
     )
 
     _FormClass = build_question_form(
@@ -180,7 +189,9 @@ def test_validation_attached_to_multiple_fields(factories, db_session):
     q3 = factories.question.create(data_type=QuestionDataType.YES_NO)
 
     interfaces.collections.add_component_validation(
-        q2, user, GreaterThan(question_id=q2.id, minimum_value=100, inclusive=True)
+        q2,
+        user,
+        GreaterThan(subject_reference=ExpressionReference.from_question(q2), minimum_value=100, inclusive=True),
     )
 
     _FormClass = build_question_form(
@@ -213,7 +224,12 @@ def test_reference_data_validation__integer(factories, db_session):
     interfaces.collections.add_component_validation(
         q2,
         user,
-        GreaterThan(question_id=q2.id, minimum_value=None, minimum_expression=f"(({q1.safe_qid}))", inclusive=True),
+        GreaterThan(
+            subject_reference=ExpressionReference.from_question(q2),
+            minimum_value=None,
+            minimum_expression=ExpressionReference.from_question(q1),
+            inclusive=True,
+        ),
     )
 
     _FormClass = build_question_form(
@@ -277,7 +293,12 @@ def test_reference_data_validation__date(factories, db_session):
     interfaces.collections.add_component_validation(
         q2,
         user,
-        IsAfter(question_id=q2.id, earliest_value=None, earliest_expression=f"(({q1.safe_qid}))", inclusive=True),
+        IsAfter(
+            subject_reference=ExpressionReference.from_question(q2),
+            earliest_value=None,
+            earliest_expression=ExpressionReference.from_question(q1),
+            inclusive=True,
+        ),
     )
 
     _FormClass = build_question_form(
@@ -444,7 +465,7 @@ class TestValidationMetrics:
             q1,
             factories.user.create(),
             GreaterThan(
-                question_id=q1.id,
+                subject_reference=ExpressionReference.from_question(q1),
                 minimum_value=8,
             ),
         )
@@ -468,7 +489,7 @@ class TestValidationMetrics:
             q1,
             factories.user.create(),
             GreaterThan(
-                question_id=q1.id,
+                subject_reference=ExpressionReference.from_question(q1),
                 minimum_value=8,
             ),
         )

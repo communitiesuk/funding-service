@@ -19,6 +19,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
+from app.common.expressions import ExpressionReference
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_h2, page_has_link
@@ -697,8 +698,12 @@ class TestTasklist:
             created_by=client.user,
             type_=ExpressionType.VALIDATION,
             managed_name=ManagedExpressionsEnum.GREATER_THAN,
-            statement=f"(({q2.safe_qid})) > (({q1.safe_qid}))",
-            context={"question_id": str(q2.id), "minimum_value": None, "minimum_expression": f"(({q1.safe_qid}))"},
+            statement=f"{q2.safe_qid} > {q1.safe_qid}",
+            context={
+                "subject_reference": ExpressionReference.from_question(q2),
+                "minimum_value": None,
+                "minimum_expression": ExpressionReference.from_question(q1),
+            },
         )
 
         submission = factories.submission.create(
@@ -855,7 +860,7 @@ class TestAskAQuestion:
         assert get_h1_text(soup) == expected_heading
 
         # appropriate add another context was used for pre-populating
-        assert soup.find("input", {"id": question.safe_qid}).get("value") == "Blue"
+        assert soup.find("input", {"id": ExpressionReference.from_question(question)}).get("value") == "Blue"
 
     def test_get_ask_a_question_add_another_condition_shows(
         self, authenticated_grant_recipient_data_provider_client, factories
@@ -882,7 +887,7 @@ class TestAskAQuestion:
             question=question_2,
             created_by=authenticated_grant_recipient_data_provider_client.user,
             type_=ExpressionType.CONDITION,
-            context={"question_id": str(question.id)},
+            context={"subject_reference": ExpressionReference.from_question(question)},
             statement=f"{question.safe_qid} is True",
             managed_name=ManagedExpressionsEnum.IS_YES,
         )
@@ -1094,7 +1099,7 @@ class TestAskAQuestion:
             type_=ExpressionType.CONDITION,
             statement=f"{question_1.safe_qid} < 5",
             managed_name=ManagedExpressionsEnum.LESS_THAN,
-            context={"question_id": str(question_2.id), "maximum_value": 5},
+            context={"subject_reference": ExpressionReference.from_question(question_2), "maximum_value": 5},
         )
         submission = factories.submission.create(
             collection=form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
@@ -1149,7 +1154,7 @@ class TestAskAQuestion:
             type_=ExpressionType.CONDITION,
             statement=f"{question_1.safe_qid} < 5",
             managed_name=ManagedExpressionsEnum.LESS_THAN,
-            context={"question_id": str(question_2.id), "maximum_value": 5},
+            context={"subject_reference": ExpressionReference.from_question(question_2), "maximum_value": 5},
         )
         submission = factories.submission.create(
             collection=form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
