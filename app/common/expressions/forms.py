@@ -21,6 +21,7 @@ from app.common.expressions import (
     get_restricted_evaluator,
     run_evaluation,
 )
+from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import (
     get_managed_conditions_by_data_type,
     get_managed_validators_by_data_type,
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 
 class _ManagedExpressionForm(FlaskForm):
     _managed_expressions: list[type[ManagedExpression]]
-    _referenced_question: Question
+    _subject_reference: ExpressionReference
     type: RadioField
 
     def get_managed_expression_radio_conditional_items(self) -> list[dict[str, dict[str, Markup]]]:
@@ -46,7 +47,7 @@ class _ManagedExpressionForm(FlaskForm):
                 {
                     "conditional": {
                         "html": _managed_expression.concatenate_all_wtf_fields_html(
-                            self, referenced_question=self._referenced_question
+                            self, subject_reference=self._subject_reference
                         )
                     }
                 }
@@ -77,7 +78,7 @@ class _ManagedExpressionForm(FlaskForm):
         if not self.type.data:
             return {}
         expression = lookup_managed_expression(ManagedExpressionsEnum(self.type.data))
-        expression_keys = expression.get_form_fields(self._referenced_question).keys()
+        expression_keys = expression.get_form_fields(self._subject_reference).keys()
         data = {k: v for k, v in self.data.items() if k in expression_keys}
         return data
 
@@ -91,39 +92,38 @@ class _ManagedExpressionForm(FlaskForm):
 
         return super().validate(extra_validators=extra_validators)
 
-    def get_expression(self, question: Question) -> ManagedExpression:
+    def get_expression(self, subject_reference: ExpressionReference) -> ManagedExpression:
         for _managed_expression in self._managed_expressions:
             if _managed_expression.name == self.type.data:
-                return _managed_expression.build_from_form(self, question)
+                return _managed_expression.build_from_form(self, subject_reference)
 
         raise RuntimeError(f"Unknown expression type: {self.type.data}")
 
 
 def build_managed_expression_form(
     type_: ExpressionType,
-    referenced_question: Question,  # TODO[FSPT-1284]: make this the ExpressionReference?
+    subject_reference: ExpressionReference,
     expression: Expression | None = None,
     show_calculated_validation_option: bool = False,
 ) -> type[_ManagedExpressionForm] | None:
     """
-    For a given question, generate a FlaskForm that will allow a user to select one of its managed expressions.
+    For a given subject reference, generate a FlaskForm that will allow a user to select one of the managed
+    expressions applicable to its data type.
 
-    We take a question instance rather than the data type, as some managed expressions may refer to values on the
-    question itself (eg radios, checkboxes).
-
-    Each managed expression declares the data that defines it, and has hooks that can be used to attach, validate, and
-    render the specific form fields it needs.
-
-    The form is constructed dynamically from the definition of all registered managed expressions; each one lists
-    the question types that can be a condition for, and that it can validate against.
+    The subject reference may point at a question (``q_<hex>``) or a data source column
+    (``d_<hex>.c_<col>``). The set of managed expressions offered is determined by the subject's resolved
+    ``QuestionDataType``. Subclasses that need attributes only questions have (e.g. ``.data_source.items``
+    on RADIOS questions, ``.approximate_date`` on DATE questions) resolve the reference to a Question
+    internally — they're only ever reached when the data type filter means the subject is a question
+    (data source columns only support TEXT_SINGLE_LINE / NUMBER).
     """
     match type_:
         case ExpressionType.CONDITION:
             type_validation_message = "Select what the answer should be to show this question"
-            managed_expressions = get_managed_conditions_by_data_type(referenced_question.data_type)
+            managed_expressions = get_managed_conditions_by_data_type(subject_reference.data_type)
         case ExpressionType.VALIDATION:
             type_validation_message = "Select the kind of validation to apply"
-            managed_expressions = get_managed_validators_by_data_type(referenced_question.data_type)
+            managed_expressions = get_managed_validators_by_data_type(subject_reference.data_type)
         case _:
             raise RuntimeError("unknown expression type")
 
@@ -131,7 +131,7 @@ def build_managed_expression_form(
         return None
 
     class ManagedExpressionForm(_ManagedExpressionForm):
-        _referenced_question = referenced_question
+        _subject_reference = subject_reference
         _managed_expressions = managed_expressions
         _show_calculated_validation_option = show_calculated_validation_option
 
@@ -148,10 +148,7 @@ def build_managed_expression_form(
             self.type.choices = [
                 (managed_expression.name, managed_expression.name) for managed_expression in self._managed_expressions
             ]
-            if (
-                self._show_calculated_validation_option
-                and self._referenced_question.data_type == QuestionDataType.NUMBER
-            ):
+            if self._show_calculated_validation_option and self._subject_reference.data_type == QuestionDataType.NUMBER:
                 # This creates a placeholder which is then replaced by the 'or' divider at render time below
                 self.type.choices.append((None, None))
                 self.type.choices.append(("CUSTOM", "Calculation with two or more numbers"))
@@ -166,7 +163,7 @@ def build_managed_expression_form(
     for managed_expression in managed_expressions:
         pass_expression = expression and expression.managed_name == managed_expression.name
         for field_name, field in managed_expression.get_form_fields(
-            expression=expression if pass_expression else None, referenced_question=referenced_question
+            expression=expression if pass_expression else None, subject_reference=subject_reference
         ).items():
             setattr(ManagedExpressionForm, field_name, field)
 
