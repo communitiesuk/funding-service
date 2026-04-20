@@ -18,7 +18,10 @@
         {{ govukErrorSummary(wtforms_errors(form)) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">Add a grant recipient data provider</h1>
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+        Add a grant recipient data provider
+      </h1>
       <p class="govuk-body">Add a new data provider who will be able to log in and submit reports as the selected grant recipient.</p>
     </div>
   </div>

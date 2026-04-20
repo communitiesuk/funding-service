@@ -18,7 +18,10 @@
         {{ govukErrorSummary(wtforms_errors(form)) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">Set up grant recipient data providers</h1>
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+        Set up grant recipient data providers
+      </h1>
 
       <p class="govuk-body">They will be able to log in and submit reports as the selected grant recipient.</p>
       <p class="govuk-body">Users created this way will not receive any notification email.</p>
