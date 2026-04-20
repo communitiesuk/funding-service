@@ -9938,7 +9938,7 @@ class TestEditCustomQuestionValidation:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert soup.find("h1").text == "Edit a custom validation"
+        assert soup.find("h1").text == "Edit a calculated validation"
 
         assert soup.find("textarea", id="custom_expression").text == "True"
         assert soup.find("textarea", id="custom_message").text == "Failed"
