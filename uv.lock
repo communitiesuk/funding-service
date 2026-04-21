@@ -649,10 +649,10 @@ dev = [
     { name = "sqlalchemy-utils", specifier = "==0.42.1" },
     { name = "testcontainers", extras = ["postgres"], specifier = "==4.14.2" },
     { name = "ty", specifier = "==0.0.23" },
-    { name = "types-flask-migrate", specifier = "==4.1.0.20250809" },
-    { name = "types-html5lib", specifier = "==1.1.11.20251117" },
-    { name = "types-pytz", specifier = "==2026.1.1.20260304" },
-    { name = "types-wtforms", specifier = "==3.2.1.20260312" },
+    { name = "types-flask-migrate", specifier = "==4.1.0.20260408" },
+    { name = "types-html5lib", specifier = "==1.1.11.20260408" },
+    { name = "types-pytz", specifier = "==2026.1.1.20260408" },
+    { name = "types-wtforms", specifier = "==3.2.1.20260408" },
     { name = "watchdog", extras = ["watchmedo"], specifier = "==6.0.0" },
 ]
 
@@ -1627,36 +1627,36 @@ wheels = [
 
 [[package]]
 name = "types-flask-migrate"
-version = "4.1.0.20250809"
+version = "4.1.0.20260408"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flask" },
     { name = "flask-sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/d1/d11799471725b7db070c4f1caa3161f556230d4fb5dad76d23559da1be4d/types_flask_migrate-4.1.0.20250809.tar.gz", hash = "sha256:fdf97a262c86aca494d75874a2374e84f2d37bef6467d9540fa3b054b67db04e", size = 8636, upload-time = "2025-08-09T03:17:03.957Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/31/56f5607fca2ad4e41da095b0e22ce9749d29d985df8c0229907bf662413b/types_flask_migrate-4.1.0.20260408.tar.gz", hash = "sha256:65ef927584777eac9a4591eb8320c09eb6eb8862d2ffdd6e23ad485a2869b228", size = 8773, upload-time = "2026-04-08T04:36:22.197Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b4/53/f5fd40fb6c21c1f8e7da8325f3504492d027a7921d5c80061cd434c3a0fc/types_flask_migrate-4.1.0.20250809-py3-none-any.whl", hash = "sha256:92ad2c0d4000a53bf1e2f7813dd067edbbcc4c503961158a763e2b0ae297555d", size = 8648, upload-time = "2025-08-09T03:17:02.952Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/4b/1d1b300251d33f1a97004ef8bba53139116b00872cfb85521d1412259627/types_flask_migrate-4.1.0.20260408-py3-none-any.whl", hash = "sha256:ffdacb78f6697422aa09bdebba34f4133b2443a95a59761c279fc5d368c009d9", size = 8670, upload-time = "2026-04-08T04:36:21.394Z" },
 ]
 
 [[package]]
 name = "types-html5lib"
-version = "1.1.11.20251117"
+version = "1.1.11.20260408"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "types-webencodings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c8/f3/d9a1bbba7b42b5558a3f9fe017d967f5338cf8108d35991d9b15fdea3e0d/types_html5lib-1.1.11.20251117.tar.gz", hash = "sha256:1a6a3ac5394aa12bf547fae5d5eff91dceec46b6d07c4367d9b39a37f42f201a", size = 18100, upload-time = "2025-11-17T03:08:00.78Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/59/914d00107c770e49fa57d4c4572e0371bbce14321385fd2ea3e06691b62d/types_html5lib-1.1.11.20260408.tar.gz", hash = "sha256:8a281aa367bc77dbc758358cd9bef79530f2d154eeed9b33705bb035a0dab9e4", size = 18316, upload-time = "2026-04-08T04:35:49.581Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/ab/f5606db367c1f57f7400d3cb3bead6665ee2509621439af1b29c35ef6f9e/types_html5lib-1.1.11.20251117-py3-none-any.whl", hash = "sha256:2a3fc935de788a4d2659f4535002a421e05bea5e172b649d33232e99d4272d08", size = 24302, upload-time = "2025-11-17T03:07:59.996Z" },
+    { url = "https://files.pythonhosted.org/packages/61/19/12d95e98e42e120522665ec6850b38df8d2c1cca94e21c4d7f8578acb64e/types_html5lib-1.1.11.20260408-py3-none-any.whl", hash = "sha256:d18dc4b90d6d6745585790b920db13ede43e1f8ff6ee1ac0ceb0dec4223a06fa", size = 24313, upload-time = "2026-04-08T04:35:48.679Z" },
 ]
 
 [[package]]
 name = "types-pytz"
-version = "2026.1.1.20260304"
+version = "2026.1.1.20260408"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fe/56/2f12a15ea8c5615c8fb896c4fbbb527ab1c0f776ed5860c6fc9ec26ea2c7/types_pytz-2026.1.1.20260304.tar.gz", hash = "sha256:0c3542d8e9b0160b424233440c52b83d6f58cae4b85333d54e4f961cf013e117", size = 11198, upload-time = "2026-03-04T03:57:24.445Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/b7/33f5a4f29b1f285b99ff79a607751a7996194cbb98705e331dab7a2daa28/types_pytz-2026.1.1.20260408.tar.gz", hash = "sha256:89b6a34b9198ea2a4b98a9d15cbca987053f52a105fd44f7ce3789cae4349408", size = 10788, upload-time = "2026-04-08T04:28:14.54Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/b8/e77c355f179dc89d44e7ca6dbf7a46e650806df1d356a5462e5829fccea5/types_pytz-2026.1.1.20260304-py3-none-any.whl", hash = "sha256:175332c1cf7bd6b1cc56b877f70bf02def1a3f75e5adcc05385ce2c3c70e6500", size = 10126, upload-time = "2026-03-04T03:57:23.481Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/90/12c059e6bb330a22d9cc97daf027ac7fb7f50fbf518e4d88185b4d39120e/types_pytz-2026.1.1.20260408-py3-none-any.whl", hash = "sha256:c7e4dec76221fb7d0c97b91ad8561d689bebe39b6bcb7b728387e7ffd8cde788", size = 10124, upload-time = "2026-04-08T04:28:13.353Z" },
 ]
 
 [[package]]
@@ -1679,14 +1679,14 @@ wheels = [
 
 [[package]]
 name = "types-wtforms"
-version = "3.2.1.20260312"
+version = "3.2.1.20260408"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markupsafe" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/d8/447aad27fa0f9ea30ca816e4f1629862bb882c7a7d7369437e410b9b5397/types_wtforms-3.2.1.20260312.tar.gz", hash = "sha256:ca561b41d0c1892fa650a5cfb0e4536880be2764108c3015bd068536960c9fe2", size = 17327, upload-time = "2026-03-12T04:02:49.016Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/d3/2e43193319e349d1488a64964bec52d45742aa03ab79f020e0a13f1bd4cb/types_wtforms-3.2.1.20260408.tar.gz", hash = "sha256:41597de1b5e028f9852972f48440ef37d5cb0c91a6790f09bdeac8c9b578aa9a", size = 17429, upload-time = "2026-04-08T04:33:59.561Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/7f/48b06672817cb67d127a6b63265659397d3358fc0af514c91160dc3a1396/types_wtforms-3.2.1.20260312-py3-none-any.whl", hash = "sha256:021963cba1774fc1e36d57b2feaad5c59521f4ba76fadf658974e8bf2891abf1", size = 24309, upload-time = "2026-03-12T04:02:48.147Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/ef/747b42d46184750ad433c3abb85d75c024d37329c3b74aa343c204a9f5c7/types_wtforms-3.2.1.20260408-py3-none-any.whl", hash = "sha256:797aec9822f9ae5b786f6d24affd2eebdc0c18372de35fc73abe6746276c7417", size = 24311, upload-time = "2026-04-08T04:33:58.403Z" },
 ]
 
 [[package]]
