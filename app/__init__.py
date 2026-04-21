@@ -38,6 +38,7 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.exceptions import RedirectException
+from app.common.expressions.references import ExpressionReference
 from app.common.filters import (
     format_date,
     format_date_approximate,
@@ -162,7 +163,15 @@ def _register_custom_converters(app: Flask) -> None:
         def to_url(self, value: t.Any) -> str:
             return str(value).lower()
 
+    class ExpressionReferenceConverter(BaseConverter):
+        def to_python(self, value: str) -> ExpressionReference:
+            return ExpressionReference(value)
+
+        def to_url(self, value: str | ExpressionReference) -> str | ExpressionReference:
+            return value
+
     app.url_map.converters["submission_mode"] = SubmissionModeConverter
+    app.url_map.converters["expression_reference"] = ExpressionReferenceConverter
 
 
 def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
