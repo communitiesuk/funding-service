@@ -127,6 +127,7 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     SelectConditionCalculationForm,
+    SelectDataSourceDataSetColumnForm,
     SelectDataSourceDataSetForm,
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
@@ -1396,13 +1397,14 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
         include_this_component=add_context_data.include_current_component_when_referencing_data(this_component),
     )
+    question = cast("Question", this_component)
     if wtform.validate_on_submit():
         if wtform.data_source.data == "THIS_QUESTION":
             redirect_response = redirect(
-                _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
+                _determine_return_url_and_update_session_after_choosing_reference_for_expression(
                     grant_id,
                     add_context_data,  # ty:ignore[invalid-argument-type]
-                    cast("Question", this_component),
+                    ExpressionReference.from_question(question),
                 )
             )
         else:
@@ -1514,7 +1516,7 @@ def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseRet
     if not add_context_data:
         return abort(400)
 
-    wtform = SelectDataSourceDataSetForm(collection=db_form.collection)
+    wtform = SelectDataSourceDataSetForm(collection=db_form.collection, data=request.args)
 
     if wtform.validate_on_submit():
         reference_data_set = get_data_source(uuid.UUID(wtform.data_set.data))
@@ -1543,18 +1545,90 @@ def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseRet
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 def select_context_source_data_set_column(grant_id: UUID, form_id: UUID, data_set_id: UUID) -> ResponseReturnValue:
-    return abort(404)
+    db_form = get_form_by_id(form_id)
+    data_set = get_data_source(data_set_id)
+
+    if data_set.collection_id != db_form.collection_id:
+        return abort(404)
+
+    add_context_data = _extract_add_context_data_from_session()
+    if not add_context_data:
+        return abort(400)
+
+    wtform = SelectDataSourceDataSetColumnForm(data_set=data_set)
+
+    if wtform.validate_on_submit():
+        safe_column_id = wtform.column.data
+        reference = ExpressionReference.from_data_source_column(data_set, safe_column_id)
+
+        match add_context_data:
+            case AddConditionDependsOnSessionModel():
+                raise NotImplementedError("need to handle using data set references in conditions")
+
+            case AddContextToComponentSessionModel():
+                return_url = (
+                    url_for(
+                        "deliver_grant_funding.add_question",
+                        grant_id=grant_id,
+                        form_id=form_id,
+                        parent_id=add_context_data.parent_id,
+                        question_data_type=add_context_data.data_type.name,
+                    )
+                    if add_context_data.component_id is None
+                    else url_for(
+                        "deliver_grant_funding.edit_question",
+                        grant_id=grant_id,
+                        question_id=add_context_data.component_id,
+                    )
+                )
+
+                if add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
+                    target_field = add_context_data.component_form_data["add_context"]
+                    add_context_data.component_form_data[target_field] += f" {reference.wrapped}"
+
+            case AddContextToComponentGuidanceSessionModel():
+                return_url = (
+                    url_for(
+                        "deliver_grant_funding.manage_guidance",
+                        grant_id=grant_id,
+                        question_id=add_context_data.component_id,
+                    )
+                    if add_context_data.is_add_another_guidance is False
+                    else url_for(
+                        "deliver_grant_funding.manage_add_another_guidance",
+                        grant_id=grant_id,
+                        group_id=add_context_data.component_id,
+                    )
+                )
+                if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
+                    target_field = add_context_data.component_form_data["add_context"]
+                    add_context_data.component_form_data[target_field] += f" {reference.wrapped}"
+
+            case AddContextToExpressionsModel():
+                return_url = _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+                    grant_id, add_context_data, reference
+                )
+
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(return_url)
+
+    return render_template(
+        "deliver_grant_funding/reports/select_context_source_data_set_column.html",
+        grant=db_form.collection.grant,
+        form=wtform,
+        db_form=db_form,
+        data_set=data_set,
+        add_context_data=add_context_data,
+    )
 
 
-def _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
-    grant_id: UUID, add_context_data: AddContextToExpressionsModel, referenced_question: Question
+def _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+    grant_id: UUID, add_context_data: AddContextToExpressionsModel, reference: ExpressionReference
 ) -> str:
-    # TODO[FSPT-1284]: use `expression.managed.subject_reference` instead?
     if add_context_data and isinstance(add_context_data, AddContextToExpressionsModel):
         target_field = add_context_data.expression_form_data["add_context"]
-        reference = ExpressionReference.from_question(referenced_question)
         if add_context_data.managed_expression_name is None:
-            add_context_data.expression_form_data[target_field] += reference.wrapped
+            add_context_data.expression_form_data[target_field] += f" {reference.wrapped}"
         else:
             add_context_data.expression_form_data[target_field] = reference.wrapped
 
@@ -1670,19 +1744,19 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
 
     if wtform.validate_on_submit():
         referenced_question = get_question_by_id(UUID(wtform.question.data))
-
-        if isinstance(add_context_data, AddConditionDependsOnSessionModel):
-            del session["question"]
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.add_question_condition",
-                    grant_id=grant_id,
-                    component_id=add_context_data.component_id,
-                    depends_on_question_id=referenced_question.id,
-                )
-            )
+        reference = ExpressionReference.from_question(referenced_question)
 
         match add_context_data:
+            case AddConditionDependsOnSessionModel():
+                del session["question"]
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.add_question_condition",
+                        grant_id=grant_id,
+                        component_id=add_context_data.component_id,
+                        depends_on_question_id=referenced_question.id,
+                    )
+                )
             case AddContextToComponentSessionModel():
                 return_url = (
                     url_for(
@@ -1702,7 +1776,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
 
                 if add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
-                    reference = ExpressionReference.from_question(referenced_question)
+                    reference = reference
                     add_context_data.component_form_data[target_field] += " " + reference.wrapped
 
             case AddContextToComponentGuidanceSessionModel():
@@ -1721,12 +1795,12 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                 )
                 if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
-                    reference = ExpressionReference.from_question(referenced_question)
+                    reference = reference
                     add_context_data.component_form_data[target_field] += " " + reference.wrapped
 
             case AddContextToExpressionsModel():
-                return_url = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
-                    grant_id, add_context_data, referenced_question
+                return_url = _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+                    grant_id, add_context_data, reference
                 )
 
         session["question"] = add_context_data.model_dump(mode="json")

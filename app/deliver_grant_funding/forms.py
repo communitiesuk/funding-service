@@ -49,12 +49,13 @@ from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.feature_flags import FeatureFlags
+from app.common.utils import uppercase_first
 from app.constants import DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.data_sets import CellError, DataTypeError, DecimalError, PrefixError, SuffixError
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Component, Form, GrantRecipient, Group, Question
+    from app.common.data.models import Collection, Component, DataSource, Form, GrantRecipient, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -704,6 +705,32 @@ class SelectDataSourceDataSetForm(FlaskForm):
         super().__init__(*args, **kwargs)
 
         self.data_set.choices = [(d.id, cast(str, d.name)) for d in collection.data_sources]
+
+
+class SelectDataSourceDataSetColumnForm(FlaskForm):
+    column = RadioField(
+        choices=[],
+        validators=[DataRequired("Select a column")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        data_set: DataSource,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+
+        assert data_set.schema is not None
+
+        self.column.label.text = f"Select column in {data_set.name} data set"
+
+        self.column.choices = [
+            (safe_column_id, uppercase_first(column_schema.original_column_name) or "")
+            for safe_column_id, column_schema in data_set.schema.root.items()
+        ]
 
 
 class GrantAddUserForm(FlaskForm):
