@@ -170,7 +170,7 @@
 
       {% set makeReportLiveStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
 
-      {% if collection.status == enum.collection_status.OPEN %}
+      {% if collection.status == enum.collection_status.OPEN or collection.status == enum.collection_status.CLOSED %}
         {% set makeReportLiveStatus = {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
       {% elif collection.status != enum.collection_status.SCHEDULED %}
         {% set makeReportLiveStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
@@ -183,7 +183,9 @@
         })
       %}
 
-      {% if collection.status == enum.collection_status.OPEN %}
+      {% if collection.status == enum.collection_status.CLOSED %}
+        {% set sendEmailsStatus = {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
+      {% elif collection.status == enum.collection_status.OPEN %}
         {% set sendEmailsStatus = {"tag": {"text": "Do once", "classes": "govuk-tag--orange"}} %}
       {% else %}
         {% set sendEmailsStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
@@ -203,7 +205,9 @@
         })
       %}
 
-      {% if collection.status == enum.collection_status.OPEN and collection.is_overdue %}
+      {% if collection.status == enum.collection_status.CLOSED %}
+        {% set sendReportClosedEmailsStatus= {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
+      {% elif collection.status == enum.collection_status.OPEN and collection.is_overdue %}
         {% set sendReportClosedEmailsStatus = {"tag": {"text": "Do once", "classes": "govuk-tag--orange"}} %}
       {% else %}
         {% set sendReportClosedEmailsStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
@@ -228,6 +232,19 @@
           "title": {"text": "Close the report", "classes": "govuk-link--no-visited-state"},
           "status": closeReportStatus,
           "href": url_for('reporting_lifecycle.close_report', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.OPEN and collection.is_overdue else "",
+        })
+      %}
+
+      {% if collection.status == enum.collection_status.CLOSED %}
+        {% set sendReportClosedNotificationStatus = {"tag": {"text": "Do once", "classes": "govuk-tag--orange"}} %}
+      {% else %}
+        {% set sendReportClosedNotificationStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
+      {% endif %}
+      {%
+        do rows.append({
+          "title": {"text": "Send report closed emails", "classes": "govuk-link--no-visited-state"},
+          "status": sendReportClosedNotificationStatus,
+          "href": url_for('reporting_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.REPORT_CLOSED_NOTIFICATION) if collection.status == enum.collection_status.CLOSED else "",
         })
       %}
 
