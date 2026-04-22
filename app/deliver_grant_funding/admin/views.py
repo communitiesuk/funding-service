@@ -824,6 +824,15 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     ]
                 else:
                     notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_OVERDUE_TEMPLATE_ID"]
+            case ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION:
+                if collection.status != CollectionStatusEnum.CLOSED:
+                    return abort(404)
+                if collection.multiple_submissions_are_managed_by_service:
+                    notify_template_id = current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_CLOSED_TEMPLATE_ID"
+                    ]
+                else:
+                    notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_CLOSED_TEMPLATE_ID"]
             case _:
                 return abort(404)
 
@@ -873,7 +882,11 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     for grant_recipient in grant_recipients
                     for data_provider in grant_recipient.data_providers
                 }
-            case ReportAdminEmailTypeEnum.DEADLINE_REMINDER | ReportAdminEmailTypeEnum.REPORT_OVERDUE:
+            case (
+                ReportAdminEmailTypeEnum.DEADLINE_REMINDER
+                | ReportAdminEmailTypeEnum.REPORT_OVERDUE
+                | ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION
+            ):
                 grant_recipients = get_grant_recipients_with_outstanding_submissions_for_collection(
                     grant, collection_id=collection.id, with_data_providers=True, with_certifiers=True
                 )

@@ -47,6 +47,15 @@
           <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
           <li>Date to send overdue email: {{ format_date_short(collection.submission_period_end_date + timedelta(days=1)) }}</li>
         </ul>
+      {% elif email_type == enum.report_admin_email_type_enum.REPORT_CLOSED_NOTIFICATION %}
+        <h1 class="govuk-heading-l">
+          <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+          Send report closed emails
+        </h1>
+
+        <p class="govuk-body">
+          Let grant recipient users know that the report has now closed and no further changes can be made to their submissions. This email is sent to all data providers for all grant recipients for {{ collection.grant.name }}.
+        </p>
       {% endif %}
 
       <h2 class="govuk-heading-m">How to send emails</h2>

@@ -312,7 +312,7 @@ class TestReportingLifecycleTasklist:
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
         assert len(grant_task_items) == 6
-        assert len(report_task_items) == 8
+        assert len(report_task_items) == 9
 
         # TODO: update for testing task list
 
@@ -805,6 +805,76 @@ class TestReportingLifecycleTasklist:
         assert "Do once" in task_status.get_text(strip=True)
         assert "govuk-tag--orange" in task_status.get("class")
 
+    @pytest.mark.parametrize(
+        "collection_status",
+        [
+            CollectionStatusEnum.DRAFT,
+            CollectionStatusEnum.SCHEDULED,
+            CollectionStatusEnum.OPEN,
+        ],
+    )
+    def test_send_report_closed_notification_task_cannot_start_yet(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, collection_status
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant, name="Q1 Report", status=collection_status)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        send_report_closed_notification_task = report_task_items[8]
+        task_title = send_report_closed_notification_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send report closed emails"
+
+        task_status = send_report_closed_notification_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        link = send_report_closed_notification_task.find("a", {"class": "govuk-link"})
+        assert link is None
+
+    def test_send_report_closed_notification_task_do_once_when_closed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.CLOSED,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        send_report_closed_notification_task = report_task_items[8]
+        task_title = send_report_closed_notification_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send report closed emails"
+        assert (
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/report-closed-notification"
+            in task_title.get("href")
+        )
+
+        task_status = send_report_closed_notification_task.find("strong", {"class": "govuk-tag"})
+        assert task_status is not None
+        assert "Do once" in task_status.get_text(strip=True)
+        assert "govuk-tag--orange" in task_status.get("class")
+
 
 class TestSendEmailsToRecipients:
     @pytest.mark.parametrize(
@@ -827,6 +897,11 @@ class TestSendEmailsToRecipients:
             status=CollectionStatusEnum.OPEN,
             submission_period_end_date=datetime.date(2025, 10, 1),
         )
+        closed_collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.CLOSED,
+            submission_period_end_date=datetime.date(2025, 10, 1),
+        )
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
@@ -839,6 +914,10 @@ class TestSendEmailsToRecipients:
         assert response.status_code == expected_code
         response = client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_OVERDUE.value}"
+        )
+        assert response.status_code == expected_code
+        response = client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{closed_collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
 
@@ -889,22 +968,60 @@ class TestSendEmailsToRecipients:
         assert response.status_code == expected_status
 
     @pytest.mark.parametrize(
-        "email_type, expected_heading, template_id",
+        "collection_status, expected_status",
+        [
+            (CollectionStatusEnum.DRAFT, 404),
+            (CollectionStatusEnum.SCHEDULED, 404),
+            (CollectionStatusEnum.OPEN, 404),
+            (CollectionStatusEnum.CLOSED, 200),
+        ],
+    )
+    def test_send_emails_to_recipients_report_closed_not_available(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        collection_status,
+        expected_status,
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=collection_status,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value}"
+        )
+        assert response.status_code == expected_status
+
+    @pytest.mark.parametrize(
+        "email_type, report_status, expected_heading, template_id",
         [
             (
                 ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value,
+                CollectionStatusEnum.OPEN,
                 "Send emails to data providers",
                 "4fc8d831-e241-4648-a8d3-04fb1bd9193e",
             ),
             (
                 ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value,
+                CollectionStatusEnum.OPEN,
                 "Send deadline reminder emails",
                 "6e482561-e1dc-4d4d-8a9e-3b5ad8add968",
             ),
             (
                 ReportAdminEmailTypeEnum.REPORT_OVERDUE.value,
+                CollectionStatusEnum.OPEN,
                 "Send report overdue emails",
                 "b11391b3-c589-48ae-a8a3-e2acaf951787",
+            ),
+            (
+                ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value,
+                CollectionStatusEnum.CLOSED,
+                "Send report closed emails",
+                "b38d160d-800e-4b6a-b115-63ca7fc8975b",
             ),
         ],
     )
@@ -914,6 +1031,7 @@ class TestSendEmailsToRecipients:
         factories,
         db_session,
         email_type,
+        report_status,
         expected_heading,
         template_id,
     ):
@@ -921,7 +1039,7 @@ class TestSendEmailsToRecipients:
         collection = factories.collection.create(
             grant=grant,
             name="Q1 Report",
-            status=CollectionStatusEnum.OPEN,
+            status=report_status,
             submission_period_end_date=datetime.date(2025, 10, 1),
         )
 
@@ -986,6 +1104,10 @@ class TestSendEmailsToRecipients:
         assert response.status_code == expected_code
         response = client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OVERDUE.value}"
+        )
+        assert response.status_code == expected_code
+        response = client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
 
@@ -1170,6 +1292,137 @@ class TestSendEmailsToRecipients:
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+        )
+
+        assert response.status_code == 200
+        assert response.mimetype == "text/csv"
+        assert response.content_length > 0
+
+        lines = response.text.splitlines()
+        assert len(lines) == 4
+
+        header = lines[0].split(",")
+        assert "email_address" == header[0]
+        assert "grant_name" == header[1]
+        assert "organisation_name" == header[2]
+        assert "report_name" == header[3]
+        assert "report_deadline" == header[4]
+        assert "grant_report_url" == header[5]
+        assert "is_test_data" == header[6]
+        assert "requires_certification" == header[7]
+        assert "submissions" == header[8]
+        assert "unsubmitted_submissions" == header[9]
+
+        assert "user3@org2.example.com" not in response.text
+        assert "user4@org2.example.com" not in response.text
+        assert "user@org-other.example.com" not in response.text
+        assert "user1@org1.example.com" in lines[1]
+        assert "user2@org1.example.com" in lines[2]
+        assert "user5@org3.example.com" in lines[3]
+
+        assert all("Test Grant" in line for line in lines[1:])
+        assert all("Q1 Report" in line for line in lines[1:])
+        assert all("Wednesday 30 April 2025" in line for line in lines[1:])
+        assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
+        assert all(line.endswith(",,") for line in lines[1:])
+
+    def test_download_csv_format_and_content_report_closed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        other_grant = factories.grant.create(name="Other Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2025, 1, 1),
+            reporting_period_end_date=datetime.date(2025, 3, 31),
+            submission_period_start_date=datetime.date(2025, 4, 1),
+            submission_period_end_date=datetime.date(2025, 4, 30),
+        )
+        question = factories.question.create(form__collection=collection)
+
+        org_1 = factories.organisation.create(name="Organisation 1", can_manage_grants=False)
+        org_2 = factories.organisation.create(name="Organisation 2", can_manage_grants=False)
+        org_3 = factories.organisation.create(name="Organisation 3", can_manage_grants=False)
+        other_org = factories.organisation.create(name="Organisation Other", can_manage_grants=False)
+
+        gr1 = factories.grant_recipient.create(grant=grant, organisation=org_1)
+        gr2 = factories.grant_recipient.create(grant=grant, organisation=org_2)
+        factories.grant_recipient.create(grant=grant, organisation=org_3)
+        factories.grant_recipient.create(grant=other_grant, organisation=other_org)
+
+        user_1 = factories.user.create(email="user1@org1.example.com")
+        user_2 = factories.user.create(email="user2@org1.example.com")
+        user_3 = factories.user.create(email="user3@org2.example.com")
+        user_4 = factories.user.create(email="user4@org2.example.com")
+        user_5 = factories.user.create(email="user5@org3.example.com")
+        user_other = factories.user.create(email="user@org-other.example.com")
+
+        factories.user_role.create(
+            user=user_1, organisation=org_1, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
+        factories.user_role.create(
+            user=user_2, organisation=org_1, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER]
+        )
+        factories.user_role.create(
+            user=user_3, organisation=org_2, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
+        factories.user_role.create(
+            user=user_4, organisation=org_2, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER]
+        )
+        # user 5 is both member and certifier, but should only be in the report once
+        factories.user_role.create(
+            user=user_5,
+            organisation=org_3,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+        )
+
+        # user_other has permissions as a data provider for the grant, but in an org that isn't a grant recipient
+        factories.user_role.create(
+            user=user_other, organisation=other_org, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
+        # user_other also has permissions as a data provider for a different grant, as a proper grant recipient
+        factories.user_role.create(
+            user=user_4,
+            organisation=other_org,
+            grant=other_grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        # org 1 has an in progress submission, so should be in the list
+        factories.submission.create(
+            mode=SubmissionModeEnum.LIVE,
+            collection=collection,
+            created_by=user_1,
+            grant_recipient=gr1,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("answer 1"))],
+        )
+
+        # org 2 has submitted their report, so should not be in the list
+        submission_2 = factories.submission.create(
+            mode=SubmissionModeEnum.LIVE,
+            collection=collection,
+            created_by=user_3,
+            grant_recipient=gr2,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("answer 2"))],
+        )
+        factories.submission_event.create(
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            submission=submission_2,
+            related_entity_id=question.form.id,
+            created_by=user_2,
+        )
+        factories.submission_event.create(
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED, submission=submission_2, created_by=user_3
+        )
+        assert SubmissionHelper(submission_2).status == SubmissionStatusEnum.SUBMITTED
+
+        # org 3 has not started their report (has no submission) so should be in the list
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value}"
         )
 
         assert response.status_code == 200
