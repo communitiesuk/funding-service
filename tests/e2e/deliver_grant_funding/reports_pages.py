@@ -1456,11 +1456,15 @@ class RunnerQuestionPage(ReportsBasePage):
         self.question_name = question_name
         self.continue_button = page.get_by_role("button", name="Continue")
 
-    def respond_to_question(self, question_type: QuestionDataType, question_text: str, answer: str) -> None:
+    def respond_to_question(self, question_type: QuestionDataType, question_text: str, answer: str | list[str]) -> None:
         if question_type == QuestionDataType.CHECKBOXES:
             for choice in answer:
                 self.page.get_by_role("checkbox", name=choice).click()
-        elif question_type == QuestionDataType.YES_NO or question_type == QuestionDataType.RADIOS:
+        elif (
+            question_type == QuestionDataType.YES_NO
+            or question_type == QuestionDataType.RADIOS
+            and isinstance(answer, str)
+        ):
             # once we start having multiple of these on a page - enjoy the refactor =]
             accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
             if accessible_autocomplete:
@@ -1471,10 +1475,10 @@ class RunnerQuestionPage(ReportsBasePage):
                 expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
                 element = self.page.get_by_role("combobox")
                 element.click()
-                element.fill(answer)
+                element.fill(answer)  # ty:ignore[invalid-argument-type]
                 element.press("Enter")
             else:
-                self.page.get_by_role("radio", name=answer).click()
+                self.page.get_by_role("radio", name=answer).click()  # ty:ignore[invalid-argument-type]
         elif question_type == QuestionDataType.DATE:
             approx_date = len(answer) == 2
             date_to_enter = (
@@ -1490,7 +1494,7 @@ class RunnerQuestionPage(ReportsBasePage):
         elif question_type == QuestionDataType.FILE_UPLOAD:
             self.page.locator("input[type='file']").set_input_files("./tests/fixtures/e2e-test-file.txt")
         else:
-            self.page.get_by_role("textbox", name=question_text).fill(answer)
+            self.page.get_by_role("textbox", name=question_text).fill(answer)  # ty:ignore[invalid-argument-type]
 
     def click_continue(
         self,

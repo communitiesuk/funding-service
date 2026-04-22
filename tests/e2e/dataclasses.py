@@ -38,6 +38,7 @@ class QuestionResponse:
     answer: str | list[str]
     error_message: str | None = None
     check_your_answers_text: str | None = None
+    expect_group_validation_error: bool = False
 
 
 @dataclasses.dataclass
