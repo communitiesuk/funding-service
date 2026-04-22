@@ -116,8 +116,8 @@ jobs:
           access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
           region: eu-west-2
           port: 8080
-          cpu: 1
-          memory: 2
+          cpu: 2
+          memory: 4
           wait-for-service-stability-seconds: 600
 
   e2e_tests:
