@@ -527,6 +527,11 @@ class SubmissionHelper:
                     continue
                 if depends_on.form_id != form.id:
                     if depends_on.is_question:
+                        if depends_on.add_another_container:
+                            raise RuntimeError(
+                                "References to add-another components are not implemented for form dependencies"
+                            )
+
                         answer = self.cached_get_answer_for_question(depends_on.id)
                         if answer is None:
                             # Only count as unsatisfied if the question is visible or undetermined.
