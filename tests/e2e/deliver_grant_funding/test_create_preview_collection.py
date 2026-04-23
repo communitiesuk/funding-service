@@ -948,6 +948,7 @@ def answer_questions_and_check_for_expected_errors(
     questions_on_this_page: list[QuestionDict],
     question_page: RunnerQuestionPage,
     group_validation_error: str | None = None,
+    same_page_group: bool = False,
 ):
     for question in questions_on_this_page:
         question_page = RunnerQuestionPage(
@@ -955,7 +956,7 @@ def answer_questions_and_check_for_expected_errors(
             question_page.domain,
             question_page.grant_name,
             question["text"],
-            is_in_a_same_page_group=len(questions_on_this_page) > 1,
+            is_in_a_same_page_group=same_page_group,
         )
         assert_question_visibility(question_page, question)
 
@@ -964,6 +965,9 @@ def answer_questions_and_check_for_expected_errors(
         expect_errors = False
         current_responses: list[QuestionResponse] = []
         for question in questions_on_this_page:
+            if "This question should not be shown" in question["display_text"]:
+                continue
+
             # If this question doesn't have as many answers as other questions in the group, just use its last answer
             response = (
                 question["answers"][answer_idx]
@@ -1001,6 +1005,7 @@ def complete_question_group(
             group_to_test["validation"].evaluatable_expression.custom_message
             if group_to_test.get("validation") is not None
             else None,
+            same_page_group=True,
         )
 
     else:
@@ -1030,20 +1035,7 @@ def complete_task(
         if question_to_test["type"] == "group":
             complete_question_group(question_page, tasklist_page, grant_name, question_to_test)
         else:
-            assert_question_visibility(question_page, question_to_test)
-            for question_response in question_to_test["answers"]:
-                if "This question should not be shown" not in question_to_test["display_text"]:
-                    question_page.respond_to_question(
-                        question_type=question_to_test["type"],
-                        question_text=question_to_test["display_text"],
-                        answer=question_response.answer,
-                    )
-                    question_page.click_continue()
-
-                    if question_response.error_message:
-                        expect(
-                            question_page.page.get_by_role("link", name=question_response.error_message)
-                        ).to_be_visible()
+            answer_questions_and_check_for_expected_errors([cast(QuestionDict, question_to_test)], question_page, None)
 
 
 def task_check_your_answers(
