@@ -1706,9 +1706,10 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
             component_references.append(cr)
     elif expression.is_managed:
         if expression.type_ == ExpressionType.CONDITION:
+            assert expr_impl.subject_reference is not None
             # validate the referenced question - the one that is compared against the expression
             _validate_reference(
-                reference=ExpressionReference.from_question(expr_impl.referenced_question),  # ty:ignore[unresolved-attribute]
+                reference=expr_impl.subject_reference,
                 attached_to_component=expression.question,
                 expression_context=ExpressionContext.build_expression_context(
                     expression.question.form.collection, "interpolation", None, None
@@ -1718,12 +1719,18 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 question_to_test=None,
             )
 
-        # For a managed validation attached to a question, expr_impl.referenced_question *is* the
+        # For a managed validation attached to a question, expr_impl.subject_reference.question *is* the
         # question the expression is attached to (the answer being validated). Don't record a
         # self-reference — it would create a bogus ComponentReference row that falsely blocks
         # deletion and same-page grouping.
-        if expr_impl.referenced_question != expression.question:  # ty:ignore[unresolved-attribute]
-            referenced_questions.add(expr_impl.referenced_question)  # ty:ignore[unresolved-attribute]
+
+        referenced_question = expr_impl.subject_reference.question  # ty:ignore[unresolved-attribute]
+        referenced_data_set_ref = expr_impl.subject_reference.data_source_reference  # ty:ignore[unresolved-attribute]
+
+        if referenced_question and referenced_question != expression.question:
+            referenced_questions.add(referenced_question)
+        elif referenced_data_set_ref:
+            data_source_references.add(referenced_data_set_ref)
 
     for field in expr_impl.reference_aware_fields:
         field_value = getattr(expr_impl, field)
@@ -1745,7 +1752,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 ),
                 expression_type=expression.type_,
                 field_name_for_error_message=field,
-                question_to_test=expr_impl.referenced_question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
+                question_to_test=expr_impl.subject_reference.question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
             )
 
             if referenced_question := valid_reference.question:

@@ -1210,7 +1210,7 @@ def _store_question_state_and_redirect_to_add_context(
     expression_type: ExpressionType | None = None,
     managed_expression_name: ManagedExpressionsEnum | None = None,
     expression_id: UUID | None = None,
-    depends_on_question_id: UUID | None = None,
+    subject_reference: ExpressionReference | None = None,
     is_add_another_guidance: bool | None = False,
     is_custom: bool | None = False,
     is_group: bool = False,
@@ -1241,7 +1241,7 @@ def _store_question_state_and_redirect_to_add_context(
                 component_id=component_id,  # type: ignore[arg-type]
                 parent_id=parent_id,
                 expression_id=expression_id,
-                depends_on_question_id=depends_on_question_id,
+                subject_reference=subject_reference,
                 is_custom=is_custom or False,
                 is_group=is_group,
             )
@@ -1260,7 +1260,7 @@ def _handle_remove_context_for_expression_forms(
     expression_type: ExpressionType,
     expression: Expression | None = None,
     add_context_data: AddContextToExpressionsModel | None = None,
-    depends_on_question_id: UUID | None = None,
+    subject_reference: ExpressionReference | None = None,
 ) -> None:
     field_to_clear = form.remove_context.data  # ty: ignore[unresolved-attribute]
     if not field_to_clear:
@@ -1279,7 +1279,7 @@ def _handle_remove_context_for_expression_forms(
             expression_form_data=form_data,
             component_id=component_id,
             expression_id=expression.id,
-            depends_on_question_id=depends_on_question_id,
+            subject_reference=subject_reference,
         )
     else:
         add_context_data.expression_form_data.update(form_data)
@@ -1482,8 +1482,7 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
 
     assert add_context_data.collection_id
 
-    # We don't look at `depends_on_question_id` here - we want to show all sections before the section that the source
-    # component is in
+    # We want to show all sections before the section that the source component is in
     current_component = get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None
 
     wtform = SelectDataSourceSectionForm(current_form=current_component.form if current_component else db_form)
@@ -1645,7 +1644,7 @@ def _determine_return_url_and_update_session_after_choosing_reference_for_expres
                     "deliver_grant_funding.add_question_condition",
                     grant_id=grant_id,
                     component_id=add_context_data.component_id,
-                    depends_on_question_id=add_context_data.depends_on_question_id,
+                    subject_reference=add_context_data.subject_reference,
                 )
         else:
             if add_context_data.managed_expression_name is None:
@@ -1723,8 +1722,8 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
 
     # TODO: Add depends_on_question_id as a nullable attribute to all session models to simplify this check?
     current_component = (
-        get_component_by_id(add_context_data.depends_on_question_id)  # type: ignore[union-attr, arg-type]
-        if getattr(add_context_data, "depends_on_question_id", None)
+        subject_reference.question
+        if (subject_reference := getattr(add_context_data, "subject_reference", None))
         else get_component_by_id(add_context_data.component_id)
         if add_context_data.component_id
         else None
@@ -1743,8 +1742,9 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
     )
 
     if wtform.validate_on_submit():
-        referenced_question = get_question_by_id(UUID(wtform.question.data))
-        reference = ExpressionReference.from_question(referenced_question)
+        reference = wtform.question.data
+        if not reference.question and not reference.data_source_column:
+            abort(400)
 
         match add_context_data:
             case AddConditionDependsOnSessionModel():
@@ -1754,7 +1754,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                         "deliver_grant_funding.add_question_condition",
                         grant_id=grant_id,
                         component_id=add_context_data.component_id,
-                        depends_on_question_id=referenced_question.id,
+                        subject_reference=reference,
                     )
                 )
             case AddContextToComponentSessionModel():
@@ -1776,7 +1776,6 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
 
                 if add_context_data and isinstance(add_context_data, AddContextToComponentSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
-                    reference = reference
                     add_context_data.component_form_data[target_field] += " " + reference.wrapped
 
             case AddContextToComponentGuidanceSessionModel():
@@ -1795,7 +1794,6 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
                 )
                 if add_context_data and isinstance(add_context_data, AddContextToComponentGuidanceSessionModel):
                     target_field = add_context_data.component_form_data["add_context"]
-                    reference = reference
                     add_context_data.component_form_data[target_field] += " " + reference.wrapped
 
             case AddContextToExpressionsModel():
@@ -2372,25 +2370,22 @@ def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/<uuid:depends_on_question_id>",
+    "/grant/<uuid:grant_id>/question/<uuid:component_id>/add-condition/<expression_reference:subject_reference>",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_question_id: UUID) -> ResponseReturnValue:
+def add_question_condition(
+    grant_id: UUID, component_id: UUID, subject_reference: ExpressionReference
+) -> ResponseReturnValue:
     component = get_component_by_id(component_id)
-    depends_on_question = get_question_by_id(depends_on_question_id)
 
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToExpressionsModel, component_id=component_id
     )
 
-    # TODO[FSPT-1284]: we should refactor the URL here to pass the expression reference rather than build it from
-    #                  `depends_on_question_id`
-    ConditionForm = build_managed_expression_form(
-        ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-    )
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, subject_reference)
     form = (
         ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ConditionForm
@@ -2408,7 +2403,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
-            depends_on_question_id=depends_on_question_id,
+            subject_reference=subject_reference,
         )
 
     if form and form.is_submitted_to_remove_context():
@@ -2417,12 +2412,12 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
             component_id=component.id,
             expression_type=ExpressionType.CONDITION,
             add_context_data=add_context_data,  # type: ignore[arg-type]
-            depends_on_question_id=depends_on_question_id,
+            subject_reference=subject_reference,
         )
         return redirect(request.url)
 
     if form and form.validate_on_submit():
-        expression = form.get_expression(ExpressionReference.from_question(depends_on_question))
+        expression = form.get_expression(subject_reference)
 
         try:
             interfaces.collections.add_component_condition(component, interfaces.user.get_current_user(), expression)
@@ -2457,7 +2452,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
     return render_template(
         "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
         component=component,
-        depends_on_question=depends_on_question,
+        subject_reference=subject_reference,
         grant=component.form.collection.grant,
         form=form,
         QuestionDataType=QuestionDataType,
@@ -2475,8 +2470,7 @@ def add_question_condition(grant_id: UUID, component_id: UUID, depends_on_questi
 def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
     expression = get_expression_by_id(expression_id)
     component = expression.question
-    # TODO[FSPT-1284]: use `expression.managed.subject_reference` instead?
-    depends_on_question = expression.managed.referenced_question
+    reference = expression.managed.subject_reference
 
     return_url = (
         url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=component.id)
@@ -2497,9 +2491,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         session_model=AddContextToExpressionsModel, component_id=component.id, expression_id=expression_id
     )
 
-    ConditionForm = build_managed_expression_form(
-        ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question), expression
-    )
+    ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference, expression)
     form = (
         ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
         if ConditionForm
@@ -2517,7 +2509,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
             form_data=form_data,
             expression_type=ExpressionType.CONDITION,
             managed_expression_name=ManagedExpressionsEnum(form.type.data),
-            depends_on_question_id=depends_on_question.id,
+            subject_reference=reference,
             expression_id=expression_id,
         )
 
@@ -2528,12 +2520,12 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
             expression_type=ExpressionType.CONDITION,
             expression=expression,
             add_context_data=add_context_data,  # type: ignore[arg-type]
-            depends_on_question_id=depends_on_question.id,
+            subject_reference=reference,
         )
         return redirect(request.url)
 
     if form and form.validate_on_submit():
-        updated_managed_expression = form.get_expression(ExpressionReference.from_question(depends_on_question))
+        updated_managed_expression = form.get_expression(reference)
 
         try:
             interfaces.collections.update_question_expression(expression, updated_managed_expression)
@@ -2559,7 +2551,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,
         QuestionDataType=QuestionDataType,
-        depends_on_question=depends_on_question,
+        subject_reference=reference,
         interpolate=SubmissionHelper.get_interpolator(component.form.collection),
     )
 

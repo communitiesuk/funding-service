@@ -44,6 +44,7 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
@@ -643,6 +644,7 @@ class SelectDataSourceQuestionForm(FlaskForm):
     question = SelectField(
         "Select which question's answer to use",
         choices=[],
+        coerce=ExpressionReference,
         validators=[DataRequired("Select the question")],
         widget=MHCLGAccessibleAutocomplete(),
     )
@@ -683,7 +685,8 @@ class SelectDataSourceQuestionForm(FlaskForm):
 
         if referenceable_questions:
             self.question.choices = [("", "")] + [
-                (str(question.id), interpolate(question.text)) for question in referenceable_questions
+                (ExpressionReference.from_question(question), interpolate(question.text))
+                for question in referenceable_questions
             ]
 
 

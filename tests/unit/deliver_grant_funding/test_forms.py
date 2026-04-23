@@ -16,6 +16,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     RoleEnum,
 )
+from app.common.expressions.references import ExpressionReference
 from app.common.filters import format_thousands
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
@@ -340,7 +341,11 @@ class TestSelectDataSourceQuestionForm:
 
         assert len(form.question.choices) == 3
         # '' is the default "no answer" choice
-        assert {q[0] for q in form.question.choices} == {"", str(questions[0].id), str(questions[1].id)}
+        assert {q[0] for q in form.question.choices} == {
+            "",
+            ExpressionReference.from_question(questions[0]),
+            ExpressionReference.from_question(questions[1]),
+        }
 
     def test_questions_in_a_same_page_group_excluded(self, app, factories, mocker):
         group = factories.group.build(
@@ -362,7 +367,11 @@ class TestSelectDataSourceQuestionForm:
 
         assert len(form.question.choices) == 3
         # '' is the default "no answer" choice
-        assert {q[0] for q in form.question.choices} == {"", str(questions[0].id), str(questions[1].id)}
+        assert {q[0] for q in form.question.choices} == {
+            "",
+            ExpressionReference.from_question(questions[0]),
+            ExpressionReference.from_question(questions[1]),
+        }
 
         group.presentation_options.show_questions_on_the_same_page = True
         form = SelectDataSourceQuestionForm(
@@ -400,9 +409,9 @@ class TestSelectDataSourceQuestionForm:
         # '' is the default "no answer" choice
         assert {q[0] for q in form.question.choices} == {
             "",
-            str(text_question.id),
-            str(yes_no_question.id),
-            str(date_question.id),
+            str(ExpressionReference.from_question(text_question)),
+            str(ExpressionReference.from_question(yes_no_question)),
+            str(ExpressionReference.from_question(date_question)),
         }
 
     def test_managed_expression_excludes_mismatched_data_types(self, app, factories, mocker):
@@ -430,8 +439,8 @@ class TestSelectDataSourceQuestionForm:
         # '' is the default "no answer" choice
         assert {q[0] for q in form.question.choices} == {
             "",
-            str(integer_questions[0].id),
-            str(integer_questions[1].id),
+            ExpressionReference.from_question(integer_questions[0]),
+            ExpressionReference.from_question(integer_questions[1]),
         }
 
     def test_excludes_same_page_groups_and_unregistered_data_types(self, app, factories, mocker):
@@ -460,7 +469,11 @@ class TestSelectDataSourceQuestionForm:
         )
 
         assert len(form.question.choices) == 3
-        assert {q[0] for q in form.question.choices} == {"", str(integer_q1.id), str(integer_q2.id)}
+        assert {q[0] for q in form.question.choices} == {
+            "",
+            ExpressionReference.from_question(integer_q1),
+            ExpressionReference.from_question(integer_q2),
+        }
 
     def test_calculated_condition_excludes_unregistered_data_types(self, app, factories, mocker):
         integer_q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
@@ -493,8 +506,8 @@ class TestSelectDataSourceQuestionForm:
         assert len(form.question.choices) == 3
         assert {q[0] for q in form.question.choices} == {
             "",
-            str(integer_q1.id),
-            str(integer_q2.id),
+            ExpressionReference.from_question(integer_q1),
+            ExpressionReference.from_question(integer_q2),
         }
 
 

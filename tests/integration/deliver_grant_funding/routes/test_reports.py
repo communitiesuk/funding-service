@@ -3299,13 +3299,15 @@ class TestSelectContextSourceSection:
         question = factories.question.create(form=form_2, text="Question 1")
         question_2 = factories.question.create(form=form_3, text="Question 2")
 
+        subject_reference = ExpressionReference.from_question(question)
+
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToExpressionsModel(
                 data_source=ExpressionContext.ContextSources.SECTION,
                 collection_id=form.collection_id,
                 form_id=None,
                 component_id=question_2.id,
-                depends_on_question_id=question.id,
+                subject_reference=subject_reference,
                 field=ExpressionType.CONDITION,
                 managed_expression_name=ManagedExpressionsEnum.ANY_OF,
                 expression_form_data={},
@@ -3471,7 +3473,7 @@ class TestSelectContextSourceQuestion:
                     "add_context": "greater_than_expression",
                 },
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=ExpressionReference.from_question(depends_on_question),
                 data_source=ExpressionContext.ContextSources.SECTION,
                 collection_id=form.collection_id,
                 form_id=form.id,
@@ -3591,7 +3593,7 @@ class TestSelectContextSourceQuestion:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             ),
-            data={"question": str(question.id)},
+            data={"question": ExpressionReference.from_question(question)},
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -3630,7 +3632,7 @@ class TestSelectContextSourceQuestion:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             ),
-            data={"question": str(referenced_question.id)},
+            data={"question": ExpressionReference.from_question(referenced_question)},
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -3690,8 +3692,8 @@ class TestSelectContextSourceQuestion:
                 data_source=ExpressionContext.ContextSources.SECTION,
                 collection_id=form.collection_id,
                 form_id=form.id,
-                depends_on_question_id=depends_on_question.id
-                if expression_type is ExpressionType.CONDITION and not existing_expression
+                subject_reference=ExpressionReference.from_question(depends_on_question)
+                if (expression_type is ExpressionType.CONDITION and not existing_expression)
                 else None,
                 expression_id=expression_id,
             ).model_dump(mode="json")
@@ -3702,7 +3704,7 @@ class TestSelectContextSourceQuestion:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             ),
-            data={"question": str(reference_data_question.id)},
+            data={"question": ExpressionReference.from_question(reference_data_question)},
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -3723,7 +3725,7 @@ class TestSelectContextSourceQuestion:
             else:
                 assert response.location == AnyStringMatching(
                     rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/"
-                    + rf"{target_question.id}/add-condition/{depends_on_question.id}"
+                    + rf"{target_question.id}/add-condition/{ExpressionReference.from_question(depends_on_question)}"
                 )
         else:
             if existing_expression:
@@ -3734,6 +3736,38 @@ class TestSelectContextSourceQuestion:
                 assert response.location == AnyStringMatching(
                     rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}/add-validation"
                 )
+
+    def test_post_redirects_to_add_condition_and_clears_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        referenced_question = factories.question.create(form=form)
+        question = factories.question.create(form=form)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddConditionDependsOnSessionModel(
+                field="condition_depends_on",
+                component_id=question.id,
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"question": ExpressionReference.from_question(referenced_question)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}/add-condition/{ExpressionReference.from_question(referenced_question)}"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess.get("question") is None
 
 
 class TestSelectContextSourceDataSet:
@@ -5442,12 +5476,13 @@ class TestEditCalculatedCondition:
 
 class TestAddQuestionCondition:
     def test_404(self, authenticated_grant_admin_client):
+        reference = ExpressionReference(f"q_{uuid.uuid4().hex}")
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.add_question_condition",
                 grant_id=uuid.uuid4(),
                 component_id=uuid.uuid4(),
-                depends_on_question_id=uuid.uuid4(),
+                subject_reference=reference,
             )
         )
         assert response.status_code == 404
@@ -5489,7 +5524,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=ExpressionReference.from_question(depends_on_question),
             )
         )
 
@@ -5503,7 +5538,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=client.grant.id,
                 component_id=group.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=ExpressionReference.from_question(depends_on_question),
             )
         )
 
@@ -5523,6 +5558,7 @@ class TestAddQuestionCondition:
             hint="Please select yes or no",
             data_type=QuestionDataType.YES_NO,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_question = factories.question.create(
             form=db_form,
@@ -5534,9 +5570,7 @@ class TestAddQuestionCondition:
 
         assert len(target_question.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -5544,7 +5578,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form),
             follow_redirects=False,
@@ -5572,14 +5606,13 @@ class TestAddQuestionCondition:
             hint="Please select yes or no",
             data_type=QuestionDataType.YES_NO,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_group = factories.group.create(form=db_form)
 
         assert len(target_group.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -5587,7 +5620,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_group.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form),
             follow_redirects=False,
@@ -5615,6 +5648,7 @@ class TestAddQuestionCondition:
             hint="Please select yes or no",
             data_type=QuestionDataType.YES_NO,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_question = factories.question.create(
             form=db_form,
@@ -5631,9 +5665,7 @@ class TestAddQuestionCondition:
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -5641,7 +5673,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form),
             follow_redirects=False,
@@ -5663,6 +5695,7 @@ class TestAddQuestionCondition:
             name="total cheese eaten",
             data_type=QuestionDataType.NUMBER,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_question = factories.question.create(
             form=db_form,
@@ -5673,9 +5706,7 @@ class TestAddQuestionCondition:
 
         assert len(target_question.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -5691,7 +5722,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form, submit=""),
             follow_redirects=False,
@@ -5715,6 +5746,7 @@ class TestAddQuestionCondition:
         reference_data_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
         depends_on_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=db_form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+        reference = ExpressionReference.from_question(depends_on_question)
 
         session_data = AddContextToExpressionsModel(
             field=ExpressionType.CONDITION,
@@ -5726,15 +5758,13 @@ class TestAddQuestionCondition:
                 "greater_than_inclusive": True,
             },
             component_id=target_question.id,
-            depends_on_question_id=depends_on_question.id,
+            subject_reference=ExpressionReference.from_question(depends_on_question),
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session["question"] = session_data.model_dump(mode="json")
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -5750,7 +5780,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form, submit=""),
             follow_redirects=False,
@@ -5763,7 +5793,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             )
         )
         assert len(target_question.expressions) == 0
@@ -5793,6 +5823,7 @@ class TestAddQuestionCondition:
             name="total cheese eaten",
             data_type=QuestionDataType.NUMBER,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_question = factories.question.create(
             form=db_form,
@@ -5801,9 +5832,7 @@ class TestAddQuestionCondition:
             data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -5818,7 +5847,7 @@ class TestAddQuestionCondition:
             managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
             expression_form_data=form.data,
             component_id=target_question.id,
-            depends_on_question_id=depends_on_question.id,
+            subject_reference=reference,
             value_dependent_question_id=reference_data_question.id,
         )
 
@@ -5830,7 +5859,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form),
             follow_redirects=False,
@@ -6344,7 +6373,7 @@ class TestEditQuestionCondition:
             expression_id=expression_id,
             expression_form_data=form.data,
             component_id=target_question.id,
-            depends_on_question_id=depends_on_question.id,
+            subject_reference=ExpressionReference.from_question(depends_on_question),
             value_dependent_question_id=reference_data_question.id,
         )
 
@@ -11639,7 +11668,7 @@ class TestDetermineReturnUrlExpressionReference:
                 "test_field": "start",
                 "add_context": "test_field",
             },
-            depends_on_question_id=uuid.uuid4(),
+            subject_reference=ExpressionReference.from_question(question),
         )
 
         _determine_return_url_and_update_session_after_choosing_reference_for_expression(
@@ -11676,14 +11705,14 @@ class TestDetermineReturnUrlExpressionReference:
                 "test_field": "start + ",
                 "add_context": "test_field",
             },
-            depends_on_question_id=uuid.uuid4(),
+            subject_reference=ExpressionReference.from_question(question),
         )
 
         result = _determine_return_url_and_update_session_after_choosing_reference_for_expression(
             uuid.uuid4(), add_context_data, ExpressionReference.from_question(question)
         )
         assert result == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/[a-z0-9-]{36}"
+            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/q_[0-9a-f]{32}"
         )
 
     def test_return_url_existing_non_calculated_condition(self, factories):
@@ -11696,7 +11725,7 @@ class TestDetermineReturnUrlExpressionReference:
                 "test_field": "start + ",
                 "add_context": "test_field",
             },
-            depends_on_question_id=uuid.uuid4(),
+            subject_reference=ExpressionReference.from_question(question),
             expression_id=uuid.uuid4(),
         )
 
