@@ -40,19 +40,9 @@
   }}
 {% endmacro %}
 
-{% macro render_calculated_validation_custom_expression_field(form) %}
+{% macro render_calculated_validation_custom_expression_field(form, customExpressionHint) %}
   {% set addDataToExpressionButton %}
     {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for calculation</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
-  {% endset %}
-  {% set customExpressionHint %}
-    <p class="govuk-body">Use number question references, calculation symbols and numbers to describe what the answer needs to be. Start with referencing this question.</p>
-
-    <p class="govuk-body govuk-!-margin-bottom-0">For example, if this question asks for the total spend and the answer should equal previous answers for capital spend plus revenue spend, the calculation would be:</p>
-
-    <div class="govuk-inset-text govuk-!-margin-top-0">
-      <span class="app-context-aware-editor--valid-reference">((total spend))</span> == <span class="app-context-aware-editor--valid-reference">((capital spend))</span> +
-      <span class="app-context-aware-editor--valid-reference">((revenue spend))</span>
-    </div>
   {% endset %}
 
   <div data-module="context-aware-editor" data-toolbar-enabled="false" data-i18n="{}" data-wrapper-classes="govuk-input--width-40">
@@ -80,7 +70,7 @@
   }}
 {% endmacro %}
 
-{% macro render_calculated_validation_custom_message_field(form) %}
+{% macro render_calculated_validation_custom_message_field(form,customMessageHint) %}
   {% set addDataToMessageButton %}
     {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for error message</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_message"}) }}
   {% endset %}
@@ -88,6 +78,7 @@
     <div class="govuk-!-display-none" data-context nonce="{{ csp_nonce() }}">{{ g.context_keys_and_labels | tojson }}</div>
     {{
       form.custom_message(params={
+      "hint":{"html": customMessageHint},
       "label": {"classes": "govuk-!-font-weight-bold"},
         "attributes": {"data-module": "textarea-no-newlines", "data-context-aware-editor-target": ""},
         "formGroup": {
