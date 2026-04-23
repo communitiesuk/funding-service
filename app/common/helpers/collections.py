@@ -338,14 +338,19 @@ class SubmissionHelper:
         submission_state = self.events.submission_state
 
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
-        if {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_submitted:
+        all_forms_completed_or_not_needed = form_statuses <= {
+            TasklistSectionStatusEnum.COMPLETED,
+            TasklistSectionStatusEnum.NOT_NEEDED,
+        }
+
+        if all_forms_completed_or_not_needed and submission_state.is_submitted:
             return SubmissionStatusEnum.SUBMITTED
         elif self.collection_helper.is_closed:
             return SubmissionStatusEnum.NOT_SUBMITTED
-        elif {TasklistSectionStatusEnum.COMPLETED} == form_statuses and submission_state.is_awaiting_sign_off:
+        elif all_forms_completed_or_not_needed and submission_state.is_awaiting_sign_off:
             return SubmissionStatusEnum.AWAITING_SIGN_OFF
         elif (
-            form_statuses <= {TasklistSectionStatusEnum.COMPLETED, TasklistSectionStatusEnum.NOT_NEEDED}
+            all_forms_completed_or_not_needed
             and (
                 self.is_preview
                 or not self.submission.collection.requires_certification
