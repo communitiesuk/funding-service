@@ -1562,7 +1562,15 @@ def select_context_source_data_set_column(grant_id: UUID, form_id: UUID, data_se
 
         match add_context_data:
             case AddConditionDependsOnSessionModel():
-                raise NotImplementedError("need to handle using data set references in conditions")
+                del session["question"]
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.add_question_condition",
+                        grant_id=grant_id,
+                        component_id=add_context_data.component_id,
+                        subject_reference=reference,
+                    )
+                )
 
             case AddContextToComponentSessionModel():
                 return_url = (
