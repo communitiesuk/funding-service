@@ -38,7 +38,7 @@ from app.common.data.types import (
 )
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import GreaterThan
+from app.common.expressions.managed import GreaterThan, IsYes
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import (
     AllSubmissionsHelper,
@@ -1026,6 +1026,56 @@ class TestSubmissionHelper:
         ):
             submission_submitted.collection.status = CollectionStatusEnum.CLOSED
             helper = SubmissionHelper(submission_submitted)
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+        def test_submission_status_with_not_needed_forms(self, db_session, factories, mock_notification_service_calls):
+            org = factories.organisation.create()
+            grant = factories.grant.create()
+            gr = factories.grant_recipient.create(organisation=org, grant=grant)
+            collection = factories.collection.create(
+                grant=grant,
+                reporting_period_start_date=date(2025, 1, 1),
+                reporting_period_end_date=date(2025, 3, 31),
+                requires_certification=False,
+            )
+
+            question = factories.question.create(form__collection=collection, data_type=QuestionDataType.YES_NO)
+            form_two = factories.form.create(collection=collection)
+            factories.question.create(
+                form=form_two,
+                expressions=[
+                    Expression.from_evaluatable_expression(
+                        IsYes(subject_reference=ExpressionReference.from_question(question)),
+                        ExpressionType.CONDITION,
+                        collection.created_by,
+                    )
+                ],
+            )
+
+            form_three = factories.form.create(collection=collection)
+            question_three = factories.question.create(form=form_three)
+
+            submission = factories.submission.create(
+                collection=question.form.collection,
+                grant_recipient=gr,
+                answers=[
+                    FactoryAnswer(question, YesNoAnswer(False)),
+                    FactoryAnswer(question_three, TextSingleLineAnswer("Hello")),
+                ],
+            )
+
+            helper = SubmissionHelper(submission)
+            helper.toggle_form_completed(question.form, submission.created_by, True)
+            helper.toggle_form_completed(form_three, submission.created_by, True)
+
+            assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
+            assert helper.get_status_for_form(form_two) == TasklistSectionStatusEnum.NOT_NEEDED
+            assert helper.get_status_for_form(form_three) == TasklistSectionStatusEnum.COMPLETED
+
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+            helper.submit(submission.created_by)
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
