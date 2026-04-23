@@ -30,6 +30,19 @@ class TestExpressionReference:
             reference = ExpressionReference(f"d_{uuid4().hex}.c_col")
             assert reference.question is None
 
+        def test_question_only_queries_db_on_first_access(self, factories, track_sql_queries):
+            q = factories.question.create()
+            reference = ExpressionReference(q.safe_qid)
+
+            _ = reference.question
+
+            with track_sql_queries() as queries:
+                _ = reference.question
+                _ = reference.question.text
+                _ = reference.question.data_type
+
+            assert queries == []
+
     class TestDataSourceColumn:
         def test_data_source_exists(self, factories):
             collection = factories.collection.create()
@@ -57,6 +70,37 @@ class TestExpressionReference:
         def test_data_source_is_none_for_non_data_source_reference(self):
             reference = ExpressionReference(f"q_{uuid4().hex}")
             assert reference.data_source_column is None
+
+        def test_data_source_column_only_queries_db_on_first_access(self, factories, track_sql_queries):
+            collection = factories.collection.create()
+            data_source = factories.data_source.create(
+                grant=collection.grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                items=None,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "c_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(prefix="£"),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            original_column_name="Allocation",
+                        ),
+                    }
+                ),
+            )
+            reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
+
+            # warm the cache (first access)
+            _ = reference.data_source_column
+
+            # subsequent accesses should not fire additional queries
+            with track_sql_queries() as queries:
+                _ = reference.data_source_column
+                _ = reference.data_source_column.data_type
+                _ = reference.data_source_column.original_column_name
+
+            assert queries == []
 
     class TestGetDataType:
         def test_raises_none_for_question_reference_to_missing_question(self):
@@ -129,3 +173,92 @@ class TestExpressionReference:
 
             with pytest.raises(ValueError):
                 _ = reference.data_type
+
+    class TestGetDataSource:
+        def test_data_source_exists(self, factories):
+            collection = factories.collection.create()
+            allocation_column = DataSourceSchemaColumn(
+                data_type=QuestionDataType.NUMBER,
+                presentation_options=QuestionPresentationOptions(prefix="£"),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                original_column_name="Allocation",
+            )
+            data_source = factories.data_source.create(
+                grant=collection.grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                items=None,
+                schema=DataSourceSchema.model_validate({"c_allocation": allocation_column}),
+            )
+
+            reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
+            assert reference.data_source == data_source
+
+        def test_data_source_does_not_exist(self):
+            reference = ExpressionReference(f"d_{uuid4().hex}.c_col")
+            assert reference.data_source is None
+
+        def test_data_source_is_none_for_non_data_source_reference(self):
+            reference = ExpressionReference(f"q_{uuid4().hex}")
+            assert reference.data_source is None
+
+        def test_data_source_only_queries_db_on_first_access(self, factories, track_sql_queries):
+            collection = factories.collection.create()
+            data_source = factories.data_source.create(
+                grant=collection.grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                items=None,
+                schema=DataSourceSchema.model_validate(
+                    {
+                        "c_allocation": DataSourceSchemaColumn(
+                            data_type=QuestionDataType.NUMBER,
+                            presentation_options=QuestionPresentationOptions(prefix="£"),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            original_column_name="Allocation",
+                        ),
+                    }
+                ),
+            )
+            reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
+
+            _ = reference.data_source
+
+            with track_sql_queries() as queries:
+                _ = reference.data_source
+                _ = reference.data_source.name
+                _ = reference.data_source.type
+
+            assert queries == []
+
+    class TestLabel:
+        def test_question_label(self, factories):
+            q = factories.question.create()
+
+            reference = ExpressionReference(q.safe_qid)
+            assert reference.label == q.data_reference_label
+
+        def test_data_source_label(self, factories):
+            collection = factories.collection.create()
+            allocation_column = DataSourceSchemaColumn(
+                data_type=QuestionDataType.NUMBER,
+                presentation_options=QuestionPresentationOptions(prefix="£"),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                original_column_name="Allocation",
+            )
+            data_source = factories.data_source.create(
+                grant=collection.grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                items=None,
+                schema=DataSourceSchema.model_validate({"c_allocation": allocation_column}),
+            )
+
+            reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
+            assert reference.label == f"{allocation_column.original_column_name} from {data_source.name} data set"
+
+        def test_invalid_reference_error(self):
+            reference = ExpressionReference("something_else")
+
+            with pytest.raises(ValueError):
+                _ = reference.label

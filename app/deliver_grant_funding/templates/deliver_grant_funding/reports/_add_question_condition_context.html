@@ -16,7 +16,7 @@
       "key": { "text": "The question" if not component.is_group else "The question group" },
       "value": { "text": interpolate(component.text) },
     }, {
-      "key": { "text": "Depends on the answer to" },
+      "key": { "text": "Depends on" },
       "value": { "html": depends_on_html } if not depends_on_question else { "text": interpolate(depends_on_question.text, with_interpolation_highlighting=True) },
     }],
     "classes": "app-!-border-top-line govuk-!-margin-bottom-8"

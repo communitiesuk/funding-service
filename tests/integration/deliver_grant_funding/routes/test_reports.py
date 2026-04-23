@@ -5909,7 +5909,7 @@ class TestEditQuestionCondition:
             assert "The question" in soup.text
             assert "What is your email?" in soup.text
 
-            assert "Depends on the answer to" in soup.text
+            assert "Depends on" in soup.text
             assert "Do you like cheese?" in soup.text
 
             yes_radio = soup.find("input", {"type": "radio", "value": "Yes"})
