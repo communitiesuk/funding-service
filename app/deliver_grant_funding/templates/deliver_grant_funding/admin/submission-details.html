@@ -1,0 +1,69 @@
+{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% extends 'admin/model/details.html' %}
+
+{% block details_table %}
+  <dl class="app-metadata">
+    <dt class="app-metadata__key">Grant:</dt>
+    <dd class="app-metadata__value" data-testid="submission-status">{{ model.collection.grant.name }}</dd>
+  </dl>
+  <dl class="app-metadata">
+    <dt class="app-metadata__key">Collection:</dt>
+    <dd class="app-metadata__value" data-testid="submission-status">{{ model.collection.name }}</dd>
+  </dl>
+  <dl class="app-metadata">
+    <dt class="app-metadata__key">Organisation:</dt>
+    <dd class="app-metadata__value" data-testid="submission-status">{{ model.grant_recipient.organisation.name if model.grant_recipient else "None" }}</dd>
+  </dl>
+  <dl class="app-metadata">
+    <dt class="app-metadata__key">Reference:</dt>
+    <dd class="app-metadata__value" data-testid="submission-status">{{ model.reference }}</dd>
+  </dl>
+  {% if helper.is_submitted %}
+    <dl class="app-metadata">
+      <dt class="app-metadata__key">Submitted by:</dt>
+      <dd class="app-metadata__value" data-testid="submission-status">{{ helper.submitted_by.name }}</dd>
+    </dl>
+    {% if helper.certified_by %}
+      <dl class="app-metadata">
+        <dt class="app-metadata__key">Certified by:</dt>
+        <dd class="app-metadata__value" data-testid="submission-status">{{ helper.certified_by.name }}</dd>
+      </dl>
+    {% endif %}
+    <dl class="app-metadata govuk-!-margin-bottom-9">
+      <dt class="app-metadata__key">Date submitted:</dt>
+      <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(helper.submitted_at_utc) }}</dd>
+    </dl>
+  {% elif helper.is_awaiting_sign_off %}
+    <dl class="app-metadata">
+      <dt class="app-metadata__key">Submitted by:</dt>
+      <dd class="app-metadata__value" data-testid="submission-status">{{ model.sent_for_certification_by.name }}</dd>
+    </dl>
+    <dl class="app-metadata">
+      <dt class="app-metadata__key">Date submitted for sign off:</dt>
+      <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(model.sent_for_certification_at_utc) }}</dd>
+    </dl>
+  {% endif %}
+  <dl class="app-metadata">
+    <dt class="app-metadata__key">Status:</dt>
+    <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(helper.status, helper.is_overdue) }}</dd>
+  </dl>
+
+  <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" />
+
+  <div class="moj-timeline">
+    {% for item in timeline_items %}
+      <div class="moj-timeline__item">
+        <div class="moj-timeline__header">
+          <h2 class="moj-timeline__title">{{ item.title }}</h2>
+          <p class="moj-timeline__byline">by {{ item.byline }}</p>
+        </div>
+        <p class="moj-timeline__date">
+          <time datetime="{{ item.datetime.isoformat() }}">{{ format_datetime_short(item.datetime) }}</time>
+        </p>
+        {% if item.description %}
+          <div class="moj-timeline__description">{{ item.description }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

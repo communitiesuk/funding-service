@@ -2,9 +2,12 @@
 // of Access grant funding or Deliver grant funding.
 
 @use "sass:color";
-@use "govuk/base" as govuk with (
+@use "govuk" as govuk with (
     $govuk-brand-colour: #912b88
 );
+
+@use "components/metadata";
+@use "tweaks";
 
 .app-\!-align-vertically {
     display: inline-flex !important;
