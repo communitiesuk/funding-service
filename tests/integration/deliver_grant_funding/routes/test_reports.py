@@ -4008,6 +4008,23 @@ class TestSelectContextSourceDataSet:
 
         data_source_3 = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Data set with just text column should still show",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_description": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Description",
+                    )
+                }
+            ),
+        )
+
+        data_source_4 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
             collection=report_2,
             name="Data set that shouldn't be shown",
             type=DataSourceType.GRANT_RECIPIENT,
@@ -4032,6 +4049,191 @@ class TestSelectContextSourceDataSet:
                     "hint": "Test question hint",
                     "add_context": "text",
                 },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select uploaded data set" in soup.text
+        assert data_source.name in soup.text
+        assert data_source_2.name in soup.text
+        assert data_source_3.name in soup.text
+        assert data_source_4.name not in soup.text
+
+    def test_get_shows_only_data_sets_with_number_columns_when_expression_reference(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        report_2 = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        data_source = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        data_source_2 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Second data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        data_source_3 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Data set with just text column",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_description": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Description",
+                    )
+                }
+            ),
+        )
+
+        data_source_4 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report_2,
+            name="Data set that shouldn't be shown",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.VALIDATION,
+                managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                expression_form_data={
+                    "type": "Greater than",
+                    "greater_than_value": None,
+                    "greater_than_expression": "",
+                    "greater_than_inclusive": False,
+                    "add_context": "greater_than_expression",
+                },
+                component_id=question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select uploaded data set" in soup.text
+        assert data_source.name in soup.text
+        assert data_source_2.name in soup.text
+        assert data_source_3.name not in soup.text
+        assert data_source_4.name not in soup.text
+
+    def test_get_shows_only_data_sets_with_number_columns_when_condition_depends_on_reference(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        data_source = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        data_source_2 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Second data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        data_source_3 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Data set with just text column",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_description": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Description",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddConditionDependsOnSessionModel(
+                component_id=question.id,
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
@@ -4076,6 +4278,7 @@ class TestSelectContextSourceDataSet:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Select uploaded data set" in soup.text
         assert "There are no data sets to reference in this collection" in soup.text
+        assert page_has_link(soup, "Cancel")
 
     def test_post_redirects_to_select_data_set_column_and_updates_session(
         self, authenticated_grant_admin_client, factories
@@ -4315,6 +4518,175 @@ class TestSelectContextSourceDataSetColumn:
         assert "Capital Allocation" in soup.text
         assert "Revenue Allocation" in soup.text
         assert "Description" in soup.text
+
+    def test_get_shows_only_number_columns_when_expression(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    ),
+                    "c_revenue_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Revenue Allocation",
+                    ),
+                    "c_description": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Description",
+                    ),
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.VALIDATION,
+                managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                expression_form_data={
+                    "type": "Greater than",
+                    "greater_than_value": None,
+                    "greater_than_expression": "",
+                    "greater_than_inclusive": False,
+                    "add_context": "greater_than_expression",
+                },
+                component_id=question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert f"Select column in {data_set.name} data set" in soup.text
+        assert "Capital Allocation" in soup.text
+        assert "Revenue Allocation" in soup.text
+        assert "Description" not in soup.text
+
+    def test_get_shows_only_number_columns_when_condition_depends_on_reference(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    ),
+                    "c_revenue_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Revenue Allocation",
+                    ),
+                    "c_description": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Description",
+                    ),
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddConditionDependsOnSessionModel(
+                component_id=question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert f"Select column in {data_set.name} data set" in soup.text
+        assert "Capital Allocation" in soup.text
+        assert "Revenue Allocation" in soup.text
+        assert "Description" not in soup.text
+
+    def test_get_shows_text_when_data_set_has_no_number_columns(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_description": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Description",
+                    ),
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.VALIDATION,
+                managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                expression_form_data={
+                    "type": "Greater than",
+                    "greater_than_value": None,
+                    "greater_than_expression": "",
+                    "greater_than_inclusive": False,
+                    "add_context": "greater_than_expression",
+                },
+                component_id=question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert f"Select column in {data_set.name} data set" in soup.text
+        assert "You cannot reference this data set because there are no columns with numbers" in soup.text
+        assert page_has_link(soup, "Cancel")
 
     def test_post_with_component_session_model_new_question_redirects_and_updates_session(
         self, authenticated_grant_admin_client, factories

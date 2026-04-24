@@ -1515,7 +1515,12 @@ def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseRet
     if not add_context_data:
         return abort(400)
 
-    wtform = SelectDataSourceDataSetForm(collection=db_form.collection, data=request.args)
+    number_columns_only = isinstance(
+        add_context_data, (AddConditionDependsOnSessionModel, AddContextToExpressionsModel)
+    )
+    wtform = SelectDataSourceDataSetForm(
+        collection=db_form.collection, data=request.args, number_columns_only=number_columns_only
+    )
 
     if wtform.validate_on_submit():
         reference_data_set = get_data_source(uuid.UUID(wtform.data_set.data))
@@ -1554,7 +1559,10 @@ def select_context_source_data_set_column(grant_id: UUID, form_id: UUID, data_se
     if not add_context_data:
         return abort(400)
 
-    wtform = SelectDataSourceDataSetColumnForm(data_set=data_set)
+    number_columns_only = isinstance(
+        add_context_data, (AddConditionDependsOnSessionModel, AddContextToExpressionsModel)
+    )
+    wtform = SelectDataSourceDataSetColumnForm(data_set=data_set, number_columns_only=number_columns_only)
 
     if wtform.validate_on_submit():
         safe_column_id = wtform.column.data
