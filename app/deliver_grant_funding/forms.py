@@ -656,6 +656,7 @@ class SelectDataSourceQuestionForm(FlaskForm):
         form: Form,
         interpolate: Callable[[str], str],
         current_component: TOptional[Component],
+        subject_reference: TOptional[ExpressionReference],
         *args: Any,
         expression_type: TOptional[ExpressionType],
         managed_expression_name: TOptional[ManagedExpressionsEnum],
@@ -672,12 +673,23 @@ class SelectDataSourceQuestionForm(FlaskForm):
         if expression_type is not None:
             if managed_expression_name is None:
                 limit_to_data_types = {QuestionDataType.NUMBER}
-            elif current_component and current_component.data_type:
-                limit_to_data_types = {current_component.data_type}
+            else:
+                if subject_reference:
+                    limit_to_data_types = {subject_reference.data_type}
+                elif current_component and current_component.data_type:
+                    limit_to_data_types = {current_component.data_type}
+
+        limit_to_component = (
+            subject_reference.question
+            if subject_reference and subject_reference.question
+            else current_component
+            if current_component and current_component.form == form
+            else None
+        )
 
         referenceable_questions = get_referenceable_questions(
             form,
-            current_component if current_component and current_component.form == form else None,
+            limit_to_component,
             parent_component if parent_component and parent_component.form == form else None,
             limit_to_data_type=limit_to_data_types,
             include_this_component=self.include_this_component,

@@ -3493,6 +3493,63 @@ class TestSelectContextSourceQuestion:
         assert reference_question.text in soup.text
         assert depends_on_question.text not in soup.text and skipped_question.text not in soup.text
 
+    def test_get_lists_questions_before_component_id_when_subject_reference_is_data_set_column(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        reference_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        skipped_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+        data_set_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.CONDITION,
+                managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                expression_form_data={
+                    "type": "Greater than",
+                    "greater_than_value": None,
+                    "greater_than_inclusive": True,
+                    "add_context": "greater_than_expression",
+                },
+                component_id=target_question.id,
+                subject_reference=data_set_reference,
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert reference_question.text in soup.text
+        assert skipped_question.text not in soup.text
+        assert target_question.text not in soup.text
+
     def test_get_back_link_points_to_select_context_source_when_same_section(
         self, authenticated_grant_admin_client, factories
     ):

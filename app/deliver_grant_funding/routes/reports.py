@@ -1728,19 +1728,14 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
     assert add_context_data.form_id
     target_form = get_form_by_id(add_context_data.form_id)
 
-    # TODO: Add depends_on_question_id as a nullable attribute to all session models to simplify this check?
-    current_component = (
-        subject_reference.question
-        if (subject_reference := getattr(add_context_data, "subject_reference", None))
-        else get_component_by_id(add_context_data.component_id)
-        if add_context_data.component_id
-        else None
-    )
+    subject_reference = getattr(add_context_data, "subject_reference", None)
+    current_component = get_component_by_id(add_context_data.component_id) if add_context_data.component_id else None
 
     wtform = SelectDataSourceQuestionForm(
         form=target_form,
         interpolate=SubmissionHelper.get_interpolator(collection=db_form.collection),
         current_component=current_component,
+        subject_reference=subject_reference,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
         expression_type=add_context_data.field if isinstance(add_context_data, AddContextToExpressionsModel) else None,
         managed_expression_name=add_context_data.managed_expression_name

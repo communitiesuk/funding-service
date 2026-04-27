@@ -8,10 +8,14 @@ from werkzeug.datastructures import MultiDict
 from wtforms import ValidationError
 
 from app.common.data.types import (
+    DataSourceSchema,
+    DataSourceSchemaColumn,
+    DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
     MaximumFileSize,
     NumberTypeEnum,
+    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
@@ -334,6 +338,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
+            subject_reference=None,
             current_component=questions[2],
             expression_type=None,
             managed_expression_name=None,
@@ -360,6 +365,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
+            subject_reference=None,
             current_component=questions[2],
             expression_type=None,
             managed_expression_name=None,
@@ -377,6 +383,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=questions[2].form,
             interpolate=SubmissionHelper.get_interpolator(collection=questions[2].form.collection),
+            subject_reference=None,
             current_component=questions[2],
             expression_type=None,
             managed_expression_name=None,
@@ -400,6 +407,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=text_question.form,
             interpolate=SubmissionHelper.get_interpolator(collection=text_question.form.collection),
+            subject_reference=None,
             current_component=integer_question,
             expression_type=None,
             managed_expression_name=None,
@@ -430,6 +438,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=multi_line_question.form,
             interpolate=SubmissionHelper.get_interpolator(collection=multi_line_question.form.collection),
+            subject_reference=None,
             current_component=integer_questions[2],
             expression_type=ExpressionType.CONDITION,
             managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
@@ -463,6 +472,7 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=group.form,
             interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+            subject_reference=None,
             current_component=integer_q4,
             expression_type=ExpressionType.CONDITION,
             managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
@@ -498,7 +508,104 @@ class TestSelectDataSourceQuestionForm:
         form = SelectDataSourceQuestionForm(
             form=group.form,
             interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+            subject_reference=None,
             current_component=text_q4,
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=None,
+        )
+
+        assert len(form.question.choices) == 3
+        assert {q[0] for q in form.question.choices} == {
+            "",
+            ExpressionReference.from_question(integer_q1),
+            ExpressionReference.from_question(integer_q2),
+        }
+
+    def test_managed_condition_with_question_subject_reference(self, app, factories, mocker):
+        integer_q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
+        integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.NUMBER)
+        multi_line_q = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.YES_NO)
+        text_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+
+        group = factories.group.build(
+            form=integer_q1.form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        integer_q3 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
+        text_q4 = factories.question.build(
+            form=integer_q1.form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE
+        )
+
+        all_questions = [integer_q1, multi_line_q, integer_q2, text_question, integer_q3, text_q4]
+
+        subject_reference = ExpressionReference.from_question(integer_q3)
+
+        # TODO[FSPT-1255]: don't love these being mocked; move to an integration test instead?
+        mocker.patch.object(group.form, "cached_questions", all_questions)
+        mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
+        mocker.patch.object(ExpressionReference, "question", new_callable=mock.PropertyMock, return_value=integer_q3)
+
+        form = SelectDataSourceQuestionForm(
+            form=group.form,
+            interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+            subject_reference=subject_reference,
+            current_component=text_q4,
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=None,
+        )
+
+        assert len(form.question.choices) == 3
+        assert {q[0] for q in form.question.choices} == {
+            "",
+            ExpressionReference.from_question(integer_q1),
+            ExpressionReference.from_question(integer_q2),
+        }
+
+    def test_managed_condition_with_data_set_subject_reference(self, app, factories, mocker):
+        integer_q1 = factories.question.build(data_type=QuestionDataType.NUMBER)
+        integer_q2 = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.NUMBER)
+        multi_line_q = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.YES_NO)
+        text_question = factories.question.build(form=integer_q1.form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+
+        group = factories.group.build(
+            form=integer_q1.form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        integer_q3 = factories.question.build(form=integer_q1.form, parent=group, data_type=QuestionDataType.NUMBER)
+        text_q4 = factories.question.build(
+            form=integer_q1.form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE
+        )
+
+        data_set_column = DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            original_column_name="Capital Allocation",
+        )
+
+        data_set = factories.data_source.build(
+            grant=integer_q1.form.collection.grant,
+            collection=integer_q1.form.collection,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate({"c_capital_allocation": data_set_column}),
+        )
+
+        all_questions = [integer_q1, multi_line_q, integer_q2, text_question, integer_q3, text_q4]
+
+        subject_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+
+        # TODO[FSPT-1255]: don't love these being mocked; move to an integration test instead?
+        mocker.patch.object(group.form, "cached_questions", all_questions)
+        mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
+        mocker.patch.object(ExpressionReference, "question", new_callable=mock.PropertyMock, return_value=None)
+        mocker.patch.object(
+            ExpressionReference, "data_source_column", new_callable=mock.PropertyMock, return_value=data_set_column
+        )
+
+        form = SelectDataSourceQuestionForm(
+            form=group.form,
+            interpolate=SubmissionHelper.get_interpolator(collection=group.form.collection),
+            subject_reference=subject_reference,
+            current_component=text_question,
             expression_type=ExpressionType.CONDITION,
             managed_expression_name=None,
         )
