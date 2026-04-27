@@ -98,7 +98,7 @@
         {% endset %}
         {% do tableRows.append([{"html": noGrantRecipientsHtml, "colspan": 2}]) %}
       {% else %}
-        {% for grant_recipient in grant_recipients | sort(attribute="organisation.name") %}
+        {% for grant_recipient in grant_recipients %}
           {% set userDetails %}
             <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Can edit and submit reports:</p>
             {% if grant_recipient.data_providers %}

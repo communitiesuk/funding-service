@@ -30,6 +30,8 @@ def get_grant_recipients(
     if with_organisations:
         stmt = stmt.options(selectinload(GrantRecipient.organisation))
 
+    stmt = stmt.join(Organisation, GrantRecipient.organisation_id == Organisation.id).order_by(Organisation.name)
+
     return db.session.scalars(stmt).unique().all()
 
 
