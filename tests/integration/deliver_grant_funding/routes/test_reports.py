@@ -8077,6 +8077,56 @@ class TestUploadDataSet:
         assert response.status_code == 200
         assert page_has_error(soup, "The CSV file must have at least one column")
 
+    def test_post_raises_error_for_empty_grant_recipient_csv(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
+
+        csv_content = "Organisation ID,Grant recipient\nE123,Lothlorien\nE456,Numenor"
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.GRANT_RECIPIENT,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "The CSV file must contain at least one column of data")
+
+    def test_post_raises_error_for_empty_csv_headers(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
+
+        csv_content = "Organisation ID,Grant recipient,,Identifier\nE123,Lothlorien,Elves,Trees\nE456,Numenor,Men,Boats"
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.GRANT_RECIPIENT,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "The CSV file must have a name for each column")
+
     def test_post_too_many_rows(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)

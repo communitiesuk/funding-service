@@ -49,7 +49,7 @@ from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.feature_flags import FeatureFlags
-from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
+from app.constants import DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.data_sets import CellError, DataTypeError, DecimalError, PrefixError, SuffixError
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
@@ -958,19 +958,24 @@ class UploadDataSetForm(FlaskForm):
             if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
                 raise ValidationError("The CSV file must have at least one column")
 
+            if any(not fieldname.strip() for fieldname in fieldnames):
+                raise ValidationError("The CSV file must have a name for each column")
+
             if any(None in row or None in row.values() for row in rows):
                 raise ValidationError(
                     "The CSV file contains rows which are longer or shorter than the number of columns"
                 )
 
             if self.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
-                missing = []
-                if DATA_SET_EXTERNAL_ID_COLUMN_HEADER not in fieldnames:
-                    missing.append(DATA_SET_EXTERNAL_ID_COLUMN_HEADER)
-                if DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER not in fieldnames:
-                    missing.append(DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER)
+                missing = [col for col in DATA_SET_IDENTIFIER_COLUMN_HEADERS if col not in fieldnames]
                 if missing:
                     raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
+
+                data_columns = [
+                    col for col in fieldnames if col.strip() and col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS
+                ]
+                if not data_columns:
+                    raise ValidationError("The CSV file must contain at least one column of data")
 
             if self.data_source_type.data == DataSourceType.STATIC:
                 rows_with_missing = [
