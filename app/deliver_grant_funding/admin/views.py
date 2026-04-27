@@ -321,7 +321,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
     def override_grant_certifiers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
-        grant_recipients = get_grant_recipients(grant=grant)
+        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
 
         certifiers_by_org = get_grant_override_certifiers_by_organisation(
             grant_id=grant_id, organisation_mode=OrganisationModeEnum.LIVE
@@ -369,7 +369,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
     def revoke_grant_override_certifiers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
-        grant_recipients = get_grant_recipients(grant=grant)
+        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
 
         certifiers_by_org = get_grant_override_certifiers_by_organisation(grant_id=grant_id)
 
@@ -426,7 +426,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
         organisations = get_organisations(can_manage_grants=False)
-        existing_grant_recipients = get_grant_recipients(grant=grant)
+        existing_grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
         form = PlatformAdminBulkCreateGrantRecipientsForm(
             organisations=organisations, existing_grant_recipients=existing_grant_recipients
         )
@@ -478,7 +478,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
     def add_individual_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
-        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
+        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
         data_providers_by_grant_recipient = {gr: gr.data_providers for gr in grant_recipients}
 
         form = PlatformAdminAddSingleDataProviderForm(grant_recipients=grant_recipients)
@@ -525,7 +525,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
     def add_bulk_data_providers(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
-        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
+        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
         data_providers_by_grant_recipient = {gr: gr.data_providers for gr in grant_recipients}
         form = PlatformAdminCreateGrantRecipientDataProvidersForm(grant_recipients=grant_recipients)
         if form.validate_on_submit():
@@ -568,7 +568,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         collection = get_collection(collection_id, grant_id=grant_id)
 
         # Get TEST grant recipients with their current data providers
-        grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, mode=GrantRecipientModeEnum.TEST)
+        grant_recipients = get_grant_recipients(
+            grant=grant, with_data_providers=True, with_organisations=True, mode=GrantRecipientModeEnum.TEST
+        )
 
         orgs = get_organisations(can_manage_grants=True)
         if not orgs or len(orgs) > 1:
@@ -876,7 +878,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 
         match email_type:
             case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
-                grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True)
+                grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
                 email_recipients = {
                     (data_provider, grant_recipient)
                     for grant_recipient in grant_recipients
