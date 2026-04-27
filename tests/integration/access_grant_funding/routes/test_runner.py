@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from io import BytesIO
+from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -137,6 +138,41 @@ class TestRouteToSubmission:
                 ),
                 follow_redirects=False,
             )
+
+    def test_double_click_start_report_does_not_create_duplicate_submissions(
+        self, factories, authenticated_grant_recipient_member_client, db_session
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        url = url_for(
+            "access_grant_funding.route_to_submission",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
+
+        # Simulate a double-click race condition: both requests read an empty submissions list before
+        # either has committed, so both proceed to create a submission.
+        with patch(
+            "app.access_grant_funding.routes.runner.get_submissions_by_grant_recipient_collection",
+            return_value=[],
+        ):
+            authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
+            authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
+
+        submissions = (
+            db_session.query(Submission)
+            .where(
+                Submission.grant_recipient_id == grant_recipient.id,
+                Submission.collection_id == collection.id,
+            )
+            .all()
+        )
+        assert len(submissions) == 1
+
+        response = authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
+        assert response.status_code == 302
+        assert str(submissions[0].id) in response.location
 
     def test_route_to_submission_redirects_to_locked_page_if_locked(
         self, factories, authenticated_grant_recipient_member_client, submission_awaiting_sign_off
