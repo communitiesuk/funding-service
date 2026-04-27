@@ -4898,3 +4898,107 @@ class TestPlatformAdminDataAnalysis:
         row = lines[1].split(",")
         assert row[0] == submission.reference
         assert row[2] == "2"
+
+
+class TestPlatformAdminSubmissionsView:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_submission_list_permissions(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/submission/")
+        assert response.status_code == expected_code
+
+    def test_submission_list_shows_references(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        submission = factories.submission.create()
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/submission/")
+        assert response.status_code == 200
+        assert submission.reference in response.data.decode()
+
+    def test_submission_edit_is_disabled(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        submission = factories.submission.create()
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/submission/edit/?id={submission.id}",
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+    def test_details_renders_events_and_synthetic_creation(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        creator = factories.user.create(name="Alice Creator", email="alice@example.org")
+        certifier = factories.user.create(name="Bob Certifier", email="bob@example.org")
+        collection = factories.collection.create()
+        form = factories.form.create(collection=collection, title="Applicant details")
+        submission = factories.submission.create(
+            collection=collection,
+            created_by=creator,
+            created_at_utc=datetime.datetime(2026, 6, 1, 10, 0, 0),
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=form.id,
+            created_by=creator,
+            created_at_utc=datetime.datetime(2025, 6, 1, 10, 30, 0),
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+            created_by=creator,
+            created_at_utc=datetime.datetime(2025, 6, 2, 9, 15, 0),
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+            created_by=certifier,
+            created_at_utc=datetime.datetime(2025, 6, 3, 14, 0, 0),
+            data={"declined_reason": "Missing evidence"},
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/submission/details/?id={submission.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        timeline = soup.find(class_="moj-timeline")
+        assert timeline is not None
+
+        items = timeline.find_all(class_="moj-timeline__item")
+        titles = [item.find(class_="moj-timeline__title").get_text(strip=True) for item in items]
+        bylines = [item.find(class_="moj-timeline__byline").get_text(strip=True) for item in items]
+
+        assert titles == [
+            "Submission declined by certifier",
+            "Submission sent for certification",
+            "Form completed: Applicant details",
+            "Submission created",
+        ]
+        assert bylines == [
+            "by Bob Certifier",
+            "by Alice Creator",
+            "by Alice Creator",
+            "by Alice Creator",
+        ]
+
+        page_text = soup.get_text()
+        assert "Missing evidence" in page_text
+        assert f"Reference: {submission.reference}" in page_text
+        assert "3 Jun 2025 at 2pm" in page_text

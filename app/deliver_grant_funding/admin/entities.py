@@ -1,6 +1,7 @@
 import datetime
 from abc import abstractmethod
-from typing import TYPE_CHECKING, cast
+from collections import namedtuple
+from typing import TYPE_CHECKING, Any, cast
 
 import markupsafe
 from flask import flash, g, url_for
@@ -23,10 +24,11 @@ from app.common.audit import (
 )
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
+from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission
 from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import RoleEnum
+from app.common.data.types import RoleEnum, SubmissionEventType
+from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
     FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
@@ -529,3 +531,84 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
             count_query = count_query.join(AuditEvent.user).filter(search_filter)
 
         return query, count_query, joins, count_joins
+
+
+MoJTimelineEvent = namedtuple("MoJTimelineEvent", ["title", "byline", "datetime", "description"])
+
+
+def _build_submission_timeline_items(submission: Submission) -> list[MoJTimelineEvent]:
+    form_titles = {form.id: form.title for form in submission.collection.forms}
+
+    items: list[MoJTimelineEvent] = []
+    for event in submission.events:
+        actor = event.created_by
+        title = str(event.event_type)
+        description = ""
+
+        if event.event_type in {
+            SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+            SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
+        }:
+            title += f": {form_titles.get(event.related_entity_id, '(form no longer exists)')}"
+        elif event.event_type == SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
+            description = event.data.get("declined_reason") or ""
+
+        items.append(
+            MoJTimelineEvent(
+                title=title,
+                byline=actor.name or actor.email,
+                datetime=event.created_at_utc,
+                description=description,
+            )
+        )
+
+    creator = submission.created_by
+    items.append(
+        MoJTimelineEvent(
+            title="Submission created",
+            byline=creator.name or creator.email,
+            datetime=submission.created_at_utc,
+            description=f"Reference: {submission.reference}",
+        )
+    )
+    return items
+
+
+class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
+    _model = Submission
+
+    column_default_sort = ("created_at_utc", True)
+
+    column_list = [
+        "reference",
+        "collection.grant.name",
+        "collection.name",
+        "grant_recipient.organisation.name",
+        "mode",
+        "created_by.email",
+    ]
+    column_filters = [
+        "mode",
+        "collection.grant.name",
+        "grant_recipient.organisation.name",
+    ]
+    column_searchable_list = ["id", "reference", "collection.name", "collection.grant.name"]
+    column_labels = {
+        "id": "Id",
+        "reference": "Reference",
+        "collection.grant.name": "Grant",
+        "collection.name": "Report",
+        "grant_recipient.organisation.name": "Organisation",
+        "created_by.email": "Created by",
+    }
+
+    details_template = "deliver_grant_funding/admin/submission-details.html"
+
+    def render(self, template: str, **kwargs: Any) -> Any:
+        if (model := kwargs.get("model")) is not None:
+            if template == self.details_template:
+                kwargs["timeline_items"] = _build_submission_timeline_items(cast("Submission", model))
+                kwargs["helper"] = SubmissionHelper(cast("Submission", model))
+
+        return super().render(template, **kwargs)

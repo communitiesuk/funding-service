@@ -298,6 +298,15 @@ routes_with_access_controlled_by_flask_admin = [
     "reporting_lifecycle.close_report",
     "data_analysis.index",
     "data_analysis.download_certification_events_csv",
+    "submission.action_view",
+    "submission.ajax_lookup",
+    "submission.ajax_update",
+    "submission.create_view",
+    "submission.delete_view",
+    "submission.details_view",
+    "submission.edit_view",
+    "submission.export",
+    "submission.index_view",
 ]
 
 
