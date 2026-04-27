@@ -359,6 +359,10 @@ def get_all_submissions_with_mode_for_collection(
             .joinedload(Collection.forms)
             .selectinload(Form.components)
             .joinedload(Component.expressions),
+            joinedload(Submission.collection)
+            .joinedload(Collection.forms)
+            .selectinload(Form._all_components)
+            .selectinload(Component.owned_component_references),
             selectinload(Submission.events),
             joinedload(Submission.created_by),
         )
