@@ -48,11 +48,14 @@
 
       {{
         govukSummaryList({
-        "rows": [{
-          "key": { "text": "This question" if not component.is_group else "This group" },
-          "value": { "text": interpolate(component.text) },
-        }, ],
-          "classes": "govuk-summary-list--no-border"})
+        "rows": [
+            {"key": {"text": "Section"}, "value": {"text": component.form.title} },
+            {
+              "key": { "text": "This question" if not component.is_group else "This group" },
+              "value": { "text": interpolate(component.text) },
+            },
+        ],
+        "classes": "app-!-border-top-line"})
       }}
       <form method="post" novalidate>
         {{ form.csrf_token }}

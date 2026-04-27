@@ -49,11 +49,13 @@
       {{
         govukSummaryList({
           "rows": [
+            {"key": {"text": "Section"}, "value": {"text": question.form.title} },
             {"key": {"text": "This question"}, "value": {"text": interpolate(question.text, with_interpolation_highlighting=True)} },
           ],
-          "classes": "govuk-summary-list--no-border"
+          "classes": "app-!-border-top-line"
         })
       }}
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
