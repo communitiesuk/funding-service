@@ -590,16 +590,40 @@ class TestCreateUploadedDataSourceStatic:
             )
 
 
-class TestCreateUploadedDataSourceUnsupportedType:
+class TestCreateUploadedDataSourceErrors:
     def test_raises_error_for_unsupported_type(self, db_session, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
         user = factories.user.create()
 
+        column_mappings = [
+            DataSetColumnMapping(column_name="Code", data_type=QuestionDataType.TEXT_SINGLE_LINE),
+            DataSetColumnMapping(column_name="Label", data_type=QuestionDataType.TEXT_SINGLE_LINE),
+        ]
+
         with pytest.raises(ValueError, match="Unsupported data source type"):
             create_uploaded_data_source(
                 name="Test Unsupported",
                 data_source_type=DataSourceType.CUSTOM,
+                grant_id=grant.id,
+                collection_id=report.id,
+                column_mappings=column_mappings,
+                all_rows=[],
+                user=user,
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
+            )
+
+    def test_raises_error_for_empty_schema(self, db_session, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        user = factories.user.create()
+
+        with pytest.raises(ValueError, match="Cannot build a schema from an empty list of column mappings"):
+            create_uploaded_data_source(
+                name="Test Unsupported",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
                 grant_id=grant.id,
                 collection_id=report.id,
                 column_mappings=[],
