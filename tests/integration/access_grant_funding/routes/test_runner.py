@@ -1,6 +1,5 @@
 from datetime import date, datetime
 from io import BytesIO
-from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -151,14 +150,13 @@ class TestRouteToSubmission:
             collection_id=collection.id,
         )
 
-        # Simulate a double-click race condition: both requests read an empty submissions list before
-        # either has committed, so both proceed to create a submission.
-        with patch(
-            "app.access_grant_funding.routes.runner.get_submissions_by_grant_recipient_collection",
-            return_value=[],
-        ):
-            authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
-            authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
+        # Simulate a double-click by making two requests in rapid succession. In production the
+        # requests would be concurrent, but the test client is single-threaded so they run
+        # sequentially — this means the test cannot directly exercise the advisory lock blocking
+        # behaviour. What it does verify is that the route handles repeated calls correctly and
+        # produces a single submission.
+        response1 = authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
+        response2 = authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
 
         submissions = (
             db_session.query(Submission)
@@ -170,9 +168,16 @@ class TestRouteToSubmission:
         )
         assert len(submissions) == 1
 
-        response = authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
-        assert response.status_code == 302
-        assert str(submissions[0].id) in response.location
+        expected_location = url_for(
+            "access_grant_funding.tasklist",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submissions[0].id,
+        )
+        assert response1.status_code == 302
+        assert response1.location == expected_location
+        assert response2.status_code == 302
+        assert response2.location == expected_location
 
     def test_route_to_submission_redirects_to_locked_page_if_locked(
         self, factories, authenticated_grant_recipient_member_client, submission_awaiting_sign_off

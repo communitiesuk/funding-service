@@ -386,6 +386,30 @@ def get_submissions_by_grant_recipient_collection(
     ).all()
 
 
+def get_or_create_submission(
+    *, collection: Collection, grant_recipient: GrantRecipient, created_by: User, mode: SubmissionModeEnum
+) -> Submission:
+    # Acquire a transaction-scoped advisory lock keyed on (grant_recipient, collection) BEFORE
+    # reading submissions. This prevents the double-click race condition: without the lock, two
+    # concurrent requests can both read an empty list and each proceed to create a submission
+    # before either commits. The lock serialises them so the second request re-reads after the
+    # first commits and finds the existing submission instead. pg_advisory_xact_lock releases
+    # automatically when the transaction ends, with no manual cleanup required.
+    db.session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"{grant_recipient.id}:{collection.id}"},
+    )
+
+    submissions = get_submissions_by_grant_recipient_collection(grant_recipient, collection.id)
+    if len(submissions) > 1:
+        raise RuntimeError(
+            f"Multiple submissions found for collection {collection.id} and grant recipient {grant_recipient.id}"
+        )
+    if submissions:
+        return submissions[0]
+    return create_submission(collection=collection, grant_recipient=grant_recipient, created_by=created_by, mode=mode)
+
+
 def get_submissions_by_user(
     user: User, collection_id: UUID, submission_mode: SubmissionModeEnum
 ) -> Sequence[Submission]:
