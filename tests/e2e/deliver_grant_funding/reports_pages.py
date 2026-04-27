@@ -1457,44 +1457,46 @@ class RunnerQuestionPage(ReportsBasePage):
         self.continue_button = page.get_by_role("button", name="Continue")
 
     def respond_to_question(self, question_type: QuestionDataType, question_text: str, answer: str | list[str]) -> None:
-        if question_type == QuestionDataType.CHECKBOXES:
-            for choice in answer:
-                self.page.get_by_role("checkbox", name=choice).click()
-        elif (
-            question_type == QuestionDataType.YES_NO
-            or question_type == QuestionDataType.RADIOS
-            and isinstance(answer, str)
-        ):
-            # once we start having multiple of these on a page - enjoy the refactor =]
-            accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
-            if accessible_autocomplete:
-                # there is a few ms of delay during the call to "enhanceSelectElement" which allows the select
-                # being progressively enhanced to be selected before its complete as playwright will act immediately
-                # on the role being available - this causes the test to fail particularly when there is network latency.
-                # Wait for the full input + options to be loaded before using it
-                expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
-                element = self.page.get_by_role("combobox")
-                element.click()
-                element.fill(answer)  # ty:ignore[invalid-argument-type]
-                element.press("Enter")
+        if isinstance(answer, list):
+            if question_type == QuestionDataType.CHECKBOXES:
+                for choice in answer:
+                    self.page.get_by_role("checkbox", name=choice).click()
+            elif question_type == QuestionDataType.DATE:
+                approx_date = len(answer) == 2
+                date_to_enter = (
+                    datetime.date(*[int(a) for a in answer])
+                    if not approx_date
+                    else datetime.date(int(answer[0]), int(answer[1]), 1)
+                )
+                ReportsBasePage.fill_in_date_fields(
+                    self.page.get_by_role("group", name=question_text),
+                    date_to_enter,
+                    approx_date=approx_date,
+                )
             else:
-                self.page.get_by_role("radio", name=answer).click()  # ty:ignore[invalid-argument-type]
-        elif question_type == QuestionDataType.DATE:
-            approx_date = len(answer) == 2
-            date_to_enter = (
-                datetime.date(*[int(a) for a in answer])
-                if not approx_date
-                else datetime.date(int(answer[0]), int(answer[1]), 1)
-            )
-            ReportsBasePage.fill_in_date_fields(
-                self.page.get_by_role("group", name=question_text),
-                date_to_enter,
-                approx_date=approx_date,
-            )
-        elif question_type == QuestionDataType.FILE_UPLOAD:
-            self.page.locator("input[type='file']").set_input_files("./tests/fixtures/e2e-test-file.txt")
+                raise ValueError(f"respond_to_question got a list of answers, but question type was {question_type}")
         else:
-            self.page.get_by_role("textbox", name=question_text).fill(answer)  # ty:ignore[invalid-argument-type]
+            if question_type in [QuestionDataType.YES_NO, QuestionDataType.RADIOS]:
+                # once we start having multiple of these on a page - enjoy the refactor =]
+                accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
+                if accessible_autocomplete:
+                    # there is a few ms of delay during the call to "enhanceSelectElement" which allows the select
+                    # being progressively enhanced to be selected before its complete as playwright will act immediately
+                    # on the role being available - this causes the test to fail particularly when there is network
+                    # latency.
+                    # Wait for the full input + options to be loaded before using it
+                    expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
+                    element = self.page.get_by_role("combobox")
+                    element.click()
+                    element.fill(answer)
+                    element.press("Enter")
+                else:
+                    self.page.get_by_role("radio", name=answer).click()
+
+            elif question_type == QuestionDataType.FILE_UPLOAD:
+                self.page.locator("input[type='file']").set_input_files("./tests/fixtures/e2e-test-file.txt")
+            else:
+                self.page.get_by_role("textbox", name=question_text).fill(answer)
 
     def click_continue(
         self,
