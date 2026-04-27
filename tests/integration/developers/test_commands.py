@@ -3,6 +3,7 @@ import json
 
 import click
 import pytest
+from click import ClickException
 from sqlalchemy import select
 
 from app.common.collections.types import SingleChoiceFromListAnswer, TextSingleLineAnswer
@@ -422,7 +423,7 @@ class TestExportGrants:
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         grant = question.form.collection.grant
 
-        _export_grants(grant_ids=[grant.id], output="stdout", s3_key=None, exclude_users=True)
+        _export_grants(grant_ids=[grant.id], output="stdout", email_address=None, exclude_users=True)
 
         payload = _extract_stdout_json(capsys.readouterr().out)
 
@@ -445,7 +446,7 @@ class TestExportGrants:
         grant = question.form.collection.grant
         monkeypatch.setitem(app.config, "IS_PRODUCTION", True)
 
-        _export_grants(grant_ids=[grant.id], output="stdout", s3_key=None, exclude_users=False)
+        _export_grants(grant_ids=[grant.id], output="stdout", email_address=None, exclude_users=False)
 
         captured = capsys.readouterr().out
         assert "--no-exclude-users is ignored in production" in captured
@@ -454,39 +455,41 @@ class TestExportGrants:
         assert [u["id"] for u in payload["users"]] == ["00000000-0000-0000-0000-000000000001"]
         assert payload["grants"][0]["collections"][0]["created_by_id"] == "00000000-0000-0000-0000-000000000001"
 
-    def test_s3_output_uploads_export(self, db_session, factories, mock_s3_service_calls):
+    def test_email_output_sends_export(self, db_session, factories, mock_notification_service_calls, capsys):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         grant = question.form.collection.grant
 
         _export_grants(
             grant_ids=[grant.id],
-            output="s3",
-            s3_key="grant-exports/test-export.json",
+            output="email",
+            email_address="dev@test.communities.gov.uk",
             exclude_users=True,
         )
 
-        assert len(mock_s3_service_calls.upload_file_calls) == 1
-        call = mock_s3_service_calls.upload_file_calls[0]
-        uploaded_file = call.args[0]
-        assert call.kwargs["key"] == "grant-exports/test-export.json"
-        uploaded_file.stream.seek(0)
-        payload = json.loads(uploaded_file.stream.read().decode("utf-8"))
-        assert [u["id"] for u in payload["users"]] == ["00000000-0000-0000-0000-000000000001"]
-        assert payload["grants"][0]["grant"]["id"] == str(grant.id)
+        assert len(mock_notification_service_calls) == 1
+        call = mock_notification_service_calls[0]
+        assert call.args[0] == "dev@test.communities.gov.uk"
+        assert call.kwargs["personalisation"]["link_to_file"]["filename"] == "grants.json"
+        assert "Emailed 1 grants to dev@test.communities.gov.uk" in capsys.readouterr().out
 
-    def test_s3_output_requires_key(self, db_session, factories):
+    def test_cannot_export_to_external_email(self, factories):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         grant = question.form.collection.grant
 
-        with pytest.raises(click.ClickException, match="--s3-key is required"):
-            _export_grants(grant_ids=[grant.id], output="s3", s3_key=None, exclude_users=True)
+        with pytest.raises(ClickException, match="Cannot send grant export to external email address"):
+            _export_grants(
+                grant_ids=[grant.id],
+                output="email",
+                email_address="dev@gmail.com",
+                exclude_users=True,
+            )
 
-    def test_s3_output_rejects_key_outside_prefix(self, db_session, factories):
+    def test_email_output_requires_email(self, db_session, factories):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         grant = question.form.collection.grant
 
-        with pytest.raises(click.ClickException, match="must start with 'grant-exports/'"):
-            _export_grants(grant_ids=[grant.id], output="s3", s3_key="exports/test.json", exclude_users=True)
+        with pytest.raises(click.ClickException, match="--email is required"):
+            _export_grants(grant_ids=[grant.id], output="email", email_address=None, exclude_users=True)
 
 
 class TestSeedGrants:

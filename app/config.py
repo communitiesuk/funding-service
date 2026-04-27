@@ -133,7 +133,6 @@ class _SharedConfig(_BaseConfig):
     AWS_S3_BUCKET_NAME: str
     SUBMISSION_FILES_PREFIX: str = "uploaded-submission-files"
     REFERENCE_FILES_PREFIX: str = "data-set-uploads"
-    GRANT_EXPORT_FILES_PREFIX: str = "grant-exports"
 
     # Basic auth
     BASIC_AUTH_ENABLED: bool = False
@@ -275,6 +274,7 @@ class _SharedConfig(_BaseConfig):
     GOVUK_NOTIFY_ACCESS_SUBMISSION_CERTIFICATION_SUBMISSION_CONFIRMATION_TEMPLATE_ID: str = (
         "a8ffd584-0899-40df-ba56-cba95b2db0de"
     )
+    GOVUK_NOTIFY_GRANT_EXPORT_TEMPLATE_ID: str = "580db095-420e-4690-a640-c0ebd9748a0b"
 
     ASSETS_VITE_BASE_URL: str = "http://localhost:5173"
     ASSETS_VITE_LIVE_ENABLED: bool = False

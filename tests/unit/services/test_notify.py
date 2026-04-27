@@ -1,13 +1,14 @@
 import datetime
 import uuid
 
+import pytest
 import responses
 from responses import matchers
 
-from app import notification_service
 from app.common.data.types import GrantRecipientModeEnum, SubmissionEventType
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
+from app.extensions import notification_service
 from app.services.notify import Notification
 
 
@@ -496,3 +497,43 @@ class TestNotificationService:
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_grant_export(self, app):
+        export_json = '{"hello": "world"}'
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": "dev@communities.gov.uk",
+                        "template_id": "580db095-420e-4690-a640-c0ebd9748a0b",
+                        "personalisation": {
+                            "link_to_file": {
+                                "file": "eyJoZWxsbyI6ICJ3b3JsZCJ9",
+                                "filename": "grants.json",
+                                "confirm_email_before_download": True,
+                                "retention_period": None,
+                            },
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_grant_export(
+            "dev@communities.gov.uk",
+            export_json=export_json,
+            filename="grants.json",
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
+    def test_send_grant_export_rejects_external_email(self, app):
+        with pytest.raises(ValueError, match="Cannot send grant export to external email address"):
+            notification_service.send_grant_export(
+                "external@gmail.com",
+                export_json='{"hello": "world"}',
+                filename="grants.json",
+            )
