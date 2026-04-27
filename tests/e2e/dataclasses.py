@@ -38,6 +38,7 @@ class QuestionResponse:
     answer: str | list[str]
     error_message: str | None = None
     check_your_answers_text: str | None = None
+    expect_group_validation_error: bool = False
 
 
 @dataclasses.dataclass
@@ -87,5 +88,6 @@ class QuestionGroupDict(TypedDict):
     display_options: GroupDisplayOptions
     guidance: NotRequired[GuidanceText]
     condition: NotRequired[E2EManagedExpression]
+    validation: NotRequired[E2EManagedExpression]
     questions: list[QuestionDict]
     add_another: NotRequired[bool]

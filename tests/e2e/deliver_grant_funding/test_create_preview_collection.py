@@ -155,6 +155,83 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
         "display_text": "Enter another single line of text",
         "answers": [QuestionResponse("E2E question text single line second answer")],
     },
+    "question-group-number-validation": {
+        "type": "group",
+        "text": "Number questions with group validation",
+        "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+        "condition": E2EManagedExpression(
+            conditional_on=DataReferenceConfig(
+                data_source=ExpressionContext.ContextSources.SECTION,
+                question_text="Do you want to show question groups?",
+            ),
+            evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
+        ),
+        "validation": E2EManagedExpression(
+            evaluatable_expression=CustomExpression(
+                custom_expression="((ref1)) + ((ref2)) + ((ref3)) <= ((ref4))",
+                custom_message="The total of the three amounts must not exceed the allowed amount",
+            ),
+            expression_references={
+                "ref1": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="First number amount",
+                ),
+                "ref2": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Second number amount",
+                ),
+                "ref3": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="Third number amount",
+                ),
+                "ref4": DataReferenceConfig(
+                    data_source=ExpressionContext.ContextSources.SECTION,
+                    question_text="What number do you want to see in another section?",
+                ),
+            },
+        ),
+        "questions": [
+            {
+                "type": QuestionDataType.NUMBER,
+                "text": "First number amount",
+                "display_text": "First number amount",
+                "options": QuestionPresentationOptions(),
+                "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                "answers": [
+                    QuestionResponse(
+                        "40", "Check your answer for First number amount (40)", expect_group_validation_error=True
+                    ),
+                    QuestionResponse("30"),
+                ],
+            },
+            {
+                "type": QuestionDataType.NUMBER,
+                "text": "Second number amount",
+                "display_text": "Second number amount",
+                "options": QuestionPresentationOptions(),
+                "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                "answers": [
+                    QuestionResponse(
+                        "56", "Check your answer for Second number amount (56)", expect_group_validation_error=True
+                    ),
+                    QuestionResponse("30"),
+                ],
+            },
+            {
+                "type": QuestionDataType.NUMBER,
+                "text": "Third number amount",
+                "display_text": "Third number amount",
+                "options": QuestionPresentationOptions(),
+                "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                "answers": [
+                    QuestionResponse(
+                        "45", "Check your answer for Third number amount (45)", expect_group_validation_error=True
+                    ),
+                    QuestionResponse("30"),
+                ],
+            },
+        ],
+    },
     "question-group-one-per-page": {
         "type": "group",
         "text": "One question per page group",
@@ -670,6 +747,8 @@ def create_question_or_group(
                 parent_group_name=question_definition["text"],
                 parent_add_another=question_definition.get("add_another", False),
             )
+        if question_definition.get("validation") is not None:
+            add_group_validation(edit_question_group_page, question_definition["validation"])
         if parent_group_name:
             edit_question_group_page.click_parent_group_breadcrumb()
         else:
@@ -800,6 +879,20 @@ def add_question_guidance(
         add_guidance_page.click_save_guidance_button(edit_question_page)
 
 
+def add_group_validation(
+    edit_question_group_page: EditQuestionGroupPage,
+    validation: E2EManagedExpression,
+) -> None:
+    add_validation_page = edit_question_group_page.click_add_validation()
+    add_validation_page.configure_custom_expression(
+        validation.evaluatable_expression.custom_expression, validation.expression_references
+    )
+    add_validation_page.configure_custom_message(
+        validation.evaluatable_expression.custom_message, validation.expression_references
+    )
+    add_validation_page.click_create_group_validation_expression()
+
+
 def add_validation(
     edit_question_page: EditQuestionPage,
     validation: E2EManagedExpression,
@@ -851,38 +944,80 @@ def add_condition(
         add_condition_page.click_add_condition(edit_question_page)
 
 
+def answer_questions_and_check_for_expected_errors(
+    questions_on_this_page: list[QuestionDict],
+    question_page: RunnerQuestionPage,
+    group_validation_error: str | None = None,
+    same_page_group: bool = False,
+):
+    for question in questions_on_this_page:
+        question_page = RunnerQuestionPage(
+            question_page.page,
+            question_page.domain,
+            question_page.grant_name,
+            question["text"],
+            is_in_a_same_page_group=same_page_group,
+        )
+        assert_question_visibility(question_page, question)
+
+    max_answers = max(len(q["answers"]) for q in questions_on_this_page)
+    for answer_idx in range(max_answers):
+        expect_errors = False
+        current_responses: list[QuestionResponse] = []
+        for question in questions_on_this_page:
+            if "This question should not be shown" in question["display_text"]:
+                continue
+
+            # If this question doesn't have as many answers as other questions in the group, just use its last answer
+            response = (
+                question["answers"][answer_idx]
+                if answer_idx < len(question["answers"])
+                else question["answers"][len(question["answers"]) - 1]
+            )
+            current_responses.append(response)
+            if response.error_message or response.expect_group_validation_error:
+                expect_errors = True
+            question_page.respond_to_question(question["type"], question["text"], response.answer)
+        question_page.click_continue()
+        if expect_errors:
+            for response in current_responses:
+                if response.error_message is not None:
+                    expect(question_page.page.get_by_role("link", name=response.error_message)).to_be_visible()
+                if response.expect_group_validation_error and group_validation_error is not None:
+                    expect(question_page.page.get_by_text(group_validation_error)).to_be_visible()
+
+
 def complete_question_group(
     question_page: RunnerQuestionPage,
     tasklist_page: RunnerTasklistPage,
     grant_name: str,
     group_to_test: TQuestionToTest,
 ):
-    if group_to_test.get("guidance") is not None:
-        assert_question_visibility(question_page, group_to_test)
-    for nested_question in group_to_test["questions"]:
-        if group_to_test.get("guidance") is None:
-            question_page = RunnerQuestionPage(
-                tasklist_page.page,
-                tasklist_page.domain,
-                grant_name,
-                nested_question["text"],
-                is_in_a_same_page_group=group_to_test["display_options"]
-                == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
-            )
-            assert_question_visibility(question_page, nested_question)
-        if nested_question["type"] == "group":
-            complete_question_group(question_page, tasklist_page, grant_name, nested_question)
-        else:
-            for question_response in nested_question["answers"]:
-                question_page.respond_to_question(
-                    question_type=nested_question["type"],
-                    question_text=nested_question["display_text"],
-                    answer=question_response.answer,
-                )
-        if group_to_test["display_options"] == GroupDisplayOptions.ONE_QUESTION_PER_PAGE:
-            question_page.click_continue()
+
     if group_to_test["display_options"] == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE:
-        question_page.click_continue()
+        if group_to_test.get("guidance") is not None:
+            # Just checks the guidance for this group is visible
+            assert_question_visibility(question_page, group_to_test)
+
+        answer_questions_and_check_for_expected_errors(
+            group_to_test["questions"],
+            question_page,
+            group_to_test["validation"].evaluatable_expression.custom_message
+            if group_to_test.get("validation") is not None
+            else None,
+            same_page_group=True,
+        )
+
+    else:
+        for nested_question in group_to_test["questions"]:
+            if nested_question["type"] == "group":
+                complete_question_group(question_page, tasklist_page, grant_name, nested_question)
+            else:
+                answer_questions_and_check_for_expected_errors(
+                    [nested_question],
+                    question_page,
+                    None,
+                )
 
 
 def complete_task(
@@ -900,20 +1035,7 @@ def complete_task(
         if question_to_test["type"] == "group":
             complete_question_group(question_page, tasklist_page, grant_name, question_to_test)
         else:
-            assert_question_visibility(question_page, question_to_test)
-            for question_response in question_to_test["answers"]:
-                if "This question should not be shown" not in question_to_test["display_text"]:
-                    question_page.respond_to_question(
-                        question_type=question_to_test["type"],
-                        question_text=question_to_test["display_text"],
-                        answer=question_response.answer,
-                    )
-                    question_page.click_continue()
-
-                    if question_response.error_message:
-                        expect(
-                            question_page.page.get_by_role("link", name=question_response.error_message)
-                        ).to_be_visible()
+            answer_questions_and_check_for_expected_errors([cast(QuestionDict, question_to_test)], question_page, None)
 
 
 def task_check_your_answers(

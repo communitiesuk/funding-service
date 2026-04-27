@@ -891,6 +891,57 @@ class CreateCustomExpressionPage(ReportsBasePage):
         return edit_question_page
 
 
+class AddGroupValidationPage(ReportsBasePage):
+    add_validation_button: Locator
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str, group_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Create a group validation"),
+        )
+        self.report_name = report_name
+        self.section_name = section_name
+        self.group_name = group_name
+        self.add_validation_button = self.page.get_by_role("button", name="Add group validation")
+
+        self.custom_expression_textarea = get_context_aware_textbox_locator_by_name(page, "Calculation")
+        self.add_data_to_expression_button = self.page.get_by_role("button", name="Reference data for calculation")
+
+        self.custom_message_textarea = get_context_aware_textbox_locator_by_name(page, name="Error message")
+        self.add_data_to_message_button = self.page.get_by_role("button", name="Reference data for error message")
+
+    def configure_custom_expression(
+        self, expression: str, expression_references: dict[str, DataReferenceConfig]
+    ) -> None:
+        wait_for_context_aware_textarea_to_be_ready(self.page, "custom_expression")
+        _fill_custom_field(
+            self, self.custom_expression_textarea, self.add_data_to_expression_button, expression, expression_references
+        )
+
+    def configure_custom_message(self, expression: str, message_references: dict[str, DataReferenceConfig]) -> None:
+        wait_for_context_aware_textarea_to_be_ready(self.page, "custom_message")
+        _fill_custom_field(
+            self, self.custom_message_textarea, self.add_data_to_message_button, expression, message_references
+        )
+
+    def click_create_group_validation_expression(self) -> "EditQuestionGroupPage":
+        self.add_validation_button.click()
+        edit_question_group_page = EditQuestionGroupPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+            group_name=self.group_name,
+        )
+        expect(edit_question_group_page.heading).to_be_visible()
+        return edit_question_group_page
+
+
 class CreateCalculatedConditionPage(ReportsBasePage):
     add_condition_button: Locator
 
@@ -1405,41 +1456,47 @@ class RunnerQuestionPage(ReportsBasePage):
         self.question_name = question_name
         self.continue_button = page.get_by_role("button", name="Continue")
 
-    def respond_to_question(self, question_type: QuestionDataType, question_text: str, answer: str) -> None:
-        if question_type == QuestionDataType.CHECKBOXES:
-            for choice in answer:
-                self.page.get_by_role("checkbox", name=choice).click()
-        elif question_type == QuestionDataType.YES_NO or question_type == QuestionDataType.RADIOS:
-            # once we start having multiple of these on a page - enjoy the refactor =]
-            accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
-            if accessible_autocomplete:
-                # there is a few ms of delay during the call to "enhanceSelectElement" which allows the select
-                # being progressively enhanced to be selected before its complete as playwright will act immediately
-                # on the role being available - this causes the test to fail particularly when there is network latency.
-                # Wait for the full input + options to be loaded before using it
-                expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
-                element = self.page.get_by_role("combobox")
-                element.click()
-                element.fill(answer)
-                element.press("Enter")
+    def respond_to_question(self, question_type: QuestionDataType, question_text: str, answer: str | list[str]) -> None:
+        if isinstance(answer, list):
+            if question_type == QuestionDataType.CHECKBOXES:
+                for choice in answer:
+                    self.page.get_by_role("checkbox", name=choice).click()
+            elif question_type == QuestionDataType.DATE:
+                approx_date = len(answer) == 2
+                date_to_enter = (
+                    datetime.date(*[int(a) for a in answer])
+                    if not approx_date
+                    else datetime.date(int(answer[0]), int(answer[1]), 1)
+                )
+                ReportsBasePage.fill_in_date_fields(
+                    self.page.get_by_role("group", name=question_text),
+                    date_to_enter,
+                    approx_date=approx_date,
+                )
             else:
-                self.page.get_by_role("radio", name=answer).click()
-        elif question_type == QuestionDataType.DATE:
-            approx_date = len(answer) == 2
-            date_to_enter = (
-                datetime.date(*[int(a) for a in answer])
-                if not approx_date
-                else datetime.date(int(answer[0]), int(answer[1]), 1)
-            )
-            ReportsBasePage.fill_in_date_fields(
-                self.page.get_by_role("group", name=question_text),
-                date_to_enter,
-                approx_date=approx_date,
-            )
-        elif question_type == QuestionDataType.FILE_UPLOAD:
-            self.page.locator("input[type='file']").set_input_files("./tests/fixtures/e2e-test-file.txt")
+                raise ValueError(f"respond_to_question got a list of answers, but question type was {question_type}")
         else:
-            self.page.get_by_role("textbox", name=question_text).fill(answer)
+            if question_type in [QuestionDataType.YES_NO, QuestionDataType.RADIOS]:
+                # once we start having multiple of these on a page - enjoy the refactor =]
+                accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
+                if accessible_autocomplete:
+                    # there is a few ms of delay during the call to "enhanceSelectElement" which allows the select
+                    # being progressively enhanced to be selected before its complete as playwright will act immediately
+                    # on the role being available - this causes the test to fail particularly when there is network
+                    # latency.
+                    # Wait for the full input + options to be loaded before using it
+                    expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
+                    element = self.page.get_by_role("combobox")
+                    element.click()
+                    element.fill(answer)
+                    element.press("Enter")
+                else:
+                    self.page.get_by_role("radio", name=answer).click()
+
+            elif question_type == QuestionDataType.FILE_UPLOAD:
+                self.page.locator("input[type='file']").set_input_files("./tests/fixtures/e2e-test-file.txt")
+            else:
+                self.page.get_by_role("textbox", name=question_text).fill(answer)
 
     def click_continue(
         self,
@@ -1773,6 +1830,22 @@ class EditQuestionGroupPage(ReportsBasePage):
         self.change_display_options_link = self.page.get_by_role("link", name="Change")
         self.change_guidance_link = self.page.get_by_role("link", name="Change  page heading")
         self.add_question_group_button = self.page.get_by_role("link", name="Add a question group", exact=True)
+        self.add_validation_button = self.page.get_by_role("button", name="Add validation").or_(
+            self.page.get_by_role("button", name="Add more validation")
+        )
+
+    def click_add_validation(self) -> AddGroupValidationPage:
+        self.add_validation_button.click()
+        add_group_validation_page = AddGroupValidationPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+            group_name=self.group_name,
+        )
+        expect(add_group_validation_page.heading).to_be_visible()
+        return add_group_validation_page
 
     def click_section_breadcrumb(self) -> ManageSectionPage:
         self.section_breadcrumb.click()
