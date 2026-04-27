@@ -1,13 +1,15 @@
 {% from "deliver_grant_funding/macros/calculation_symbols.html" import calculation_symbols %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 
-{% macro render_calculated_condition_custom_expression_field(form) %}
+{% macro render_calculated_condition_custom_expression_field(form, is_group) %}
   {% set addDataToExpressionButton %}
     {{ form.add_context(params={"html": "Reference data <span class='govuk-visually-hidden'>for calculation</span>", "classes": "govuk-button--secondary app-context-aware--button", "value": "custom_expression"}) }}
   {% endset %}
   {% set customExpressionHint %}
-    <p class="govuk-body">Use number question references, calculation symbols and numbers to describe when to show this question to the user.</p>
-    <p class="govuk-body govuk-!-margin-bottom-0">For example, if you need to show the question when the capital spend value plus the revenue spend value is more than the funding value, the calculation would be:</p>
+    <p class="govuk-body">Use number question references, calculation symbols and numbers to describe when to show this {{ "group" if is_group else "question" }} to the user.</p>
+    <p class="govuk-body govuk-!-margin-bottom-0">
+      For example, if you need to show the {{ "group" if is_group else "question" }} when the capital spend value plus the revenue spend value is more than the funding value, the calculation would be:
+    </p>
 
     <div class="govuk-inset-text govuk-!-margin-top-0">
       <span class="app-context-aware-editor--valid-reference">((capital spend))</span> + <span class="app-context-aware-editor--valid-reference">((revenue spend))</span> >
