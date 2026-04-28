@@ -2136,16 +2136,6 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 @collection_is_editable()
 @auto_commit_after_request
 def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
-    # TODO remove once we un-feature-flag this
-    if not AuthorisationHelper.is_platform_member(get_current_user()):
-        return redirect(
-            url_for(
-                "deliver_grant_funding.add_question_condition_select_calculation",
-                grant_id=grant_id,
-                component_id=component_id,
-            )
-        )
-
     component = get_component_by_id(component_id=component_id)
     add_context_data = _extract_add_context_data_from_session(
         session_model=AddContextToExpressionsModel, component_id=component.id
@@ -2220,14 +2210,6 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
 @collection_is_editable()
 @auto_commit_after_request
 def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
-    # TODO remove once we un-feature-flag this
-    if not AuthorisationHelper.is_platform_member(get_current_user()):
-        return redirect(
-            url_for(
-                "deliver_grant_funding.list_reports",
-                grant_id=grant_id,
-            )
-        )
 
     expression = get_expression_by_id(expression_id)
     component = expression.question
@@ -2314,16 +2296,6 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 def add_question_condition_select_calculation(grant_id: UUID, component_id: UUID) -> ResponseReturnValue:
-
-    # TODO remove once we un-feature-flag this
-    if not AuthorisationHelper.is_platform_member(get_current_user()):
-        return redirect(
-            url_for(
-                "deliver_grant_funding.add_question_condition_select_question",
-                grant_id=grant_id,
-                component_id=component_id,
-            )
-        )
     component = get_component_by_id(component_id)
 
     wt_form = SelectConditionCalculationForm()

@@ -5756,9 +5756,7 @@ class TestAddCalculatedCondition:
             assert response.status_code == 200
 
     def test_post_success(self, authenticated_grant_admin_client, factories, db_session, mocker):
-        mocker.patch(
-            "app.deliver_grant_funding.routes.reports.AuthorisationHelper.is_platform_member", return_value=True
-        )
+
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
 
