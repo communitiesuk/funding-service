@@ -69,7 +69,3 @@ class FeatureFlags:
         description="Show new work in progress context sources",
         resolver=_check_user_is_platform_member,
     )
-    GROUP_VALIDATION = FeatureFlag(
-        description="Show work in progress group validation",
-        resolver=_check_user_is_platform_member,
-    )
