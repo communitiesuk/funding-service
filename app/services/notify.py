@@ -1,11 +1,12 @@
 import dataclasses
 import datetime
 import uuid
+from io import BytesIO
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from flask import Flask, current_app, url_for
-from notifications_python_client import NotificationsAPIClient
+from notifications_python_client import NotificationsAPIClient, prepare_upload
 from notifications_python_client.errors import APIError, TokenError
 
 from app.common.data.types import GrantRecipientModeEnum
@@ -364,4 +365,26 @@ class NotificationService:
             email_address,
             current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_CERTIFICATION_SUBMISSION_CONFIRMATION_TEMPLATE_ID"],
             personalisation=personalisation,
+        )
+
+    def send_grant_export(
+        self,
+        email_address: str,
+        *,
+        export_json: str,
+        filename: str,
+    ) -> Notification:
+        if not email_address.endswith(current_app.config["INTERNAL_DOMAINS"]):
+            raise ValueError("Cannot send grant export to external email address")
+
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_GRANT_EXPORT_TEMPLATE_ID"],
+            personalisation={
+                "link_to_file": prepare_upload(
+                    BytesIO(export_json.encode("utf-8")),
+                    filename=filename,
+                    confirm_email_before_download=True,
+                ),
+            },
         )

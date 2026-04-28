@@ -64,7 +64,8 @@ from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import SubmissionHelper
 from app.common.utils import slugify
 from app.developers import developers_blueprint
-from app.extensions import db, s3_service
+from app.extensions import db, notification_service, s3_service
+from app.services.notify import NotificationError
 
 export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
@@ -175,15 +176,15 @@ def _import_organisations_and_handle_org_ids(export_data: ExportData) -> ExportD
 
 @developers_blueprint.cli.command("export-grants", help="Export configured grants to consistently seed environments")
 @click.argument("grant_ids", nargs=-1, type=click.UUID)
-@click.option("--output", type=click.Choice(["file", "stdout", "s3"]), default="file")
-@click.option("--s3-key", help="S3 object key to upload to. Required when --output=s3.")
+@click.option("--output", type=click.Choice(["file", "stdout", "email"]), default="file")
+@click.option("--email", "email_address", help="Email address to send the export to. Required when --output=email.")
 @click.option(
     "--exclude-users/--no-exclude-users",
     default=None,
     help="Replace all user associations when exporting with a single placeholder user. Forced on for production.",
 )
 def export_grants(  # noqa: C901
-    grant_ids: list[uuid.UUID], output: str, s3_key: str | None, exclude_users: bool | None
+    grant_ids: list[uuid.UUID], output: str, email_address: str | None, exclude_users: bool | None
 ) -> None:
     from faker import Faker
 
@@ -194,12 +195,8 @@ def export_grants(  # noqa: C901
     else:
         exclude_users = bool(exclude_users)
 
-    if output == "s3":
-        if not s3_key:
-            raise click.ClickException("--s3-key is required when --output=s3")
-        required_prefix = current_app.config["GRANT_EXPORT_FILES_PREFIX"].rstrip("/") + "/"
-        if not s3_key.startswith(required_prefix):
-            raise click.ClickException(f"--s3-key must start with {required_prefix!r}")
+    if output == "email" and not email_address:
+        raise click.ClickException("--email is required when --output=email")
 
     if len(grant_ids) == 0:
         if not export_path.exists():
@@ -329,16 +326,18 @@ def export_grants(  # noqa: C901
             click.echo("\n\n\n")
             click.echo(f"Written {len(grants)} grants to stdout")
 
-        case "s3":
-            assert s3_key is not None
-            buf = FileStorage(
-                stream=BytesIO(export_json.encode("utf-8")),
-                filename=s3_key,
-                content_type="application/json",
-            )
-            s3_service.upload_file(buf, key=s3_key)
-            bucket = current_app.config["AWS_S3_BUCKET_NAME"]
-            click.echo(f"Written {len(grants)} grants to s3://{bucket}/{s3_key}")
+        case "email":
+            assert email_address is not None
+            try:
+                notification_service.send_grant_export(
+                    email_address,
+                    export_json=export_json,
+                    filename="grants.json",
+                )
+            except (ValueError, NotificationError) as e:
+                raise click.ClickException(f"Failed to send grant export: {e}") from e
+
+            click.echo(f"Emailed {len(grants)} grants to {email_address}")
 
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
