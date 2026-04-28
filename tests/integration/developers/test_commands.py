@@ -493,7 +493,9 @@ class TestExportGrants:
 
 
 class TestSeedGrants:
-    def test_refuses_to_run_in_production(self, app, monkeypatch):
+    def test_refuses_to_run_in_production(self, app, monkeypatch, tmp_path):
         monkeypatch.setitem(app.config, "IS_PRODUCTION", True)
+        export_file = tmp_path / "grants.json"
+        export_file.write_text("{}")
         with pytest.raises(click.ClickException, match="must not be run in production"):
-            _seed_grants()
+            _seed_grants(file=export_file)

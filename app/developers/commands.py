@@ -341,11 +341,19 @@ def export_grants(  # noqa: C901
 
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
-def seed_grants() -> None:  # noqa: C901
+@click.option(
+    "--file",
+    "file",
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=Path),
+    default=export_path,
+    show_default=True,
+    help="Path to the exported grants JSON file to load.",
+)
+def seed_grants(file: Path) -> None:  # noqa: C901
     if current_app.config["IS_PRODUCTION"]:
         raise click.ClickException("seed-grants must not be run in production; it deletes and recreates grants.")
 
-    with open(export_path) as infile:
+    with open(file) as infile:
         raw_export_json = infile.read()
         export_data: ExportData = json.loads(raw_export_json)
 
