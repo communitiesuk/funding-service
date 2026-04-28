@@ -73,7 +73,7 @@ class ErrorListEntry:
 
     @property
     def error_message(self) -> str:
-        return f"Check your answer for {self.question.name}"
+        return f"Check {self.question.name}"
 
 
 @dataclass

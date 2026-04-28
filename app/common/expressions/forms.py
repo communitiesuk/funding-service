@@ -331,7 +331,6 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
     )
     custom_message = StringField(
         "Error message",
-        description="For example, “Total spend cannot be more than capital spend plus revenue spend”",
         widget=GovTextArea(),
         validators=[DataRequired()],
     )

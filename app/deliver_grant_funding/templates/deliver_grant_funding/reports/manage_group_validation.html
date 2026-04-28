@@ -54,8 +54,21 @@
       }}
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ render_calculated_validation_custom_expression_field(form) }}
-        {{ render_calculated_validation_custom_message_field(form) }}
+        {% set customExpressionHint %}
+          <p class="govuk-body">Use number question references, calculation symbols and numbers to describe what the answer needs to be. You must include at least one question from this group.</p>
+
+          <p class="govuk-body govuk-!-margin-bottom-0">For example, if the actual spend and forecast spend from this question group should equal the grant allocation, the calculation would be:</p>
+
+          <div class="govuk-inset-text govuk-!-margin-top-0">
+            <span class="app-context-aware-editor--valid-reference">((actual spend))</span> + <span class="app-context-aware-editor--valid-reference">((forecast spend))</span> ==
+            <span class="app-context-aware-editor--valid-reference">((grant allocation))</span>
+          </div>
+        {% endset %}
+        {% set customMessageHint %}
+          <p class="govuk-body">For example, "The actual spend plus forecast spend must be the same as the grant allocation"</p>
+        {% endset %}
+        {{ render_calculated_validation_custom_expression_field(form,customExpressionHint) }}
+        {{ render_calculated_validation_custom_message_field(form,customMessageHint) }}
         {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
       </form>
     </div>

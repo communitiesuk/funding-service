@@ -198,9 +198,7 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
                 "options": QuestionPresentationOptions(),
                 "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
                 "answers": [
-                    QuestionResponse(
-                        "40", "Check your answer for First number amount (40)", expect_group_validation_error=True
-                    ),
+                    QuestionResponse("40", "Check First number amount (40)", expect_group_validation_error=True),
                     QuestionResponse("30"),
                 ],
             },
@@ -211,9 +209,7 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
                 "options": QuestionPresentationOptions(),
                 "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
                 "answers": [
-                    QuestionResponse(
-                        "56", "Check your answer for Second number amount (56)", expect_group_validation_error=True
-                    ),
+                    QuestionResponse("56", "Check Second number amount (56)", expect_group_validation_error=True),
                     QuestionResponse("30"),
                 ],
             },
@@ -224,9 +220,7 @@ section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
                 "options": QuestionPresentationOptions(),
                 "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
                 "answers": [
-                    QuestionResponse(
-                        "45", "Check your answer for Third number amount (45)", expect_group_validation_error=True
-                    ),
+                    QuestionResponse("45", "Check Third number amount (45)", expect_group_validation_error=True),
                     QuestionResponse("30"),
                 ],
             },

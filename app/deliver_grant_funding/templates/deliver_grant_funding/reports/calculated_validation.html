@@ -49,15 +49,32 @@
       {{
         govukSummaryList({
           "rows": [
+            {"key": {"text": "Section"}, "value": {"text": question.form.title} },
             {"key": {"text": "This question"}, "value": {"text": interpolate(question.text, with_interpolation_highlighting=True)} },
           ],
-          "classes": "govuk-summary-list--no-border"
+          "classes": "app-!-border-top-line"
         })
       }}
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ render_calculated_validation_custom_expression_field(form) }}
-        {{ render_calculated_validation_custom_message_field(form) }}
+
+
+        {% set customExpressionHint %}
+          <p class="govuk-body">Use number question references, calculation symbols and numbers to describe what the answer needs to be. Start with referencing this question.</p>
+
+          <p class="govuk-body govuk-!-margin-bottom-0">For example, if this question asks for the total spend and the answer should equal previous answers for capital spend plus revenue spend, the calculation would be:</p>
+
+          <div class="govuk-inset-text govuk-!-margin-top-0">
+            <span class="app-context-aware-editor--valid-reference">((total spend))</span> == <span class="app-context-aware-editor--valid-reference">((capital spend))</span> +
+            <span class="app-context-aware-editor--valid-reference">((revenue spend))</span>
+          </div>
+        {% endset %}
+        {% set customMessageHint %}
+          <p class="govuk-body">For example, “Total spend cannot be more than capital spend plus revenue spend”</p>
+        {% endset %}
+        {{ render_calculated_validation_custom_expression_field(form,customExpressionHint) }}
+        {{ render_calculated_validation_custom_message_field(form,customMessageHint) }}
         {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
       </form>
     </div>

@@ -48,20 +48,24 @@
 
       {{
         govukSummaryList({
-        "rows": [{
-          "key": { "text": "This question" if not component.is_group else "This group" },
-          "value": { "text": interpolate(component.text) },
-        }, ],
-          "classes": "govuk-summary-list--no-border"})
+        "rows": [
+            {"key": {"text": "Section"}, "value": {"text": component.form.title} },
+            {
+              "key": { "text": "This question" if not component.is_group else "This group" },
+              "value": { "text": interpolate(component.text) },
+            },
+        ],
+        "classes": "app-!-border-top-line"})
       }}
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{
           form.expression_name(params={
-          "hint":{"text":'A brief description of what the calculated answer must be to meet the condition. For example, the question is shown when “Capital and revenue spend are more than the funding amount”.'},
+          "hint":{"text":'A brief description of what the calculated answer must be to meet the condition. For example, the '
+          + ('question' if not component.is_group else 'group') + ' is shown when “Capital and revenue spend are more than the funding amount”.'},
           "label": {"classes": "govuk-!-font-weight-bold"},})
         }}
-        {{ render_calculated_condition_custom_expression_field(form) }}
+        {{ render_calculated_condition_custom_expression_field(form, component.is_group) }}
         {{ form.submit(params={"text": submit_label, "classes": "govuk-!-margin-top-6"}) }}
       </form>
     </div>
