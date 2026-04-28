@@ -1840,6 +1840,96 @@ class TestChangeConditionsOperator:
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.conditions_operator == ConditionsOperator.ALL
 
+    def test_get_multiple_conditions(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=report, title="Organisation information")
+        user = factories.user.create()
+        question0 = factories.question.create(form=form, name="Test question 0", data_type=QuestionDataType.NUMBER)
+        question1 = factories.question.create(
+            form=form,
+            name="Test question",
+            conditions_operator=ConditionsOperator.ANY,
+            expressions=[
+                Expression.from_evaluatable_expression(
+                    GreaterThan(minimum_value=1000, subject_reference=ExpressionReference.from_question(question0)),
+                    ExpressionType.CONDITION,
+                    user,
+                ),
+                Expression.from_evaluatable_expression(
+                    CustomExpression(custom_expression="1<2", custom_message="test"),
+                    ExpressionType.CONDITION,
+                    user,
+                ),
+            ],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_conditions_operator",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=question1.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        # the correct option is selected based on whats in the database
+        assert (
+            soup.find(
+                "input",
+                {
+                    "type": "radio",
+                    "name": "conditions_operator",
+                    "value": "ANY",
+                    "checked": True,
+                },
+            )
+            is not None
+        )
+
+    def test_post_multiple_conditions(self, authenticated_grant_admin_client, factories, db_session):
+        db_form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
+        )
+        user = factories.user.create()
+        question0 = factories.question.create(form=db_form, name="Test question 0", data_type=QuestionDataType.NUMBER)
+        question1 = factories.question.create(
+            form=db_form,
+            name="Test question",
+            conditions_operator=ConditionsOperator.ANY,
+            expressions=[
+                Expression.from_evaluatable_expression(
+                    GreaterThan(minimum_value=1000, subject_reference=ExpressionReference.from_question(question0)),
+                    ExpressionType.CONDITION,
+                    user,
+                ),
+                Expression.from_evaluatable_expression(
+                    CustomExpression(custom_expression="1<2", custom_message="test"),
+                    ExpressionType.CONDITION,
+                    user,
+                ),
+            ],
+        )
+
+        assert question1.conditions_operator == ConditionsOperator.ANY
+
+        form = ConditionsOperatorForm(data={"conditions_operator": "ALL"})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_conditions_operator",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=question1.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}$")
+
+        updated_question = db_session.get(Question, question1.id)
+        assert updated_question.conditions_operator == ConditionsOperator.ALL
+
 
 class TestChangeFormName:
     def test_404(self, authenticated_grant_member_client):
