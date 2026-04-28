@@ -13,7 +13,7 @@ from app.common.collections.runner import AGFFormRunner
 from app.common.collections.types import FileUploadAnswer
 from app.common.data import interfaces
 from app.common.data.interfaces import rollback
-from app.common.data.interfaces.collections import get_collection, get_submissions_by_grant_recipient_collection
+from app.common.data.interfaces.collections import get_collection
 from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext, interpolate
@@ -41,21 +41,12 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
             )
         )
 
-    submissions = get_submissions_by_grant_recipient_collection(grant_recipient, collection_id)
-    if len(submissions) > 1:
-        raise RuntimeError(
-            f"Multiple submissions found for collection {collection_id} and grant recipient {grant_recipient.id}"
-        )
-
-    submission = submissions[0] if submissions else None
-    if not submission:
-        # ensure the collection is part of this grant
-        collection = get_collection(collection_id, grant_id=grant_id)
-        # Use the grant recipient's mode to determine the submission mode
-        submission_mode = SubmissionModeEnum(grant_recipient.mode.value)
-        submission = interfaces.collections.create_submission(
-            collection=collection, grant_recipient=grant_recipient, created_by=user, mode=submission_mode
-        )
+    submission = interfaces.collections.get_or_create_submission(
+        collection=collection,
+        grant_recipient=grant_recipient,
+        created_by=user,
+        mode=SubmissionModeEnum(grant_recipient.mode.value),
+    )
 
     submission_helper = SubmissionHelper(submission)
     if submission_helper.in_answers_locked_state:

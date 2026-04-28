@@ -138,6 +138,47 @@ class TestRouteToSubmission:
                 follow_redirects=False,
             )
 
+    def test_double_click_start_report_does_not_create_duplicate_submissions(
+        self, factories, authenticated_grant_recipient_member_client, db_session
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        url = url_for(
+            "access_grant_funding.route_to_submission",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
+
+        # Simulate a double-click by making two requests in rapid succession. In production the
+        # requests would be concurrent, but the test client is single-threaded so they run
+        # sequentially — this means the test cannot directly exercise the advisory lock blocking
+        # behaviour. What it does verify is that the route handles repeated calls correctly and
+        # produces a single submission.
+        response1 = authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
+        response2 = authenticated_grant_recipient_member_client.get(url, follow_redirects=False)
+
+        submissions = (
+            db_session.query(Submission)
+            .where(
+                Submission.grant_recipient_id == grant_recipient.id,
+                Submission.collection_id == collection.id,
+            )
+            .all()
+        )
+        assert len(submissions) == 1
+
+        expected_location = url_for(
+            "access_grant_funding.tasklist",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            submission_id=submissions[0].id,
+        )
+        assert response1.status_code == 302
+        assert response1.location == expected_location
+        assert response2.status_code == 302
+        assert response2.location == expected_location
+
     def test_route_to_submission_redirects_to_locked_page_if_locked(
         self, factories, authenticated_grant_recipient_member_client, submission_awaiting_sign_off
     ):
