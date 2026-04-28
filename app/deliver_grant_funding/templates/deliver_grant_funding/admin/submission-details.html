@@ -36,11 +36,11 @@
   {% elif helper.is_awaiting_sign_off %}
     <dl class="app-metadata">
       <dt class="app-metadata__key">Submitted by:</dt>
-      <dd class="app-metadata__value" data-testid="submission-status">{{ model.sent_for_certification_by.name }}</dd>
+      <dd class="app-metadata__value" data-testid="submission-status">{{ helper.sent_for_certification_by.name }}</dd>
     </dl>
     <dl class="app-metadata">
       <dt class="app-metadata__key">Date submitted for sign off:</dt>
-      <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(model.sent_for_certification_at_utc) }}</dd>
+      <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(helper.sent_for_certification_at_utc) }}</dd>
     </dl>
   {% endif %}
   <dl class="app-metadata">
