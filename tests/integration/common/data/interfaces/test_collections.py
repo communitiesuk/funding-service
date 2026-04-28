@@ -4914,6 +4914,57 @@ class TestGetSubmissions:
                 with_users=True,
             )
 
+    def test_get_all_submissions_with_mode_for_collection_with_full_schema_no_n_plus_one(
+        self, db_session, factories, track_sql_queries
+    ):
+        collection = factories.collection.create(create_submissions__live=2)
+        form = factories.form.create(collection=collection)
+        anchor = factories.question.create(form=form)
+        for i in range(2):
+            factories.question.create(
+                form=form, text=f"Top-level ref {i} (({ExpressionReference.from_question(anchor)}))"
+            )
+        group = factories.group.create(form=form)
+        for i in range(2):
+            factories.question.create(
+                form=form, parent=group, text=f"Nested ref {i} (({ExpressionReference.from_question(anchor)}))"
+            )
+
+        with track_sql_queries() as iterate_queries:
+            submissions = get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                with_full_schema=True,
+            )
+            for submission in submissions:
+                for f in submission.collection.forms:
+                    for component in f._all_components:
+                        for _ref in component.owned_component_references:
+                            pass
+
+        baseline_queries = len(iterate_queries)
+
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
+        anchor2 = factories.question.create(form=form)
+        for i in range(2):
+            factories.question.create(form=form, text=f"Extra ref {i} (({ExpressionReference.from_question(anchor2)}))")
+
+        db_session.expire_all()
+
+        with track_sql_queries() as iterate_queries:
+            submissions = get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                with_full_schema=True,
+            )
+            for submission in submissions:
+                for f in submission.collection.forms:
+                    for component in f._all_components:
+                        for _ref in component.owned_component_references:
+                            pass
+
+        assert len(iterate_queries) == baseline_queries
+
 
 class TestResetTestSubmission:
     def test_reset_test_submission_only_deletes_specified_submission(self, db_session, factories):
