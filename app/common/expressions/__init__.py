@@ -177,7 +177,7 @@ class ExpressionContext(ChainMap[str, Any]):
         SECTION = "A previous question in this section"
         PREVIOUS_SECTION = "A question in a previous section"
         PREVIOUS_COLLECTION = "A question in a previous collection"
-        DATASET = "An uploaded dataset"
+        DATASET = "An uploaded data set"
 
     def __init__(
         self,

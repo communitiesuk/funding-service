@@ -1,4 +1,5 @@
 from collections import namedtuple
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -102,7 +103,7 @@ class ExpressionReference(str):
             return None
         return DataSourceReference(data_source_id, column_name)
 
-    @property
+    @cached_property
     def question(self) -> Question | None:
         from app.common.data.interfaces.collections import get_question_by_id
 
@@ -115,8 +116,24 @@ class ExpressionReference(str):
         except NoResultFound:
             return None
 
-    @property
+    @cached_property
     def data_source_column(self) -> DataSourceSchemaColumn | None:
+        ds_ref = self.data_source_reference
+        if not ds_ref:
+            return None
+
+        data_source = self.data_source
+        if not data_source:
+            return None
+
+        schema = data_source.schema
+        if not schema:
+            return None
+
+        return schema.root.get(ds_ref.column_name)
+
+    @cached_property
+    def data_source(self) -> DataSource | None:
         from app.common.data.interfaces.data_sets import get_data_source
 
         ds_ref = self.data_source_reference
@@ -131,11 +148,17 @@ class ExpressionReference(str):
         if not data_source:
             return None
 
-        schema = data_source.schema
-        if not schema:
-            return None
+        return data_source
 
-        return schema.root.get(ds_ref.column_name)
+    @property
+    def label(self) -> str:
+        if question := self.question:
+            return question.data_reference_label
+
+        if (column := self.data_source_column) and (data_source := self.data_source):
+            return f"{column.original_column_name} from {data_source.name} data set"
+
+        raise ValueError(f"Can't resolve ExpressionReference {self!r} to a specific label; unknown reference shape")
 
     @property
     def data_type(self) -> QuestionDataType:

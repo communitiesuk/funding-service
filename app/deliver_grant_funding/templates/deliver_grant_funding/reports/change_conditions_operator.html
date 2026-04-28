@@ -31,11 +31,11 @@
       {% for condition in component.conditions %}
         {% if condition.is_managed %}
           {% set managed = condition.managed %}
-          {% set depends_on = managed.referenced_question %}
+          {% set depends_on = managed.subject_reference.question.text if managed.subject_reference.question else managed.subject_reference.label %}
 
 
           {% set key_html %}
-            <span>{{ interpolate(depends_on.text, with_interpolation_highlighting=True) }}</span>
+            <span>{{ interpolate(depends_on, with_interpolation_highlighting=True) }}</span>
           {% endset %}
 
 

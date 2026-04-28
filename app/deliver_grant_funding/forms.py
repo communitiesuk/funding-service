@@ -44,17 +44,19 @@ from app.common.data.types import (
     QuestionDataType,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.feature_flags import FeatureFlags
+from app.common.utils import uppercase_first
 from app.constants import DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.data_sets import CellError, DataTypeError, DecimalError, PrefixError, SuffixError
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
-    from app.common.data.models import Component, Form, GrantRecipient, Group, Question
+    from app.common.data.models import Collection, Component, DataSource, Form, GrantRecipient, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -642,6 +644,7 @@ class SelectDataSourceQuestionForm(FlaskForm):
     question = SelectField(
         "Select which question's answer to use",
         choices=[],
+        coerce=ExpressionReference,
         validators=[DataRequired("Select the question")],
         widget=MHCLGAccessibleAutocomplete(),
     )
@@ -653,6 +656,7 @@ class SelectDataSourceQuestionForm(FlaskForm):
         form: Form,
         interpolate: Callable[[str], str],
         current_component: TOptional[Component],
+        subject_reference: TOptional[ExpressionReference],
         *args: Any,
         expression_type: TOptional[ExpressionType],
         managed_expression_name: TOptional[ManagedExpressionsEnum],
@@ -669,12 +673,23 @@ class SelectDataSourceQuestionForm(FlaskForm):
         if expression_type is not None:
             if managed_expression_name is None:
                 limit_to_data_types = {QuestionDataType.NUMBER}
-            elif current_component and current_component.data_type:
-                limit_to_data_types = {current_component.data_type}
+            else:
+                if subject_reference:
+                    limit_to_data_types = {subject_reference.data_type}
+                elif current_component and current_component.data_type:
+                    limit_to_data_types = {current_component.data_type}
+
+        limit_to_component = (
+            subject_reference.question
+            if subject_reference and subject_reference.question
+            else current_component
+            if current_component and current_component.form == form
+            else None
+        )
 
         referenceable_questions = get_referenceable_questions(
             form,
-            current_component if current_component and current_component.form == form else None,
+            limit_to_component,
             parent_component if parent_component and parent_component.form == form else None,
             limit_to_data_type=limit_to_data_types,
             include_this_component=self.include_this_component,
@@ -682,8 +697,55 @@ class SelectDataSourceQuestionForm(FlaskForm):
 
         if referenceable_questions:
             self.question.choices = [("", "")] + [
-                (str(question.id), interpolate(question.text)) for question in referenceable_questions
+                (ExpressionReference.from_question(question), interpolate(question.text))
+                for question in referenceable_questions
             ]
+
+
+class SelectDataSourceDataSetForm(FlaskForm):
+    data_set = RadioField(
+        "Select uploaded data set",
+        choices=[],
+        validators=[DataRequired("Select a data set")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        collection: Collection,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.data_set.choices = [(d.id, cast(str, d.name)) for d in collection.data_sources]
+
+
+class SelectDataSourceDataSetColumnForm(FlaskForm):
+    column = RadioField(
+        choices=[],
+        validators=[DataRequired("Select a column")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        data_set: DataSource,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+
+        assert data_set.schema is not None
+
+        self.column.label.text = f"Select column in {data_set.name} data set"
+
+        self.column.choices = [
+            (safe_column_id, uppercase_first(column_schema.original_column_name) or "")
+            for safe_column_id, column_schema in data_set.schema.root.items()
+        ]
 
 
 class GrantAddUserForm(FlaskForm):

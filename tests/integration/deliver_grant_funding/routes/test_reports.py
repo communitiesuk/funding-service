@@ -73,7 +73,7 @@ from app.deliver_grant_funding.forms import (
     SetUpReportForm,
 )
 from app.deliver_grant_funding.routes.reports import (
-    _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression,
+    _determine_return_url_and_update_session_after_choosing_reference_for_expression,
 )
 from app.deliver_grant_funding.session_models import (
     AddConditionDependsOnSessionModel,
@@ -3299,13 +3299,15 @@ class TestSelectContextSourceSection:
         question = factories.question.create(form=form_2, text="Question 1")
         question_2 = factories.question.create(form=form_3, text="Question 2")
 
+        subject_reference = ExpressionReference.from_question(question)
+
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToExpressionsModel(
                 data_source=ExpressionContext.ContextSources.SECTION,
                 collection_id=form.collection_id,
                 form_id=None,
                 component_id=question_2.id,
-                depends_on_question_id=question.id,
+                subject_reference=subject_reference,
                 field=ExpressionType.CONDITION,
                 managed_expression_name=ManagedExpressionsEnum.ANY_OF,
                 expression_form_data={},
@@ -3471,7 +3473,7 @@ class TestSelectContextSourceQuestion:
                     "add_context": "greater_than_expression",
                 },
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=ExpressionReference.from_question(depends_on_question),
                 data_source=ExpressionContext.ContextSources.SECTION,
                 collection_id=form.collection_id,
                 form_id=form.id,
@@ -3490,6 +3492,63 @@ class TestSelectContextSourceQuestion:
         assert "Select which question's answer to use" in soup.text
         assert reference_question.text in soup.text
         assert depends_on_question.text not in soup.text and skipped_question.text not in soup.text
+
+    def test_get_lists_questions_before_component_id_when_subject_reference_is_data_set_column(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        reference_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        target_question = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        skipped_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+        data_set_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.CONDITION,
+                managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                expression_form_data={
+                    "type": "Greater than",
+                    "greater_than_value": None,
+                    "greater_than_inclusive": True,
+                    "add_context": "greater_than_expression",
+                },
+                component_id=target_question.id,
+                subject_reference=data_set_reference,
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert reference_question.text in soup.text
+        assert skipped_question.text not in soup.text
+        assert target_question.text not in soup.text
 
     def test_get_back_link_points_to_select_context_source_when_same_section(
         self, authenticated_grant_admin_client, factories
@@ -3591,7 +3650,7 @@ class TestSelectContextSourceQuestion:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             ),
-            data={"question": str(question.id)},
+            data={"question": ExpressionReference.from_question(question)},
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -3630,7 +3689,7 @@ class TestSelectContextSourceQuestion:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             ),
-            data={"question": str(referenced_question.id)},
+            data={"question": ExpressionReference.from_question(referenced_question)},
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -3690,8 +3749,8 @@ class TestSelectContextSourceQuestion:
                 data_source=ExpressionContext.ContextSources.SECTION,
                 collection_id=form.collection_id,
                 form_id=form.id,
-                depends_on_question_id=depends_on_question.id
-                if expression_type is ExpressionType.CONDITION and not existing_expression
+                subject_reference=ExpressionReference.from_question(depends_on_question)
+                if (expression_type is ExpressionType.CONDITION and not existing_expression)
                 else None,
                 expression_id=expression_id,
             ).model_dump(mode="json")
@@ -3702,7 +3761,7 @@ class TestSelectContextSourceQuestion:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
             ),
-            data={"question": str(reference_data_question.id)},
+            data={"question": ExpressionReference.from_question(reference_data_question)},
             follow_redirects=False,
         )
         assert response.status_code == 302
@@ -3723,7 +3782,7 @@ class TestSelectContextSourceQuestion:
             else:
                 assert response.location == AnyStringMatching(
                     rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/"
-                    + rf"{target_question.id}/add-condition/{depends_on_question.id}"
+                    + rf"{target_question.id}/add-condition/{ExpressionReference.from_question(depends_on_question)}"
                 )
         else:
             if existing_expression:
@@ -3734,6 +3793,831 @@ class TestSelectContextSourceQuestion:
                 assert response.location == AnyStringMatching(
                     rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}/add-validation"
                 )
+
+    def test_post_redirects_to_add_condition_and_clears_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        referenced_question = factories.question.create(form=form)
+        question = factories.question.create(form=form)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddConditionDependsOnSessionModel(
+                field="condition_depends_on",
+                component_id=question.id,
+                data_source=ExpressionContext.ContextSources.SECTION,
+                collection_id=form.collection_id,
+                form_id=form.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"question": ExpressionReference.from_question(referenced_question)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}/add-condition/{ExpressionReference.from_question(referenced_question)}"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess.get("question") is None
+
+
+class TestSelectContextSourceDataSet:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant)
+        form = factories.form.create(collection=report)
+
+        with client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    def test_get_fails_with_empty_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 400
+
+    def test_get_shows_available_data_set_choices(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        report_2 = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        data_source = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        data_source_2 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Second data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        data_source_3 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report_2,
+            name="Data set that shouldn't be shown",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select uploaded data set" in soup.text
+        assert data_source.name in soup.text
+        assert data_source_2.name in soup.text
+        assert data_source_3.name not in soup.text
+
+    def test_get_shows_text_when_no_data_sets(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Select uploaded data set" in soup.text
+        assert "There are no data sets to reference in this collection" in soup.text
+
+    def test_post_redirects_to_select_data_set_column_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        data_source = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            ),
+            data={"data_set": data_source.id},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/section/"
+            f"{form.id}/add-context/data-set/{data_source.id}/select-column"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+
+
+class TestSelectContextSourceDataSetColumn:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, factories, db_session):
+        client = request.getfixturevalue(client_fixture)
+        report = factories.collection.create(grant=client.grant)
+        form = factories.form.create(collection=report)
+        data_set = factories.data_source.create(
+            grant=client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    def test_get_404_if_other_collection_data_set(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+
+        report_2 = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_set_2 = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report_2,
+            name="Different collection data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set_2.id,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_get_fails_with_empty_session(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            )
+        )
+        assert response.status_code == 400
+
+    def test_get_shows_available_data_set_columns(self, authenticated_grant_admin_client, factories):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    ),
+                    "c_revenue_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Revenue Allocation",
+                    ),
+                    "c_description": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Description",
+                    ),
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert f"Select column in {data_set.name} data set" in soup.text
+        assert "Capital Allocation" in soup.text
+        assert "Revenue Allocation" in soup.text
+        assert "Description" in soup.text
+
+    def test_post_with_component_session_model_new_question_redirects_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            ),
+            data={"column": next(iter(data_set.schema.root))},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/section/"
+            f"{form.id}/questions/add?question_data_type=TEXT_SINGLE_LINE"
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            expected_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+            assert question_data["component_form_data"]["text"] == f"Test question text {expected_reference.wrapped}"
+
+    def test_post_with_component_session_model_existing_question_redirects_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+                component_id=question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            ),
+            data={"column": next(iter(data_set.schema.root))},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            expected_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+            assert question_data["component_form_data"]["text"] == f"Test question text {expected_reference.wrapped}"
+
+    def test_post_with_guidance_session_model_redirects_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentGuidanceSessionModel(
+                component_form_data={
+                    "add_context": "guidance_body",
+                    "guidance_body": "Some guidance text",
+                    "guidance_heading": "Guidance header",
+                    "preview": False,
+                },
+                component_id=question.id,
+                is_add_another_guidance=False,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            ),
+            data={"column": next(iter(data_set.schema.root))},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}/guidance"
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            expected_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+            assert (
+                question_data["component_form_data"]["guidance_body"]
+                == f"Some guidance text {expected_reference.wrapped}"
+            )
+
+    def test_post_with_expressions_session_model_redirects_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.VALIDATION,
+                managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+                expression_form_data={
+                    "type": "Greater than",
+                    "greater_than_value": None,
+                    "greater_than_expression": "",
+                    "greater_than_inclusive": False,
+                    "add_context": "greater_than_expression",
+                },
+                component_id=question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            ),
+            data={"column": next(iter(data_set.schema.root))},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}/add-validation"
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            expected_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+            assert question_data["expression_form_data"]["greater_than_expression"] == expected_reference.wrapped
+
+    def test_post_with_custom_validation_expressions_session_model_redirects_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.VALIDATION,
+                managed_expression_name=None,
+                expression_form_data={
+                    "custom_expression": "some existing text",
+                    "add_context": "custom_expression",
+                },
+                component_id=question.id,
+                is_custom=True,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            ),
+            data={"column": next(iter(data_set.schema.root))},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}/add-validation/custom"
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            expected_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+            assert (
+                question_data["expression_form_data"]["custom_expression"]
+                == f"some existing text {expected_reference.wrapped}"
+            )
+
+    def test_post_with_calculated_condition_expressions_session_model_redirects_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToExpressionsModel(
+                field=ExpressionType.CONDITION,
+                managed_expression_name=None,
+                expression_form_data={
+                    "custom_expression": "some existing text",
+                    "add_context": "custom_expression",
+                },
+                component_id=question.id,
+                is_custom=True,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            ),
+            data={"column": next(iter(data_set.schema.root))},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == (
+            f"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}/add-calculated-condition"
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            question_data = sess.get("question")
+            assert question_data is not None
+            expected_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+            assert (
+                question_data["expression_form_data"]["custom_expression"]
+                == f"some existing text {expected_reference.wrapped}"
+            )
+
+    def test_post_with_condition_depends_on_session_model_redirects_and_updates_session(
+        self, authenticated_grant_admin_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=report)
+        question = factories.question.create(form=form)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Allocations",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddConditionDependsOnSessionModel(
+                component_id=question.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            ),
+            data={"column": next(iter(data_set.schema.root))},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/d_[0-9a-f]{32}.c_capital_allocation"
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess.get("question") is None
+
+        # Additional request to follow the response through to the final destination and confirm the data set
+        # is being referenced
+        follow_response = authenticated_grant_admin_client.get(response.location)
+        assert follow_response.status_code == 200
+        soup = BeautifulSoup(follow_response.data, "html.parser")
+        assert "Capital Allocation from Allocations data set" in soup.text
 
 
 class TestEditQuestion:
@@ -4662,12 +5546,13 @@ class TestEditCalculatedCondition:
 
 class TestAddQuestionCondition:
     def test_404(self, authenticated_grant_admin_client):
+        reference = ExpressionReference(f"q_{uuid.uuid4().hex}")
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.add_question_condition",
                 grant_id=uuid.uuid4(),
                 component_id=uuid.uuid4(),
-                depends_on_question_id=uuid.uuid4(),
+                subject_reference=reference,
             )
         )
         assert response.status_code == 404
@@ -4709,7 +5594,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=ExpressionReference.from_question(depends_on_question),
             )
         )
 
@@ -4723,7 +5608,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=client.grant.id,
                 component_id=group.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=ExpressionReference.from_question(depends_on_question),
             )
         )
 
@@ -4743,6 +5628,7 @@ class TestAddQuestionCondition:
             hint="Please select yes or no",
             data_type=QuestionDataType.YES_NO,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_question = factories.question.create(
             form=db_form,
@@ -4754,9 +5640,7 @@ class TestAddQuestionCondition:
 
         assert len(target_question.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -4764,7 +5648,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form),
             follow_redirects=False,
@@ -4792,14 +5676,13 @@ class TestAddQuestionCondition:
             hint="Please select yes or no",
             data_type=QuestionDataType.YES_NO,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_group = factories.group.create(form=db_form)
 
         assert len(target_group.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -4807,7 +5690,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_group.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form),
             follow_redirects=False,
@@ -4824,6 +5707,68 @@ class TestAddQuestionCondition:
         assert expression.managed_name == "Yes"
         assert expression.managed.referenced_question.id == depends_on_question.id
 
+    def test_post_for_data_set(self, authenticated_grant_admin_client, factories, db_session):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+        target_question = factories.question.create(
+            form=db_form,
+            text="How much cheese do you eat a month?",
+            name="total cheese eaten",
+            data_type=QuestionDataType.NUMBER,
+        )
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=report,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_capital_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+
+        reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
+        form = ConditionForm(
+            data={
+                "type": "Greater than",
+                "greater_than_value": 100,
+                "greater_than_expression": "",
+                "greater_than_inclusive": False,
+            }
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=target_question.id,
+                subject_reference=reference,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type_ == ExpressionType.CONDITION
+        assert expression.managed.subject_reference == reference
+        assert len(expression.component_references) == 1
+        assert expression.component_references[0].depends_on_data_source_id == data_set.id
+        assert expression.component_references[0].depends_on_column_name == "c_capital_allocation"
+
     def test_post_duplicate_condition(self, authenticated_grant_admin_client, factories, db_session):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
@@ -4835,6 +5780,7 @@ class TestAddQuestionCondition:
             hint="Please select yes or no",
             data_type=QuestionDataType.YES_NO,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_question = factories.question.create(
             form=db_form,
@@ -4851,9 +5797,7 @@ class TestAddQuestionCondition:
         interfaces.collections.add_component_condition(target_question, interfaces.user.get_current_user(), expression)
         db_session.commit()
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(data={"type": "Yes"})
 
         response = authenticated_grant_admin_client.post(
@@ -4861,7 +5805,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form),
             follow_redirects=False,
@@ -4883,6 +5827,7 @@ class TestAddQuestionCondition:
             name="total cheese eaten",
             data_type=QuestionDataType.NUMBER,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_question = factories.question.create(
             form=db_form,
@@ -4893,9 +5838,7 @@ class TestAddQuestionCondition:
 
         assert len(target_question.expressions) == 0
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -4911,7 +5854,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form, submit=""),
             follow_redirects=False,
@@ -4935,6 +5878,7 @@ class TestAddQuestionCondition:
         reference_data_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
         depends_on_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=db_form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+        reference = ExpressionReference.from_question(depends_on_question)
 
         session_data = AddContextToExpressionsModel(
             field=ExpressionType.CONDITION,
@@ -4946,15 +5890,13 @@ class TestAddQuestionCondition:
                 "greater_than_inclusive": True,
             },
             component_id=target_question.id,
-            depends_on_question_id=depends_on_question.id,
+            subject_reference=ExpressionReference.from_question(depends_on_question),
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session["question"] = session_data.model_dump(mode="json")
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -4970,7 +5912,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form, submit=""),
             follow_redirects=False,
@@ -4983,7 +5925,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             )
         )
         assert len(target_question.expressions) == 0
@@ -5013,6 +5955,7 @@ class TestAddQuestionCondition:
             name="total cheese eaten",
             data_type=QuestionDataType.NUMBER,
         )
+        reference = ExpressionReference.from_question(depends_on_question)
 
         target_question = factories.question.create(
             form=db_form,
@@ -5021,9 +5964,7 @@ class TestAddQuestionCondition:
             data_type=QuestionDataType.TEXT_MULTI_LINE,
         )
 
-        ConditionForm = build_managed_expression_form(
-            ExpressionType.CONDITION, ExpressionReference.from_question(depends_on_question)
-        )
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
         form = ConditionForm(
             data={
                 "type": "Greater than",
@@ -5038,7 +5979,7 @@ class TestAddQuestionCondition:
             managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
             expression_form_data=form.data,
             component_id=target_question.id,
-            depends_on_question_id=depends_on_question.id,
+            subject_reference=reference,
             value_dependent_question_id=reference_data_question.id,
         )
 
@@ -5050,7 +5991,7 @@ class TestAddQuestionCondition:
                 "deliver_grant_funding.add_question_condition",
                 grant_id=authenticated_grant_admin_client.grant.id,
                 component_id=target_question.id,
-                depends_on_question_id=depends_on_question.id,
+                subject_reference=reference,
             ),
             data=get_form_data(form),
             follow_redirects=False,
@@ -5129,7 +6070,7 @@ class TestEditQuestionCondition:
             assert "The question" in soup.text
             assert "What is your email?" in soup.text
 
-            assert "Depends on the answer to" in soup.text
+            assert "Depends on" in soup.text
             assert "Do you like cheese?" in soup.text
 
             yes_radio = soup.find("input", {"type": "radio", "value": "Yes"})
@@ -5564,7 +6505,7 @@ class TestEditQuestionCondition:
             expression_id=expression_id,
             expression_form_data=form.data,
             component_id=target_question.id,
-            depends_on_question_id=depends_on_question.id,
+            subject_reference=ExpressionReference.from_question(depends_on_question),
             value_dependent_question_id=reference_data_question.id,
         )
 
@@ -10848,7 +11789,7 @@ class TestChangeGroupDisplayOptionsBlockedByValidations:
         assert reloaded.presentation_options.show_questions_on_the_same_page is True
 
 
-class TestDetermineReturnUrlExpressionReferencedQuestion:
+class TestDetermineReturnUrlExpressionReference:
     def test_update_target_field_replace(self, factories):
         question = factories.question.create()
         add_context_data = AddContextToExpressionsModel(
@@ -10859,11 +11800,11 @@ class TestDetermineReturnUrlExpressionReferencedQuestion:
                 "test_field": "start",
                 "add_context": "test_field",
             },
-            depends_on_question_id=uuid.uuid4(),
+            subject_reference=ExpressionReference.from_question(question),
         )
 
-        _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
-            uuid.uuid4(), add_context_data, question
+        _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+            uuid.uuid4(), add_context_data, ExpressionReference.from_question(question)
         )
 
         assert add_context_data.expression_form_data["test_field"] == f"(({question.safe_qid}))"
@@ -10875,13 +11816,13 @@ class TestDetermineReturnUrlExpressionReferencedQuestion:
             component_id=question.id,
             managed_expression_name=None,
             expression_form_data={
-                "test_field": "start + ",
+                "test_field": "start +",
                 "add_context": "test_field",
             },
         )
 
-        _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
-            uuid.uuid4(), add_context_data, question
+        _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+            uuid.uuid4(), add_context_data, ExpressionReference.from_question(question)
         )
 
         assert add_context_data.expression_form_data["test_field"] == f"start + (({question.safe_qid}))"
@@ -10896,14 +11837,14 @@ class TestDetermineReturnUrlExpressionReferencedQuestion:
                 "test_field": "start + ",
                 "add_context": "test_field",
             },
-            depends_on_question_id=uuid.uuid4(),
+            subject_reference=ExpressionReference.from_question(question),
         )
 
-        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
-            uuid.uuid4(), add_context_data, question
+        result = _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+            uuid.uuid4(), add_context_data, ExpressionReference.from_question(question)
         )
         assert result == AnyStringMatching(
-            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/[a-z0-9-]{36}"
+            "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-condition/q_[0-9a-f]{32}"
         )
 
     def test_return_url_existing_non_calculated_condition(self, factories):
@@ -10916,12 +11857,12 @@ class TestDetermineReturnUrlExpressionReferencedQuestion:
                 "test_field": "start + ",
                 "add_context": "test_field",
             },
-            depends_on_question_id=uuid.uuid4(),
+            subject_reference=ExpressionReference.from_question(question),
             expression_id=uuid.uuid4(),
         )
 
-        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
-            uuid.uuid4(), add_context_data, question
+        result = _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+            uuid.uuid4(), add_context_data, ExpressionReference.from_question(question)
         )
         assert result == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/condition/[a-z0-9-]{36}")
 
@@ -10937,8 +11878,8 @@ class TestDetermineReturnUrlExpressionReferencedQuestion:
             },
         )
 
-        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
-            uuid.uuid4(), add_context_data, question
+        result = _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+            uuid.uuid4(), add_context_data, ExpressionReference.from_question(question)
         )
         assert result == AnyStringMatching(
             "^/deliver/grant/[a-z0-9-]{36}/question/[a-z0-9-]{36}/add-calculated-condition"
@@ -10957,7 +11898,7 @@ class TestDetermineReturnUrlExpressionReferencedQuestion:
             expression_id=uuid.uuid4(),
         )
 
-        result = _determine_return_url_and_update_session_after_choosing_referenced_question_for_expression(
-            uuid.uuid4(), add_context_data, question
+        result = _determine_return_url_and_update_session_after_choosing_reference_for_expression(
+            uuid.uuid4(), add_context_data, ExpressionReference.from_question(question)
         )
         assert result == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/calculated-condition/[a-z0-9-]{36}")

@@ -18,7 +18,7 @@
       {% if add_context_data.is_custom == true %}
         {% set return_url = url_for("deliver_grant_funding.add_calculated_condition", grant_id=grant.id, component_id=add_context_data.component_id) %}
       {% else %}
-        {% set return_url = url_for("deliver_grant_funding.add_question_condition",grant_id=grant.id, component_id=add_context_data.component_id, depends_on_question_id=add_context_data.depends_on_question_id) %}
+        {% set return_url = url_for("deliver_grant_funding.add_question_condition",grant_id=grant.id, component_id=add_context_data.component_id, subject_reference=add_context_data.subject_reference) %}
       {% endif %}
     {% else %}
       {% if add_context_data.is_custom == true %}

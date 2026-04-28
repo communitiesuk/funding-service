@@ -1,6 +1,6 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
-{% if not depends_on_question %}
+{% if not subject_reference %}
   {% set depends_on_html %}
     <form method="post" novalidate>
       {{ form.csrf_token }}
@@ -16,8 +16,8 @@
       "key": { "text": "The question" if not component.is_group else "The question group" },
       "value": { "text": interpolate(component.text) },
     }, {
-      "key": { "text": "Depends on the answer to" },
-      "value": { "html": depends_on_html } if not depends_on_question else { "text": interpolate(depends_on_question.text, with_interpolation_highlighting=True) },
+      "key": { "text": "Depends on" },
+      "value": { "html": depends_on_html } if not subject_reference else { "text": interpolate(subject_reference.question.text if subject_reference.question else subject_reference.label, with_interpolation_highlighting=True) },
     }],
     "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
   })

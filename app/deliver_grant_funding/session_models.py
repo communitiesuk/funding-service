@@ -12,6 +12,7 @@ from app.common.data.types import (
     TUnvalidatedDataSetRows,
 )
 from app.common.expressions import ExpressionContext
+from app.common.expressions.references import ExpressionReference
 
 if TYPE_CHECKING:
     from app.common.data.models import Component
@@ -103,8 +104,9 @@ class AddContextToExpressionsModel(_ReferenceDataSessionModel):
     form_id: UUID | None = None
 
     data_source: ExpressionContext.ContextSources | None = None
-    depends_on_question_id: UUID | None = None
     expression_id: UUID | None = None
+
+    subject_reference: ExpressionReference | None = None
 
     is_custom: bool = False
     is_group: bool = False

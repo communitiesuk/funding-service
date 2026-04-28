@@ -119,7 +119,7 @@ def build_managed_expression_form(
     """
     match type_:
         case ExpressionType.CONDITION:
-            type_validation_message = "Select what the answer should be to show this question"
+            type_validation_message = "Select what the value should be to show this question"
             managed_expressions = get_managed_conditions_by_data_type(subject_reference.data_type)
         case ExpressionType.VALIDATION:
             type_validation_message = "Select the kind of validation to apply"
