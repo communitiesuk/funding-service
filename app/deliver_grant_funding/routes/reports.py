@@ -2563,9 +2563,6 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     ValidationForm = build_managed_expression_form(
         ExpressionType.VALIDATION,
         ExpressionReference.from_question(question),
-        show_calculated_validation_option=(
-            AuthorisationHelper.is_platform_member(get_current_user()) and question.data_type == QuestionDataType.NUMBER
-        ),
     )
     form = (
         ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
@@ -2749,11 +2746,6 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 @collection_is_editable()
 @auto_commit_after_request
 def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
-    # TODO remove once we un-feature-flag this
-    if not AuthorisationHelper.is_platform_member(get_current_user()):
-        return redirect(
-            url_for("deliver_grant_funding.add_question_validation", grant_id=grant_id, question_id=question_id)
-        )
     question = get_question_by_id(question_id)
 
     add_context_data = _extract_add_context_data_from_session(
@@ -2831,9 +2823,6 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
 @collection_is_editable()
 @auto_commit_after_request
 def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expression_id: UUID) -> ResponseReturnValue:
-    # TODO remove once we un-feature-flag this
-    if not AuthorisationHelper.is_platform_member(get_current_user()):
-        return redirect(url_for("deliver_grant_funding.edit_question", grant_id=grant_id, question_id=question_id))
 
     question = get_question_by_id(question_id)
     expression = get_expression_by_id(expression_id)
