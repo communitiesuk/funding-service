@@ -715,11 +715,21 @@ class SelectDataSourceDataSetForm(FlaskForm):
         self,
         collection: Collection,
         *args: Any,
+        number_columns_only: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
+        self.number_columns_only = number_columns_only
 
-        self.data_set.choices = [(d.id, cast(str, d.name)) for d in collection.data_sources]
+        data_sources = collection.data_sources
+        if number_columns_only:
+            data_sources = [
+                d
+                for d in data_sources
+                if d.schema and any(col.data_type == QuestionDataType.NUMBER for col in d.schema.root.values())
+            ]
+
+        self.data_set.choices = [(d.id, cast(str, d.name)) for d in data_sources]
 
 
 class SelectDataSourceDataSetColumnForm(FlaskForm):
@@ -734,17 +744,27 @@ class SelectDataSourceDataSetColumnForm(FlaskForm):
         self,
         data_set: DataSource,
         *args: Any,
+        number_columns_only: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
+        self.number_columns_only = number_columns_only
 
         assert data_set.schema is not None
 
         self.column.label.text = f"Select column in {data_set.name} data set"
 
+        columns = data_set.schema.root.items()
+        if number_columns_only:
+            columns = [
+                (safe_column_id, column_schema)
+                for safe_column_id, column_schema in columns
+                if column_schema.data_type == QuestionDataType.NUMBER
+            ]
+
         self.column.choices = [
             (safe_column_id, uppercase_first(column_schema.original_column_name) or "")
-            for safe_column_id, column_schema in data_set.schema.root.items()
+            for safe_column_id, column_schema in columns
         ]
 
 
