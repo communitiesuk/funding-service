@@ -45,6 +45,9 @@ def get_data_source(
 
 
 def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMapping]) -> DataSourceSchema:
+    if not column_mappings:
+        raise ValueError("Cannot build a schema from an empty list of column mappings")
+
     schema_dict = {}
     for mapping in column_mappings:
         if mapping.data_type == QuestionDataType.NUMBER:
