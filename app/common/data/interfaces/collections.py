@@ -1664,11 +1664,11 @@ def _validate_reference(  # noqa:C901
             attached_to_component, referenced_question
         ):
             raise InvalidReferenceInExpression(
-                f"Reference is not valid: {wrapped_reference}",
+                f"Reference is not valid: {referenced_question.name}",
                 field_name=field_name_for_error_message,
                 bad_reference=wrapped_reference,
-                form_error_message=f"You cannot use {wrapped_reference} because it is in the same group as "
-                f"{referenced_question.name}",
+                form_error_message=f"You cannot use {referenced_question.name} because it is in the same group as "
+                f"{attached_to_component.name}",
             )
 
         if not components_in_valid_add_another_combination(
