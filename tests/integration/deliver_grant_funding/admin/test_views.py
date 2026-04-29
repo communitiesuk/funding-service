@@ -5002,3 +5002,89 @@ class TestPlatformAdminSubmissionsView:
         assert "Missing evidence" in page_text
         assert f"Reference: {submission.reference}" in page_text
         assert "3 Jun 2025 at 2pm" in page_text
+
+
+class TestPlatformAdminSubmissionEventView:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_submission_event_list_permissions(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/submissionevent/")
+        assert response.status_code == expected_code
+
+    def test_list_shows_event_type_and_submission_reference(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        event = factories.submission_event.create(event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/submissionevent/")
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert SubmissionEventType.SUBMISSION_SUBMITTED in page
+        assert event.submission.reference in page
+
+    def test_edit_is_disabled(self, authenticated_platform_admin_client, factories, db_session):
+        event = factories.submission_event.create()
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/submissionevent/edit/?id={event.id}",
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+    def test_create_is_disabled(self, authenticated_platform_admin_client):
+        response = authenticated_platform_admin_client.get(
+            "/deliver/admin/submissionevent/new/",
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+    def test_filter_by_submission_mode(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+
+        live_submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+        )
+        preview_submission = factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.PREVIEW,
+        )
+        factories.submission_event.create(submission=live_submission)
+        factories.submission_event.create(submission=preview_submission)
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/submissionevent/?flt0_0=LIVE")
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert live_submission.reference in page
+        assert preview_submission.reference not in page
+
+    def test_filter_by_event_type(self, authenticated_platform_admin_client, factories, db_session):
+        completed_event = factories.submission_event.create(
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        )
+        submitted_event = factories.submission_event.create(
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+        )
+
+        response = authenticated_platform_admin_client.get(
+            "/deliver/admin/submissionevent/?flt2_2=SUBMISSION_SUBMITTED"
+        )
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert submitted_event.submission.reference in page
+        assert completed_event.submission.reference not in page
