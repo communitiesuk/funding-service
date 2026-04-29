@@ -2976,6 +2976,26 @@ def test_add_certification_and_submission_event(db_session, factories):
     assert from_db.events[4].data == {"declined_reason": "inaccurate data"}
 
 
+def test_reopen_submission_event(db_session, factories):
+    user = factories.user.create()
+    form = factories.form.create()
+    submission = factories.submission.create(collection=form.collection)
+    db_session.add(submission)
+
+    add_submission_event(
+        submission=submission,
+        user=user,
+        event_type=SubmissionEventType.SUBMISSION_REOPENED,
+        reopened_reason="Test reason",
+    )
+    from_db = get_submission(submission.id, with_full_schema=True)
+
+    assert len(from_db.events) == 1
+    assert from_db.events[0].event_type == SubmissionEventType.SUBMISSION_REOPENED
+    assert from_db.events[0].related_entity_id == submission.id
+    assert from_db.events[0].data == {"reopened_reason": "Test reason"}
+
+
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):
     collection = factories.collection.create()
     forms = factories.form.create_batch(3, collection=collection)

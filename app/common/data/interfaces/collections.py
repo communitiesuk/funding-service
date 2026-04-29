@@ -65,7 +65,11 @@ from app.common.expressions.references import DataSourceReference, ExpressionRef
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
-from app.common.helpers.submission_events import DeclinedByCertifierKwargs, SubmissionEventHelper
+from app.common.helpers.submission_events import (
+    DeclinedByCertifierKwargs,
+    ReopenedKwargs,
+    SubmissionEventHelper,
+)
 from app.common.utils import slugify
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
@@ -1454,6 +1458,17 @@ def add_submission_event(
     user: User,
     related_entity_id: UUID | None = None,
     **kwargs: Unpack[DeclinedByCertifierKwargs],
+) -> Submission: ...
+
+
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
+    event_type: Literal[SubmissionEventType.SUBMISSION_REOPENED],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[ReopenedKwargs],
 ) -> Submission: ...
 
 
