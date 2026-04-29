@@ -519,7 +519,10 @@ class TestValidateCustomSyntax:
                 evaluation_context=evaluation_context,
             )
 
-        assert e.value.form_error_message == "You cannot use Pow() in calculations"
+        assert (
+            e.value.form_error_message
+            == "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols"
+        )
 
     def test_invalid_expression_multiple_references_to_self(self, factories, mocker):
         db_form = factories.form.create()

@@ -75,8 +75,10 @@ class UndefinedOperatorInExpression(
         operator: str,
     ):
         self.operator = operator
-        # TODO map these to better names as this will print the ast node name, eg. Pow() not **
-        super().__init__(message, f"You cannot use {self.operator} in calculations")
+        super().__init__(
+            message,
+            "The calculation does not make sense. Check it is a complete calculation that only uses accepted symbols",
+        )
 
 
 class DisallowedExpression(
