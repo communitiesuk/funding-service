@@ -65,6 +65,7 @@ dev = [
     "freezegun==1.5.5",
     "import-linter==2.13",
     "pytest==9.1.1",
+    "hypothesis==6.142.4",
     "pytest-playwright==0.8.0",
     "ty==0.0.59",
     "watchdog[watchmedo]==6.0.0",
@@ -140,6 +141,7 @@ source_modules = [
 ]
 ignore_imports = [
     "app.developers.commands -> app.common.data.models",
+    "app.developers.seed_realistic_submissions -> app.common.data.models",
     "app.deliver_grant_funding.admin.entities -> app.common.data.models"
 ]
 # Unable to do `exhaustive` here unfortunately, so we won't get told if new modules are added and we forget to put them
