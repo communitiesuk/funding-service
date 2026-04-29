@@ -1556,6 +1556,7 @@ def _validate_reference(  # noqa:C901
 ) -> ExpressionReference:
     wrapped_reference = reference.wrapped
     unwrapped_reference = reference.unwrapped
+    is_calculation: bool = field_name_for_error_message == "custom_expression"
 
     if not unwrapped_reference:
         raise InvalidReferenceInExpression(
@@ -1585,6 +1586,16 @@ def _validate_reference(  # noqa:C901
         )
 
     if referenced_question := reference.question:
+        # For calculations, the reference must of type number
+        if is_calculation and referenced_question.data_type != QuestionDataType.NUMBER:
+            raise IncompatibleDataTypeException(
+                f"Incompatible data type: {referenced_question.id} ({referenced_question.data_type}). "
+                "Only numbers can be referenced in custom_expression",
+                component=attached_to_component,
+                depends_on_component=referenced_question,
+                field_name=field_name_for_error_message,
+                form_error_message=f"Reference is not valid due to incompatible data types: {wrapped_reference}",
+            )
         # for validation, the question being validated (ie attached to) needs to have the same data type as the question
         # being referenced. Groups have no data_type so this check is skipped for group-level validations.
         if (
@@ -1603,19 +1614,17 @@ def _validate_reference(  # noqa:C901
 
         # for conditions, the question being tested (could be any prior question) needs to have the same data type as
         # the question being referenced.
-        if (
-            expression_type == ExpressionType.CONDITION
-            and question_to_test
-            and not question_to_test.data_type == referenced_question.data_type
-        ):
-            raise IncompatibleDataTypeException(
-                f"Incompatible data types: {attached_to_component.id} ({attached_to_component.data_type}) and "
-                f"{referenced_question.id} ({referenced_question.data_type})",
-                component=attached_to_component,
-                depends_on_component=referenced_question,
-                field_name=field_name_for_error_message,
-                form_error_message=f"Reference is not valid due to incompatible data types: {wrapped_reference}",
-            )
+        if expression_type == ExpressionType.CONDITION:
+            if question_to_test and not question_to_test.data_type == referenced_question.data_type:
+                raise IncompatibleDataTypeException(
+                    f"Incompatible data types: {attached_to_component.id} ({attached_to_component.data_type}) and "
+                    f"{referenced_question.id} ({referenced_question.data_type})",
+                    component=attached_to_component,
+                    depends_on_component=referenced_question,
+                    field_name=field_name_for_error_message,
+                    form_error_message=f"Reference is not valid due to incompatible data types: {wrapped_reference}",
+                )
+
         if not is_component_dependency_order_valid(attached_to_component, referenced_question):
             # Can't think of a better way right now for a custom validation expression to reference itself
             # TODO: ideally this would check a pre-configured ExpressionContext that uses an
@@ -1623,7 +1632,7 @@ def _validate_reference(  # noqa:C901
             #       don't need to have this logic in multiple places.
             references_self_in_custom_validation = (
                 expression_type == ExpressionType.VALIDATION
-                and field_name_for_error_message == "custom_expression"
+                and is_calculation
                 and referenced_question == attached_to_component
             )
             # A validation attached to a group is allowed to reference any question nested within that group:
