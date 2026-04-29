@@ -3063,7 +3063,7 @@ class TestExpressions:
 
     def test_add_question_condition_custom(self, db_session, factories):
         form = factories.form.create()
-        q1, q2, q3 = factories.question.create_batch(3, form=form)
+        q1, q2, q3 = factories.question.create_batch(3, form=form, data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
 
         # configured by the user interface
@@ -3083,6 +3083,31 @@ class TestExpressions:
         # check the serialised context lines up with the values in the managed expression
         assert from_db.expressions[0].managed_name is None
         assert from_db.expressions[0].is_custom
+
+    def test_add_question_condition_custom_raises_incompatible_data_type(self, db_session, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expr = CustomExpression(
+            custom_expression=f"(({q1.safe_qid})) > (({q2.safe_qid}))", custom_message="Failed condition"
+        )
+        with pytest.raises(IncompatibleDataTypeException):
+            add_component_condition(q3, user, custom_expr)
+
+    def test_add_group_condition_custom_raises_incompatible_data_type(self, db_session, factories):
+        form = factories.form.create()
+        q1, q2, q3 = factories.question.create_batch(3, form=form)
+        group = factories.group.create(form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expr = CustomExpression(
+            custom_expression=f"(({q1.safe_qid})) > (({q2.safe_qid}))", custom_message="Failed condition"
+        )
+        with pytest.raises(IncompatibleDataTypeException):
+            add_component_condition(group, user, custom_expr)
 
     def test_add_condition_raises_if_same_page(self, db_session, factories):
         group = factories.group.create(
@@ -3248,7 +3273,7 @@ class TestExpressions:
 
     def test_add_component_validation_custom(self, db_session, factories, mock_sentry_metrics):
         form = factories.form.create()
-        q1, q2 = factories.question.create_batch(2, form=form)
+        q1, q2 = factories.question.create_batch(2, form=form, data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
 
         # configured by the user interface
@@ -3362,6 +3387,50 @@ class TestExpressions:
         from_db = get_group_by_id(group.id)
         assert from_db.validations == []
 
+    def test_add_component_validation_on_group_rejects_wrong_data_type(self, db_session, factories):
+        from app.common.data.types import QuestionPresentationOptions
+
+        db_form = factories.form.create()
+        text_question = factories.question.create(
+            form=db_form,
+            name="text question",
+        )
+        group = factories.group.create(
+            form=db_form,
+            name="Spend totals",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        factories.question.create(
+            form=db_form,
+            parent=group,
+            data_type=QuestionDataType.NUMBER,
+        )
+        user = factories.user.create()
+
+        custom_expression = CustomExpression(
+            custom_expression=f"(({text_question.safe_qid})) > 0",
+            custom_message="Must be positive",
+        )
+
+        with pytest.raises(IncompatibleDataTypeException):
+            add_component_validation(group, user, custom_expression)
+
+    def test_add_component_validation_custom_raises_incompatible_data_type(
+        self, db_session, factories, mock_sentry_metrics
+    ):
+        form = factories.form.create()
+        q1, q2 = factories.question.create_batch(2, form=form)
+        user = factories.user.create()
+
+        # configured by the user interface
+        custom_expression = CustomExpression(
+            custom_expression=f"(({q2.safe_qid})) >= (({q1.safe_qid}))",
+            custom_message=f"The answer must be greater than or equal to (({q1.safe_qid}))",
+        )
+
+        with pytest.raises(IncompatibleDataTypeException):
+            add_component_validation(q2, user, custom_expression)
+
     def test_update_expression(self, db_session, factories):
         q0 = factories.question.create()
         question = factories.question.create(form=q0.form)
@@ -3378,7 +3447,7 @@ class TestExpressions:
 
     def test_update_expression_custom(self, db_session, factories):
         form = factories.form.create()
-        q1, q2 = factories.question.create_batch(2, form=form)
+        q1, q2 = factories.question.create_batch(2, form=form, data_type=QuestionDataType.NUMBER)
         user = factories.user.create()
 
         # configured by the user interface
@@ -5236,7 +5305,7 @@ class TestValidateReference:
         assert e.value.field_name == "custom_expression"
         assert e.value.bad_reference == "((q_bad_ref))"
 
-    def test_custom_expression_wrong_data_type(self, factories):
+    def test_custom_expression_wrong_data_type_validation(self, factories):
         form = factories.form.create()
         q1 = factories.question.create(form=form)
         q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
@@ -5247,6 +5316,42 @@ class TestValidateReference:
                 attached_to_component=q2,
                 expression_context=context,
                 expression_type=ExpressionType.VALIDATION,
+                field_name_for_error_message="custom_expression",
+                question_to_test=None,
+            )
+        assert "Reference is not valid due to incompatible data types" in e.value.form_error_message
+        assert e.value.field_name == "custom_expression"
+        assert e.value.depends_on_question == q1
+
+    def test_validate_reference_wrong_data_type_condition_referenced_question(self, factories):
+        form = factories.form.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        q2, q3 = factories.question.create_batch(2, form=form, data_type=QuestionDataType.NUMBER)
+        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
+        with pytest.raises(IncompatibleDataTypeException) as e:
+            _validate_reference(
+                reference=ExpressionReference(q2.safe_qid),
+                attached_to_component=q3,
+                expression_context=context,
+                expression_type=ExpressionType.CONDITION,
+                field_name_for_error_message="test",
+                question_to_test=q1,
+            )
+        assert "Reference is not valid due to incompatible data types" in e.value.form_error_message
+        assert e.value.field_name == "test"
+        assert e.value.depends_on_question == q2
+
+    def test_validate_reference_non_number_in_calculated_condition(self, factories):
+        form = factories.form.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        context = ExpressionContext.build_expression_context(form.collection, mode="interpolation")
+        with pytest.raises(IncompatibleDataTypeException) as e:
+            _validate_reference(
+                reference=ExpressionReference(q1.safe_qid),
+                attached_to_component=q2,
+                expression_context=context,
+                expression_type=ExpressionType.CONDITION,
                 field_name_for_error_message="custom_expression",
                 question_to_test=None,
             )
@@ -5360,6 +5465,23 @@ class TestValidateReference:
                     question_to_test=None,
                 )
                 == q1.safe_qid
+            )
+
+    def test_invalid_data_type_group_validation(self, factories):
+        form = factories.form.create()
+        q1 = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        group = factories.group.create(form=form)
+
+        expression_context = ExpressionContext.build_expression_context(form.collection, "interpolation", None, None)
+
+        with pytest.raises(IncompatibleDataTypeException):
+            _validate_reference(
+                reference=ExpressionReference(q1.safe_qid),
+                attached_to_component=group,
+                expression_context=expression_context,
+                expression_type=ExpressionType.VALIDATION,
+                field_name_for_error_message="custom_expression",
+                question_to_test=None,
             )
 
 

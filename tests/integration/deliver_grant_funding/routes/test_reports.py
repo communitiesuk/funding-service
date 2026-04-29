@@ -6009,7 +6009,7 @@ class TestEditCalculatedCondition:
         form = factories.form.create(collection=report, title="Organisation information")
 
         target_question = factories.question.create(form=form)
-        later_question = factories.question.create(form=form)
+        later_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         question_condition = Expression.from_evaluatable_expression(
             evaluatable_expression=CustomExpression(custom_expression="4>5", expression_name="test name"),
             expression_type=ExpressionType.CONDITION,
