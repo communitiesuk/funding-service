@@ -5845,6 +5845,42 @@ class TestAddCalculatedCondition:
             "The calculation does not make sense",
         )
 
+    def test_post_error_wrong_order(self, authenticated_platform_admin_client, factories, db_session):
+        report = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=report, title="Organisation information")
+
+        q1, q2, q3 = factories.question.create_batch(3, form=db_form, data_type=QuestionDataType.NUMBER)
+
+        assert len(q1.expressions) == 0
+
+        form = CalculatedConditionForm(
+            data={
+                "custom_expression": f"(({q1.safe_qid}))<(({q2.safe_qid}))",
+                "expression_name": "new name",
+            },
+            component=q1,
+            interpolation_context=ExpressionContext(),
+            evaluation_context=ExpressionContext(),
+        )
+
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_calculated_condition",
+                grant_id=authenticated_platform_admin_client.grant.id,
+                component_id=q1.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+
+        assert len(q1.expressions) == 0
+        assert page_has_error(
+            BeautifulSoup(response.data, "html.parser"),
+            "because it comes after this question",
+        )
+
 
 class TestEditCalculatedCondition:
     @pytest.mark.parametrize(

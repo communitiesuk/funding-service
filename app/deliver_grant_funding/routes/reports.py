@@ -2194,7 +2194,7 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
 
     # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
-        collection=component.form.collection, expression_context_end_point=component
+        collection=component.form.collection,
     )
     return render_template(
         "deliver_grant_funding/reports/calculated_condition.html",
@@ -2287,7 +2287,7 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
 
     # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
-        collection=component.form.collection, expression_context_end_point=component
+        collection=component.form.collection,
     )
     return render_template(
         "deliver_grant_funding/reports/calculated_condition.html",
@@ -2833,7 +2833,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
 
     # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
-        collection=question.form.collection, expression_context_end_point=question
+        collection=question.form.collection,
     )
     return render_template(
         "deliver_grant_funding/reports/calculated_validation.html",
@@ -2930,7 +2930,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
 
     # Note: Mild shortcut; the alternative is passing this through a lot of templates/template logic
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
-        collection=question.form.collection, expression_context_end_point=question
+        collection=question.form.collection,
     )
     return render_template(
         "deliver_grant_funding/reports/calculated_validation.html",
@@ -3013,7 +3013,7 @@ def add_group_validation(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
             )
 
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
-        collection=group.form.collection, expression_context_end_point=group, expression_type=ExpressionType.VALIDATION
+        collection=group.form.collection, expression_type=ExpressionType.VALIDATION
     )
     return render_template(
         "deliver_grant_funding/reports/manage_group_validation.html",
@@ -3107,7 +3107,7 @@ def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -
             )
 
     g.context_keys_and_labels = ExpressionContext.get_context_keys_and_labels(
-        collection=group.form.collection, expression_context_end_point=group, expression_type=ExpressionType.VALIDATION
+        collection=group.form.collection, expression_type=ExpressionType.VALIDATION
     )
     return render_template(
         "deliver_grant_funding/reports/manage_group_validation.html",
