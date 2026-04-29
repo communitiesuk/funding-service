@@ -63,6 +63,7 @@ dev = [
     "types-html5lib==1.1.11.20260518",
     "types-pytz==2026.2.0.20260518",
     "freezegun==1.5.5",
+    "hypothesis==6.142.4",
     "import-linter==2.11",
     "pytest==9.0.3",
     "pytest-playwright==0.8.0",
@@ -140,6 +141,7 @@ source_modules = [
 ]
 ignore_imports = [
     "app.developers.commands -> app.common.data.models",
+    "app.developers.seed_realistic_submissions -> app.common.data.models",
     "app.deliver_grant_funding.admin.entities -> app.common.data.models"
 ]
 # Unable to do `exhaustive` here unfortunately, so we won't get told if new modules are added and we forget to put them

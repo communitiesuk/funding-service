@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import json
+import random
 import uuid
 from collections import defaultdict
 from difflib import SequenceMatcher
@@ -68,6 +69,7 @@ from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import SubmissionHelper
 from app.common.utils import slugify
 from app.developers import developers_blueprint
+from app.developers.seed_realistic_submissions import seed_realistic_submissions
 from app.extensions import db, notification_service, s3_service
 from app.services.notify import NotificationError
 
@@ -996,3 +998,82 @@ def refresh_status_for_multi_submissions(commit: bool) -> None:
         click.echo(f"Updated {updated} submissions with saved statuses")
     else:
         click.echo(f"Would update {updated} submissions with saved statuses")
+
+
+@developers_blueprint.cli.command(
+    "seed-realistic-submissions",
+    help=(
+        "Generate one valid submission per grant recipient (filtered by --mode) that lacks one for this "
+        "collection. Optionally drives a configurable proportion of submissions through the submit flow "
+        "by emitting events directly. Refuses to run in production."
+    ),
+)
+@click.argument("collection_id", type=UUID)
+@click.option("--user-email", default=None, help="Email of the user to record as created_by")
+@click.option(
+    "--new-user-per-submission",
+    is_flag=True,
+    default=False,
+    help="Create a new random user as created_by for each submission, instead of using --user-email",
+)
+@click.option(
+    "--max", "max_submissions", type=click.IntRange(1), default=1, help="Maximum number of submissions to create"
+)
+@click.option(
+    "--per-gr-attempts",
+    type=click.IntRange(1),
+    default=5,
+    help="How many times to retry generation for a single GR before giving up and moving to the next",
+)
+@click.option(
+    "--submit-percentage",
+    type=click.FloatRange(0, 100),
+    default=0.0,
+    help="Percentage (0-100) of created submissions to also submit; the rest are left with all sections complete",
+)
+@click.option("--seed", type=int, default=None, help="Random seed for reproducibility")
+@click.option(
+    "--mode",
+    type=click.Choice([GrantRecipientModeEnum.TEST, GrantRecipientModeEnum.LIVE], case_sensitive=False),
+    default=GrantRecipientModeEnum.TEST,
+    help="Whether to create submissions for TEST or LIVE grant recipients (and corresponding submission mode)",
+)
+def seed_realistic_submissions_command(
+    collection_id: UUID,
+    user_email: str | None,
+    new_user_per_submission: bool,
+    max_submissions: int,
+    per_gr_attempts: int,
+    submit_percentage: float,
+    seed: int | None,
+    mode: GrantRecipientModeEnum,
+) -> None:
+    user = None
+    if not new_user_per_submission:
+        if not user_email:
+            raise click.ClickException("--user-email is required unless --new-user-per-submission is set")
+        user = get_user_by_email(user_email)
+        if user is None:
+            raise click.ClickException(f"Could not find user {user_email}")
+    if current_app.config["IS_PRODUCTION"]:
+        raise click.ClickException("seed-realistic-submissions must not be run in production.")
+
+    if seed is None:
+        seed = random.SystemRandom().randrange(2**32)
+    click.echo(f"Using seed: {seed}")
+
+    report = seed_realistic_submissions(
+        collection_id,
+        user=user,
+        new_user_per_submission=new_user_per_submission,
+        max_submissions=max_submissions,
+        per_gr_attempts=per_gr_attempts,
+        submit_percentage=submit_percentage,
+        seed=seed,
+        mode=mode,
+    )
+    click.echo(
+        f"Created {report.created} (submitted {report.submitted}), skipped {report.skipped}, failed {report.failed}"
+    )
+    for failure in report.failures:
+        click.echo(f"  - GR {failure.grant_recipient_id} (ref {failure.submission_reference}): {failure.error}")

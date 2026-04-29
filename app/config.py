@@ -478,6 +478,8 @@ class TestConfig(_SharedConfig):
 
     PLAYWRIGHT_BROWSERS_PATH: str | None = "ms-playwright-pdf"
 
+    GOVUK_NOTIFY_DISABLE: bool = True
+
 
 class ProdConfig(_SharedConfig):
     """
