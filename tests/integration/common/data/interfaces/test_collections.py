@@ -837,10 +837,11 @@ class TestGetSubmission:
         # Expected queries:
         # * Load the submission with collection and forms(sections)
         # * Load the submission events
+        # * Load the submission data_sources
         # * For all forms, load the top-level components and their expressions
         # * For all forms, load every component, their expressions, their nested components+expressions
         # * For all forms, load every component's set of component references
-        assert len(queries) == 5
+        assert len(queries) == 6
 
         # Iterate over all the related models; check that no further SQL queries are emitted. The count is just a noop.
         count = 0
