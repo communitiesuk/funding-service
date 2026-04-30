@@ -1199,6 +1199,21 @@ class SubmissionHelper:
         if not self.is_submitted:
             raise ValueError(f"Could not reopen submission id={self.id} because it is not submitted.")
 
+        interfaces.collections.add_submission_event(
+            self.submission,
+            event_type=SubmissionEventType.SUBMISSION_REOPENED,
+            user=user,
+            reopened_reason=reopened_reason,
+            submission_data=self.submission.data_manager.data,
+        )
+        for form in self.collection.forms:
+            interfaces.collections.add_submission_event(
+                self.submission,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                user=user,
+                related_entity_id=form.id,
+            )
+
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
         if is_complete == form_complete:
