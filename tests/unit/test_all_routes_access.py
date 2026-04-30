@@ -309,6 +309,15 @@ routes_with_access_controlled_by_flask_admin = [
     "submission.edit_view",
     "submission.export",
     "submission.index_view",
+    "submissionevent.action_view",
+    "submissionevent.ajax_lookup",
+    "submissionevent.ajax_update",
+    "submissionevent.create_view",
+    "submissionevent.delete_view",
+    "submissionevent.details_view",
+    "submissionevent.edit_view",
+    "submissionevent.export",
+    "submissionevent.index_view",
 ]
 
 

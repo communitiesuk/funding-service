@@ -24,7 +24,7 @@ from app.common.audit import (
 )
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission
+from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission, SubmissionEvent
 from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum, SubmissionEventType
@@ -612,3 +612,29 @@ class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
                 kwargs["helper"] = SubmissionHelper(cast("Submission", model))
 
         return super().render(template, **kwargs)
+
+
+class PlatformAdminSubmissionEventView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
+    _model = SubmissionEvent
+
+    column_default_sort = ("created_at_utc", True)
+
+    column_list = [
+        "event_type",
+        "created_at_utc",
+        "submission.reference",
+        "submission.mode",
+        "created_by.email",
+    ]
+    column_filters = [
+        "submission.mode",
+        "event_type",
+    ]
+    column_searchable_list = ["id", "submission.reference"]
+    column_labels = {
+        "created_at_utc": "Timestamp",
+        "event_type": "Event type",
+        "submission.reference": "Submission reference",
+        "submission.mode": "Submission mode",
+        "created_by.email": "Created by",
+    }
