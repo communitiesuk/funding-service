@@ -4,7 +4,7 @@ from uuid import UUID
 from flask import current_app, jsonify
 from flask.typing import ResponseReturnValue
 
-from app import AuthorisationHelper
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import get_collection
 from app.common.data.interfaces.user import get_current_user
 from app.common.helpers.collections import SubmissionHelper
