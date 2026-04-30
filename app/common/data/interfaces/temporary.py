@@ -11,10 +11,11 @@ The only place that should import from here is the `app.developers` package.
 
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from app.common.data.models import (
     Collection,
+    ComponentReference,
     Grant,
     Submission,
 )
@@ -31,17 +32,30 @@ def delete_grant(grant_id: UUID) -> None:
         .values(submission_name_question_id=None)
     )
     grant = db.session.query(Grant).where(Grant.id == grant_id).one()
-    data_sources_to_delete = [
+
+    custom_data_sources_to_delete = [
         c.data_source
         for collection in grant.collections
         for form in collection.forms
         for c in form._all_components
         if hasattr(c, "data_source") and c.data_source and c.data_source.type == DataSourceType.CUSTOM
     ]
+    non_custom_data_sources_to_delete = [
+        ds for collection in grant.collections for ds in collection.data_sources if ds.type != DataSourceType.CUSTOM
+    ]
+
+    if non_custom_data_sources_to_delete:
+        non_custom_ds_ids = [ds.id for ds in non_custom_data_sources_to_delete]
+        db.session.execute(
+            delete(ComponentReference).where(ComponentReference.depends_on_data_source_id.in_(non_custom_ds_ids))
+        )
+        for ds in non_custom_data_sources_to_delete:
+            db.session.delete(ds)
+        db.session.flush()
 
     db.session.delete(grant)
 
-    for ds in data_sources_to_delete:
+    for ds in custom_data_sources_to_delete:
         db.session.delete(ds)
 
     db.session.flush()

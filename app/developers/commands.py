@@ -39,6 +39,7 @@ from app.common.data.models import (
     ComponentReference,
     DataSource,
     DataSourceItem,
+    DataSourceOrganisationItem,
     Expression,
     Form,
     Grant,
@@ -52,6 +53,9 @@ from app.common.data.models import (
 from app.common.data.models_user import User, UserRole
 from app.common.data.types import (
     ComponentType,
+    DataSourceFileMetadata,
+    DataSourceSchema,
+    DataSourceType,
     GrantRecipientModeEnum,
     OrganisationModeEnum,
     QuestionDataOptions,
@@ -97,6 +101,7 @@ class GrantExport(TypedDict):
     expressions: list[Any]
     data_sources: list[Any]
     data_source_items: list[Any]
+    data_source_organisation_items: list[Any]
     component_references: list[Any]
 
 
@@ -241,6 +246,7 @@ def export_grants(  # noqa: C901
             "expressions": [],
             "data_sources": [],
             "data_source_items": [],
+            "data_source_organisation_items": [],
             "component_references": [],
         }
 
@@ -255,6 +261,24 @@ def export_grants(  # noqa: C901
 
                 for component in form.components:
                     add_all_components_flat(component, users, grant_export)
+
+            for ds in collection.data_sources:
+                # CUSTOM data sources won't ever be tied explicitly to a collection, but if something rogue happens then
+                # this avoids duplicate data sources being exported
+                if ds.type == DataSourceType.CUSTOM:
+                    continue
+                grant_export["data_sources"].append(to_dict(ds))
+                if ds.created_by:
+                    users.add(ds.created_by)
+                if ds.updated_by:
+                    users.add(ds.updated_by)
+                for org_item in ds.organisation_items:
+                    org_item_dict = to_dict(org_item)
+                    # _data is the DB model attribute but underscored attributes are skipped by to_dict so
+                    # explicitly set it here - persisting the underscored name means no need for explicit handling
+                    # when seeding the grants
+                    org_item_dict["_data"] = org_item._data
+                    grant_export["data_source_organisation_items"].append(org_item_dict)
 
         for gr in grant.grant_recipients:
             if gr.organisation_id not in [o["id"] for o in export_data["organisations"]]:
@@ -421,6 +445,10 @@ def seed_grants(file: Path) -> None:  # noqa: C901
 
         for data_source in grant_data["data_sources"]:
             data_source["id"] = uuid.UUID(data_source["id"])
+            if data_source.get("schema") is not None:
+                data_source["schema"] = DataSourceSchema.model_validate(data_source["schema"])
+            if data_source.get("file_metadata") is not None:
+                data_source["file_metadata"] = DataSourceFileMetadata.model_validate(data_source["file_metadata"])
             data_source = DataSource(**data_source)
             db.session.add(data_source)
 
@@ -428,6 +456,12 @@ def seed_grants(file: Path) -> None:  # noqa: C901
             data_source_item["id"] = uuid.UUID(data_source_item["id"])
             data_source_item = DataSourceItem(**data_source_item)
             db.session.add(data_source_item)
+
+        for organisation_item in grant_data["data_source_organisation_items"]:
+            organisation_item["id"] = uuid.UUID(organisation_item["id"])
+            organisation_item["data_source_id"] = uuid.UUID(organisation_item["data_source_id"])
+            organisation_item = DataSourceOrganisationItem(**organisation_item)
+            db.session.add(organisation_item)
 
         db.session.flush()
 
