@@ -1054,6 +1054,7 @@
           "order": 33
         }
       ],
+      "data_source_organisation_items": [],
       "data_sources": [
         {
           "id": "078503ab-e87d-4dac-9533-1491943ab9c1",
@@ -3330,6 +3331,7 @@
           "order": 1
         }
       ],
+      "data_source_organisation_items": [],
       "data_sources": [
         {
           "id": "126d2070-99df-4c1f-ad52-40d28936c3ea",
