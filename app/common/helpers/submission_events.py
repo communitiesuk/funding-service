@@ -85,6 +85,7 @@ class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, 
     is_approved: bool = False
     is_submitted: bool = False
     reopened_reason: str | None = field(default=None, metadata={"stored": True})
+    submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
 
 
 class DeclinedByCertifierKwargs(TypedDict, total=False):
@@ -98,6 +99,7 @@ class DeclinedByCertifierKwargs(TypedDict, total=False):
 
 class ReopenedKwargs(TypedDict, total=False):
     reopened_reason: str | None
+    submission_data: dict[str, Any] | None
 
 
 @dataclass
