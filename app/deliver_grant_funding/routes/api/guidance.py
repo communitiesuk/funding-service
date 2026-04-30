@@ -1,24 +1,23 @@
 import itertools
 from uuid import UUID
 
-from flask import Blueprint, current_app, jsonify
+from flask import current_app, jsonify
 from flask.typing import ResponseReturnValue
 
-from app.common.auth.authorisation_helper import AuthorisationHelper
+from app import AuthorisationHelper
 from app.common.data.interfaces.collections import get_collection
 from app.common.data.interfaces.user import get_current_user
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import PreviewGuidanceForm
+from app.deliver_grant_funding.routes.api import deliver_grant_funding_api_blueprint
 from app.deliver_grant_funding.types import (
     PreviewGuidanceBadRequestResponse,
     PreviewGuidanceSuccessResponse,
     PreviewGuidanceUnauthorisedResponse,
 )
 
-deliver_grant_funding_api_blueprint = Blueprint("api", __name__)
 
-
-@deliver_grant_funding_api_blueprint.post("/api/v1/<uuid:collection_id>/preview-guidance")
+@deliver_grant_funding_api_blueprint.post("/<uuid:collection_id>/preview-guidance")
 def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
     """
     This endpoint takes some arbitrary guidance and returns HTML suitable for inserting into the DOM by our
