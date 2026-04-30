@@ -1,4 +1,4 @@
-@use "govuk";
+@use "govuk/base" as govuk;
 
 .app-print-header {
     margin-left: govuk.govuk-spacing(6);

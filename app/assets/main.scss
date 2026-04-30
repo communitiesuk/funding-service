@@ -1,8 +1,14 @@
-@use "govuk" with (
+@use "govuk" as govuk with (
     $govuk-new-organisation-colours: true,
     $govuk-assets-path: "/static/assets/",
     $govuk-brand-colour: #00625e
 );
+@use "govuk/base" with (
+    $govuk-new-organisation-colours: true,
+    $govuk-assets-path: "/static/assets/",
+    $govuk-brand-colour: #00625e
+); // share config with partials
+
 @use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
 // TODO: import moj frontend to start using things from there, eg number components and sortable tables
 

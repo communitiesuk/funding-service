@@ -1,4 +1,4 @@
-@use "govuk";
+@use "govuk/base" as govuk;
 
 // Temporary: return notification banners to their correct colours. We have set `govuk-brand-colour`, and currently
 // the notification banner uses that as its border colour. This has been confirmed as unintended by the GDS Design System
