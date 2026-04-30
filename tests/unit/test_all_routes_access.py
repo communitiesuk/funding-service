@@ -199,6 +199,8 @@ routes_with_no_expected_access_restrictions = [
     "index",
     # \/ authorisation done within the endpoint, to avoid redirects+session hijacking \/
     "deliver_grant_funding.api.preview_guidance",
+    # \/ authorisation done within the endpoint via bearer token from GOV.UK Notify \/
+    "deliver_grant_funding.api.govuk_notify_callback",
     "xgovuk_flask_admin.static",
 ]
 routes_with_access_controlled_by_flask_admin = [

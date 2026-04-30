@@ -244,6 +244,13 @@ class _SharedConfig(_BaseConfig):
     # GOV.UK Notify
     GOVUK_NOTIFY_DISABLE: bool = False
     GOVUK_NOTIFY_API_KEY: str
+    GOVUK_NOTIFY_CALLBACK_TOKEN: str
+    GOVUK_NOTIFY_IGNORE_CALLBACK_DOMAINS: tuple[str, ...] = (
+        "@test.communities.gov.uk",
+        "@communities.gov.uk",
+        "@levellingup.gov.uk",
+        "@test.levellingup.gov.uk",
+    )
     GOVUK_NOTIFY_SERVICE_ID: str = "239747da-5aa1-4fe0-85ab-39d0272ca5c8"  # needs to be kept in sync with the API key
     GOVUK_NOTIFY_MAGIC_LINK_TEMPLATE_ID: str = "1e5b3cce-99ea-4813-ab39-e52f578c88f6"
     GOVUK_NOTIFY_MEMBER_CONFIRMATION_TEMPLATE_ID: str = "49ba98c5-0573-4c77-8cb0-3baebe70ee86"
@@ -381,6 +388,7 @@ class LocalConfig(_SharedConfig):
     # GOV.UK Notify
     GOVUK_NOTIFY_DISABLE: bool = True  # By default; update in .env when you have a key.
     GOVUK_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
+    GOVUK_NOTIFY_CALLBACK_TOKEN: str = "local-use-secret"
 
     ASSETS_VITE_LIVE_ENABLED: bool = True
 
