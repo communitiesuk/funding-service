@@ -364,6 +364,7 @@ def get_all_submissions_with_mode_for_collection(
             .selectinload(Form._all_components)
             .selectinload(Component.owned_component_references),
             selectinload(Submission.events),
+            selectinload(Submission.data_sources),
             joinedload(Submission.created_by),
         )
     elif with_users:
@@ -454,6 +455,7 @@ def get_submission(
                     ),
                 ),
                 selectinload(Submission.events),
+                selectinload(Submission.data_sources),
             ]
         )
 
