@@ -80,11 +80,11 @@ class SubmissionDeclinedByCertifierEvent(SubmissionEventBase, SignOffMixin, Decl
 
 @dataclass
 class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, SubmittedMixin):
+    reopened_reason: str = field(metadata={"stored": True})
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_REOPENED
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
     is_submitted: bool = False
-    reopened_reason: str | None = field(default=None, metadata={"stored": True})
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
 
 
