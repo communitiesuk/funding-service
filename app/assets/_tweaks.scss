@@ -1,4 +1,4 @@
-@use "govuk";
+@use "govuk/base" as govuk;
 
 // this class will only be applied if GOV.UK Frontend Jinja has set the `.js-enabled` class meaning
 // it could execute JavaScript

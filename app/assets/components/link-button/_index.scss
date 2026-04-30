@@ -1,4 +1,4 @@
-@use "govuk";
+@use "govuk/base" as govuk;
 
 .app-link-button {
     @include govuk.govuk-font(19);
