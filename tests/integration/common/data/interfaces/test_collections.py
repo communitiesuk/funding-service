@@ -2898,151 +2898,180 @@ class TestUpdateSubmissionData:
         )
 
 
-def test_add_submission_event(db_session, factories):
-    user = factories.user.create()
-    form = factories.form.create()
-    submission = factories.submission.create(collection=form.collection)
-    db_session.add(submission)
+class TestAddSubmissionEvent:
+    def test_add_submission_event(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        submission = factories.submission.create(collection=form.collection)
+        db_session.add(submission)
 
-    add_submission_event(
-        submission=submission,
-        user=user,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        related_entity_id=form.id,
+        add_submission_event(
+            submission=submission,
+            user=user,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=form.id,
+        )
+        add_submission_event(submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+
+        # pull it back out of the database to also check all of the serialisation/ enums are mapped appropriately
+        from_db = get_submission(submission.id, with_full_schema=True)
+
+        assert len(from_db.events) == 2
+        assert from_db.events[0].event_type == SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
+        assert from_db.events[0].related_entity_id == form.id
+        assert from_db.events[0].data == {}
+
+        assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
+        assert from_db.events[1].related_entity_id is submission.id
+        assert from_db.events[1].data == {}
+
+    def test_add_certification_and_submission_event(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        submission = factories.submission.create(collection=form.collection)
+        db_session.add(submission)
+
+        add_submission_event(
+            submission=submission,
+            user=user,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=form.id,
+        )
+        add_submission_event(
+            submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        )
+        add_submission_event(
+            submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
+        )
+        add_submission_event(submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+        add_submission_event(
+            submission=submission,
+            user=user,
+            event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+            declined_reason="inaccurate data",
+        )
+
+        # pull it back out of the database to also check all of the serialisation/ enums are mapped appropriately
+        from_db = get_submission(submission.id, with_full_schema=True)
+
+        assert len(from_db.events) == 5
+        assert from_db.events[0].event_type == SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
+        assert from_db.events[0].related_entity_id == form.id
+        assert from_db.events[0].data == {}
+
+        assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        assert from_db.events[1].related_entity_id == submission.id
+        assert from_db.events[1].data == {}
+
+        assert from_db.events[2].event_type == SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
+        assert from_db.events[2].related_entity_id == submission.id
+        assert from_db.events[2].data == {}
+
+        assert from_db.events[3].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
+        assert from_db.events[3].related_entity_id == submission.id
+        assert from_db.events[3].data == {}
+
+        assert from_db.events[4].event_type == SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER
+        assert from_db.events[4].related_entity_id == submission.id
+        assert from_db.events[4].data == {"declined_reason": "inaccurate data"}
+
+    def test_reopen_submission_event(self, db_session, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        submission = factories.submission.create(collection=form.collection)
+        test_data = {
+            "q_123": "First answer",
+            "q_234": "Second answer",
+        }
+        submission._data = test_data
+        db_session.add(submission)
+
+        add_submission_event(
+            submission=submission,
+            user=user,
+            event_type=SubmissionEventType.SUBMISSION_REOPENED,
+            reopened_reason="Test reason",
+            submission_data=submission._data,
+        )
+        from_db = get_submission(submission.id, with_full_schema=True)
+
+        assert len(from_db.events) == 1
+        assert from_db.events[0].event_type == SubmissionEventType.SUBMISSION_REOPENED
+        assert from_db.events[0].related_entity_id == submission.id
+        assert from_db.events[0].data == {"reopened_reason": "Test reason", "submission_data": test_data}
+
+    def test_reopen_submission_event_with_helpers(self, db_session, factories):
+
+        from app.common.collections.forms import build_question_form
+        from app.common.helpers.collections import SubmissionHelper
+
+        user = factories.user.create()
+        form = factories.form.create()
+        q1 = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), form=form)
+        submission = factories.submission.create(collection=form.collection)
+
+        helper = SubmissionHelper(submission)
+        q_form = build_question_form(
+            [q1], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+        )(q_d696aebc49d24170a92fb6ef42994294="q1 answer")
+        helper.submit_answer_for_question(q1.id, q_form, submission.created_by)
+
+        db_session.add(submission)
+
+        add_submission_event(
+            submission=submission,
+            user=user,
+            event_type=SubmissionEventType.SUBMISSION_REOPENED,
+            reopened_reason="Test reason",
+            submission_data=submission._data,
+        )
+        from_db = get_submission(submission.id, with_full_schema=True)
+
+        assert len(from_db.events) == 1
+        assert from_db.events[0].event_type == SubmissionEventType.SUBMISSION_REOPENED
+        assert from_db.events[0].related_entity_id == submission.id
+        assert from_db.events[0].data == {
+            "reopened_reason": "Test reason",
+            "submission_data": {"d696aebc-49d2-4170-a92f-b6ef42994294": "q1 answer"},
+        }
+
+        from app.common.helpers.submission_events import SubmissionEventHelper
+
+        event_helper = SubmissionEventHelper(submission)
+        state = event_helper.submission_state
+        assert state.reopened_reason == "Test reason"
+        assert state.reopened_by == user
+
+    @pytest.mark.parametrize(
+        "event_type,exp_metric",
+        [
+            (SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION),
+            (SubmissionEventType.SUBMISSION_SUBMITTED, MetricEventName.SUBMISSION_SUBMITTED),
+            (SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS, MetricEventName.SECTION_RESET_TO_IN_PROGRESS),
+            (SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, MetricEventName.SECTION_MARKED_COMPLETE),
+            (
+                SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
+                MetricEventName.SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER,
+            ),
+            (SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, MetricEventName.SUBMISSION_CERTIFIED),
+            (SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER, MetricEventName.SUBMISSION_CERTIFICATION_DECLINED),
+            (SubmissionEventType.SUBMISSION_REOPENED, MetricEventName.SUBMISSION_REOPENED),
+        ],
     )
-    add_submission_event(submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+    def test_add_submission_event_metrics(self, db_session, factories, mock_sentry_metrics, event_type, exp_metric):
 
-    # pull it back out of the database to also check all of the serialisation/ enums are mapped appropriately
-    from_db = get_submission(submission.id, with_full_schema=True)
+        user = factories.user.create()
+        form = factories.form.create()
+        submission = factories.submission.create(collection=form.collection)
 
-    assert len(from_db.events) == 2
-    assert from_db.events[0].event_type == SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
-    assert from_db.events[0].related_entity_id == form.id
-    assert from_db.events[0].data == {}
+        add_submission_event(
+            submission=submission,
+            user=user,
+            event_type=event_type,
+        )
 
-    assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
-    assert from_db.events[1].related_entity_id is submission.id
-    assert from_db.events[1].data == {}
-
-
-def test_add_certification_and_submission_event(db_session, factories):
-    user = factories.user.create()
-    form = factories.form.create()
-    submission = factories.submission.create(collection=form.collection)
-    db_session.add(submission)
-
-    add_submission_event(
-        submission=submission,
-        user=user,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        related_entity_id=form.id,
-    )
-    add_submission_event(
-        submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
-    )
-    add_submission_event(
-        submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
-    )
-    add_submission_event(submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
-    add_submission_event(
-        submission=submission,
-        user=user,
-        event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
-        declined_reason="inaccurate data",
-    )
-
-    # pull it back out of the database to also check all of the serialisation/ enums are mapped appropriately
-    from_db = get_submission(submission.id, with_full_schema=True)
-
-    assert len(from_db.events) == 5
-    assert from_db.events[0].event_type == SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
-    assert from_db.events[0].related_entity_id == form.id
-    assert from_db.events[0].data == {}
-
-    assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
-    assert from_db.events[1].related_entity_id == submission.id
-    assert from_db.events[1].data == {}
-
-    assert from_db.events[2].event_type == SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
-    assert from_db.events[2].related_entity_id == submission.id
-    assert from_db.events[2].data == {}
-
-    assert from_db.events[3].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
-    assert from_db.events[3].related_entity_id == submission.id
-    assert from_db.events[3].data == {}
-
-    assert from_db.events[4].event_type == SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER
-    assert from_db.events[4].related_entity_id == submission.id
-    assert from_db.events[4].data == {"declined_reason": "inaccurate data"}
-
-
-def test_reopen_submission_event(db_session, factories):
-    user = factories.user.create()
-    form = factories.form.create()
-    submission = factories.submission.create(collection=form.collection)
-    test_data = {
-        "q_123": "First answer",
-        "q_234": "Second answer",
-    }
-    submission._data = test_data
-    db_session.add(submission)
-
-    add_submission_event(
-        submission=submission,
-        user=user,
-        event_type=SubmissionEventType.SUBMISSION_REOPENED,
-        reopened_reason="Test reason",
-        submission_data=submission._data,
-    )
-    from_db = get_submission(submission.id, with_full_schema=True)
-
-    assert len(from_db.events) == 1
-    assert from_db.events[0].event_type == SubmissionEventType.SUBMISSION_REOPENED
-    assert from_db.events[0].related_entity_id == submission.id
-    assert from_db.events[0].data == {"reopened_reason": "Test reason", "submission_data": test_data}
-
-
-def test_reopen_submission_event_with_helpers(db_session, factories):
-
-    from app.common.collections.forms import build_question_form
-    from app.common.helpers.collections import SubmissionHelper
-
-    user = factories.user.create()
-    form = factories.form.create()
-    q1 = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"), form=form)
-    submission = factories.submission.create(collection=form.collection)
-
-    helper = SubmissionHelper(submission)
-    q_form = build_question_form(
-        [q1], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
-    )(q_d696aebc49d24170a92fb6ef42994294="q1 answer")
-    helper.submit_answer_for_question(q1.id, q_form, submission.created_by)
-
-    db_session.add(submission)
-
-    add_submission_event(
-        submission=submission,
-        user=user,
-        event_type=SubmissionEventType.SUBMISSION_REOPENED,
-        reopened_reason="Test reason",
-        submission_data=submission._data,
-    )
-    from_db = get_submission(submission.id, with_full_schema=True)
-
-    assert len(from_db.events) == 1
-    assert from_db.events[0].event_type == SubmissionEventType.SUBMISSION_REOPENED
-    assert from_db.events[0].related_entity_id == submission.id
-    assert from_db.events[0].data == {
-        "reopened_reason": "Test reason",
-        "submission_data": {"d696aebc-49d2-4170-a92f-b6ef42994294": "q1 answer"},
-    }
-
-    from app.common.helpers.submission_events import SubmissionEventHelper
-
-    event_helper = SubmissionEventHelper(submission)
-    state = event_helper.submission_state
-    assert state.reopened_reason == "Test reason"
-    assert state.reopened_by == user
+        assert mock_sentry_metrics.call_count == 1
+        assert mock_sentry_metrics.call_args[0] == (exp_metric, 1)
 
 
 def test_get_collection_with_full_schema(db_session, factories, track_sql_queries):

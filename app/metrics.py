@@ -50,6 +50,7 @@ class MetricEventName(StrEnum):
     SUBMISSION_CERTIFICATION_DECLINED = "submission-certification-declined"
     SUBMISSION_SUBMITTED = "submission-submitted"
     SUBMISSION_BLOCKED_BY_INVALID_ANSWERS = "submission-blocked-by-invalid-answers"
+    SUBMISSION_REOPENED = "submission-reopened"
 
     SUBMISSION_MANAGED_VALIDATION_ERROR = "submission-managed-validation-error"
     SUBMISSION_CUSTOM_VALIDATION_ERROR = "submission-custom-validation-error"
