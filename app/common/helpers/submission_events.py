@@ -34,6 +34,10 @@ class DeclinedMixin(Protocol):
     declined_reason: str | None
 
 
+class ReopenedMixin(Protocol):
+    reopened_reason: str | None
+
+
 @dataclass
 class SubmissionEventBase:
     """Base class for all submission event dataclasses."""
@@ -74,6 +78,16 @@ class SubmissionDeclinedByCertifierEvent(SubmissionEventBase, SignOffMixin, Decl
     declined_reason: str | None = field(default=None, metadata={"stored": True})
 
 
+@dataclass
+class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, SubmittedMixin):
+    reopened_reason: str = field(metadata={"stored": True})
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_REOPENED
+    is_awaiting_sign_off: bool = False
+    is_approved: bool = False
+    is_submitted: bool = False
+    submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
+
+
 class DeclinedByCertifierKwargs(TypedDict, total=False):
     """
     TypedDict to help ty correctly enforce kwargs that should be passed when creating Events that have
@@ -81,6 +95,11 @@ class DeclinedByCertifierKwargs(TypedDict, total=False):
     """
 
     declined_reason: str | None
+
+
+class ReopenedKwargs(TypedDict, total=False):
+    reopened_reason: str | None
+    submission_data: dict[str, Any] | None
 
 
 @dataclass
@@ -123,19 +142,29 @@ class SubmittedMetadata:
 
 
 @dataclass
+class ReopenedMetadata:
+    reopened_by: User | None = None
+    reopened_at_utc: datetime | None = None
+
+
+@dataclass
 class SubmissionState(
     SentForCertificationMetadata,
     SubmittedMetadata,
     CertifiedMetadata,
     CertificationDeclinedMetadata,
+    ReopenedMetadata,
     SignOffMixin,
     SubmittedMixin,
     DeclinedMixin,
+    ReopenedMixin,
 ):
     is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
     is_approved: bool | None = None
     declined_reason: str | None = None
+    reopened_reason: str | None = None
+    submission_data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -249,14 +278,23 @@ class SubmissionEventHelper:
                         declined_at_utc=event.created_at_utc,
                     )
                 )
+            case SubmissionEventType.SUBMISSION_REOPENED:
+                return shallow_asdict(
+                    ReopenedMetadata(
+                        reopened_by=event.created_by,
+                        reopened_at_utc=event.created_at_utc,
+                    )
+                )
             case _:
                 return {}
 
     @overload
     @staticmethod
     def event_from(
-        event_type: Literal[SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER],
-        **kwargs: Unpack[DeclinedByCertifierKwargs],
+        event_type: Literal[
+            SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER, SubmissionEventType.SUBMISSION_REOPENED
+        ],
+        **kwargs: Unpack[DeclinedByCertifierKwargs, ReopenedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

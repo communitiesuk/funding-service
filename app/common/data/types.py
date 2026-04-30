@@ -129,6 +129,7 @@ class SubmissionEventType(enum.StrEnum):
     SUBMISSION_DECLINED_BY_CERTIFIER = "Submission declined by certifier"
     SUBMISSION_APPROVED_BY_CERTIFIER = "Submission approved by certifier"
     SUBMISSION_SUBMITTED = "Submission submitted"
+    SUBMISSION_REOPENED = "Submission reopened"
 
 
 class CollectionType(enum.StrEnum):
