@@ -44,6 +44,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.common.expressions import (
     ExpressionContext,
@@ -58,6 +59,7 @@ from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, Is
 from app.common.expressions.references import ExpressionReference
 from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
+from app.common.helpers.collections import SubmissionHelper
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.data_sets import build_data_set_upload_s3_key
 from app.deliver_grant_funding.forms import (
@@ -70,6 +72,7 @@ from app.deliver_grant_funding.forms import (
     GroupForm,
     QuestionForm,
     QuestionTypeForm,
+    ReopenSubmissionForm,
     SetUpReportForm,
 )
 from app.deliver_grant_funding.routes.reports import (
@@ -9032,6 +9035,79 @@ class TestViewSubmission:
                 f"Reset this submission link should NOT be present for {submission_mode.value} mode"
             )
 
+    @pytest.mark.parametrize(
+        "client_fixture, submission_fixture, can_see_reopen_button",
+        [
+            ("authenticated_org_member_client", "submission_submitted", False),
+            ("authenticated_grant_member_client", "submission_in_progress", False),
+            ("authenticated_grant_member_client", "submission_submitted", True),
+        ],
+    )
+    def test_can_see_reopen_submission_button(
+        self, request, client_fixture, grant_recipient, submission_fixture, can_see_reopen_button, factories
+    ):
+
+        client = request.getfixturevalue(client_fixture)
+        submission = request.getfixturevalue(submission_fixture)
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        reopen_button = page_has_link(soup, "Reopen submission")
+        if can_see_reopen_button:
+            assert reopen_button is not None
+        else:
+            assert reopen_button is None
+
+
+class TestReopenSubmission:
+    def test_404(self, authenticated_platform_member_client):
+        response = authenticated_platform_member_client.get(
+            url_for("deliver_grant_funding.reopen_submission", grant_id=uuid.uuid4(), submission_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    def test_get(self, authenticated_grant_member_client, submission_submitted):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.reopen_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert f"Why are you reopening this {submission_submitted.collection.name} submission?" in get_h1_text(soup)
+        assert submission_submitted.grant_recipient.organisation.name in get_h1_text(soup)
+        assert page_has_button(soup, "Reopen submission")
+
+    def test_post(self, authenticated_grant_member_client, submission_submitted):
+        helper = SubmissionHelper(submission_submitted)
+        assert helper.status == SubmissionStatusEnum.SUBMITTED
+        form = ReopenSubmissionForm(data={"reopened_reason": "as discussed"})
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.reopen_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.view_submission",
+            grant_id=submission_submitted.collection.grant.id,
+            submission_id=submission_submitted.id,
+        )
+        assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
 
 class TestListReportDataSets:
     def test_404(self, authenticated_grant_member_client):
@@ -9154,35 +9230,36 @@ class TestDownloadGrantRecipientDataSetTemplate:
         )
         assert response.status_code == 404
 
-    def test_csv_download(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+    def test_csv_download(self, authenticated_grant_member_client_no_grant_recipients, factories):
+        grant = authenticated_grant_member_client_no_grant_recipients.grant
+        report = factories.collection.create(grant=grant)
 
         grant_recipient_1 = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant,
+            grant=grant,
             organisation__external_id="E12345",
             organisation__name="Rivendell",
         )
         grant_recipient_2 = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant,
+            grant=grant,
             organisation__external_id="E67890",
             organisation__name="Lothlorien",
         )
         grant_recipient_3 = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant,
+            grant=grant,
             organisation__name="Isengard",
             organisation__external_id="E00000",
             organisation__mode=OrganisationModeEnum.TEST,
         )
         grant_recipient_4 = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant,
+            grant=grant,
             organisation__name="Shire",
             organisation__external_id="E99999",
         )
 
-        response = authenticated_grant_member_client.get(
+        response = authenticated_grant_member_client_no_grant_recipients.get(
             url_for(
                 "deliver_grant_funding.download_grant_recipient_data_set_template",
-                grant_id=authenticated_grant_member_client.grant.id,
+                grant_id=grant.id,
                 report_id=report.id,
             )
         )
@@ -9207,13 +9284,18 @@ class TestDownloadGrantRecipientDataSetTemplate:
         # Test grant recipient organisations excluded
         assert grant_recipient_3.organisation.name not in response.text
 
-    def test_csv_download_empty_grant_recipients(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+    def test_csv_download_empty_grant_recipients(
+        self, factories, authenticated_grant_member_client_no_grant_recipients
+    ):
 
-        response = authenticated_grant_member_client.get(
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client_no_grant_recipients.grant, name="Test Report"
+        )
+
+        response = authenticated_grant_member_client_no_grant_recipients.get(
             url_for(
                 "deliver_grant_funding.download_grant_recipient_data_set_template",
-                grant_id=authenticated_grant_member_client.grant.id,
+                grant_id=authenticated_grant_member_client_no_grant_recipients.grant.id,
                 report_id=report.id,
             )
         )

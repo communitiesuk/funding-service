@@ -302,14 +302,48 @@ def authenticated_no_role_client(
 
 
 @pytest.fixture()
-def authenticated_grant_member_client(
-    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+def authenticated_grant_member_client_no_grant_recipients(
+    anonymous_client: FundingServiceTestClient,
+    factories: _Factories,
+    db_session: Session,
+    request: FixtureRequest,
 ) -> Generator[FundingServiceTestClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
 
     user = factories.user.create(email=email)
     grant = factories.grant.create()
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.MEMBER],
+        organisation=grant.organisation,
+        grant=grant,
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
+    anonymous_client.user = user
+    anonymous_client.grant = grant
+    anonymous_client.organisation = grant.organisation
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_grant_member_client(
+    anonymous_client: FundingServiceTestClient,
+    grant_recipient,
+    factories: _Factories,
+    db_session: Session,
+    request: FixtureRequest,
+) -> Generator[FundingServiceTestClient, None, None]:
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    grant = grant_recipient.grant
     factories.user_role.create(
         user=user,
         permissions=[RoleEnum.MEMBER],
