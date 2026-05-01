@@ -1762,16 +1762,61 @@ class TestSubmissionHelper:
             ],
         )
         def test_submission_reopened_fails_when_not_grant_team_or_platform_admin_user(
-            self,
-            request,
-            user_fixture,
-            submission_submitted,
+            self, request, user_fixture, submission_submitted, mock_notification_service_calls
         ):
             helper = SubmissionHelper(submission_submitted)
             user = request.getfixturevalue(user_fixture)
 
             with pytest.raises(SubmissionAuthorisationError, match="does not have permission to reopen the submission"):
                 helper.reopen_submission(user=user, reopened_reason="Test reason")
+
+        def test_submission_reopened_notification_emails_requires_certification(
+            self,
+            app,
+            grant_team_user,
+            data_provider_user,
+            certifier_user,
+            submission_submitted,
+            mock_notification_service_calls,
+        ):
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert len(mock_notification_service_calls) == 2
+            for call in mock_notification_service_calls:
+                assert call.kwargs["template_id"] == app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_REOPENED_TEMPLATE_ID"]
+
+            recipients = [call.kwargs["email_address"] for call in mock_notification_service_calls]
+            assert data_provider_user.email in recipients
+            assert certifier_user.email in recipients
+
+        def test_submission_reopened_notification_emails_no_certification(
+            self,
+            app,
+            grant_team_user,
+            data_provider_user,
+            certifier_user,
+            submission_submitted,
+            mock_notification_service_calls,
+        ):
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+            submission_submitted.collection.requires_certification = False
+
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert len(mock_notification_service_calls) == 1
+            for call in mock_notification_service_calls:
+                assert call.kwargs["template_id"] == app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_REOPENED_TEMPLATE_ID"]
+
+            recipients = [call.kwargs["email_address"] for call in mock_notification_service_calls]
+            assert data_provider_user.email in recipients
+            assert certifier_user.email not in recipients
 
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")

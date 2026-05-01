@@ -102,3 +102,24 @@ def submission_awaiting_sign_off(factories: _Factories) -> Generator[Submission,
     )
 
     yield submission
+
+
+@pytest.fixture(scope="function")
+def submission_submitted(factories: _Factories, submission_awaiting_sign_off) -> Generator[Submission, None, None]:
+    certifier_user = factories.user.build(name="Certifier User", email="certifier@communities.gov.uk")
+
+    factories.submission_event.build(
+        event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+        submission=submission_awaiting_sign_off,
+        created_by=certifier_user,
+        data={},
+        created_at_utc=datetime(2025, 11, 24, 11, 0, 0),
+    )
+    factories.submission_event.build(
+        event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+        submission=submission_awaiting_sign_off,
+        created_by=certifier_user,
+        data={},
+        created_at_utc=datetime(2025, 11, 25, 10, 37, 0),
+    )
+    yield submission_awaiting_sign_off

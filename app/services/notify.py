@@ -367,6 +367,13 @@ class NotificationService:
             personalisation=personalisation,
         )
 
+    def send_access_submission_reopened(
+        self,
+        user: User,
+        submission_helper: SubmissionHelper,
+    ) -> Notification:
+        return Notification(id=uuid.uuid4())
+
     def send_grant_export(
         self,
         email_address: str,
