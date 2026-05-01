@@ -454,25 +454,15 @@ def authenticated_platform_member_client(
 
 @pytest.fixture()
 def authenticated_org_admin_client(
-    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session
+    anonymous_client: FundingServiceTestClient, org_admin_user, factories: _Factories, db_session: Session
 ) -> Generator[FundingServiceTestClient, None, None]:
     """Create a client authenticated as an org admin for an org with can_manage_grants=True"""
-    from tests.models import _get_grant_managing_organisation
 
-    user = factories.user.create(email="orgadmin@communities.gov.uk")
-    organisation = _get_grant_managing_organisation()
-    factories.user_role.create(
-        user=user,
-        permissions=[RoleEnum.ADMIN],
-        organisation=organisation,
-        grant=None,
-    )
-
-    login_user(user)
+    login_user(org_admin_user)
     with anonymous_client.session_transaction() as session:
         session["auth"] = AuthMethodEnum.SSO
-    anonymous_client.user = user
-    anonymous_client.organisation = organisation
+    anonymous_client.user = org_admin_user
+    anonymous_client.organisation = org_admin_user.roles[0].organisation
     db_session.commit()
 
     yield anonymous_client
@@ -507,6 +497,70 @@ def authenticated_org_member_client(
 @pytest.fixture(scope="function")
 def user(factories: _Factories) -> User:
     return cast(User, factories.user.create(email="accessgrantfundinguser@communities.gov.uk"))
+
+
+@pytest.fixture(scope="function")
+def grant_team_user(factories: _Factories, grant_recipient: GrantRecipient) -> User:
+    user = cast(User, factories.user.create(email="grant_team_member@communities.gov.uk"))
+    from tests.models import _get_grant_managing_organisation
+
+    factories.user_role.create(
+        user=user,
+        permissions=[
+            RoleEnum.MEMBER,
+        ],
+        organisation=_get_grant_managing_organisation(),
+        grant=grant_recipient.grant,
+    )
+    return user
+
+
+@pytest.fixture()
+def platform_member_user(factories) -> User:
+
+    user = factories.user.create(email="platform_member@communities.gov.uk")
+    factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.MEMBER], organisation=None, grant=None)
+    return user
+
+
+@pytest.fixture()
+def form_designer_user(factories, grant_recipient) -> User:
+    from tests.models import _get_grant_managing_organisation
+
+    user = factories.user.create(email="form_designer@communities.gov.uk")
+
+    factories.user_role.create(
+        user=user,
+        permissions=[
+            RoleEnum.MEMBER,
+        ],
+        organisation=_get_grant_managing_organisation(),
+        grant=None,
+    )
+    return user
+
+
+@pytest.fixture()
+def org_admin_user(factories: _Factories) -> User:
+    from tests.models import _get_grant_managing_organisation
+
+    user = factories.user.create(email="orgadmin@communities.gov.uk")
+    organisation = _get_grant_managing_organisation()
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.ADMIN],
+        organisation=organisation,
+        grant=None,
+    )
+    return user
+
+
+@pytest.fixture()
+def platform_admin_user(factories) -> User:
+
+    user = factories.user.create(email="platform_admin@communities.gov.uk")
+    factories.user_role.create(user_id=user.id, user=user, permissions=[RoleEnum.ADMIN], organisation=None, grant=None)
+    return user
 
 
 @pytest.fixture(scope="function")
@@ -594,6 +648,7 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
         form__collection__submission_period_end_date=date.today() + timedelta(days=30),
         form__collection__reporting_period_start_date=date.today() - timedelta(days=60),
         form__collection__reporting_period_end_date=date.today() - timedelta(days=30),
+        form__collection__status=CollectionStatusEnum.OPEN,
     )
     submission = factories.submission.create(
         grant_recipient=grant_recipient,
@@ -626,6 +681,7 @@ def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient,
         form__collection__submission_period_end_date=date.today() + timedelta(days=30),
         form__collection__reporting_period_start_date=date.today(),
         form__collection__reporting_period_end_date=date.today() + timedelta(days=30),
+        form__collection__status=CollectionStatusEnum.OPEN,
     )
     submission = factories.submission.create(
         grant_recipient=grant_recipient,
