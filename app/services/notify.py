@@ -372,7 +372,29 @@ class NotificationService:
         user: User,
         submission_helper: SubmissionHelper,
     ) -> Notification:
-        return Notification(id=uuid.uuid4())
+        submission_state = submission_helper.events.submission_state
+
+        personalisation = {
+            "is_test_data": "yes"
+            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
+            else "no",
+            "report_name": submission_helper.long_collection_name,
+            "grant_name": submission_helper.collection.grant.name,
+            "reopening_reason": submission_state.reopened_reason,
+            "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
+            "grant_report_url": url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                grant_id=submission_helper.submission.grant_recipient.grant.id,
+                collection_id=submission_helper.collection.id,
+                _external=True,
+            ),
+        }
+        return self._send_email(
+            email_address=user.email,
+            template_id=current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_REOPENED_TEMPLATE_ID"],
+            personalisation=personalisation,
+        )
 
     def send_grant_export(
         self,
