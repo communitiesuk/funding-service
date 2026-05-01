@@ -1300,3 +1300,16 @@ class SelectConditionCalculationForm(FlaskForm):
         validators=[DataRequired("Please select an option")],
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class ReopenSubmissionForm(FlaskForm):
+    REASON_MAX_WORDS = 200
+    reopened_reason = TextAreaField(
+        "Why are you reopening this submission?",
+        validators=[
+            DataRequired(),
+            WordRange(max_words=REASON_MAX_WORDS, field_display_name="description"),
+        ],
+        widget=GovCharacterCount(),
+    )
+    submit = SubmitField("Reopen submission", widget=GovSubmitInput())
