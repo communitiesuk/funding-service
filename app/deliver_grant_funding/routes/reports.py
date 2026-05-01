@@ -3254,7 +3254,12 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
         return redirect(
             url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
         )
-    return ""
+    return render_template(
+        "deliver_grant_funding/reports/reopen_submission.html",
+        form=form,
+        helper=submission_helper,
+        grant=submission_helper.grant,
+    )
 
 
 @deliver_grant_funding_blueprint.route(

@@ -1307,8 +1307,8 @@ class ReopenSubmissionForm(FlaskForm):
     reopened_reason = TextAreaField(
         "Why are you reopening this submission?",
         validators=[
-            DataRequired(),
-            WordRange(max_words=REASON_MAX_WORDS, field_display_name="description"),
+            DataRequired("Enter the reason for reopening this submission"),
+            WordRange(max_words=REASON_MAX_WORDS, field_display_name="reason for reopening the submission"),
         ],
         widget=GovCharacterCount(),
     )
