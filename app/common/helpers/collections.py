@@ -1177,15 +1177,8 @@ class SubmissionHelper:
         )
 
     def reopen_submission(self, user: User, reopened_reason: str) -> None:
-        is_platform_admin = AuthorisationHelper.is_platform_admin(user)
-        has_deliver_grant_role = AuthorisationHelper.has_deliver_grant_role(self.grant.id, RoleEnum.MEMBER, user)
-        is_deliver_org_member = AuthorisationHelper.is_deliver_org_member(user)
-        # Platform admin should be able to reopen submissions
-        # The grant team should be able to reopen submissions. Their roles would be:
-        # - grant member
-        # Form designers should not be able to reopen submissions. Their roles would be:
-        # - deliver org admin / member
-        if not (is_platform_admin or (has_deliver_grant_role and not is_deliver_org_member)):
+
+        if not AuthorisationHelper.can_reopen_submission(user, self.submission):
             raise SubmissionAuthorisationError(
                 f"User does not have permission to reopen the submission id={self.id}",
                 user,
