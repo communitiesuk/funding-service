@@ -9073,19 +9073,31 @@ class TestReopenSubmission:
         )
         assert response.status_code == 404
 
-    def test_get(self, authenticated_grant_member_client, submission_submitted):
-        response = authenticated_grant_member_client.get(
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_org_member_client", False),
+            ("authenticated_grant_member_client", True),
+        ),
+    )
+    def test_get(self, request, client_fixture, can_access, submission_submitted):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(
             url_for(
                 "deliver_grant_funding.reopen_submission",
                 grant_id=submission_submitted.collection.grant.id,
                 submission_id=submission_submitted.id,
             )
         )
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert f"Why are you reopening this {submission_submitted.collection.name} submission?" in get_h1_text(soup)
-        assert submission_submitted.grant_recipient.organisation.name in get_h1_text(soup)
-        assert page_has_button(soup, "Reopen submission")
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert f"Why are you reopening this {submission_submitted.collection.name} submission?" in get_h1_text(soup)
+            assert submission_submitted.grant_recipient.organisation.name in get_h1_text(soup)
+            assert page_has_button(soup, "Reopen submission")
 
     def test_post(self, authenticated_grant_member_client, submission_submitted):
         helper = SubmissionHelper(submission_submitted)

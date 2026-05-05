@@ -3246,7 +3246,10 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
 def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+
     submission_helper = SubmissionHelper.load(submission_id)
+    if not AuthorisationHelper.can_reopen_submission(get_current_user(), submission_helper.submission):
+        abort(403)
     form = ReopenSubmissionForm()
     if form.validate_on_submit():
         submission_helper.reopen_submission(user=get_current_user(), reopened_reason=form.reopened_reason.data)  # ty:ignore[invalid-argument-type]
