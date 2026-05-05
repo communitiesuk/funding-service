@@ -439,6 +439,18 @@ class SubmissionHelper:
         return max(filter(None, [self.events.latest_event_utc, self.submission.updated_at_utc]))
 
     @property
+    def reopened_at_utc(self) -> datetime | None:
+        return self.events.submission_state.reopened_at_utc
+
+    @property
+    def reopened_reason(self) -> str | None:
+        return self.events.submission_state.reopened_reason
+
+    @property
+    def reopened_by(self) -> User | None:
+        return self.events.submission_state.reopened_by
+
+    @property
     def id(self) -> UUID:
         return self.submission.id
 
@@ -1163,6 +1175,44 @@ class SubmissionHelper:
         interfaces.collections.add_submission_event(
             self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
         )
+
+    def reopen_submission(self, user: User, reopened_reason: str) -> None:
+        is_platform_admin = AuthorisationHelper.is_platform_admin(user)
+        has_deliver_grant_role = AuthorisationHelper.has_deliver_grant_role(self.grant.id, RoleEnum.MEMBER, user)
+        is_deliver_org_member = AuthorisationHelper.is_deliver_org_member(user)
+        # Platform admin should be able to reopen submissions
+        # The grant team should be able to reopen submissions. Their roles would be:
+        # - grant member
+        # Form designers should not be able to reopen submissions. Their roles would be:
+        # - deliver org admin / member
+        if not (is_platform_admin or (has_deliver_grant_role and not is_deliver_org_member)):
+            raise SubmissionAuthorisationError(
+                f"User does not have permission to reopen the submission id={self.id}",
+                user,
+                self.id,
+                RoleEnum.MEMBER,
+            )
+
+        if not self.collection.is_open:
+            raise ValueError(f"Could not reopen submission id={self.id} because the report is not open.")
+
+        if not self.is_submitted:
+            raise ValueError(f"Could not reopen submission id={self.id} because it is not submitted.")
+
+        interfaces.collections.add_submission_event(
+            self.submission,
+            event_type=SubmissionEventType.SUBMISSION_REOPENED,
+            user=user,
+            reopened_reason=reopened_reason,
+            submission_data=self.submission.data_manager.data,
+        )
+        for form in self.collection.forms:
+            interfaces.collections.add_submission_event(
+                self.submission,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                user=user,
+                related_entity_id=form.id,
+            )
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED

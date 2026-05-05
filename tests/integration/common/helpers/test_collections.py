@@ -1698,6 +1698,81 @@ class TestSubmissionHelper:
 
             assert len(mock_notification_service_calls) == 0
 
+    class TestSubmissionReopened:
+        def test_submission_reopened_grant_team(
+            self, grant_team_user, submission_submitted, mock_notification_service_calls
+        ) -> None:
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+            for form in helper.get_ordered_visible_forms():
+                assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.reopened_reason == "Test reason"
+            assert helper.reopened_by == grant_team_user
+            for form in helper.get_ordered_visible_forms():
+                assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+        def test_submission_reopened_platform_admin(
+            self, platform_admin_user, submission_submitted, mock_notification_service_calls
+        ) -> None:
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+            helper.reopen_submission(user=platform_admin_user, reopened_reason="Test reason")
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.reopened_reason == "Test reason"
+            assert helper.reopened_by == platform_admin_user
+
+        def test_submission_reopened_fails_when_report_closed(
+            self, grant_team_user, submission_submitted, mock_notification_service_calls
+        ) -> None:
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+            collection = submission_submitted.collection
+            collection.status = CollectionStatusEnum.CLOSED
+
+            with pytest.raises(ValueError, match="report is not open"):
+                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+        def test_submission_reopened_fails_when_submission_not_submitted(
+            self, grant_team_user, submission_awaiting_sign_off, mock_notification_service_calls
+        ) -> None:
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+            with pytest.raises(ValueError, match="it is not submitted"):
+                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+        @pytest.mark.parametrize(
+            "user_fixture",
+            [
+                "data_provider_user",
+                "form_designer_user",
+                "platform_member_user",
+                "certifier_user",
+                "org_admin_user",
+            ],
+        )
+        def test_submission_reopened_fails_when_not_grant_team_or_platform_admin_user(
+            self,
+            request,
+            user_fixture,
+            submission_submitted,
+        ):
+            helper = SubmissionHelper(submission_submitted)
+            user = request.getfixturevalue(user_fixture)
+
+            with pytest.raises(SubmissionAuthorisationError, match="does not have permission to reopen the submission"):
+                helper.reopen_submission(user=user, reopened_reason="Test reason")
+
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")
         def test_last_updated_at_utc_returns_last_submission_event_utc(
