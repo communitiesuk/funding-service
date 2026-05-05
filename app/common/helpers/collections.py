@@ -1213,6 +1213,13 @@ class SubmissionHelper:
                 user=user,
                 related_entity_id=form.id,
             )
+        recipients = set(self._data_providers_for_lifecycle_emails(user))
+
+        if self.collection.requires_certification:
+            recipients.update(self._certifiers_for_lifecycle_emails(user))
+
+        for recipient in recipients:
+            notification_service.send_access_submission_reopened(user=recipient, submission_helper=self)
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
