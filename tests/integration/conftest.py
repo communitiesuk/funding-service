@@ -35,6 +35,7 @@ from app.common.data.types import (
     AuthMethodEnum,
     CollectionStatusEnum,
     GrantStatusEnum,
+    QuestionDataType,
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -302,14 +303,48 @@ def authenticated_no_role_client(
 
 
 @pytest.fixture()
-def authenticated_grant_member_client(
-    anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
+def authenticated_grant_member_client_no_grant_recipients(
+    anonymous_client: FundingServiceTestClient,
+    factories: _Factories,
+    db_session: Session,
+    request: FixtureRequest,
 ) -> Generator[FundingServiceTestClient, None, None]:
     email_mark = request.node.get_closest_marker("authenticate_as")
     email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
 
     user = factories.user.create(email=email)
     grant = factories.grant.create()
+    factories.user_role.create(
+        user=user,
+        permissions=[RoleEnum.MEMBER],
+        organisation=grant.organisation,
+        grant=grant,
+    )
+
+    login_user(user)
+    with anonymous_client.session_transaction() as session:
+        session["auth"] = AuthMethodEnum.SSO
+    anonymous_client.user = user
+    anonymous_client.grant = grant
+    anonymous_client.organisation = grant.organisation
+    db_session.commit()
+
+    yield anonymous_client
+
+
+@pytest.fixture()
+def authenticated_grant_member_client(
+    anonymous_client: FundingServiceTestClient,
+    grant_recipient,
+    factories: _Factories,
+    db_session: Session,
+    request: FixtureRequest,
+) -> Generator[FundingServiceTestClient, None, None]:
+    email_mark = request.node.get_closest_marker("authenticate_as")
+    email = email_mark.args[0] if email_mark else "test2@communities.gov.uk"
+
+    user = factories.user.create(email=email)
+    grant = grant_recipient.grant
     factories.user_role.create(
         user=user,
         permissions=[RoleEnum.MEMBER],
@@ -711,6 +746,60 @@ def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient,
         created_by=user,
     )
     return cast(Submission, submission)
+
+
+@pytest.fixture(scope="function")
+def submission_submitted_multiple_submissions(factories: _Factories, grant_recipient, db_session) -> list[Submission]:
+    question = factories.question.create(
+        id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        form__collection__allow_multiple_submissions=True,
+        form__collection__requires_certification=False,
+        form__collection__grant=grant_recipient.grant,
+        form__collection__status=CollectionStatusEnum.OPEN,
+    )
+    collection = question.form.collection
+    collection.submission_name_question_id = question.id
+    db_session.flush()
+    user = factories.user.create()
+
+    grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+    submission_1 = factories.submission.create(
+        collection=collection,
+        grant_recipient=grant_recipient,
+        mode=SubmissionModeEnum.LIVE,
+        answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
+    )
+    factories.submission_event.create(
+        submission=submission_1,
+        related_entity_id=question.form.id,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        created_by=user,
+    )
+    factories.submission_event.create(
+        submission=submission_1,
+        event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+        created_by=user,
+    )
+    submission_2 = factories.submission.create(
+        collection=collection,
+        grant_recipient=grant_recipient,
+        mode=SubmissionModeEnum.LIVE,
+        answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta"))],
+    )
+    factories.submission_event.create(
+        submission=submission_2,
+        related_entity_id=question.form.id,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        created_by=user,
+    )
+    factories.submission_event.create(
+        submission=submission_2,
+        event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+        created_by=user,
+    )
+
+    return [submission_1, submission_2]
 
 
 @pytest.fixture(scope="function")

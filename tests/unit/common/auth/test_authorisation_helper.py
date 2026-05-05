@@ -449,3 +449,21 @@ class TestAuthorisationHelper:
         factories.user_role.build(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=None)
 
         assert AuthorisationHelper.has_access_grant_recipient_role(user=user) is False
+
+    @pytest.mark.parametrize("user_fixture", ["platform_member_user", "deliver_org_admin_user"])
+    def test_can_user_reopen_submission_is_false(self, factories, request, user_fixture, submission_submitted, mocker):
+        user = request.getfixturevalue(user_fixture)
+        mocker.patch(
+            "app.common.auth.authorisation_helper.get_grant", return_value=submission_submitted.collection.grant
+        )
+
+        assert AuthorisationHelper.can_reopen_submission(user, submission_submitted) is False
+
+    @pytest.mark.parametrize("user_fixture", ["platform_admin_user", "grant_team_member_user"])
+    def test_can_user_reopen_submission_is_true(self, factories, request, user_fixture, submission_submitted, mocker):
+        user = request.getfixturevalue(user_fixture)
+        mocker.patch(
+            "app.common.auth.authorisation_helper.get_grant", return_value=submission_submitted.collection.grant
+        )
+
+        assert AuthorisationHelper.can_reopen_submission(user, submission_submitted) is True

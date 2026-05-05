@@ -126,6 +126,7 @@ from app.deliver_grant_funding.forms import (
     PublicSignUpSettingsForm,
     QuestionForm,
     QuestionTypeForm,
+    ReopenSubmissionForm,
     SelectConditionCalculationForm,
     SelectDataSourceDataSetColumnForm,
     SelectDataSourceDataSetForm,
@@ -3236,6 +3237,31 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         helper=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
         delete_form=delete_wtform,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/reopen", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+
+    submission_helper = SubmissionHelper.load(submission_id)
+    if not AuthorisationHelper.can_reopen_submission(get_current_user(), submission_helper.submission):
+        abort(403)
+    form = ReopenSubmissionForm()
+    if form.validate_on_submit():
+        submission_helper.reopen_submission(user=get_current_user(), reopened_reason=form.reopened_reason.data)  # ty:ignore[invalid-argument-type]
+        flash("Submission reopened", FlashMessageType.SUBMISSION_REOPENED)
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
+    return render_template(
+        "deliver_grant_funding/reports/reopen_submission.html",
+        form=form,
+        helper=submission_helper,
+        grant=submission_helper.grant,
     )
 
 

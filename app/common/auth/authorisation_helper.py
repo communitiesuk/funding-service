@@ -4,14 +4,14 @@ from uuid import UUID
 from flask import request
 from flask_login import AnonymousUserMixin
 
-from app.common.data.interfaces.collections import get_collection
+from app.common.data.interfaces.collections import get_collection, get_submission
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.models_user import User
 from app.common.data.types import OrganisationModeEnum, RoleEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Organisation
+    from app.common.data.models import Organisation, Submission
 
 
 class AuthorisationHelper:
@@ -189,6 +189,26 @@ class AuthorisationHelper:
             return False
 
         return False
+
+    @staticmethod
+    def can_reopen_submission(user: User, submission: "Submission | UUID") -> bool:
+        # Platform admin should be able to reopen submissions
+        # The grant team should be able to reopen submissions. Their roles would be:
+        # - grant member
+        # Form designers should not be able to reopen submissions. Their roles would be:
+        # - deliver org admin / member
+        if isinstance(submission, UUID):
+            submission = get_submission(submission)
+
+        if AuthorisationHelper.is_platform_admin(user):
+            return True
+
+        has_deliver_grant_role = AuthorisationHelper.has_deliver_grant_role(
+            submission.collection.grant.id, RoleEnum.MEMBER, user
+        )
+        is_deliver_org_member = AuthorisationHelper.is_deliver_org_member(user)
+
+        return has_deliver_grant_role and not is_deliver_org_member
 
     @staticmethod
     def has_access_org_access(user: User | AnonymousUserMixin, organisation_id: UUID) -> bool:

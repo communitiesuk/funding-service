@@ -374,13 +374,26 @@ class NotificationService:
     ) -> Notification:
         submission_state = submission_helper.events.submission_state
 
+        if not submission_state.reopened_reason:
+            raise ValueError(
+                f"Could not send submission reopened email for submission id={submission_helper.id} because there is "
+                "no reopened reason"
+            )
+
+        # The reopened reason shows as indented text in the email, but we need to account for this here as notify
+        # doesn't take into account multiple lines within the inset text.
+        # For notify emails, inset text needs tos tart the line with a ^
+        lines_for_email = ""
+        for line in submission_state.reopened_reason.splitlines():
+            lines_for_email += f"^ {line}\n"
+
         personalisation = {
             "is_test_data": "yes"
             if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
             else "no",
             "report_name": submission_helper.long_collection_name,
             "grant_name": submission_helper.collection.grant.name,
-            "reopening_reason": submission_state.reopened_reason,
+            "reopening_reason": lines_for_email,
             "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
             "grant_report_url": url_for(
                 "access_grant_funding.route_to_submission",

@@ -11,7 +11,8 @@ from flask_sqlalchemy_lite import SQLAlchemy
 from app import create_app
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.models import Submission
-from app.common.data.types import SubmissionEventType, SubmissionModeEnum
+from app.common.data.models_user import User
+from app.common.data.types import RoleEnum, SubmissionEventType, SubmissionModeEnum
 from tests.conftest import _Factories, _precompile_templates
 from tests.models import FactoryAnswer
 from tests.utils import build_db_config
@@ -123,3 +124,67 @@ def submission_submitted(factories: _Factories, submission_awaiting_sign_off) ->
         created_at_utc=datetime(2025, 11, 25, 10, 37, 0),
     )
     yield submission_awaiting_sign_off
+
+
+@pytest.fixture(scope="function")
+def platform_member_user(
+    factories: _Factories,
+) -> Generator[User, None, None]:
+    user = factories.user.build()
+    factories.user_role.build(
+        user=user,
+        permissions=[
+            RoleEnum.MEMBER,
+        ],
+        organisation=None,
+        grant=None,
+    )
+    yield user
+
+
+@pytest.fixture(scope="function")
+def platform_admin_user(
+    factories: _Factories,
+) -> Generator[User, None, None]:
+    user = factories.user.build()
+    factories.user_role.build(
+        user=user,
+        permissions=[
+            RoleEnum.MEMBER,
+            RoleEnum.ADMIN,
+        ],
+        organisation=None,
+        grant=None,
+    )
+    yield user
+
+
+@pytest.fixture(scope="function")
+def deliver_org_admin_user(factories: _Factories, submission_awaiting_sign_off) -> Generator[User, None, None]:
+    user = factories.user.build()
+    grant = submission_awaiting_sign_off.collection.grant
+    factories.user_role.build(
+        user=user,
+        permissions=[
+            RoleEnum.MEMBER,
+            RoleEnum.ADMIN,
+        ],
+        organisation=grant.organisation,
+        grant=None,
+    )
+    yield user
+
+
+@pytest.fixture(scope="function")
+def grant_team_member_user(factories: _Factories, submission_awaiting_sign_off) -> Generator[User, None, None]:
+    user = factories.user.build()
+    grant = submission_awaiting_sign_off.collection.grant
+    factories.user_role.build(
+        user=user,
+        permissions=[
+            RoleEnum.MEMBER,
+        ],
+        organisation=grant.organisation,
+        grant=grant,
+    )
+    yield user

@@ -3,6 +3,7 @@
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submission - " ~ helper.long_collection_name %}
@@ -17,6 +18,25 @@
 {% endblock beforeContent %}
 
 {% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_REOPENED]) %}
+        {% if flashes %}
+          {% set submission_reopened_html %}
+            <h3 class="govuk-notification-banner__heading">Submission reopened and email sent to {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</h3>
+            <p class="govuk-body">Email sent to {{ helper.submission.grant_recipient.organisation.name ~ " users" if helper.submission.grant_recipient else helper.submission.created_by.email }} with your reason for reopening.</p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": submission_reopened_html,
+              "type":"success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
+    </div>
+  </div>
   {% if delete_form %}
     {% set banner_html %}
       <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to reset this test submission?</p>
@@ -36,7 +56,19 @@
     <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
     {{ submissionStatusTag(helper.status, helper.is_overdue) }}
   </div>
-
+  {% if helper.status == enum.submission_status.SUBMITTED and  authorisation_helper.can_reopen_submission(current_user, helper.submission) %}
+    <div class="govuk-body">
+      {{
+        govukButton(
+        params={
+          "text": "Reopen submission",
+          "href": url_for('deliver_grant_funding.reopen_submission', grant_id=grant.id, submission_id=helper.submission.id),
+          "classes": "govuk-button--secondary"
+        }
+        )
+      }}
+    </div>
+  {% endif %}
   {% for form in helper.get_ordered_visible_forms() %}
     <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
     {{ answers_summary_list(helper, form) }}

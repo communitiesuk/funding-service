@@ -390,7 +390,7 @@ class TestNotificationService:
             "is_test_data": "no",
             "report_name": "Test collection",
             "grant_name": "Test grant",
-            "reopening_reason": "Reopen reason",
+            "reopening_reason": "^ Reopen reason\n",
             "requires_certification": "yes",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
         }
@@ -403,6 +403,66 @@ class TestNotificationService:
         assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
         assert mock_notification_service_calls[0].kwargs["template_id"] == "ad07a53a-d930-4cb3-ad57-595a1c104e61"
         assert mock_notification_service_calls[0].kwargs["email_address"] == "certifier@communities.gov.uk"
+
+    @responses.activate
+    def test_send_access_submission_reopened_reason_on_multiple_lines(
+        self,
+        app,
+        factories,
+        submission_submitted,
+        mock_notification_service_calls,
+    ):
+        grant_team_user = factories.user.build(name="Grant Team User")
+        factories.submission_event.build(
+            submission=submission_submitted,
+            event_type=SubmissionEventType.SUBMISSION_REOPENED,
+            created_by=grant_team_user,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"reopened_reason": "Reopen reason\nOn\n\nMultiple lines"},
+        )
+        helper = SubmissionHelper(submission_submitted)
+
+        expected_personalisation = {
+            "is_test_data": "no",
+            "report_name": "Test collection",
+            "grant_name": "Test grant",
+            "reopening_reason": "^ Reopen reason\n^ On\n^ \n^ Multiple lines\n",
+            "requires_certification": "yes",
+            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
+        }
+
+        notification_service.send_access_submission_reopened(
+            submission_helper=helper,
+            user=helper.submitted_by,
+        )
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
+        assert mock_notification_service_calls[0].kwargs["template_id"] == "ad07a53a-d930-4cb3-ad57-595a1c104e61"
+        assert mock_notification_service_calls[0].kwargs["email_address"] == "certifier@communities.gov.uk"
+
+    @responses.activate
+    def test_send_access_submission_reopened_fails_when_no_reason_provided(
+        self,
+        app,
+        factories,
+        submission_submitted,
+        mock_notification_service_calls,
+    ):
+        grant_team_user = factories.user.build(name="Grant Team User")
+        factories.submission_event.build(
+            submission=submission_submitted,
+            event_type=SubmissionEventType.SUBMISSION_REOPENED,
+            created_by=grant_team_user,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"reopened_reason": None},
+        )
+        helper = SubmissionHelper(submission_submitted)
+
+        with pytest.raises(ValueError, match="because there is no reopened reason"):
+            notification_service.send_access_submission_reopened(
+                submission_helper=helper,
+                user=helper.submitted_by,
+            )
 
     @responses.activate
     def test_send_access_submission_submitted_requires_certification(self, app, factories):

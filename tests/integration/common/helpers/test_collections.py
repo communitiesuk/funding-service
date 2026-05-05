@@ -1818,6 +1818,20 @@ class TestSubmissionHelper:
             assert data_provider_user.email in recipients
             assert certifier_user.email not in recipients
 
+        def test_reopen_submission_multi_submissions(
+            self, grant_team_user, submission_submitted_multiple_submissions, factories
+        ):
+            submission_1 = submission_submitted_multiple_submissions[0]
+            submission_2 = submission_submitted_multiple_submissions[1]
+            helper_1 = SubmissionHelper(submission_1)
+            helper_2 = SubmissionHelper(submission_2)
+            assert helper_1.status == SubmissionStatusEnum.SUBMITTED
+            assert helper_2.status == SubmissionStatusEnum.SUBMITTED
+
+            helper_2.reopen_submission(grant_team_user, reopened_reason="Test reason")
+            assert helper_1.status == SubmissionStatusEnum.SUBMITTED
+            assert helper_2.status == SubmissionStatusEnum.IN_PROGRESS
+
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")
         def test_last_updated_at_utc_returns_last_submission_event_utc(
