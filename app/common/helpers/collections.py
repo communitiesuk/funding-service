@@ -47,6 +47,7 @@ from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
     GrantRecipientModeEnum,
+    GrantStatusEnum,
     NumberTypeEnum,
     QuestionDataType,
     RoleEnum,
@@ -1183,6 +1184,22 @@ class SubmissionHelper:
         interfaces.collections.add_submission_event(
             self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
         )
+
+    def can_be_reopened_by_user(self, user: User) -> bool:
+        if not self.is_submitted:
+            return False
+        if self.is_test:
+            if self.collection.is_closed:
+                return False
+            return True
+
+        if (
+            self.collection.is_open
+            and self.collection.grant.status == GrantStatusEnum.LIVE
+            and AuthorisationHelper.can_reopen_submission(user, self.submission)
+        ):
+            return True
+        return False
 
     def reopen_submission(self, user: User, reopened_reason: str) -> None:
 

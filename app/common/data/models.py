@@ -323,6 +323,10 @@ class Collection(BaseModel):
         return self.status == CollectionStatusEnum.OPEN
 
     @property
+    def is_closed(self) -> bool:
+        return self.status == CollectionStatusEnum.CLOSED
+
+    @property
     def is_overdue(self) -> bool:
         if not self.submission_period_end_date:
             return False
