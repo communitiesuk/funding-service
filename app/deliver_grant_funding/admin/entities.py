@@ -638,3 +638,6 @@ class PlatformAdminSubmissionEventView(FlaskAdminPlatformAdminAccessibleMixin, P
         "submission.mode": "Submission mode",
         "created_by.email": "Created by",
     }
+    column_formatters_detail = {
+        "data": _format_json_data,
+    }
