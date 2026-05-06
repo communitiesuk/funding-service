@@ -100,7 +100,13 @@ from app.common.expressions.forms import (
 from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
-from app.common.helpers.collections import AllSubmissionsHelper, SubmissionHelper
+from app.common.helpers.collections import (
+    AllSubmissionsHelper,
+    CollectionIsNotOpenError,
+    SubmissionAuthorisationError,
+    SubmissionHelper,
+    SubmissionIsNotSubmittedError,
+)
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -3252,11 +3258,18 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
         abort(403)
     form = ReopenSubmissionForm()
     if form.validate_on_submit():
-        submission_helper.reopen_submission(user=get_current_user(), reopened_reason=form.reopened_reason.data)  # ty:ignore[invalid-argument-type]
-        flash("Submission reopened", FlashMessageType.SUBMISSION_REOPENED)
-        return redirect(
-            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
-        )
+        try:
+            submission_helper.reopen_submission(user=get_current_user(), reopened_reason=form.reopened_reason.data)  # ty:ignore[invalid-argument-type]
+            flash("Submission reopened", FlashMessageType.SUBMISSION_REOPENED)
+            return redirect(
+                url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+            )
+        except SubmissionAuthorisationError:
+            form.form_errors.append("You do not have permission to reopen this submission")
+        except CollectionIsNotOpenError:
+            form.form_errors.append("You cannot reopen this submission because the report is not open")
+        except SubmissionIsNotSubmittedError:
+            form.form_errors.append("You cannot reopen this submission because it has not been submitted")
     return render_template(
         "deliver_grant_funding/reports/reopen_submission.html",
         form=form,

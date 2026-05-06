@@ -42,8 +42,10 @@ from app.common.expressions.managed import GreaterThan, IsYes
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import (
     AllSubmissionsHelper,
+    CollectionIsNotOpenError,
     SubmissionAuthorisationError,
     SubmissionHelper,
+    SubmissionIsNotSubmittedError,
 )
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching
@@ -1735,7 +1737,7 @@ class TestSubmissionHelper:
             collection = submission_submitted.collection
             collection.status = CollectionStatusEnum.CLOSED
 
-            with pytest.raises(ValueError, match="report is not open"):
+            with pytest.raises(CollectionIsNotOpenError, match="report is not open"):
                 helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
@@ -1746,7 +1748,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission_awaiting_sign_off)
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
-            with pytest.raises(ValueError, match="it is not submitted"):
+            with pytest.raises(SubmissionIsNotSubmittedError, match="it is not submitted"):
                 helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF

@@ -56,7 +56,7 @@
     <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
     {{ submissionStatusTag(helper.status, helper.is_overdue) }}
   </div>
-  {% if helper.status == enum.submission_status.SUBMITTED and  authorisation_helper.can_reopen_submission(current_user, helper.submission) %}
+  {% if helper.can_be_reopened_by_user(current_user) %}
     <div class="govuk-body">
       {{
         govukButton(

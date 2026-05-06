@@ -16,9 +16,11 @@ from app.common.collections.types import (
 from app.common.data.models import ComponentReference
 from app.common.data.submission_data_manager import _deserialise_question_type
 from app.common.data.types import (
+    CollectionStatusEnum,
     ComponentVisibilityState,
     ConditionsOperator,
     ExpressionType,
+    GrantStatusEnum,
     NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
@@ -1801,6 +1803,69 @@ class TestSubmissionHelper:
                 helper.get_component_visibility_state(group, helper.cached_evaluation_context)
                 == ComponentVisibilityState.VISIBLE
             )
+
+    class TestCanBeReopenedByUser:
+        @pytest.mark.parametrize(
+            "collection_status,grant_status,is_submitted,expected_result",
+            [
+                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, True, True),
+                (CollectionStatusEnum.OPEN, GrantStatusEnum.DRAFT, True, True),
+                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, False, False),
+                (CollectionStatusEnum.CLOSED, GrantStatusEnum.LIVE, False, False),
+                (CollectionStatusEnum.CLOSED, GrantStatusEnum.LIVE, True, False),
+            ],
+        )
+        def test_when_in_test_mode(
+            self, factories, collection_status, grant_status, is_submitted, expected_result, mocker
+        ):
+            submission = factories.submission.build(
+                mode=SubmissionModeEnum.TEST,
+                collection__status=collection_status,
+                collection__grant__status=grant_status,
+            )
+            user = factories.user.build()
+            mocker.patch(
+                "app.common.helpers.collections.SubmissionHelper.is_submitted",
+                new_callable=mocker.PropertyMock,
+                return_value=is_submitted,
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.can_be_reopened_by_user(user) == expected_result
+
+        @pytest.mark.parametrize(
+            "collection_status,grant_status,is_submitted, user_can_reopen,expected_result",
+            [
+                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, True, True, True),
+                (CollectionStatusEnum.OPEN, GrantStatusEnum.DRAFT, True, True, False),
+                (CollectionStatusEnum.OPEN, GrantStatusEnum.ONBOARDING, True, True, False),
+                (CollectionStatusEnum.DRAFT, GrantStatusEnum.LIVE, True, True, False),
+                (CollectionStatusEnum.SCHEDULED, GrantStatusEnum.LIVE, True, True, False),
+                (CollectionStatusEnum.CLOSED, GrantStatusEnum.LIVE, True, True, False),
+                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, False, True, False),
+                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, True, False, False),
+            ],
+        )
+        def test_when_in_live_mode(
+            self, factories, collection_status, grant_status, is_submitted, user_can_reopen, expected_result, mocker
+        ):
+
+            submission = factories.submission.build(
+                mode=SubmissionModeEnum.LIVE,
+                collection__status=collection_status,
+                collection__grant__status=grant_status,
+            )
+            user = factories.user.build()
+            mocker.patch(
+                "app.common.helpers.collections.SubmissionHelper.is_submitted",
+                new_callable=mocker.PropertyMock,
+                return_value=is_submitted,
+            )
+            mocker.patch(
+                "app.common.helpers.collections.AuthorisationHelper.can_reopen_submission",
+                return_value=user_can_reopen,
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.can_be_reopened_by_user(user) == expected_result
 
 
 class TestDeserialiseQuestionType:

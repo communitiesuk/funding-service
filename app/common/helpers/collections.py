@@ -47,6 +47,7 @@ from app.common.data.types import (
     ConditionsOperator,
     ExpressionType,
     GrantRecipientModeEnum,
+    GrantStatusEnum,
     NumberTypeEnum,
     QuestionDataType,
     RoleEnum,
@@ -112,6 +113,14 @@ class SubmissionAuthorisationError(Exception):
                 permission=required_permission.value,
             ),
         )
+
+
+class CollectionIsNotOpenError(Exception):
+    pass
+
+
+class SubmissionIsNotSubmittedError(Exception):
+    pass
 
 
 class SubmissionHelper:
@@ -1176,6 +1185,22 @@ class SubmissionHelper:
             self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
         )
 
+    def can_be_reopened_by_user(self, user: User) -> bool:
+        if not self.is_submitted:
+            return False
+        if self.is_test:
+            if self.collection.is_closed:
+                return False
+            return True
+
+        if (
+            self.collection.is_open
+            and self.collection.grant.status == GrantStatusEnum.LIVE
+            and AuthorisationHelper.can_reopen_submission(user, self.submission)
+        ):
+            return True
+        return False
+
     def reopen_submission(self, user: User, reopened_reason: str) -> None:
 
         if not AuthorisationHelper.can_reopen_submission(user, self.submission):
@@ -1187,10 +1212,12 @@ class SubmissionHelper:
             )
 
         if not self.collection.is_open:
-            raise ValueError(f"Could not reopen submission id={self.id} because the report is not open.")
+            raise CollectionIsNotOpenError(f"Could not reopen submission id={self.id} because the report is not open.")
 
         if not self.is_submitted:
-            raise ValueError(f"Could not reopen submission id={self.id} because it is not submitted.")
+            raise SubmissionIsNotSubmittedError(
+                f"Could not reopen submission id={self.id} because it is not submitted."
+            )
 
         interfaces.collections.add_submission_event(
             self.submission,
