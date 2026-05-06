@@ -6,7 +6,13 @@ from typing import TYPE_CHECKING, Any
 import email_validator
 from flask import current_app, flash
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovCheckboxInput, GovDateInput, GovSubmitInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import (
+    GovCheckboxInput,
+    GovDateInput,
+    GovSubmitInput,
+    GovTextArea,
+    GovTextInput,
+)
 from markupsafe import Markup, escape
 from wtforms import DateField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
@@ -14,7 +20,10 @@ from wtforms.fields.simple import BooleanField, EmailField, StringField, TextAre
 from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
-from app.common.data.types import OrganisationData, OrganisationType
+from app.common.data.types import (
+    OrganisationData,
+    OrganisationType,
+)
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation

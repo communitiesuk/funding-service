@@ -10,7 +10,9 @@ from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
 from app.common.data.interfaces.user import get_user, get_user_by_email
 from app.common.data.models import Organisation
+from app.common.data.models_audit import AuditEvent
 from app.common.data.types import (
+    AuditEventType,
     CollectionStatusEnum,
     GrantRecipientModeEnum,
     GrantStatusEnum,
@@ -5088,3 +5090,161 @@ class TestPlatformAdminSubmissionEventView:
         page = response.data.decode()
         assert submitted_event.submission.reference in page
         assert completed_event.submission.reference not in page
+
+
+class TestPlatformAdminQuestionView:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_question_list_permissions(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/question/")
+        assert response.status_code == expected_code
+
+    def test_list_shows_question_and_chain(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(name="Stargazer Grant")
+        collection = factories.collection.create(grant=grant, name="Quarterly Report")
+        form = factories.form.create(collection=collection, title="Project details")
+        question = factories.question.create(form=form, name="project_name", text="Project name?")
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/question/")
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert question.name in page
+        assert "Project name?" in page
+        assert "Project details" in page
+        assert "Quarterly Report" in page
+        assert "Stargazer Grant" in page
+
+    def test_list_excludes_groups(self, authenticated_platform_admin_client, factories, db_session):
+        question = factories.question.create(name="visible_question")
+        group = factories.group.create(name="hidden_group", form=question.form)
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/question/")
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert question.name in page
+        assert group.name not in page
+
+    def test_filter_by_grant_name(self, authenticated_platform_admin_client, factories, db_session):
+        wanted_grant = factories.grant.create(name="Wanted Grant")
+        unwanted_grant = factories.grant.create(name="Unwanted Grant")
+        wanted_collection = factories.collection.create(grant=wanted_grant)
+        unwanted_collection = factories.collection.create(grant=unwanted_grant)
+        wanted_question = factories.question.create(form__collection=wanted_collection, name="wanted_question")
+        unwanted_question = factories.question.create(form__collection=unwanted_collection, name="unwanted_question")
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/question/?flt2_2=Wanted+Grant")
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert wanted_question.name in page
+        assert unwanted_question.name not in page
+
+    def test_create_is_disabled(self, authenticated_platform_admin_client):
+        response = authenticated_platform_admin_client.get("/deliver/admin/question/new/", follow_redirects=False)
+        assert response.status_code == 302
+
+    def test_delete_is_disabled(self, authenticated_platform_admin_client, factories, db_session):
+        question = factories.question.create()
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/question/delete/",
+            data={"id": str(question.id)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+    def test_edit_form_renders_question_details_and_name_input(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        question = factories.question.create(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Original text",
+            hint="Original hint",
+            name="original_name",
+        )
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/question/edit/?id={question.id}")
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert soup.find("input", attrs={"name": "text"}) is None
+        assert soup.find("input", attrs={"name": "hint"}) is None
+        assert soup.find("input", attrs={"name": "data_type"}) is None
+
+        summary = soup.find("dl", class_="govuk-summary-list")
+        assert summary is not None
+        details_text = summary.get_text()
+        assert QuestionDataType.TEXT_SINGLE_LINE.value in details_text
+        assert "Original text" in details_text
+        assert "Original hint" in details_text
+
+        name_field = soup.find("input", attrs={"name": "name"})
+        assert name_field is not None and name_field.get("value") == "original_name"
+        assert not name_field.has_attr("readonly")
+
+    def test_edit_updates_name(self, authenticated_platform_admin_client, factories, db_session):
+        question = factories.question.create(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Untouched text",
+            hint="Untouched hint",
+            name="old_name",
+        )
+        original_slug = question.slug
+        initial_audit_count = db_session.query(AuditEvent).count()
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/question/edit/?id={question.id}",
+            data={"name": "new_name"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        db_session.expire(question)
+        assert question.name == "new_name"
+        assert question.text == "Untouched text"
+        assert question.hint == "Untouched hint"
+        assert question.slug == original_slug
+
+        assert db_session.query(AuditEvent).count() == initial_audit_count + 1
+        audit_event = db_session.query(AuditEvent).order_by(AuditEvent.created_at_utc.desc()).first()
+        assert audit_event.event_type == AuditEventType.PLATFORM_ADMIN_DB_EVENT
+        assert audit_event.data["model_class"] == "Question"
+        assert audit_event.data["action"] == "update"
+        assert audit_event.data["model_id"] == str(question.id)
+        assert audit_event.data["changes"]["name"]["old"] == "old_name"
+        assert audit_event.data["changes"]["name"]["new"] == "new_name"
+        assert audit_event.user_id == authenticated_platform_admin_client.user.id
+
+    def test_edit_ignores_posted_text_and_hint(self, authenticated_platform_admin_client, factories, db_session):
+        question = factories.question.create(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text="Untouched text",
+            hint="Untouched hint",
+            name="original_name",
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/question/edit/?id={question.id}",
+            data={
+                "text": "Bypass attempt",
+                "hint": "Also a bypass",
+                "name": "renamed",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        db_session.expire(question)
+        assert question.text == "Untouched text"
+        assert question.hint == "Untouched hint"
+        assert question.name == "renamed"

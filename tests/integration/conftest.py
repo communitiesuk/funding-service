@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from flask import Flask, Response, abort, template_rendered
+from flask import Flask, Request, Response, abort, template_rendered
 from flask.sessions import SessionMixin
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
@@ -144,6 +144,11 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
 def _validate_form_argument_to_render_template(response: TestResponse, templates_rendered: TTemplatesRendered) -> None:
     if response.headers["content-type"].startswith("text/html"):
         for _endpoint, render_template in templates_rendered.items():
+            # Don't check templates rendered by/for Flask-Admin - we don't control the `form` arg passed there.
+            request = cast(Request, render_template.context.get("request"))
+            if request and request.path.startswith("/deliver/admin"):
+                continue
+
             if "form" in render_template.context and render_template.context["form"]:
                 assert isinstance(render_template.context["form"], FlaskForm), (
                     "The `form` argument passed to `render_template` is expected to be a FlaskForm instance. "
