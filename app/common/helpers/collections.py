@@ -114,6 +114,14 @@ class SubmissionAuthorisationError(Exception):
         )
 
 
+class CollectionIsNotOpenError(Exception):
+    pass
+
+
+class SubmissionIsNotSubmittedError(Exception):
+    pass
+
+
 class SubmissionHelper:
     """
     This offensively-named class is a helper for the `app.common.data.models.Submission` and associated sub-models.
@@ -1187,10 +1195,12 @@ class SubmissionHelper:
             )
 
         if not self.collection.is_open:
-            raise ValueError(f"Could not reopen submission id={self.id} because the report is not open.")
+            raise CollectionIsNotOpenError(f"Could not reopen submission id={self.id} because the report is not open.")
 
         if not self.is_submitted:
-            raise ValueError(f"Could not reopen submission id={self.id} because it is not submitted.")
+            raise SubmissionIsNotSubmittedError(
+                f"Could not reopen submission id={self.id} because it is not submitted."
+            )
 
         interfaces.collections.add_submission_event(
             self.submission,
