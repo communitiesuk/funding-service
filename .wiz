@@ -1,0 +1,5 @@
+ignoreFindings:
+  - ruleId: "BUILTIN-125"
+    paths:
+      - "app/developers/data/grants.json"
+    comment: "pseudonymised file"
