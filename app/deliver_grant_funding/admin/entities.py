@@ -24,7 +24,15 @@ from app.common.audit import (
 )
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.user import get_current_user
-from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission, SubmissionEvent
+from app.common.data.models import (
+    Collection,
+    Grant,
+    GrantRecipient,
+    Organisation,
+    Question,
+    Submission,
+    SubmissionEvent,
+)
 from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import RoleEnum, SubmissionEventType
@@ -622,6 +630,41 @@ class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
                 kwargs["helper"] = SubmissionHelper(cast("Submission", model))
 
         return super().render(template, **kwargs)
+
+
+class PlatformAdminQuestionView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
+    _model = Question
+
+    can_edit = True
+    can_create = False
+    can_delete = False
+
+    edit_template = "deliver_grant_funding/admin/edit-question.html"
+
+    column_list = [
+        "name",
+        "text",
+        "data_type",
+        "form.collection.grant.name",
+        "form.collection.name",
+        "form.title",
+    ]
+    column_labels = {
+        "data_type": "Type",
+        "form.title": "Section",
+        "form.collection.name": "Collection",
+        "form.collection.grant.name": "Grant",
+    }
+    column_filters = [
+        "form.collection.grant.name",
+        "form.collection.name",
+        "form.title",
+        "name",
+        "data_type",
+    ]
+    column_searchable_list = ["name", "text"]
+    form_columns = ["name"]
+    column_default_sort = "name"
 
 
 class PlatformAdminSubmissionEventView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
