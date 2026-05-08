@@ -4779,13 +4779,6 @@
   ],
   "users": [
     {
-      "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
-      "email": "brandy.santos@test.communities.gov.uk",
-      "id": "838de5cd-2874-4612-85de-43f7a485b3ff",
-      "last_logged_in_at_utc": "Fri, 27 Feb 2026 14:22:51 GMT",
-      "name": "Brandy Santos"
-    },
-    {
       "azure_ad_subject_id": "789779cf9692b89ab3fd5e4d725e44c5",
       "email": "connie.livingston@test.communities.gov.uk",
       "id": "78371bda-d2e5-4113-8cee-3daad6dd55ab",
@@ -4811,6 +4804,13 @@
       "id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe",
       "last_logged_in_at_utc": "Fri, 27 Feb 2026 14:17:14 GMT",
       "name": "MHCLG Test User"
+    },
+    {
+      "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
+      "email": "john.cheese@communities.gov.uk",
+      "id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+      "last_logged_in_at_utc": "Fri, 08 May 2026 11:03:35 GMT",
+      "name": "John Cheese"
     },
     {
       "azure_ad_subject_id": "baf97a91d41d4a5690488c56c4c10558",

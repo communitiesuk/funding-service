@@ -75,7 +75,7 @@ export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
 # The export process anonymises user data, but if any users need to be consistent
 # across environments (eg SSO test users), their emails can be added here and they will not be anonymised.
-USERS_NOT_TO_ANONYMISE = ["fsd-post-award@levellingup.gov.uk"]
+USERS_NOT_TO_ANONYMISE = ["fsd-post-award@levellingup.gov.uk", "john.cheese@communities.gov.uk"]
 
 
 def to_dict(instance: BaseModel, exclude: list[str] | None = None) -> dict[str, Any]:
