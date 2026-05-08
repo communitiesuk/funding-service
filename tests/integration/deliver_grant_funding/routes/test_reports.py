@@ -12321,8 +12321,7 @@ class TestListGroupQuestionsValidationsSection:
         soup = BeautifulSoup(response.data, "html.parser")
         assert any("Validations" == h.get_text(strip=True) for h in soup.find_all("h2"))
         assert (
-            "Validation on groups is only available when the question group "
-            "is set to display all questions on the same page."
+            "You can only add validations to a question group when questions are displayed on the same page."
         ) in soup.text
         assert page_has_link(soup, "Add validation") is None
         assert page_has_link(soup, "Add more validation") is None
