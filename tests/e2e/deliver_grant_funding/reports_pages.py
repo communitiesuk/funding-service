@@ -1420,9 +1420,17 @@ class RunnerTasklistPage(ReportsBasePage):
         expect(report_sections_page.heading).to_be_visible()
         return report_sections_page
 
-    def click_submit_for_certify(self) -> None:
+    def click_submit_for_certify(self) -> ReportSubmittedConfirmationPage:
         self.submit_button.click()
-        expect(self.page.get_by_text("Report submitted to certifier")).to_be_visible()
+        submitted_page = ReportSubmittedConfirmationPage(
+            page=self.page,
+            domain=self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            submitted_to_certifier=True,
+        )
+        expect(submitted_page.heading).to_be_visible()
+        return submitted_page
 
     def click_back(self) -> ReportSectionsPage:
         self.back_link.click()
@@ -1431,6 +1439,77 @@ class RunnerTasklistPage(ReportsBasePage):
         )
         expect(report_sections_page.heading).to_be_visible()
         return report_sections_page
+
+
+class ReportSubmittedConfirmationPage(ReportsBasePage):
+    report_name: str
+    return_to_reports_link: Locator
+
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, report_name: str, submitted_to_certifier: bool
+    ) -> None:
+        super().__init__(
+            page=page,
+            domain=domain,
+            grant_name=grant_name,
+            heading=page.get_by_role(
+                "heading",
+                name=("Report submitted to certifier" if submitted_to_certifier else "Report signed off and submitted"),
+            ),
+        )
+        self.report_name = report_name
+        self.return_to_reports_link = page.get_by_role("link", name="Return to reports")
+
+    def click_return_to_reports(self) -> None:
+        self.return_to_reports_link.click()
+
+
+class ViewLockedReportPage(ReportsBasePage):
+    report_name: str
+    sign_off_and_submit_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
+        super().__init__(
+            domain=domain,
+            page=page,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"Review report: {report_name}"),
+        )
+        self.report_name = report_name
+        self.sign_off_and_submit_button = page.get_by_role("button", name="Continue to sign off and submit")
+
+    def click_sign_off_and_submit(self) -> ConfirmSignOffPage:
+        self.sign_off_and_submit_button.click()
+        sign_off_page = ConfirmSignOffPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(sign_off_page.heading).to_be_visible()
+        return sign_off_page
+
+
+class ConfirmSignOffPage(ReportsBasePage):
+    report_name: str
+    sign_off_and_submit_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
+        super().__init__(
+            page=page,
+            domain=domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Confirm sign off and submit report"),
+        )
+        self.report_name = report_name
+        self.sign_off_and_submit_button = page.get_by_role("button", name="Confirm sign off and submit")
+
+    def click_sign_off_and_submit(self) -> ReportSubmittedConfirmationPage:
+        self.sign_off_and_submit_button.click()
+        confirmation_page = ReportSubmittedConfirmationPage(
+            page=self.page,
+            domain=self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            submitted_to_certifier=False,
+        )
+        expect(confirmation_page.heading).to_be_visible()
+        return confirmation_page
 
 
 class RunnerQuestionPage(ReportsBasePage):

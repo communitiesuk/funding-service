@@ -31,7 +31,7 @@ from app.common.expressions.managed import (
     UKPostcode,
 )
 from app.common.filters import format_thousands
-from tests.e2e.access_grant_funding.pages import AccessHomePage
+from tests.e2e.access_grant_funding.pages import AccessGrantPage, AccessHomePage
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.conftest import (
     DeliverGrantFundingUserType,
@@ -75,6 +75,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpDataProvidersPage,
     SetUpGrantRecipientsPage,
     SetUpOrganisationsPage,
+    ViewLockedReportPage,
     _reference_data_flow,
 )
 from tests.e2e.helpers import (
@@ -1440,9 +1441,22 @@ def test_deliver_test_grant_recipient_journey(
     ).to_be_visible()
     expect(tasklist_page.submit_button).to_be_enabled()
 
-    tasklist_page.click_submit_for_certify()
+    confirmation_page = tasklist_page.click_submit_for_certify()
+    confirmation_page.click_return_to_reports()
 
-    # TODO - certify it?
+    # Certify the report
+    report_list_page = AccessGrantPage(page, domain)
+    report_list_page.click_collection(data["collection_name"])
+
+    locked_report_page = ViewLockedReportPage(page, domain, data["grant_name"], data["collection_name"])
+    expect(locked_report_page.heading).to_be_visible()
+
+    confirm_sign_off_page = locked_report_page.click_sign_off_and_submit()
+    sign_off_confirmation_page = confirm_sign_off_page.click_sign_off_and_submit()
+    expect(
+        page.get_by_text(f"Your {data['collection_name']} report for {data['grant_name']} has been submitted to the")
+    ).to_be_visible()
+    sign_off_confirmation_page.click_return_to_reports()
 
     grant_reports_page = GrantReportsPage(page, domain, data["grant_name"])
     grant_reports_page.navigate(data["grant_id"])
