@@ -1458,10 +1458,16 @@ def test_deliver_test_grant_recipient_journey(
     ).to_be_visible()
     sign_off_confirmation_page.click_return_to_reports()
 
+    # Reopen the submission
     grant_reports_page = GrantReportsPage(page, domain, data["grant_name"])
     grant_reports_page.navigate(data["grant_id"])
     submissions_list_page = grant_reports_page.click_view_submissions(data["collection_name"])
     view_submission_page = submissions_list_page.click_on_submission(data["test_org_name"])
+    reopen_page = view_submission_page.click_reopen_submission()
+    reopen_page.fill_reopen_reason("Reopening for e2e tests")
+    view_submission_page = reopen_page.click_reopen_submission()
+    expect(page.get_by_text("Submission reopened and email sent to")).to_be_visible()
+
     view_submission_page.click_reset_submission()
 
 

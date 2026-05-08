@@ -1717,6 +1717,7 @@ class SubmissionsListPage(ReportsBasePage):
 
 class ViewSubmissionPage(ReportsBasePage):
     report_name: str
+    reopen_submission_button: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
         super().__init__(
@@ -1726,6 +1727,7 @@ class ViewSubmissionPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="Submission", exact=True),
         )
         self.report_name = report_name
+        self.reopen_submission_button = page.get_by_role("button", name="Reopen submission")
 
     def get_questions_list_for_section(self, section_name: str) -> Locator:
         return self.page.get_by_test_id(section_name)
@@ -1743,6 +1745,38 @@ class ViewSubmissionPage(ReportsBasePage):
         submissions_list_page = SubmissionsListPage(self.page, self.domain, self.grant_name, self.report_name)
         expect(submissions_list_page.heading).to_be_visible()
         return submissions_list_page
+
+    def click_reopen_submission(self) -> ReopenSubmissionPage:
+        self.reopen_submission_button.click()
+        reopen_page = ReopenSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(reopen_page.heading).to_be_visible()
+        return reopen_page
+
+
+class ReopenSubmissionPage(ReportsBasePage):
+    report_name: str
+    reopen_submission_button: Locator
+    reason_input: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"Why are you reopening this {report_name} submission?"),
+        )
+        self.report_name = report_name
+        self.reopen_submission_button = page.get_by_role("button", name="Reopen submission")
+        self.reason_input = page.get_by_role("textbox", name="Why are you reopening the submission?")
+
+    def fill_reopen_reason(self, reason: str) -> None:
+        self.reason_input.fill(reason)
+
+    def click_reopen_submission(self) -> ViewSubmissionPage:
+        self.reopen_submission_button.click()
+        view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(view_submission_page.heading).to_be_visible()
+        return view_submission_page
 
 
 class AddQuestionGroupPage(ReportsBasePage):
