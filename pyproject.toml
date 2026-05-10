@@ -31,7 +31,7 @@ dependencies = [
     "sqlalchemy-json==0.7.0",
     "simpleeval==1.0.7",
     "num2words==0.5.14",
-    "mistune==3.2.0",
+    "mistune==3.2.1",
     "faker==40.12.0",
     "xgovuk-flask-admin==0.1.7",
     "flask-admin==2.0.2",
