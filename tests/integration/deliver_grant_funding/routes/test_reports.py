@@ -5756,9 +5756,7 @@ class TestAddCalculatedCondition:
             assert response.status_code == 200
 
     def test_post_success(self, authenticated_grant_admin_client, factories, db_session, mocker):
-        mocker.patch(
-            "app.deliver_grant_funding.routes.reports.AuthorisationHelper.is_platform_member", return_value=True
-        )
+
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         db_form = factories.form.create(collection=report, title="Organisation information")
 
@@ -12323,8 +12321,7 @@ class TestListGroupQuestionsValidationsSection:
         soup = BeautifulSoup(response.data, "html.parser")
         assert any("Validations" == h.get_text(strip=True) for h in soup.find_all("h2"))
         assert (
-            "Validation on groups is only available when the question group "
-            "is set to display all questions on the same page."
+            "You can only add validations to a question group when questions are displayed on the same page."
         ) in soup.text
         assert page_has_link(soup, "Add validation") is None
         assert page_has_link(soup, "Add more validation") is None

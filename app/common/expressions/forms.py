@@ -104,7 +104,6 @@ def build_managed_expression_form(
     type_: ExpressionType,
     subject_reference: ExpressionReference,
     expression: Expression | None = None,
-    show_calculated_validation_option: bool = False,
 ) -> type[_ManagedExpressionForm] | None:
     """
     For a given subject reference, generate a FlaskForm that will allow a user to select one of the managed
@@ -133,7 +132,8 @@ def build_managed_expression_form(
     class ManagedExpressionForm(_ManagedExpressionForm):
         _subject_reference = subject_reference
         _managed_expressions = managed_expressions
-        _show_calculated_validation_option = show_calculated_validation_option
+        _expression_type = type_
+        _show_calculated_validation_option: bool = False
 
         type = RadioField(
             choices=[],
@@ -145,10 +145,14 @@ def build_managed_expression_form(
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
+            self._show_calculated_validation_option = (
+                self._subject_reference.data_type == QuestionDataType.NUMBER
+                and self._expression_type == ExpressionType.VALIDATION
+            )
             self.type.choices = [
                 (managed_expression.name, managed_expression.name) for managed_expression in self._managed_expressions
             ]
-            if self._show_calculated_validation_option and self._subject_reference.data_type == QuestionDataType.NUMBER:
+            if self._show_calculated_validation_option:
                 # This creates a placeholder which is then replaced by the 'or' divider at render time below
                 self.type.choices.append((None, None))
                 self.type.choices.append(("CUSTOM", "Calculation with two or more numbers"))
