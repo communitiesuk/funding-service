@@ -10,7 +10,7 @@ from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
-from sqlalchemy import func, orm, select
+from sqlalchemy import case, func, or_, orm, select
 from sqlalchemy.exc import IntegrityError
 from wtforms import Form
 from wtforms.validators import Email
@@ -35,7 +35,7 @@ from app.common.data.models import (
 )
 from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import RoleEnum, SubmissionEventType
+from app.common.data.types import AuditEventType, RoleEnum, SubmissionEventType
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
@@ -523,15 +523,15 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         return "User, Event Type, Model Class, Action"
 
     def _apply_search(self, query, count_query, joins, count_joins, search):
-        from app.common.data.models_user import User
-
         if search:
-            from sqlalchemy import or_
-
             search_term = f"%{search}%"
+            event_type_label = case(
+                {member: member.value for member in AuditEventType},
+                value=AuditEvent.event_type,
+            )
             search_filter = or_(
                 User.email.ilike(search_term),
-                AuditEvent.event_type.ilike(search_term),
+                event_type_label.ilike(search_term),
                 AuditEvent.data["model_class"].astext.ilike(search_term),
                 AuditEvent.data["action"].astext.ilike(search_term),
             )
