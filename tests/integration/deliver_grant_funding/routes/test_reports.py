@@ -10865,6 +10865,50 @@ class TestViewDataSource:
         assert "France" in soup.text
 
     def test_get_shows_missing_data_tag_for_empty_values(self, authenticated_grant_member_client, factories):
+        org = factories.organisation.create(can_manage_grants=False, external_id="E123")
+        factories.grant_recipient.create(
+            organisation=org, grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.LIVE
+        )
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        data_source = factories.data_source.create(
+            collection=report,
+            grant=authenticated_grant_member_client.grant,
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_notes": {
+                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
+                        "original_column_name": "Notes",
+                        "presentation_options": {},
+                        "data_options": {},
+                    }
+                }
+            ),
+            items=None,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=org.external_id,
+            _data={"c_notes": None},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Data missing" in soup.text
+
+    def test_get_shows_missing_grant_recipient_tag_for_not_set_up_grant_recipient(
+        self, authenticated_grant_member_client, factories
+    ):
         report = factories.collection.create(grant=authenticated_grant_member_client.grant)
         data_source = factories.data_source.create(
             collection=report,
@@ -10900,7 +10944,7 @@ class TestViewDataSource:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Data missing" in soup.text
+        assert "Grant recipient not set up" in soup.text
 
     def test_get_excludes_test_grant_recipients_from_name_lookup(self, authenticated_grant_member_client, factories):
         report = factories.collection.create(grant=authenticated_grant_member_client.grant)
