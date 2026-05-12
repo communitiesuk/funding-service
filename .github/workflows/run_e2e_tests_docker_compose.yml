@@ -73,6 +73,10 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y mkcert libnss3-tools
           make certs
+          # Chromium 147+ (Playwright 1.59.0) no longer reads the NSS database for locally-installed CAs.
+          # Install the mkcert CA to the system trust store so it is picked up by the browser.
+          sudo cp certs/rootCA.pem /usr/local/share/ca-certificates/mkcert-root-ca.crt
+          sudo update-ca-certificates
           echo "GOVUK_NOTIFY_API_KEY=$PULLPREVIEW_GOVUK_NOTIFY_API_KEY" >> .env
           echo "GOVUK_NOTIFY_DISABLE=False" >> .env
           echo "127.0.0.1       sso.communities.gov.localhost funding.communities.gov.localhost" | sudo tee -a /etc/hosts
