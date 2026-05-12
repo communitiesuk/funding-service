@@ -28,6 +28,11 @@ class DatabaseModelChange(AuditEvent):
     changes: dict[str, Any]
 
 
+class SystemEvent(DatabaseModelChange):
+    event_type: AuditEventType = AuditEventType.SYSTEM
+    context: dict[str, Any]
+
+
 def _serialize_value(value: Any) -> Any:
     if isinstance(value, UUID):
         return str(value)
@@ -125,6 +130,23 @@ def create_database_model_change_for_delete(
         model_id=model.id,
         action="delete",
         changes=snapshot,
+    )
+
+
+def create_system_event_for_delete(
+    model: SQLAlchemyBaseModel,
+    user: User,
+    context: dict[str, Any],
+) -> SystemEvent:
+    snapshot = _get_model_snapshot(model)
+
+    return SystemEvent(
+        user_id=user.id,
+        model_class=model.__class__.__name__,
+        model_id=model.id,
+        action="delete",
+        changes=snapshot,
+        context=context,
     )
 
 
