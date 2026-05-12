@@ -1,10 +1,11 @@
+import io
 from decimal import Decimal
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
 from flask import Flask, request
-from werkzeug.datastructures import MultiDict
+from werkzeug.datastructures import FileStorage, MultiDict
 from wtforms import ValidationError
 
 from app.common.data.types import (
@@ -30,6 +31,7 @@ from app.deliver_grant_funding.forms import (
     GrantNameForm,
     QuestionForm,
     SelectDataSourceQuestionForm,
+    UploadDataSetForm,
     _validate_no_blank_lines,
     _validate_no_duplicates,
     strip_string_if_not_empty,
@@ -699,3 +701,48 @@ class TestPlatformAdminCreateCertifiersForm:
         assert len(normalised_data) == 2
         assert normalised_data[0] == (organisations[0].name, "John Doe", "john.doe@example.com")
         assert normalised_data[1] == (organisations[1].name, "Jane Smith", "jane.smith@example.com")
+
+
+class TestUploadDataSetForm:
+    def test_duplicate_column_names_raise_error(self):
+        csv_content = "Allocation,Allocation\n1000,2000\n2000,3000"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "The CSV file contains duplicate column names: Allocation" in form.file.errors[0]
+
+    def test_duplicate_column_names_after_safe_column_id_raise_error(self):
+        csv_content = "Capital Allocation,(Capital-Allocation)\n1000,2000\n2000,3000"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert (
+            "The CSV file contains duplicate column names: Capital Allocation, (Capital-Allocation)"
+            in form.file.errors[0]
+        )

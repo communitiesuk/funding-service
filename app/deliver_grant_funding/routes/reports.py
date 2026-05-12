@@ -3305,7 +3305,8 @@ def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], TUnvalida
     file_storage.stream.seek(0)
 
     reader = csv.DictReader(io.StringIO(content))
-    columns = list(reader.fieldnames or [])
+    columns = [fieldname.strip() for fieldname in reader.fieldnames or []]
+    reader.fieldnames = columns
     rows: TUnvalidatedDataSetRows = list(reader)
 
     return columns, rows
