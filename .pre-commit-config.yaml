@@ -49,5 +49,5 @@ repos:
         language: node
         additional_dependencies:
           - "prettier@3.8.3"
-          - "prettier-plugin-jinja-template@2.1.0"
+          - "prettier-plugin-jinja-template@2.2.0"
         pass_filenames: false
