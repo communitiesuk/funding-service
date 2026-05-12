@@ -23,9 +23,9 @@
     "prettier-plugin-jinja-template": "2.2.0",
     "regenerator-runtime": "0.14.1",
     "sass": "1.99.0",
-    "vite": "8.0.11",
+    "vite": "8.0.12",
     "vite-plugin-static-copy": "4.1.0",
-    "vitest": "4.1.5"
+    "vitest": "4.1.6"
   },
   "standard": {
     "globals": [
