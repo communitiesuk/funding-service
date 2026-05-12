@@ -96,6 +96,38 @@ class TestPlatformAdminAuditEventView:
         table_text = table.get_text()
         assert "platform-admin-db-event" in table_text
 
+    def test_search_combined_with_filter_runs_against_enum_event_type(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        organisation = factories.organisation.create(external_id="E06000043", can_manage_grants=False)
+        grant_recipient = factories.grant_recipient.create(organisation=organisation)
+        audit_event = factories.audit_event.create(
+            data={
+                "model_class": "GrantRecipient",
+                "action": "update",
+                "model_id": str(grant_recipient.id),
+                "changes": {},
+            },
+        )
+
+        response = authenticated_platform_admin_client.get(
+            "/deliver/admin/auditevent/?search=platform-admin&flt0_10=GrantRecipient"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        table = soup.find("table")
+        assert table is not None
+
+        rows = table.find("tbody").find_all("tr")
+        assert len(rows) == 1
+
+        row_text = rows[0].get_text()
+        assert audit_event.user.email in row_text
+        assert "GrantRecipient" in row_text
+        assert "update" in row_text
+        assert str(audit_event.id) in str(rows[0])
+
 
 class TestAdminAuditTracking:
     def test_updating_user_creates_audit_event(self, authenticated_platform_admin_client, factories, db_session):
