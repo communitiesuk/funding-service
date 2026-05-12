@@ -27,7 +27,7 @@ dependencies = [
     "flask-login==0.6.3",
     "sentry-sdk==2.57.0",
     "msal==1.35.1",
-    "gunicorn[gevent]==25.3.0",
+    "gunicorn[gevent]==26.0.0",
     "sqlalchemy-json==0.7.0",
     "simpleeval==1.0.7",
     "num2words==0.5.14",
