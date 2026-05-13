@@ -185,7 +185,7 @@ def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:
         url="/deliver/admin",
         index_view=PlatformAdminIndexView(url="/deliver/admin", endpoint="platform_admin"),
         theme=XGovukFrontendTheme(base_template="deliver_grant_funding/admin/mhclg_base.html"),
-        csp_nonce_generator=app.jinja_env.globals["csp_nonce"],
+        csp_nonce_generator=app.jinja_env.globals["csp_nonce"],  # ty:ignore[invalid-argument-type]
     )
     XGovukFlaskAdmin(app)
     with app.app_context():

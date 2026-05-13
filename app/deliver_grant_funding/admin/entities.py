@@ -9,8 +9,9 @@ from flask_admin.actions import action
 from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
+from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
-from sqlalchemy import case, func, or_, orm, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from wtforms import Form
 from wtforms.validators import Email
@@ -58,9 +59,11 @@ class PlatformAdminModelView(XGovukModelView):
     can_delete = False
     can_export = False
 
+    session: SQLAlchemy
+
     def __init__(
         self,
-        session: orm.Session,
+        session: SQLAlchemy,
         name: str | None = None,
         category: str | None = None,
         endpoint: str | None = None,
@@ -88,37 +91,37 @@ class PlatformAdminModelView(XGovukModelView):
     def _model(self) -> type[BaseModel]:
         pass
 
-    def on_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:
+    def on_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
         if not is_created:
             g.audit_event = create_database_model_change_for_update(model, get_current_user())
         return super().on_model_change(form, model, is_created)
 
-    def after_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:
+    def after_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
         """This is called after flask-admin has committed the changes; when we track an audit event, that event
         needs to be responsible for committing itself, as flask-admin won't commit again automatically.
         """
         user = get_current_user()
         if is_created:
             event = create_database_model_change_for_create(model, user)
-            track_audit_event(self.session, event, user)
-            self.session.commit()
+            track_audit_event(self.session.session, event, user)
+            self.session.session.commit()
         elif pending_event := g.pop("audit_event", None):
-            track_audit_event(self.session, pending_event, user)
-            self.session.commit()
+            track_audit_event(self.session.session, pending_event, user)
+            self.session.session.commit()
 
         return super().after_model_change(form, model, is_created)
 
-    def on_model_delete(self, model: BaseModel) -> None:
+    def on_model_delete(self, model: BaseModel) -> None:  # ty:ignore[invalid-method-override]
         g.audit_event = create_database_model_change_for_delete(model, get_current_user())
         return super().on_model_delete(model)
 
-    def after_model_delete(self, model: BaseModel) -> None:
+    def after_model_delete(self, model: BaseModel) -> None:  # ty:ignore[invalid-method-override]
         """This is called after flask-admin has committed the changes; when we track an audit event, that event
         needs to be responsible for committing itself, as flask-admin won't commit again automatically.
         """
         if audit_event := g.pop("audit_event", None):
-            track_audit_event(self.session, audit_event, get_current_user())
-            self.session.commit()
+            track_audit_event(self.session.session, audit_event, get_current_user())
+            self.session.session.commit()
 
         return super().after_model_delete(model)
 
@@ -269,7 +272,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
         },
     }
 
-    def edit_form(self, obj: Grant | None = None) -> Form:
+    def edit_form(self, obj: Grant | None = None) -> Form:  # ty:ignore[invalid-method-override]
         form = super().edit_form(obj)
         if obj:
             privacy_policy_url = url_for("access_grant_funding.privacy_policy", grant_id=obj.id)
@@ -324,12 +327,12 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
         "grant": {"get_label": "name"},
     }
 
-    def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # type: ignore[override]
+    def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
         if is_created:
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
 
-            if user := self.session.scalar(select(User).where(User.email == form.email.data)):  # type: ignore[attr-defined]
+            if user := self.session.session.scalar(select(User).where(User.email == form.email.data)):  # type: ignore[attr-defined]
                 model.user = user
 
         return super().on_model_change(form, model, is_created)
@@ -388,7 +391,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
 
         try:
             usable_invitations = (
-                self.session.execute(select(Invitation).where(Invitation.id.in_(ids), Invitation.is_usable))
+                self.session.session.execute(select(Invitation).where(Invitation.id.in_(ids), Invitation.is_usable))
                 .scalars()
                 .all()
             )
@@ -397,9 +400,9 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
                 audit_event = create_database_model_change_for_update(invitation, get_current_user())
                 if not audit_event:
                     raise RuntimeError("Expected an audit event")
-                track_audit_event(self.session, audit_event, get_current_user())
+                track_audit_event(self.session.session, audit_event, get_current_user())
 
-            self.session.commit()
+            self.session.session.commit()
 
             count = len(usable_invitations)
             flash(

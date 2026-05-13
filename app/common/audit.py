@@ -128,7 +128,7 @@ def create_database_model_change_for_delete(
     )
 
 
-def track_audit_event(session: scoped_session[Session], event: AuditEvent, user: User) -> None:
+def track_audit_event(session: scoped_session[Session] | Session, event: AuditEvent, user: User) -> None:
     audit_record = AuditEventModel(
         event_type=event.event_type,
         user_id=event.user_id,
