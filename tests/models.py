@@ -883,9 +883,13 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
     collection = None
     collection_id = factory.LazyAttribute(lambda o: o.collection.id if o.collection else None)
 
+    created_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
     created_by = None
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id if o.created_by else None)
 
+    updated_at_utc = factory.LazyAttribute(
+        lambda o: datetime.datetime.now() if o.updated_by is not None else o.created_at_utc
+    )
     updated_by = None
     updated_by_id = factory.LazyAttribute(lambda o: o.updated_by.id if o.updated_by else None)
 

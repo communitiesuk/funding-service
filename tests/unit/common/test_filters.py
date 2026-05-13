@@ -1,7 +1,8 @@
 import datetime
+from zoneinfo import ZoneInfo
 
 from app import format_date, format_date_range, format_datetime, format_datetime_range
-from app.common.filters import format_date_range_short, format_datetime_short
+from app.common.filters import format_date_range_short, format_datetime_short, iso_utc
 
 
 class TestFormatDate:
@@ -10,6 +11,15 @@ class TestFormatDate:
 
     def test_datetime(self):
         assert format_date(datetime.datetime(2025, 1, 1, 12, 0, 0)) == "Wednesday 1 January 2025"
+
+    def test_datetime_crosses_midnight_in_bst(self):
+        assert format_date(datetime.datetime(2025, 6, 1, 23, 30, 0)) == "Monday 2 June 2025"
+
+    def test_datetime_tz_none_keeps_utc(self):
+        assert format_date(datetime.datetime(2025, 6, 1, 23, 30, 0), tz=None) == "Sunday 1 June 2025"
+
+    def test_date_ignores_tz(self):
+        assert format_date(datetime.date(2025, 6, 1), tz=None) == "Sunday 1 June 2025"
 
 
 class TestFormatDatetime:
@@ -27,6 +37,19 @@ class TestFormatDatetime:
 
     def test_datetime_midnight(self):
         assert format_datetime(datetime.datetime(2025, 1, 1, 0, 0, 0)) == "12am on Wednesday 1 January 2025"
+
+    def test_naive_utc_in_bst_shifts_one_hour(self):
+        assert format_datetime(datetime.datetime(2025, 6, 1, 23, 30, 0)) == "12:30am on Monday 2 June 2025"
+
+    def test_naive_utc_in_gmt_unchanged(self):
+        assert format_datetime(datetime.datetime(2025, 1, 1, 9, 0, 0)) == "9am on Wednesday 1 January 2025"
+
+    def test_tz_none_keeps_raw_utc(self):
+        assert format_datetime(datetime.datetime(2025, 6, 1, 23, 30, 0), tz=None) == "11:30pm on Sunday 1 June 2025"
+
+    def test_aware_non_utc_input_converted(self):
+        eastern = datetime.datetime(2025, 6, 1, 19, 30, 0, tzinfo=ZoneInfo("America/New_York"))
+        assert format_datetime(eastern) == "12:30am on Monday 2 June 2025"
 
 
 class TestFormatDateRange:
@@ -74,3 +97,19 @@ class TestFormatDatetimeShort:
 
     def test_datetime_midnight(self):
         assert format_datetime_short(datetime.datetime(2025, 1, 1, 0, 0, 0)) == "1 Jan 2025 at 12am"
+
+    def test_naive_utc_in_bst_shifts_one_hour(self):
+        assert format_datetime_short(datetime.datetime(2025, 6, 1, 23, 30, 0)) == "2 Jun 2025 at 12:30am"
+
+
+class TestIsoUtc:
+    def test_naive_input_treated_as_utc(self):
+        assert iso_utc(datetime.datetime(2025, 6, 1, 23, 30, 0)) == "2025-06-01T23:30:00+00:00"
+
+    def test_aware_non_utc_input_converted(self):
+        eastern = datetime.datetime(2025, 6, 1, 18, 30, 0, tzinfo=ZoneInfo("America/New_York"))
+        assert iso_utc(eastern) == "2025-06-01T22:30:00+00:00"
+
+    def test_aware_utc_input_unchanged(self):
+        utc = datetime.datetime(2025, 1, 1, 9, 0, 0, tzinfo=datetime.UTC)
+        assert iso_utc(utc) == "2025-01-01T09:00:00+00:00"

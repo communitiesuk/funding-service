@@ -5003,7 +5003,7 @@ class TestPlatformAdminSubmissionsView:
         page_text = soup.get_text()
         assert "Missing evidence" in page_text
         assert f"Reference: {submission.reference}" in page_text
-        assert "3 Jun 2025 at 2pm" in page_text
+        assert "3 Jun 2025 at 3pm" in page_text
 
 
 class TestPlatformAdminSubmissionEventView:

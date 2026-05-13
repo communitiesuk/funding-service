@@ -47,7 +47,10 @@
           {% set data_set_name_html %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, report_id=report.id, data_source_id=data_set.id) }}">{{ data_set.name }}</a>
           {% endset %}
-          {% do rows.append([{"html": data_set_name_html}, {"text": format_datetime_short(data_set.updated_at_utc if data_set.updated_at_utc else data_set.created_at_utc)}, {"text": data_set.updated_by.name if data_set.updated_by else data_set.created_by.name}]) %}
+          {% set data_set_timestamp %}
+            <time datetime="{{ iso_utc(data_set.updated_at_utc) }}">{{ format_datetime_short(data_set.updated_at_utc) }}</time>
+          {% endset %}
+          {% do rows.append([{"html": data_set_name_html}, {"html": data_set_timestamp}, {"text": data_set.updated_by.name if data_set.updated_by else data_set.created_by.name}]) %}
         {% endfor %}
       {% else %}
         {% set no_data_sets_text %}
