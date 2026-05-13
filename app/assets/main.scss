@@ -1,16 +1,24 @@
-@use "govuk" as govuk with (
-    $govuk-new-organisation-colours: true,
-    $govuk-assets-path: "/static/assets/",
-    $govuk-brand-colour: #00625e
+$brand-colour: #00625e;
+$assets-path: "/static/assets/";
+$new-organisation-colours: true;
+
+@use "moj/settings/assets" with (
+    $moj-assets-path: $assets-path
 );
-@use "govuk/base" with (
-    $govuk-new-organisation-colours: true,
-    $govuk-assets-path: "/static/assets/",
-    $govuk-brand-colour: #00625e
-); // share config with partials
+
+// This configures govuk/base for us, which @use components below will then reuse with the correct configuration.
+@use "moj/vendor/govuk-frontend" with (
+    $govuk-brand-colour: $brand-colour,
+    $govuk-new-organisation-colours: $new-organisation-colours
+);
+
+@use "govuk" with (
+    $govuk-new-organisation-colours: $new-organisation-colours,
+    $govuk-assets-path: $assets-path,
+    $govuk-brand-colour: $brand-colour
+);
 
 @use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
-// TODO: import moj frontend to start using things from there, eg number components and sortable tables
 
 @use "components/accessible-autocomplete-overrides";
 @use "components/context-aware-editor";
