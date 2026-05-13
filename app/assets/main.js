@@ -1,4 +1,8 @@
 import { initAll } from "govuk-frontend";
+
+// Uncomment this when we need MoJ Frontend components.
+// Consider only importing+initialising the components that we use.
+// import { initAll as mojInitAll } from "@ministryofjustice/frontend";
 import accessibleAutocomplete from "accessible-autocomplete";
 import { pasteListener } from "./components/paste-html-to-markdown";
 import ajaxMarkdownPreview from "./components/ajax-markdown-preview";
@@ -7,6 +11,7 @@ import contextAwareEditor from "./components/context-aware-editor/index.js";
 import { initSectionNavScroll } from "./components/submission-section-nav/index.js";
 
 initAll();
+// mojInitAll();
 initSectionNavScroll();
 
 for (let el of document.querySelectorAll("[data-accessible-autocomplete]")) {
