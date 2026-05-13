@@ -77,6 +77,7 @@
         <div class="govuk-button-group">
           {{ form.csrf_token }}
           {{ form.submit(params={"text": "Continue and upload data set" }) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_data_sets', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
         </div>
       </form>
     </div>
