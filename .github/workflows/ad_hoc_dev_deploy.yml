@@ -8,13 +8,13 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-        run_e2e_tests:
-            required: false
-            default: true
-            type: boolean
-            description: Run e2e tests
+      run_e2e_tests:
+        required: false
+        default: true
+        type: boolean
+        description: Run e2e tests
   schedule:
-  - cron:  '0 2 * * 1'
+    - cron: '0 2 * * 1'
 jobs:
   cnb_build:
     name: Build
@@ -44,7 +44,9 @@ jobs:
       cancel-in-progress: false
     with:
       environment: dev
-      run_e2e_tests:  ${{ inputs.run_e2e_tests }}
+      run_e2e_tests: ${{ inputs.run_e2e_tests }}
+      image_cpu: 1
+      image_memory: 2
     secrets:
       AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT }}
       CI_AWS_ACCOUNT: ${{ secrets.CI_AWS_ACCOUNT }}
