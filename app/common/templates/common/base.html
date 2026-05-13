@@ -10,6 +10,15 @@
 
 {% block pageTitle %}MHCLG Funding Service{% endblock pageTitle %}
 
+{% block headIcons %}
+  <link rel="icon" sizes="48x48" href="{{ assetPath }}/images/favicon.ico" />
+  <link rel="icon" sizes="any" href="{{ assetPath }}/images/favicon.svg" type="image/svg+xml" />
+  <link rel="mask-icon" href="{{ assetPath }}/images/govuk-icon-mask.svg" color="{{ themeColor }}" />
+  <link rel="apple-touch-icon" href="{{ assetPath }}/images/govuk-icon-180.png" />
+
+  {# All we do here is remove the `manifest.json` link - which we don't need to serve and otherwise logs 401s in the console #}
+{% endblock %}
+
 {% block head %}
   {% if config["ASSETS_VITE_LIVE_ENABLED"] %}
     <script type="module" src="{{ vite_asset('@vite/client') }}"></script>
