@@ -93,11 +93,7 @@ def context(
 ) -> BrowserContext:
     e2e_env = get_e2e_params["e2e_env"]
     http_credentials = e2e_test_secrets.HTTP_BASIC_AUTH if e2e_env in {"dev", "test"} else None
-    # Chromium 147 (bundled with Playwright 1.59.0) no longer trusts locally-installed CA certificates
-    # via the NSS database on Linux, causing ERR_CERT_AUTHORITY_INVALID for self-signed local certs.
-    # We only need to ignore HTTPS errors locally; dev/test environments use real trusted certificates.
-    ignore_https_errors = e2e_env == "local"
-    return new_context(http_credentials=http_credentials, ignore_https_errors=ignore_https_errors)
+    return new_context(http_credentials=http_credentials)
 
 
 @pytest.fixture()
