@@ -39,7 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: 3.14.4
+          python-version: 3.14.5
 
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
@@ -50,6 +50,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
+          version: "0.11.14"
           enable-cache: true
 
       - name: Disable man-db triggers
@@ -94,6 +95,10 @@ jobs:
       - name: run e2e tests
         run: |
           uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -vv --durations=999 tests/e2e
+
+      - name: Dump docker compose service logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml logs --no-color --tail=200
 
       - name: stop docker compose
         if: always() # Ensure this runs even if the previous step fails
