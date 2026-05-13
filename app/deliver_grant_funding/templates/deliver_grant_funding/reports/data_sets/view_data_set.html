@@ -121,7 +121,7 @@
           %}
           {% do rows.append([key_cell, val_cell]) %}
         {% endfor %}
-        {{ govukTable({"head": head, "rows": rows}) }}
+        <div class="moj-scrollable-pane" role="region" aria-label="{{ data_source.name }}" tabindex="0">{{ govukTable({"head": head, "rows": rows}) }}</div>
       {% elif data_source.type == enum.data_source_type_enum.GRANT_RECIPIENT %}
         {%
           set head = [
@@ -155,7 +155,8 @@
           {% endfor %}
           {% do rows.append(row) %}
         {% endfor %}
-        {{ govukTable({"head": head, "rows": rows}) }}
+
+        <div class="moj-scrollable-pane" role="region" aria-label="{{ data_source.name }}" tabindex="0">{{ govukTable({"head": head, "rows": rows}) }}</div>
       {% elif data_source.type == enum.data_source_type_enum.PROJECT_LEVEL %}
         {%
           set head = [
@@ -188,7 +189,7 @@
             {% do rows.append(row) %}
           {% endfor %}
         {% endfor %}
-        {{ govukTable({"head": head, "rows": rows}) }}
+        <div class="moj-scrollable-pane" role="region" aria-label="{{ data_source.name }}" tabindex="0">{{ govukTable({"head": head, "rows": rows}) }}</div>
       {% endif %}
     </div>
   </div>
