@@ -1,10 +1,11 @@
+import io
 from decimal import Decimal
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
 from flask import Flask, request
-from werkzeug.datastructures import MultiDict
+from werkzeug.datastructures import FileStorage, MultiDict
 from wtforms import ValidationError
 
 from app.common.data.types import (
@@ -23,6 +24,7 @@ from app.common.data.types import (
 from app.common.expressions.references import ExpressionReference
 from app.common.filters import format_thousands
 from app.common.helpers.collections import SubmissionHelper
+from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
 from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
@@ -30,6 +32,7 @@ from app.deliver_grant_funding.forms import (
     GrantNameForm,
     QuestionForm,
     SelectDataSourceQuestionForm,
+    UploadDataSetForm,
     _validate_no_blank_lines,
     _validate_no_duplicates,
     strip_string_if_not_empty,
@@ -699,3 +702,294 @@ class TestPlatformAdminCreateCertifiersForm:
         assert len(normalised_data) == 2
         assert normalised_data[0] == (organisations[0].name, "John Doe", "john.doe@example.com")
         assert normalised_data[1] == (organisations[1].name, "Jane Smith", "jane.smith@example.com")
+
+
+class TestUploadDataSetForm:
+    def test_missing_name_raises_error(self):
+        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Lothlorien,1000"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", ""),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "Enter the name for this data set" in form.name.errors[0]
+
+    def test_duplicate_name_raises_error(self):
+        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=["Test Data Set"])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "A data set with this name already exists for this report" in form.name.errors[0]
+
+    def test_missing_file_raises_error(self):
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", None),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "Select a file" in form.file.errors[0]
+
+    def test_non_csv_file_raises_error(self):
+        file = FileStorage(
+            stream=io.BytesIO(b"not a csv"),
+            filename="test.text",
+            content_type="text/text",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "The file must be a CSV" in form.file.errors[0]
+
+    def test_empty_csv_raises_error(self):
+        file = FileStorage(
+            stream=io.BytesIO(b""),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "The CSV file must have at least one column" in form.file.errors[0]
+
+    def test_empty_grant_recipient_csv_raises_error(self):
+        csv_content = "Organisation ID,Grant recipient\nE123,Lothlorien\nE456,Numenor"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "The CSV file must contain at least one column of data" in form.file.errors[0]
+
+    def test_empty_csv_headers_raises_error(self):
+        csv_content = "Organisation ID,Grant recipient,,Identifier\nE123,Lothlorien,Elves,Trees\nE456,Numenor,Men,Boats"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "The CSV file must have a name for each column" in form.file.errors[0]
+
+    def test_too_many_rows_raises_error(self):
+        rows = ["Organisation ID,Grant recipient,Data"] + [f"val{i},val{i},val{i}" for i in range(10001)]
+        csv_content = "\n".join(rows)
+
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "The file must contain no more than 10,000 rows" in form.file.errors[0]
+
+    def test_too_many_headers_raises_error(self):
+        csv_content = (
+            "Organisation ID,Grant recipient,Capital allocation,Revenue allocation,extra header,and again"
+            + "\nE123,Lothlorien,1000,2000\nE456,Numenor,3000,4000"
+        )
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert (
+            "The CSV file contains rows which are longer or shorter than the number of columns" in form.file.errors[0]
+        )
+
+    def test_too_long_rows_raises_error(self):
+        csv_content = (
+            "Organisation ID,Grant recipient,Capital allocation" + "\nE123,Lothlorien,1000,,,,,\nE456,Numenor,3000"
+        )
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert (
+            "The CSV file contains rows which are longer or shorter than the number of columns" in form.file.errors[0]
+        )
+
+    def test_duplicate_column_names_raises_error(self):
+        csv_content = "Allocation,Allocation\n1000,2000\n2000,3000"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "The CSV file contains duplicate column names: Allocation" in form.file.errors[0]
+
+    def test_duplicate_column_names_after_safe_column_id_raises_error(self):
+        csv_content = "Capital Allocation,(Capital-Allocation)\n1000,2000\n2000,3000"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert (
+            "The CSV file contains duplicate column names: Capital Allocation, (Capital-Allocation)"
+            in form.file.errors[0]
+        )
+
+    def test_missing_required_columns_for_grant_recipient_data_raises_error(self):
+        csv_content = "Amount,Category\n1000,A\n2000,B"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert (
+            f"The CSV file must contain the columns: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER}, "
+            f"{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
+        ) in form.file.errors[0]
+
+    def test_static_csv_with_missing_data_raises_error(self):
+        csv_content = "theme id,theme name\nelectric,Electricity\nwater,Water supply\ngarbage,"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.STATIC),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(existing_data_source_names=[])
+        form.process(data)
+
+        assert form.validate() is False
+        assert "The file has missing data in row(s): 4" in form.file.errors[0]

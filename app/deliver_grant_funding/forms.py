@@ -1,5 +1,6 @@
 import csv
 import io
+from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 from typing import Optional as TOptional
@@ -50,6 +51,7 @@ from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.feature_flags import FeatureFlags
+from app.common.safe_ids import safe_column_id
 from app.common.utils import uppercase_first
 from app.constants import DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.data_sets import CellError, DataTypeError, DecimalError, PrefixError, SuffixError
@@ -1026,7 +1028,7 @@ class UploadDataSetForm(FlaskForm):
         if field.data and field.data in self._existing_data_source_names:
             raise ValidationError("A data set with this name already exists for this report")
 
-    def validate_file(self, field: Field) -> None:
+    def validate_file(self, field: Field) -> None:  # noqa: C901
         if not field.data or not hasattr(field.data, "stream"):
             return
 
@@ -1034,7 +1036,8 @@ class UploadDataSetForm(FlaskForm):
         try:
             content = field.data.stream.read().decode("utf-8-sig")
             reader = csv.DictReader(io.StringIO(content))
-            fieldnames = reader.fieldnames or []
+            fieldnames = [fieldname.strip() for fieldname in reader.fieldnames or []]
+            reader.fieldnames = fieldnames
             rows = list(reader)
 
             if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
@@ -1042,6 +1045,22 @@ class UploadDataSetForm(FlaskForm):
 
             if any(not fieldname.strip() for fieldname in fieldnames):
                 raise ValidationError("The CSV file must have a name for each column")
+
+            if len(fieldnames) != len(set(fieldnames)):
+                counter = Counter(fieldnames)
+                duplicate_fieldnames = [fieldname for fieldname, count in counter.items() if count > 1]
+                raise ValidationError(
+                    f"The CSV file contains duplicate column names: {', '.join(duplicate_fieldnames)}"
+                )
+
+            fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
+            counter = Counter(fieldnames_to_safe_ids.values())
+            duplicate_safe_ids = {safe_id for safe_id, count in counter.items() if count > 1}
+            if duplicate_safe_ids:
+                duplicate_originals = [
+                    name for name, safe_id in fieldnames_to_safe_ids.items() if safe_id in duplicate_safe_ids
+                ]
+                raise ValidationError(f"The CSV file contains duplicate column names: {', '.join(duplicate_originals)}")
 
             if any(None in row or None in row.values() for row in rows):
                 raise ValidationError(
