@@ -58,7 +58,7 @@
           <p class="moj-timeline__byline">by {{ item.byline }}</p>
         </div>
         <p class="moj-timeline__date">
-          <time datetime="{{ item.datetime.isoformat() }}">{{ format_datetime_short(item.datetime) }}</time>
+          <time datetime="{{ iso_utc(item.datetime) }}">{{ format_datetime_short(item.datetime) }}</time>
         </p>
         {% if item.description %}
           <div class="moj-timeline__description">{{ item.description }}</div>

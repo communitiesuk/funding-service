@@ -63,6 +63,11 @@
         <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_data_source_csv', grant_id=grant.id, report_id=report.id, data_source_id=data_source.id) }}"> Download data set (CSV) </a>
       {% endset %}
 
+
+      {% set uploaded_time %}
+        <time datetime="{{ iso_utc(data_source.created_at_utc) }}">{{ format_datetime_short(data_source.created_at_utc) }}</time>
+      {% endset %}
+
       {%
         set summary_rows = [
           {
@@ -75,7 +80,7 @@
           },
           {
             "key": {"text": "Date and time uploaded"},
-            "value": {"text": format_datetime_short(data_source.created_at_utc) if data_source.created_at_utc else "Unknown"}
+            "value": {"html": uploaded_time},
           },
           {
             "key": {"text": "Uploaded data set"},

@@ -1,4 +1,5 @@
 import csv
+import datetime
 import io
 import logging
 import uuid
@@ -57,7 +58,6 @@ from app.common.expressions.forms import (
 )
 from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, IsYes, LessThan
 from app.common.expressions.references import ExpressionReference
-from app.common.filters import format_datetime_short
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -9145,6 +9145,7 @@ class TestListReportDataSets:
             collection=report,
             created_by=uploader,
             updated_by=None,
+            created_at_utc=datetime.datetime(2025, 7, 1, 13, 30, 0),
             items=None,
         )
         data_source_2 = factories.data_source.create(
@@ -9154,6 +9155,8 @@ class TestListReportDataSets:
             collection=report,
             created_by=uploader,
             updated_by=uploader_2,
+            created_at_utc=datetime.datetime(2025, 7, 1, 13, 30, 0),
+            updated_at_utc=datetime.datetime(2025, 7, 1, 14, 30, 0),
         )
 
         other_report = factories.collection.create(name="Other Report")
@@ -9176,8 +9179,9 @@ class TestListReportDataSets:
         assert uploader.name in soup.text
         assert uploader_2.name in soup.text
         assert data_source_3.name not in soup.text
-        assert format_datetime_short(data_source_1.created_at_utc) in soup.text
-        assert format_datetime_short(data_source_1.updated_at_utc) in soup.text
+        data_source_timestamps = soup.find_all("time")
+        assert data_source_timestamps[0].text == "1 Jul 2025 at 2:30pm"
+        assert data_source_timestamps[1].text == "1 Jul 2025 at 3:30pm"
 
         if not can_upload:
             assert page_has_button(soup, button_text="Upload new data set") is None
@@ -10387,6 +10391,7 @@ class TestViewDataSource:
             collection=report,
             grant=grant,
             name="Test data set",
+            created_at_utc=datetime.datetime(2026, 7, 1, 12, 0, 0),
             type=DataSourceType.STATIC,
         )
 
@@ -10405,6 +10410,9 @@ class TestViewDataSource:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert "Test data set" in get_h1_text(soup)
+            uploaded_at = soup.find("time")
+            assert uploaded_at.text == "1 Jul 2026 at 1pm", "Uploaded at UTC should be converted to local London"
+
             if can_delete:
                 assert page_has_link(soup, "Delete data set")
             else:

@@ -505,11 +505,11 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
     ]
     column_searchable_list = ["user.email", "event_type"]
     column_labels = {
-        "created_at_utc": "Timestamp",
+        "created_at_utc": "Created at UTC",
         "user.email": "User",
         "model_class": "Model class",
         "action": "Action",
-        "updated_at_utc": "Updated at",
+        "updated_at_utc": "Updated at UTC",
         "event_type": "Event type",
     }
 
@@ -688,7 +688,8 @@ class PlatformAdminSubmissionEventView(FlaskAdminPlatformAdminAccessibleMixin, P
     ]
     column_searchable_list = ["id", "submission.reference"]
     column_labels = {
-        "created_at_utc": "Timestamp",
+        "created_at_utc": "Created at UTC",
+        "updated_at_utc": "Updated at UTC",
         "event_type": "Event type",
         "submission.reference": "Submission reference",
         "submission.mode": "Submission mode",
