@@ -1,4 +1,4 @@
-"""empty message
+"""Add initial pre-award collection type
 
 Revision ID: 061_pre_award_collections
 Revises: 060_notify_cleanup_audit_event
@@ -35,6 +35,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    with op.batch_alter_table("collection", schema=None) as batch_op:
+        batch_op.drop_constraint("ck_monitoring_certification_not_null")
+
     op.sync_enum_values(  # ty: ignore[unresolved-attribute]
         enum_schema="public",
         enum_name="collection_type",
@@ -42,3 +45,9 @@ def downgrade() -> None:
         affected_columns=[TableReference(table_schema="public", table_name="collection", column_name="type")],
         enum_values_to_rename=[],
     )
+
+    with op.batch_alter_table("collection", schema=None) as batch_op:
+        batch_op.create_check_constraint(
+            op.f("ck_monitoring_certification_not_null"),
+            "requires_certification IS NOT NULL OR type != 'MONITORING_REPORT'",
+        )

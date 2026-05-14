@@ -24,6 +24,8 @@ def generate_submission_reference(collection: Collection, avoid_references: Sequ
         match collection.type:
             case CollectionType.MONITORING_REPORT:
                 fmt = "{grant_code}-R{submission_code}"
+            case CollectionType.APPLICATION:
+                fmt = "{grant_code}-A{submission_code}"
 
             case _:
                 raise RuntimeError(f"Cannot generate reference for unknown submission type {collection.type}")
