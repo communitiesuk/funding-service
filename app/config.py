@@ -284,6 +284,11 @@ class _SharedConfig(_BaseConfig):
     GOVUK_NOTIFY_ACCESS_SUBMISSION_REOPENED_TEMPLATE_ID: str = "ad07a53a-d930-4cb3-ad57-595a1c104e61"
     GOVUK_NOTIFY_GRANT_EXPORT_TEMPLATE_ID: str = "580db095-420e-4690-a640-c0ebd9748a0b"
 
+    # System user used as the acting user for automated audit events (e.g. permission removal
+    # triggered by a GOV.UK Notify permanent-failure callback).
+    SYSTEM_USER_EMAIL: str = "funding-service-notify@communities.gov.uk"
+    SYSTEM_USER_NAME: str = "Funding Service System"
+
     ASSETS_VITE_BASE_URL: str = "http://localhost:5173"
     ASSETS_VITE_LIVE_ENABLED: bool = False
 

@@ -58,6 +58,10 @@ class RoleEnum(enum.StrEnum):
     GRANT_LIFECYCLE_MANAGER = "grant-lifecycle-manager"
     DATA_ANALYST = "data-analyst"
 
+    @staticmethod
+    def get_access_grant_funding_roles() -> tuple[RoleEnum, ...]:
+        return RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER
+
 
 class AuthMethodEnum(str, enum.Enum):
     SSO = "sso"
@@ -438,6 +442,7 @@ class OrganisationData(BaseModel):
 
 class AuditEventType(enum.Enum):
     PLATFORM_ADMIN_DB_EVENT = "platform-admin-db-event"
+    SYSTEM = "system"
 
 
 class DataSourceType(enum.StrEnum):
