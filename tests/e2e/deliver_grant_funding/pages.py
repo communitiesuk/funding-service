@@ -186,6 +186,8 @@ class GrantSetupNamePage(TopNavMixin, BasePage):
 
     def click_save_and_continue(self) -> GrantSetupCodePage:
         self.save_continue_button.click()
+        if self.page.get_by_text("Grant name already in use").is_visible():
+            raise ValueError("Grant already exists")
         grant_setup_code_page = GrantSetupCodePage(self.page, self.domain)
         expect(grant_setup_code_page.title).to_be_visible()
         return grant_setup_code_page

@@ -37,7 +37,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
 from tests.e2e.helpers import wait_for_context_aware_textarea_to_be_ready
 
 
-def create_grant(new_grant_name: str, grant_name_uuid: str, all_grants_page: AllGrantsPage) -> GrantDashboardPage:
+def create_grant(new_grant_name: str, ggis_number: str, all_grants_page: AllGrantsPage) -> GrantDashboardPage:
     grant_intro_page = all_grants_page.click_set_up_a_grant()
     grant_ggis_page = grant_intro_page.click_continue()
     grant_ggis_page.select_yes()
@@ -45,7 +45,8 @@ def create_grant(new_grant_name: str, grant_name_uuid: str, all_grants_page: All
     grant_name_page = grant_ggis_page.click_save_and_continue()
     grant_name_page.fill_name(new_grant_name)
     grant_code_page = grant_name_page.click_save_and_continue()
-    grant_code_page.fill_code(f"E2E-{grant_name_uuid[:8].upper()}")
+
+    grant_code_page.fill_code(ggis_number)
     grant_description_page = grant_code_page.click_save_and_continue()
     new_grant_description = f"Description for {new_grant_name}"
     grant_description_page.fill_description(new_grant_description)

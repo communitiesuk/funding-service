@@ -68,6 +68,11 @@ class E2EManagedExpression:
     expression_references: dict[str, DataReferenceConfig] = dataclasses.field(default_factory=dict)
 
 
+class GrantDict(TypedDict):
+    name: str
+    id: uuid.UUID | None
+
+
 class ReportDict(TypedDict):
     name: str
     id: uuid.UUID | None

@@ -1,5 +1,6 @@
 import enum
 import os
+import uuid
 from typing import Generator, cast
 from unittest.mock import patch
 
@@ -8,7 +9,7 @@ from flask import session
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
 from playwright._impl._api_structures import SetCookieParam
-from playwright.sync_api import BrowserContext, Page, ViewportSize
+from playwright.sync_api import BrowserContext, Page, Playwright, ViewportSize
 from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
 
@@ -17,8 +18,8 @@ from app.common.data.models_user import User
 from app.common.data.types import AuthMethodEnum
 from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
-from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig
-from tests.e2e.deliver_grant_funding.pages import SSOSignInPage, StubSSOEmailLoginPage
+from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig, GrantDict
+from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, SSOSignInPage, StubSSOEmailLoginPage
 from tests.e2e.helpers import retrieve_magic_link
 from tests.utils import build_db_config
 
@@ -48,7 +49,7 @@ def _viewport(request: FixtureRequest, page: Page) -> None:
     page.set_viewport_size(ViewportSize(width=int(width), height=int(height)))
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def get_e2e_params(request: pytest.FixtureRequest) -> Generator[dict[str, str], None, None]:
     e2e_env = request.config.getoption("e2e_env", "local")
     yield {
@@ -56,7 +57,7 @@ def get_e2e_params(request: pytest.FixtureRequest) -> Generator[dict[str, str], 
     }
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def domain(request: pytest.FixtureRequest, get_e2e_params: dict[str, str]) -> str:
     e2e_env = get_e2e_params["e2e_env"]
 
@@ -70,7 +71,7 @@ def domain(request: pytest.FixtureRequest, get_e2e_params: dict[str, str]) -> st
         raise ValueError(f"not configured for {e2e_env}")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def e2e_test_secrets(request: FixtureRequest) -> EndToEndTestSecrets:
     e2e_env = request.config.getoption("e2e_env")
     e2e_aws_vault_profile = request.config.getoption("e2e_aws_vault_profile")
@@ -96,7 +97,7 @@ def context(
     return new_context(http_credentials=http_credentials)
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def email(request: FixtureRequest) -> str:
     return cast(str, request.node.get_closest_marker("authenticate_as", "funding-service-notify@communities.gov.uk"))
 
@@ -201,3 +202,58 @@ def authenticated_browser_sso(
         return login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
     else:
         raise ValueError(f"Unknown e2e_env: {e2e_test_secrets.E2E_ENV}. Cannot authenticate browser with SSO.")
+
+
+# TODO seed this grant properly so we don't need the fixture, which will help with parallelisation
+@pytest.fixture(scope="session")
+def seeded_e2e_grant(
+    playwright: Playwright,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    email: str,
+):
+    from tests.e2e.deliver_grant_funding.helpers import create_grant, extract_uuid_from_url
+
+    chromium = playwright.chromium
+    browser = chromium.launch()
+    page = browser.new_page()
+    if e2e_test_secrets.E2E_ENV == "local":
+        login_with_stub_sso(domain, page, email, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+    elif e2e_test_secrets.E2E_ENV in {"dev", "test"}:
+        login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+    grant_name_uuid = str(uuid.uuid4())
+    grant_name = f"Seeded E2E grant {grant_name_uuid}"
+
+    # Set up new grant
+    try:
+        create_grant(grant_name, grant_name_uuid[:8].upper(), all_grants_page)
+    except ValueError as e:
+        if "already exists" in str(e):
+            # If the grant already exists, navigate to it
+            all_grants_page.navigate()
+            all_grants_page.click_grant(grant_name)
+        else:
+            raise
+
+    # Extract grant_id from URL (e.g., /deliver/grant/<uuid>/...)
+    grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
+    browser.close()
+
+    yield GrantDict(
+        name=grant_name,
+        id=uuid.UUID(grant_id),
+    )
+
+
+# TODO seed this properly
+TEST_DATA_TO_BE_SEEDED = {
+    "grant_team_email": e2e_user_configs[DeliverGrantFundingUserType.GRANT_TEAM_MEMBER].email,
+    "test_org_name": "End-to-End Testing Organisation (test)",
+    "test_org_external_id": "MHCLG-TEST-ORG",
+    "grant_recipient_org": "End-to-End Testing Organisation",
+    "grant_recipient_user_name": "MHCLG Test User",
+    "grant_recipient_user_email": "fsd-post-award@levellingup.gov.uk",
+}

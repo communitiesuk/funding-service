@@ -132,7 +132,7 @@ def test_add_another_setup(
     # Grant
     all_grants_page = AllGrantsPage(page, domain)
     all_grants_page.navigate()
-    grant_dashboard_page = create_grant(grant_name, grant_name_uuid, all_grants_page)
+    grant_dashboard_page = create_grant(grant_name, f"E2E-{grant_name_uuid[:8].upper()}", all_grants_page)
     grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
 
     # Report
