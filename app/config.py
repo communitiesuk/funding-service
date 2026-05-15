@@ -1,5 +1,6 @@
 import copy
 import os
+import secrets
 import urllib.parse
 from enum import Enum
 from typing import Any, Self
@@ -129,6 +130,10 @@ class _SharedConfig(_BaseConfig):
     PROXY_FIX_HOST: int = 1  # We inject X-Forwarded-For using Cloudfront custom headings
     SERVER_NAME: str
     SEND_FILE_MAX_AGE_DEFAULT: int = 31536000
+
+    # This default is randomly generated each app startup, so effectively unusable. It is overridden by an environment
+    # variable from parameter store in deployed envs.
+    FORCE_TRACE_TOKEN: str = secrets.token_urlsafe(16)
 
     AWS_S3_BUCKET_NAME: str
     SUBMISSION_FILES_PREFIX: str = "uploaded-submission-files"

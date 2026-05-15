@@ -1,6 +1,8 @@
 import os
+import secrets
 
 import sentry_sdk
+from flask import current_app
 from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
 from sentry_sdk.types import Event, Hint
 
@@ -16,6 +18,11 @@ def traces_sampler(sampling_context: Hint) -> float:
     if wsgi_environ and wsgi_environ.get("PATH_INFO") == "/healthcheck":
         return 0
 
+    force_trace_token = current_app.config["FORCE_TRACE_TOKEN"]
+    header_token = wsgi_environ.get("HTTP_X_FORCE_TRACE") if wsgi_environ else None
+    if force_trace_token and header_token and secrets.compare_digest(force_trace_token, header_token):
+        return 1.0
+
     return float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.02"))
 
 
@@ -23,6 +30,11 @@ def profiles_sampler(sampling_context: Hint) -> float:
     wsgi_environ = sampling_context.get("wsgi_environ")
     if wsgi_environ and wsgi_environ.get("PATH_INFO") == "/healthcheck":
         return 0
+
+    force_trace_token = current_app.config["FORCE_TRACE_TOKEN"]
+    header_token = wsgi_environ.get("HTTP_X_FORCE_TRACE") if wsgi_environ else None
+    if force_trace_token and header_token and secrets.compare_digest(force_trace_token, header_token):
+        return 1.0
 
     return float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.02"))
 
