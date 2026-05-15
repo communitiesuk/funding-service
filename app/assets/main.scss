@@ -18,8 +18,9 @@ $new-organisation-colours: true;
     $govuk-brand-colour: $brand-colour
 );
 
-@use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
+@use "moj/objects/scrollable-pane";
 
+@use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
 @use "components/accessible-autocomplete-overrides";
 @use "components/context-aware-editor";
 @use "components/destructive-link";
