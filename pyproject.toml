@@ -177,7 +177,8 @@ forbidden_modules = [
 env = [
     "FLASK_ENV=unit_test",
     "DATABASE_URL=postgresql+psycopg://overridden-by-fixture",
-    "PGGSSENCMODE=disable" #https://github.com/ged/ruby-pg/issues/538#issuecomment-1591629049
+    "PGGSSENCMODE=disable", #https://github.com/ged/ruby-pg/issues/538#issuecomment-1591629049
+    "SECRET_KEY=unsafe"  # pragma: allowlist secret
 ]
 markers = [
     "e2e: Run E2E (browser) tests using playwright",

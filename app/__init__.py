@@ -1,4 +1,6 @@
 import datetime
+import os
+import secrets
 import typing as t
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -8,6 +10,7 @@ from flask.typing import ResponseReturnValue
 from flask_admin import Admin
 from flask_babel import Babel
 from flask_sqlalchemy_lite import SQLAlchemy
+from flask_wtf.csrf import generate_csrf
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from sqlalchemy.exc import NoResultFound, ProgrammingError
@@ -54,6 +57,7 @@ from app.common.filters import (
 )
 from app.common.helpers.collections import SubmissionAuthorisationError
 from app.common.helpers.feature_flags import FeatureFlags
+from app.common.helpers.request_tracing import get_tracing_state
 from app.common.utils import comma_join_items, uppercase_first
 from app.config import get_settings
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -78,7 +82,7 @@ from app.types import FlashMessageType
 if TYPE_CHECKING:
     from app.common.data.models_user import User
 
-init_sentry()
+init_sentry(os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)))
 
 
 def _register_global_error_handlers(app: Flask) -> None:
@@ -286,6 +290,7 @@ def create_app() -> Flask:  # noqa: C901
 
     app.jinja_env.filters["comma_join_items"] = comma_join_items
     app.jinja_env.filters["uppercase_first"] = uppercase_first
+    app.jinja_env.globals["csrf_token"] = generate_csrf  # ty: ignore[invalid-assignment]
 
     @app.context_processor
     def _jinja_template_context() -> dict[str, Any]:
@@ -330,6 +335,7 @@ def create_app() -> Flask:  # noqa: C901
                 data_source_type_enum=DataSourceType,
             ),
             feature_flags=FeatureFlags,
+            request_tracing_state=get_tracing_state(),
         )
 
     # TODO: Remove our basic auth application code when the app is deployed behind CloudFront and the app is not

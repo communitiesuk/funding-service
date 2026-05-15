@@ -172,6 +172,12 @@ class ExpressionType(enum.StrEnum):
     VALIDATION = "VALIDATION"
 
 
+class TraceLevelEnum(enum.StrEnum):
+    TRACE = "sentry tracing"
+    PROFILE = "sentry profiling"
+    DEBUG_LOGGING = "debug logging"
+
+
 class ComponentVisibilityState(enum.Enum):
     VISIBLE = "visible"  # Conditions evaluated to True
     HIDDEN = "hidden"  # Conditions evaluated to False (definitive)

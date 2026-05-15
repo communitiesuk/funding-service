@@ -1,5 +1,6 @@
 {% extends "govuk_frontend_jinja/template.html" %}
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
 
@@ -27,6 +28,7 @@
 {% endblock head %}
 
 {% block header %}
+  {{ mhclgRequestTracingBanner() }}
   {# todo: have this header read a homepageUrl variable, then any subclasses can just use super() calls #}
   {{
     mhclgHeader(

@@ -1,4 +1,5 @@
 {% extends "admin/base.html" %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
 
 {% block pageTitle %}Admin panel - MHCLG Funding Service{% endblock %}
 
@@ -9,6 +10,7 @@
 {% endblock %}
 
 {% block headerRow %}
+  {{ mhclgRequestTracingBanner() }}
   <header class="govuk-header" data-module="govuk-header">
     <div class="govuk-header__container govuk-width-container">
       <div class="govuk-header__logo app-header__logo">

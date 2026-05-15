@@ -41,3 +41,24 @@
     </div>
   </div>
 {% endmacro %}
+
+{% macro mhclgRequestTracingBanner() %}
+  {% if request_tracing_state %}
+    {% set label = "Request tracing enabled for " ~ request_tracing_state.expires_in ~ ": " ~ (request_tracing_state.levels | join(", ")) %}
+    <div class="app-request-tracing-banner govuk-body govuk-!-margin-bottom-0">
+      <div class="govuk-width-container">
+        <div class="app-request-tracing-banner--container">
+          <div class="app-request-tracing-banner__tag">
+            <strong>{{ label }}</strong>
+          </div>
+          <div>
+            <form method="post" action="{{ url_for('developer_tools.stop') }}" class="govuk-!-margin-bottom-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button type="submit" class="app-request-tracing-banner__link-button">Stop tracing</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endmacro %}
