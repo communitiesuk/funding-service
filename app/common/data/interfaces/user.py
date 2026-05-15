@@ -4,8 +4,9 @@ from collections.abc import Sequence
 from itertools import groupby
 from typing import cast
 
+from flask import current_app
 from flask_login import current_user
-from sqlalchemy import and_, func, update
+from sqlalchemy import and_, func, or_, update
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
@@ -66,6 +67,32 @@ def get_users_with_permission(
 
     stmt = stmt.where(*filters)
 
+    return db.session.scalars(stmt).unique().all()
+
+
+def get_users_covering_grant_role(
+    role: RoleEnum,
+    grant: Grant,
+    organisation: Organisation,
+    *,
+    exclude_user_id: uuid.UUID | None = None,
+) -> Sequence[User]:
+    """Users with `role` on `grant` via the access-grant-funding `organisation`.
+
+    `organisation` must be a non-grant-managing recipient on `grant`. Matches either an exact
+    (organisation, grant) UserRole or an org-level UserRole (grant_id IS NULL) on the same organisation.
+    """
+    stmt = (
+        select(User)
+        .join(UserRole)
+        .where(
+            UserRole.organisation_id == organisation.id,
+            UserRole.permissions.contains([role]),
+            or_(UserRole.grant_id == grant.id, UserRole.grant_id.is_(None)),
+        )
+    )
+    if exclude_user_id is not None:
+        stmt = stmt.where(User.id != exclude_user_id)
     return db.session.scalars(stmt).unique().all()
 
 
@@ -135,6 +162,17 @@ def upsert_user_by_azure_ad_subject_id(
     ).one()
 
     return user
+
+
+def get_or_create_system_user() -> User:
+    """Return the funding-service system user, creating it on first use.
+
+    Used as the acting user on audit events emitted by automated processes (e.g. permission removal
+    triggered by a GOV.UK Notify permanent-failure callback)."""
+    return upsert_user_by_email(
+        email_address=current_app.config["SYSTEM_USER_EMAIL"],
+        name=current_app.config["SYSTEM_USER_NAME"],
+    )
 
 
 def get_user_role(user: User, organisation_id: uuid.UUID | None, grant_id: uuid.UUID | None) -> UserRole | None:
