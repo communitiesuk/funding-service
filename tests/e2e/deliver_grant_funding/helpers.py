@@ -2,6 +2,7 @@ import re
 from decimal import Decimal
 from typing import cast
 
+import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from app import NumberTypeEnum, QuestionDataType, format_thousands
@@ -20,6 +21,10 @@ from tests.e2e.dataclasses import (
 )
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
+    AddConditionPage,
+    AddQuestionDetailsPage,
+    CreateCalculatedConditionPage,
+    CreateCustomExpressionPage,
     EditQuestionGroupPage,
     EditQuestionPage,
     ManageSectionPage,
@@ -80,33 +85,34 @@ def create_question_or_group(
     parent_add_another: bool = False,
 ):
     if question_definition["type"] == "group":
-        add_question_group_page = manage_section_page.click_add_question_group(question_definition["text"])
+        group_definition = cast(QuestionGroupDict, question_definition)
+        add_question_group_page = manage_section_page.click_add_question_group(group_definition["text"])
         add_question_group_page.fill_in_question_group_name()
         group_display_options_page = add_question_group_page.click_continue()
-        group_display_options_page.click_question_group_display_type(question_definition["display_options"])
+        group_display_options_page.click_question_group_display_type(group_definition["display_options"])
 
-        if parent_add_another:
+        if parent_add_another and parent_group_name is not None:
             edit_question_group_page = group_display_options_page.click_submit_nested(parent_group_name)
         else:
             add_another_options_page = group_display_options_page.click_submit()
-            add_another_options_page.click_add_another(question_definition.get("add_another", False))
+            add_another_options_page.click_add_another(group_definition.get("add_another", False))
             edit_question_group_page = add_another_options_page.click_submit(parent_group_name)
         if (
-            question_definition.get("guidance") is not None
-            and question_definition.get("display_options") == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
+            group_definition.get("guidance") is not None
+            and group_definition.get("display_options") == GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE
         ):
-            add_question_guidance(question_definition, edit_question_group_page)
-        if question_definition.get("condition") is not None:
-            add_condition(edit_question_group_page, question_definition["condition"])
-        for question in question_definition["questions"]:
+            add_question_guidance(group_definition, edit_question_group_page)
+        if group_definition.get("condition") is not None:
+            add_condition(edit_question_group_page, group_definition["condition"])
+        for question in group_definition["questions"]:
             create_question_or_group(
                 question,
                 edit_question_group_page,
-                parent_group_name=question_definition["text"],
-                parent_add_another=question_definition.get("add_another", False),
+                parent_group_name=group_definition["text"],
+                parent_add_another=group_definition.get("add_another", False),
             )
-        if question_definition.get("validation") is not None:
-            add_group_validation(edit_question_group_page, question_definition["validation"])
+        if group_definition.get("validation") is not None:
+            add_calculated_group_validation(edit_question_group_page, group_definition["validation"])
         if parent_group_name:
             edit_question_group_page.click_parent_group_breadcrumb()
         else:
@@ -129,9 +135,9 @@ def _assert_reports_breadcrumb_layout(page: Page, parent_group_name: str | None 
 
 
 def create_question(
-    question_definition: TQuestionToTest,
+    question_definition: QuestionDict,
     manage_page: ManageSectionPage | EditQuestionGroupPage,
-    parent_group_name: str = None,
+    parent_group_name: str | None = None,
 ) -> None:
     question_type_page = manage_page.click_add_question()
     question_type_page.click_question_type(question_definition["type"])
@@ -143,10 +149,12 @@ def create_question(
     wait_for_context_aware_textarea_to_be_ready(question_details_page.page, "hint")
 
     if question_definition["type"] == QuestionDataType.NUMBER:
-        question_details_page.select_number_type(question_definition["data_options"].number_type)
+        question_details_page.select_number_type(
+            question_definition["data_options"].number_type  # ty:ignore[invalid-argument-type]
+        )
         if question_definition["data_options"].number_type == NumberTypeEnum.DECIMAL:
             question_details_page.fill_max_number_of_decimal_places(
-                question_definition["data_options"].max_decimal_places
+                question_definition["data_options"].max_decimal_places  # ty:ignore[invalid-argument-type]
             )
 
     question_details_page.fill_question_text(question_text)
@@ -200,6 +208,8 @@ def add_advanced_formatting(
 ) -> None:
     options = question_definition.get("options")
     question_details_page.click_advanced_formatting_options()
+    if not isinstance(options, QuestionPresentationOptions):
+        return
     match question_definition["type"]:
         case QuestionDataType.TEXT_MULTI_LINE:
             if options.rows is not None:
@@ -214,7 +224,7 @@ def add_advanced_formatting(
             if options.width is not None:
                 question_details_page.select_input_width(options.width)
         case QuestionDataType.DATE:
-            if options.approximate_date is True:
+            if options.approximate_date:
                 question_details_page.click_is_approximate_date_checkbox()
         case _:
             pass  # No advanced formatting for other question types
@@ -237,17 +247,20 @@ def add_question_guidance(
         add_guidance_page.click_save_guidance_button(edit_question_page)
 
 
-def add_group_validation(
+def add_calculated_group_validation(
     edit_question_group_page: EditQuestionGroupPage,
     validation: E2EManagedExpression,
 ) -> None:
+    if not isinstance(validation.evaluatable_expression, CustomExpression):
+        pytest.fail("Unexpected evaluatable expression, expected CustomExpression")
     add_validation_page = edit_question_group_page.click_add_validation()
     add_validation_page.configure_custom_expression(
         validation.evaluatable_expression.custom_expression, validation.expression_references
     )
-    add_validation_page.configure_custom_message(
-        validation.evaluatable_expression.custom_message, validation.expression_references
-    )
+    if validation.evaluatable_expression.custom_message:
+        add_validation_page.configure_custom_message(
+            validation.evaluatable_expression.custom_message, validation.expression_references
+        )
     add_validation_page.click_create_group_validation_expression()
 
 
@@ -259,14 +272,15 @@ def add_validation(
     add_validation_page = edit_question_page.click_add_validation()
     if isinstance(validation.evaluatable_expression, CustomExpression):
         add_validation_page.click_calculation_option()
-        add_custom_validation_page = add_validation_page.click_add_validation()
+        add_custom_validation_page = cast(CreateCustomExpressionPage, add_validation_page.click_add_validation())
 
         add_custom_validation_page.configure_custom_expression(
             validation.evaluatable_expression.custom_expression, validation.expression_references
         )
-        add_custom_validation_page.configure_custom_message(
-            validation.evaluatable_expression.custom_message, validation.expression_references
-        )
+        if validation.evaluatable_expression.custom_message:
+            add_custom_validation_page.configure_custom_message(
+                validation.evaluatable_expression.custom_message, validation.expression_references
+            )
         add_custom_validation_page.click_create_custom_validation_expression()
 
     else:
@@ -284,8 +298,8 @@ def add_condition(
     select_calculation_page = edit_question_page.click_add_condition()
     if isinstance(condition.evaluatable_expression, CustomExpression):
         select_calculation_page.click_yes_need_calculation()
-        calculated_condition_page = select_calculation_page.click_continue()
-        calculated_condition_page.fill_calculation_name(condition.evaluatable_expression.expression_name)
+        calculated_condition_page = cast(CreateCalculatedConditionPage, select_calculation_page.click_continue())
+        calculated_condition_page.fill_calculation_name(condition.evaluatable_expression.expression_name)  # ty:ignore[invalid-argument-type]
         calculated_condition_page.configure_custom_expression(
             expression=condition.evaluatable_expression.custom_expression,
             expression_references=condition.expression_references,
@@ -293,11 +307,11 @@ def add_condition(
         calculated_condition_page.click_create_calculated_condition(edit_question_page)
     else:
         select_calculation_page.click_no_calculation()
-        add_condition_page = select_calculation_page.click_continue()
+        add_condition_page = cast(AddConditionPage, select_calculation_page.click_continue())
         select_data_source_page = add_condition_page.click_reference_data_button()
-        _reference_data_flow(select_data_source_page, condition.conditional_on)
+        _reference_data_flow(select_data_source_page, condition.conditional_on)  # ty:ignore[invalid-argument-type]
         add_condition_page.configure_managed_condition(
-            condition.evaluatable_expression, condition.context_source, presentation_options
+            cast(ManagedExpression, condition.evaluatable_expression), condition.context_source, presentation_options
         )
         add_condition_page.click_add_condition(edit_question_page)
 
@@ -358,7 +372,7 @@ def complete_question_group(
             assert_question_visibility(question_page, group_to_test)
 
         answer_questions_and_check_for_expected_errors(
-            group_to_test["questions"],
+            group_to_test["questions"],  # ty:ignore[invalid-argument-type]
             question_page,
             group_to_test["validation"].evaluatable_expression.custom_message  # ty:ignore[unresolved-attribute]
             if group_to_test.get("validation") is not None
@@ -369,7 +383,9 @@ def complete_question_group(
     else:
         for nested_question in group_to_test["questions"]:
             if nested_question["type"] == "group":
-                complete_question_group(question_page, tasklist_page, grant_name, nested_question)
+                complete_question_group(
+                    question_page, tasklist_page, grant_name, cast(QuestionGroupDict, nested_question)
+                )
             else:
                 answer_questions_and_check_for_expected_errors(
                     [nested_question],
@@ -391,9 +407,9 @@ def complete_task(
         )
 
         if question_to_test["type"] == "group":
-            complete_question_group(question_page, tasklist_page, grant_name, question_to_test)
+            complete_question_group(question_page, tasklist_page, grant_name, cast(QuestionGroupDict, question_to_test))
         else:
-            answer_questions_and_check_for_expected_errors([cast(QuestionDict, question_to_test)], question_page, None)
+            answer_questions_and_check_for_expected_errors([question_to_test], question_page, None)
 
 
 def task_check_your_answers(
@@ -404,7 +420,7 @@ def task_check_your_answers(
     def _assert_check_your_answers(questions_to_check: list[TQuestionToTest]):
         for question_to_check in questions_to_check:
             if question_to_check["type"] == "group":
-                _assert_check_your_answers(question_to_check["questions"])
+                _assert_check_your_answers(cast(QuestionGroupDict, question_to_check)["questions"])
             else:
                 assert_check_your_answers(check_your_answers_page, question_to_check)
 
@@ -453,16 +469,16 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
         expect(checkbox_answers_list).to_have_text(question["answers"][-1].answer)
     elif question["type"] == QuestionDataType.NUMBER:
         answer_to_format = (
-            int(question["answers"][-1].answer)
+            int(question["answers"][-1].answer)  # ty:ignore[invalid-argument-type]
             if question["data_options"].number_type == NumberTypeEnum.INTEGER
-            else Decimal(question["answers"][-1].answer)
+            else Decimal(question["answers"][-1].answer)  # ty:ignore[invalid-argument-type]
         )
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
             f"{question['options'].prefix or ''}{format_thousands(answer_to_format)}{question['options'].suffix or ''}"
         )
     elif question["type"] == QuestionDataType.DATE:
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
-            question["answers"][-1].check_your_answers_text
+            question["answers"][-1].check_your_answers_text  # ty:ignore[invalid-argument-type]
         )
     else:
         expect(check_your_answers_page.page.get_by_test_id(f"answer-{question_name}")).to_have_text(
@@ -473,12 +489,14 @@ def assert_check_your_answers(check_your_answers_page: RunnerCheckYourAnswersPag
 def assert_check_your_answer_for_all_questions(questions_to_check: list[TQuestionToTest], report_answers_list: Locator):
     for question_to_check in questions_to_check:
         if question_to_check["type"] == "group":
-            assert_check_your_answer_for_all_questions(question_to_check["questions"], report_answers_list)
+            assert_check_your_answer_for_all_questions(
+                cast(QuestionGroupDict, question_to_check)["questions"], report_answers_list
+            )
         else:
             assert_check_your_answer_for_question(question_to_check, report_answers_list)
 
 
-def assert_check_your_answer_for_question(question: TQuestionToTest, answers_list: Locator) -> None:
+def assert_check_your_answer_for_question(question: QuestionDict, answers_list: Locator) -> None:
     # TODO Can we combine this with the logic in assert_check_your_answers? Feels like duplication
     if "This question should not be shown" in question["text"]:
         return
@@ -490,12 +508,18 @@ def assert_check_your_answer_for_question(question: TQuestionToTest, answers_lis
         expect(
             answers_list.get_by_text(
                 f"{question['text']} {question['options'].prefix or ''}"
-                f"{format_thousands(int(question['answers'][-1].answer))}{question['options'].suffix or ''}",
+                f"{format_thousands(int(question['answers'][-1].answer))}"  # ty:ignore[invalid-argument-type]
+                "{question['options'].suffix or ''}",
                 exact=True,
             )
         ).to_be_visible()
     elif question["type"] == QuestionDataType.DATE:
-        expect(answers_list.get_by_text(question["answers"][-1].check_your_answers_text, exact=True)).to_be_visible()
+        expect(
+            answers_list.get_by_text(
+                question["answers"][-1].check_your_answers_text,  # ty:ignore[invalid-argument-type]
+                exact=True,
+            )
+        ).to_be_visible()
     else:
         expect(
             answers_list.get_by_text(f"{question['text']} {question['answers'][-1].answer}", exact=True)
