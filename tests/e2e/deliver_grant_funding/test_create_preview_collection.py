@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from decimal import Decimal
-from typing import Union, cast
+from typing import cast
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
@@ -47,7 +47,10 @@ from tests.e2e.dataclasses import (
     QuestionDict,
     QuestionGroupDict,
     QuestionResponse,
+    ReportDict,
+    SectionDict,
     TextFieldWithData,
+    TQuestionToTest,
 )
 from tests.e2e.deliver_grant_funding.helpers import (
     create_grant,
@@ -84,629 +87,666 @@ from tests.e2e.helpers import (
     wait_for_context_aware_textarea_to_be_ready,
 )
 
-TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
-
-
-section_1_questions_with_groups_to_test: dict[str, TQuestionToTest] = {
-    "yes-no": {
-        "type": QuestionDataType.YES_NO,
-        "text": "Do you want to show question groups?",
-        "display_text": "Do you want to show question groups?",
-        "answers": [
-            QuestionResponse("Yes"),
-        ],
-    },
-    "show-cross-section-conditional": {
-        "type": QuestionDataType.NUMBER,
-        "text": "What number do you want to see in another section?",
-        "display_text": "What number do you want to see in another section?",
-        "options": QuestionPresentationOptions(),
-        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        "answers": [
-            QuestionResponse("100"),
-        ],
-    },
-    "question-group-all-same-page": {
-        "type": "group",
-        "text": "This is a question group",
-        "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
-        "guidance": GuidanceText(
-            heading="This is a guidance page heading for a group",
-            body_heading="Guidance subheading",
-            body_link_text="Design system link text",
-            body_link_url="https://design-system.service.gov.uk",
-            body_ul_items=["UL item one", "UL item two"],
-            body_ol_items=["OL item one", "OL item two"],
-        ),
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION,
-                question_text="Do you want to show question groups?",
-            ),
-            evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
-        ),
-        "questions": [
-            {
-                "type": QuestionDataType.TEXT_SINGLE_LINE,
-                "text": "Group Enter a single line of text",
-                "display_text": "Group Enter a single line of text",
-                "answers": [QuestionResponse("E2E question text single line")],
-            },
-            {
-                "type": QuestionDataType.URL,
-                "text": "Group Enter a website address",
-                "display_text": "Group Enter a website address",
-                "answers": [
-                    QuestionResponse("https://gov.uk"),
-                ],
-            },
-            {
-                "type": QuestionDataType.EMAIL,
-                "text": "Group Enter an email address",
-                "display_text": "Group Enter an email address",
-                "answers": [
-                    QuestionResponse("group@example.com"),
-                ],
-            },
-        ],
-    },
-    "text-single-line": {
-        "type": QuestionDataType.TEXT_SINGLE_LINE,
-        "text": "Enter another single line of text",
-        "display_text": "Enter another single line of text",
-        "answers": [QuestionResponse("E2E question text single line second answer")],
-    },
-    "question-group-number-validation": {
-        "type": "group",
-        "text": "Number questions with group validation",
-        "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION,
-                question_text="Do you want to show question groups?",
-            ),
-            evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
-        ),
-        "validation": E2EManagedExpression(
-            evaluatable_expression=CustomExpression(
-                custom_expression="((ref1)) + ((ref2)) + ((ref3)) <= ((ref4))",
-                custom_message="The total of the three amounts must not exceed the allowed amount",
-            ),
-            expression_references={
-                "ref1": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.SECTION,
-                    question_text="First number amount",
+report_with_all_question_types: ReportDict = {
+    "id": None,
+    "name": f"E2E Report with all question types {str(uuid.uuid4())}",
+    "require_certification": True,
+    "allow_multi_submissions": False,
+    "sections": [
+        SectionDict(
+            name="E2E first task - grouped questions",
+            components=[
+                QuestionDict(
+                    type=QuestionDataType.YES_NO,
+                    text="Do you want to show question groups?",
+                    display_text="Do you want to show question groups?",
+                    answers=[
+                        QuestionResponse("Yes"),
+                    ],
                 ),
-                "ref2": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.SECTION,
-                    question_text="Second number amount",
+                QuestionDict(
+                    type=QuestionDataType.NUMBER,
+                    text="What number do you want to see in another section?",
+                    display_text="What number do you want to see in another section?",
+                    options=QuestionPresentationOptions(),
+                    data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                    answers=[
+                        QuestionResponse("100"),
+                    ],
                 ),
-                "ref3": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.SECTION,
-                    question_text="Third number amount",
+                QuestionGroupDict(
+                    type="group",
+                    text="This is a question group",
+                    display_options=GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+                    guidance=GuidanceText(
+                        heading="This is a guidance page heading for a group",
+                        body_heading="Guidance subheading",
+                        body_link_text="Design system link text",
+                        body_link_url="https://design-system.service.gov.uk",
+                        body_ul_items=["UL item one", "UL item two"],
+                        body_ol_items=["OL item one", "OL item two"],
+                    ),
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Do you want to show question groups?",
+                        ),
+                        evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
+                    ),
+                    questions=[
+                        QuestionDict(
+                            type=QuestionDataType.TEXT_SINGLE_LINE,
+                            text="Group Enter a single line of text",
+                            display_text="Group Enter a single line of text",
+                            answers=[QuestionResponse("E2E question text single line")],
+                        ),
+                        QuestionDict(
+                            type=QuestionDataType.URL,
+                            text="Group Enter a website address",
+                            display_text="Group Enter a website address",
+                            answers=[
+                                QuestionResponse("https://gov.uk"),
+                            ],
+                        ),
+                        QuestionDict(
+                            type=QuestionDataType.EMAIL,
+                            text="Group Enter an email address",
+                            display_text="Group Enter an email address",
+                            answers=[
+                                QuestionResponse("group@example.com"),
+                            ],
+                        ),
+                    ],
                 ),
-                "ref4": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.SECTION,
-                    question_text="What number do you want to see in another section?",
+                QuestionDict(
+                    type=QuestionDataType.TEXT_SINGLE_LINE,
+                    text="Enter another single line of text",
+                    display_text="Enter another single line of text",
+                    answers=[QuestionResponse("E2E question text single line second answer")],
                 ),
-            },
-        ),
-        "questions": [
-            {
-                "type": QuestionDataType.NUMBER,
-                "text": "First number amount",
-                "display_text": "First number amount",
-                "options": QuestionPresentationOptions(),
-                "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                "answers": [
-                    QuestionResponse("40", "Check First number amount (40)", expect_group_validation_error=True),
-                    QuestionResponse("30"),
-                ],
-            },
-            {
-                "type": QuestionDataType.NUMBER,
-                "text": "Second number amount",
-                "display_text": "Second number amount",
-                "options": QuestionPresentationOptions(),
-                "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                "answers": [
-                    QuestionResponse("56", "Check Second number amount (56)", expect_group_validation_error=True),
-                    QuestionResponse("30"),
-                ],
-            },
-            {
-                "type": QuestionDataType.NUMBER,
-                "text": "Third number amount",
-                "display_text": "Third number amount",
-                "options": QuestionPresentationOptions(),
-                "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                "answers": [
-                    QuestionResponse("45", "Check Third number amount (45)", expect_group_validation_error=True),
-                    QuestionResponse("30"),
-                ],
-            },
-        ],
-    },
-    "question-group-one-per-page": {
-        "type": "group",
-        "text": "One question per page group",
-        "display_options": GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
-        "questions": [
-            {
-                "type": QuestionDataType.TEXT_SINGLE_LINE,
-                "text": "Second group Enter a single line of text",
-                "display_text": "Second group Enter a single line of text",
-                "answers": [QuestionResponse("E2E question text single line group")],
-            },
-            {
-                "type": QuestionDataType.EMAIL,
-                "text": "Second group Enter an email address",
-                "display_text": "Second group Enter an email address",
-                "answers": [
-                    QuestionResponse("group2@example.com"),
-                ],
-            },
-            {
-                "type": "group",
-                "text": "Nested Group",
-                "display_options": GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
-                "questions": [
-                    {
-                        "type": QuestionDataType.TEXT_SINGLE_LINE,
-                        "text": "Nested group single line of text",
-                        "display_text": "Nested group single line of text",
-                        "answers": [QuestionResponse("E2E question text single line nested group")],
-                    },
-                    {
-                        "type": QuestionDataType.EMAIL,
-                        "text": "Nested group Enter an email address",
-                        "display_text": "Nested group Enter an email address",
-                        "answers": [
-                            QuestionResponse("nested_group@example.com"),
-                        ],
-                    },
-                ],
-            },
-        ],
-    },
-}
-
-section_2_questions_to_test: dict[str, TQuestionToTest] = {
-    "date": QuestionDict(
-        type=QuestionDataType.DATE,
-        text="Enter a date",
-        display_text="Enter a date",
-        answers=[
-            QuestionResponse(
-                ["2003", "2", "01"],
-                "The answer must be between 1 January 2020 (inclusive) and 1 January 2025 (exclusive)",
-            ),
-            QuestionResponse(answer=["2022", "04", "05"], check_your_answers_text="5 April 2022"),
-        ],
-        validation=E2EManagedExpression(
-            evaluatable_expression=BetweenDates(
-                subject_reference="q_00000000000000000000000000001234",
-                earliest_value=datetime.date(2020, 1, 1),
-                earliest_inclusive=True,
-                latest_value=datetime.date(2025, 1, 1),
-                latest_inclusive=False,
-            )
-        ),
-    ),
-    "approx_date": QuestionDict(
-        type=QuestionDataType.DATE,
-        text="Enter an approximate date",
-        display_text="Enter an approximate date",
-        hint=TextFieldWithData(
-            prefix="You entered an exact date of",
-            data_reference=DataReferenceConfig(ExpressionContext.ContextSources.SECTION, question_text="Enter a date"),
-        ),
-        display_hint="You entered an exact date of Tuesday 5 April 2022",
-        answers=[
-            QuestionResponse(
-                ["2003", "2"],
-                "The answer must be between April 2020 (inclusive) and March 2022 (exclusive)",
-            ),
-            QuestionResponse(["2021", "04"], check_your_answers_text="April 2021"),
-        ],
-        options=QuestionPresentationOptions(approximate_date=True),
-        validation=E2EManagedExpression(
-            evaluatable_expression=BetweenDates(
-                subject_reference="q_00000000000000000000000000001234",
-                earliest_value=datetime.date(2020, 4, 1),
-                earliest_inclusive=True,
-                latest_value=datetime.date(2022, 3, 1),
-                latest_inclusive=False,
-            )
-        ),
-    ),
-    "prefix-integer": {
-        "type": QuestionDataType.NUMBER,
-        "text": "Enter the total cost as a number",
-        "display_text": "Enter the total cost as a number",
-        "answers": [
-            QuestionResponse("0", "The answer must be greater than 1"),
-            QuestionResponse("10000"),
-        ],
-        "options": QuestionPresentationOptions(prefix="£", width=NumberInputWidths.BILLIONS, approximate_date=True),
-        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        "validation": E2EManagedExpression(
-            evaluatable_expression=GreaterThan(
-                subject_reference="q_00000000000000000000000000001234",
-                minimum_value=1,
-                inclusive=False,
-            )
-        ),
-        "condition": E2EManagedExpression(
-            evaluatable_expression=BetweenDates(
-                subject_reference="q_00000000000000000000000000001234",
-                earliest_value=datetime.date(2020, 4, 1),
-                earliest_inclusive=False,
-                latest_value=None,
-                latest_expression="",
-                latest_inclusive=False,
-            ),
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter an approximate date"
-            ),
-            context_source=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter a date"
-            ),
-        ),
-    },
-    "suffix-integer": {
-        "type": QuestionDataType.NUMBER,
-        "text": "Enter the total weight as a number",
-        "display_text": "Enter the total weight as a number",
-        "answers": [
-            QuestionResponse("10001", "The answer must be less than or equal to £10,000"),
-            QuestionResponse("100"),
-        ],
-        "options": QuestionPresentationOptions(suffix="kg", width=NumberInputWidths.HUNDREDS),
-        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        "validation": E2EManagedExpression(
-            evaluatable_expression=LessThan(
-                subject_reference="q_00000000000000000000000000001234",
-                maximum_value=None,
-                maximum_expression="",
-                inclusive=True,
-            ),
-            context_source=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total cost as a number"
-            ),
-        ),  # question_id does not matter here
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total cost as a number"
-            ),
-            evaluatable_expression=GreaterThan(
-                subject_reference="q_00000000000000000000000000001234",
-                minimum_value=1,
-                inclusive=False,
-            ),
-        ),
-    },
-    "between-integer": {
-        "type": QuestionDataType.NUMBER,
-        "text": "Enter a number between 20 and 100",
-        "display_text": "Enter a number between 20 and 100",
-        "answers": [
-            QuestionResponse("101", "The answer must be between 20 (inclusive) and 100 (exclusive)"),
-            QuestionResponse("20"),
-        ],
-        "options": QuestionPresentationOptions(),
-        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        "validation": E2EManagedExpression(
-            evaluatable_expression=Between(
-                subject_reference="q_00000000000000000000000000001234",
-                maximum_value=100,
-                maximum_inclusive=False,
-                minimum_value=20,
-                minimum_inclusive=True,
-            )
-        ),  # question_id does not matter here
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter the total weight as a number"
-            ),
-            evaluatable_expression=LessThan(
-                subject_reference="q_00000000000000000000000000001234",
-                maximum_value=100,
-                inclusive=True,
-            ),
-        ),
-    },
-    "suffix-decimal": {
-        "type": QuestionDataType.NUMBER,
-        "text": "Enter the percentage of employees involved in this project",
-        "display_text": "Enter the percentage of employees involved in this project",
-        "answers": [
-            QuestionResponse("1,250.4", "The answer must be less than or equal to 100"),
-            QuestionResponse("50.423", "The answer cannot be more than 2 decimal places"),
-            QuestionResponse("35.67"),
-        ],
-        "options": QuestionPresentationOptions(suffix="%", width=NumberInputWidths.BILLIONS),
-        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
-        "validation": E2EManagedExpression(
-            evaluatable_expression=LessThan(
-                subject_reference="q_00000000000000000000000000001234",
-                maximum_value=100,
-                inclusive=True,
-            )
-        ),
-    },
-    "between-decimal": {
-        "type": QuestionDataType.NUMBER,
-        "text": "Enter the number with 5 decimal places",
-        "display_text": "Enter the number with 5 decimal places",
-        "answers": [
-            QuestionResponse("1.12346", "The answer must be between 0.22334 (exclusive) and 1.12345 (inclusive)"),
-            QuestionResponse("1.123456", "The answer cannot be more than 5 decimal places"),
-            QuestionResponse("0.22333", "The answer must be between 0.22334 (exclusive) and 1.12345 (inclusive)"),
-            QuestionResponse("0.45678"),
-        ],
-        "options": QuestionPresentationOptions(),
-        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=5),
-        "validation": E2EManagedExpression(
-            evaluatable_expression=Between(
-                subject_reference="q_00000000000000000000000000001234",
-                maximum_value=Decimal("1.12345"),
-                maximum_inclusive=True,
-                minimum_value=Decimal("0.22334"),
-                minimum_inclusive=False,
-            )
-        ),
-    },
-    "custom-validation-integer": {
-        "type": QuestionDataType.NUMBER,
-        "text": "Enter a number that is greater than the weight plus the number from the previous section",
-        "display_text": "Enter a number that is greater than the weight plus the number from the previous section",
-        "answers": [
-            QuestionResponse(
-                "121", "The answer must be greater than the weight plus the number from the previous section"
-            ),
-            QuestionResponse("250"),
-        ],
-        "options": QuestionPresentationOptions(),
-        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        "validation": E2EManagedExpression(
-            evaluatable_expression=CustomExpression(
-                custom_expression="((ref1)) > ((ref2)) + ((ref3))",
-                custom_message="The answer must be greater than the weight plus the number from the previous section",
-            ),
-            expression_references={
-                "ref1": DataReferenceConfig(data_source="THIS_QUESTION"),
-                "ref2": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.SECTION,
-                    question_text="Enter the total weight as a number",
+                QuestionGroupDict(
+                    type="group",
+                    text="Number questions with group validation",
+                    display_options=GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Do you want to show question groups?",
+                        ),
+                        evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
+                    ),
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=CustomExpression(
+                            custom_expression="((ref1)) + ((ref2)) + ((ref3)) <= ((ref4))",
+                            custom_message="The total of the three amounts must not exceed the allowed amount",
+                        ),
+                        expression_references={
+                            "ref1": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.SECTION,
+                                question_text="First number amount",
+                            ),
+                            "ref2": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.SECTION,
+                                question_text="Second number amount",
+                            ),
+                            "ref3": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.SECTION,
+                                question_text="Third number amount",
+                            ),
+                            "ref4": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.SECTION,
+                                question_text="What number do you want to see in another section?",
+                            ),
+                        },
+                    ),
+                    questions=[
+                        QuestionDict(
+                            type=QuestionDataType.NUMBER,
+                            text="First number amount",
+                            display_text="First number amount",
+                            options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            answers=[
+                                QuestionResponse(
+                                    "40", "Check First number amount (40)", expect_group_validation_error=True
+                                ),
+                                QuestionResponse("30"),
+                            ],
+                        ),
+                        QuestionDict(
+                            type=QuestionDataType.NUMBER,
+                            text="Second number amount",
+                            display_text="Second number amount",
+                            options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            answers=[
+                                QuestionResponse(
+                                    "56", "Check Second number amount (56)", expect_group_validation_error=True
+                                ),
+                                QuestionResponse("30"),
+                            ],
+                        ),
+                        QuestionDict(
+                            type=QuestionDataType.NUMBER,
+                            text="Third number amount",
+                            display_text="Third number amount",
+                            options=QuestionPresentationOptions(),
+                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                            answers=[
+                                QuestionResponse(
+                                    "45", "Check Third number amount (45)", expect_group_validation_error=True
+                                ),
+                                QuestionResponse("30"),
+                            ],
+                        ),
+                    ],
                 ),
-                "ref3": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
-                    section_text="E2E first task - grouped questions",
-                    question_text="What number do you want to see in another section?",
+                QuestionGroupDict(
+                    type="group",
+                    text="One question per page group",
+                    display_options=GroupDisplayOptions.ONE_QUESTION_PER_PAGE,
+                    questions=[
+                        QuestionDict(
+                            type=QuestionDataType.TEXT_SINGLE_LINE,
+                            text="Second group Enter a single line of text",
+                            display_text="Second group Enter a single line of text",
+                            answers=[QuestionResponse("E2E question text single line group")],
+                        ),
+                        QuestionDict(
+                            type=QuestionDataType.EMAIL,
+                            text="Second group Enter an email address",
+                            display_text="Second group Enter an email address",
+                            answers=[
+                                QuestionResponse("group2@example.com"),
+                            ],
+                        ),
+                        QuestionGroupDict(
+                            type="group",
+                            text="Nested Group",
+                            display_options=GroupDisplayOptions.ALL_QUESTIONS_ON_SAME_PAGE,
+                            questions=[
+                                QuestionDict(
+                                    type=QuestionDataType.TEXT_SINGLE_LINE,
+                                    text="Nested group single line of text",
+                                    display_text="Nested group single line of text",
+                                    answers=[QuestionResponse("E2E question text single line nested group")],
+                                ),
+                                QuestionDict(
+                                    type=QuestionDataType.EMAIL,
+                                    text="Nested group Enter an email address",
+                                    display_text="Nested group Enter an email address",
+                                    answers=[
+                                        QuestionResponse("nested_group@example.com"),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
                 ),
-            },
+            ],
         ),
-    },
-    "calculated-condition-text": {
-        "type": QuestionDataType.TEXT_MULTI_LINE,
-        "text": "Enter the reason why suffix-integer was greater than the between and prefix integers added together",
-        "display_text": (
-            "Enter the reason why suffix-integer was greater than the between and prefix integers added together"
-        ),
-        "answers": [
-            QuestionResponse("I have my reasons"),
-        ],
-        "options": QuestionPresentationOptions(),
-        "data_options": QuestionDataOptions(),
-        "condition": E2EManagedExpression(
-            evaluatable_expression=CustomExpression(
-                custom_expression="((ref1)) > ((ref2)) + ((ref3))",
-                expression_name="Show if cost greater than weight plus number",
-            ),
-            expression_references={
-                "ref1": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.SECTION,
-                    question_text="Enter the total cost as a number",
+        SectionDict(
+            name="E2E second task - all question types",
+            components=[
+                QuestionDict(
+                    type=QuestionDataType.DATE,
+                    text="Enter a date",
+                    display_text="Enter a date",
+                    answers=[
+                        QuestionResponse(
+                            ["2003", "2", "01"],
+                            "The answer must be between 1 January 2020 (inclusive) and 1 January 2025 (exclusive)",
+                        ),
+                        QuestionResponse(answer=["2022", "04", "05"], check_your_answers_text="5 April 2022"),
+                    ],
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=BetweenDates(
+                            subject_reference="q_00000000000000000000000000001234",
+                            earliest_value=datetime.date(2020, 1, 1),
+                            earliest_inclusive=True,
+                            latest_value=datetime.date(2025, 1, 1),
+                            latest_inclusive=False,
+                        )
+                    ),
                 ),
-                "ref2": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.SECTION,
-                    question_text="Enter the total weight as a number",
+                QuestionDict(
+                    type=QuestionDataType.DATE,
+                    text="Enter an approximate date",
+                    display_text="Enter an approximate date",
+                    hint=TextFieldWithData(
+                        prefix="You entered an exact date of",
+                        data_reference=DataReferenceConfig(
+                            ExpressionContext.ContextSources.SECTION, question_text="Enter a date"
+                        ),
+                    ),
+                    display_hint="You entered an exact date of Tuesday 5 April 2022",
+                    answers=[
+                        QuestionResponse(
+                            ["2003", "2"],
+                            "The answer must be between April 2020 (inclusive) and March 2022 (exclusive)",
+                        ),
+                        QuestionResponse(["2021", "04"], check_your_answers_text="April 2021"),
+                    ],
+                    options=QuestionPresentationOptions(approximate_date=True),
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=BetweenDates(
+                            subject_reference="q_00000000000000000000000000001234",
+                            earliest_value=datetime.date(2020, 4, 1),
+                            earliest_inclusive=True,
+                            latest_value=datetime.date(2022, 3, 1),
+                            latest_inclusive=False,
+                        )
+                    ),
                 ),
-                "ref3": DataReferenceConfig(
-                    data_source=ExpressionContext.ContextSources.SECTION,
-                    question_text="Enter a number between 20 and 100",
+                QuestionDict(
+                    type=QuestionDataType.NUMBER,
+                    text="Enter the total cost as a number",
+                    display_text="Enter the total cost as a number",
+                    answers=[
+                        QuestionResponse("0", "The answer must be greater than 1"),
+                        QuestionResponse("10000"),
+                    ],
+                    options=QuestionPresentationOptions(
+                        prefix="£", width=NumberInputWidths.BILLIONS, approximate_date=True
+                    ),
+                    data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=GreaterThan(
+                            subject_reference="q_00000000000000000000000000001234",
+                            minimum_value=1,
+                            inclusive=False,
+                        )
+                    ),
+                    condition=E2EManagedExpression(
+                        evaluatable_expression=BetweenDates(
+                            subject_reference="q_00000000000000000000000000001234",
+                            earliest_value=datetime.date(2020, 4, 1),
+                            earliest_inclusive=False,
+                            latest_value=None,
+                            latest_expression="",
+                            latest_inclusive=False,
+                        ),
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Enter an approximate date",
+                        ),
+                        context_source=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter a date"
+                        ),
+                    ),
                 ),
-            },
+                QuestionDict(
+                    type=QuestionDataType.NUMBER,
+                    text="Enter the total weight as a number",
+                    display_text="Enter the total weight as a number",
+                    answers=[
+                        QuestionResponse("10001", "The answer must be less than or equal to £10,000"),
+                        QuestionResponse("100"),
+                    ],
+                    options=QuestionPresentationOptions(suffix="kg", width=NumberInputWidths.HUNDREDS),
+                    data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=LessThan(
+                            subject_reference="q_00000000000000000000000000001234",
+                            maximum_value=None,
+                            maximum_expression="",
+                            inclusive=True,
+                        ),
+                        context_source=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Enter the total cost as a number",
+                        ),
+                    ),  # question_id does not matter here
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Enter the total cost as a number",
+                        ),
+                        evaluatable_expression=GreaterThan(
+                            subject_reference="q_00000000000000000000000000001234",
+                            minimum_value=1,
+                            inclusive=False,
+                        ),
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.NUMBER,
+                    text="Enter a number between 20 and 100",
+                    display_text="Enter a number between 20 and 100",
+                    answers=[
+                        QuestionResponse("101", "The answer must be between 20 (inclusive) and 100 (exclusive)"),
+                        QuestionResponse("20"),
+                    ],
+                    options=QuestionPresentationOptions(),
+                    data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=Between(
+                            subject_reference="q_00000000000000000000000000001234",
+                            maximum_value=100,
+                            maximum_inclusive=False,
+                            minimum_value=20,
+                            minimum_inclusive=True,
+                        )
+                    ),  # question_id does not matter here
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Enter the total weight as a number",
+                        ),
+                        evaluatable_expression=LessThan(
+                            subject_reference="q_00000000000000000000000000001234",
+                            maximum_value=100,
+                            inclusive=True,
+                        ),
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.NUMBER,
+                    text="Enter the percentage of employees involved in this project",
+                    display_text="Enter the percentage of employees involved in this project",
+                    answers=[
+                        QuestionResponse("1,250.4", "The answer must be less than or equal to 100"),
+                        QuestionResponse("50.423", "The answer cannot be more than 2 decimal places"),
+                        QuestionResponse("35.67"),
+                    ],
+                    options=QuestionPresentationOptions(suffix="%", width=NumberInputWidths.BILLIONS),
+                    data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=LessThan(
+                            subject_reference="q_00000000000000000000000000001234",
+                            maximum_value=100,
+                            inclusive=True,
+                        )
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.NUMBER,
+                    text="Enter the number with 5 decimal places",
+                    display_text="Enter the number with 5 decimal places",
+                    answers=[
+                        QuestionResponse(
+                            "1.12346", "The answer must be between 0.22334 (exclusive) and 1.12345 (inclusive)"
+                        ),
+                        QuestionResponse("1.123456", "The answer cannot be more than 5 decimal places"),
+                        QuestionResponse(
+                            "0.22333", "The answer must be between 0.22334 (exclusive) and 1.12345 (inclusive)"
+                        ),
+                        QuestionResponse("0.45678"),
+                    ],
+                    options=QuestionPresentationOptions(),
+                    data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=5),
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=Between(
+                            subject_reference="q_00000000000000000000000000001234",
+                            maximum_value=Decimal("1.12345"),
+                            maximum_inclusive=True,
+                            minimum_value=Decimal("0.22334"),
+                            minimum_inclusive=False,
+                        )
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.NUMBER,
+                    text="Enter a number that is greater than the weight plus the number from the previous section",
+                    display_text="Enter a number that is greater than the weight plus the number from the previous "
+                    "section",
+                    answers=[
+                        QuestionResponse(
+                            "121",
+                            "The answer must be greater than the weight plus the number from the previous section",
+                        ),
+                        QuestionResponse("250"),
+                    ],
+                    options=QuestionPresentationOptions(),
+                    data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=CustomExpression(
+                            custom_expression="((ref1)) > ((ref2)) + ((ref3))",
+                            custom_message="The answer must be greater than the weight plus the number from the "
+                            "previous section",
+                        ),
+                        expression_references={
+                            "ref1": DataReferenceConfig(data_source="THIS_QUESTION"),
+                            "ref2": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.SECTION,
+                                question_text="Enter the total weight as a number",
+                            ),
+                            "ref3": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
+                                section_text="E2E first task - grouped questions",
+                                question_text="What number do you want to see in another section?",
+                            ),
+                        },
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.TEXT_MULTI_LINE,
+                    text="Enter the reason why suffix-integer was greater than the between and prefix "
+                    "integers added together",
+                    display_text=(
+                        "Enter the reason why suffix-integer was greater than the between and prefix integers added "
+                        "together"
+                    ),
+                    answers=[
+                        QuestionResponse("I have my reasons"),
+                    ],
+                    options=QuestionPresentationOptions(),
+                    data_options=QuestionDataOptions(),
+                    condition=E2EManagedExpression(
+                        evaluatable_expression=CustomExpression(
+                            custom_expression="((ref1)) > ((ref2)) + ((ref3))",
+                            expression_name="Show if cost greater than weight plus number",
+                        ),
+                        expression_references={
+                            "ref1": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.SECTION,
+                                question_text="Enter the total cost as a number",
+                            ),
+                            "ref2": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.SECTION,
+                                question_text="Enter the total weight as a number",
+                            ),
+                            "ref3": DataReferenceConfig(
+                                data_source=ExpressionContext.ContextSources.SECTION,
+                                question_text="Enter a number between 20 and 100",
+                            ),
+                        },
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.YES_NO,
+                    text="Yes or no",
+                    display_text="Yes or no",
+                    answers=[
+                        QuestionResponse("Yes"),
+                    ],
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Enter a number between 20 and 100",
+                        ),
+                        evaluatable_expression=Between(
+                            subject_reference="q_00000000000000000000000000001234",
+                            maximum_value=40,
+                            maximum_inclusive=True,
+                            minimum_value=15,
+                            minimum_inclusive=False,
+                        ),
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.RADIOS,
+                    text="Select an option",
+                    display_text="Select an option",
+                    choices=["option 1", "option 2", "option 3"],
+                    answers=[
+                        QuestionResponse("option 2"),
+                    ],
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
+                        ),
+                        evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.RADIOS,
+                    text="Select an option from the accessible autocomplete",
+                    display_text="Select an option from the accessible autocomplete",
+                    choices=[f"option {x}" for x in range(1, 30)],
+                    answers=[
+                        QuestionResponse("Other"),
+                    ],
+                    options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION, question_text="Select an option"
+                        ),
+                        evaluatable_expression=AnyOf(
+                            subject_reference="q_00000000000000000000000000001234",
+                            items=[{"key": "option-2", "label": "option 2"}, {"key": "option-3", "label": "option 3"}],
+                        ),
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.CHECKBOXES,
+                    text="Select one or more options",
+                    display_text="Select one or more options",
+                    choices=["option 1", "option 2", "option 3", "option 4"],
+                    answers=[
+                        QuestionResponse(["option 2", "option 3"]),
+                    ],
+                    options=QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Select an option from the accessible autocomplete",
+                        ),
+                        evaluatable_expression=AnyOf(
+                            subject_reference="q_00000000000000000000000000001234",
+                            items=[{"key": "other", "label": "Other"}],
+                        ),
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.EMAIL,
+                    text="Enter an email address",
+                    display_text="Enter an email address",
+                    answers=[
+                        QuestionResponse(
+                            "not-an-email", "Enter an email address in the correct format, like name@example.com"
+                        ),
+                        QuestionResponse("name@example.com"),
+                    ],
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION,
+                            question_text="Select one or more options",
+                        ),
+                        evaluatable_expression=Specifically(
+                            subject_reference="q_00000000000000000000000000001234",
+                            item={"key": "option-2", "label": "option 2"},
+                        ),
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.TEXT_SINGLE_LINE,
+                    text="Enter a postcode",
+                    display_text="Enter a postcode",
+                    answers=[
+                        QuestionResponse("E2E question text single line", "The answer must be a UK postcode"),
+                        QuestionResponse("SW1A 1AA"),
+                    ],
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=UKPostcode(
+                            subject_reference="q_00000000000000000000000000001234",
+                        )
+                    ),  # question_id does not matter here
+                    guidance=GuidanceText(
+                        heading="This is a guidance page heading",
+                        body_heading="Guidance subheading",
+                        body_link_text="Design system link text",
+                        body_link_url="https://design-system.service.gov.uk",
+                        body_ul_items=["UL item one", "UL item two"],
+                        body_ol_items=["OL item one", "OL item two"],
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.TEXT_MULTI_LINE,
+                    text="Enter a few lines of text",
+                    display_text="Enter a few lines of text",
+                    answers=[
+                        QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
+                        QuestionResponse("E2E question text multi line\nwith a second line"),
+                    ],
+                    options=QuestionPresentationOptions(word_limit=10, rows=MultilineTextInputRows.LARGE),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.URL,
+                    text="Enter a website address",
+                    display_text="Enter a website address",
+                    answers=[
+                        QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
+                        QuestionResponse("https://gov.uk"),
+                    ],
+                ),
+                QuestionDict(
+                    type=QuestionDataType.FILE_UPLOAD,
+                    text="Upload a supporting document",
+                    display_text="Upload a supporting document",
+                    answers=[
+                        # ./tests/fixtures/e2e-test-file.txt
+                        QuestionResponse("e2e-test-file.txt"),
+                    ],
+                ),
+                QuestionDict(
+                    type=QuestionDataType.TEXT_SINGLE_LINE,
+                    text="This question should not be shown",
+                    display_text="This question should not be shown",
+                    answers=[QuestionResponse("This question shouldn't be shown")],
+                    condition=E2EManagedExpression(
+                        conditional_on=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
+                        ),
+                        evaluatable_expression=IsNo(subject_reference="q_00000000000000000000000000001234"),
+                    ),
+                ),
+                QuestionDict(
+                    type=QuestionDataType.NUMBER,
+                    text="Prove that referencing data from another section works",
+                    display_text="Prove that referencing data from another section works",
+                    hint=TextFieldWithData(
+                        prefix="You entered this in the last section: ",
+                        data_reference=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
+                            section_text="E2E first task - grouped questions",
+                            question_text="What number do you want to see in another section?",
+                        ),
+                    ),
+                    display_hint="You entered this in the last section: 100",
+                    options=QuestionPresentationOptions(),
+                    data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                    answers=[
+                        QuestionResponse("500", "The answer must be less than 100"),
+                        QuestionResponse("50"),
+                    ],
+                    validation=E2EManagedExpression(
+                        evaluatable_expression=LessThan(
+                            subject_reference="q_00000000000000000000000000001234",
+                            maximum_value=None,
+                            maximum_expression="",
+                            inclusive=False,
+                        ),
+                        context_source=DataReferenceConfig(
+                            data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
+                            section_text="E2E first task - grouped questions",
+                            question_text="What number do you want to see in another section?",
+                        ),
+                    ),
+                ),
+            ],
         ),
-    },
-    "yes-no": {
-        "type": QuestionDataType.YES_NO,
-        "text": "Yes or no",
-        "display_text": "Yes or no",
-        "answers": [
-            QuestionResponse("Yes"),
-        ],
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Enter a number between 20 and 100"
-            ),
-            evaluatable_expression=Between(
-                subject_reference="q_00000000000000000000000000001234",
-                maximum_value=40,
-                maximum_inclusive=True,
-                minimum_value=15,
-                minimum_inclusive=False,
-            ),
-        ),
-    },
-    "radio": {
-        "type": QuestionDataType.RADIOS,
-        "text": "Select an option",
-        "display_text": "Select an option",
-        "choices": ["option 1", "option 2", "option 3"],
-        "answers": [
-            QuestionResponse("option 2"),
-        ],
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
-            ),
-            evaluatable_expression=IsYes(subject_reference="q_00000000000000000000000000001234"),
-        ),
-    },
-    "autocomplete": {
-        "type": QuestionDataType.RADIOS,
-        "text": "Select an option from the accessible autocomplete",
-        "display_text": "Select an option from the accessible autocomplete",
-        "choices": [f"option {x}" for x in range(1, 30)],
-        "answers": [
-            QuestionResponse("Other"),
-        ],
-        "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Select an option"
-            ),
-            evaluatable_expression=AnyOf(
-                subject_reference="q_00000000000000000000000000001234",
-                items=[{"key": "option-2", "label": "option 2"}, {"key": "option-3", "label": "option 3"}],
-            ),
-        ),
-    },
-    "checkboxes": {
-        "type": QuestionDataType.CHECKBOXES,
-        "text": "Select one or more options",
-        "display_text": "Select one or more options",
-        "choices": ["option 1", "option 2", "option 3", "option 4"],
-        "answers": [
-            QuestionResponse(["option 2", "option 3"]),
-        ],
-        "options": QuestionPresentationOptions(last_data_source_item_is_distinct_from_others=True),
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION,
-                question_text="Select an option from the accessible autocomplete",
-            ),
-            evaluatable_expression=AnyOf(
-                subject_reference="q_00000000000000000000000000001234",
-                items=[{"key": "other", "label": "Other"}],
-            ),
-        ),
-    },
-    "email": {
-        "type": QuestionDataType.EMAIL,
-        "text": "Enter an email address",
-        "display_text": "Enter an email address",
-        "answers": [
-            QuestionResponse("not-an-email", "Enter an email address in the correct format, like name@example.com"),
-            QuestionResponse("name@example.com"),
-        ],
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Select one or more options"
-            ),
-            evaluatable_expression=Specifically(
-                subject_reference="q_00000000000000000000000000001234",
-                item={"key": "option-2", "label": "option 2"},
-            ),
-        ),
-    },
-    "postcode": {
-        "type": QuestionDataType.TEXT_SINGLE_LINE,
-        "text": "Enter a postcode",
-        "display_text": "Enter a postcode",
-        "answers": [
-            QuestionResponse("E2E question text single line", "The answer must be a UK postcode"),
-            QuestionResponse("SW1A 1AA"),
-        ],
-        "validation": E2EManagedExpression(
-            evaluatable_expression=UKPostcode(
-                subject_reference="q_00000000000000000000000000001234",
-            )
-        ),  # question_id does not matter here
-        "guidance": GuidanceText(
-            heading="This is a guidance page heading",
-            body_heading="Guidance subheading",
-            body_link_text="Design system link text",
-            body_link_url="https://design-system.service.gov.uk",
-            body_ul_items=["UL item one", "UL item two"],
-            body_ol_items=["OL item one", "OL item two"],
-        ),
-    },
-    "text-multi-line": {
-        "type": QuestionDataType.TEXT_MULTI_LINE,
-        "text": "Enter a few lines of text",
-        "display_text": "Enter a few lines of text",
-        "answers": [
-            QuestionResponse("E2E question text multi line\nwith a second line that's over the word limit"),
-            QuestionResponse("E2E question text multi line\nwith a second line"),
-        ],
-        "options": QuestionPresentationOptions(word_limit=10, rows=MultilineTextInputRows.LARGE),
-    },
-    "url": {
-        "type": QuestionDataType.URL,
-        "text": "Enter a website address",
-        "display_text": "Enter a website address",
-        "answers": [
-            QuestionResponse("not-a-url", "Enter a website address in the correct format, like www.gov.uk"),
-            QuestionResponse("https://gov.uk"),
-        ],
-    },
-    "file-upload": {
-        "type": QuestionDataType.FILE_UPLOAD,
-        "text": "Upload a supporting document",
-        "display_text": "Upload a supporting document",
-        "answers": [
-            # ./tests/fixtures/e2e-test-file.txt
-            QuestionResponse("e2e-test-file.txt"),
-        ],
-    },
-    "text-single-line-not-shown": {
-        "type": QuestionDataType.TEXT_SINGLE_LINE,
-        "text": "This question should not be shown",
-        "display_text": "This question should not be shown",
-        "answers": [QuestionResponse("This question shouldn't be shown")],
-        "condition": E2EManagedExpression(
-            conditional_on=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.SECTION, question_text="Yes or no"
-            ),
-            evaluatable_expression=IsNo(subject_reference="q_00000000000000000000000000001234"),
-        ),
-    },
-    "cross-section-reference": {
-        "type": QuestionDataType.NUMBER,
-        "text": "Prove that referencing data from another section works",
-        "display_text": "Prove that referencing data from another section works",
-        "hint": TextFieldWithData(
-            prefix="You entered this in the last section: ",
-            data_reference=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
-                section_text="E2E first task - grouped questions",
-                question_text="What number do you want to see in another section?",
-            ),
-        ),
-        "display_hint": "You entered this in the last section: 100",
-        "options": QuestionPresentationOptions(),
-        "data_options": QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-        "answers": [
-            QuestionResponse("500", "The answer must be less than 100"),
-            QuestionResponse("50"),
-        ],
-        "validation": E2EManagedExpression(
-            evaluatable_expression=LessThan(
-                subject_reference="q_00000000000000000000000000001234",
-                maximum_value=None,
-                maximum_expression="",
-                inclusive=False,
-            ),
-            context_source=DataReferenceConfig(
-                data_source=ExpressionContext.ContextSources.PREVIOUS_SECTION,
-                section_text="E2E first task - grouped questions",
-                question_text="What number do you want to see in another section?",
-            ),
-        ),
-    },
+    ],
 }
 
 
@@ -1016,10 +1056,10 @@ def complete_question_group(
 
 
 def complete_task(
-    tasklist_page: RunnerTasklistPage, section_name: str, grant_name: str, questions_to_test: dict[str, TQuestionToTest]
+    tasklist_page: RunnerTasklistPage, section_name: str, grant_name: str, questions_to_test: list[TQuestionToTest]
 ) -> None:
     tasklist_page.click_on_section(section_name=section_name)
-    for question_to_test in questions_to_test.values():
+    for question_to_test in questions_to_test:
         question_page = RunnerQuestionPage(
             tasklist_page.page,
             tasklist_page.domain,
@@ -1034,7 +1074,7 @@ def complete_task(
 
 
 def task_check_your_answers(
-    tasklist_page: RunnerTasklistPage, grant_name: str, report_name: str, questions_to_test: dict[str, TQuestionToTest]
+    tasklist_page: RunnerTasklistPage, grant_name: str, report_name: str, questions_to_test: list[TQuestionToTest]
 ):
     check_your_answers_page = RunnerCheckYourAnswersPage(tasklist_page.page, tasklist_page.domain, grant_name)
 
@@ -1045,7 +1085,7 @@ def task_check_your_answers(
             else:
                 assert_check_your_answers(check_your_answers_page, question_to_check)
 
-    _assert_check_your_answers(list(questions_to_test.values()))
+    _assert_check_your_answers(questions_to_test)
 
     expect(check_your_answers_page.page.get_by_text("Have you completed this section?", exact=True)).to_be_visible()
 
@@ -1159,7 +1199,11 @@ _shared_setup_data: dict | None = None
 
 
 def test_setup_grant_and_collection(
-    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, authenticated_browser_sso: E2ETestUser, email
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    authenticated_browser_sso: E2ETestUser,
+    email,
 ) -> None:
     """Setup test: creates grant and collection with all question types."""
     global _shared_setup_data
@@ -1169,14 +1213,13 @@ def test_setup_grant_and_collection(
     # Sense check that the test includes all question types
     assert (
         len(QuestionDataType) == 10
-        and len(section_2_questions_to_test) == 20
+        and len(report_with_all_question_types["sections"][1]["components"]) == 20
         and len(ManagedExpressionsEnum) == 11
         and len(NumberTypeEnum) == 2
     ), (
         "If you have added a new question/number type or managed expression, update this test to include the "
         "new question/number type or managed expression in `questions_to_test`."
     )
-
     new_grant_name = f"E2E developer_grant {grant_name_uuid}"
     all_grants_page = AllGrantsPage(page, domain)
     all_grants_page.navigate()
@@ -1196,36 +1239,30 @@ def test_setup_grant_and_collection(
     add_report_page.fill_in_report_name(new_report_name)
     grant_reports_page = add_report_page.click_submit(new_grant_name)
     grant_reports_page.check_report_exists(new_report_name)
+    collection_id = None
 
-    # Add a first task and a questions/question group
-    add_section_page = grant_reports_page.click_add_section(report_name=new_report_name, grant_name=new_grant_name)
+    for section in report_with_all_question_types["sections"]:
+        # If it's the first section
+        if not collection_id:
+            add_section_page = grant_reports_page.click_add_section(
+                report_name=new_report_name, grant_name=new_grant_name
+            )
+            # Extract collection_id from URL (e.g., /grant/<uuid>/reports/<uuid>/sections)
+            collection_id = extract_uuid_from_url(page.url, r"/report/(?P<uuid>[a-f0-9-]+)")
+        else:
+            report_sections_page = navigate_to_report_sections_page(page, domain, new_grant_name, new_report_name)
+            add_section_page = report_sections_page.click_add_section()
 
-    # Extract collection_id from URL (e.g., /grant/<uuid>/reports/<uuid>/sections)
-    collection_id = extract_uuid_from_url(page.url, r"/report/(?P<uuid>[a-f0-9-]+)")
+        add_section_page.fill_in_section_name(section["name"])
+        report_sections_page = add_section_page.click_add_section()
+        report_sections_page.check_section_exists(section["name"])
 
-    first_section_name = "E2E first task - grouped questions"
-    add_section_page.fill_in_section_name(first_section_name)
-    report_sections_page = add_section_page.click_add_section()
-    report_sections_page.check_section_exists(first_section_name)
-
-    manage_section_page = report_sections_page.click_manage_section(section_name=first_section_name)
-    for question_to_test in section_1_questions_with_groups_to_test.values():
-        create_question_or_group(question_to_test, manage_section_page)
-
-    # Add a second task and a question of each type to the task
-    report_sections_page = navigate_to_report_sections_page(page, domain, new_grant_name, new_report_name)
-    add_section_page = report_sections_page.click_add_section()
-    second_section_name = "E2E second task - all question types"
-    add_section_page.fill_in_section_name(second_section_name)
-    report_sections_page = add_section_page.click_add_section()
-    report_sections_page.check_section_exists(second_section_name)
-
-    manage_section_page = report_sections_page.click_manage_section(section_name=second_section_name)
-    for question_to_test in section_2_questions_to_test.values():
-        create_question_or_group(question_to_test, manage_section_page)
+        manage_section_page = report_sections_page.click_manage_section(section_name=section["name"])
+        for question_to_test in section["components"]:
+            create_question_or_group(question_to_test, manage_section_page)
 
     # Add grant team member
-    grant_team_page = manage_section_page.click_nav_grant_team()
+    grant_team_page = grant_reports_page.click_nav_grant_team()
     add_grant_team_member_page = grant_team_page.click_add_grant_team_member()
     grant_team_email = e2e_user_configs[DeliverGrantFundingUserType.GRANT_TEAM_MEMBER].email
     add_grant_team_member_page.fill_in_user_email(grant_team_email)
@@ -1306,8 +1343,8 @@ def test_setup_grant_and_collection(
         "collection_name": new_report_name,
         "collection_id": collection_id,
         "grant_team_email": grant_team_email,
-        "first_section_name": first_section_name,
-        "second_section_name": second_section_name,
+        "first_section_name": report_with_all_question_types["sections"][0]["name"],
+        "second_section_name": report_with_all_question_types["sections"][1]["name"],
         "test_org_name": f"{org_name} (test)",
         "test_org_external_id": "MHCLG-TEST-ORG",
         "grant_recipient_org": org_name,
@@ -1353,12 +1390,18 @@ def test_preview_collection(
 
     # Complete the first task with question groups
     complete_task(
-        tasklist_page, data["first_section_name"], data["grant_name"], section_1_questions_with_groups_to_test
+        tasklist_page,
+        data["first_section_name"],
+        data["grant_name"],
+        report_with_all_question_types["sections"][0]["components"],
     )
 
     # Check your answers page
     task_check_your_answers(
-        tasklist_page, data["grant_name"], data["collection_name"], section_1_questions_with_groups_to_test
+        tasklist_page,
+        data["grant_name"],
+        data["collection_name"],
+        report_with_all_question_types["sections"][0]["components"],
     )
 
     # Section two can be started now that section one is complete (because section two references data in section one).
@@ -1366,10 +1409,20 @@ def test_preview_collection(
     expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
 
     # Complete the second task with flat questions list
-    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], section_2_questions_to_test)
+    complete_task(
+        tasklist_page,
+        data["second_section_name"],
+        data["grant_name"],
+        report_with_all_question_types["sections"][1]["components"],
+    )
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], section_2_questions_to_test)
+    task_check_your_answers(
+        tasklist_page,
+        data["grant_name"],
+        data["collection_name"],
+        report_with_all_question_types["sections"][1]["components"],
+    )
 
     # Submit the report
     expect(
@@ -1417,12 +1470,18 @@ def test_deliver_test_grant_recipient_journey(
 
     # Complete the first task with question groups
     complete_task(
-        tasklist_page, data["first_section_name"], data["grant_name"], section_1_questions_with_groups_to_test
+        tasklist_page,
+        data["first_section_name"],
+        data["grant_name"],
+        report_with_all_question_types["sections"][0]["components"],
     )
 
     # Check your answers page
     task_check_your_answers(
-        tasklist_page, data["grant_name"], data["collection_name"], section_1_questions_with_groups_to_test
+        tasklist_page,
+        data["grant_name"],
+        data["collection_name"],
+        report_with_all_question_types["sections"][0]["components"],
     )
 
     # Section two can be started now that section one is complete (because section two references data in section one).
@@ -1430,10 +1489,20 @@ def test_deliver_test_grant_recipient_journey(
     expect(tasklist_page.page.get_by_role("link", name=data["second_section_name"])).to_be_visible()
 
     # Complete the second task with flat questions list
-    complete_task(tasklist_page, data["second_section_name"], data["grant_name"], section_2_questions_to_test)
+    complete_task(
+        tasklist_page,
+        data["second_section_name"],
+        data["grant_name"],
+        report_with_all_question_types["sections"][1]["components"],
+    )
 
     # Check your answers page
-    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], section_2_questions_to_test)
+    task_check_your_answers(
+        tasklist_page,
+        data["grant_name"],
+        data["collection_name"],
+        report_with_all_question_types["sections"][1]["components"],
+    )
 
     # Submit the report
     expect(

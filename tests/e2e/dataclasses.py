@@ -1,6 +1,7 @@
 import dataclasses
+import uuid
 from dataclasses import dataclass
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict, Union
 
 from app.common.data.types import (
     GroupDisplayOptions,
@@ -67,6 +68,19 @@ class E2EManagedExpression:
     expression_references: dict[str, DataReferenceConfig] | None = dataclasses.field(default_factory=dict)
 
 
+class ReportDict(TypedDict):
+    name: str
+    id: uuid.UUID | None
+    sections: list[SectionDict]
+    require_certification: bool
+    allow_multi_submissions: bool
+
+
+class SectionDict(TypedDict):
+    name: str
+    components: list[TQuestionToTest]
+
+
 class QuestionDict(TypedDict):
     type: QuestionDataType
     text: str
@@ -89,5 +103,8 @@ class QuestionGroupDict(TypedDict):
     guidance: NotRequired[GuidanceText]
     condition: NotRequired[E2EManagedExpression]
     validation: NotRequired[E2EManagedExpression]
-    questions: list[QuestionDict]
+    questions: list[TQuestionToTest]
     add_another: NotRequired[bool]
+
+
+TQuestionToTest = Union[QuestionDict, QuestionGroupDict]
