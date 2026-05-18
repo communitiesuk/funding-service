@@ -271,7 +271,7 @@ class TestExpressionContext:
             grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
             submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
             data_source = factories.data_source.create(
-                name="Test data set",
+                name="Allocations",
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
@@ -291,7 +291,10 @@ class TestExpressionContext:
             context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
 
             assert data_source.safe_did in context
-            assert context[data_source.safe_did]["capital_allocation"] == "((Test data set → Capital Allocation))"
+            assert (
+                context[data_source.safe_did]["capital_allocation"]
+                == "((Capital Allocation from Allocations data set))"
+            )
 
         def test_non_dict_typed_data_is_skipped(self, factories, mocker):
             grant = factories.grant.create()
@@ -946,6 +949,7 @@ class TestDataSourceInterpolation:
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
         submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
         data_source = factories.data_source.create(
+            name="Allocations",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
@@ -966,7 +970,7 @@ class TestDataSourceInterpolation:
         context = ExpressionContext(data_source_context=ds_context)
 
         result = interpolate(f"(({data_source.safe_did}.capital_allocation))", context)
-        assert result == "((Test data set → Capital Allocation))"
+        assert result == "((Capital Allocation from Allocations data set))"
 
     def test_unknown_data_source_reference_renders_raw(self):
         context = ExpressionContext(data_source_context={})
