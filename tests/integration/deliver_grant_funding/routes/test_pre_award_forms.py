@@ -28,6 +28,7 @@ class TestListPreAwardForms:
         self, request: pytest.FixtureRequest, client_fixture: str, can_edit: bool, factories
     ):
         client = request.getfixturevalue(client_fixture)
+        client.grant.allow_pre_award = True
 
         response = client.get(url_for("deliver_grant_funding.list_pre_award_forms", grant_id=client.grant.id))
         assert response.status_code == 200
@@ -59,6 +60,7 @@ class TestListPreAwardForms:
     ):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant or factories.grant.create()
+        grant.allow_pre_award = True
         factories.collection.create(grant=grant, type=CollectionType.APPLICATION)
 
         response = client.get(url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id))
@@ -94,6 +96,7 @@ class TestListPreAwardForms:
                 assert link.get("href") == expected_link[1]
 
     def test_get_with_delete_parameter_no_submissions(self, authenticated_grant_admin_client, factories):
+        authenticated_grant_admin_client.grant.allow_pre_award = True
         pre_award_form = factories.collection.create(
             grant=authenticated_grant_admin_client.grant, name="Test form", type=CollectionType.APPLICATION
         )
@@ -121,6 +124,7 @@ class TestListPreAwardForms:
         self, request: pytest.FixtureRequest, client_fixture: str, can_delete: bool, factories, db_session
     ):
         client = request.getfixturevalue(client_fixture)
+        client.grant.allow_pre_award = True
         pre_award_form = factories.collection.create(
             grant=client.grant, name="Test Form", type=CollectionType.APPLICATION
         )
@@ -149,6 +153,7 @@ class TestListPreAwardForms:
     ):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant if client.grant else factories.grant.create()
+        grant.allow_pre_award = True
         factories.collection.create(
             grant=grant, name="Test Form", type=CollectionType.APPLICATION, status=collection_status
         )
@@ -163,3 +168,31 @@ class TestListPreAwardForms:
 
         assert change_name_link is None
         assert delete_link is None
+
+    def test_404_when_pre_award_flag_disabled(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.list_pre_award_forms", grant_id=authenticated_grant_admin_client.grant.id)
+        )
+        assert response.status_code == 404
+
+
+class TestPreAwardNavigation:
+    def test_nav_shows_pre_award_link_when_flag_enabled(self, authenticated_grant_admin_client):
+        authenticated_grant_admin_client.grant.allow_pre_award = True
+
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=authenticated_grant_admin_client.grant.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Pre-award") is not None
+
+    def test_nav_hides_pre_award_link_when_flag_disabled(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=authenticated_grant_admin_client.grant.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Pre-award") is None

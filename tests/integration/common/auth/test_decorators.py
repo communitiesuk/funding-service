@@ -15,6 +15,7 @@ from app.common.auth.decorators import (
     has_access_grant_recipient_role,
     has_access_grant_role,
     has_deliver_grant_role,
+    has_feature_flag_enabled,
     is_access_org_member,
     is_deliver_grant_funding_user,
     is_deliver_org_admin,
@@ -24,6 +25,7 @@ from app.common.auth.decorators import (
 )
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, RoleEnum
+from app.common.helpers.feature_flags import FeatureFlag
 from tests.models import _get_grant_managing_organisation
 
 
@@ -967,3 +969,23 @@ class TestHasGrantRecipientRole:
         session["auth"] = AuthMethodEnum.MAGIC_LINK
 
         assert view_func() == "OK"
+
+
+class TestHasFeatureFlagEnabled:
+    def test_has_feature_flag_enabled(self, app, factories):
+        ENABLED_FLAG = FeatureFlag(description="Test feature flag", resolver=lambda: True)
+        DISABLED_FLAG = FeatureFlag(description="Test feature flag", resolver=lambda: False)
+
+        @has_feature_flag_enabled(ENABLED_FLAG)
+        def test_view_enabled():
+            return "OK"
+
+        @has_feature_flag_enabled(DISABLED_FLAG)
+        def test_view_disabled():
+            return "OK"
+
+        response = test_view_enabled()
+        assert response == "OK"
+
+        with pytest.raises(NotFound):
+            test_view_disabled()
