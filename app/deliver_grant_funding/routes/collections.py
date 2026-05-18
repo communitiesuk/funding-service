@@ -35,7 +35,6 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_group,
     create_question,
-    delete_collection,
     delete_form,
     delete_question,
     get_all_submissions_with_mode_for_collection,
@@ -169,41 +168,6 @@ SessionModelType = (
     | AddContextToComponentGuidanceSessionModel
     | AddContextToExpressionsModel
 )
-
-
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports", methods=["GET", "POST"])
-@has_deliver_grant_role(RoleEnum.MEMBER)
-@auto_commit_after_request
-def list_reports(grant_id: UUID) -> ResponseReturnValue:
-    grant = get_grant(grant_id, with_all_collections=True)
-
-    delete_wtform, delete_report = None, None
-    if delete_report_id := request.args.get("delete"):
-        if not AuthorisationHelper.can_edit_collection(
-            user=get_current_user(), collection_id=uuid.UUID(delete_report_id)
-        ):
-            return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
-
-        delete_report = get_collection(
-            uuid.UUID(delete_report_id), grant_id=grant_id, type_=CollectionType.MONITORING_REPORT
-        )
-        if delete_report.live_submissions:
-            abort(403)
-
-        if delete_report and not delete_report.live_submissions:
-            delete_wtform = GenericConfirmDeletionForm()
-
-            if delete_wtform and delete_wtform.validate_on_submit():
-                delete_collection(delete_report)
-
-                return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
-
-    return render_template(
-        "deliver_grant_funding/reports/list_reports.html",
-        grant=grant,
-        delete_form=delete_wtform,
-        delete_report=delete_report,
-    )
 
 
 @deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports/<uuid:report_id>", methods=["GET", "POST"])
