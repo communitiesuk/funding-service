@@ -8,10 +8,11 @@ import sentry_sdk
 from flask import current_app, jsonify, request
 from flask.typing import ResponseReturnValue
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import select
 
-from app.common.audit import create_system_event_for_delete, track_audit_event
+from app.common.audit import create_system_event_for_delete
 from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.data.interfaces.audit import track_audit_event
+from app.common.data.interfaces.grant_recipients import get_grant_recipients_for_organisation
 from app.common.data.interfaces.user import (
     get_or_create_system_user,
     get_user_by_email,
@@ -20,10 +21,10 @@ from app.common.data.interfaces.user import (
 )
 from app.common.data.types import GrantRecipientModeEnum, OrganisationModeEnum, RoleEnum
 from app.deliver_grant_funding.routes.api import deliver_grant_funding_api_blueprint
-from app.extensions import auto_commit_after_request, db
+from app.extensions import auto_commit_after_request
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant, GrantRecipient, Organisation
+    from app.common.data.models import Grant, Organisation
     from app.common.data.models_user import User
 
 
@@ -85,7 +86,7 @@ def handle_permanent_email_failure(notification_id: uuid.UUID, recipient_email: 
     remove_all_roles_from_user(user)
 
     for event in audit_events:
-        track_audit_event(db.session, event, system_user)
+        track_audit_event(event, system_user)
 
     _log_error_for_access_grant_funding_roles_with_no_alternate_users(
         access_grant_funding_roles, exclude_user_id=None, reason="permanent failure"
@@ -136,12 +137,7 @@ def _get_access_grant_funding_roles_for_user(
         else:
             grants = [
                 gr.grant
-                for gr in db.session.scalars(
-                    select(GrantRecipient).where(
-                        GrantRecipient.organisation_id == ur.organisation_id,
-                        GrantRecipient.mode == GrantRecipientModeEnum.LIVE,
-                    )
-                ).all()
+                for gr in get_grant_recipients_for_organisation(ur.organisation.id, mode=GrantRecipientModeEnum.LIVE)
             ]
 
         for grant in grants:

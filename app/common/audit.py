@@ -3,13 +3,10 @@ import enum
 from typing import Any, Literal
 from uuid import UUID
 
-from flask import current_app
 from pydantic import BaseModel, Field
 from sqlalchemy import inspect
-from sqlalchemy.orm import Session, scoped_session
 
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
-from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import User
 from app.common.data.types import AuditEventType
 
@@ -147,25 +144,4 @@ def create_system_event_for_delete(
         action="delete",
         changes=snapshot,
         context=context,
-    )
-
-
-def track_audit_event(session: scoped_session[Session] | Session, event: AuditEvent, user: User) -> None:
-    audit_record = AuditEventModel(
-        event_type=event.event_type,
-        user_id=event.user_id,
-        data=event.model_dump(mode="json"),
-    )
-    session.add(audit_record)
-
-    current_app.logger.info(
-        "audit_event: %(event_type)s by %(user_email)s",
-        {"event_type": event.event_type, "user_email": user.email},
-        extra={
-            "audit": True,
-            "event_type": event.event_type,
-            "user_id": str(event.user_id),
-            "user_email": user.email,
-            "event_data": event.model_dump(mode="json"),
-        },
     )

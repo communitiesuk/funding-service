@@ -10,10 +10,11 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipient_data_providers_count,
     get_grant_recipients,
     get_grant_recipients_count,
+    get_grant_recipients_for_organisation,
     get_grant_recipients_with_outstanding_submissions_for_collection,
 )
 from app.common.data.models import GrantRecipient
-from app.common.data.types import RoleEnum, SubmissionEventType, SubmissionModeEnum
+from app.common.data.types import GrantRecipientModeEnum, RoleEnum, SubmissionEventType, SubmissionModeEnum
 from tests.models import FactoryAnswer
 
 
@@ -389,6 +390,42 @@ class TestGetGrantRecipientsWithOutstandingReports:
 
         assert len(result) == 3
         assert {gr.organisation_id for gr in result} == {org1.id, org3.id, org4.id}
+
+
+class TestGetGrantRecipientsForOrganisation:
+    def test_returns_all_grant_recipients_for_organisation(self, factories, db_session):
+        organisation = factories.organisation.create()
+        other_organisation = factories.organisation.create()
+        grant_a = factories.grant.create()
+        grant_b = factories.grant.create()
+        grant_c = factories.grant.create()
+
+        factories.grant_recipient.create(grant=grant_a, organisation=organisation)
+        factories.grant_recipient.create(grant=grant_b, organisation=organisation)
+        factories.grant_recipient.create(grant=grant_c, organisation=other_organisation)
+
+        result = get_grant_recipients_for_organisation(organisation.id)
+
+        assert {gr.grant_id for gr in result} == {grant_a.id, grant_b.id}
+
+    def test_filters_by_mode(self, factories, db_session):
+        organisation = factories.organisation.create()
+        grant_a = factories.grant.create()
+        grant_b = factories.grant.create()
+
+        factories.grant_recipient.create(grant=grant_a, organisation=organisation, mode=GrantRecipientModeEnum.LIVE)
+        factories.grant_recipient.create(grant=grant_b, organisation=organisation, mode=GrantRecipientModeEnum.TEST)
+
+        live = get_grant_recipients_for_organisation(organisation.id)
+        test = get_grant_recipients_for_organisation(organisation.id, mode=GrantRecipientModeEnum.TEST)
+
+        assert {gr.grant_id for gr in live} == {grant_a.id}
+        assert {gr.grant_id for gr in test} == {grant_b.id}
+
+    def test_returns_empty_when_no_recipients(self, factories, db_session):
+        organisation = factories.organisation.create()
+
+        assert get_grant_recipients_for_organisation(organisation.id) == []
 
 
 class TestGetGrantRecipient:

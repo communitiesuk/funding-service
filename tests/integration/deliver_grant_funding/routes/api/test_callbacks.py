@@ -292,6 +292,32 @@ class TestGovukNotifyCallback:
             logs = _manual_intervention_logs(caplog)
             assert any(str(recipient_org_a.id) in msg and "DATA_PROVIDER" in msg for msg in logs)
 
+        def test_permanent_failure_with_org_wide_affected_role_flags_each_grant(
+            self, anonymous_client, factories, caplog
+        ) -> None:
+            grant_a = factories.grant.create(status=GrantStatusEnum.LIVE)
+            grant_b = factories.grant.create(status=GrantStatusEnum.LIVE)
+            recipient_org = factories.organisation.create(can_manage_grants=False)
+            factories.grant_recipient.create(grant=grant_a, organisation=recipient_org)
+            factories.grant_recipient.create(grant=grant_b, organisation=recipient_org)
+
+            affected_user = factories.user.create(email="bouncer@example.com")
+            factories.user_role.create(
+                user=affected_user, organisation=recipient_org, grant=None, permissions=[RoleEnum.CERTIFIER]
+            )
+
+            with caplog.at_level(logging.ERROR, logger="app"):
+                response, _ = self._post(anonymous_client, status="permanent-failure", to="bouncer@example.com")
+
+            assert response.status_code == 202
+
+            remaining = db.session.scalars(select(UserRole).where(UserRole.user_id == affected_user.id)).all()
+            assert remaining == []
+
+            logs = _manual_intervention_logs(caplog)
+            assert any("CERTIFIER" in msg and str(grant_a.id) in msg and str(recipient_org.id) in msg for msg in logs)
+            assert any("CERTIFIER" in msg and str(grant_b.id) in msg and str(recipient_org.id) in msg for msg in logs)
+
         def test_permanent_failure_unknown_email_logs_error_and_no_db_changes(self, anonymous_client, caplog) -> None:
             response, _ = self._post(anonymous_client, status="permanent-failure", to="not-a-user@example.com")
 
@@ -391,6 +417,29 @@ class TestGovukNotifyCallback:
 
             assert response.status_code == 202
             assert _manual_intervention_logs(caplog) == []
+
+        def test_temporary_failure_with_org_wide_affected_role_flags_each_grant(
+            self, anonymous_client, factories, caplog
+        ) -> None:
+            grant_a = factories.grant.create(status=GrantStatusEnum.LIVE)
+            grant_b = factories.grant.create(status=GrantStatusEnum.LIVE)
+            recipient_org = factories.organisation.create(can_manage_grants=False)
+            factories.grant_recipient.create(grant=grant_a, organisation=recipient_org)
+            factories.grant_recipient.create(grant=grant_b, organisation=recipient_org)
+
+            affected_user = factories.user.create(email="bouncer@example.com")
+            factories.user_role.create(
+                user=affected_user, organisation=recipient_org, grant=None, permissions=[RoleEnum.CERTIFIER]
+            )
+
+            with caplog.at_level(logging.ERROR, logger="app"):
+                response, _ = self._post(anonymous_client, to="bouncer@example.com")
+
+            assert response.status_code == 202
+
+            logs = _manual_intervention_logs(caplog)
+            assert any("CERTIFIER" in msg and str(grant_a.id) in msg and str(recipient_org.id) in msg for msg in logs)
+            assert any("CERTIFIER" in msg and str(grant_b.id) in msg and str(recipient_org.id) in msg for msg in logs)
 
         def test_unknown_email_logs_error_and_no_db_changes(self, anonymous_client, caplog) -> None:
             with caplog.at_level(logging.ERROR, logger="app"):
