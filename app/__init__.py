@@ -24,6 +24,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.types import (
     CollectionStatusEnum,
+    CollectionType,
     ComponentType,
     DataSourceType,
     ExpressionType,
@@ -333,6 +334,7 @@ def create_app() -> Flask:  # noqa: C901
                 file_upload_types_enum=FileUploadTypes,
                 maximum_file_size_enum=MaximumFileSize,
                 data_source_type_enum=DataSourceType,
+                collection_type_enum=CollectionType,
             ),
             feature_flags=FeatureFlags,
             request_tracing_state=get_tracing_state(),

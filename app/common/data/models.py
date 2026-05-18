@@ -18,6 +18,8 @@ from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import (
+    MONITORING_COLLECTIONS,
+    PRE_AWARD_COLLECTIONS,
     CollectionStatusEnum,
     CollectionType,
     ComponentType,
@@ -97,7 +99,11 @@ class Grant(BaseModel):
 
     @property
     def reports(self) -> list[Collection]:
-        return [collection for collection in self.collections if collection.type == CollectionType.MONITORING_REPORT]
+        return [collection for collection in self.collections if collection.is_monitoring_collection]
+
+    @property
+    def pre_award_forms(self) -> list[Collection]:
+        return [collection for collection in self.collections if collection.is_pre_award_collection]
 
     @property
     def test_grant_recipients(self) -> list[GrantRecipient]:
@@ -331,6 +337,14 @@ class Collection(BaseModel):
         if not self.submission_period_end_date:
             return False
         return self.submission_period_end_date < datetime.date.today()
+
+    @property
+    def is_monitoring_collection(self) -> bool:
+        return self.type in MONITORING_COLLECTIONS
+
+    @property
+    def is_pre_award_collection(self) -> bool:
+        return self.type in PRE_AWARD_COLLECTIONS
 
     @property
     def public_sign_up(self) -> str:

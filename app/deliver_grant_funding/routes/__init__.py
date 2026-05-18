@@ -8,6 +8,7 @@ from app.deliver_grant_funding.routes import (  # noqa: E402, F401
     grant_setup,
     grant_team,
     misc,
+    pre_award,
     reports,
     runner,
 )

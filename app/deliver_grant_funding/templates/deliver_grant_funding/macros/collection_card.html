@@ -1,0 +1,104 @@
+{% from "common/macros/status.html" import reportStatusTag with context %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% macro collection_card(collection) %}
+  {% set can_edit = authorisation_helper.can_edit_collection(current_user, collection.id) %}
+  {% set grant = collection.grant %}
+  {% set formSectionsText %}
+    {% if can_edit %}
+      {% if collection.forms | length == 0 %}
+        {# TODO: in the next commit the collection type will be included to any url for collection pages like add section, change name, etc. #}
+        {# appropriate language for each context will then be swapped out as needed #}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=collection.id) }}"
+          >Add sections<span class="govuk-visually-hidden"> to {{ collection.name }}</span></a
+        >
+        to create your report
+        <br />
+        Sections are groups of questions with a common theme
+      {% else %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=collection.id) }}">
+          {% trans count = collection.forms | length %}{{ count }} section{% pluralize %}{{ count }} sections{% endtrans %}
+          <span class="govuk-visually-hidden"> in form for {{ collection.name }}</span>
+        </a>
+      {% endif %}
+    {% else %}
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=collection.id) }}">
+        {% trans count = collection.forms | length %}{{ count }} section{% pluralize %}{{ count }} sections{% endtrans %}
+        <span class="govuk-visually-hidden"> in form for {{ collection.name }}</span>
+      </a>
+    {% endif %}
+  {% endset %}
+
+
+  {% set dataSetsHtml %}
+    <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_data_sets', grant_id=grant.id, report_id=collection.id) }}">
+      {% trans count = collection.data_sources | length %}{{ count }} data set{% pluralize %}{{ count }} data sets{% endtrans %}
+      <span class="govuk-visually-hidden"> for {{ collection.name }}</span>
+    </a>
+  {% endset %}
+
+
+  {% set liveSubmissionsText %}
+    {% trans count = collection.live_submissions | length %}{{ count }} live submission{% pluralize %}{{ count }} live submissions{% endtrans %}
+    <span class="govuk-visually-hidden">for {{ collection.name }}</span>
+  {% endset %}
+  {% set testSubmissionsText %}
+    {% trans count = collection.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %}
+    <span class="govuk-visually-hidden">for {{ collection.name }}</span>
+  {% endset %}
+
+
+  {% set submissionsHtml %}
+    <p class="govuk-body">
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=collection.id, submission_mode=enum.submission_mode.LIVE) }}"> {{ liveSubmissionsText }} </a>
+    </p>
+
+    {# TODO: hide test submissions link when the reporting round status is live #}
+    <p class="govuk-body">
+      <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=collection.id, submission_mode=enum.submission_mode.TEST) }}"> {{ testSubmissionsText }} </a>
+    </p>
+  {% endset %}
+
+
+  {% set reportingPeriodText %}
+    {% if collection.reporting_period_start_date and collection.reporting_period_end_date %}
+      {{ format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date) }}
+    {% else %}
+      Not set
+    {% endif %}
+  {% endset %}
+
+
+  {% set submissionPeriodText %}
+    {% if collection.submission_period_start_date and collection.submission_period_end_date %}
+      {{ format_date_range(collection.submission_period_start_date, collection.submission_period_end_date) }}
+    {% else %}
+      Not set
+    {% endif %}
+  {% endset %}
+
+  {% set actions = [] %}
+  {% if can_edit %}
+    {% do actions.append({"text": "Change name", "visuallyHiddenText": collection.title, "href": url_for("deliver_grant_funding.change_report_name", grant_id=grant.id, report_id=collection.id), "classes": "govuk-link--no-visited-state" }) %}
+    {% if not collection.live_submissions %}
+      {% set delete_url = url_for("deliver_grant_funding.list_reports", grant_id=grant.id, delete=collection.id) if collection.is_monitoring_collection else url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id, delete=collection.id) %}
+      {% do actions.append({"text": "Delete", "visuallyHiddenText": collection.title, "href": delete_url, "classes": "govuk-link--no-visited-state" }) %}
+    {% endif %}
+  {% endif %}
+
+  {# TODO: see if this logic can be moved out to a macro that can factor in collection type if it needs to (for things like labels) #}
+  {{
+    govukSummaryList({
+        "card": {"title": {"text": collection.name}, "actions": {"items": actions} },
+        "rows": [
+            {"key": {"text": "Status"}, "value": {"html": reportStatusTag(collection.status)} },
+            {"key": {"text": "Form"}, "value": {"text": formSectionsText} },
+            {"key": {"text": "Uploaded data sets"}, "value": {"html": dataSetsHtml} } if authorisation_helper.is_platform_member(current_user) else {},
+            {"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} } if collection.is_monitoring_collection else {},
+            {"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} },
+            {"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },
+            {"key": {"text": "Created by"}, "value": {"text": collection.created_by.email} },
+        ],
+    })
+  }}
+{% endmacro %}

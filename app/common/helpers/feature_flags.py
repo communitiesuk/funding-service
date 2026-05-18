@@ -52,7 +52,7 @@ class FeatureFlag:
 def _check_grant_allows_pre_award() -> bool:
     grant_id = request.view_args.get("grant_id") if request.view_args else None
     if not grant_id:
-        raise ValueError("grant_id required in URL for PRE_AWARD feature flag")
+        return False
     return get_grant(grant_id).allow_pre_award
 
 

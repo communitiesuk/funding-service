@@ -2,8 +2,20 @@
 
 {% set cspNonce = csp_nonce() %}
 
+{% set nav_items = [] %}
+
+{% if feature_flags.PRE_AWARD.is_enabled %}
+  {%
+    do nav_items.append({
+        "text": "Pre-award",
+        "key": "pre_award",
+        "href": url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id),
+        "current": active_item_identifier == "pre_award"
+    })
+  %}
+{% endif %}
 {%
-  set nav_items = [
+  do nav_items.extend([
       {
           "text": "Reports",
           "key": "reports",
@@ -22,7 +34,7 @@
           "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
           "current": active_item_identifier == "details"
       },
-  ]
+  ])
 %}
 
 {% set right_nav_items = [] %}
