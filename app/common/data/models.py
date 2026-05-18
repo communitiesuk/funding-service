@@ -1184,6 +1184,11 @@ class DataSource(BaseModel, SafeDidMixin):
                     f"Unsupported data_type {column_schema.data_type} for column {column_schema.original_column_name}"
                 )
 
+    def column_reference_label(self, column: DataSourceSchemaColumn) -> str | None:
+        if self.type == DataSourceType.CUSTOM:
+            return None
+        return f"{column.original_column_name} from {self.name} data set"
+
 
 class DataSourceItem(BaseModel):
     __tablename__ = "data_source_item"

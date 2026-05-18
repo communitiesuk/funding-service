@@ -156,7 +156,8 @@ class ExpressionReference(str):
             return question.data_reference_label
 
         if (column := self.data_source_column) and (data_source := self.data_source):
-            return f"{column.original_column_name} from {data_source.name} data set"
+            if label := data_source.column_reference_label(column):
+                return label
 
         raise ValueError(f"Can't resolve ExpressionReference {self!r} to a specific label; unknown reference shape")
 
