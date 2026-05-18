@@ -21,9 +21,9 @@ from app.common.audit import (
     create_database_model_change_for_create,
     create_database_model_change_for_delete,
     create_database_model_change_for_update,
-    track_audit_event,
 )
 from app.common.data.base import BaseModel
+from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import (
     Collection,
@@ -103,10 +103,10 @@ class PlatformAdminModelView(XGovukModelView):
         user = get_current_user()
         if is_created:
             event = create_database_model_change_for_create(model, user)
-            track_audit_event(self.session.session, event, user)
+            track_audit_event(event, user)
             self.session.session.commit()
         elif pending_event := g.pop("audit_event", None):
-            track_audit_event(self.session.session, pending_event, user)
+            track_audit_event(pending_event, user)
             self.session.session.commit()
 
         return super().after_model_change(form, model, is_created)
@@ -120,7 +120,7 @@ class PlatformAdminModelView(XGovukModelView):
         needs to be responsible for committing itself, as flask-admin won't commit again automatically.
         """
         if audit_event := g.pop("audit_event", None):
-            track_audit_event(self.session.session, audit_event, get_current_user())
+            track_audit_event(audit_event, get_current_user())
             self.session.session.commit()
 
         return super().after_model_delete(model)
@@ -400,7 +400,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
                 audit_event = create_database_model_change_for_update(invitation, get_current_user())
                 if not audit_event:
                     raise RuntimeError("Expected an audit event")
-                track_audit_event(self.session.session, audit_event, get_current_user())
+                track_audit_event(audit_event, get_current_user())
 
             self.session.session.commit()
 

@@ -66,6 +66,19 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
     return grant_recipients_with_outstanding_submissions
 
 
+def get_grant_recipients_for_organisation(
+    organisation_id: uuid.UUID,
+    *,
+    mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
+) -> Sequence[GrantRecipient]:
+    stmt = (
+        select(GrantRecipient)
+        .where(GrantRecipient.organisation_id == organisation_id, GrantRecipient.mode == mode)
+        .options(joinedload(GrantRecipient.grant))
+    )
+    return db.session.scalars(stmt).all()
+
+
 def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> GrantRecipient:
     statement = (
         select(GrantRecipient)
