@@ -29,6 +29,15 @@
                   {% endfor %}
                 </ul>
               {% endif %}
+
+              {% if form.group_validation_error.data_set_entries %}
+                <p class="govuk-body">Other information referenced:</p>
+                <ul class="govuk-list govuk-error-summary__list govuk-list--bullet">
+                  {% for entry in form.group_validation_error.data_set_entries %}
+                    <li>{{ entry.error_message }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
             </div>
           </div>
         </div>
