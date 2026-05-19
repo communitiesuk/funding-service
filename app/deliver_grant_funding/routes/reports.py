@@ -29,6 +29,7 @@ from app.common.data.interfaces.collections import (
     IncompatibleDataTypeInCalculationException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
+    SectionComponentDependencyException,
     SectionDependencyOrderException,
     create_collection,
     create_form,
@@ -48,9 +49,9 @@ from app.common.data.interfaces.collections import (
     move_component_up,
     move_form_down,
     move_form_up,
+    raise_if_component_or_section_has_any_dependencies,
     raise_if_data_source_has_references,
     raise_if_nested_group_creation_not_valid_here,
-    raise_if_question_has_any_dependencies,
     remove_question_expression,
     reset_all_test_submissions,
     reset_test_submission,
@@ -835,15 +836,28 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
             abort(403)
 
         if delete_wtform.validate_on_submit():
-            delete_form(db_form)
+            try:
+                raise_if_component_or_section_has_any_dependencies(db_form)
 
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.list_report_sections",
-                    grant_id=grant_id,
-                    report_id=db_form.collection_id,
+                delete_form(db_form)
+
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.list_report_sections",
+                        grant_id=grant_id,
+                        report_id=db_form.collection_id,
+                    )
                 )
-            )
+
+            except SectionComponentDependencyException as e:
+                flash(e.as_flash_context(), FlashMessageType.SECTION_COMPONENT_DEPENDENCY_ERROR.value)  # type:ignore [arg-type]
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.list_section_questions",
+                        grant_id=grant_id,
+                        form_id=form_id,
+                    )
+                )
 
     return render_template(
         "deliver_grant_funding/reports/list_section_questions.html",
@@ -869,7 +883,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
             return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group_id))
 
         try:
-            raise_if_question_has_any_dependencies(group)
+            raise_if_component_or_section_has_any_dependencies(group)
             if delete_wtform.validate_on_submit() and delete_wtform.confirm_deletion.data:
                 delete_question(group)
                 if group.parent and group.parent.is_group:
@@ -1870,7 +1884,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
     confirm_deletion_form = GenericConfirmDeletionForm()
     if "delete" in request.args:
         try:
-            raise_if_question_has_any_dependencies(question)
+            raise_if_component_or_section_has_any_dependencies(question)
 
             if confirm_deletion_form.validate_on_submit() and confirm_deletion_form.confirm_deletion.data:
                 delete_question(question)

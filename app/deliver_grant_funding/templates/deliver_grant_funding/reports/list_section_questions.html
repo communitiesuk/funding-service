@@ -2,6 +2,7 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
+{% from "deliver_grant_funding/macros/dependency_banner.html" import section_component_dependency_banner %}
 {% from "deliver_grant_funding/macros/question_table.html" import question_table %}
 
 {% set page_title = db_form.title %}
@@ -25,6 +26,11 @@
           {{ govukNotificationBanner(params={"titleText": "Preview complete", "text": flashes[0]}) }}
         {% endif %}
         {% set errors = None %}
+      {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SECTION_COMPONENT_DEPENDENCY_ERROR.value]) %}
+        {% if flashes %}
+          {{ section_component_dependency_banner(flashes[0], interpolate=interpolate) }}
+        {% endif %}
       {% endwith %}
       {% if delete_form %}
         {% set banner_html %}

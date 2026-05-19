@@ -16,6 +16,7 @@ NOT_PROVIDED = TNotProvided.token
 class FlashMessageType(StrEnum):
     DEPENDENCY_ORDER_ERROR = "dependency_order_error"
     SECTION_DEPENDENCY_ORDER_ERROR = "section_dependency_order_error"
+    SECTION_COMPONENT_DEPENDENCY_ERROR = "section_component_dependency_error"
     DATA_SOURCE_ITEM_DEPENDENCY_ERROR = "data_source_item_dependency_error"
     DATA_SOURCE_REFERENCE_ERROR = "data_source_reference_error"
     SUBMISSION_TESTING_COMPLETE = "submission_testing_complete"

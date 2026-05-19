@@ -15,6 +15,7 @@ from app.common.data.interfaces.collections import (
     IncompatibleDataTypeException,
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
+    SectionComponentDependencyException,
     _validate_and_sync_component_references,
     _validate_and_sync_expression_references,
     _validate_reference,
@@ -46,10 +47,10 @@ from app.common.data.interfaces.collections import (
     move_component_up,
     move_form_down,
     move_form_up,
+    raise_if_component_or_section_has_any_dependencies,
     raise_if_data_source_item_reference_dependency,
     raise_if_group_questions_depend_on_each_other,
     raise_if_nested_group_creation_not_valid_here,
-    raise_if_question_has_any_dependencies,
     remove_question_expression,
     reset_all_test_submissions,
     reset_test_submission,
@@ -2597,10 +2598,10 @@ class TestDependencyExceptionHelpers:
             ],
         )
 
-        assert raise_if_question_has_any_dependencies(q2) is None
+        assert raise_if_component_or_section_has_any_dependencies(q2) is None
 
         with pytest.raises(DependencyOrderException) as e:
-            raise_if_question_has_any_dependencies(q1)
+            raise_if_component_or_section_has_any_dependencies(q1)
         assert e.value.question == q2  # ty: ignore[unresolved-attribute]
         assert e.value.depends_on_question == q1  # ty: ignore[unresolved-attribute]
 
@@ -2623,13 +2624,40 @@ class TestDependencyExceptionHelpers:
         )
 
         with pytest.raises(DependencyOrderException) as e:
-            raise_if_question_has_any_dependencies(nested_question)
+            raise_if_component_or_section_has_any_dependencies(nested_question)
 
         with pytest.raises(DependencyOrderException) as e:
-            raise_if_question_has_any_dependencies(group)
+            raise_if_component_or_section_has_any_dependencies(group)
 
         assert e.value.question == q2  # ty: ignore[unresolved-attribute]
         assert e.value.depends_on_question == group  # ty: ignore[unresolved
+
+    def test_raise_if_section_has_any_dependencies(db_session, factories):
+        collection = factories.collection.create()
+        user = factories.user.create()
+        section_with_depended_on_question = factories.form.create(collection=collection)
+        dependent_section = factories.form.create(collection=collection)
+
+        depended_on_question = factories.question.create(form=section_with_depended_on_question)
+        dependent_question = factories.question.create(
+            form=dependent_section,
+            expressions=[
+                Expression.from_evaluatable_expression(
+                    GreaterThan(
+                        subject_reference=ExpressionReference.from_question(depended_on_question), minimum_value=1000
+                    ),
+                    ExpressionType.CONDITION,
+                    user,
+                )
+            ],
+        )
+
+        assert raise_if_component_or_section_has_any_dependencies(dependent_section) is None
+
+        with pytest.raises(SectionComponentDependencyException) as e:
+            raise_if_component_or_section_has_any_dependencies(section_with_depended_on_question)
+        assert e.value.form == section_with_depended_on_question
+        assert [ref.component for ref in e.value.component_references] == [dependent_question]
 
     def test_raise_if_group_questions_depend_on_each_other(db_session, factories):
         form = factories.form.create()

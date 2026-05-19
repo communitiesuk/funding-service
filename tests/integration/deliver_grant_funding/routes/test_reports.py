@@ -2341,6 +2341,65 @@ class TestListSectionQuestions:
             for message in caplog.messages
         )
 
+    def test_cannot_delete_section_with_questions_depended_on_by_other_section(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        section_to_delete = factories.form.create(collection=report, title="Section being deleted")
+        dependent_section = factories.form.create(collection=report, title="Dependent section")
+
+        depended_on_question = factories.question.create(form=section_to_delete, data_type=QuestionDataType.YES_NO)
+        dependent_question = factories.question.create(
+            form=dependent_section,
+            text="Do you want a biscuit?",
+            expressions=[
+                Expression.from_evaluatable_expression(
+                    IsYes(subject_reference=ExpressionReference.from_question(depended_on_question)),
+                    ExpressionType.CONDITION,
+                    authenticated_grant_admin_client.user,
+                )
+            ],
+        )
+
+        confirm_form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.list_section_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=section_to_delete.id,
+                delete="",
+            ),
+            data=get_form_data(confirm_form),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert db_session.get(Form, section_to_delete.id) is not None
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        banner = soup.select_one(".govuk-notification-banner.app-notification-banner--destructive")
+        assert banner is not None
+        banner_text = " ".join(banner.text.split())
+        assert (
+            "You cannot delete Section being deleted because it is being referenced in another section's questions"
+            in banner_text
+        )
+        assert "Condition for Do you want a biscuit? in Dependent section" in banner_text
+        assert "Delete the other section references to delete this section." in banner_text
+
+        banner_links = banner.select("a.govuk-notification-banner__link")
+        assert [link.text for link in banner_links] == ["Do you want a biscuit?", "Dependent section"]
+        assert banner_links[0].get("href") == url_for(
+            "deliver_grant_funding.edit_question",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            question_id=dependent_question.id,
+        )
+        assert banner_links[1].get("href") == url_for(
+            "deliver_grant_funding.list_section_questions",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            form_id=dependent_section.id,
+        )
+
     @pytest.mark.parametrize(
         "client_fixture, can_preview",
         (
