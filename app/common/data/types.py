@@ -138,6 +138,7 @@ class SubmissionEventType(enum.StrEnum):
 
 class CollectionType(enum.StrEnum):
     MONITORING_REPORT = "monitoring report"
+    APPLICATION = "application"
 
 
 class ReportAdminEmailTypeEnum(enum.StrEnum):
