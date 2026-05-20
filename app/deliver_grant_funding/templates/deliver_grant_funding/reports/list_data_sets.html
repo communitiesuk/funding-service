@@ -3,9 +3,9 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
 
-{% set page_title = "Data sets for " + report.name %}
+{% set page_title = "Data sets for " + collection.name %}
 {% set active_item_identifier = "reports" %}
-{% set can_upload = authorisation_helper.can_edit_collection(current_user, report.id) %}
+{% set can_upload = authorisation_helper.can_edit_collection(current_user, collection.id) %}
 
 {% block beforeContent %}
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text": "Data sets"}) }}
@@ -29,23 +29,26 @@
         {% endif %}
       {% endwith %}
       <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ report.name }}</span>
+        <span class="govuk-caption-l">{{ collection.name }}</span>
         Uploaded data sets
       </h1>
       <p class="govuk-body">Data referenced in the grant form, uploaded as a CSV.</p>
       <p class="govuk-body">
         For uploading grant recipient level data like grant allocation, use the <br />
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">grant recipient data upload template (CSV)</a>.
-        Grant recipients must be set up for the grant report before using the template and uploading grant recipient level data.
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}"
+          >grant recipient data upload template (CSV)</a
+        >. Grant recipients must be set up for the grant report before using the template and uploading grant recipient level data.
       </p>
     </div>
     <div class="govuk-grid-column-full">
       {% set rows = [] %}
-      {% if report.data_sources | length > 0 %}
+      {% if collection.data_sources | length > 0 %}
 
-        {% for data_set in report.data_sources|sort(attribute='name') %}
+        {% for data_set in collection.data_sources|sort(attribute='name') %}
           {% set data_set_name_html %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, report_id=report.id, data_source_id=data_set.id) }}">{{ data_set.name }}</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=data_set.id) }}"
+              >{{ data_set.name }}</a
+            >
           {% endset %}
           {% set data_set_timestamp %}
             <time datetime="{{ iso_utc(data_set.updated_at_utc) }}">{{ format_datetime_short(data_set.updated_at_utc) }}</time>

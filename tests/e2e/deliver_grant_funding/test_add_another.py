@@ -144,7 +144,7 @@ def test_add_another_setup(
 
     # Section 1
     add_section_page = grant_reports_page.click_add_section(report_name=report_name, grant_name=grant_name)
-    collection_id = extract_uuid_from_url(page.url, r"/report/(?P<uuid>[a-f0-9-]+)")
+    collection_id = extract_uuid_from_url(page.url, r"/monitoring_report/(?P<uuid>[a-f0-9-]+)")
     add_section_page.fill_in_section_name(recipient_section_name)
     report_sections_page = add_section_page.click_add_section()
     report_sections_page.check_section_exists(recipient_section_name)

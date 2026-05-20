@@ -8,7 +8,7 @@
 {% block beforeContent %}
   {{
     govukBackLink({
-      "href": url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id),
+      "href": url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
       "text": "Back"
     })
   }}
@@ -16,7 +16,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l">Test the {{ report.name }} report</h1>
+      <h1 class="govuk-heading-l">Test the {{ collection.name }} report</h1>
 
       <p class="govuk-body">Test the report as grant recipients will see it in Access grant funding.</p>
 

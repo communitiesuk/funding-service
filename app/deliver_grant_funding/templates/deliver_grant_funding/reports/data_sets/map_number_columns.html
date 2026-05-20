@@ -7,7 +7,7 @@
 {% set page_title = "Map " ~ session_data.name ~ " number columns" %}
 
 {% block beforeContent %}
-  {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id) %}
+  {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
 
@@ -15,7 +15,7 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ report.name }}</span>
+        <span class="govuk-caption-l">{{ collection.name }}</span>
         Map {{ session_data.name }} number columns
       </h1>
       <p class="govuk-body">Map the data from each numerical column to set formatting options.</p>
@@ -61,7 +61,7 @@
 
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_data_sets', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_data_sets', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
         </div>
       </form>
     </div>

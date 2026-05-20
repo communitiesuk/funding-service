@@ -36,9 +36,10 @@ def submission_tasklist(grant_id: UUID, submission_id: UUID) -> ResponseReturnVa
 
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_report_sections",
+                    "deliver_grant_funding.list_collection_sections",
                     grant_id=runner.submission.grant.id,
-                    report_id=runner.submission.collection.id,
+                    collection_type=runner.submission.collection.type,
+                    collection_id=runner.submission.collection.id,
                 )
             )
 

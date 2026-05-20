@@ -14,7 +14,7 @@
     {{ mhclgInlinePageTestDataBanner("Test submission") }}
   {% endif %}
 
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, report_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }) }}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, collection_type=helper.submission.collection.type, collection_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -75,7 +75,9 @@
   {% endfor %}
 
   <p class="govuk-body">
-    <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=helper.submission.collection.id, submission_mode=helper.submission.mode) }}">
+    <a
+      class="govuk-link govuk-link--no-visited-state"
+      href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=helper.submission.collection.type, collection_id=helper.submission.collection.id, submission_mode=helper.submission.mode) }}">
       Back to submissions
     </a>
   </p>

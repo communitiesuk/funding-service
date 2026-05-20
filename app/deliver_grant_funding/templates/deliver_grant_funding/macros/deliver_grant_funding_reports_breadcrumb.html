@@ -16,7 +16,7 @@
       <span>Data sets</span>
       <span class="govuk-visually-hidden"> for {{ data_set.collection.name }}</span>
     {% endset %}
-    {% do items.append({"html": data_set_name_html, "href": url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant.id, report_id=data_set.collection_id) }) %}
+    {% do items.append({"html": data_set_name_html, "href": url_for("deliver_grant_funding.list_collection_data_sets", grant_id=grant.id, collection_type=data_set.collection.type, collection_id=data_set.collection_id) }) %}
   {% endif %}
 
   {% if report %}
@@ -24,7 +24,7 @@
       <span class="govuk-visually-hidden">Report:</span>
       <span>{{ report.name }}</span>
     {% endset %}
-    {% do items.append({"html": report_name_html, "href": url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id)}) %}
+    {% do items.append({"html": report_name_html, "href": url_for("deliver_grant_funding.list_collection_sections", grant_id=grant.id, collection_type=report.type, collection_id=report.id)}) %}
   {% endif %}
 
   {% if form %}

@@ -1248,7 +1248,7 @@ def test_setup_grant_and_collection(
                 report_name=new_report_name, grant_name=new_grant_name
             )
             # Extract collection_id from URL (e.g., /grant/<uuid>/reports/<uuid>/sections)
-            collection_id = extract_uuid_from_url(page.url, r"/report/(?P<uuid>[a-f0-9-]+)")
+            collection_id = extract_uuid_from_url(page.url, r"/monitoring_report/(?P<uuid>[a-f0-9-]+)")
         else:
             report_sections_page = navigate_to_report_sections_page(page, domain, new_grant_name, new_report_name)
             add_section_page = report_sections_page.click_add_section()

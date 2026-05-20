@@ -8,7 +8,7 @@
 {% set active_item_identifier = "reports" %}
 
 {% block beforeContent %}
-  {% set back_link = url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id) %}
+  {% set back_link = url_for("deliver_grant_funding.list_collection_sections", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
   {{
     govukBackLink({
         "text": "Back",
@@ -44,10 +44,10 @@
             <h2 class="govuk-heading-m">Preview your guidance below</h2>
             <p class="govuk-body">Below is a preview of how your guidance content will be shown to grant recipients.</p>
           </div>
-          <div class="app-context-aware-editor__preview-area" data-ajax-markdown-target="">{{ report.submission_guidance | govuk_markdown }}</div>
+          <div class="app-context-aware-editor__preview-area" data-ajax-markdown-target="">{{ collection.submission_guidance | govuk_markdown }}</div>
         {% endset %}
 
-        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=report.id) }}">
+        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=collection.id) }}">
           {{
             govukTabs(params={
               "items": [
@@ -60,7 +60,7 @@
 
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_sections', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
         </div>
       </form>
     </div>
