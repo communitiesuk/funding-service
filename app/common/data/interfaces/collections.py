@@ -827,6 +827,50 @@ class DependencyOrderException(WTFormRenderableException, FlashableException):
         }
 
 
+class SectionComponentDependencyException(Exception, FlashableException):
+    def __init__(self, message: str, form: Form, component_references: list[ComponentReference]):
+        super().__init__(message)
+        self.message = message
+        self.form = form
+        self.component_references = component_references
+
+    def as_flash_context(self) -> dict[str, Any]:
+        seen_keys: set[tuple[UUID, str]] = set()
+        references: list[dict[str, Any]] = []
+        for ref in self.component_references:
+            component = ref.component
+            if ref.expression is not None:
+                reference_type = "validation" if ref.expression.type_ == ExpressionType.VALIDATION else "condition"
+            else:
+                reference_type = "group" if component.is_group else "question"
+
+            key = (component.id, reference_type)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+
+            references.append(
+                {
+                    "reference_type": reference_type,
+                    "component_id": str(component.id),
+                    "component_text": component.text or "",
+                    "is_group": component.is_group,
+                    "section_id": str(component.form_id),
+                    "section_title": component.form.title,
+                }
+            )
+
+        return {
+            "message": self.message,
+            "grant_id": str(self.form.collection.grant_id),  # Required for URL routing
+            "form_id": str(self.form.id),
+            "form_title": self.form.title,
+            "references": sorted(
+                references, key=lambda r: (r["section_title"], r["component_text"], r["reference_type"])
+            ),
+        }
+
+
 class SectionDependencyOrderException(Exception, FlashableException):
     def __init__(self, message: str, form: Form, depends_on_form: Form):
         super().__init__(message)
@@ -1115,9 +1159,11 @@ def is_component_dependency_order_valid(component: Component, depends_on_compone
     return form.cached_all_components.index(component) > form.cached_all_components.index(depends_on_component)
 
 
-def raise_if_question_has_any_dependencies(question: Question | Group) -> Never | None:
+def raise_if_component_or_section_has_any_dependencies(component_or_form: Question | Group | Form) -> Never | None:
     child_components_ids = [
-        c.id for c in [question] + (question.cached_all_components if isinstance(question, Group) else [])
+        c.id
+        for c in [component_or_form]
+        + (component_or_form.cached_all_components if isinstance(component_or_form, (Group, Form)) else [])
     ]
     # Only consider references whose dependent component is *outside* the subtree being deleted.
     # Internal references (e.g. a group validation that references its own child questions) will be
@@ -1129,10 +1175,18 @@ def raise_if_question_has_any_dependencies(question: Question | Group) -> Never 
         .all()
     )
     if component_reference:
+        if isinstance(component_or_form, Form):
+            raise SectionComponentDependencyException(
+                f"You cannot delete {component_or_form.title} because it is being referenced in another "
+                f"section's questions",
+                component_or_form,
+                component_reference,
+            )
+
         raise DependencyOrderException(
-            f"{question.id} cannot be deleted as it is depended on by {component_reference[0].component.id}",
+            f"{component_or_form.id} cannot be deleted as it is depended on by {component_reference[0].component.id}",
             component_reference[0].component,
-            question,  # TODO: this could be component_reference[0].depends_on_component?
+            component_or_form,  # TODO: this could be component_reference[0].depends_on_component?
             form_error_message="You cannot delete an answer that other questions depend on",
         )
 
@@ -1997,7 +2051,7 @@ def delete_form(form: Form) -> None:
 
 @flush_and_rollback_on_exceptions
 def delete_question(question: Question | Group) -> None:
-    raise_if_question_has_any_dependencies(question)
+    raise_if_component_or_section_has_any_dependencies(question)
     if question.data_source and question.data_source.type == DataSourceType.CUSTOM:
         db.session.delete(question.data_source)
     db.session.delete(question)

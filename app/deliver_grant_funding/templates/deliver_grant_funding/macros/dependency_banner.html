@@ -42,3 +42,24 @@
 
   {{ govukNotificationBanner(params={"role": "alert", "titleText": "Error", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
 {% endmacro %}
+
+{% macro section_component_dependency_banner(error, interpolate) %}
+  {% set banner_html %}
+    <p class="govuk-body govuk-!-font-weight-bold">{{ error.message }}:</p>
+    <ul class="govuk-list govuk-list--bullet">
+      {% for ref in error.references %}
+        {% set component_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=ref.component_id) if not ref.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=error.grant_id, group_id=ref.component_id) %}
+        {% set section_link = url_for("deliver_grant_funding.list_section_questions", grant_id=error.grant_id, form_id=ref.section_id) %}
+        <li class="govuk-body govuk-!-font-weight-bold">
+          {% if ref.reference_type in ("validation", "condition") %}{{ ref.reference_type | uppercase_first }} for{% endif %}
+          <a class="govuk-notification-banner__link" href="{{ component_link }}">{{ interpolate(ref.component_text) }}</a>
+          in
+          <a class="govuk-notification-banner__link" href="{{ section_link }}">{{ ref.section_title }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="govuk-body govuk-!-font-weight-bold">Delete the other section references to delete this section.</p>
+  {% endset %}
+
+  {{ govukNotificationBanner(params={"role": "alert", "titleText": "Error", "classes": "app-notification-banner--destructive", "html": banner_html}) }}
+{% endmacro %}
