@@ -66,7 +66,7 @@ def list_reports(grant_id: UUID) -> ResponseReturnValue:
                 return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
 
     return render_template(
-        "deliver_grant_funding/reports/list_reports.html",
+        "deliver_grant_funding/collections/list_reports.html",
         grant=grant,
         delete_form=delete_wtform,
         delete_report=delete_report,

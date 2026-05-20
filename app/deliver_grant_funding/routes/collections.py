@@ -221,7 +221,7 @@ def start_test_grant_recipient_journey(
         )
 
     return render_template(
-        "deliver_grant_funding/reports/start_test_grant_recipient_journey.html",
+        "deliver_grant_funding/collections/start_test_grant_recipient_journey.html",
         grant=grant,
         collection=collection,
         form=form,
@@ -251,7 +251,7 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
         except DuplicateValueError:
             form.name.errors.append("A report with this name already exists")  # type: ignore[attr-defined]
 
-    return render_template("deliver_grant_funding/reports/set_up_report.html", grant=grant, form=form)
+    return render_template("deliver_grant_funding/collections/set_up_report.html", grant=grant, form=form)
 
 
 @deliver_grant_funding_blueprint.route(
@@ -274,7 +274,7 @@ def change_collection_name(grant_id: UUID, collection_type: CollectionType, coll
             form.name.errors.append("A report with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
-        "deliver_grant_funding/reports/change_report_name.html",
+        "deliver_grant_funding/collections/change_report_name.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -337,7 +337,7 @@ def collection_configure_multiple_submissions(
                 )
 
     return render_template(
-        "deliver_grant_funding/reports/configure_multiple_submissions.html",
+        "deliver_grant_funding/collections/configure_multiple_submissions.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -372,7 +372,7 @@ def collection_configure_public_sign_up(
             )
 
     return render_template(
-        "deliver_grant_funding/reports/configure_public_sign_up.html",
+        "deliver_grant_funding/collections/configure_public_sign_up.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -430,7 +430,7 @@ def set_guidance_for_multiple_submissions(
             )
 
     return render_template(
-        "deliver_grant_funding/reports/set_guidance_for_multiple_submissions.html",
+        "deliver_grant_funding/collections/set_guidance_for_multiple_submissions.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -456,7 +456,7 @@ def list_collection_sections(
         return start_previewing_collection(collection=collection)
 
     return render_template(
-        "deliver_grant_funding/reports/list_report_sections.html",
+        "deliver_grant_funding/collections/list_report_sections.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -537,7 +537,7 @@ def add_section(grant_id: UUID, collection_type: CollectionType, collection_id: 
             form.title.errors.append("A section with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
-        "deliver_grant_funding/reports/add_section.html",
+        "deliver_grant_funding/collections/add_section.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -582,7 +582,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             form.title.errors.append("A section with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
-        "deliver_grant_funding/reports/change_form_name.html",
+        "deliver_grant_funding/collections/change_form_name.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         form=form,
@@ -620,7 +620,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
             form.name.errors.append("A question group with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
-        "deliver_grant_funding/reports/change_question_group_name.html",
+        "deliver_grant_funding/collections/change_question_group_name.html",
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
@@ -678,7 +678,7 @@ def change_conditions_operator(grant_id: UUID, component_id: UUID) -> ResponseRe
             )
 
     return render_template(
-        "deliver_grant_funding/reports/change_conditions_operator.html",
+        "deliver_grant_funding/collections/change_conditions_operator.html",
         grant=component.form.collection.grant,
         component=component,
         db_form=component.form,
@@ -737,7 +737,7 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
             )
 
     return render_template(
-        "deliver_grant_funding/reports/change_question_group_display_options.html",
+        "deliver_grant_funding/collections/change_question_group_display_options.html",
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
@@ -774,7 +774,7 @@ def change_group_add_another_summary(grant_id: UUID, group_id: UUID) -> Response
         )
 
     return render_template(
-        "deliver_grant_funding/reports/change_question_group_add_another_summary.html",
+        "deliver_grant_funding/collections/change_question_group_add_another_summary.html",
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
@@ -829,7 +829,7 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
             )
 
     return render_template(
-        "deliver_grant_funding/reports/change_question_group_add_another_options.html",
+        "deliver_grant_funding/collections/change_question_group_add_another_options.html",
         grant=db_group.form.collection.grant,
         group=db_group,
         db_form=db_group.form,
@@ -891,7 +891,7 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
                 )
 
     return render_template(
-        "deliver_grant_funding/reports/list_section_questions.html",
+        "deliver_grant_funding/collections/list_section_questions.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         delete_form=delete_wtform,
@@ -933,7 +933,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
             return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group_id))
 
     return render_template(
-        "deliver_grant_funding/reports/list_group_questions.html",
+        "deliver_grant_funding/collections/list_group_questions.html",
         grant=group.form.collection.grant,
         db_form=group.form,
         delete_form=delete_wtform,
@@ -992,7 +992,7 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
         )
 
     return render_template(
-        "deliver_grant_funding/reports/add_question_group_name.html",
+        "deliver_grant_funding/collections/add_question_group_name.html",
         grant=form.collection.grant,
         db_form=form,
         form=wt_form,
@@ -1051,7 +1051,7 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
         )
 
     return render_template(
-        "deliver_grant_funding/reports/add_question_group_display_options.html",
+        "deliver_grant_funding/collections/add_question_group_display_options.html",
         grant=form.collection.grant,
         db_form=form,
         group_name=add_question_group.group_name,
@@ -1115,7 +1115,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
             flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # type: ignore[arg-type]
 
     return render_template(
-        "deliver_grant_funding/reports/add_question_group_add_another_options.html",
+        "deliver_grant_funding/collections/add_question_group_add_another_options.html",
         grant=form.collection.grant,
         db_form=form,
         group_name=add_question_group.group_name,
@@ -1182,7 +1182,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         )
 
     return render_template(
-        "deliver_grant_funding/reports/choose_question_type.html",
+        "deliver_grant_funding/collections/choose_question_type.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         form=wt_form,
@@ -1419,7 +1419,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             field_with_error.errors.append(e.form_error_message)
 
     return render_template(
-        "deliver_grant_funding/reports/add_question.html",
+        "deliver_grant_funding/collections/add_question.html",
         grant=form.collection.grant,
         collection=form.collection,
         db_form=form,
@@ -1503,7 +1503,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             return redirect_response
 
     return render_template(
-        "deliver_grant_funding/reports/select_context_source.html",
+        "deliver_grant_funding/collections/select_context_source.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         form=wtform,
@@ -1547,7 +1547,7 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
         )
 
     return render_template(
-        "deliver_grant_funding/reports/select_context_source_section.html",
+        "deliver_grant_funding/collections/select_context_source_section.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         form=wtform,
@@ -1586,7 +1586,7 @@ def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseRet
         )
 
     return render_template(
-        "deliver_grant_funding/reports/select_context_source_data_set.html",
+        "deliver_grant_funding/collections/select_context_source_data_set.html",
         grant=db_form.collection.grant,
         form=wtform,
         db_form=db_form,
@@ -1680,7 +1680,7 @@ def select_context_source_data_set_column(grant_id: UUID, form_id: UUID, data_se
         return redirect(return_url)
 
     return render_template(
-        "deliver_grant_funding/reports/select_context_source_data_set_column.html",
+        "deliver_grant_funding/collections/select_context_source_data_set_column.html",
         grant=db_form.collection.grant,
         form=wtform,
         db_form=db_form,
@@ -1868,7 +1868,7 @@ def select_context_source_question(grant_id: UUID, form_id: UUID) -> ResponseRet
         return redirect(return_url)
 
     return render_template(
-        "deliver_grant_funding/reports/select_context_source_question.html",
+        "deliver_grant_funding/collections/select_context_source_question.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         form=wtform,
@@ -2000,7 +2000,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             )
 
     return render_template(
-        "deliver_grant_funding/reports/edit_question.html",
+        "deliver_grant_funding/collections/edit_question.html",
         grant=question.form.collection.grant,
         db_form=question.form,
         question=question,
@@ -2075,7 +2075,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
             field_with_error.errors.append(e.form_error_message)
 
     return render_template(
-        "deliver_grant_funding/reports/manage_add_another_guidance.html",
+        "deliver_grant_funding/collections/manage_add_another_guidance.html",
         grant=group.form.collection.grant,
         question=group,
         form=form,
@@ -2162,7 +2162,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
     # Build expression context for reference mappings
     return render_template(
-        "deliver_grant_funding/reports/manage_guidance.html",
+        "deliver_grant_funding/collections/manage_guidance.html",
         grant=question.form.collection.grant,
         question=question,
         form=form,
@@ -2239,7 +2239,7 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
         collection=component.form.collection,
     )
     return render_template(
-        "deliver_grant_funding/reports/calculated_condition.html",
+        "deliver_grant_funding/collections/calculated_condition.html",
         grant=component.form.collection.grant,
         component=component,
         form=wt_form,
@@ -2324,7 +2324,7 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
         collection=component.form.collection,
     )
     return render_template(
-        "deliver_grant_funding/reports/calculated_condition.html",
+        "deliver_grant_funding/collections/calculated_condition.html",
         grant=component.form.collection.grant,
         expression=expression,
         component=component,
@@ -2360,7 +2360,7 @@ def add_question_condition_select_calculation(grant_id: UUID, component_id: UUID
             )
 
     return render_template(
-        "deliver_grant_funding/reports/add_question_condition_select_calculation.html",
+        "deliver_grant_funding/collections/add_question_condition_select_calculation.html",
         form=wt_form,
         component=component,
         grant=component.form.collection.grant,
@@ -2396,7 +2396,7 @@ def add_question_condition_select_question(grant_id: UUID, component_id: UUID) -
         )
 
     return render_template(
-        "deliver_grant_funding/reports/add_question_condition_select_question.html",
+        "deliver_grant_funding/collections/add_question_condition_select_question.html",
         component=component,
         grant=component.form.collection.grant,
         form=form,
@@ -2485,7 +2485,7 @@ def add_question_condition(
     )
 
     return render_template(
-        "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
+        "deliver_grant_funding/collections/manage_question_condition_select_condition_type.html",
         component=component,
         subject_reference=subject_reference,
         grant=component.form.collection.grant,
@@ -2579,7 +2579,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
     )
 
     return render_template(
-        "deliver_grant_funding/reports/manage_question_condition_select_condition_type.html",
+        "deliver_grant_funding/collections/manage_question_condition_select_condition_type.html",
         component=component,
         grant=component.form.collection.grant,
         form=form,
@@ -2672,7 +2672,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
     )
 
     return render_template(
-        "deliver_grant_funding/reports/manage_question_validation.html",
+        "deliver_grant_funding/collections/manage_question_validation.html",
         question=question,
         grant=question.form.collection.grant,
         form=form,
@@ -2772,7 +2772,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
     )
 
     return render_template(
-        "deliver_grant_funding/reports/manage_question_validation.html",
+        "deliver_grant_funding/collections/manage_question_validation.html",
         question=question,
         grant=question.form.collection.grant,
         form=form,
@@ -2852,7 +2852,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
         collection=question.form.collection,
     )
     return render_template(
-        "deliver_grant_funding/reports/calculated_validation.html",
+        "deliver_grant_funding/collections/calculated_validation.html",
         form=wt_form,
         question=question,
         grant=question.form.collection.grant,
@@ -2946,7 +2946,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
         collection=question.form.collection,
     )
     return render_template(
-        "deliver_grant_funding/reports/calculated_validation.html",
+        "deliver_grant_funding/collections/calculated_validation.html",
         form=wt_form,
         question=question,
         grant=question.form.collection.grant,
@@ -3029,7 +3029,7 @@ def add_group_validation(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         collection=group.form.collection, expression_type=ExpressionType.VALIDATION
     )
     return render_template(
-        "deliver_grant_funding/reports/manage_group_validation.html",
+        "deliver_grant_funding/collections/manage_group_validation.html",
         form=wt_form,
         group=group,
         grant=group.form.collection.grant,
@@ -3123,7 +3123,7 @@ def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -
         collection=group.form.collection, expression_type=ExpressionType.VALIDATION
     )
     return render_template(
-        "deliver_grant_funding/reports/manage_group_validation.html",
+        "deliver_grant_funding/collections/manage_group_validation.html",
         form=wt_form,
         group=group,
         grant=group.form.collection.grant,
@@ -3166,7 +3166,7 @@ def list_submissions(
     helper = AllSubmissionsHelper(collection=collection, submission_mode=submission_mode)
 
     return render_template(
-        "deliver_grant_funding/reports/list_submissions.html",
+        "deliver_grant_funding/collections/list_submissions.html",
         grant=collection.grant,
         collection=collection,
         helper=helper,
@@ -3252,7 +3252,7 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
                 )
             )
     return render_template(
-        "deliver_grant_funding/reports/view_submission.html",
+        "deliver_grant_funding/collections/view_submission.html",
         grant=helper.grant,
         helper=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
@@ -3285,7 +3285,7 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
         except SubmissionIsNotSubmittedError:
             form.form_errors.append("You cannot reopen this submission because it has not been submitted")
     return render_template(
-        "deliver_grant_funding/reports/reopen_submission.html",
+        "deliver_grant_funding/collections/reopen_submission.html",
         form=form,
         helper=submission_helper,
         grant=submission_helper.grant,
@@ -3317,7 +3317,10 @@ def list_collection_data_sets(
         )
 
     return render_template(
-        "deliver_grant_funding/reports/list_data_sets.html", grant=collection.grant, collection=collection, form=form
+        "deliver_grant_funding/collections/list_data_sets.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
     )
 
 
@@ -3428,7 +3431,7 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
             gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients, all_rows=rows)
             if gr_errors:
                 return render_template(
-                    "deliver_grant_funding/reports/data_sets/upload_dataset.html",
+                    "deliver_grant_funding/collections/data_sets/upload_dataset.html",
                     grant=collection.grant,
                     collection=collection,
                     form=form,
@@ -3445,7 +3448,7 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
         )
 
     return render_template(
-        "deliver_grant_funding/reports/data_sets/upload_dataset.html",
+        "deliver_grant_funding/collections/data_sets/upload_dataset.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -3561,7 +3564,7 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
             form.form_errors.append("The file contains duplicate values in the first column")
 
     return render_template(
-        "deliver_grant_funding/reports/data_sets/map_columns.html",
+        "deliver_grant_funding/collections/data_sets/map_columns.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -3678,7 +3681,7 @@ def map_data_set_number_columns(
             )
 
     return render_template(
-        "deliver_grant_funding/reports/data_sets/map_number_columns.html",
+        "deliver_grant_funding/collections/data_sets/map_number_columns.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -3756,7 +3759,7 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
         )
 
     return render_template(
-        "deliver_grant_funding/reports/data_sets/data_set_missing_data.html",
+        "deliver_grant_funding/collections/data_sets/data_set_missing_data.html",
         grant=collection.grant,
         collection=collection,
         session_data=data_set_data,
@@ -3830,7 +3833,7 @@ def view_data_source(
             )
 
     return render_template(
-        "deliver_grant_funding/reports/data_sets/view_data_set.html",
+        "deliver_grant_funding/collections/data_sets/view_data_set.html",
         grant=collection.grant,
         collection=collection,
         data_source=data_source,
