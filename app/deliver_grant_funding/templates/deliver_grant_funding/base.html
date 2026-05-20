@@ -1,5 +1,6 @@
 {% extends "common/base.html" %}
 {% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
 {% from "common/macros/navigation.html" import deliverGrantFundingServiceNavigation %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
@@ -29,6 +30,7 @@
   {{ super() }}
 {% endblock %}
 {% block header %}
+  {{ mhclgRequestTracingBanner() }}
   {{
     mhclgHeader(
       params={

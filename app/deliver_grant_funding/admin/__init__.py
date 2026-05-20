@@ -16,6 +16,7 @@ from app.deliver_grant_funding.admin.entities import (
 )
 from app.deliver_grant_funding.admin.views import (
     PlatformAdminDataAnalysisView,
+    PlatformAdminDeveloperToolsView,
     PlatformAdminReportingLifecycleView,
 )
 
@@ -41,3 +42,9 @@ def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
     flask_admin.add_view(PlatformAdminQuestionView(db_))
     flask_admin.add_view(PlatformAdminInvitationView(db_))
     flask_admin.add_view(PlatformAdminAuditEventView(db_))
+
+    flask_admin.add_view(
+        PlatformAdminDeveloperToolsView(
+            name="Developer tools", endpoint="developer_tools", url="developer-tools", category="Developer tools"
+        )
+    )

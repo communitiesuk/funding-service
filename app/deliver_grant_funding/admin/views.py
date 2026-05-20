@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 import markupsafe
-from flask import abort, current_app, flash, redirect, send_file, url_for
+from flask import abort, current_app, flash, make_response, redirect, send_file, url_for
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
@@ -46,10 +46,17 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    TraceLevelEnum,
 )
 from app.common.filters import format_date
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.request_tracing import (
+    REQUEST_TRACING_COOKIE_NAME,
+    REQUEST_TRACING_TTL,
+    encode_levels,
+    get_tracing_levels,
+)
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminAddSingleDataProviderForm,
     PlatformAdminAddTestGrantRecipientUserForm,
@@ -58,6 +65,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminCreateCertifiersForm,
     PlatformAdminCreateGrantOverrideCertifiersForm,
     PlatformAdminCreateGrantRecipientDataProvidersForm,
+    PlatformAdminForceTracingForm,
     PlatformAdminMakeGrantLiveForm,
     PlatformAdminMakeReportLiveForm,
     PlatformAdminMarkAsOnboardingForm,
@@ -71,6 +79,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetPrivacyPolicyForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
+    FlaskAdminPlatformAdminAccessibleMixin,
     FlaskAdminPlatformAdminDataAnalystAccessibleMixin,
     FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
     FlaskAdminPlatformMemberAccessibleMixin,
@@ -1037,3 +1046,43 @@ class PlatformAdminDataAnalysisView(FlaskAdminPlatformAdminDataAnalystAccessible
             as_attachment=True,
             download_name="certification-events.csv",
         )
+
+
+class PlatformAdminDeveloperToolsView(FlaskAdminPlatformAdminAccessibleMixin, BaseView):
+    @expose("/", methods=["GET", "POST"])
+    def index(self) -> Any:
+        current_levels = get_tracing_levels()
+        form = PlatformAdminForceTracingForm(levels=[level.value for level in current_levels])
+
+        if form.validate_on_submit():
+            selected = [TraceLevelEnum(value) for value in (form.levels.data or [])]
+            response = make_response(redirect(url_for("developer_tools.index")))
+            if selected:
+                token = encode_levels(selected, current_app.config["SECRET_KEY"])
+                response.set_cookie(
+                    REQUEST_TRACING_COOKIE_NAME,
+                    token,
+                    max_age=REQUEST_TRACING_TTL,
+                    httponly=True,
+                    secure=True,
+                    samesite="Lax",
+                )
+            else:
+                response.delete_cookie(REQUEST_TRACING_COOKIE_NAME)
+            return response
+
+        return self.render(
+            "deliver_grant_funding/admin/developer_tools.html",
+            form=form,
+            current_levels=current_levels,
+        )
+
+    @expose("/stop", methods=["POST"])
+    def stop(self) -> Any:
+        form = GenericSubmitForm()
+        if form.validate_on_submit():
+            response = make_response(redirect(url_for("developer_tools.index")))
+            response.delete_cookie(REQUEST_TRACING_COOKIE_NAME)
+            return response
+
+        return redirect(url_for("developer_tools.index"))

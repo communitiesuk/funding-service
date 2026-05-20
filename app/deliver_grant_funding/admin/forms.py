@@ -1,12 +1,13 @@
 import csv
 import datetime
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import email_validator
 from flask import current_app, flash
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
+    GovCheckboxesInput,
     GovCheckboxInput,
     GovDateInput,
     GovSubmitInput,
@@ -23,7 +24,10 @@ from xgovuk_flask_admin import GovSelectWithSearch
 from app.common.data.types import (
     OrganisationData,
     OrganisationType,
+    TraceLevelEnum,
 )
+from app.common.helpers.request_tracing import REQUEST_TRACING_TTL
+from app.common.utils import uppercase_first
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
@@ -596,3 +600,17 @@ class PlatformAdminSetPrivacyPolicyForm(FlaskForm):
         widget=GovTextArea(),
     )
     submit = SubmitField("Save privacy policy", widget=GovSubmitInput())
+
+
+class PlatformAdminForceTracingForm(FlaskForm):
+    levels = SelectMultipleField(
+        "Request tracing",
+        choices=[(e.value, cast(str, uppercase_first(e.value))) for e in TraceLevelEnum],
+        widget=GovCheckboxesInput(),
+        validators=[Optional()],
+        description=(
+            "Enable more detailed logs and tracing to be emitted for requests from your browser "
+            f"for the next {REQUEST_TRACING_TTL // 60} minutes"
+        ),
+    )
+    submit = SubmitField("Apply", widget=GovSubmitInput())

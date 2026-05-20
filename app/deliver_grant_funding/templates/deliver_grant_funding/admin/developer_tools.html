@@ -1,0 +1,27 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">Developer tools</h1>
+
+      {% set levels_html %}
+        <h2 class="govuk-heading-m">{{ form.levels.label.text }}</h2>
+      {% endset %}
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.levels(params={"fieldset": {"legend": {"classes": "govuk-!-font-weight-bold", "html": levels_html} } }) }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}
