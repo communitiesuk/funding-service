@@ -4,10 +4,10 @@
 
 {% set active_item_identifier = "reports" %}
 
-{% set page_title = "Upload new data set to " + report.name %}
+{% set page_title = "Upload new data set to " + collection.name %}
 
 {% block beforeContent %}
-  {% set back_link = url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant.id, report_id=report.id) %}
+  {% set back_link = url_for("deliver_grant_funding.list_collection_data_sets", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
 
@@ -27,13 +27,15 @@
         }}
       {% endif %}
       <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ report.name }}</span>
+        <span class="govuk-caption-l">{{ collection.name }}</span>
         Upload new data set
       </h1>
       <p class="govuk-body">
         To upload a complete data set, <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=grant.id) }}">check the grant recipients</a> have been set up first before uploading
         the file. The grant recipients will be reflected in the
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">data set template (CSV)</a>.
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}"
+          >data set template (CSV)</a
+        >.
       </p>
       <p class="govuk-body">If you are missing some grant recipients or data, you can still upload the file and replace it later.</p>
       <form method="POST" enctype="multipart/form-data" novalidate>
@@ -43,7 +45,7 @@
         <p class="govuk-body">Only CSV (.csv) files can be uploaded for data sets.</p>
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Continue and format data" }) }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_data_sets', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_data_sets', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
         </div>
       </form>
     </div>

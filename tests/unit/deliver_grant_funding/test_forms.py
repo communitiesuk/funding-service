@@ -743,7 +743,7 @@ class TestUploadDataSetForm:
         form.process(data)
 
         assert form.validate() is False
-        assert "A data set with this name already exists for this report" in form.name.errors[0]
+        assert "A data set with this name already exists for this monitoring report" in form.name.errors[0]
 
     def test_missing_file_raises_error(self):
         data = MultiDict(

@@ -6,7 +6,7 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% set page_title = "Submissions - " ~ report.name %}
+{% set page_title = "Submissions - " ~ collection.name %}
 {% set active_item_identifier = "reports" %}
 
 {% block beforeContent %}
@@ -24,7 +24,11 @@
         {{ delete_all_form.csrf_token }}
         <div class="govuk-button-group govuk-!-margin-bottom-0">
           {{ delete_all_form.confirm_deletion(params={"text": "Yes, reset all test submissions", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
-          <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, report_id=report.id, submission_mode=submission_mode) }}">Cancel</a>
+          <a
+            class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0"
+            href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=submission_mode) }}"
+            >Cancel</a
+          >
         </div>
       </form>
     {% endset %}
@@ -37,14 +41,15 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.TEST_SUBMISSION_RESET ]) %}
         {% if flashes %}
           {% set test_submission_reset_html %}
-          {% set user_can_test_grant_recipient_journey = report.grant.test_grant_recipients and report.grant in current_user.access_grants %}
+          {% set user_can_test_grant_recipient_journey = collection.grant.test_grant_recipients and collection.grant in current_user.access_grants %}
             <h3 class="govuk-notification-banner__heading">Test submission reset</h3>
             <p class="govuk-body">Your team's test submission has been reset.</p>
 
             {% if user_can_test_grant_recipient_journey %}
               <p class="govuk-body">
                 To start again you can
-                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=report.grant.id, report_id=report.id) }}"> test the grant recipient journey for this report </a
+                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=collection.grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+                  test the grant recipient journey for this {{ collection.type }} </a
                 >.
               </p>
             {% endif %}
@@ -60,14 +65,15 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.TEST_SUBMISSIONS_RESET ]) %}
         {% if flashes %}
           {% set test_submission_reset_html %}
-          {% set user_can_test_grant_recipient_journey = report.grant.test_grant_recipients and report.grant in current_user.access_grants %}
+          {% set user_can_test_grant_recipient_journey = collection.grant.test_grant_recipients and collection.grant in current_user.access_grants %}
             <h3 class="govuk-notification-banner__heading">Test submissions reset</h3>
             <p class="govuk-body">All test submissions have been reset.</p>
 
             {% if user_can_test_grant_recipient_journey %}
               <p class="govuk-body">
                 To start again you can
-                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=report.grant.id, report_id=report.id) }}"> test the grant recipient journey for this report </a
+                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=collection.grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+                  test the grant recipient journey for this {{ collection.type }} </a
                 >.
               </p>
             {% endif %}
@@ -82,22 +88,22 @@
       {% endwith %}
 
       <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ report.name }}</span>
-        Monitoring reports
+        <span class="govuk-caption-l">{{ collection.name }}</span>
+        {{ collection.type ~ 's' |  uppercase_first }}
       </h1>
-      <p class="govuk-body">View the information that has been provided by grant recipients in their monitoring reports.</p>
+      <p class="govuk-body">View the information that has been provided by grant recipients in their {{ collection.type }}s.</p>
       <p class="govuk-body">
         {{
           govukButton({
             "text": "Export as CSV",
-            "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='csv'),
+            "href": url_for("deliver_grant_funding.export_collection_submissions", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=submission_mode, export_format='csv'),
             "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
           })
         }}
         {{
           govukButton({
             "text": "Export as JSON",
-            "href": url_for("deliver_grant_funding.export_report_submissions", grant_id=grant.id, report_id=report.id, submission_mode=submission_mode, export_format='json'),
+            "href": url_for("deliver_grant_funding.export_collection_submissions", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=submission_mode, export_format='json'),
             "classes": "govuk-button--secondary govuk-!-margin-bottom-2",
           })
         }}
@@ -105,12 +111,12 @@
     </div>
     <div class="govuk-grid-column-full">
       {% set rows = [] %}
-      {% set column_count = 4 if report.allow_multiple_submissions else 3 %}
+      {% set column_count = 4 if collection.allow_multiple_submissions else 3 %}
 
       {% for submission in submissions %}
         {% set cells = [] %}
 
-        {% if report.allow_multiple_submissions %}
+        {% if collection.allow_multiple_submissions %}
           {% if submission.submission_id %}
             {% set submission_name_link %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.submission_id) }}" data-submission-link>{{ submission.name }}</a>
@@ -132,22 +138,22 @@
         {% endif %}
 
         {% if submission.submission_id %}
-          {% do cells.append({"html": submissionStatusTag(submission.status, report.is_overdue and not submission.status == enum.submission_status.SUBMITTED)}) %}
+          {% do cells.append({"html": submissionStatusTag(submission.status, collection.is_overdue and not submission.status == enum.submission_status.SUBMITTED)}) %}
         {% else %}
-          {% do cells.append({"html": submissionStatusTag(enum.submission_status.NOT_SUBMITTED if report.is_overdue else enum.submission_status.NOT_STARTED, report.is_closed)}) %}
+          {% do cells.append({"html": submissionStatusTag(enum.submission_status.NOT_SUBMITTED if collection.is_overdue else enum.submission_status.NOT_STARTED, collection.is_closed)}) %}
         {% endif %}
         {% do cells.append({"text": format_date_short(submission.last_updated_at_utc) if submission.last_updated_at_utc else ""}) %}
         {% do rows.append(cells) %}
       {% else %}
         {% set no_submissions_text %}
-          <span>No submissions found for this monitoring report</span>
+          <span>No submissions found for this {{ collection.type }}</span>
         {% endset %}
         {% do rows.append([{"html": no_submissions_text, "colspan": column_count}]) %}
       {% endfor %}
 
       {% set head = [] %}
-      {% if report.allow_multiple_submissions %}
-        {% do head.append({"text": (report.submission_name_question.name | uppercase_first) if report.submission_name_question else "Submission", "classes": "govuk-!-width-one-third"}) %}
+      {% if collection.allow_multiple_submissions %}
+        {% do head.append({"text": (collection.submission_name_question.name | uppercase_first) if collection.submission_name_question else "Submission", "classes": "govuk-!-width-one-third"}) %}
         {% do head.append({"text": "Grant recipient"}) %}
       {% else %}
         {% do head.append({"text": "Grant recipient", "classes": "govuk-!-width-one-half"}) %}

@@ -1021,7 +1021,7 @@ class UploadDataSetForm(FlaskForm):
 
     def validate_name(self, field: StringField) -> None:
         if field.data and field.data in self._existing_data_source_names:
-            raise ValidationError("A data set with this name already exists for this report")
+            raise ValidationError("A data set with this name already exists for this monitoring report")
 
     def validate_file(self, field: Field) -> None:  # noqa: C901
         if not field.data or not hasattr(field.data, "stream"):

@@ -7,16 +7,16 @@
 {% from "common/macros/status.html" import reportStatusTag with context %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import section_dependency_banner %}
 
-{% set page_title = report.name %}
+{% set page_title = collection.name %}
 {% set active_item_identifier = "reports" %}
-{% set can_edit = authorisation_helper.can_edit_collection(current_user, report.id) %}
-{% set can_preview = report.data_sources | length == 0 and report.status != enum.collection_status.CLOSED %}
+{% set can_edit = authorisation_helper.can_edit_collection(current_user, collection.id) %}
+{% set can_preview = collection.data_sources | length == 0 and collection.status != enum.collection_status.CLOSED %}
 
 {# this does kick off one more request to the database - we could revisit making this check more concise #}
 {% set user_can_test_grant_recipient_journey = grant.test_grant_recipients and grant in current_user.access_grants %}
 
 {% block beforeContent %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":report.name}) }}
+  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":collection.name}) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -54,24 +54,25 @@
         {{ govukNotificationBanner(params={"role": "alert", "titleText": "Important", "classes": "", "html": banner_html}) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">{{ report.name }}</h1>
+      <h1 class="govuk-heading-l">{{ collection.name }}</h1>
 
       <p class="govuk-body">
-        <strong>Submission period</strong>: {{ format_date_range(report.submission_period_start_date, report.submission_period_end_date) if report.submission_period_start_date and report.submission_period_end_date else "Not set" }}
+        <strong>Submission period</strong>:
+        {{ format_date_range(collection.submission_period_start_date, collection.submission_period_end_date) if collection.submission_period_start_date and collection.submission_period_end_date else "Not set" }}
       </p>
-      <p class="govuk-body"><strong>Report status</strong>: {{ reportStatusTag(report.status) }}</p>
+      <p class="govuk-body"><strong>Report status</strong>: {{ reportStatusTag(collection.status) }}</p>
 
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Sections</h2>
-      {% if not report.forms %}
+      {% if not collection.forms %}
         <p class="govuk-body">This monitoring report has no sections.</p>
         {% if can_edit %}
           <p class="govuk-body">
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add a section</a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Add a section</a>
           </p>
         {% endif %}
       {% else %}
         {% set rows = [] %}
-        {% for form in report.forms %}
+        {% for form in collection.forms %}
           {% set taskHtml %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=form.id) }}">{{ form.title }}</a>
           {% endset %}
@@ -80,7 +81,7 @@
             questions<span class="govuk-visually-hidden"> in {{ form.title }}</span>
           {% endset %}
           {% set actions = [] %}
-          {% if can_edit and report.forms|length > 1 %}
+          {% if can_edit and collection.forms|length > 1 %}
             {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
             {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
           {% else %}
@@ -108,22 +109,28 @@
       {% endif %}
 
       {% if can_edit %}
-        <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, report_id=report.id) }}">Add another section</a>
+        <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Add another section</a>
       {% endif %}
 
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage collection</h2>
       <ul class="govuk-list govuk-list--spaced">
         <li>
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_multiple_submissions', grant_id=grant.id, report_id=report.id) }}"> Configure multiple submissions </a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_multiple_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+            Configure multiple submissions
+          </a>
         </li>
         {% if feature_flags.PRE_AWARD.is_enabled %}
           <li>
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_public_sign_up', grant_id=grant.id, report_id=report.id) }}"> Configure public sign up </a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_public_sign_up', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+              Configure public sign up
+            </a>
           </li>
         {% endif %}
-        {% if report.allow_multiple_submissions %}
+        {% if collection.allow_multiple_submissions %}
           <li>
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.set_guidance_for_multiple_submissions', grant_id=grant.id, report_id=report.id) }}"> Set guidance for multiple submissions </a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.set_guidance_for_multiple_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+              Set guidance for multiple submissions
+            </a>
           </li>
         {% endif %}
       </ul>
@@ -158,7 +165,9 @@
             <p class="govuk-body">Preview not available</p>
           {% endif %}
           {% if user_can_test_grant_recipient_journey %}
-            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, report_id=report.id) }}">Test grant recipient journey</a>
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}"
+              >Test grant recipient journey</a
+            >
           {% endif %}
         </div>
       </div>

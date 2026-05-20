@@ -5,8 +5,14 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.models import Collection
-from app.common.data.types import CollectionStatusEnum, SubmissionModeEnum
+from app.common.data.models import (
+    Collection,
+)
+from app.common.data.types import (
+    CollectionStatusEnum,
+    CollectionType,
+    SubmissionModeEnum,
+)
 from app.common.forms import GenericConfirmDeletionForm
 from tests.utils import AnyStringMatching, get_form_data, page_has_button, page_has_link
 
@@ -68,19 +74,25 @@ class TestListReports:
         test_submission_links = page_has_link(soup, "0 test submissions")
         assert test_submission_links is not None
         assert test_submission_links.get("href") == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/test"
+            r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/submissions/test"
         )
 
         live_submissions_links = page_has_link(soup, "0 live submissions")
         assert live_submissions_links is not None
         assert live_submissions_links.get("href") == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/submissions/live"
+            r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/submissions/live"
         )
 
         expected_links = [
             ("Add another monitoring report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/set-up-report")),
-            ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-section")),
-            ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/change-name")),
+            (
+                "Add sections",
+                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/add-section"),
+            ),
+            (
+                "Change name",
+                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/change-name"),
+            ),
             ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports\?delete")),
         ]
         for expected_link in expected_links:
@@ -91,14 +103,15 @@ class TestListReports:
                 assert link.get("href") == expected_link[1]
 
     def test_get_hides_delete_link_with_submissions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        factories.submission.create(collection=report, mode=SubmissionModeEnum.LIVE)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.change_report_name",
+                "deliver_grant_funding.change_collection_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 

@@ -34,7 +34,7 @@ from app.deliver_grant_funding.session_models import DataSetColumnMapping
 class TestCreateUploadedDataSourceGrantRecipient:
     def test_creates_data_source(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -60,7 +60,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
             name="Test GR Data Set",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -73,7 +73,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         assert data_source.name == "Test GR Data Set"
         assert data_source.type == DataSourceType.GRANT_RECIPIENT
         assert data_source.grant_id == grant.id
-        assert data_source.collection_id == report.id
+        assert data_source.collection_id == collection.id
         assert data_source.file_metadata.s3_key == "data-set-uploads/test.csv"
         assert data_source.file_metadata.original_filename == "test.csv"
 
@@ -82,7 +82,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
     def test_creates_schema(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -102,7 +102,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
             name="Test Schema Data Set",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -121,7 +121,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
     def test_creates_organisation_items_one_per_grant_recipient(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -144,7 +144,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
             name="Test GR Data Set",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -166,7 +166,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
     def test_data_blob_is_dict_for_grant_recipient(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -186,7 +186,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
             name="Test GR Blob",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -202,7 +202,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
     def test_cleans_prefix_and_suffix_from_number_values(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -222,7 +222,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
             name="Test Clean Values",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -236,7 +236,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
     def test_excludes_identifier_columns_from_data_blob(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -254,7 +254,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
             name="Test Exclude Identifiers",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -269,7 +269,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
     def test_empty_string_values_saved_as_none(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -287,7 +287,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
             name="Test Empty Values",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -303,7 +303,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
 class TestCreateUploadedDataSourceErrors:
     def test_raises_error_for_unsupported_type(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -316,7 +316,7 @@ class TestCreateUploadedDataSourceErrors:
                 name="Test Unsupported",
                 data_source_type=DataSourceType.CUSTOM,
                 grant_id=grant.id,
-                collection_id=report.id,
+                collection_id=collection.id,
                 column_mappings=column_mappings,
                 all_rows=[],
                 user=user,
@@ -327,7 +327,7 @@ class TestCreateUploadedDataSourceErrors:
 
     def test_raises_error_for_empty_schema(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         with pytest.raises(ValueError, match="Cannot build a schema from an empty list of column mappings"):
@@ -335,7 +335,7 @@ class TestCreateUploadedDataSourceErrors:
                 name="Test Unsupported",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 grant_id=grant.id,
-                collection_id=report.id,
+                collection_id=collection.id,
                 column_mappings=[],
                 all_rows=[],
                 user=user,
@@ -348,7 +348,7 @@ class TestCreateUploadedDataSourceErrors:
 class TestCreateUploadedDataSourceSchemaOptions:
     def test_number_columns_have_presentation_and_data_options(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -369,7 +369,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
             name="Test Schema Options",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -386,7 +386,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
 
     def test_text_columns_have_none_presentation_and_data_options(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -404,7 +404,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
             name="Test Text Schema",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -423,7 +423,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
 
     def test_schema_keys_use_safe_identifiers(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         column_mappings = [
@@ -441,7 +441,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
             name="Test Slugified Keys",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=column_mappings,
             all_rows=all_rows,
             user=user,
@@ -658,14 +658,14 @@ class TestDeleteDataSource:
 class TestDataSourceOrganisationItemDataProperty:
     def test_2d_data_property_returns_typed_answers_after_db_round_trip(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         data_source = create_uploaded_data_source(
             name="Test data source",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=[
                 DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
                 DataSetColumnMapping(column_name="Additional notes", column_type="TEXT"),
@@ -700,14 +700,14 @@ class TestDataSourceOrganisationItemDataProperty:
 
     def test_none_values_in_db_return_none_from_data_property(self, db_session, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         user = factories.user.create()
 
         data_source = create_uploaded_data_source(
             name="Test Data Set",
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             grant_id=grant.id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=[
                 DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
                 DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),

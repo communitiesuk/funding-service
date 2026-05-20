@@ -16,7 +16,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">{{ report.name }}</span>
+      <span class="govuk-caption-l">{{ collection.name }}</span>
       <h1 class="govuk-heading-l">Change the name for this monitoring report</h1>
       <form method="post" novalidate>
         {{ form.csrf_token }}
@@ -24,7 +24,7 @@
 
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Update report name"}) }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.list_reports", grant_id=report.grant_id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.list_reports", grant_id=grant.id) }}">Cancel</a>
         </div>
       </form>
     </div>

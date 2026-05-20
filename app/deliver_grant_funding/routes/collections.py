@@ -170,14 +170,17 @@ SessionModelType = (
 )
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/reports/<uuid:report_id>", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/test-grant-recipient-journey",
+    methods=["GET", "POST"],
+)
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
-def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
+def start_test_grant_recipient_journey(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
     grant = get_grant(grant_id, with_all_collections=True)
-    report = get_collection(
-        report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=False
-    )
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=False)
 
     user = get_current_user()
     test_grant_recipients = [
@@ -192,7 +195,7 @@ def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> Respo
     existing_submissions = [
         submission
         for submission in get_all_submissions_with_mode_for_collection(
-            collection_id=report.id, submission_mode=SubmissionModeEnum.TEST, with_full_schema=False
+            collection_id=collection.id, submission_mode=SubmissionModeEnum.TEST, with_full_schema=False
         )
         if submission.grant_recipient and submission.grant_recipient.organisation in test_grant_organisations
     ]
@@ -203,20 +206,27 @@ def start_test_grant_recipient_journey(grant_id: UUID, report_id: UUID) -> Respo
         grant_recipient = next(gr for gr in test_grant_recipients if str(gr.id) == form.organisation.data)
         notification_service.send_access_report_opened(
             email_address=user.email,
-            collection=report,
+            collection=collection,
             grant_recipient=grant_recipient,
-            submission_helpers=[SubmissionHelper(s) for s in grant_recipient.submissions if s.collection == report],
+            submission_helpers=[SubmissionHelper(s) for s in grant_recipient.submissions if s.collection == collection],
         )
         flash(
             "We emailed you a link to test the grant recipient journey.",
             FlashMessageType.TESTING_GRANT_RECIPIENT_JOURNEY_STARTED.value,
         )
-        return redirect(url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id))
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
 
     return render_template(
         "deliver_grant_funding/reports/start_test_grant_recipient_journey.html",
         grant=grant,
-        report=report,
+        collection=collection,
         form=form,
         test_grant_recipients=test_grant_recipients,
         existing_submissions=existing_submissions,
@@ -248,169 +258,210 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/change-name", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/change-name", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def change_report_name(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def change_collection_name(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    form = SetUpReportForm(obj=report)
+    form = SetUpReportForm(obj=collection)
     if form.validate_on_submit():
         assert form.name.data
         try:
-            update_collection(report, name=form.name.data)
-            return redirect(url_for("deliver_grant_funding.list_reports", grant_id=report.grant_id))
+            update_collection(collection, name=form.name.data)
+            return redirect(url_for("deliver_grant_funding.list_reports", grant_id=collection.grant_id))
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
             form.name.errors.append("A report with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
         "deliver_grant_funding/reports/change_report_name.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/configure-multiple-submissions", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-multiple-submissions",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def collection_configure_multiple_submissions(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
+def collection_configure_multiple_submissions(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=True)
 
     form = CollectionSettingsForm(
         questions=[
             q
-            for form in report.forms
+            for form in collection.forms
             for q in form.cached_questions
             if q.data_type in current_app.config["QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES"]
             and not q.add_another_container
         ],
-        obj=report if request.method == "GET" else None,
+        obj=collection if request.method == "GET" else None,
     )
     if form.validate_on_submit():
-        if not AuthorisationHelper.can_edit_collection(get_current_user(), report.id):
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
             form.form_errors.append("You cannot change this setting as the collection is not currently editable")
 
         else:
             if form.allow_multiple_submissions.data == "False":
                 try:
-                    update_collection(report, allow_multiple_submissions=False)
+                    update_collection(collection, allow_multiple_submissions=False)
                     return redirect(
-                        url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
+                        url_for(
+                            "deliver_grant_funding.list_collection_sections",
+                            grant_id=grant_id,
+                            collection_type=collection_type,
+                            collection_id=collection_id,
+                        )
                     )
                 except ValueError as e:
                     form.allow_multiple_submissions.errors.append(str(e))  # type: ignore[attr-defined]
 
             else:
                 update_collection(
-                    report,
+                    collection,
                     allow_multiple_submissions=True,
                     submission_name_question_id=uuid.UUID(form.submission_name_question.data),
                 )
                 return redirect(
-                    url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
+                    url_for(
+                        "deliver_grant_funding.list_collection_sections",
+                        grant_id=grant_id,
+                        collection_type=collection_type,
+                        collection_id=collection_id,
+                    )
                 )
 
     return render_template(
         "deliver_grant_funding/reports/configure_multiple_submissions.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/configure-public-sign-up", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-public-sign-up",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def collection_configure_public_sign_up(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def collection_configure_public_sign_up(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    form = PublicSignUpSettingsForm(obj=report if request.method == "GET" else None)
+    form = PublicSignUpSettingsForm(obj=collection if request.method == "GET" else None)
 
     if form.validate_on_submit():
-        if not AuthorisationHelper.can_edit_collection(get_current_user(), report.id):
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
             form.form_errors.append("You cannot change this setting as the collection is not currently editable")
         else:
-            update_collection(report, allow_public_sign_up=form.allow_public_sign_up.data == "True")
+            update_collection(collection, allow_public_sign_up=form.allow_public_sign_up.data == "True")
             return redirect(
-                url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
+                url_for(
+                    "deliver_grant_funding.list_collection_sections",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
             )
 
     return render_template(
         "deliver_grant_funding/reports/configure_public_sign_up.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/set-guidance-for-multiple-submissions", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/set-guidance-for-multiple-submissions",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def set_guidance_for_multiple_submissions(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
-    if not report.allow_multiple_submissions:
-        return redirect(url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id))
+def set_guidance_for_multiple_submissions(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    if not collection.allow_multiple_submissions:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
 
     form = SubmissionGuidanceForm()
     if not form.is_submitted():
-        form.guidance_body.data = report.submission_guidance
+        form.guidance_body.data = collection.submission_guidance
 
     if form.validate_on_submit():
-        if not AuthorisationHelper.can_edit_collection(get_current_user(), report.id):
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
             form.form_errors.append("You cannot change this setting as the collection is not currently editable")
         else:
-            update_collection(report, submission_guidance=form.guidance_body.data)
+            update_collection(collection, submission_guidance=form.guidance_body.data)
 
             if form.preview.data:
                 return redirect(
                     url_for(
                         "deliver_grant_funding.set_guidance_for_multiple_submissions",
                         grant_id=grant_id,
-                        report_id=report_id,
+                        collection_type=collection_type,
+                        collection_id=collection_id,
                         _anchor="preview-guidance",
                     )
                 )
 
             return redirect(
-                url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
+                url_for(
+                    "deliver_grant_funding.list_collection_sections",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
             )
 
     return render_template(
         "deliver_grant_funding/reports/set_guidance_for_multiple_submissions.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/report/<uuid:report_id>", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>", methods=["GET", "POST"]
+)
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
-def list_report_sections(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True)
+def list_collection_sections(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=True)
     previews = get_all_submissions_with_mode_for_collection(
-        collection_id=report.id, submission_mode=SubmissionModeEnum.PREVIEW, with_full_schema=False, with_users=True
+        collection_id=collection.id, submission_mode=SubmissionModeEnum.PREVIEW, with_full_schema=False, with_users=True
     )
     previewers = {preview.created_by for preview in previews}
     form = GenericSubmitForm()
 
     if form.validate_on_submit() and form.submit.data:
-        return start_previewing_collection(collection=report)
+        return start_previewing_collection(collection=collection)
 
     return render_template(
         "deliver_grant_funding/reports/list_report_sections.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
         previewers=previewers,
     )
@@ -435,39 +486,54 @@ def move_section(grant_id: UUID, form_id: UUID, direction: str) -> ResponseRetur
         flash(e.as_flash_context(), FlashMessageType.SECTION_DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
 
     return redirect(
-        url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=form.collection_id)
+        url_for(
+            "deliver_grant_funding.list_collection_sections",
+            grant_id=grant_id,
+            collection_type=form.collection.type,
+            collection_id=form.collection_id,
+        )
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/add-section", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/add-section", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @collection_is_editable()
 @auto_commit_after_request
-def add_section(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def add_section(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     # Technically this isn't going to be always correct; if users create a report, add a first section, then delete that
     # section, they will be able to add a section from the 'list report sections' page - but the backlink will take them
     # to the 'list reports' page. This is an edge case I'm not handling right now because: 1) rare, 2) backlinks that
     # are perfect are hard and it doesn't feel worth it yet.
     back_link = (
-        url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report_id)
-        if report.forms
+        url_for(
+            "deliver_grant_funding.list_collection_sections",
+            grant_id=grant_id,
+            collection_type=collection_type,
+            collection_id=collection_id,
+        )
+        if collection.forms
         else url_for("deliver_grant_funding.list_reports", grant_id=grant_id)
     )
 
-    form = AddSectionForm(obj=report)
+    form = AddSectionForm(obj=collection)
     if form.validate_on_submit():
         assert form.title.data
         try:
             create_form(
                 title=form.title.data,
-                collection=report,
+                collection=collection,
             )
             return redirect(
-                url_for("deliver_grant_funding.list_report_sections", grant_id=grant_id, report_id=report.id)
+                url_for(
+                    "deliver_grant_funding.list_collection_sections",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection.id,
+                )
             )
 
         except DuplicateValueError:
@@ -475,8 +541,8 @@ def add_section(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 
     return render_template(
         "deliver_grant_funding/reports/add_section.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
         back_link=back_link,
     )
@@ -810,9 +876,10 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
 
                 return redirect(
                     url_for(
-                        "deliver_grant_funding.list_report_sections",
+                        "deliver_grant_funding.list_collection_sections",
                         grant_id=grant_id,
-                        report_id=db_form.collection_id,
+                        collection_type=db_form.collection.type,
+                        collection_id=db_form.collection_id,
                     )
                 )
 
@@ -3070,38 +3137,41 @@ def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>",
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/submissions/<submission_mode:submission_mode>",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
-def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: SubmissionModeEnum) -> ResponseReturnValue:
-    report = interfaces.collections.get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def list_submissions(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, submission_mode: SubmissionModeEnum
+) -> ResponseReturnValue:
+    collection = interfaces.collections.get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     delete_all_form = GenericConfirmDeletionForm() if "delete_all" in request.args else None
     if delete_all_form and delete_all_form.validate_on_submit():
         if submission_mode != SubmissionModeEnum.TEST:
             abort(400)
 
-        reset_all_test_submissions(report)
-        s3_service.delete_prefix(report.s3_key_prefix(submission_mode=submission_mode))
+        reset_all_test_submissions(collection)
+        s3_service.delete_prefix(collection.s3_key_prefix(submission_mode=submission_mode))
 
         flash("All test submissions reset", FlashMessageType.TEST_SUBMISSIONS_RESET)
         return redirect(
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=grant_id,
-                report_id=report_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
                 submission_mode=submission_mode,
             )
         )
 
-    submissions = get_submission_list_for_collection(collection=report, submission_mode=submission_mode)
+    submissions = get_submission_list_for_collection(collection=collection, submission_mode=submission_mode)
 
     return render_template(
         "deliver_grant_funding/reports/list_submissions.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         submission_mode=submission_mode,
         delete_all_form=delete_all_form if submission_mode == SubmissionModeEnum.TEST else None,
         submissions=submissions,
@@ -3109,17 +3179,21 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/submissions/<submission_mode:submission_mode>/export/<export_format>",
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/submissions/<submission_mode:submission_mode>/export/<export_format>",
     methods=["GET"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
-def export_report_submissions(
-    grant_id: UUID, report_id: UUID, submission_mode: SubmissionModeEnum, export_format: str
+def export_collection_submissions(
+    grant_id: UUID,
+    collection_type: CollectionType,
+    collection_id: UUID,
+    submission_mode: SubmissionModeEnum,
+    export_format: str,
 ) -> ResponseReturnValue:
-    report = interfaces.collections.get_collection(
-        report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT, with_full_schema=True
+    collection = interfaces.collections.get_collection(
+        collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=True
     )
-    helper = AllSubmissionsHelper(collection=report, submission_mode=submission_mode)
+    helper = AllSubmissionsHelper(collection=collection, submission_mode=submission_mode)
 
     export_format = export_format.lower()
     match export_format:
@@ -3141,14 +3215,14 @@ def export_report_submissions(
     buffer.seek(0)
     emit_metric_count(
         MetricEventName.SUBMISSIONS_EXPORTED,
-        collection=report,
+        collection=collection,
         custom_attributes={MetricAttributeName.FILE_FORMAT: export_format},
     )
     return send_file(
         io.BytesIO(buffer.getvalue().encode(encoding)),
         mimetype=mimetype,
         as_attachment=True,
-        download_name=f"{report.name} - {submission_mode.name.lower()}.{export_format}",
+        download_name=f"{collection.name} - {submission_mode.name.lower()}.{export_format}",
         max_age=0,
     )
 
@@ -3160,7 +3234,7 @@ def export_report_submissions(
 @auto_commit_after_request
 def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     helper = SubmissionHelper.load(submission_id)
-    report_id = helper.collection.id
+    collection_id = helper.collection.id
     submission_mode = helper.submission.mode
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
@@ -3174,7 +3248,8 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
                 url_for(
                     "deliver_grant_funding.list_submissions",
                     grant_id=grant_id,
-                    report_id=report_id,
+                    collection_type=helper.collection.type,
+                    collection_id=collection_id,
                     submission_mode=submission_mode,
                 )
             )
@@ -3220,11 +3295,13 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-sets", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
-def list_report_data_sets(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def list_collection_data_sets(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     form = GenericSubmitForm()
 
@@ -3236,23 +3313,26 @@ def list_report_data_sets(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
             url_for(
                 "deliver_grant_funding.upload_data_set",
                 grant_id=grant_id,
-                report_id=report_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
             )
         )
 
     return render_template(
-        "deliver_grant_funding/reports/list_data_sets.html", grant=report.grant, report=report, form=form
+        "deliver_grant_funding/reports/list_data_sets.html", grant=collection.grant, collection=collection, form=form
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/template", methods=["GET"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-sets/template", methods=["GET"]
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
-def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def download_grant_recipient_data_set_template(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+    grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
 
     csv_output = io.StringIO()
     csv_writer = csv.DictWriter(
@@ -3274,7 +3354,7 @@ def download_grant_recipient_data_set_template(grant_id: UUID, report_id: UUID) 
         io.BytesIO(csv_output.getvalue().encode("utf-8-sig")),
         mimetype="text/csv",
         as_attachment=True,
-        download_name=f"{report.slug}-grant-recipient-data-template.csv",
+        download_name=f"{collection.slug}-grant-recipient-data-template.csv",
         max_age=0,
     )
 
@@ -3313,15 +3393,16 @@ def _extract_data_set_data_from_session() -> DataSetUploadSessionModel | None:
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/upload", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/upload",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
-def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     data_set_data = _extract_data_set_data_from_session()
 
-    form = UploadDataSetForm(existing_data_source_names=[ds.name for ds in report.data_sources], obj=data_set_data)
+    form = UploadDataSetForm(existing_data_source_names=[ds.name for ds in collection.data_sources], obj=data_set_data)
 
     gr_errors: list[str] = []
 
@@ -3332,7 +3413,9 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         data_columns = [col for col in columns if col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
 
         data_source_id = uuid.uuid4()
-        s3_key = build_data_set_upload_s3_key(grant_id=grant_id, report_id=report_id, data_source_id=data_source_id)
+        s3_key = build_data_set_upload_s3_key(
+            grant_id=grant_id, collection_id=collection_id, data_source_id=data_source_id
+        )
         file.stream.seek(0)
         s3_service.upload_file(file, s3_key, {"status": DataSourceFileTagEnum.PENDING})
 
@@ -3357,13 +3440,13 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 
         session["data_set_upload"] = session_data.model_dump(mode="json")
 
-        grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+        grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
         gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients, all_rows=rows)
         if gr_errors:
             return render_template(
                 "deliver_grant_funding/reports/data_sets/upload_dataset.html",
-                grant=report.grant,
-                report=report,
+                grant=collection.grant,
+                collection=collection,
                 form=form,
                 gr_errors=gr_errors,
             )
@@ -3372,31 +3455,40 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
             url_for(
                 "deliver_grant_funding.map_data_set_columns",
                 grant_id=grant_id,
-                report_id=report_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
             )
         )
 
     return render_template(
         "deliver_grant_funding/reports/data_sets/upload_dataset.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
         gr_errors=gr_errors,
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-columns", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/map-columns",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session()
     if not data_set_data:
-        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+        return redirect(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
 
     form = MapDataSetColumnsForm(data_columns=data_set_data.data_columns)
 
@@ -3420,8 +3512,8 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 form.columns.errors = form.build_british_pounds_form_errors(column_errors)
                 return render_template(
                     "deliver_grant_funding/reports/data_sets/map_columns.html",
-                    grant=report.grant,
-                    report=report,
+                    grant=collection.grant,
+                    collection=collection,
                     form=form,
                     session_data=data_set_data,
                 )
@@ -3431,7 +3523,8 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 url_for(
                     "deliver_grant_funding.map_data_set_number_columns",
                     grant_id=grant_id,
-                    report_id=report_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
                 )
             )
 
@@ -3443,7 +3536,8 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 url_for(
                     "deliver_grant_funding.data_set_missing_data",
                     grant_id=grant_id,
-                    report_id=report_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
                 )
             )
 
@@ -3452,7 +3546,7 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 name=data_set_data.name,
                 data_source_type=data_set_data.data_source_type,
                 grant_id=grant_id,
-                collection_id=report.id,
+                collection_id=collection.id,
                 column_mappings=data_set_data.column_mappings,
                 all_rows=rows,
                 user=user,
@@ -3465,22 +3559,25 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
             data_source_url = url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant_id,
-                report_id=report_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
                 data_source_id=data_source.id,
             )
             session.pop("data_set_upload", None)
             # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in route
             flash(
                 Markup(
-                    f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                    f"You can now reference {escape(data_set_data.name)} data "
+                    + f"in the {escape(collection.name)} grant form. "
                     + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
                 )
             )
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_report_data_sets",
+                    "deliver_grant_funding.list_collection_data_sets",
                     grant_id=grant_id,
-                    report_id=report_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
                 )
             )
         except DuplicateDataSourceItemError:
@@ -3488,25 +3585,35 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
 
     return render_template(
         "deliver_grant_funding/reports/data_sets/map_columns.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
         session_data=data_set_data,
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/map-number-columns", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/map-number-columns",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def map_data_set_number_columns(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session()
     if not data_set_data:
-        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+        return redirect(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
 
     number_columns = [mapping for mapping in data_set_data.column_mappings if mapping.requires_manual_formatting]
 
@@ -3539,14 +3646,19 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
 
         elif validation_result.has_missing_data:
             return redirect(
-                url_for("deliver_grant_funding.data_set_missing_data", grant_id=grant_id, report_id=report_id)
+                url_for(
+                    "deliver_grant_funding.data_set_missing_data",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
             )
         else:
             data_source = create_uploaded_data_source(
                 name=data_set_data.name,
                 data_source_type=data_set_data.data_source_type,
                 grant_id=grant_id,
-                collection_id=report.id,
+                collection_id=collection.id,
                 column_mappings=data_set_data.column_mappings,
                 all_rows=rows,
                 user=user,
@@ -3560,46 +3672,57 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
             data_source_url = url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant_id,
-                report_id=report_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
                 data_source_id=data_source.id,
             )
             session.pop("data_set_upload", None)
             # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
             flash(
                 Markup(
-                    f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                    f"You can now reference {escape(data_set_data.name)} data "
+                    + f"in the {escape(collection.name)} grant form. "
                     + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
                 )
             )
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_report_data_sets",
+                    "deliver_grant_funding.list_collection_data_sets",
                     grant_id=grant_id,
-                    report_id=report_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
                 )
             )
 
     return render_template(
         "deliver_grant_funding/reports/data_sets/map_number_columns.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         form=form,
         session_data=data_set_data,
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-set/missing-data", methods=["GET", "POST"]
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/missing-data",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session()
     if not data_set_data:
-        return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
+        return redirect(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
 
     rows, validation_result = _load_and_validate_data_set(data_set_data)
 
@@ -3610,7 +3733,7 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
             name=data_set_data.name,
             data_source_type=data_set_data.data_source_type,
             grant_id=grant_id,
-            collection_id=report.id,
+            collection_id=collection.id,
             column_mappings=data_set_data.column_mappings,
             all_rows=rows,
             user=user,
@@ -3624,29 +3747,31 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
         data_source_url = url_for(
             "deliver_grant_funding.view_data_source",
             grant_id=grant_id,
-            report_id=report_id,
+            collection_type=collection_type,
+            collection_id=collection_id,
             data_source_id=data_source.id,
         )
         session.pop("data_set_upload", None)
         # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
         flash(
             Markup(
-                f"You can now reference {escape(data_set_data.name)} data in the {escape(report.name)} grant form. "
+                f"You can now reference {escape(data_set_data.name)} data in the {escape(collection.name)} grant form. "
                 + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
             )
         )
         return redirect(
             url_for(
-                "deliver_grant_funding.list_report_data_sets",
+                "deliver_grant_funding.list_collection_data_sets",
                 grant_id=grant_id,
-                report_id=report_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
             )
         )
 
     return render_template(
         "deliver_grant_funding/reports/data_sets/data_set_missing_data.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         session_data=data_set_data,
         form=form,
         validation_result=validation_result,
@@ -3655,25 +3780,27 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>",
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-sets/<uuid:data_source_id>",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
 @auto_commit_after_request
-def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
-    report = get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def view_data_source(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     data_source = get_data_source(data_source_id, with_organisation_items=True, with_data_source_items=True)
 
     # TODO FSPT-1044: We should do this filtering in the interface rather than here
-    if data_source.collection_id != report_id or data_source.grant_id != grant_id:
+    if data_source.collection_id != collection_id or data_source.grant_id != grant_id:
         abort(404)
 
     if data_source.type != DataSourceType.GRANT_RECIPIENT:
         abort(404)
 
     grant_recipient_name_by_external_id: dict[str, str] = {}
-    all_grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+    all_grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
     grant_recipient_name_by_external_id = {
         gr.organisation.external_id: gr.organisation.name
         for gr in all_grant_recipients
@@ -3682,12 +3809,13 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
-        if not AuthorisationHelper.can_edit_collection(user=get_current_user(), collection_id=report.id):
+        if not AuthorisationHelper.can_edit_collection(user=get_current_user(), collection_id=collection.id):
             return redirect(
                 url_for(
                     "deliver_grant_funding.view_data_source",
                     grant_id=grant_id,
-                    report_id=report_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
                     data_source_id=data_source_id,
                 )
             )
@@ -3699,7 +3827,12 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
                 delete_data_source(data_source)
                 flash(Markup(f"'{escape(name)}' data set has been deleted."))
                 return redirect(
-                    url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant_id, report_id=report_id)
+                    url_for(
+                        "deliver_grant_funding.list_collection_data_sets",
+                        grant_id=grant_id,
+                        collection_type=collection_type,
+                        collection_id=collection_id,
+                    )
                 )
         except DataSourceHasReferencesException as e:
             flash(e.as_flash_context(), FlashMessageType.DATA_SOURCE_REFERENCE_ERROR.value)  # type: ignore[arg-type]
@@ -3707,33 +3840,36 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
                 url_for(
                     "deliver_grant_funding.view_data_source",
                     grant_id=grant_id,
-                    report_id=report_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
                     data_source_id=data_source_id,
                 )
             )
 
     return render_template(
         "deliver_grant_funding/reports/data_sets/view_data_set.html",
-        grant=report.grant,
-        report=report,
+        grant=collection.grant,
+        collection=collection,
         data_source=data_source,
         delete_form=delete_wtform,
         grant_recipient_name_by_external_id=grant_recipient_name_by_external_id,
-        interpolate=SubmissionHelper.get_interpolator(collection=report),
+        interpolate=SubmissionHelper.get_interpolator(collection=collection),
     )
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/report/<uuid:report_id>/data-sets/<uuid:data_source_id>/download",
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-sets/<uuid:data_source_id>/download",
     methods=["GET"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
-def download_data_source_csv(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> ResponseReturnValue:
-    get_collection(report_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+def download_data_source_csv(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID
+) -> ResponseReturnValue:
+    get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     data_source = get_data_source(data_source_id)
 
     # TODO FSPT-1044: We should do this filtering in the interface rather than here
-    if data_source.collection_id != report_id or data_source.grant_id != grant_id:
+    if data_source.collection_id != collection_id or data_source.grant_id != grant_id:
         abort(404)
 
     if not data_source.file_metadata:

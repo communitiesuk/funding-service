@@ -30,6 +30,7 @@ from app.common.data.models import (
     SubmissionEvent,
 )
 from app.common.data.types import (
+    CollectionType,
     ConditionsOperator,
     DataSourceFileMetadata,
     DataSourceFileTagEnum,
@@ -169,10 +170,15 @@ class TestSetUpReport:
         assert page_has_error(soup, "A report with this name already exists")
 
 
-class TestChangeReportName:
+class TestChangeCollectionName:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.change_report_name", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for(
+                "deliver_grant_funding.change_collection_name",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
         )
         assert response.status_code == 404
 
@@ -185,10 +191,15 @@ class TestChangeReportName:
     )
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
 
         response = client.get(
-            url_for("deliver_grant_funding.change_report_name", grant_id=client.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.change_collection_name",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         if not can_access:
@@ -199,14 +210,15 @@ class TestChangeReportName:
             assert "Test Report" in soup.text
 
     def test_get_with_delete_parameter_with_live_submissions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        factories.submission.create(collection=report, mode=SubmissionModeEnum.LIVE)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.change_report_name",
+                "deliver_grant_funding.change_collection_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 delete="",
             )
         )
@@ -226,11 +238,16 @@ class TestChangeReportName:
         self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session
     ):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Original Name")
+        collection = factories.collection.create(grant=client.grant, name="Original Name")
 
         form = SetUpReportForm(data={"name": "Updated Name"})
         response = client.post(
-            url_for("deliver_grant_funding.change_report_name", grant_id=client.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.change_collection_name",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -241,19 +258,20 @@ class TestChangeReportName:
             assert response.status_code == 302
             assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
-            updated_report = db_session.get(Collection, report.id)
-            assert updated_report.name == "Updated Name"
+            updated_collection = db_session.get(Collection, collection.id)
+            assert updated_collection.name == "Updated Name"
 
     def test_post_update_name_duplicate(self, authenticated_grant_admin_client, factories):
         factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Existing Report")
-        report2 = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Another Report")
+        collection2 = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Another Report")
 
         form = SetUpReportForm(data={"name": "Existing Report"})
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.change_report_name",
+                "deliver_grant_funding.change_collection_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report2.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection2.id,
             ),
             data=get_form_data(form),
         )
@@ -265,14 +283,15 @@ class TestChangeReportName:
     def test_update_name_when_delete_banner_showing_does_not_delete(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Original Name")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Original Name")
 
         form = SetUpReportForm(data={"name": "Updated Name"})
         response = authenticated_grant_admin_client.post(
             url_for(
-                "deliver_grant_funding.change_report_name",
+                "deliver_grant_funding.change_collection_name",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 delete="",
             ),
             data=get_form_data(form),
@@ -282,15 +301,20 @@ class TestChangeReportName:
         assert response.status_code == 302
         assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
 
-        updated_report = db_session.get(Collection, report.id)
-        assert updated_report is not None
-        assert updated_report.name == "Updated Name"
+        updated_collection = db_session.get(Collection, collection.id)
+        assert updated_collection is not None
+        assert updated_collection.name == "Updated Name"
 
 
 class TestAddSection:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.add_section", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for(
+                "deliver_grant_funding.add_section",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
         )
         assert response.status_code == 404
 
@@ -303,10 +327,15 @@ class TestAddSection:
     )
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant)
+        collection = factories.collection.create(grant=client.grant)
 
         response = client.get(
-            url_for("deliver_grant_funding.add_section", grant_id=client.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.add_section",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         if not can_access:
@@ -325,11 +354,16 @@ class TestAddSection:
     )
     def test_post(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant)
+        collection = factories.collection.create(grant=client.grant)
 
         form = AddSectionForm(data={"title": "Organisation information"})
         response = client.post(
-            url_for("deliver_grant_funding.add_section", grant_id=client.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.add_section",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -338,21 +372,24 @@ class TestAddSection:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}$")
+            assert response.location == AnyStringMatching(
+                "^/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}$"
+            )
 
-            assert len(report.forms) == 1
-            assert report.forms[0].title == "Organisation information"
+            assert len(collection.forms) == 1
+            assert collection.forms[0].title == "Organisation information"
 
     def test_post_duplicate_form_name(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Monitoring report")
-        factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Monitoring report")
+        factories.form.create(collection=collection, title="Organisation information")
 
         form = AddSectionForm(data={"title": "Organisation information"})
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_section",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data=get_form_data(form),
         )
@@ -362,10 +399,15 @@ class TestAddSection:
         assert page_has_error(soup, "A section with this name already exists")
 
 
-class TestListReportSections:
+class TestListCollectionSections:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
         )
         assert response.status_code == 404
 
@@ -378,10 +420,15 @@ class TestListReportSections:
     )
     def test_get_no_sections(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         assert response.status_code == 200
@@ -392,7 +439,9 @@ class TestListReportSections:
         assert (add_section_link is not None) is can_edit
 
         if add_section_link:
-            expected_href = AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/report/[a-z0-9-]{36}/add-section")
+            expected_href = AnyStringMatching(
+                r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/add-section"
+            )
             assert add_section_link.get("href") == expected_href
 
     @pytest.mark.parametrize(
@@ -404,11 +453,16 @@ class TestListReportSections:
     )
     def test_get_with_sections(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        factories.form.create(collection=collection, title="Organisation information")
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         assert response.status_code == 200
@@ -433,13 +487,18 @@ class TestListReportSections:
     def test_get_with_previews(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
         preview_user = factories.user.create()
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        factories.form.create(collection=collection, title="Organisation information")
 
-        factories.submission.create(collection=report, mode=SubmissionModeEnum.PREVIEW, created_by=preview_user)
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.PREVIEW, created_by=preview_user)
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=client.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         assert response.status_code == 200
@@ -447,7 +506,7 @@ class TestListReportSections:
         assert "Organisation information" in soup.text
 
         # only people that can edit should see who has previewed, this should always be shown even
-        # after the report is locked
+        # after the collection is locked
         if can_edit:
             assert "1 previewers" in soup.text
             preview_list = soup.find("details", id="previewers-details")
@@ -457,12 +516,12 @@ class TestListReportSections:
 
     def test_get_preview_not_available_when_data_sources(self, authenticated_grant_member_client, factories):
         grant = authenticated_grant_member_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        form = factories.form.create(collection=collection)
         factories.question.create(form=form)
         factories.data_source.create(
             grant=grant,
-            collection=report,
+            collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
                 {
@@ -477,7 +536,12 @@ class TestListReportSections:
         )
 
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         assert response.status_code == 200
@@ -487,12 +551,17 @@ class TestListReportSections:
 
     def test_get_preview_not_available_when_collection_closed(self, authenticated_grant_member_client, factories):
         grant = authenticated_grant_member_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.CLOSED)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.CLOSED)
+        form = factories.form.create(collection=collection)
         factories.question.create(form=form)
 
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         assert response.status_code == 200
@@ -515,11 +584,16 @@ class TestListReportSections:
         generic_grant = factories.grant.create()
         grant = getattr(client, "grant", None) or generic_grant
 
-        report = factories.collection.create(grant=grant, name="Test Report")
+        collection = factories.collection.create(grant=grant, name="Test Report")
 
         form = GenericSubmitForm()
         response = client.post(
-            url_for("deliver_grant_funding.list_report_sections", grant_id=grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -531,15 +605,89 @@ class TestListReportSections:
             assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}$")
 
 
+class TestCollectionTypeURLMatching:
+    """Tests that the collection_type URL converter correctly gates collection type access."""
+
+    def test_monitoring_report_type_loads_monitoring_report_collection(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant, type=CollectionType.MONITORING_REPORT
+        )
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+        assert response.status_code == 200
+
+    def test_application_type_loads_application_collection(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant, type=CollectionType.APPLICATION
+        )
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            )
+        )
+        assert response.status_code == 200
+
+    def test_monitoring_report_type_returns_404_for_application_collection(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant, type=CollectionType.APPLICATION
+        )
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_application_type_returns_404_for_monitoring_report_collection(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant, type=CollectionType.MONITORING_REPORT
+        )
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_invalid_slug_returns_404(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        grant_id = authenticated_grant_member_client.grant.id
+        collection_id = collection.id
+        response = authenticated_grant_member_client.get(f"/deliver/grant/{grant_id}/invalid_slug/{collection_id}")
+        assert response.status_code == 404
+
+
 class TestConfigureMultipleSubmissions:
     def test_get_configure_multiple_submissions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -570,14 +718,15 @@ class TestConfigureMultipleSubmissions:
             form=q1.form,
             data_type=QuestionDataType.CHECKBOXES,
         )
-        report = q1.form.collection
-        report.submission_name_question_id = q1.id
+        collection = q1.form.collection
+        collection.submission_name_question_id = q1.id
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -605,14 +754,15 @@ class TestConfigureMultipleSubmissions:
             data_type=QuestionDataType.RADIOS,
             parent=group,
         )
-        report = q1.form.collection
-        report.submission_name_question_id = q1.id
+        collection = q1.form.collection
+        collection.submission_name_question_id = q1.id
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -630,14 +780,15 @@ class TestConfigureMultipleSubmissions:
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             name="submission_name_field",
         )
-        report = question.form.collection
-        report.submission_name_question_id = question.id
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -652,35 +803,37 @@ class TestConfigureMultipleSubmissions:
             form__collection__allow_multiple_submissions=True,
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
-        report = question.form.collection
-        report.submission_name_question_id = question.id
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
 
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={"allow_multiple_submissions": False, "submit": "Save"},
             follow_redirects=False,
         )
 
         assert response.status_code == 302
-        assert report.allow_multiple_submissions is False
-        assert report.submission_name_question_id is None
+        assert collection.allow_multiple_submissions is False
+        assert collection.submission_name_question_id is None
 
     def test_post_enable_multiple_submissions(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(
             form__collection__grant=authenticated_grant_admin_client.grant,
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
-        report = question.form.collection
+        collection = question.form.collection
 
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={
                 "allow_multiple_submissions": True,
@@ -691,17 +844,18 @@ class TestConfigureMultipleSubmissions:
         )
 
         assert response.status_code == 302
-        assert report.allow_multiple_submissions is True
-        assert report.submission_name_question_id == question.id
+        assert collection.allow_multiple_submissions is True
+        assert collection.submission_name_question_id == question.id
 
     def test_post_enable_without_question_shows_error(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
 
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.collection_configure_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={"allow_multiple_submissions": True, "submit": "Save"},
         )
@@ -713,13 +867,14 @@ class TestConfigureMultipleSubmissions:
 
 class TestConfigurePublicSignUp:
     def test_get_configure_public_sign_up(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_public_sign_up",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -730,7 +885,7 @@ class TestConfigurePublicSignUp:
     def test_get_configure_public_sign_up_prepopulates_when_already_enabled(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
             allow_public_sign_up=True,
         )
@@ -739,7 +894,8 @@ class TestConfigurePublicSignUp:
             url_for(
                 "deliver_grant_funding.collection_configure_public_sign_up",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -749,23 +905,24 @@ class TestConfigurePublicSignUp:
         assert yes_radio is not None
 
     def test_post_enable_public_sign_up(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
 
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.collection_configure_public_sign_up",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={"allow_public_sign_up": True, "submit": "Save"},
             follow_redirects=False,
         )
 
         assert response.status_code == 302
-        assert report.allow_public_sign_up is True
+        assert collection.allow_public_sign_up is True
 
     def test_post_disable_public_sign_up(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
             allow_public_sign_up=True,
         )
@@ -774,17 +931,18 @@ class TestConfigurePublicSignUp:
             url_for(
                 "deliver_grant_funding.collection_configure_public_sign_up",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={"allow_public_sign_up": False, "submit": "Save"},
             follow_redirects=False,
         )
 
         assert response.status_code == 302
-        assert report.allow_public_sign_up is False
+        assert collection.allow_public_sign_up is False
 
     def test_post_shows_error_when_collection_not_editable(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
             status=CollectionStatusEnum.OPEN,
         )
@@ -793,7 +951,8 @@ class TestConfigurePublicSignUp:
             url_for(
                 "deliver_grant_funding.collection_configure_public_sign_up",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={"allow_public_sign_up": True, "submit": "Save"},
         )
@@ -803,13 +962,14 @@ class TestConfigurePublicSignUp:
         assert page_has_error(soup, "You cannot change this setting as the collection is not currently editable")
 
     def test_grant_member_cannot_access(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
 
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_public_sign_up",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -818,13 +978,14 @@ class TestConfigurePublicSignUp:
 
 class TestReportSectionsConfigurePublicSignUp:
     def test_link_hidden_when_grant_pre_award_disabled(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.list_report_sections",
+                "deliver_grant_funding.list_collection_sections",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -834,13 +995,14 @@ class TestReportSectionsConfigurePublicSignUp:
 
     def test_link_hidden_when_grant_pre_award_enabled(self, authenticated_grant_admin_client, factories):
         authenticated_grant_admin_client.grant.allow_pre_award = True
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
 
         response = authenticated_grant_admin_client.get(
             url_for(
-                "deliver_grant_funding.list_report_sections",
+                "deliver_grant_funding.list_collection_sections",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -851,7 +1013,7 @@ class TestReportSectionsConfigurePublicSignUp:
 
 class TestSetGuidanceForMultipleSubmissions:
     def test_get_renders_form(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
         )
 
@@ -859,7 +1021,8 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -868,7 +1031,7 @@ class TestSetGuidanceForMultipleSubmissions:
         assert get_h1_text(soup) == "Set guidance for multiple submissions"
 
     def test_get_prepopulates_existing_guidance(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
             allow_multiple_submissions=True,
             submission_guidance="Existing guidance content",
@@ -878,7 +1041,8 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -889,7 +1053,7 @@ class TestSetGuidanceForMultipleSubmissions:
         assert "Existing guidance content" in textarea.text
 
     def test_post_save_guidance_redirects_to_sections(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
         )
 
@@ -897,7 +1061,8 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={"guidance_body": "New guidance content", "submit": "Save guidance"},
             follow_redirects=False,
@@ -905,14 +1070,15 @@ class TestSetGuidanceForMultipleSubmissions:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "deliver_grant_funding.list_report_sections",
+            "deliver_grant_funding.list_collection_sections",
             grant_id=authenticated_grant_admin_client.grant.id,
-            report_id=report.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
         )
-        assert report.submission_guidance == "New guidance content"
+        assert collection.submission_guidance == "New guidance content"
 
     def test_post_save_and_preview_redirects_back_with_anchor(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant, name="Test Report", allow_multiple_submissions=True
         )
 
@@ -920,7 +1086,8 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={"guidance_body": "Preview this", "preview": "Save and preview guidance"},
             follow_redirects=False,
@@ -928,10 +1095,10 @@ class TestSetGuidanceForMultipleSubmissions:
 
         assert response.status_code == 302
         assert "#preview-guidance" in response.location
-        assert report.submission_guidance == "Preview this"
+        assert collection.submission_guidance == "Preview this"
 
     def test_post_save_empty_guidance_clears_it(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
             allow_multiple_submissions=True,
             submission_guidance="Old guidance",
@@ -941,14 +1108,15 @@ class TestSetGuidanceForMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.set_guidance_for_multiple_submissions",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={"guidance_body": "", "submit": "Save guidance"},
             follow_redirects=False,
         )
 
         assert response.status_code == 302
-        assert report.submission_guidance is None
+        assert collection.submission_guidance is None
 
 
 class TestMoveSection:
@@ -964,8 +1132,8 @@ class TestMoveSection:
         assert response.status_code == 404
 
     def test_400(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        forms = factories.form.create_batch(3, collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        forms = factories.form.create_batch(3, collection=collection)
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -982,9 +1150,9 @@ class TestMoveSection:
         ["up", "down"],
     )
     def test_move(self, authenticated_grant_admin_client, factories, db_session, direction):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         factories.form.reset_sequence()
-        forms = factories.form.create_batch(3, collection=report)
+        forms = factories.form.create_batch(3, collection=collection)
         assert forms[1].title == "Form 1"
 
         response = authenticated_grant_admin_client.get(
@@ -998,14 +1166,14 @@ class TestMoveSection:
         assert response.status_code == 302
 
         if direction == "up":
-            assert report.forms[0].title == "Form 1"
+            assert collection.forms[0].title == "Form 1"
         else:
-            assert report.forms[2].title == "Form 1"
+            assert collection.forms[2].title == "Form 1"
 
     def test_cannot_move_above_referenced_section(self, app, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         factories.form.reset_sequence()
-        forms = factories.form.create_batch(2, collection=report)
+        forms = factories.form.create_batch(2, collection=collection)
         assert forms[1].title == "Form 1"
 
         q1 = factories.question.create(form=forms[0], data_type=QuestionDataType.YES_NO)
@@ -1062,8 +1230,8 @@ class TestChangeQuestionGroupName:
     )
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group")
         response = client.get(
             url_for("deliver_grant_funding.change_group_name", grant_id=client.grant.id, group_id=group.id)
@@ -1138,8 +1306,8 @@ class TestChangeGroupDisplayOptions:
     )
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(
             form=form,
             name="Test group",
@@ -1331,8 +1499,8 @@ class TestChangeGroupAddAnotherOptions:
     )
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", add_another=False)
         response = client.get(
             url_for(
@@ -1496,8 +1664,8 @@ class TestChangeGroupAddAnotherOptions:
 
 class TestChangeGroupAddAnotherSummaryQuestions:
     def test_get(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", add_another=True)
         q1 = factories.question.create(form=form, parent=group)
         response = authenticated_grant_admin_client.get(
@@ -1569,8 +1737,8 @@ class TestChangeConditionsOperator:
     )
     def test_get_for_question(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=form, name="Test question", conditions_operator=ConditionsOperator.ANY
         )
@@ -1603,8 +1771,8 @@ class TestChangeConditionsOperator:
             )
 
     def test_get_for_group(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", conditions_operator=ConditionsOperator.ALL)
 
         response = authenticated_grant_admin_client.get(
@@ -1685,8 +1853,8 @@ class TestChangeConditionsOperator:
         assert updated_group.conditions_operator == ConditionsOperator.ALL
 
     def test_get_multiple_conditions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         user = factories.user.create()
         question0 = factories.question.create(form=form, name="Test question 0", data_type=QuestionDataType.NUMBER)
         question1 = factories.question.create(
@@ -1791,8 +1959,8 @@ class TestChangeFormName:
     )
     def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         response = client.get(
             url_for("deliver_grant_funding.change_form_name", grant_id=client.grant.id, form_id=form.id)
@@ -1883,8 +2051,8 @@ class TestChangeFormName:
 
 class TestListGroupQuestions:
     def test_404(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
         response = authenticated_grant_member_client.get(
             url_for("deliver_grant_funding.list_group_questions", grant_id=uuid.uuid4(), group_id=uuid.uuid4())
@@ -1910,8 +2078,8 @@ class TestListGroupQuestions:
     )
     def test_admin_actions(self, request, client_fixture, can_edit, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
         factories.question.create(form=form, parent=group, order=0)
 
@@ -1934,8 +2102,8 @@ class TestListGroupQuestions:
             assert delete_group_link.get("href") == AnyStringMatching(r"\?delete")
 
     def test_get_shows_interpolated_questions(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         q1 = factories.question.create(form=form, name="my question name")
         group = factories.group.create(form=form, name="Test group", order=1)
         factories.question.create(form=form, parent=group, text=f"Reference to (({q1.safe_qid}))")
@@ -1953,8 +2121,8 @@ class TestListGroupQuestions:
         assert "Reference to ((Test Report → Organisation information → my question name))" in soup.text
 
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
 
         response = authenticated_grant_admin_client.get(
@@ -1973,9 +2141,9 @@ class TestListGroupQuestions:
     def test_cannot_delete_with_depended_on_questions_in_group(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         user = factories.user.create()
-        form = factories.form.create(collection=report, title="Organisation information")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
         question = factories.question.create(form=form, parent=group, order=0, data_type=QuestionDataType.NUMBER)
         factories.question.create(
@@ -2008,8 +2176,8 @@ class TestListGroupQuestions:
     def test_can_delete_group_with_only_internal_group_validation(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(
             form=db_form,
             name="Test group",
@@ -2046,8 +2214,8 @@ class TestListGroupQuestions:
     def test_can_delete_outer_group_when_only_nested_group_has_internal_validation(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         outer_group = factories.group.create(form=db_form, name="Outer group")
         inner_group = factories.group.create(
             form=db_form,
@@ -2100,8 +2268,8 @@ class TestListSectionQuestions:
     )
     def test_admin_actions(self, request, client_fixture, can_edit, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         factories.question.create_batch(2, form=form)
 
         response = client.get(
@@ -2125,8 +2293,8 @@ class TestListSectionQuestions:
             assert delete_section_link.get("href") == AnyStringMatching(r"\?delete")
 
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -2142,8 +2310,8 @@ class TestListSectionQuestions:
         assert page_has_button(soup, "Yes, delete this section")
 
     def test_get_shows_interpolated_questions(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         q1 = factories.question.create(form=form, name="my question name")
         factories.question.create(form=form, text=f"Reference to (({q1.safe_qid}))")
 
@@ -2159,9 +2327,9 @@ class TestListSectionQuestions:
         assert "Reference to ((Test Report → Organisation information → my question name))" in response.text
 
     def test_cannot_delete_with_live_submissions(self, authenticated_grant_admin_client, factories, db_session, caplog):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
-        factories.submission.create(collection=report, mode=SubmissionModeEnum.LIVE)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
 
         with caplog.at_level(logging.INFO):
             response = authenticated_grant_admin_client.post(
@@ -2255,8 +2423,8 @@ class TestListSectionQuestions:
         client = request.getfixturevalue(client_fixture)
         generic_grant = factories.grant.create()
         grant = getattr(client, "grant", None) or generic_grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         factories.question.create(form=form)
 
         preview_form = GenericSubmitForm()
@@ -2283,8 +2451,8 @@ class TestListSectionQuestions:
     def test_get_no_admin_actions_when_report_not_draft(self, factories, collection_status, client_fixture, request):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant if client.grant else factories.grant.create()
-        report = factories.collection.create(grant=grant, name="Test Report", status=collection_status)
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report", status=collection_status)
+        form = factories.form.create(collection=collection, title="Organisation information")
         factories.question.create_batch(2, form=form)
 
         response = client.get(
@@ -2311,8 +2479,8 @@ class TestListSectionQuestions:
     def test_post_list_section_questions_returns_to_task_list(
         self, factories, db_session, authenticated_grant_admin_client
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         factories.question.create(form=form)
 
         preview_form = GenericSubmitForm()
@@ -2333,8 +2501,8 @@ class TestListSectionQuestions:
         )
 
     def test_get_hides_preview_button_when_no_questions(self, factories, db_session, authenticated_grant_admin_client):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -2349,8 +2517,8 @@ class TestListSectionQuestions:
         assert not page_has_button(soup, "Preview section")
 
     def test_get_shows_preview_button_when_questions(self, factories, db_session, authenticated_grant_admin_client):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         factories.question.create(form=form)
 
         response = authenticated_grant_admin_client.get(
@@ -2367,12 +2535,12 @@ class TestListSectionQuestions:
 
     def test_get_hides_preview_button_when_data_sources(self, factories, db_session, authenticated_grant_admin_client):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        form = factories.form.create(collection=collection)
         factories.question.create(form=form)
         factories.data_source.create(
             grant=grant,
-            collection=report,
+            collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
                 {
@@ -2403,8 +2571,8 @@ class TestListSectionQuestions:
         self, factories, db_session, authenticated_grant_admin_client
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.CLOSED)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.CLOSED)
+        form = factories.form.create(collection=collection)
         factories.question.create(form=form)
 
         response = authenticated_grant_admin_client.get(
@@ -2436,8 +2604,8 @@ class TestMoveQuestion:
         assert response.status_code == 404
 
     def test_no_access_for_grant_members(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         questions = factories.question.create_batch(3, form=form)
 
         response = authenticated_grant_member_client.get(
@@ -2451,8 +2619,8 @@ class TestMoveQuestion:
         assert response.status_code == 403
 
     def test_400(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         questions = factories.question.create_batch(3, form=form)
 
         response = authenticated_grant_admin_client.get(
@@ -2470,8 +2638,8 @@ class TestMoveQuestion:
         ["up", "down"],
     )
     def test_move(self, authenticated_grant_admin_client, factories, db_session, direction):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         factories.question.reset_sequence()
         questions = factories.question.create_batch(3, form=form)
         assert form.cached_questions[1].text == "Question 1"
@@ -2496,8 +2664,8 @@ class TestMoveQuestion:
     #       cachce if it exists (for now we're just going to leave it and assume instances are
     #       loaded once per request)
     def test_move_group(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
         question1 = factories.question.create(parent=group, text="Question 1", order=0)
         factories.question.create(parent=group, text="Question 2", order=1)
@@ -2554,8 +2722,8 @@ class TestChooseQuestionType:
     def test_get(self, request, client_fixture, can_access, expected_question_types, factories, db_session):
         client = request.getfixturevalue(client_fixture)
         grant = getattr(client, "grant", None) or factories.grant.create()
-        report = factories.collection.create(grant=grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         response = client.get(url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, form_id=form.id))
 
@@ -2571,8 +2739,8 @@ class TestChooseQuestionType:
             )
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         form = QuestionTypeForm(data={"question_data_type": QuestionDataType.TEXT_SINGLE_LINE.name})
         response = authenticated_grant_admin_client.post(
@@ -2607,8 +2775,8 @@ class TestAddQuestion:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         response = client.get(url_for("deliver_grant_funding.add_question", grant_id=client.grant.id, form_id=form.id))
 
@@ -2621,8 +2789,8 @@ class TestAddQuestion:
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -2650,8 +2818,8 @@ class TestAddQuestion:
 
     def test_post_with_invalid_context_references(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -2677,8 +2845,8 @@ class TestAddQuestion:
         self, authenticated_grant_admin_client, factories, db_session, mocker, context_field
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         form = QuestionForm(
             data={
                 "text": "Updated question",
@@ -2708,8 +2876,8 @@ class TestAddQuestion:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         session_data = AddContextToComponentSessionModel(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
@@ -2751,8 +2919,8 @@ class TestAddQuestion:
 
     def test_post_add_to_group(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=db_form, name="Test group", order=0)
 
         response = authenticated_grant_admin_client.post(
@@ -2785,8 +2953,8 @@ class TestAddQuestion:
     def test_restore_from_session_when_returning_from_add_session_flow(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=form, name="Test group", order=0)
 
         session_data = AddContextToComponentSessionModel(
@@ -2835,8 +3003,8 @@ class TestAddQuestionGroup:
         assert response.status_code == 404
 
         # valid grant and form context but adding to a missing question group
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.add_question",
@@ -2849,8 +3017,8 @@ class TestAddQuestionGroup:
 
     def test_missing_name(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
-        db_form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=grant)
+        db_form = factories.form.create(collection=collection)
 
         form = GroupDisplayOptionsForm(
             data={
@@ -2878,8 +3046,8 @@ class TestAddQuestionGroup:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         with client.session_transaction() as session:
             session["add_question_group"] = {"group_name": "Test group"}
@@ -2899,8 +3067,8 @@ class TestAddQuestionGroup:
 
     def test_post_display_options(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session["add_question_group"] = {"group_name": "Test group"}
@@ -2924,8 +3092,8 @@ class TestAddQuestionGroup:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(form=db_form, add_another=True)
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -2967,8 +3135,8 @@ class TestAddQuestionGroup:
 
     def test_post_add_another(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session["add_question_group"] = {"group_name": "Test group", "show_questions_on_the_same_page": True}
@@ -2992,8 +3160,8 @@ class TestAddQuestionGroup:
 
     def test_post_duplicate(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         factories.group.create(form=db_form, name="Duplicate test group")
 
         form = GroupForm(
@@ -3019,8 +3187,8 @@ class TestAddQuestionGroup:
 
 class TestSelectContextSource:
     def test_get_fails_with_empty_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -3032,8 +3200,8 @@ class TestSelectContextSource:
         assert response.status_code == 400
 
     def test_get_shows_available_context_source_choices(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
@@ -3062,8 +3230,8 @@ class TestSelectContextSource:
     def test_get_shows_this_question_for_custom_validation_expression(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, name="Test question", data_type=QuestionDataType.NUMBER)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -3134,8 +3302,8 @@ class TestSelectContextSource:
         ],
     )
     def test_get_does_not_show_this_question(self, authenticated_grant_admin_client, factories, session_data):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, name="Test question", data_type=QuestionDataType.NUMBER)
 
         session_data.component_id = question.id
@@ -3158,8 +3326,8 @@ class TestSelectContextSource:
     def test_get_works_for_existing_group_available_context_source_choices(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         group = factories.group.create(form=form)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -3189,8 +3357,8 @@ class TestSelectContextSource:
     def test_post_redirect_and_updates_session(self, authenticated_grant_admin_client, factories):
         assert len(ExpressionContext.ContextSources) == 4, "Check all redirects if adding new context source choices"
 
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         factories.question.create(form=form)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -3224,8 +3392,8 @@ class TestSelectContextSource:
 
 class TestSelectContextSourceCollection:
     def test_404(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
@@ -3253,9 +3421,9 @@ class TestSelectContextSourceCollection:
 
 class TestSelectContextSourceSection:
     def test_get_lists_sections(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report, title="Section 1")
-        form_2 = factories.form.create(collection=report, title="Section 2")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, title="Section 1")
+        form_2 = factories.form.create(collection=collection, title="Section 2")
         factories.question.create(form=form_2, text="Question 1")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -3285,10 +3453,10 @@ class TestSelectContextSourceSection:
         assert "Section 2" not in response.text
 
     def test_get_lists_sections_with_dependent_question(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report, title="Section 1")
-        form_2 = factories.form.create(collection=report, title="Section 2")
-        form_3 = factories.form.create(collection=report, title="Section 3")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, title="Section 1")
+        form_2 = factories.form.create(collection=collection, title="Section 2")
+        form_3 = factories.form.create(collection=collection, title="Section 3")
         question = factories.question.create(form=form_2, text="Question 1")
         question_2 = factories.question.create(form=form_3, text="Question 2")
 
@@ -3320,9 +3488,9 @@ class TestSelectContextSourceSection:
         assert "Section 3" not in response.text
 
     def test_post_stores_form_id_and_redirects(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form_1 = factories.form.create(collection=report, title="Section 1")
-        form_2 = factories.form.create(collection=report, title="Section 2")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form_1 = factories.form.create(collection=collection, title="Section 1")
+        form_2 = factories.form.create(collection=collection, title="Section 2")
         factories.question.create(form=form_1)
         question_in_form_2 = factories.question.create(form=form_2)
 
@@ -3336,7 +3504,7 @@ class TestSelectContextSourceSection:
                     "add_context": "text",
                 },
                 data_source=ExpressionContext.ContextSources.SECTION,
-                collection_id=report.id,
+                collection_id=collection.id,
                 form_id=None,
                 component_id=question_in_form_2.id,
             ).model_dump(mode="json")
@@ -3365,8 +3533,8 @@ class TestSelectContextSourceSection:
 
 class TestSelectContextSourceQuestion:
     def test_get_fails_with_invalid_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -3378,8 +3546,8 @@ class TestSelectContextSourceQuestion:
         assert response.status_code == 400
 
     def test_get_lists_questions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question1 = factories.question.create(form=form, text="Question 1")
         question2 = factories.question.create(form=form, text="Question 2")
 
@@ -3412,9 +3580,9 @@ class TestSelectContextSourceQuestion:
         assert question2.text in soup.text
 
     def test_get_lists_questions_from_target_section(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form_1 = factories.form.create(collection=report)
-        form_2 = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form_1 = factories.form.create(collection=collection)
+        form_2 = factories.form.create(collection=collection)
         question_in_form_1 = factories.question.create(form=form_1, text="Question from section 1")
         question_in_form_2 = factories.question.create(form=form_2, text="Question from section 2")
 
@@ -3428,7 +3596,7 @@ class TestSelectContextSourceQuestion:
                     "add_context": "text",
                 },
                 data_source=ExpressionContext.ContextSources.SECTION,
-                collection_id=report.id,
+                collection_id=collection.id,
                 form_id=form_1.id,
             ).model_dump(mode="json")
 
@@ -3448,8 +3616,8 @@ class TestSelectContextSourceQuestion:
     def test_get_lists_questions_from_depends_on_question_if_condition(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         reference_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         skipped_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
@@ -3489,14 +3657,14 @@ class TestSelectContextSourceQuestion:
     def test_get_lists_questions_before_component_id_when_subject_reference_is_data_set_column(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         reference_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
         skipped_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -3546,8 +3714,8 @@ class TestSelectContextSourceQuestion:
     def test_get_back_link_points_to_select_context_source_when_same_section(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         reference_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -3560,7 +3728,7 @@ class TestSelectContextSourceQuestion:
                     "add_context": "text",
                 },
                 data_source=ExpressionContext.ContextSources.SECTION,
-                collection_id=report.id,
+                collection_id=collection.id,
                 form_id=form.id,
                 component_id=reference_question.id,
             ).model_dump(mode="json")
@@ -3583,9 +3751,9 @@ class TestSelectContextSourceQuestion:
     def test_get_back_link_points_to_select_context_section_when_different_section(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form_1 = factories.form.create(collection=report)
-        form_2 = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form_1 = factories.form.create(collection=collection)
+        form_2 = factories.form.create(collection=collection)
         reference_question = factories.question.create(form=form_2, data_type=QuestionDataType.NUMBER)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -3598,7 +3766,7 @@ class TestSelectContextSourceQuestion:
                     "add_context": "text",
                 },
                 data_source=ExpressionContext.ContextSources.SECTION,
-                collection_id=report.id,
+                collection_id=collection.id,
                 form_id=form_1.id,
                 component_id=reference_question.id,
             ).model_dump(mode="json")
@@ -3619,8 +3787,8 @@ class TestSelectContextSourceQuestion:
         )
 
     def test_post_redirects_to_component_and_updates_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, text="Source question")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
@@ -3657,8 +3825,8 @@ class TestSelectContextSourceQuestion:
             assert question_data["component_form_data"]["text"] == f"Test text (({question.safe_qid}))"
 
     def test_post_redirects_to_guidance_and_updates_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         referenced_question = factories.question.create(form=form)
         question = factories.question.create(form=form)
 
@@ -3710,8 +3878,8 @@ class TestSelectContextSourceQuestion:
     def test_post_redirects_to_expression_and_updates_session(
         self, authenticated_grant_admin_client, factories, db_session, expression_type, existing_expression
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         reference_data_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         depends_on_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
@@ -3788,8 +3956,8 @@ class TestSelectContextSourceQuestion:
                 )
 
     def test_post_redirects_to_add_condition_and_clears_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         referenced_question = factories.question.create(form=form)
         question = factories.question.create(form=form)
 
@@ -3830,8 +3998,8 @@ class TestSelectContextSourceDataSet:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=client.grant)
+        form = factories.form.create(collection=collection)
 
         with client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
@@ -3858,8 +4026,8 @@ class TestSelectContextSourceDataSet:
             assert response.status_code == 200
 
     def test_get_fails_with_empty_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -3871,13 +4039,13 @@ class TestSelectContextSourceDataSet:
         assert response.status_code == 400
 
     def test_get_shows_available_data_set_choices(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         report_2 = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        form = factories.form.create(collection=collection)
 
         data_source = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -3894,7 +4062,7 @@ class TestSelectContextSourceDataSet:
 
         data_source_2 = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Second data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -3911,7 +4079,7 @@ class TestSelectContextSourceDataSet:
 
         data_source_3 = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Data set with just text column should still show",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -3973,14 +4141,14 @@ class TestSelectContextSourceDataSet:
     def test_get_shows_only_data_sets_with_number_columns_when_expression_reference(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         report_2 = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
         data_source = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -3997,7 +4165,7 @@ class TestSelectContextSourceDataSet:
 
         data_source_2 = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Second data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4014,7 +4182,7 @@ class TestSelectContextSourceDataSet:
 
         data_source_3 = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Data set with just text column",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4079,13 +4247,13 @@ class TestSelectContextSourceDataSet:
     def test_get_shows_only_data_sets_with_number_columns_when_condition_depends_on_reference(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
         data_source = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4102,7 +4270,7 @@ class TestSelectContextSourceDataSet:
 
         data_source_2 = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Second data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4119,7 +4287,7 @@ class TestSelectContextSourceDataSet:
 
         data_source_3 = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Data set with just text column",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4155,8 +4323,8 @@ class TestSelectContextSourceDataSet:
         assert data_source_3.name not in soup.text
 
     def test_get_shows_text_when_no_data_sets(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToComponentSessionModel(
@@ -4186,11 +4354,11 @@ class TestSelectContextSourceDataSet:
     def test_post_redirects_to_select_data_set_column_and_updates_session(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         data_source = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4246,11 +4414,11 @@ class TestSelectContextSourceDataSetColumn:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=client.grant)
+        form = factories.form.create(collection=collection)
         data_set = factories.data_source.create(
             grant=client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4291,8 +4459,8 @@ class TestSelectContextSourceDataSetColumn:
             assert response.status_code == 200
 
     def test_get_404_if_other_collection_data_set(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
 
         report_2 = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         data_set_2 = factories.data_source.create(
@@ -4334,11 +4502,11 @@ class TestSelectContextSourceDataSetColumn:
         assert response.status_code == 404
 
     def test_get_fails_with_empty_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4364,11 +4532,11 @@ class TestSelectContextSourceDataSetColumn:
         assert response.status_code == 400
 
     def test_get_shows_available_data_set_columns(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4423,12 +4591,12 @@ class TestSelectContextSourceDataSetColumn:
         assert "Description" in soup.text
 
     def test_get_shows_only_number_columns_when_expression(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4488,12 +4656,12 @@ class TestSelectContextSourceDataSetColumn:
     def test_get_shows_only_number_columns_when_condition_depends_on_reference(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4542,12 +4710,12 @@ class TestSelectContextSourceDataSetColumn:
         assert "Description" not in soup.text
 
     def test_get_shows_text_when_data_set_has_no_number_columns(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4594,11 +4762,11 @@ class TestSelectContextSourceDataSetColumn:
     def test_post_with_component_session_model_new_question_redirects_and_updates_session(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4648,12 +4816,12 @@ class TestSelectContextSourceDataSetColumn:
     def test_post_with_component_session_model_existing_question_redirects_and_updates_session(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4703,12 +4871,12 @@ class TestSelectContextSourceDataSetColumn:
     def test_post_with_guidance_session_model_redirects_and_updates_session(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4761,12 +4929,12 @@ class TestSelectContextSourceDataSetColumn:
     def test_post_with_expressions_session_model_redirects_and_updates_session(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4818,12 +4986,12 @@ class TestSelectContextSourceDataSetColumn:
     def test_post_with_custom_validation_expressions_session_model_redirects_and_updates_session(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4876,12 +5044,12 @@ class TestSelectContextSourceDataSetColumn:
     def test_post_with_calculated_condition_expressions_session_model_redirects_and_updates_session(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -4934,12 +5102,12 @@ class TestSelectContextSourceDataSetColumn:
     def test_post_with_condition_depends_on_session_model_redirects_and_updates_session(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=report)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Allocations",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -5001,8 +5169,8 @@ class TestEditQuestion:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=form,
             text="My question",
@@ -5056,8 +5224,8 @@ class TestEditQuestion:
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session, mocker):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="My question",
@@ -5124,8 +5292,8 @@ class TestEditQuestion:
 
     def test_post_with_invalid_context_references(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="My question",
@@ -5161,8 +5329,8 @@ class TestEditQuestion:
         self, authenticated_grant_admin_client, factories, db_session, mocker, context_field
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="My question",
@@ -5203,8 +5371,8 @@ class TestEditQuestion:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="My question",
@@ -5255,8 +5423,8 @@ class TestEditQuestion:
 
     def test_post_data_source_item_errors(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1 = factories.question.create(
             form=db_form,
             text="My question",
@@ -5293,8 +5461,8 @@ class TestEditQuestion:
 
     def test_post_with_option_dependency_error(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1 = factories.question.create(
             form=db_form,
             text="My question",
@@ -5363,8 +5531,8 @@ class TestEditQuestion:
 
     def test_post_with_integer_dependency_error(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         # Create integer question that will be referenced
         q1 = factories.question.create(
@@ -5428,8 +5596,8 @@ class TestEditQuestion:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="Self-validated number",
@@ -5461,8 +5629,8 @@ class TestEditQuestion:
     def test_restore_from_session_when_returning_from_add_session_flow(
         self, authenticated_grant_admin_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=form,
             text="Existing question text",
@@ -5525,8 +5693,8 @@ class TestAddQuestionConditionSelectQuestion:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=form,
             text="My question",
@@ -5569,8 +5737,8 @@ class TestAddQuestionConditionSelectQuestion:
             assert "Reference data" in soup.text
 
     def test_post_redirects_to_select_context_source(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         question = factories.question.create(
             form=form,
@@ -5614,8 +5782,8 @@ class TestAddCalculatedCondition:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         group = factories.group.create(
             form=form,
@@ -5657,8 +5825,8 @@ class TestAddCalculatedCondition:
 
     def test_post_success(self, authenticated_grant_admin_client, factories, db_session, mocker):
 
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         q1, q2, q3 = factories.question.create_batch(3, form=db_form, data_type=QuestionDataType.NUMBER)
 
@@ -5704,8 +5872,8 @@ class TestAddCalculatedCondition:
         assert expression.evaluatable_expression.description == "the name"
 
     def test_post_error(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         q1, q2, q3 = factories.question.create_batch(3, form=db_form, data_type=QuestionDataType.NUMBER)
 
@@ -5747,8 +5915,8 @@ class TestAddCalculatedCondition:
         )
 
     def test_post_error_wrong_order(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         q1, q2, q3 = factories.question.create_batch(3, form=db_form, data_type=QuestionDataType.NUMBER)
 
@@ -5793,8 +5961,8 @@ class TestEditCalculatedCondition:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         group = factories.group.create(
             form=form,
@@ -5844,8 +6012,8 @@ class TestEditCalculatedCondition:
             assert response.status_code == 200
 
     def test_post_success(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         group = factories.group.create(
             form=form,
@@ -5906,8 +6074,8 @@ class TestEditCalculatedCondition:
         assert updated_condition.custom.expression_name == "new name"
 
     def test_post_error(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_platform_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         target_question = factories.question.create(form=form)
         later_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
@@ -5965,8 +6133,8 @@ class TestAddQuestionCondition:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Organisation information")
 
         group = factories.group.create(
             form=form,
@@ -6017,8 +6185,8 @@ class TestAddQuestionCondition:
             assert response.status_code == 200
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         depends_on_question = factories.question.create(
             form=db_form,
@@ -6065,8 +6233,8 @@ class TestAddQuestionCondition:
         assert expression.managed.referenced_question.id == depends_on_question.id
 
     def test_post_for_group(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         depends_on_question = factories.question.create(
             form=db_form,
@@ -6107,8 +6275,8 @@ class TestAddQuestionCondition:
         assert expression.managed.referenced_question.id == depends_on_question.id
 
     def test_post_for_data_set(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         target_question = factories.question.create(
             form=db_form,
             text="How much cheese do you eat a month?",
@@ -6117,7 +6285,7 @@ class TestAddQuestionCondition:
         )
         data_set = factories.data_source.create(
             grant=authenticated_grant_admin_client.grant,
-            collection=report,
+            collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate(
@@ -6169,8 +6337,8 @@ class TestAddQuestionCondition:
         assert expression.component_references[0].depends_on_column_name == "c_capital_allocation"
 
     def test_post_duplicate_condition(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
 
         depends_on_question = factories.question.create(
             form=db_form,
@@ -6217,8 +6385,8 @@ class TestAddQuestionCondition:
     def test_post_to_add_context_redirects_and_sets_up_session(
         self, authenticated_grant_admin_client, factories, db_session, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         depends_on_question = factories.question.create(
             form=db_form,
@@ -6271,8 +6439,8 @@ class TestAddQuestionCondition:
     def test_post_to_remove_context_updates_session_and_reloads_page(
         self, authenticated_grant_admin_client, factories, db_session, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         reference_data_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
         depends_on_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
@@ -6338,8 +6506,8 @@ class TestAddQuestionCondition:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         reference_data_question = factories.question.create(
             form=db_form,
@@ -6427,8 +6595,8 @@ class TestEditQuestionCondition:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -6485,8 +6653,8 @@ class TestEditQuestionCondition:
             assert delete_link is not None
 
     def test_get_with_delete_parameter(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -6522,8 +6690,8 @@ class TestEditQuestionCondition:
         assert page_has_button(soup, "Yes, delete this condition")
 
     def test_post_update_condition(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -6572,8 +6740,8 @@ class TestEditQuestionCondition:
         assert target_question.expressions[0].managed_name == "No"
 
     def test_post_update_group_condition(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -6617,8 +6785,8 @@ class TestEditQuestionCondition:
         assert target_question.expressions[0].managed_name == "No"
 
     def test_post_update_condition_duplicate(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -6677,8 +6845,8 @@ class TestEditQuestionCondition:
         assert "condition based on this question already exists" in soup.text
 
     def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         depends_on_question = factories.question.create(
             form=db_form,
             text="Do you like cheese?",
@@ -6723,8 +6891,8 @@ class TestEditQuestionCondition:
     def test_post_to_add_context_redirects_and_sets_up_session(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         depends_on_question = factories.question.create(
             form=db_form,
@@ -6788,8 +6956,8 @@ class TestEditQuestionCondition:
     def test_post_to_remove_context_updates_session_and_reloads_page(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         reference_data_question = factories.question.create(form=db_form, data_type=QuestionDataType.DATE)
         depends_on_question = factories.question.create(form=db_form, data_type=QuestionDataType.DATE)
@@ -6850,8 +7018,8 @@ class TestEditQuestionCondition:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         reference_data_question = factories.question.create(
             form=db_form,
@@ -6953,8 +7121,8 @@ class TestAddQuestionValidation:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -6994,8 +7162,8 @@ class TestAddQuestionValidation:
             assert page_has_button(soup, "Add validation")
 
     def test_get_no_validation_available(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="What is your name?",
@@ -7016,8 +7184,8 @@ class TestAddQuestionValidation:
         assert "This question cannot be validated." in soup.text
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -7055,8 +7223,8 @@ class TestAddQuestionValidation:
         assert expression.managed_name == "Greater than"
 
     def test_post_duplicate_validation(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -7094,8 +7262,8 @@ class TestAddQuestionValidation:
     def test_post_to_add_context_redirects_and_sets_up_session(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         target_question = factories.question.create(
             form=db_form,
@@ -7141,8 +7309,8 @@ class TestAddQuestionValidation:
     def test_post_to_remove_context_updates_session_and_reloads_page(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         referenced_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
@@ -7213,8 +7381,8 @@ class TestAddQuestionValidation:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         reference_data_question = factories.question.create(
             form=db_form,
@@ -7294,8 +7462,8 @@ class TestEditQuestionValidation:
     )
     def test_get(self, request, client_fixture, can_access, factories, db_session):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -7354,8 +7522,8 @@ class TestEditQuestionValidation:
             assert delete_link is not None
 
     def test_get_with_delete_parameter(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -7390,8 +7558,8 @@ class TestEditQuestionValidation:
         assert page_has_button(soup, "Yes, delete this validation")
 
     def test_post_update_validation(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -7436,8 +7604,8 @@ class TestEditQuestionValidation:
         assert question.expressions[0].managed_name == "Less than"
 
     def test_post_update_validation_duplicate(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -7492,8 +7660,8 @@ class TestEditQuestionValidation:
         assert "validation already exists on the question" in soup.text
 
     def test_post_delete(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         question = factories.question.create(
             form=db_form,
             text="How many employees do you have?",
@@ -7536,8 +7704,8 @@ class TestEditQuestionValidation:
     def test_post_to_remove_context_updates_session_and_reloads_page(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         referenced_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
         target_question = factories.question.create(form=db_form, data_type=QuestionDataType.NUMBER)
@@ -7598,8 +7766,8 @@ class TestEditQuestionValidation:
     def test_post_to_add_context_redirects_and_sets_up_session(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         target_question = factories.question.create(
             form=db_form,
@@ -7654,8 +7822,8 @@ class TestEditQuestionValidation:
         self, authenticated_grant_admin_client, factories, db_session
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Cheese habits")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Cheese habits")
 
         reference_data_question = factories.question.create(
             form=db_form,
@@ -8111,20 +8279,22 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=uuid.uuid4(),
-                report_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
         assert response.status_code == 404
 
     def test_no_submissions(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
 
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
@@ -8132,7 +8302,7 @@ class TestListSubmissions:
         assert "No submissions found for this monitoring report" in response.text
 
     def test_based_on_submission_mode(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_completed_submissions_each_question_type__test=1,
@@ -8147,14 +8317,14 @@ class TestListSubmissions:
             organisation__name="Live Organisation Ltd",
         )
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.TEST,
             grant_recipient=test_grant_recipient,
             created_by__email="submitter-test@recipient.org",
             status=SubmissionStatusEnum.NOT_STARTED,
         )
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=live_grant_recipient,
             created_by__email="submitter-live@recipient.org",
@@ -8165,7 +8335,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
@@ -8173,7 +8344,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -8199,7 +8371,7 @@ class TestListSubmissions:
     def test_live_mode_shows_all_grant_recipients_including_those_without_submissions(
         self, authenticated_grant_member_client, factories, db_session
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
         )
@@ -8210,7 +8382,7 @@ class TestListSubmissions:
             grant=authenticated_grant_member_client.grant, organisation__name="Organisation Without Submission"
         )
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient_with_submission,
         )
@@ -8219,7 +8391,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -8245,7 +8418,7 @@ class TestListSubmissions:
     def test_closed_collection_shows_not_submitted_for_grant_recipients_without_submissions(
         self, authenticated_grant_member_client, factories, db_session
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Closed Report",
             status=CollectionStatusEnum.CLOSED,
@@ -8259,7 +8432,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -8271,7 +8445,7 @@ class TestListSubmissions:
         assert "Not submitted" in tag_texts
 
     def test_test_mode_shows_reset_all_link(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_submissions__test=1,
@@ -8281,7 +8455,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
@@ -8291,7 +8466,7 @@ class TestListSubmissions:
         assert page_has_link(soup, "Reset all test submissions")
 
     def test_live_mode_does_not_show_reset_all_link(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_submissions__live=1,
@@ -8301,7 +8476,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -8313,7 +8489,7 @@ class TestListSubmissions:
     def test_delete_all_query_param_shows_confirmation_banner(
         self, authenticated_grant_member_client, factories, db_session
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_submissions__test=1,
@@ -8323,7 +8499,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 delete_all=True,
             )
@@ -8335,14 +8512,14 @@ class TestListSubmissions:
     def test_post_resets_all_test_submissions(
         self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_submissions__test=3,
         )
-        test_submission_ids = [s.id for s in report.test_submissions]
+        test_submission_ids = [s.id for s in collection.test_submissions]
 
-        for submission in report.test_submissions:
+        for submission in collection.test_submissions:
             factories.submission_event.create(submission=submission, created_by=submission.created_by)
 
         form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
@@ -8350,7 +8527,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 delete_all=True,
             ),
@@ -8367,12 +8545,12 @@ class TestListSubmissions:
         assert len(remaining_submissions) == 0
         assert len(remaining_events) == 0
         assert len(mock_s3_service_calls.delete_prefix_calls) == 1
-        assert mock_s3_service_calls.delete_prefix_calls[0].args[0] == f"uploaded-submission-files/test/{report.id}"
+        assert mock_s3_service_calls.delete_prefix_calls[0].args[0] == f"uploaded-submission-files/test/{collection.id}"
 
     def test_post_redirects_with_flash_message(
         self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_submissions__test=1,
@@ -8383,7 +8561,8 @@ class TestListSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 delete_all=True,
             ),
@@ -8395,7 +8574,8 @@ class TestListSubmissions:
         assert response.location == url_for(
             "deliver_grant_funding.list_submissions",
             grant_id=authenticated_grant_member_client.grant.id,
-            report_id=report.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
             submission_mode=SubmissionModeEnum.TEST,
         )
         flashes = get_test_flashes(authenticated_grant_member_client, FlashMessageType.TEST_SUBMISSIONS_RESET)
@@ -8405,21 +8585,22 @@ class TestListSubmissions:
     def test_post_on_live_view_400s_and_does_not_delete_anything(
         self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_submissions__test=2,
             create_submissions__live=2,
         )
-        live_submission_ids = [s.id for s in report.live_submissions]
-        test_submission_ids = [s.id for s in report.test_submissions]
+        live_submission_ids = [s.id for s in collection.live_submissions]
+        test_submission_ids = [s.id for s in collection.test_submissions]
 
         form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
         response = authenticated_grant_member_client.post(
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 delete_all=True,
             ),
@@ -8448,20 +8629,20 @@ class TestListSubmissionsMultipleSubmissions:
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             name="project name",
         )
-        report = question.form.collection
-        report.submission_name_question_id = question.id
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
         db_session.commit()
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant, organisation__name="Acme Corp"
         )
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha Project"))],
         )
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta Project"))],
@@ -8471,7 +8652,8 @@ class TestListSubmissionsMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -8491,15 +8673,16 @@ class TestListSubmissionsMultipleSubmissions:
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             name="project name",
         )
-        report = question.form.collection
-        report.submission_name_question_id = question.id
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
         db_session.commit()
 
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -8513,7 +8696,7 @@ class TestListSubmissionsMultipleSubmissions:
     def test_multi_submission_no_grant_recipients_shows_empty_message(
         self, authenticated_grant_member_client_no_grant_recipients, factories, db_session
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client_no_grant_recipients.grant,
             allow_multiple_submissions=True,
         )
@@ -8522,7 +8705,8 @@ class TestListSubmissionsMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client_no_grant_recipients.grant.id,
-                report_id=report.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -8533,7 +8717,7 @@ class TestListSubmissionsMultipleSubmissions:
     def test_multi_submission_table_shows_no_submission_for_recipients_without_submissions(
         self, authenticated_grant_member_client, factories, db_session
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             allow_multiple_submissions=True,
         )
@@ -8545,7 +8729,8 @@ class TestListSubmissionsMultipleSubmissions:
             url_for(
                 "deliver_grant_funding.list_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
@@ -8559,13 +8744,14 @@ class TestListSubmissionsMultipleSubmissions:
         assert {tag.text.strip() for tag in submission_tags} == {"Not started"}
 
 
-class TestExportReportSubmissions:
+class TestExportCollectionSubmissions:
     def test_404(self, authenticated_grant_member_client, factories, db_session):
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_collection_submissions",
                 grant_id=uuid.uuid4(),
-                report_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
                 submission_mode=SubmissionModeEnum.TEST,
                 export_format="csv",
             )
@@ -8573,18 +8759,19 @@ class TestExportReportSubmissions:
         assert response.status_code == 404
 
     def test_unknown_export_type(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
         factories.submission.create(
-            collection=report, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
+            collection=collection, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
         )
         factories.submission.create(
-            collection=report, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
+            collection=collection, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
         )
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_collection_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 export_format="zip",
             )
@@ -8592,18 +8779,19 @@ class TestExportReportSubmissions:
         assert response.status_code == 400
 
     def test_csv_download(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
         factories.submission.create(
-            collection=report, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
+            collection=collection, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
         )
         factories.submission.create(
-            collection=report, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
+            collection=collection, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
         )
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_collection_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 export_format="csv",
             )
@@ -8618,18 +8806,19 @@ class TestExportReportSubmissions:
         assert response.data[:3] == bytes.fromhex("efbbbf")
 
     def test_json_download(self, authenticated_grant_member_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
         factories.submission.create(
-            collection=report, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
+            collection=collection, mode=SubmissionModeEnum.TEST, created_by__email="submitter-test@recipient.org"
         )
         factories.submission.create(
-            collection=report, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
+            collection=collection, mode=SubmissionModeEnum.LIVE, created_by__email="submitter-live@recipient.org"
         )
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_collection_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.TEST,
                 export_format="json",
             )
@@ -8649,19 +8838,19 @@ class TestExportReportSubmissions:
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             name="project name",
         )
-        report = question.form.collection
-        report.submission_name_question_id = question.id
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
         db_session.commit()
 
         grant_recipient = factories.grant_recipient.create(grant=authenticated_grant_member_client.grant)
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha Project"))],
         )
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta Project"))],
@@ -8669,9 +8858,10 @@ class TestExportReportSubmissions:
 
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_collection_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 export_format="csv",
             )
@@ -8694,19 +8884,19 @@ class TestExportReportSubmissions:
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
             name="project name",
         )
-        report = question.form.collection
-        report.submission_name_question_id = question.id
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
         db_session.commit()
 
         grant_recipient = factories.grant_recipient.create(grant=authenticated_grant_member_client.grant)
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha Project"))],
         )
         factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=grant_recipient,
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta Project"))],
@@ -8714,9 +8904,10 @@ class TestExportReportSubmissions:
 
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.export_report_submissions",
+                "deliver_grant_funding.export_collection_submissions",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 export_format="json",
             )
@@ -8738,7 +8929,7 @@ class TestViewSubmission:
 
     def test_forms_and_questions_and_answers_displayed(self, authenticated_grant_member_client, factories, db_session):
         factories.data_source_item.reset_sequence()
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_completed_submissions_each_question_type__test=1,
@@ -8749,7 +8940,7 @@ class TestViewSubmission:
             url_for(
                 "deliver_grant_funding.view_submission",
                 grant_id=authenticated_grant_member_client.grant.id,
-                submission_id=report.test_submissions[0].id,
+                submission_id=collection.test_submissions[0].id,
             )
         )
         assert response.status_code == 200
@@ -8757,7 +8948,7 @@ class TestViewSubmission:
         soup = BeautifulSoup(response.data, "html.parser")
 
         assert "Export test form" in soup.text
-        assert len(report.forms[0].cached_questions) == 11, "If more questions added, check+update this test"
+        assert len(collection.forms[0].cached_questions) == 11, "If more questions added, check+update this test"
 
         assert "What is your name?" in soup.text
         assert "test name" in soup.text
@@ -8880,12 +9071,12 @@ class TestViewSubmission:
     def test_post_view_submission_resets_test_submission(
         self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
     ):
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_completed_submissions_each_question_type__test=1,
         )
-        test_submission = report.test_submissions[0]
+        test_submission = collection.test_submissions[0]
         test_submission_id = test_submission.id
 
         factories.submission_event.create(
@@ -8911,7 +9102,8 @@ class TestViewSubmission:
         assert response.location == url_for(
             "deliver_grant_funding.list_submissions",
             grant_id=authenticated_grant_member_client.grant.id,
-            report_id=report.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
             submission_mode=SubmissionModeEnum.TEST,
         )
 
@@ -8938,9 +9130,9 @@ class TestViewSubmission:
     def test_get_view_submission_only_shows_manage_test_section_for_test(
         self, authenticated_grant_member_client, factories, submission_mode, should_show_reset_link
     ):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test report")
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test collection")
         submission = factories.submission.create(
-            collection=report,
+            collection=collection,
             mode=submission_mode,
         )
 
@@ -9050,10 +9242,15 @@ class TestReopenSubmission:
         assert helper.status == SubmissionStatusEnum.IN_PROGRESS
 
 
-class TestListReportDataSets:
+class TestListCollectionDataSets:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.list_report_data_sets", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
         )
         assert response.status_code == 404
 
@@ -9066,14 +9263,14 @@ class TestListReportDataSets:
     )
     def test_get(self, request: FixtureRequest, client_fixture: str, can_upload: bool, factories):
         client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
         uploader = factories.user.create(name="Bilbo Baggins")
         uploader_2 = factories.user.create(name="Frodo Baggins")
         data_source_1 = factories.data_source.create(
             type=DataSourceType.GRANT_RECIPIENT,
             name="Allocations Data",
             grant=client.grant,
-            collection=report,
+            collection=collection,
             created_by=uploader,
             updated_by=None,
             created_at_utc=datetime.datetime(2025, 7, 1, 13, 30, 0),
@@ -9083,7 +9280,7 @@ class TestListReportDataSets:
             type=DataSourceType.GRANT_RECIPIENT,
             name="Organisation Data",
             grant=client.grant,
-            collection=report,
+            collection=collection,
             created_by=uploader,
             updated_by=uploader_2,
             created_at_utc=datetime.datetime(2025, 7, 1, 13, 30, 0),
@@ -9099,11 +9296,16 @@ class TestListReportDataSets:
         )
 
         response = client.get(
-            url_for("deliver_grant_funding.list_report_data_sets", grant_id=client.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == f"{report.name} Uploaded data sets"
+        assert get_h1_text(soup) == f"{collection.name} Uploaded data sets"
         assert response.status_code == 200
         assert page_has_link(soup, link_text=f"{data_source_1.name}") is not None
         assert page_has_link(soup, link_text=f"{data_source_2.name}") is not None
@@ -9121,10 +9323,15 @@ class TestListReportDataSets:
 
     def test_get_upload_button_not_visible_for_live_report(self, authenticated_org_admin_client, factories):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.OPEN)
+        collection = factories.collection.create(grant=grant, name="Test Report", status=CollectionStatusEnum.OPEN)
 
         response = authenticated_org_admin_client.get(
-            url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -9133,7 +9340,7 @@ class TestListReportDataSets:
 
     def test_post_redirects_and_clears_session_data(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         preview_form = GenericSubmitForm()
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -9148,7 +9355,12 @@ class TestListReportDataSets:
             }
 
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.list_report_data_sets", grant_id=grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=preview_form.data,
             follow_redirects=False,
         )
@@ -9157,7 +9369,8 @@ class TestListReportDataSets:
         assert response.location == url_for(
             "deliver_grant_funding.upload_data_set",
             grant_id=grant.id,
-            report_id=report.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -9170,14 +9383,15 @@ class TestDownloadGrantRecipientDataSetTemplate:
             url_for(
                 "deliver_grant_funding.download_grant_recipient_data_set_template",
                 grant_id=uuid.uuid4(),
-                report_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
             )
         )
         assert response.status_code == 404
 
     def test_csv_download(self, authenticated_grant_member_client_no_grant_recipients, factories):
         grant = authenticated_grant_member_client_no_grant_recipients.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
 
         grant_recipient_1 = factories.grant_recipient.create(
             grant=grant,
@@ -9205,7 +9419,8 @@ class TestDownloadGrantRecipientDataSetTemplate:
             url_for(
                 "deliver_grant_funding.download_grant_recipient_data_set_template",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -9233,7 +9448,7 @@ class TestDownloadGrantRecipientDataSetTemplate:
         self, factories, authenticated_grant_member_client_no_grant_recipients
     ):
 
-        report = factories.collection.create(
+        collection = factories.collection.create(
             grant=authenticated_grant_member_client_no_grant_recipients.grant, name="Test Report"
         )
 
@@ -9241,7 +9456,8 @@ class TestDownloadGrantRecipientDataSetTemplate:
             url_for(
                 "deliver_grant_funding.download_grant_recipient_data_set_template",
                 grant_id=authenticated_grant_member_client_no_grant_recipients.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
@@ -9252,19 +9468,20 @@ class TestDownloadGrantRecipientDataSetTemplate:
         assert len(lines) == 1
 
     def test_csv_download_filename(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
 
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.download_grant_recipient_data_set_template",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
         assert response.status_code == 200
         content_disposition = response.headers.get("Content-Disposition")
-        assert f"{report.slug}-grant-recipient-data-template.csv" in content_disposition
+        assert f"{collection.slug}-grant-recipient-data-template.csv" in content_disposition
 
 
 def _rows_to_csv_bytes(rows: list[dict]) -> bytes:
@@ -9278,7 +9495,12 @@ def _rows_to_csv_bytes(rows: list[dict]) -> bytes:
 class TestUploadDataSet:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.upload_data_set", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
         )
         assert response.status_code == 404
 
@@ -9292,20 +9514,27 @@ class TestUploadDataSet:
     def test_get(self, client_fixture, can_access, request: FixtureRequest, factories):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
 
-        response = client.get(url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id))
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
 
         soup = BeautifulSoup(response.data, "html.parser")
         if can_access:
             assert response.status_code == 200
-            assert f"{report.name} Upload new data set" in get_h1_text(soup)
+            assert f"{collection.name} Upload new data set" in get_h1_text(soup)
         else:
             assert response.status_code == 403
 
     def test_get_repopulates_form_from_session(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = {
@@ -9320,7 +9549,12 @@ class TestUploadDataSet:
             }
 
         response = authenticated_grant_admin_client.get(
-            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         assert response.status_code == 200
@@ -9332,7 +9566,7 @@ class TestUploadDataSet:
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Rivendell")
         factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Lothlorien")
 
@@ -9344,14 +9578,24 @@ class TestUploadDataSet:
         }
 
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             content_type="multipart/form-data",
         )
 
         assert response.status_code == 302
         assert response.location == (
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
         assert len(mock_s3_service_calls.upload_file_calls) == 1
 
@@ -9363,7 +9607,7 @@ class TestUploadDataSet:
 
         expected_s3_key = build_data_set_upload_s3_key(
             grant_id=grant.id,
-            report_id=report.id,
+            collection_id=collection.id,
             data_source_id=data_source_id,
         )
 
@@ -9381,7 +9625,7 @@ class TestUploadDataSet:
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
         factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
 
@@ -9396,7 +9640,12 @@ class TestUploadDataSet:
         }
 
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            ),
             data=data,
             content_type="multipart/form-data",
         )
@@ -9416,7 +9665,7 @@ class TestUploadDataSet:
 
     def test_post_stores_preview_data(self, authenticated_grant_admin_client, factories, mock_s3_service_calls):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
         factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
         factories.grant_recipient.create(grant=grant, organisation__external_id="E789", organisation__name="Rivendell")
@@ -9436,7 +9685,12 @@ class TestUploadDataSet:
         }
 
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             content_type="multipart/form-data",
         )
@@ -9456,12 +9710,17 @@ class TestUploadDataSet:
 class TestMapDataSetColumns:
     def test_404_for_non_admin(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
         )
         assert response.status_code == 404
 
     def test_get_renders_columns_and_preview(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
@@ -9479,7 +9738,12 @@ class TestMapDataSetColumns:
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
         assert response.status_code == 200
 
@@ -9497,7 +9761,7 @@ class TestMapDataSetColumns:
             assert select is not None
 
     def test_get_repopulates_form_from_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
@@ -9520,7 +9784,12 @@ class TestMapDataSetColumns:
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
         soup = BeautifulSoup(response.data, "html.parser")
 
@@ -9530,17 +9799,27 @@ class TestMapDataSetColumns:
         assert select_1.find("option", {"selected": True})["value"] == "DECIMAL"
 
     def test_get_without_session_redirects_to_upload(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         response = authenticated_grant_admin_client.get(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
         assert response.status_code == 302
         assert response.location.endswith(
-            url_for("deliver_grant_funding.upload_data_set", grant_id=report.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
     def test_post_redirects_to_map_number_columns(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
@@ -9561,19 +9840,29 @@ class TestMapDataSetColumns:
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=False,
         )
         assert response.status_code == 302
         assert response.location.endswith(
-            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.map_data_set_number_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
     def test_post_no_errors_creates_datasource_and_redirects(
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
         )
@@ -9611,14 +9900,19 @@ class TestMapDataSetColumns:
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=True,
         )
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(
-            soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
+            soup, f"You can now reference {session['data_set_upload']['name']} data in the {collection.name} grant form"
         )
 
         assert authenticated_grant_admin_client.user.name in soup.text
@@ -9631,7 +9925,7 @@ class TestMapDataSetColumns:
     def test_post_with_errors_redirects_to_data_set_errors(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
         )
@@ -9668,7 +9962,12 @@ class TestMapDataSetColumns:
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=False,
         )
@@ -9677,12 +9976,13 @@ class TestMapDataSetColumns:
             url_for(
                 "deliver_grant_funding.data_set_missing_data",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
     def test_post_missing_required_field_shows_error(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
@@ -9706,7 +10006,12 @@ class TestMapDataSetColumns:
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=True,
         )
@@ -9717,7 +10022,7 @@ class TestMapDataSetColumns:
     def test_post_british_pounds_with_bad_data_shows_inline_error(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
         )
@@ -9747,7 +10052,12 @@ class TestMapDataSetColumns:
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=False,
         )
@@ -9768,7 +10078,7 @@ class TestMapDataSetColumns:
     def test_post_british_pounds_clean_data_proceeds(
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
         )
@@ -9798,14 +10108,24 @@ class TestMapDataSetColumns:
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=False,
         )
 
         assert response.status_code == 302
         assert response.location.endswith(
-            url_for("deliver_grant_funding.list_report_data_sets", grant_id=report.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=collection.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
         )
         assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
 
@@ -9813,12 +10133,17 @@ class TestMapDataSetColumns:
 class TestMapDataSetNumberColumns:
     def test_404_for_non_admin(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for(
+                "deliver_grant_funding.map_data_set_number_columns",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
         )
         assert response.status_code == 404
 
     def test_get_renders_number_columns_and_fields(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
 
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
@@ -9841,7 +10166,12 @@ class TestMapDataSetNumberColumns:
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
-            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.map_data_set_number_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
@@ -9859,7 +10189,7 @@ class TestMapDataSetNumberColumns:
         assert soup.find("input", {"name": "columns-1-max_decimal_places"}) is None
 
     def test_get_repopulates_form_from_session(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
@@ -9883,7 +10213,12 @@ class TestMapDataSetNumberColumns:
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
-            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.map_data_set_number_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
         soup = BeautifulSoup(response.data, "html.parser")
         assert soup.find("input", {"name": "columns-0-prefix"})["value"] == "£"
@@ -9893,7 +10228,7 @@ class TestMapDataSetNumberColumns:
     def test_post_no_errors_creates_datasource_and_redirects(
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
         )
@@ -9948,7 +10283,12 @@ class TestMapDataSetNumberColumns:
         }
 
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_number_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=True,
         )
@@ -9956,7 +10296,7 @@ class TestMapDataSetNumberColumns:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(
-            soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
+            soup, f"You can now reference {session['data_set_upload']['name']} data in the {collection.name} grant form"
         )
         assert authenticated_grant_admin_client.user.name in soup.text
         assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
@@ -9971,7 +10311,7 @@ class TestMapDataSetNumberColumns:
     def test_post_redirects_to_data_set_errors_when_missing_data(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
@@ -10004,7 +10344,12 @@ class TestMapDataSetNumberColumns:
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_number_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=False,
         )
@@ -10013,12 +10358,13 @@ class TestMapDataSetNumberColumns:
             url_for(
                 "deliver_grant_funding.data_set_missing_data",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             )
         )
 
     def test_post_shows_form_errors(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
@@ -10049,7 +10395,12 @@ class TestMapDataSetNumberColumns:
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.map_data_set_number_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=True,
         )
@@ -10061,7 +10412,7 @@ class TestMapDataSetNumberColumns:
     def test_post_shows_errors_for_blocking_cell_errors(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
         )
@@ -10105,8 +10456,9 @@ class TestMapDataSetNumberColumns:
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.map_data_set_number_columns",
-                grant_id=report.grant.id,
-                report_id=report.id,
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
             ),
             data={
                 "columns-0-column_name": "Capital allocation",
@@ -10135,7 +10487,12 @@ class TestMapDataSetNumberColumns:
 class TestDataSetMissingData:
     def test_404_for_non_admin(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.data_set_missing_data", grant_id=uuid.uuid4(), report_id=uuid.uuid4())
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
         )
         assert response.status_code == 404
 
@@ -10143,7 +10500,7 @@ class TestDataSetMissingData:
         self, authenticated_grant_admin_client, factories, mocker
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         gr = factories.grant_recipient.create(
             grant=grant, organisation__external_id="EC123", organisation__name="Rivendell"
         )
@@ -10183,7 +10540,12 @@ class TestDataSetMissingData:
         mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         response = authenticated_grant_admin_client.get(
-            url_for("deliver_grant_funding.data_set_missing_data", grant_id=grant.id, report_id=report.id)
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
         )
 
         assert response.status_code == 200
@@ -10196,7 +10558,7 @@ class TestDataSetMissingData:
     def test_post_creates_data_source_and_redirects(
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
         )
@@ -10252,7 +10614,12 @@ class TestDataSetMissingData:
         }
 
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.data_set_missing_data", grant_id=report.grant.id, report_id=report.id),
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
             data=data,
             follow_redirects=True,
         )
@@ -10260,7 +10627,7 @@ class TestDataSetMissingData:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(
-            soup, f"You can now reference {session['data_set_upload']['name']} data in the {report.name} grant form"
+            soup, f"You can now reference {session['data_set_upload']['name']} data in the {collection.name} grant form"
         )
 
         assert len(mock_s3_service_calls.update_file_tags) == 1
@@ -10299,7 +10666,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=uuid.uuid4(),
-                report_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
                 data_source_id=uuid.uuid4(),
             )
         )
@@ -10318,9 +10686,9 @@ class TestViewDataSource:
     ):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant or factories.grant.create()
-        report = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
         data_source = factories.data_source.create(
-            collection=report,
+            collection=collection,
             grant=grant,
             name="Test data set",
             created_at_utc=datetime.datetime(2026, 7, 1, 12, 0, 0),
@@ -10331,7 +10699,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10353,16 +10722,17 @@ class TestViewDataSource:
     def test_get_view_data_source_404_if_not_grant_recipient_level_data_set(
         self, authenticated_grant_member_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
 
         # Creates a CUSTOM data source by default so should 404
-        data_source = factories.data_source.create(grant=authenticated_grant_member_client.grant, collection=report)
+        data_source = factories.data_source.create(grant=authenticated_grant_member_client.grant, collection=collection)
 
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10379,9 +10749,9 @@ class TestViewDataSource:
     def test_get_shows_delete_banner(self, request: FixtureRequest, client_fixture: str, can_delete: bool, factories):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant or factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            collection=report,
+            collection=collection,
             grant=grant,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
@@ -10391,7 +10761,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
                 delete="",
             )
@@ -10407,15 +10778,16 @@ class TestViewDataSource:
             assert response.location == url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
 
     def test_get_shows_summary_list_metadata(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
         user = factories.user.create()
         data_source = factories.data_source.create(
-            collection=report,
+            collection=collection,
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
@@ -10426,7 +10798,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10437,7 +10810,7 @@ class TestViewDataSource:
         assert "Test data set" in soup.text
 
     def test_get_shows_grant_recipient_table(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
         organisation = factories.organisation.create(external_id="E123", name="Rivendell Council")
         factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant,
@@ -10445,7 +10818,7 @@ class TestViewDataSource:
             mode=GrantRecipientModeEnum.LIVE,
         )
         data_source = factories.data_source.create(
-            collection=report,
+            collection=collection,
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
@@ -10471,7 +10844,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10488,9 +10862,9 @@ class TestViewDataSource:
         factories.grant_recipient.create(
             organisation=org, grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.LIVE
         )
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
         data_source = factories.data_source.create(
-            collection=report,
+            collection=collection,
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
@@ -10516,7 +10890,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10528,9 +10903,9 @@ class TestViewDataSource:
     def test_get_shows_missing_grant_recipient_tag_for_not_set_up_grant_recipient(
         self, authenticated_grant_member_client, factories
     ):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
         data_source = factories.data_source.create(
-            collection=report,
+            collection=collection,
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
@@ -10556,7 +10931,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10566,7 +10942,7 @@ class TestViewDataSource:
         assert "Grant recipient not set up" in soup.text
 
     def test_get_excludes_test_grant_recipients_from_name_lookup(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
         organisation = factories.organisation.create(external_id="E123", name="Rivendell Council")
         factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant,
@@ -10582,7 +10958,7 @@ class TestViewDataSource:
             mode=GrantRecipientModeEnum.TEST,
         )
         data_source = factories.data_source.create(
-            collection=report,
+            collection=collection,
             grant=authenticated_grant_member_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             name="Test data set",
@@ -10608,7 +10984,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10622,10 +10999,10 @@ class TestViewDataSource:
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
             grant=grant,
-            collection=report,
+            collection=collection,
             name="My Data Set",
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
@@ -10636,7 +11013,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source_id,
                 delete="",
             ),
@@ -10646,9 +11024,10 @@ class TestViewDataSource:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "deliver_grant_funding.list_report_data_sets",
+            "deliver_grant_funding.list_collection_data_sets",
             grant_id=grant.id,
-            report_id=report.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
         )
         assert db_session.get(DataSource, data_source_id) is None
         assert len(mock_s3_service_calls.delete_file_calls) == 1
@@ -10657,10 +11036,10 @@ class TestViewDataSource:
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
             grant=grant,
-            collection=report,
+            collection=collection,
             name="My Data Set",
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
@@ -10670,7 +11049,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
                 delete="",
             ),
@@ -10685,10 +11065,10 @@ class TestViewDataSource:
     def test_post_delete_removes_organisation_items(
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         data_source = factories.data_source.create(
             name="Test data set",
-            collection=report,
+            collection=collection,
             grant=authenticated_grant_admin_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
@@ -10700,7 +11080,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
                 delete="",
             ),
@@ -10715,11 +11096,11 @@ class TestViewDataSource:
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
             name="Budget data",
             grant=grant,
-            collection=report,
+            collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
             schema=DataSourceSchema.model_validate(
@@ -10733,7 +11114,7 @@ class TestViewDataSource:
                 }
             ),
         )
-        form = factories.form.create(collection=report)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(
             form=form,
             text=f"Your allocation is (({data_source.safe_did}.c_allocation))",
@@ -10743,7 +11124,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
                 delete="",
             ),
@@ -10774,11 +11156,11 @@ class TestViewDataSource:
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
             name="Budget data",
             grant=grant,
-            collection=report,
+            collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
             schema=DataSourceSchema.model_validate(
@@ -10792,14 +11174,15 @@ class TestViewDataSource:
                 }
             ),
         )
-        form = factories.form.create(collection=report)
+        form = factories.form.create(collection=collection)
         group = factories.group.create(form=form, text=f"Allocation overview (({data_source.safe_did}.c_allocation))")
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
                 delete="",
             ),
@@ -10821,11 +11204,11 @@ class TestViewDataSource:
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
             name="Budget data",
             grant=grant,
-            collection=report,
+            collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
             schema=DataSourceSchema.model_validate(
@@ -10839,7 +11222,7 @@ class TestViewDataSource:
                 }
             ),
         )
-        form = factories.form.create(collection=report)
+        form = factories.form.create(collection=collection)
         question = factories.question.create(
             form=form,
             data_type=QuestionDataType.NUMBER,
@@ -10859,7 +11242,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
                 delete="",
             ),
@@ -10878,11 +11262,11 @@ class TestViewDataSource:
         self, authenticated_grant_admin_client, factories
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
             name="Budget data",
             grant=grant,
-            collection=report,
+            collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
         )
@@ -10891,7 +11275,8 @@ class TestViewDataSource:
             url_for(
                 "deliver_grant_funding.view_data_source",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
                 delete="",
             )
@@ -10909,17 +11294,18 @@ class TestDownloadDataSourceCsv:
             url_for(
                 "deliver_grant_funding.download_data_source_csv",
                 grant_id=uuid.uuid4(),
-                report_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
                 data_source_id=uuid.uuid4(),
             )
         )
         assert response.status_code == 404
 
     def test_500_when_no_file_metadata(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         data_source = factories.data_source.create(
             name="Test data set",
-            collection=report,
+            collection=collection,
             grant=authenticated_grant_admin_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
@@ -10929,7 +11315,8 @@ class TestDownloadDataSourceCsv:
             url_for(
                 "deliver_grant_funding.download_data_source_csv",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10939,13 +11326,13 @@ class TestDownloadDataSourceCsv:
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
 
         grant2 = factories.grant.create()
-        report2 = factories.collection.create(grant=grant2)
+        collection2 = factories.collection.create(grant=grant2)
         data_source2 = factories.data_source.create(
             name="Test data set",
-            collection=report2,
+            collection=collection2,
             grant=grant2,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
@@ -10955,7 +11342,8 @@ class TestDownloadDataSourceCsv:
             url_for(
                 "deliver_grant_funding.download_data_source_csv",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source2.id,
             )
         )
@@ -10973,10 +11361,10 @@ class TestDownloadDataSourceCsv:
     ):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant or factories.grant.create()
-        report = factories.collection.create(grant=grant)
+        collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
             name="Test data set",
-            collection=report,
+            collection=collection,
             grant=grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
@@ -10985,7 +11373,8 @@ class TestDownloadDataSourceCsv:
             url_for(
                 "deliver_grant_funding.download_data_source_csv",
                 grant_id=grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -10997,10 +11386,10 @@ class TestDownloadDataSourceCsv:
     def test_get_returns_file_with_correct_name_and_content(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         data_source = factories.data_source.create(
             name="Test data set",
-            collection=report,
+            collection=collection,
             grant=authenticated_grant_admin_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             items=None,
@@ -11011,7 +11400,8 @@ class TestDownloadDataSourceCsv:
             url_for(
                 "deliver_grant_funding.download_data_source_csv",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                report_id=report.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
                 data_source_id=data_source.id,
             )
         )
@@ -11027,8 +11417,8 @@ class TestDownloadDataSourceCsv:
 
 class TestAddCustomQuestionValidation:
     def test_post_success(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2, q3 = factories.question.create_batch(
             3,
             form=db_form,
@@ -11052,7 +11442,7 @@ class TestAddCustomQuestionValidation:
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q3.id,
             ),
             data=get_form_data(form),
@@ -11060,7 +11450,7 @@ class TestAddCustomQuestionValidation:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching(rf"/deliver/grant/{report.grant.id}/question/{q3.id}")
+        assert response.location == AnyStringMatching(rf"/deliver/grant/{collection.grant.id}/question/{q3.id}")
 
         assert len(q3.expressions) == 1
         expression = q3.expressions[0]
@@ -11068,8 +11458,8 @@ class TestAddCustomQuestionValidation:
         assert expression.managed_name is None
 
     def test_post_error_in_expression(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2, q3 = factories.question.create_batch(
             3,
             form=db_form,
@@ -11099,7 +11489,7 @@ class TestAddCustomQuestionValidation:
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q3.id,
             ),
             data=get_form_data(form),
@@ -11118,8 +11508,8 @@ class TestAddCustomQuestionValidation:
         assert soup.find("p", id="custom_expression-error") is not None
 
     def test_post_error_in_message(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2, q3 = factories.question.create_batch(
             3,
             form=db_form,
@@ -11143,7 +11533,7 @@ class TestAddCustomQuestionValidation:
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q3.id,
             ),
             data=get_form_data(form),
@@ -11162,8 +11552,8 @@ class TestAddCustomQuestionValidation:
         assert soup.find("p", id="custom_message-error") is not None
 
     def test_post_error_in_expression_and_message(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2, q3 = factories.question.create_batch(
             3,
             form=db_form,
@@ -11193,7 +11583,7 @@ class TestAddCustomQuestionValidation:
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q3.id,
             ),
             data=get_form_data(form),
@@ -11209,8 +11599,8 @@ class TestAddCustomQuestionValidation:
         )
 
     def test_post_to_add_context(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2 = factories.question.create_batch(
             2,
             form=db_form,
@@ -11234,7 +11624,7 @@ class TestAddCustomQuestionValidation:
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.add_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q2.id,
             ),
             data=get_form_data(form, submit=""),
@@ -11255,8 +11645,8 @@ class TestAddCustomQuestionValidation:
 
 class TestEditCustomQuestionValidation:
     def test_get(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2 = factories.question.create_batch(
             2,
             form=db_form,
@@ -11282,7 +11672,7 @@ class TestEditCustomQuestionValidation:
         response = authenticated_platform_admin_client.get(
             url_for(
                 "deliver_grant_funding.edit_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q3.id,
                 expression_id=q3.expressions[0].id,
             ),
@@ -11296,8 +11686,8 @@ class TestEditCustomQuestionValidation:
         assert soup.find("textarea", id="custom_message").text == "Failed"
 
     def test_post_success(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2 = factories.question.create_batch(
             2,
             form=db_form,
@@ -11335,7 +11725,7 @@ class TestEditCustomQuestionValidation:
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.edit_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q3.id,
                 expression_id=q3.expressions[0].id,
             ),
@@ -11344,15 +11734,15 @@ class TestEditCustomQuestionValidation:
         )
 
         assert response.status_code == 302
-        assert response.location == AnyStringMatching(rf"/deliver/grant/{report.grant.id}/question/{q3.id}")
+        assert response.location == AnyStringMatching(rf"/deliver/grant/{collection.grant.id}/question/{q3.id}")
 
         assert len(q3.expressions) == 1
         expression = q3.expressions[0]
         assert len(expression.component_references) == 2
 
     def test_post_error_in_expression_and_message(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2, q3 = factories.question.create_batch(
             3,
             form=db_form,
@@ -11391,7 +11781,7 @@ class TestEditCustomQuestionValidation:
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.edit_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q3.id,
                 expression_id=expression.id,
             ),
@@ -11410,8 +11800,8 @@ class TestEditCustomQuestionValidation:
         )
 
     def test_post_to_add_context(self, authenticated_platform_admin_client, factories, db_session):
-        report = factories.collection.create(name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         q1, q2 = factories.question.create_batch(
             2,
             form=db_form,
@@ -11443,7 +11833,7 @@ class TestEditCustomQuestionValidation:
         response = authenticated_platform_admin_client.post(
             url_for(
                 "deliver_grant_funding.edit_custom_question_validation",
-                grant_id=report.grant.id,
+                grant_id=collection.grant.id,
                 question_id=q2.id,
                 expression_id=q2.expressions[0].id,
             ),
@@ -11465,8 +11855,8 @@ class TestEditCustomQuestionValidation:
 
 class TestAddGroupValidation:
     def _make_same_page_group_with_questions(self, factories, grant):
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(
             form=db_form,
             name="Spend totals",
@@ -11504,8 +11894,8 @@ class TestAddGroupValidation:
         assert get_h1_text(soup) == "Create a group validation"
 
     def test_get_redirects_when_group_is_not_same_page(self, authenticated_grant_admin_client, factories, db_session):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(
             form=db_form,
             name="Per-page group",
@@ -11643,8 +12033,8 @@ class TestAddGroupValidation:
 
 class TestEditGroupValidation:
     def _setup_group_with_validation(self, factories, grant):
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(
             form=db_form,
             name="Spend totals",
@@ -11930,8 +12320,8 @@ class TestListGroupQuestionsValidationsSection:
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(
             form=db_form,
             name="Spend totals",
@@ -11971,8 +12361,8 @@ class TestListGroupQuestionsValidationsSection:
         self, authenticated_platform_admin_client, factories, db_session
     ):
         grant = factories.grant.create()
-        report = factories.collection.create(grant=grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(
             form=db_form,
             name="Per-page group",
@@ -12002,8 +12392,8 @@ class TestChangeGroupDisplayOptionsBlockedByValidations:
     def test_post_change_to_one_per_page_blocked_when_validations_exist(
         self, authenticated_grant_admin_client, factories, db_session
     ):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=report, title="Organisation information")
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
         group = factories.group.create(
             form=db_form,
             name="Spend totals",

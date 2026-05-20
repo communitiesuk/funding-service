@@ -51,5 +51,10 @@ def return_from_test_submission(collection_id: UUID) -> ResponseReturnValue:
 
     collection = get_collection(collection_id)
     return redirect(
-        url_for("deliver_grant_funding.list_report_sections", grant_id=collection.grant.id, report_id=collection.id)
+        url_for(
+            "deliver_grant_funding.list_collection_sections",
+            grant_id=collection.grant.id,
+            collection_type=collection.type,
+            collection_id=collection.id,
+        )
     )

@@ -10,9 +10,9 @@
 {% block beforeContent %}
   {% set has_manual_formatting = (session_data.column_mappings | selectattr("requires_manual_formatting") | list | length) > 0 %}
   {% if has_manual_formatting %}
-    {% set back_link = url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=grant.id, report_id=report.id) %}
+    {% set back_link = url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
   {% else %}
-    {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id) %}
+    {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
   {% endif %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
@@ -21,13 +21,10 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
-        <span class="govuk-caption-l">{{ report.name }}</span>
+        <span class="govuk-caption-l">{{ collection.name }}</span>
         Missing data in {{ session_data.name }}
       </h1>
-      {{
-        govukWarningText({"text": ("Grant recipients with missing data cannot complete the report "
-        "until the missing data is uploaded.")})
-      }}
+      {{ govukWarningText({"text": ("Grant recipients with missing data cannot complete the " ~ collection.type ~ " until the missing data is uploaded.")}) }}
     </div>
   </div>
   <div class="govuk-grid-row">
@@ -68,7 +65,7 @@
         <div class="govuk-button-group">
           {{ form.csrf_token }}
           {{ form.submit(params={"text": "Continue and upload data set" }) }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_data_sets', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_data_sets', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
         </div>
       </form>
     </div>
