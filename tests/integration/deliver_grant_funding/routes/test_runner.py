@@ -8,8 +8,13 @@ from flask import url_for
 from app.common.collections.types import FileUploadAnswer, IntegerAnswer, TextSingleLineAnswer, YesNoAnswer
 from app.common.data.interfaces.collections import add_component_validation
 from app.common.data.types import (
+    DataSourceSchema,
+    DataSourceSchemaColumn,
+    DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
+    NumberTypeEnum,
+    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionModeEnum,
@@ -912,15 +917,44 @@ class TestGroupValidation:
     ):
         client = authenticated_grant_admin_client
         group, capital, revenue = self._make_same_page_group_with_two_numbers(factories, client.grant)
+        organisation = factories.organisation.create()
+        grant_recipient = factories.grant_recipient.create(grant=client.grant, organisation=organisation)
+
+        data_source = factories.data_source.create(
+            name="Allocations",
+            grant=client.grant,
+            collection=group.form.collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Capital Allocation",
+                    )
+                }
+            ),
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=organisation.external_id,
+            _data={"c_allocation": 1000},
+        )
+
         add_component_validation(
             group,
             client.user,
             CustomExpression(
-                custom_expression=f"(({capital.safe_qid})) + (({revenue.safe_qid})) == 1000",
+                custom_expression=(
+                    f"(({capital.safe_qid})) + (({revenue.safe_qid})) == (({data_source.safe_did}.c_allocation))"
+                ),
                 custom_message="Capital plus revenue must equal 1000",
             ),
         )
-        submission = factories.submission.create(collection=group.form.collection, created_by=client.user)
+        submission = factories.submission.create(
+            collection=group.form.collection, created_by=client.user, grant_recipient=grant_recipient
+        )
 
         response = client.post(
             url_for(
@@ -942,6 +976,9 @@ class TestGroupValidation:
         assert "Capital plus revenue must equal 1000" in error_summary.text
         assert "On this page:" in error_summary.text
         assert "On a different page:" not in error_summary.text
+        assert "Other information referenced:" in error_summary.text
+        assert "Capital Allocation" in error_summary.text
+        assert "£1,000" in error_summary.text
 
         on_page_links = error_summary.find_all("a")
         on_page_link_texts = [a.text.strip() for a in on_page_links]

@@ -77,10 +77,21 @@ class ErrorListEntry:
 
 
 @dataclass
+class DataSetReferenceEntry:
+    column_name: str
+    value: str
+
+    @property
+    def error_message(self) -> str:
+        return f"{self.column_name} ({self.value})"
+
+
+@dataclass
 class GroupValidationError:
     message: str
     on_page_entries: list[ErrorListEntry] = dataclass_field(default_factory=list)
     off_page_entries: list[ErrorListEntry] = dataclass_field(default_factory=list)
+    data_set_entries: list[DataSetReferenceEntry] = dataclass_field(default_factory=list)
 
 
 # FIXME: Ideally this would do an intersection between FlaskForm and QuestionFormProtocol, but type hinting in
@@ -258,6 +269,33 @@ class DynamicQuestionForm(FlaskForm):
                     input_href=f"#{referenced_question.safe_qid}",
                 )
                 error.off_page_entries.append(error_entry)
+
+        for reference in validation.component_references:
+            data_source = reference.depends_on_data_source
+            column_name = reference.depends_on_column_name
+
+            if not (data_source and column_name):
+                continue
+            if not data_source.schema or not (column := data_source.schema.root.get(column_name)):
+                raise ValueError(
+                    f"ComponentReference {reference.id} in validation {validation.id} points to column {column_name} "
+                    f"on data source {data_source.id} but column does not exist in the schema."
+                )
+
+            assert self._submission_helper is not None
+            data_source_org_item = data_source.get_filtered_organisation_item(
+                self._submission_helper.submission.grant_recipient.organisation.external_id
+            )
+            assert data_source_org_item is not None and isinstance(data_source_org_item.data, dict)
+            org_item_column_value = data_source_org_item.data.get(column_name)
+            assert org_item_column_value is not None
+
+            error.data_set_entries.append(
+                DataSetReferenceEntry(
+                    column_name=column.original_column_name,
+                    value=org_item_column_value.get_value_for_text_export(),
+                )
+            )
 
         return error
 
