@@ -1,14 +1,16 @@
 {% from "govuk_frontend_jinja/components/breadcrumbs/macro.html" import govukBreadcrumbs %}
 
 {# render the breadcrumb for deliver grant funding #}
-{% macro deliver_grant_funding_reports_breadcrumb(grant=None, data_set=None, report=None, form=None, immediate_parent_breadcrumb_item=None, this_page_breadcrumb_item=None, truncated=False) %}
+{% macro deliver_grant_funding_collection_breadcrumb(grant=None, data_set=None, collection=None, form=None, immediate_parent_breadcrumb_item=None, this_page_breadcrumb_item=None, truncated=False, collection_type=None) %}
+  {% set collection_type = (collection.type if collection) or (data_set.collection.type if data_set) or (form.collection.collection_type if form) or collection_type %}
+  {% set constants = collection_type.constants %}
   {% set items=[] %}
   {% if grant %}
-    {% set reports_html %}
-      <span>Reports</span>
+    {% set collections_html %}
+      <span>{{ constants.plural | capitalize }}</span>
       <span class="govuk-visually-hidden">for {{ grant.name }}</span>
     {% endset %}
-    {% do items.append({"html": reports_html, "href": url_for("deliver_grant_funding.list_reports", grant_id=grant.id)}) %}
+    {% do items.append({"html": collections_html, "href": url_for(constants.list_endpoint, grant_id=grant.id)}) %}
   {% endif %}
 
   {% if data_set %}
@@ -19,12 +21,12 @@
     {% do items.append({"html": data_set_name_html, "href": url_for("deliver_grant_funding.list_collection_data_sets", grant_id=grant.id, collection_type=data_set.collection.type, collection_id=data_set.collection_id) }) %}
   {% endif %}
 
-  {% if report %}
-    {% set report_name_html %}
-      <span class="govuk-visually-hidden">Report:</span>
-      <span>{{ report.name }}</span>
+  {% if collection %}
+    {% set collection_name_html %}
+      <span class="govuk-visually-hidden">{{ constants.singular | capitalize }}:</span>
+      <span>{{ collection.name }}</span>
     {% endset %}
-    {% do items.append({"html": report_name_html, "href": url_for("deliver_grant_funding.list_collection_sections", grant_id=grant.id, collection_type=report.type, collection_id=report.id)}) %}
+    {% do items.append({"html": collection_name_html, "href": url_for("deliver_grant_funding.list_collection_sections", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id)}) %}
   {% endif %}
 
   {% if form %}

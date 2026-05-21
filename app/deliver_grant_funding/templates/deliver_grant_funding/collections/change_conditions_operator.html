@@ -3,7 +3,8 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set page_title = "Change when to show " ~ ("question group" if component.is_group else "question") ~ " - " ~ component.name %}
-{% set active_item_identifier = "reports" %}
+{% set constants = component.form.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% block beforeContent %}
   {% if component.is_group %}

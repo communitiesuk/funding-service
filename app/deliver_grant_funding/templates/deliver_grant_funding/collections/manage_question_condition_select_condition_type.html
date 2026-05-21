@@ -3,7 +3,8 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/collections/_render_managed_expression_form.html" import render_managed_expression_form %}
 
-{% set active_item_identifier = "reports" %}
+{% set constants = component.form.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% set is_editing = expression %}
 {% set heading = "Edit condition" if is_editing else "Add a condition" %}

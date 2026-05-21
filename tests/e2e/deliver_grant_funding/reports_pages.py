@@ -319,11 +319,11 @@ class AddReportPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="What is the name of the monitoring report?"),
+            heading=page.get_by_role("heading", name="What is the name of the report?"),
         )
 
     def fill_in_report_name(self, name: str) -> None:
-        self.page.get_by_role("textbox", name="What is the name of the monitoring report?").fill(name)
+        self.page.get_by_role("textbox", name="What is the name of the report?").fill(name)
 
     def click_submit(self, grant_name: str) -> GrantReportsPage:
         self.page.get_by_role("button", name="Set up report").click()
@@ -338,11 +338,11 @@ class ChangeReportNamePage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Change the name for this monitoring report"),
+            heading=page.get_by_role("heading", name="Change the name for this report"),
         )
 
     def fill_in_report_name(self, name: str) -> None:
-        self.page.get_by_role("textbox", name="Change the name for this monitoring report").fill(name)
+        self.page.get_by_role("textbox", name="Change the name for this report").fill(name)
 
     def click_submit(self, grant_name: str) -> GrantReportsPage:
         self.page.get_by_role("button", name="Update report name").click()
@@ -1692,7 +1692,7 @@ class SubmissionsListPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"{report_name} Monitoring Reports"),
+            heading=page.get_by_role("heading", name=f"{report_name} Reports"),
         )
         self.report_name = report_name
 

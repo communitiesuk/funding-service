@@ -2,7 +2,8 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set page_title = "Add section" %}
-{% set active_item_identifier = "reports" %}
+{% set constants = collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% block beforeContent %}
   {{

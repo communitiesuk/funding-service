@@ -4,7 +4,8 @@
 {% from "deliver_grant_funding/macros/select_context_source_return_url.html" import context_source_return_url %}
 
 {% set page_title = "Select column in " ~ data_set.name ~ " data set - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set constants = db_form.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {# FIXME: handle back link generation in the view #}
 {% set back_url = url_for("deliver_grant_funding.select_context_source_data_set", grant_id=grant.id, form_id=db_form.id, data_set=data_set.id) %}

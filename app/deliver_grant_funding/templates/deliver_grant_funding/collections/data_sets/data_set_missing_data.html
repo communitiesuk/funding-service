@@ -3,7 +3,8 @@
 {% from "govuk_frontend_jinja/components/warning-text/macro.html" import govukWarningText %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 
-{% set active_item_identifier = "reports" %}
+{% set type_constants = collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 
 {% set page_title = "Missing data in " ~ session_data.name %}
 
@@ -26,7 +27,7 @@
         Missing data in {{ session_data.name }}
       </h1>
       {{
-        govukWarningText({"text": ("Grant recipients with missing data cannot complete the report "
+        govukWarningText({"text": ("Grant recipients with missing data cannot complete the " ~ type_constants.singular ~ " "
         "until the missing data is uploaded.")})
       }}
     </div>

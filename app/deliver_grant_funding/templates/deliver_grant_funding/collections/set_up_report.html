@@ -1,14 +1,15 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
-{% set page_title = "Reports" %}
-{% set active_item_identifier = "reports" %}
+{% set constants = collection_type.constants %}
+{% set page_title = constants.plural | capitalize %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% block beforeContent %}
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for('deliver_grant_funding.list_reports', grant_id=grant.id),
+      "href": url_for(constants.list_endpoint, grant_id=grant.id),
     })
   }}
 {% endblock %}
@@ -23,7 +24,7 @@
 
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.list_reports", grant_id=grant.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for(constants.list_endpoint, grant_id=grant.id) }}">Cancel</a>
         </div>
       </form>
     </div>

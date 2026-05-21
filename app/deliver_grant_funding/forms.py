@@ -32,6 +32,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grants import grant_code_exists, grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
+    CollectionType,
     ConditionsOperator,
     DataSourceType,
     ExpressionType,
@@ -810,14 +811,19 @@ class GrantAddUserForm(FlaskForm):
         return True
 
 
-class SetUpReportForm(FlaskForm):
+class SetUpCollectionForm(FlaskForm):
     name = StringField(
-        "What is the name of the monitoring report?",
         widget=GovTextInput(),
-        validators=[DataRequired("Enter a name for the monitoring report")],
+        validators=[DataRequired()],
     )
 
-    submit = SubmitField("Continue and set up report", widget=GovSubmitInput())
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, collection_type: CollectionType, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.name.label.text = f"What is the name of the {collection_type.constants.singular}?"
+        self.name.validators = [DataRequired(f"Enter a name for the {collection_type.constants.singular}")]
+        self.submit.label.text = f"Continue and set up {collection_type.constants.singular}"
 
 
 class AddSectionForm(FlaskForm):

@@ -2,7 +2,8 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set page_title = "Add a question - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set constants = db_form.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% set return_to_form_or_group_url = url_for("deliver_grant_funding.list_section_questions", grant_id=grant.id, form_id=db_form.id) if not parent else url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=parent.id) %}
 {% block beforeContent %}

@@ -36,9 +36,8 @@ class TestListPreAwardForms:
         soup = BeautifulSoup(response.data, "html.parser")
         assert client.grant.name in soup.text
 
-        # todo: replace report specific actions with pre-award when pages are made generic for collections
         expected_links = [
-            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/set-up-report")),
+            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/application/set-up")),
         ]
         for expected_link in expected_links:
             button = page_has_link(soup, expected_link[0])
@@ -81,9 +80,8 @@ class TestListPreAwardForms:
             r"/deliver/grant/[a-z0-9-]{36}/application/[a-z0-9-]{36}/submissions/live"
         )
 
-        # todo: replace report specific actions with pre-award when pages are made generic for collections
         expected_links = [
-            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/set-up-report")),
+            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/application/set-up")),
             ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/application/[a-z0-9-]{36}/add-section")),
             ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/application/[a-z0-9-]{36}/change-name")),
             ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/pre-award\?delete")),

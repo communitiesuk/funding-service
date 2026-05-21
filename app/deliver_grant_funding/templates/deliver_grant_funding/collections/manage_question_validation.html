@@ -4,7 +4,8 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/collections/_render_managed_expression_form.html" import render_managed_expression_form %}
 
-{% set active_item_identifier = "reports" %}
+{% set constants = question.form.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% block pageTitle %}
   Add validation - {{ question.name }} - Deliver grant funding

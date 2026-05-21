@@ -4,7 +4,8 @@
 {% from "deliver_grant_funding/partials/_question_data_options.html" import questionDataOptions %}
 
 {% set page_title = "Add a question - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set constants = db_form.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% block beforeContent %}
   {{

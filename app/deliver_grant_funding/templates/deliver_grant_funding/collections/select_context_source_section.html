@@ -3,8 +3,9 @@
 {% from "deliver_grant_funding/macros/select_context_source_header_caption.html" import context_source_heading_caption %}
 {% from "deliver_grant_funding/macros/select_context_source_return_url.html" import context_source_return_url %}
 
+{% set constants = db_form.collection.type.constants %}
 {% set page_title = "Select a previous section - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = constants.active_nav %}
 
 {# FIXME: handle back link generation in the view #}
 {% set back_url = url_for("deliver_grant_funding.select_context_source", grant_id=grant.id, form_id=db_form.id) %}
@@ -43,7 +44,7 @@
           <span class="govuk-caption-l">Question {{ heading_caption }}</span>
           {{ form.section.label.text }}
         </h1>
-        <p class="govuk-body">There are no earlier sections in the report.</p>
+        <p class="govuk-body">There are no earlier sections in the {{ constants.singular }}.</p>
       {% endif %}
     </div>
   </div>

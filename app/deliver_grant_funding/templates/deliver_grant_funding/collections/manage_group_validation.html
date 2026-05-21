@@ -4,7 +4,8 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/render_calculated_form_fields.html" import render_calculated_validation_custom_expression_field, render_calculated_validation_custom_message_field with context %}
 
-{% set active_item_identifier = "reports" %}
+{% set constants = group.form.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 {% if expression %}
   {% set heading = "Edit a group validation" %}
   {% set submit_label = "Save group validation" %}

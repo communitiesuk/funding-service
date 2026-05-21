@@ -3,12 +3,13 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
-{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "common/macros/status.html" import reportStatusTag with context %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import section_dependency_banner %}
 
+{% set constants = collection.type.constants %}
 {% set page_title = collection.name %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = constants.active_nav %}
 {% set can_edit = authorisation_helper.can_edit_collection(current_user, collection.id) %}
 {% set can_preview = collection.data_sources | length == 0 and collection.status != enum.collection_status.CLOSED %}
 
@@ -16,7 +17,7 @@
 {% set user_can_test_grant_recipient_journey = grant.test_grant_recipients and grant in current_user.access_grants %}
 
 {% block beforeContent %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":collection.name}) }}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection_type=collection.type, this_page_breadcrumb_item={"text":collection.name}) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -60,11 +61,11 @@
         <strong>Submission period</strong>:
         {{ format_date_range(collection.submission_period_start_date, collection.submission_period_end_date) if collection.submission_period_start_date and collection.submission_period_end_date else "Not set" }}
       </p>
-      <p class="govuk-body"><strong>Report status</strong>: {{ reportStatusTag(collection.status) }}</p>
+      <p class="govuk-body"><strong>{{ constants.singular | capitalize }} status</strong>: {{ reportStatusTag(collection.status) }}</p>
 
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Sections</h2>
       {% if not collection.forms %}
-        <p class="govuk-body">This monitoring report has no sections.</p>
+        <p class="govuk-body">This {{ constants.singular }} has no sections.</p>
         {% if can_edit %}
           <p class="govuk-body">
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Add a section</a>
@@ -142,7 +143,7 @@
           {% if can_preview %}
             <form method="post" novalidate>
               {{ form.csrf_token }}
-              {{ form.submit(params={"text": "Preview report", "classes": "govuk-button--secondary"}) }}
+              {{ form.submit(params={"text": "Preview " ~ constants.singular, "classes": "govuk-button--secondary"}) }}
 
               {% if previewers and authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
                 {% set previewer_list_html %}

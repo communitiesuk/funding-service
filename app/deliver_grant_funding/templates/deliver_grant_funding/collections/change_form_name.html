@@ -1,11 +1,12 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
-{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 
 {% set page_title = "Change section name" %}
-{% set active_item_identifier = "reports" %}
+{% set constants = db_form.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% block beforeContent %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, form=db_form, this_page_breadcrumb_item={"text":"Section name"}) }}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=db_form.collection, form=db_form, this_page_breadcrumb_item={"text":"Section name"}) }}
 {% endblock beforeContent %}
 
 {% block content %}

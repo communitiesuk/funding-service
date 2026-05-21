@@ -2,7 +2,8 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 
-{% set active_item_identifier = "reports" %}
+{% set constants = collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% set page_title = "Upload new data set to " + collection.name %}
 
