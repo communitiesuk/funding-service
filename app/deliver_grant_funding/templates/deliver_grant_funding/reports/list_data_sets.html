@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
 
 {% set page_title = "Data sets for " + report.name %}
 {% set active_item_identifier = "reports" %}
@@ -32,12 +33,25 @@
         <span class="govuk-caption-l">{{ report.name }}</span>
         Uploaded data sets
       </h1>
-      <p class="govuk-body">Data referenced in the grant form, uploaded as a CSV.</p>
-      <p class="govuk-body">
-        For uploading grant recipient level data like grant allocation, use the <br />
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">grant recipient data upload template (CSV)</a>.
-        Grant recipients must be set up for the grant report before using the template and uploading grant recipient level data.
-      </p>
+      <p class="govuk-body">Upload data to reference in guidance, questions, conditions and validation.</p>
+      <p class="govuk-body">You can replace uploaded data sets to update missing or incorrect data.</p>
+
+      {% set dataSetUploadInstructionsHtml %}
+        <ol class="govuk-list govuk-list--number govuk-!-margin-bottom-0">
+          <li>
+            Check the <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=grant.id) }}">grant recipients</a> are set up to make sure they will be in the data set template.
+          </li>
+          <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">Download the data set template (CSV)</a>.</li>
+          <li>Name each column to describe the data in it, for example, “Funding”.</li>
+          <li>Upload the new data set by naming and formatting the data set.</li>
+        </ol>
+      {% endset %}
+      {{
+        govukDetails({
+          "summaryText": "Uploading a data set",
+          "html": dataSetUploadInstructionsHtml,
+        })
+      }}
     </div>
     <div class="govuk-grid-column-full">
       {% set rows = [] %}
