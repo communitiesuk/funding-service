@@ -9,7 +9,7 @@ from app.common.data.types import (
     ManagedExpressionsEnum,
     NumberTypeEnum,
     QuestionDataType,
-    TUnvalidatedDataSetRows,
+    TDataSetPreviewData,
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.references import ExpressionReference
@@ -168,7 +168,7 @@ class DataSetUploadSessionModel(BaseModel):
     data_source_id: UUID4
     original_filename: str
     s3_key: str
-    preview_rows: TUnvalidatedDataSetRows
+    preview_data: TDataSetPreviewData
     column_mappings: list[DataSetColumnMapping] = Field(default_factory=list)
 
     @classmethod

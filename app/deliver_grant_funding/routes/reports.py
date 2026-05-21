@@ -3364,11 +3364,20 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         file.stream.seek(0)
         s3_service.upload_file(file, s3_key, {"status": DataSourceFileTagEnum.PENDING})
 
+        preview_data: dict[str, list[str]] = {}
+        for column in data_columns:
+            values = []
+            for row in rows:
+                val = row.get(column, "")
+                if val and len(values) < 3:
+                    values.append(str(escape(val)))
+            preview_data[column] = values
+
         session_data = DataSetUploadSessionModel(
             name=cast(str, form.name.data),
             data_source_type=form.data_source_type.data,
             data_columns=data_columns,
-            preview_rows=rows[:5],
+            preview_data=preview_data,
             s3_key=s3_key,
             original_filename=secure_filename(file.filename),
             data_source_id=data_source_id,
