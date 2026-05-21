@@ -973,23 +973,3 @@ class TestUploadDataSetForm:
             f"The CSV file must contain the columns: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER}, "
             f"{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
         ) in form.file.errors[0]
-
-    def test_static_csv_with_missing_data_raises_error(self):
-        csv_content = "theme id,theme name\nelectric,Electricity\nwater,Water supply\ngarbage,"
-        file = FileStorage(
-            stream=io.BytesIO(csv_content.encode("utf-8")),
-            filename="test.csv",
-            content_type="text/csv",
-        )
-        data = MultiDict(
-            [
-                ("name", "Test Data Set"),
-                ("data_source_type", DataSourceType.STATIC),
-                ("file", file),
-            ]
-        )
-        form = UploadDataSetForm(existing_data_source_names=[])
-        form.process(data)
-
-        assert form.validate() is False
-        assert "The file has missing data in row(s): 4" in form.file.errors[0]

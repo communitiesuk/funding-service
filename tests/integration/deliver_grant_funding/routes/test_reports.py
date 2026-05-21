@@ -9438,7 +9438,7 @@ class TestUploadDataSet:
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = {
                 "name": "Test Data Set",
-                "data_source_type": DataSourceType.PROJECT_LEVEL,
+                "data_source_type": DataSourceType.GRANT_RECIPIENT,
                 "data_columns": ["Amount"],
                 "preview_data": {},
                 "column_mappings": [],
@@ -9455,10 +9455,6 @@ class TestUploadDataSet:
         soup = BeautifulSoup(response.text, "html.parser")
         name_input = soup.find("input", {"name": "name"})
         assert name_input["value"] == "Test Data Set"
-        assert (
-            soup.find("input", {"name": "data_source_type", "value": DataSourceType.PROJECT_LEVEL}).get("checked")
-            is not None
-        )
 
     def test_post_valid_csv_redirects_to_map_columns_with_session(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
@@ -9582,31 +9578,6 @@ class TestUploadDataSet:
                 assert len(values) == 3
                 assert all(v != "" for v in values)
             assert session_data["preview_data"]["Amount"] == ["1000", "2000", "3000"]
-        assert len(mock_s3_service_calls.upload_file_calls) == 1
-
-    def test_post_static_csv_without_missing_data_proceeds(
-        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
-    ):
-        grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
-
-        csv_content = "theme id,theme name\nelectric,Electricity\nwater,Water supply"
-        data = {
-            "name": "Themes",
-            "data_source_type": DataSourceType.STATIC,
-            "file": (io.BytesIO(csv_content.encode("utf-8")), "themes.csv"),
-        }
-
-        response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
-            data=data,
-            content_type="multipart/form-data",
-        )
-
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id
-        )
         assert len(mock_s3_service_calls.upload_file_calls) == 1
 
 
@@ -10471,7 +10442,6 @@ class TestViewDataSource:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert user.name in soup.text
-        assert "Static" in soup.text
         assert "Test data set" in soup.text
 
     def test_get_shows_grant_recipient_table(self, authenticated_grant_member_client, factories):
