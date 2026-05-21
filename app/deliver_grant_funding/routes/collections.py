@@ -254,7 +254,7 @@ def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> Respon
             form.name.errors.append(f"A {collection_type.constants.singular} with this name already exists")  # type: ignore[attr-defined]
 
     return render_template(
-        "deliver_grant_funding/collections/set_up_report.html",
+        "deliver_grant_funding/collections/set_up_collection.html",
         grant=grant,
         form=form,
         collection_type=collection_type,
@@ -283,7 +283,7 @@ def change_collection_name(grant_id: UUID, collection_type: CollectionType, coll
             )
 
     return render_template(
-        "deliver_grant_funding/collections/change_report_name.html",
+        "deliver_grant_funding/collections/change_collection_name.html",
         grant=collection.grant,
         collection=collection,
         form=form,
