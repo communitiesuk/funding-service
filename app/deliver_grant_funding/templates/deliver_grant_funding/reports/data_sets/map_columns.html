@@ -33,7 +33,7 @@
           {% endfor %}
           {% set preview_html = preview_values | join(', ') %}
           {% set select_html %}
-            {{ form.columns[idx].form.data_type(params={"label": {"html": "Data type <span class='govuk-visually-hidden'>for " ~ column ~ "</span>" } }) }}
+            {{ form.columns[idx].form.column_type(params={"label": {"html": "Data type <span class='govuk-visually-hidden'>for " ~ column ~ "</span>" } }) }}
           {% endset %}
           {%
             do rows.append([

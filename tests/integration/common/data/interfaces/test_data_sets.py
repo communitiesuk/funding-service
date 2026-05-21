@@ -41,8 +41,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         column_mappings = [
             DataSetColumnMapping(
                 column_name="Capital allocation",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.INTEGER,
+                column_type="INTEGER",
             ),
         ]
         all_rows = [
@@ -88,16 +87,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Capital allocation",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.INTEGER,
-                prefix="£",
-            ),
-            DataSetColumnMapping(
-                column_name="Additional info",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
+            DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER", prefix="£"),
+            DataSetColumnMapping(column_name="Additional info", column_type="TEXT"),
         ]
         all_rows = [
             {
@@ -135,11 +126,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Capital allocation",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.INTEGER,
-            ),
+            DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
         ]
         all_rows = [
             {
@@ -184,15 +171,8 @@ class TestCreateUploadedDataSourceGrantRecipient:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Capital allocation",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.INTEGER,
-            ),
-            DataSetColumnMapping(
-                column_name="Description",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
+            DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
+            DataSetColumnMapping(column_name="Description", column_type="TEXT"),
         ]
         all_rows = [
             {
@@ -228,12 +208,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
 
         column_mappings = [
             DataSetColumnMapping(
-                column_name="Amount",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.DECIMAL,
-                prefix="£",
-                suffix="m",
-                max_decimal_places=2,
+                column_name="Amount", column_type="DECIMAL", prefix="£", suffix="m", max_decimal_places=2
             ),
         ]
         all_rows = [
@@ -266,11 +241,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Capital allocation",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.INTEGER,
-            ),
+            DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
         ]
         all_rows = [
             {
@@ -303,10 +274,7 @@ class TestCreateUploadedDataSourceGrantRecipient:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Notes",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
+            DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
         ]
         all_rows = [
             {
@@ -340,15 +308,8 @@ class TestCreateUploadedDataSourceProjectLevel:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Project name",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
-            DataSetColumnMapping(
-                column_name="Allocation",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.INTEGER,
-            ),
+            DataSetColumnMapping(column_name="Project name", column_type="TEXT"),
+            DataSetColumnMapping(column_name="Allocation", column_type="INTEGER"),
         ]
         all_rows = [
             {
@@ -399,15 +360,8 @@ class TestCreateUploadedDataSourceProjectLevel:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Project name",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
-            DataSetColumnMapping(
-                column_name="Allocation",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.INTEGER,
-            ),
+            DataSetColumnMapping(column_name="Project name", column_type="TEXT"),
+            DataSetColumnMapping(column_name="Allocation", column_type="INTEGER"),
         ]
         all_rows = [
             {
@@ -451,10 +405,7 @@ class TestCreateUploadedDataSourceProjectLevel:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Project name",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
+            DataSetColumnMapping(column_name="Project name", column_type="TEXT"),
         ]
         all_rows = [
             {
@@ -489,14 +440,8 @@ class TestCreateUploadedDataSourceStatic:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Code",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
-            DataSetColumnMapping(
-                column_name="Label",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
+            DataSetColumnMapping(column_name="Code", column_type="TEXT"),
+            DataSetColumnMapping(column_name="Label", column_type="TEXT"),
         ]
         all_rows = [
             {"Code": "UK", "Label": "United Kingdom"},
@@ -543,8 +488,8 @@ class TestCreateUploadedDataSourceStatic:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(column_name="Code", data_type=QuestionDataType.TEXT_SINGLE_LINE),
-            DataSetColumnMapping(column_name="Label", data_type=QuestionDataType.TEXT_SINGLE_LINE),
+            DataSetColumnMapping(column_name="Code", column_type="TEXT"),
+            DataSetColumnMapping(column_name="Label", column_type="TEXT"),
         ]
         all_rows = [{"Code": "UK", "Label": "United Kingdom"}]
 
@@ -570,8 +515,8 @@ class TestCreateUploadedDataSourceStatic:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(column_name="Code", data_type=QuestionDataType.TEXT_SINGLE_LINE),
-            DataSetColumnMapping(column_name="Label", data_type=QuestionDataType.TEXT_SINGLE_LINE),
+            DataSetColumnMapping(column_name="Code", column_type="TEXT"),
+            DataSetColumnMapping(column_name="Label", column_type="TEXT"),
         ]
         all_rows = [{"Code": "UK", "Label": "United Kingdom"}, {"Code": "UK", "Label": "Another one"}]
 
@@ -597,8 +542,8 @@ class TestCreateUploadedDataSourceErrors:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(column_name="Code", data_type=QuestionDataType.TEXT_SINGLE_LINE),
-            DataSetColumnMapping(column_name="Label", data_type=QuestionDataType.TEXT_SINGLE_LINE),
+            DataSetColumnMapping(column_name="Code", column_type="TEXT"),
+            DataSetColumnMapping(column_name="Label", column_type="TEXT"),
         ]
 
         with pytest.raises(ValueError, match="Unsupported data source type"):
@@ -644,11 +589,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
         column_mappings = [
             DataSetColumnMapping(
                 column_name="Amount",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.DECIMAL,
-                prefix="£",
-                suffix="",
-                max_decimal_places=2,
+                column_type="BRITISH_POUNDS",
             ),
         ]
         all_rows = [
@@ -684,10 +625,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Description",
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            ),
+            DataSetColumnMapping(column_name="Description", column_type="TEXT"),
         ]
         all_rows = [
             {
@@ -724,11 +662,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
         user = factories.user.create()
 
         column_mappings = [
-            DataSetColumnMapping(
-                column_name="Capital Allocation (£)",
-                data_type=QuestionDataType.NUMBER,
-                number_type=NumberTypeEnum.INTEGER,
-            ),
+            DataSetColumnMapping(column_name="Capital Allocation (£)", column_type="BRITISH_POUNDS"),
         ]
         all_rows = [
             {
@@ -968,17 +902,8 @@ class TestDataSourceOrganisationItemDataProperty:
             grant_id=grant.id,
             collection_id=report.id,
             column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
-                DataSetColumnMapping(
-                    column_name="Additional notes",
-                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                ),
+                DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                DataSetColumnMapping(column_name="Additional notes", column_type="TEXT"),
             ],
             all_rows=[
                 {
@@ -1019,15 +944,8 @@ class TestDataSourceOrganisationItemDataProperty:
             grant_id=grant.id,
             collection_id=report.id,
             column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Project name",
-                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                ),
-                DataSetColumnMapping(
-                    column_name="Headcount",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.INTEGER,
-                ),
+                DataSetColumnMapping(column_name="Project name", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Headcount", column_type="INTEGER"),
             ],
             all_rows=[
                 {
@@ -1071,17 +989,8 @@ class TestDataSourceOrganisationItemDataProperty:
             grant_id=grant.id,
             collection_id=report.id,
             column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Notes",
-                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                ),
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
+                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
             ],
             all_rows=[
                 {
@@ -1119,15 +1028,8 @@ class TestDataSourceOrganisationItemDataProperty:
             grant_id=grant.id,
             collection_id=report.id,
             column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Project name",
-                    data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                ),
-                DataSetColumnMapping(
-                    column_name="Headcount",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.INTEGER,
-                ),
+                DataSetColumnMapping(column_name="Project name", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Headcount", column_type="INTEGER"),
             ],
             all_rows=[
                 {

@@ -25,7 +25,7 @@
         {{ form.csrf_token }}
 
         {% set rows = [] %}
-        {% for mapping in session_data.column_mappings if mapping.data_type == enum.question_type.NUMBER %}
+        {% for mapping in session_data.column_mappings if mapping.requires_manual_formatting %}
           {% set idx = loop.index0 %}
           {% set preview_values = [] %}
           {% for row in session_data.preview_rows %}

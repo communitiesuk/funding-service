@@ -1,6 +1,6 @@
 import uuid
 
-from app.common.data.types import DataSourceType, NumberTypeEnum, QuestionDataType
+from app.common.data.types import DataSourceType
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.data_sets import (
     DataTypeError,
@@ -36,18 +36,8 @@ class TestValidateDataSet:
         data_set = _make_data_set(
             data_columns=["Capital allocation", "Revenue allocation"],
             column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
-                DataSetColumnMapping(
-                    column_name="Revenue allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.INTEGER,
-                ),
+                DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER"),
             ],
         )
 
@@ -69,9 +59,7 @@ class TestValidateDataSet:
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Notes"],
-            column_mappings=[
-                DataSetColumnMapping(column_name="Notes", data_type=QuestionDataType.TEXT_SINGLE_LINE),
-            ],
+            column_mappings=[DataSetColumnMapping(column_name="Notes", column_type="TEXT")],
         )
 
         all_rows = [
@@ -94,8 +82,8 @@ class TestValidateDataSet:
         data_set = _make_data_set(
             data_columns=["Notes", "Summary"],
             column_mappings=[
-                DataSetColumnMapping(column_name="Notes", data_type=QuestionDataType.TEXT_SINGLE_LINE),
-                DataSetColumnMapping(column_name="Summary", data_type=QuestionDataType.TEXT_SINGLE_LINE),
+                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Summary", column_type="TEXT"),
             ],
         )
 
@@ -123,15 +111,7 @@ class TestValidateDataSet:
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Capital allocation"],
-            column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
-            ],
+            column_mappings=[DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS")],
         )
 
         all_rows = [
@@ -153,15 +133,7 @@ class TestValidateDataSet:
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Capital allocation"],
-            column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
-            ],
+            column_mappings=[DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS")],
         )
 
         all_rows = [
@@ -180,13 +152,7 @@ class TestValidateDataSet:
         data_set = _make_data_set(
             data_columns=["Rate"],
             column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Rate",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    suffix="%",
-                    max_decimal_places=2,
-                ),
+                DataSetColumnMapping(column_name="Rate", column_type="DECIMAL", suffix="%", max_decimal_places=2)
             ],
         )
 
@@ -205,15 +171,7 @@ class TestValidateDataSet:
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Capital allocation"],
-            column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
-            ],
+            column_mappings=[DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS")],
         )
 
         all_rows = [
@@ -233,13 +191,7 @@ class TestValidateDataSet:
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Revenue allocation"],
-            column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Revenue allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.INTEGER,
-                ),
-            ],
+            column_mappings=[DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER")],
         )
         all_rows = [
             {
@@ -257,14 +209,7 @@ class TestValidateDataSet:
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Rate"],
-            column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Rate",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    max_decimal_places=2,
-                ),
-            ],
+            column_mappings=[DataSetColumnMapping(column_name="Rate", column_type="DECIMAL", max_decimal_places=2)],
         )
 
         all_rows = [
@@ -285,14 +230,8 @@ class TestValidateDataSet:
         data_set = _make_data_set(
             data_columns=["Capital allocation", "Notes"],
             column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
-                DataSetColumnMapping(column_name="Notes", data_type=QuestionDataType.TEXT_SINGLE_LINE),
+                DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
             ],
         )
 
@@ -318,18 +257,8 @@ class TestValidateDataSet:
         data_set = _make_data_set(
             data_columns=["Capital allocation", "Revenue allocation"],
             column_mappings=[
-                DataSetColumnMapping(
-                    column_name="Capital allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.DECIMAL,
-                    prefix="£",
-                    max_decimal_places=2,
-                ),
-                DataSetColumnMapping(
-                    column_name="Revenue allocation",
-                    data_type=QuestionDataType.NUMBER,
-                    number_type=NumberTypeEnum.INTEGER,
-                ),
+                DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER"),
             ],
         )
 

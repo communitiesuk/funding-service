@@ -1106,19 +1106,20 @@ class ColumnDataTypeMappingForm(FlaskForm):
         csrf = False
 
     column_name = HiddenField()
-    data_type = SelectField(
+    column_type = SelectField(
         "Data type",
         choices=[
             ("", "Select data type"),
-            ("TEXT", "Text"),
-            ("INTEGER", "Whole number"),
+            ("BRITISH_POUNDS", "British pounds"),
             ("DECIMAL", "Decimal number"),
+            ("INTEGER", "Whole number"),
+            ("TEXT", "Text"),
         ],
         validators=[],
         widget=GovSelect(),
     )
 
-    def validate_data_type(self, field: Field) -> None:
+    def validate_column_type(self, field: Field) -> None:
         if not field.data or field.data == "":
             raise ValidationError(f"Select a data type for {self.column_name.data}")
 
@@ -1143,41 +1144,31 @@ class MapDataSetColumnsForm(FlaskForm):
     def get_column_mappings(self) -> list[DataSetColumnMapping]:
         mappings = []
         for idx, column in enumerate(self.data_columns):
-            selected_value = self.columns.entries[idx].form.data_type.data
+            selected_value = self.columns.entries[idx].form.column_type.data
             match selected_value:
-                case "TEXT":
+                case "BRITISH_POUNDS":
                     mapping = DataSetColumnMapping(
                         column_name=column,
-                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        column_type=selected_value,
+                        prefix="£",
+                        max_decimal_places=2,
                     )
-                case "INTEGER":
+                case "TEXT" | "INTEGER" | "DECIMAL" | _:
                     mapping = DataSetColumnMapping(
                         column_name=column,
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.INTEGER,
-                    )
-                case "DECIMAL":
-                    mapping = DataSetColumnMapping(
-                        column_name=column,
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.DECIMAL,
-                    )
-                case _:
-                    mapping = DataSetColumnMapping(
-                        column_name=column,
-                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        column_type=selected_value,
                     )
             mappings.append(mapping)
         return mappings
 
     def has_numerical_columns(self) -> bool:
-        return any(entry.form.data_type.data in ["DECIMAL", "INTEGER"] for entry in self.columns.entries)
+        return any(entry.form.column_type.data in ["DECIMAL", "INTEGER"] for entry in self.columns.entries)
 
     def get_numerical_columns(self) -> list[str]:
         return [
             column
             for idx, column in enumerate(self.data_columns)
-            if self.columns.entries[idx].form.data_type.data in ["DECIMAL", "INTEGER"]
+            if self.columns.entries[idx].form.column_type.data in ["DECIMAL", "INTEGER"]
         ]
 
 
