@@ -20,6 +20,7 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
 from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum
+from app.common.helpers.feature_flags import FeatureFlag
 
 
 def access_grant_funding_login_required[**P](
@@ -352,3 +353,18 @@ def is_access_org_member[**P](
         return func(*args, **kwargs)
 
     return access_grant_funding_login_required(wrapper)
+
+
+def has_feature_flag_enabled(
+    flag: FeatureFlag,
+) -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:
+    def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+        @functools.wraps(func)
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+            if not flag.is_enabled:
+                return abort(404)
+            return func(*args, **kwargs)
+
+        return wrapped
+
+    return decorator

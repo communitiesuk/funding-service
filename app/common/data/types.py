@@ -141,6 +141,10 @@ class CollectionType(enum.StrEnum):
     APPLICATION = "application"
 
 
+PRE_AWARD_COLLECTIONS = frozenset([CollectionType.APPLICATION])
+MONITORING_COLLECTIONS = frozenset([CollectionType.MONITORING_REPORT])
+
+
 class ReportAdminEmailTypeEnum(enum.StrEnum):
     REPORT_OPEN_NOTIFICATION = "report-open-notification"
     DEADLINE_REMINDER = "deadline-reminder"

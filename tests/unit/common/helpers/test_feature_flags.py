@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import pytest
 from flask import Flask
 
 from app.common.data.types import RoleEnum
@@ -41,10 +40,11 @@ class TestCheckGrantAllowsPreAward:
             with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
                 assert self.flag.is_enabled is False
 
-    def test_raises(self, app: Flask) -> None:
+    def test_disabled_without_grant_id(self, app: Flask, factories) -> None:
+        grant = factories.grant.build(allow_pre_award=True)
         with app.test_request_context("/"):
-            with pytest.raises(ValueError, match="grant_id required"):
-                assert self.flag.is_enabled
+            with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
+                assert self.flag.is_enabled is False
 
 
 class TestCheckUserIsPlatformMember:

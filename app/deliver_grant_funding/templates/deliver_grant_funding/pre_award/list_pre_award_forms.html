@@ -5,8 +5,8 @@
 {% from "common/macros/status.html" import grantStatusDescription with context %}
 {% from "deliver_grant_funding/macros/collection_card.html" import collection_card with context %}
 
-{% set page_title = "Reports" %}
-{% set active_item_identifier = "reports" %}
+{% set page_title = "Forms" %}
+{% set active_item_identifier = "pre_award" %}
 {% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
 
 {% block content %}
@@ -21,12 +21,12 @@
 
       {% if delete_form %}
         {% set banner_html %}
-          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the report ‘{{ delete_report.name }}’?</p>
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the form ‘{{ delete_pre_award_form.name }}’?</p>
           <form method="post" novalidate>
             {{ delete_form.csrf_token }}
             <div class="govuk-button-group govuk-!-margin-bottom-0">
-              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this report", "classes": "govuk-button--secondary govuk-!-margin-bottom-0"}) }}
-              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_reports', grant_id=grant.id) }}">Cancel</a>
+              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this form", "classes": "govuk-button--secondary govuk-!-margin-bottom-0"}) }}
+              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.list_pre_award_forms', grant_id=grant.id) }}">Cancel</a>
             </div>
           </form>
         {% endset %}
@@ -39,7 +39,7 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        Reports
+        Forms
       </h1>
 
       <p class="govuk-body"><strong>Grant status</strong>: {{ grantStatusTag(grant.status) }}</p>
@@ -48,19 +48,21 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% if not grant.reports %}
-        <p class="govuk-body">There are no monitoring reports for {{ grant.name }}.</p>
+      {% if not grant.pre_award_forms %}
+        <p class="govuk-body">There are no pre-award forms for {{ grant.name }}.</p>
       {% else %}
-        {% for report in grant.reports %}
-          {{ collection_card(report) }}
+        {% for form in grant.pre_award_forms %}
+          {{ collection_card(form) }}
         {% endfor %}
       {% endif %}
 
       {% if grant_admin %}
+
+        {# TODO: in the next commit the collection type will be included to any url for collection pages like add section, change name, etc. #}
         {{
           govukButton({
-            "text": "Add a monitoring report" if not grant.reports else "Add another monitoring report",
-            "classes": "" if not grant.reports else "govuk-button--secondary",
+            "text": "Add a form",
+            "classes": "" if not grant.pre_award_forms else "govuk-button--secondary",
             "href": url_for('deliver_grant_funding.set_up_report', grant_id=grant.id)
           })
         }}
