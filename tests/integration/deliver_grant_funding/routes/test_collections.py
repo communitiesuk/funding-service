@@ -74,7 +74,7 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     ReopenSubmissionForm,
-    SetUpReportForm,
+    SetUpCollectionForm,
 )
 from app.deliver_grant_funding.routes.collections import (
     _determine_return_url_and_update_session_after_choosing_reference_for_expression,
@@ -101,47 +101,89 @@ from tests.utils import (
 )
 
 
-class TestSetUpReport:
-    def test_404(self, authenticated_grant_member_client):
+class TestSetUpCollection:
+    @pytest.mark.parametrize(
+        "collection_type",
+        [CollectionType.MONITORING_REPORT, CollectionType.APPLICATION],
+    )
+    def test_404(self, authenticated_grant_member_client, collection_type):
         response = authenticated_grant_member_client.get(
-            url_for("deliver_grant_funding.set_up_report", grant_id=uuid.uuid4())
+            url_for("deliver_grant_funding.set_up_collection", grant_id=uuid.uuid4(), collection_type=collection_type)
         )
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
+        "collection_type, expected_button_text",
+        [
+            (CollectionType.MONITORING_REPORT, "Continue and set up report"),
+            (CollectionType.APPLICATION, "Continue and set up form"),
+        ],
+    )
+    @pytest.mark.parametrize(
         "client_fixture, can_access",
-        (
+        [
             ("authenticated_grant_member_client", False),
             ("authenticated_grant_admin_client", True),
-        ),
+        ],
     )
-    def test_get(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+    def test_get(
+        self,
+        request: FixtureRequest,
+        client_fixture: str,
+        can_access: bool,
+        collection_type: CollectionType,
+        expected_button_text: str,
+        factories,
+    ):
         client = request.getfixturevalue(client_fixture)
         factories.collection.create(grant=client.grant)
 
-        response = client.get(url_for("deliver_grant_funding.set_up_report", grant_id=client.grant.id))
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.set_up_collection", grant_id=client.grant.id, collection_type=collection_type
+            )
+        )
 
         if not can_access:
             assert response.status_code == 403
         else:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
-            assert page_has_button(soup, "Continue and set up report")
+            assert page_has_button(soup, expected_button_text)
 
     @pytest.mark.parametrize(
+        "collection_type, expected_redirect_pattern",
+        [
+            (CollectionType.MONITORING_REPORT, r"^/deliver/grant/[a-z0-9-]{36}/reports$"),
+            (CollectionType.APPLICATION, r"^/deliver/grant/[a-z0-9-]{36}/pre-award$"),
+        ],
+    )
+    @pytest.mark.parametrize(
         "client_fixture, can_access",
-        (
+        [
             ("authenticated_grant_member_client", False),
             ("authenticated_grant_admin_client", True),
-        ),
+        ],
     )
-    def test_post(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session):
+    def test_post(
+        self,
+        request: FixtureRequest,
+        client_fixture: str,
+        can_access: bool,
+        collection_type: CollectionType,
+        expected_redirect_pattern: str,
+        factories,
+        db_session,
+    ):
         client = request.getfixturevalue(client_fixture)
-        assert len(client.grant.reports) == 0
+        collections_attr = "reports" if collection_type == CollectionType.MONITORING_REPORT else "pre_award_forms"
+        assert len(getattr(client.grant, collections_attr)) == 0
 
-        form = SetUpReportForm(data={"name": "Test monitoring report"})
+        form = SetUpCollectionForm(data={"name": "Test collection"}, collection_type=collection_type)
         response = client.post(
-            url_for("deliver_grant_funding.set_up_report", grant_id=client.grant.id),
+            url_for(
+                "deliver_grant_funding.set_up_collection", grant_id=client.grant.id, collection_type=collection_type
+            ),
             data=get_form_data(form),
             follow_redirects=False,
         )
@@ -150,24 +192,40 @@ class TestSetUpReport:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
+            assert response.location == AnyStringMatching(expected_redirect_pattern)
 
-            assert len(client.grant.reports) == 1
-            assert client.grant.reports[0].name == "Test monitoring report"
-            assert client.grant.reports[0].created_by == client.user
+            created = getattr(client.grant, collections_attr)
+            assert len(created) == 1
+            assert created[0].name == "Test collection"
+            assert created[0].created_by == client.user
 
-    def test_post_duplicate_report_name(self, authenticated_grant_admin_client, factories):
-        factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Monitoring report")
+    @pytest.mark.parametrize(
+        "collection_type, expected_error",
+        [
+            (CollectionType.MONITORING_REPORT, "A report with this name already exists"),
+            (CollectionType.APPLICATION, "A form with this name already exists"),
+        ],
+    )
+    def test_post_duplicate_name(
+        self, authenticated_grant_admin_client, factories, collection_type: CollectionType, expected_error: str
+    ):
+        factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, name="Test collection", type=collection_type
+        )
 
-        form = SetUpReportForm(data={"name": "Monitoring report"})
+        form = SetUpCollectionForm(data={"name": "Test collection"}, collection_type=collection_type)
         response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.set_up_report", grant_id=authenticated_grant_admin_client.grant.id),
+            url_for(
+                "deliver_grant_funding.set_up_collection",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            ),
             data=get_form_data(form),
         )
         soup = BeautifulSoup(response.data, "html.parser")
 
         assert response.status_code == 200
-        assert page_has_error(soup, "A report with this name already exists")
+        assert page_has_error(soup, expected_error)
 
 
 class TestChangeCollectionName:
@@ -228,24 +286,38 @@ class TestChangeCollectionName:
         assert not page_has_button(soup, "Yes, delete this report")
 
     @pytest.mark.parametrize(
+        "collection_type, expected_redirect_pattern",
+        [
+            (CollectionType.MONITORING_REPORT, r"^/deliver/grant/[a-z0-9-]{36}/reports$"),
+            (CollectionType.APPLICATION, r"^/deliver/grant/[a-z0-9-]{36}/pre-award$"),
+        ],
+    )
+    @pytest.mark.parametrize(
         "client_fixture, can_access",
-        (
+        [
             ("authenticated_grant_member_client", False),
             ("authenticated_grant_admin_client", True),
-        ),
+        ],
     )
     def test_post_update_name(
-        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session
+        self,
+        request: FixtureRequest,
+        client_fixture: str,
+        can_access: bool,
+        collection_type: CollectionType,
+        expected_redirect_pattern: str,
+        factories,
+        db_session,
     ):
         client = request.getfixturevalue(client_fixture)
-        collection = factories.collection.create(grant=client.grant, name="Original Name")
+        collection = factories.collection.create(grant=client.grant, name="Original Name", type=collection_type)
 
-        form = SetUpReportForm(data={"name": "Updated Name"})
+        form = SetUpCollectionForm(data={"name": "Updated Name"}, collection_type=collection_type)
         response = client.post(
             url_for(
                 "deliver_grant_funding.change_collection_name",
                 grant_id=client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
+                collection_type=collection_type,
                 collection_id=collection.id,
             ),
             data=get_form_data(form),
@@ -256,7 +328,7 @@ class TestChangeCollectionName:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
+            assert response.location == AnyStringMatching(expected_redirect_pattern)
 
             updated_collection = db_session.get(Collection, collection.id)
             assert updated_collection.name == "Updated Name"
@@ -265,7 +337,7 @@ class TestChangeCollectionName:
         factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Existing Report")
         collection2 = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Another Report")
 
-        form = SetUpReportForm(data={"name": "Existing Report"})
+        form = SetUpCollectionForm(data={"name": "Existing Report"}, collection_type=CollectionType.MONITORING_REPORT)
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.change_collection_name",
@@ -285,7 +357,7 @@ class TestChangeCollectionName:
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Original Name")
 
-        form = SetUpReportForm(data={"name": "Updated Name"})
+        form = SetUpCollectionForm(data={"name": "Updated Name"}, collection_type=CollectionType.MONITORING_REPORT)
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.change_collection_name",
@@ -433,7 +505,7 @@ class TestListCollectionSections:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "This monitoring report has no sections." in soup.text
+        assert "This report has no sections." in soup.text
 
         add_section_link = page_has_link(soup, "Add a section")
         assert (add_section_link is not None) is can_edit
@@ -8299,7 +8371,7 @@ class TestListSubmissions:
             )
         )
         assert response.status_code == 200
-        assert "No submissions found for this monitoring report" in response.text
+        assert "No submissions found for this report" in response.text
 
     def test_based_on_submission_mode(self, authenticated_grant_member_client, factories, db_session):
         collection = factories.collection.create(
@@ -8712,7 +8784,7 @@ class TestListSubmissionsMultipleSubmissions:
         )
 
         assert response.status_code == 200
-        assert "No submissions found for this monitoring report" in response.text
+        assert "No submissions found for this report" in response.text
 
     def test_multi_submission_table_shows_no_submission_for_recipients_without_submissions(
         self, authenticated_grant_member_client, factories, db_session

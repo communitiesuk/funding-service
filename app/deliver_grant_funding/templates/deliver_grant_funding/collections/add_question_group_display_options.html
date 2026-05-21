@@ -3,7 +3,8 @@
 {% from "deliver_grant_funding/macros/group_nesting_error_banner.html" import group_nesting_error_banner %}
 
 {% set page_title = "Add a question group - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set type_constants = db_form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}
   {{

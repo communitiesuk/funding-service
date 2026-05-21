@@ -4,7 +4,8 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/render_calculated_form_fields.html" import render_calculated_condition_custom_expression_field with context %}
 
-{% set active_item_identifier = "reports" %}
+{% set type_constants = component.form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 {% if expression %}
   {% set heading = "Edit a calculated condition" %}
   {% set submit_label = "Save calculated condition" %}

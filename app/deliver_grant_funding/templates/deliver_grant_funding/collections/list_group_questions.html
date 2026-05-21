@@ -5,10 +5,11 @@
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "deliver_grant_funding/macros/question_table.html" import question_table %}
 {% from "deliver_grant_funding/macros/group_nesting_error_banner.html" import group_nesting_error_banner %}
-{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 
 {% set page_title = group.name ~ " - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set type_constants = db_form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 {% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
 
 {% block beforeContent %}
@@ -22,7 +23,7 @@
     {% endset %}
     {% set parent_item={"html": parent_html, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=group.parent_id)} %}
   {% endif %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, form=db_form, immediate_parent_breadcrumb_item=parent_item,this_page_breadcrumb_item={"text":group.name}) }}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=db_form.collection, form=db_form, immediate_parent_breadcrumb_item=parent_item,this_page_breadcrumb_item={"text":group.name}) }}
 {% endblock beforeContent %}
 
 {% block content %}

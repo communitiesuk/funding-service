@@ -4,7 +4,8 @@
 {% from "deliver_grant_funding/macros/select_context_source_return_url.html" import context_source_return_url %}
 
 {% set page_title = "Select a data source - " ~ db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set type_constants = db_form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 
 {# Set heading caption and cancel button to for what initiated the `add data` flow #}
 {% set heading_caption = context_source_heading_caption(add_context_data) %}

@@ -3,7 +3,8 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submission - " ~ helper.long_collection_name %}
-{% set active_item_identifier = "reports" %}
+{% set type_constants = helper.submission.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}
   {% if helper.is_test %}

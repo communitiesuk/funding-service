@@ -1,12 +1,13 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
-{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import dependency_banner %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import section_component_dependency_banner %}
 {% from "deliver_grant_funding/macros/question_table.html" import question_table %}
 
+{% set type_constants = db_form.collection.type.constants %}
 {% set page_title = db_form.title %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = type_constants.active_nav %}
 {% set can_edit = authorisation_helper.can_edit_collection(current_user, db_form.collection_id) %}
 
 {% set form_has_questions = db_form.cached_questions | length > 0 %}
@@ -15,7 +16,7 @@
 {% set can_preview = form_has_questions and not collection_has_data_sources and db_form.collection.status != enum.collection_status.CLOSED %}
 
 {% block beforeContent %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, report=db_form.collection, this_page_breadcrumb_item={"text":db_form.title}) }}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=db_form.collection, this_page_breadcrumb_item={"text":db_form.title}) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -55,7 +56,7 @@
 
       <h1 class="govuk-heading-l">{{ db_form.title }}</h1>
       {% if preview_blocked_by_data_sources and db_form.collection.status != enum.collection_status.CLOSED %}
-        <p class="govuk-body">You cannot preview sections in this report because it requires uploaded data.</p>
+        <p class="govuk-body">You cannot preview sections in this {{ type_constants.singular }} because it requires uploaded data.</p>
       {% endif %}
     </div>
 

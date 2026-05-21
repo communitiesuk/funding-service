@@ -1,8 +1,9 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
-{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 
 {% set page_title = "Change question group display options" ~ " - " ~ group.name %}
-{% set active_item_identifier = "reports" %}
+{% set type_constants = db_form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}
 
@@ -19,9 +20,9 @@
   {% set parent_item={"html": parent_html, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=group.id)} %}
 
   {{
-    deliver_grant_funding_reports_breadcrumb(
+    deliver_grant_funding_collection_breadcrumb(
         grant=grant,
-        report=db_form.collection,
+        collection=db_form.collection,
         form=db_form,
         immediate_parent_breadcrumb_item=parent_item,
         this_page_breadcrumb_item={"text":"Question group display"},

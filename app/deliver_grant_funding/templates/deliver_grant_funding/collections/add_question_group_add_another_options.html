@@ -2,7 +2,8 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set page_title = "Question group add another options" %}
-{% set active_item_identifier = "reports" %}
+{% set type_constants = db_form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}
   {{

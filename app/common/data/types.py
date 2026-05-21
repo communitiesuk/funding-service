@@ -150,9 +150,36 @@ class SubmissionEventType(enum.StrEnum):
     SUBMISSION_REOPENED = "Submission reopened"
 
 
+class CollectionTypeConstants(typing.NamedTuple):
+    singular: str
+    plural: str
+    active_nav: str
+    list_endpoint: str
+
+
+_COLLECTION_TYPE_CONSTANTS: dict[str, CollectionTypeConstants] = {
+    "MONITORING_REPORT": CollectionTypeConstants(
+        singular="report",
+        plural="reports",
+        active_nav="reports",
+        list_endpoint="deliver_grant_funding.list_reports",
+    ),
+    "APPLICATION": CollectionTypeConstants(
+        singular="form",
+        plural="forms",
+        active_nav="pre_award",
+        list_endpoint="deliver_grant_funding.list_pre_award_forms",
+    ),
+}
+
+
 class CollectionType(enum.StrEnum):
     MONITORING_REPORT = "monitoring report"
     APPLICATION = "application"
+
+    @property
+    def constants(self) -> CollectionTypeConstants:
+        return _COLLECTION_TYPE_CONSTANTS[self.name]
 
 
 PRE_AWARD_COLLECTIONS = frozenset([CollectionType.APPLICATION])

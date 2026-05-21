@@ -1,4 +1,4 @@
-{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
@@ -6,14 +6,15 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
+{% set type_constants = collection.type.constants %}
 {% set page_title = "Submissions - " ~ collection.name %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}
   {% if submission_mode==enum.submission_mode.TEST %}
     {{ mhclgInlinePageTestDataBanner("Test submissions") }}
   {% endif %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":"Submissions"}) }}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=collection, this_page_breadcrumb_item={"text":"Submissions"}) }}
 {% endblock beforeContent %}
 
 {% block content %}
@@ -48,8 +49,8 @@
             {% if user_can_test_grant_recipient_journey %}
               <p class="govuk-body">
                 To start again you can
-                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=collection.grant.id, collection_type=collection.type, collection_id=collection.id) }}">
-                  test the grant recipient journey for this {{ collection.type }} </a
+                <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=collection.grant.id, collection_type=collection.type, collection_id=collection.id) }}"
+                  >test the grant recipient journey for this {{ type_constants.singular }}</a
                 >.
               </p>
             {% endif %}
@@ -73,7 +74,7 @@
               <p class="govuk-body">
                 To start again you can
                 <a class="govuk-notification-banner__link" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=collection.grant.id, collection_type=collection.type, collection_id=collection.id) }}">
-                  test the grant recipient journey for this {{ collection.type }} </a
+                  test the grant recipient journey for this {{ type_constants.singular }} </a
                 >.
               </p>
             {% endif %}
@@ -89,9 +90,9 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ collection.name }}</span>
-        {{ collection.type ~ 's' |  uppercase_first }}
+        {{ type_constants.plural | uppercase_first }}
       </h1>
-      <p class="govuk-body">View the information that has been provided by grant recipients in their {{ collection.type }}s.</p>
+      <p class="govuk-body">View the information that has been provided by grant recipients in their {{ type_constants.plural }}.</p>
       <p class="govuk-body">
         {{
           govukButton({
@@ -146,7 +147,7 @@
         {% do rows.append(cells) %}
       {% else %}
         {% set no_submissions_text %}
-          <span>No submissions found for this {{ collection.type }}</span>
+          <span>No submissions found for this {{ type_constants.singular }}</span>
         {% endset %}
         {% do rows.append([{"html": no_submissions_text, "colspan": column_count}]) %}
       {% endfor %}

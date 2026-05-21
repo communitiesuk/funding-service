@@ -12,7 +12,7 @@
         <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}"
           >Add sections<span class="govuk-visually-hidden"> to {{ collection.name }}</span></a
         >
-        to create your report
+        to create your {{ collection.type.constants.singular }}
         <br />
         Sections are groups of questions with a common theme
       {% else %}

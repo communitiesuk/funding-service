@@ -1,4 +1,4 @@
-{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
@@ -7,14 +7,15 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 
 {% set page_title = "Submission - " ~ helper.long_collection_name %}
-{% set active_item_identifier = "reports" %}
+{% set type_constants = helper.submission.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}
   {% if helper.is_test %}
     {{ mhclgInlinePageTestDataBanner("Test submission") }}
   {% endif %}
 
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, collection_type=helper.submission.collection.type, collection_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }) }}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=helper.submission.collection, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, collection_type=helper.submission.collection.type, collection_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }) }}
 {% endblock beforeContent %}
 
 {% block content %}

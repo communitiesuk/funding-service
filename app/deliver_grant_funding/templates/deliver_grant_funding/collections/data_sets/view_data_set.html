@@ -3,13 +3,14 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
-{% from "deliver_grant_funding/macros/deliver_grant_funding_reports_breadcrumb.html" import deliver_grant_funding_reports_breadcrumb %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 
-{% set active_item_identifier = "reports" %}
+{% set type_constants = collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
 {% set page_title = data_source.name %}
 
 {% block beforeContent %}
-  {{ deliver_grant_funding_reports_breadcrumb(grant=grant, data_set=data_source, this_page_breadcrumb_item={"text": data_source.name}) }}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, data_set=data_source, this_page_breadcrumb_item={"text": data_source.name}) }}
 {% endblock beforeContent %}
 
 {% block content %}

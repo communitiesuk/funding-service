@@ -141,7 +141,7 @@ from app.deliver_grant_funding.forms import (
     SelectDataSourceDataSetForm,
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
-    SetUpReportForm,
+    SetUpCollectionForm,
     SubmissionGuidanceForm,
     TestGrantRecipientJourneyForm,
     UploadDataSetForm,
@@ -233,12 +233,14 @@ def start_test_grant_recipient_journey(
     )
 
 
-@deliver_grant_funding_blueprint.route("/grant/<uuid:grant_id>/set-up-report", methods=["GET", "POST"])
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/set-up", methods=["GET", "POST"]
+)
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def set_up_report(grant_id: UUID) -> ResponseReturnValue:
+def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> ResponseReturnValue:
     grant = get_grant(grant_id)
-    form = SetUpReportForm()
+    form = SetUpCollectionForm(collection_type=collection_type)
     if form.validate_on_submit():
         assert form.name.data
         try:
@@ -246,15 +248,20 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
                 name=form.name.data,
                 user=interfaces.user.get_current_user(),
                 grant=grant,
-                type_=CollectionType.MONITORING_REPORT,
+                type_=collection_type,
             )
             # TODO: Redirect to the 'view collection' page when we've added it.
-            return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
+            return redirect(url_for(collection_type.constants.list_endpoint, grant_id=grant_id))
 
         except DuplicateValueError:
-            form.name.errors.append("A report with this name already exists")  # type: ignore[attr-defined]
+            form.name.errors.append(f"A {collection_type.constants.singular} with this name already exists")  # type: ignore[attr-defined]
 
-    return render_template("deliver_grant_funding/collections/set_up_report.html", grant=grant, form=form)
+    return render_template(
+        "deliver_grant_funding/collections/set_up_report.html",
+        grant=grant,
+        form=form,
+        collection_type=collection_type,
+    )
 
 
 @deliver_grant_funding_blueprint.route(
@@ -266,15 +273,17 @@ def set_up_report(grant_id: UUID) -> ResponseReturnValue:
 def change_collection_name(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    form = SetUpReportForm(obj=collection)
+    form = SetUpCollectionForm(obj=collection, collection_type=collection_type)
     if form.validate_on_submit():
         assert form.name.data
         try:
             update_collection(collection, name=form.name.data)
-            return redirect(url_for("deliver_grant_funding.list_reports", grant_id=collection.grant_id))
+            return redirect(url_for(collection.type.constants.list_endpoint, grant_id=collection.grant_id))
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.name.errors.append("A report with this name already exists")  # type: ignore[attr-defined]
+            form.name.errors.append(  # type: ignore[attr-defined]
+                f"A {collection.type.constants.singular} with this name already exists"
+            )
 
     return render_template(
         "deliver_grant_funding/collections/change_report_name.html",
@@ -516,7 +525,7 @@ def add_section(grant_id: UUID, collection_type: CollectionType, collection_id: 
             collection_id=collection_id,
         )
         if collection.forms
-        else url_for("deliver_grant_funding.list_reports", grant_id=grant_id)
+        else url_for(collection.type.constants.list_endpoint, grant_id=grant_id)
     )
 
     form = AddSectionForm(obj=collection)
