@@ -180,8 +180,10 @@ def _register_custom_converters(app: Flask) -> None:
         def to_python(self, value: str) -> CollectionType:
             try:
                 return CollectionType[value.upper()]
-            except KeyError:
-                raise ValidationError() from None
+            except KeyError as e:
+                # validation error raised in the context of rule converter will indicate the URL doesn't match
+                # and move on to match other routes or eventually 404
+                raise ValidationError from e
 
         def to_url(self, value: CollectionType) -> str:
             return value.name.lower()
