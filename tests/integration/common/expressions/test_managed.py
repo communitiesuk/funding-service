@@ -413,14 +413,25 @@ class TestAnyOfExpression:
                 False,
             ),  # case sensitive - this shouldn't be able to happen, though
             ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], "green", False),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], ["red", "green"], True),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], ["red", "blue"], True),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], ["green", "yellow"], False),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], [], False),
         ),
     )
-    def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool, factories):
-        expr = AnyOf(subject_reference=ExpressionReference.from_question(factories.question.build()), items=items)
-        assert (
-            evaluate(Expression(statement=expr.statement, context={expr.subject_reference.unwrapped: answer}))
-            is expected_result
+    def test_evaluate(self, items: list[TRadioItem], answer: str | list[str], expected_result: bool, factories):
+        user = factories.user.build()
+        expr = AnyOf(
+            subject_reference=ExpressionReference.from_question(factories.question.build()),
+            items=items,
         )
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, user)
+        expression.context = {
+            expr.subject_reference.unwrapped: answer,
+            "subject_reference": expr.subject_reference,
+            "items": expr.items,
+        }
+        assert evaluate(expression) is expected_result
 
     def test_needs_a_question_subject_reference(self, factories):
         collection = factories.collection.create()

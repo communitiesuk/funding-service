@@ -606,7 +606,10 @@ class BaseDataSourceManagedExpression(ManagedExpression):
 @register_managed_expression
 class AnyOf(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ANY_OF
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {
+        QuestionDataType.RADIOS,
+        QuestionDataType.CHECKBOXES,
+    }
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
     managed_expression_form_template: ClassVar[str | None] = None
 
@@ -628,7 +631,14 @@ class AnyOf(BaseDataSourceManagedExpression):
     @property
     def statement(self) -> str:
         item_keys = {str(item["key"]) for item in self.items}
-        return f"{self.subject_reference.unwrapped} in {item_keys}"
+        return f"{item_keys}.isdisjoint(string_or_set_as_set({self.subject_reference.unwrapped})) == False"
+
+    @property
+    def required_functions(self) -> dict[str, Callable[[Any], Any] | type[Any]]:
+        def string_or_set_as_set(value: str | set[Any]) -> set[Any]:
+            return {value} if isinstance(value, str) else value
+
+        return {"string_or_set_as_set": string_or_set_as_set}
 
     @staticmethod
     def get_form_fields(
@@ -784,14 +794,14 @@ class Specifically(BaseDataSourceManagedExpression):
                 default=expression.context["item"]["key"] if expression else None,  # type: ignore[index]
                 widget=GovRadioInput(),
                 choices=[(item.key, item.label) for item in question.data_source.items],
-                validators=[DataRequired("Choose one option")],
+                validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
         }
 
     @staticmethod
     def update_validators(form: _ManagedExpressionForm) -> None:
-        pass
+        form.specifically.validators = [DataRequired("Choose one option")]  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> Specifically:
