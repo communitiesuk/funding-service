@@ -1,0 +1,40 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Configure change requests - " ~ collection.name %}
+{% set constants = collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.change_requests_enabled(params={
+            "fieldset": {"legend": {"text": form.change_requests_enabled.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} },
+            "hint": {"text": "When enabled, grant team members can request changes on submitted " ~ constants.plural ~ " and select which sections need to be revised."},
+            "items": [
+              {"value": true, "text": "Yes"},
+              {"value": false, "text": "No"}
+            ]
+          })
+        }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Save"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

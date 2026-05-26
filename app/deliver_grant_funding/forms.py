@@ -939,6 +939,16 @@ class CollectionSettingsForm(FlaskForm):
         return super().validate(extra_validators)
 
 
+class ChangeRequestsSettingsForm(FlaskForm):
+    change_requests_enabled = RadioField(
+        "Should this collection allow change requests on submitted submissions?",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[DataRequired("Select whether the collection should allow change requests")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
 class PublicSignUpSettingsForm(FlaskForm):
     allow_public_sign_up = RadioField(
         "Should this collection allow public self sign up?",
@@ -1338,3 +1348,27 @@ class ReopenSubmissionForm(FlaskForm):
         widget=GovCharacterCount(),
     )
     submit = SubmitField("Reopen submission", widget=GovSubmitInput())
+
+
+class RequestChangesForm(FlaskForm):
+    REASON_MAX_WORDS = 200
+    sections_to_change = SelectMultipleField(
+        "Which sections need changes?",
+        default=[],
+        widget=GovCheckboxesInput(),
+        choices=[],
+        validators=[DataRequired("Select at least one section that needs changes")],
+    )
+    change_request_reason = TextAreaField(
+        "Why are you requesting changes?",
+        validators=[
+            DataRequired("Enter the reason for requesting changes"),
+            WordRange(max_words=REASON_MAX_WORDS, field_display_name="reason for requesting changes"),
+        ],
+        widget=GovCharacterCount(),
+    )
+    submit = SubmitField("Request changes", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, form_choices: list[tuple[str, str]], **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.sections_to_change.choices = form_choices

@@ -74,6 +74,7 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     ReopenSubmissionForm,
+    RequestChangesForm,
     SetUpCollectionForm,
 )
 from app.deliver_grant_funding.routes.collections import (
@@ -1046,6 +1047,112 @@ class TestConfigurePublicSignUp:
         )
 
         assert response.status_code == 403
+
+
+class TestCollectionConfigureChangeRequests:
+    def test_get_renders_form(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_change_requests",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Should this collection allow change requests on submitted submissions?" in soup.text
+
+    def test_get_prepopulates_when_already_enabled(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            change_requests_enabled=True,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_change_requests",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        yes_radio = soup.find("input", {"value": "True", "checked": True})
+        assert yes_radio is not None
+
+    def test_post_enable_change_requests(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        assert collection.change_requests_enabled is False
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_change_requests",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"change_requests_enabled": True, "submit": "Save"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert collection.change_requests_enabled is True
+
+    def test_post_disable_change_requests(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            change_requests_enabled=True,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_change_requests",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"change_requests_enabled": False, "submit": "Save"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert collection.change_requests_enabled is False
+
+    def test_non_admin_gets_403(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_change_requests",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 403
+
+    def test_configure_change_requests_link_visible_on_sections_page(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Configure change requests" in soup.text
 
 
 class TestReportSectionsConfigurePublicSignUp:
@@ -9280,6 +9387,163 @@ class TestReopenSubmission:
             submission_id=submission_submitted.id,
         )
         assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+
+class TestRequestChanges:
+    def test_404(self, authenticated_platform_member_client):
+        response = authenticated_platform_member_client.get(
+            url_for("deliver_grant_funding.request_changes", grant_id=uuid.uuid4(), submission_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    def test_get_renders_form_with_sections(self, authenticated_grant_member_client, submission_submitted):
+        submission_submitted.collection.change_requests_enabled = True
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.request_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Request changes" in get_h1_text(soup)
+        for form in submission_submitted.collection.forms:
+            assert form.title in soup.text
+
+    def test_get_forbidden_when_change_requests_not_enabled(
+        self, authenticated_grant_member_client, submission_submitted
+    ):
+        assert submission_submitted.collection.change_requests_enabled is False
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.request_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 403
+
+    def test_get_forbidden_for_org_member(self, authenticated_org_member_client, submission_submitted):
+        submission_submitted.collection.change_requests_enabled = True
+
+        response = authenticated_org_member_client.get(
+            url_for(
+                "deliver_grant_funding.request_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 403
+
+    def test_post_creates_events_and_redirects(self, authenticated_grant_member_client, submission_submitted):
+        submission_submitted.collection.change_requests_enabled = True
+        helper = SubmissionHelper(submission_submitted)
+        assert helper.status == SubmissionStatusEnum.SUBMITTED
+        form_id = str(submission_submitted.collection.forms[0].id)
+        form_choices = [(form_id, submission_submitted.collection.forms[0].title)]
+        form = RequestChangesForm(
+            form_choices=form_choices,
+            data={"sections_to_change": [form_id], "change_request_reason": "Please fix this section"},
+        )
+
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.view_submission",
+            grant_id=submission_submitted.collection.grant.id,
+            submission_id=submission_submitted.id,
+        )
+        assert helper.is_requesting_changes is True
+        assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+    def test_post_without_reason_shows_error(self, authenticated_grant_member_client, submission_submitted):
+        submission_submitted.collection.change_requests_enabled = True
+        form_id = str(submission_submitted.collection.forms[0].id)
+        form_choices = [(form_id, submission_submitted.collection.forms[0].title)]
+        form = RequestChangesForm(
+            form_choices=form_choices,
+            data={"sections_to_change": [form_id]},
+        )
+
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter the reason for requesting changes")
+
+    def test_post_without_sections_shows_error(self, authenticated_grant_member_client, submission_submitted):
+        submission_submitted.collection.change_requests_enabled = True
+        form_id = str(submission_submitted.collection.forms[0].id)
+        form_choices = [(form_id, submission_submitted.collection.forms[0].title)]
+        form = RequestChangesForm(
+            form_choices=form_choices,
+            data={"change_request_reason": "Please fix this section"},
+        )
+
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Select at least one section that needs changes")
+
+    def test_request_changes_button_visible_when_enabled(self, authenticated_grant_member_client, submission_submitted):
+        submission_submitted.collection.change_requests_enabled = True
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Request changes") is not None
+
+    def test_request_changes_button_hidden_when_disabled(self, authenticated_grant_member_client, submission_submitted):
+        assert submission_submitted.collection.change_requests_enabled is False
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Request changes") is None
 
 
 class TestListCollectionDataSets:

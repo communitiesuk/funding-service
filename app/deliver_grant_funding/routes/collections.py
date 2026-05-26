@@ -121,6 +121,7 @@ from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
     AddSectionForm,
+    ChangeRequestsSettingsForm,
     CollectionSettingsForm,
     ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
@@ -133,6 +134,7 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     ReopenSubmissionForm,
+    RequestChangesForm,
     SelectConditionCalculationForm,
     SelectDataSourceDataSetColumnForm,
     SelectDataSourceDataSetForm,
@@ -382,6 +384,41 @@ def collection_configure_public_sign_up(
 
     return render_template(
         "deliver_grant_funding/collections/configure_public_sign_up.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-change-requests",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def collection_configure_change_requests(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    form = ChangeRequestsSettingsForm(obj=collection if request.method == "GET" else None)
+
+    if form.validate_on_submit():
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
+            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
+        else:
+            update_collection(collection, change_requests_enabled=form.change_requests_enabled.data == "True")
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_collection_sections",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/collections/configure_change_requests.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -3295,6 +3332,43 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
             form.form_errors.append("You cannot reopen this submission because it has not been submitted")
     return render_template(
         "deliver_grant_funding/collections/reopen_submission.html",
+        form=form,
+        helper=submission_helper,
+        grant=submission_helper.grant,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/request-changes", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def request_changes(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+    if not submission_helper.can_request_changes_by_user(get_current_user()):
+        abort(403)
+    form_choices = [(str(f.id), f.title) for f in submission_helper.submission.collection.forms]
+    form = RequestChangesForm(form_choices=form_choices)
+    if form.validate_on_submit():
+        try:
+            assert form.sections_to_change.data is not None
+            submission_helper.request_changes(
+                user=get_current_user(),
+                change_request_reason=form.change_request_reason.data,  # ty:ignore[invalid-argument-type]
+                sections_to_change=[UUID(section_id) for section_id in form.sections_to_change.data],
+            )
+            flash("Changes requested", FlashMessageType.SUBMISSION_CHANGES_REQUESTED)
+            return redirect(
+                url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+            )
+        except SubmissionAuthorisationError:
+            form.form_errors.append("You do not have permission to request changes on this submission")
+        except CollectionIsNotOpenError:
+            form.form_errors.append("You cannot request changes because the collection is not open")
+        except SubmissionIsNotSubmittedError:
+            form.form_errors.append("You cannot request changes because this submission has not been submitted")
+    return render_template(
+        "deliver_grant_funding/collections/request_changes.html",
         form=form,
         helper=submission_helper,
         grant=submission_helper.grant,

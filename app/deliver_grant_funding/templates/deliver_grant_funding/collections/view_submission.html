@@ -36,6 +36,21 @@
           }}
         {% endif %}
       {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_CHANGES_REQUESTED]) %}
+        {% if flashes %}
+          {% set changes_requested_html %}
+            <h3 class="govuk-notification-banner__heading">Changes requested and email sent to {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</h3>
+            <p class="govuk-body">Email sent to {{ helper.submission.grant_recipient.organisation.name ~ " users" if helper.submission.grant_recipient else helper.submission.created_by.email }} with your reason for requesting changes.</p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": changes_requested_html,
+              "type": "success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
     </div>
   </div>
   {% if delete_form %}
@@ -57,17 +72,30 @@
     <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
     {{ submissionStatusTag(helper.status, helper.is_overdue, helper.is_requesting_changes, helper.has_requested_changes) }}
   </div>
-  {% if helper.can_be_reopened_by_user(current_user) %}
-    <div class="govuk-body">
-      {{
-        govukButton(
-        params={
-          "text": "Reopen submission",
-          "href": url_for('deliver_grant_funding.reopen_submission', grant_id=grant.id, submission_id=helper.submission.id),
-          "classes": "govuk-button--secondary"
-        }
-        )
-      }}
+  {% if helper.can_be_reopened_by_user(current_user) or helper.can_request_changes_by_user(current_user) %}
+    <div class="govuk-button-group govuk-!-margin-bottom-4">
+      {% if helper.can_be_reopened_by_user(current_user) %}
+        {{
+          govukButton(
+          params={
+            "text": "Reopen submission",
+            "href": url_for('deliver_grant_funding.reopen_submission', grant_id=grant.id, submission_id=helper.submission.id),
+            "classes": "govuk-button--secondary"
+          }
+          )
+        }}
+      {% endif %}
+      {% if helper.can_request_changes_by_user(current_user) %}
+        {{
+          govukButton(
+          params={
+            "text": "Request changes",
+            "href": url_for('deliver_grant_funding.request_changes', grant_id=grant.id, submission_id=helper.submission.id),
+            "classes": "govuk-button--secondary"
+          }
+          )
+        }}
+      {% endif %}
     </div>
   {% endif %}
   {% for form in helper.get_ordered_visible_forms() %}

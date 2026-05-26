@@ -21,6 +21,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionReference
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.submission_events import SubmissionEventHelper
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_h2, page_has_link
 
@@ -816,6 +817,73 @@ class TestTasklist:
             collection_type=submission.collection.type,
             submission_id=submission.id,
         )
+
+    def test_shows_change_request_banner_when_requesting_changes(
+        self, authenticated_grant_recipient_data_provider_client, factories, user
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            form__title="Finance section",
+            form__collection__grant=grant_recipient.grant,
+            form__collection__change_requests_enabled=True,
+            form__collection__submission_period_start_date=date.today(),
+            form__collection__submission_period_end_date=date.today(),
+            form__collection__status=CollectionStatusEnum.OPEN,
+        )
+        form = question.form
+        submission = factories.submission.create(
+            collection=form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            created_by=user,
+            data=SubmissionEventHelper.event_from(
+                SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                change_request_reason="Please update the finance figures",
+                submission_data={},
+                sections_to_change=[str(form.id)],
+            ),
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Changes have been requested for the following sections" in soup.text
+        assert "Finance section" in soup.text
+        assert "Please update the finance figures" in soup.text
+
+    def test_no_change_request_banner_when_not_requesting_changes(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Changes have been requested for the following sections" not in soup.text
 
 
 class TestAskAQuestion:
