@@ -126,7 +126,7 @@
               }, {
                 "text": submission_helper.submission.grant_recipient.organisation.name,
               }, {
-                "html": submissionStatusTag(submission_helper.status, submission_helper.is_overdue)
+                "html": submissionStatusTag(submission_helper.status, submission_helper.is_overdue, submission_helper.is_requesting_changes, submission_helper.has_requested_changes)
               }, {
                 "text": format_date_short(submission_helper.last_updated_at_utc)
               }

@@ -421,7 +421,11 @@
                 "text": form.title,
               },
               "status": {
-                "html": tasklistSectionStatusTag(submission.get_tasklist_status_for_form(form)),
+                "html": tasklistSectionStatusTag(
+                  submission.get_tasklist_status_for_form(form),
+                  submission.events.form_state(form.id).is_requesting_changes,
+                  submission.events.form_state(form.id).has_requested_changes
+                ),
               },
               "hint": {
                 "html": hint_html,

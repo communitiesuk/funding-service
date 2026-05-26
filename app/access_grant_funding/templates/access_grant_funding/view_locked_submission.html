@@ -90,7 +90,7 @@
         </dl>
         <dl class="app-metadata govuk-!-margin-bottom-9">
           <dt class="app-metadata__key">Status:</dt>
-          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue) }}</dd>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue, submission.is_requesting_changes, submission.has_requested_changes) }}</dd>
         </dl>
       {% else %}
         {# we should only show this page for a non-submitted collection if it is locked #}
@@ -103,7 +103,7 @@
         </dl>
         <dl class="app-metadata">
           <dt class="app-metadata__key">Status:</dt>
-          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue) }}</dd>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue, submission.is_requesting_changes, submission.has_requested_changes) }}</dd>
         </dl>
       {% endif %}
 

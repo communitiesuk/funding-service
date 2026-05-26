@@ -460,6 +460,14 @@ class SubmissionHelper:
         return self.events.submission_state.reopened_by
 
     @property
+    def is_requesting_changes(self) -> bool:
+        return self.events.submission_state.is_requesting_changes
+
+    @property
+    def has_requested_changes(self) -> bool:
+        return self.events.submission_state.has_requested_changes
+
+    @property
     def id(self) -> UUID:
         return self.submission.id
 

@@ -1,6 +1,6 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
-{% macro tasklistSectionStatusTag(status) %}
+{% macro tasklistSectionStatusTag(status, is_requesting_changes=false, has_requested_changes=false) %}
   {%
     set classMap = {
         enum.tasklist_section_status.CANNOT_START_YET: "govuk-task-list__status--cannot-start-yet",
@@ -9,7 +9,11 @@
         enum.tasklist_section_status.NO_QUESTIONS: "govuk-tag--red",
     }
   %}
-  {% if status == enum.tasklist_section_status.COMPLETED or status == enum.tasklist_section_status.NOT_NEEDED %}
+  {% if is_requesting_changes %}
+    {{ govukTag({"text": "Changes requested", "classes": "govuk-tag--yellow"}) }}
+  {% elif status == enum.tasklist_section_status.COMPLETED %}
+    {{ "Changes made" if has_requested_changes else status }}
+  {% elif status == enum.tasklist_section_status.NOT_NEEDED %}
     {{ status }}
   {% elif status == enum.tasklist_section_status.CANNOT_START_YET %}
     <div class="{{ classMap[status] }}">{{ status }}</div>
@@ -76,7 +80,7 @@
   {% endif %}
 {% endmacro %}
 
-{% macro submissionStatusTag(status, is_overdue) %}
+{% macro submissionStatusTag(status, is_overdue, is_requesting_changes=false, has_requested_changes=false) %}
   {% set show_without_tag = [ enum.submission_status.SUBMITTED, enum.submission_status.PARTIALLY_SUBMITTED ] %}
   {%
     set classMap = {
@@ -87,10 +91,16 @@
         enum.submission_status.NOT_SUBMITTED: "govuk-tag--orange",
     }
   %}
-  {% set status_text = status ~ (" (Overdue)" if is_overdue and status != enum.submission_status.NOT_SUBMITTED else "") %}
-  {% if status in show_without_tag %}
+  {% if is_requesting_changes %}
+    {{ govukTag({"text": "Changes requested", "classes": "app-status-tag govuk-tag--yellow"}) }}
+  {% elif status in show_without_tag %}
+    {% set status_text = status %}
+    {% if status == enum.submission_status.SUBMITTED and has_requested_changes %}
+      {% set status_text = "Submitted with changes" %}
+    {% endif %}
     <span class="govuk-body govuk-!-margin-bottom-0">{{ status_text }}</span>
   {% else %}
+    {% set status_text = status ~ (" (Overdue)" if is_overdue and status != enum.submission_status.NOT_SUBMITTED else "") %}
     {{ govukTag({"text": status_text, "classes": "app-status-tag " ~ (classMap[status] if not is_overdue or status == enum.submission_status.NOT_SUBMITTED else "govuk-tag--yellow") }) }}
   {% endif %}
 {% endmacro %}
