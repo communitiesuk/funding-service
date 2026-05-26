@@ -23,10 +23,10 @@
     "prettier": "3.8.3",
     "prettier-plugin-jinja-template": "2.2.0",
     "regenerator-runtime": "0.14.1",
-    "sass": "1.99.0",
-    "vite": "8.0.13",
+    "sass": "1.100.0",
+    "vite": "8.0.14",
     "vite-plugin-static-copy": "4.1.0",
-    "vitest": "4.1.6"
+    "vitest": "4.1.7"
   },
   "standard": {
     "globals": [
