@@ -136,6 +136,154 @@ class TestSubmissionEventHelper:
             assert events.submission_state.sent_for_certification_by == user
             assert events.submission_state.sent_for_certification_at_utc == datetime(2025, 11, 24, 0, 0, 0)
 
+    class TestChangesRequestedFormState:
+        def test_form_change_requested_sets_is_requesting_changes(self, factories):
+            form = factories.form.build()
+            user = factories.user.build()
+            submission = factories.submission.build(collection=form.collection)
+            submission.events = [
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                    related_entity_id=form.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_RUNNER_FORM_COMPLETED),
+                    created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
+                ),
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.FORM_CHANGE_REQUESTED,
+                    related_entity_id=form.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_CHANGE_REQUESTED),
+                    created_at_utc=datetime(2025, 11, 26, 0, 0, 0),
+                ),
+            ]
+            events = SubmissionEventHelper(submission)
+            state = events.form_state(form.id)
+            assert state.is_completed is False
+            assert state.is_requesting_changes is True
+            assert state.has_requested_changes is True
+
+        def test_form_completed_clears_is_requesting_changes_but_not_has_requested_changes(self, factories):
+            form = factories.form.build()
+            user = factories.user.build()
+            submission = factories.submission.build(collection=form.collection)
+            submission.events = [
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.FORM_CHANGE_REQUESTED,
+                    related_entity_id=form.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_CHANGE_REQUESTED),
+                    created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
+                ),
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                    related_entity_id=form.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_RUNNER_FORM_COMPLETED),
+                    created_at_utc=datetime(2025, 11, 26, 0, 0, 0),
+                ),
+            ]
+            events = SubmissionEventHelper(submission)
+            state = events.form_state(form.id)
+            assert state.is_completed is True
+            assert state.is_requesting_changes is False
+            assert state.has_requested_changes is True
+
+        def test_no_change_events_gives_false_has_requested_changes(self, factories):
+            form = factories.form.build()
+            user = factories.user.build()
+            submission = factories.submission.build(collection=form.collection)
+            submission.events = [
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                    related_entity_id=form.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.FORM_RUNNER_FORM_COMPLETED),
+                ),
+            ]
+            events = SubmissionEventHelper(submission)
+            state = events.form_state(form.id)
+            assert state.has_requested_changes is False
+
+    class TestChangesRequestedSubmissionState:
+        def test_submission_changes_requested_sets_flags(self, factories):
+            user = factories.user.build()
+            submission = factories.submission.build()
+            submission.events = [
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SUBMITTED),
+                    created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
+                ),
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        change_request_reason="Please fix section A",
+                        submission_data={},
+                        sections_to_change=[],
+                    ),
+                    created_at_utc=datetime(2025, 11, 26, 0, 0, 0),
+                ),
+            ]
+            events = SubmissionEventHelper(submission)
+            state = events.submission_state
+            assert state.is_submitted is False
+            assert state.is_requesting_changes is True
+            assert state.has_requested_changes is True
+            assert state.change_request_reason == "Please fix section A"
+            assert state.requested_changes_by == user  # type: ignore[union-attr]
+
+        def test_submission_submitted_after_changes_clears_is_requesting_changes(self, factories):
+            user = factories.user.build()
+            submission = factories.submission.build()
+            submission.events = [
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        change_request_reason="Please fix section A",
+                        submission_data={},
+                        sections_to_change=[],
+                    ),
+                    created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
+                ),
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SUBMITTED),
+                    created_at_utc=datetime(2025, 11, 26, 0, 0, 0),
+                ),
+            ]
+            events = SubmissionEventHelper(submission)
+            state = events.submission_state
+            assert state.is_submitted is True
+            assert state.is_requesting_changes is False
+            assert state.has_requested_changes is True
+
+        def test_no_changes_requested_gives_false_has_requested_changes(self, factories):
+            user = factories.user.build()
+            submission = factories.submission.build()
+            submission.events = [
+                factories.submission_event.build(
+                    event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                    related_entity_id=submission.id,
+                    created_by=user,
+                    data=SubmissionEventHelper.event_from(SubmissionEventType.SUBMISSION_SUBMITTED),
+                ),
+            ]
+            events = SubmissionEventHelper(submission)
+            state = events.submission_state
+            assert state.has_requested_changes is False
+            assert state.is_requesting_changes is False
+
     class TestLatestEventUTC:
         def test_latest_event_utc_returns_latest_event(self, factories):
             form = factories.form.build()

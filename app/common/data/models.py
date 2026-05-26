@@ -295,6 +295,8 @@ class Collection(BaseModel):
     # to be true, we need to generate the initial submissions for them.
     multiple_submissions_are_managed_by_service: Mapped[bool] = mapped_column(default=False)
 
+    change_requests_enabled: Mapped[bool] = mapped_column(default=False)
+
     # NOTE: Don't use this relationship directly; use either `test_submissions` or `live_submissions`.
     _submissions: Mapped[list[Submission]] = relationship(
         "Submission",

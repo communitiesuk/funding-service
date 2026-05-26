@@ -1241,6 +1241,80 @@ class SubmissionHelper:
         for recipient in recipients:
             notification_service.send_access_submission_reopened(user=recipient, submission_helper=self)
 
+    def can_request_changes_by_user(self, user: User) -> bool:
+        if not self.collection.change_requests_enabled:
+            return False
+        if not self.is_submitted:
+            return False
+        if self.is_test:
+            if self.collection.is_closed:
+                return False
+            return True
+
+        if (
+            self.collection.is_open
+            and self.collection.grant.status == GrantStatusEnum.LIVE
+            and AuthorisationHelper.can_reopen_submission(user, self.submission)
+        ):
+            return True
+        return False
+
+    def request_changes(self, user: User, change_request_reason: str, sections_to_change: list[UUID]) -> None:
+        if not self.collection.change_requests_enabled:
+            raise SubmissionAuthorisationError(
+                f"Change requests are not enabled for collection id={self.collection.id}",
+                user,
+                self.id,
+                RoleEnum.MEMBER,
+            )
+
+        if not AuthorisationHelper.can_reopen_submission(user, self.submission):
+            raise SubmissionAuthorisationError(
+                f"User does not have permission to request changes on submission id={self.id}",
+                user,
+                self.id,
+                RoleEnum.MEMBER,
+            )
+
+        if not self.collection.is_open:
+            raise CollectionIsNotOpenError(
+                f"Could not request changes on submission id={self.id} because the collection is not open."
+            )
+
+        if not self.is_submitted:
+            raise SubmissionIsNotSubmittedError(
+                f"Could not request changes on submission id={self.id} because it is not submitted."
+            )
+
+        if not sections_to_change:
+            raise ValueError(
+                f"At least one section must be selected when requesting changes on submission id={self.id}"
+            )
+
+        interfaces.collections.add_submission_event(
+            self.submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            user=user,
+            change_request_reason=change_request_reason,
+            submission_data=self.submission.data_manager.data,
+            sections_to_change=[str(form_id) for form_id in sections_to_change],
+        )
+        for form_id in sections_to_change:
+            interfaces.collections.add_submission_event(
+                self.submission,
+                event_type=SubmissionEventType.FORM_CHANGE_REQUESTED,
+                user=user,
+                related_entity_id=form_id,
+            )
+
+        recipients = set(self._data_providers_for_lifecycle_emails(user))
+
+        if self.collection.requires_certification:
+            recipients.update(self._certifiers_for_lifecycle_emails(user))
+
+        for recipient in recipients:
+            notification_service.send_access_submission_changes_requested(user=recipient, submission_helper=self)
+
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
         if is_complete == form_complete:

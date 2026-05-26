@@ -1834,6 +1834,176 @@ class TestSubmissionHelper:
             assert helper_1.status == SubmissionStatusEnum.SUBMITTED
             assert helper_2.status == SubmissionStatusEnum.IN_PROGRESS
 
+    class TestRequestChanges:
+        def test_request_changes_grant_team(
+            self, grant_team_user, submission_submitted, mock_notification_service_calls
+        ) -> None:
+            submission_submitted.collection.change_requests_enabled = True
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+            forms = helper.get_ordered_visible_forms()
+            selected_form = forms[0]
+            assert helper.get_status_for_form(selected_form) == TasklistSectionStatusEnum.COMPLETED
+
+            helper.request_changes(
+                user=grant_team_user,
+                change_request_reason="Please revise section A",
+                sections_to_change=[selected_form.id],
+            )
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.events.submission_state.is_requesting_changes is True
+            assert helper.events.submission_state.has_requested_changes is True
+            assert helper.events.submission_state.change_request_reason == "Please revise section A"
+            assert helper.events.form_state(selected_form.id).is_requesting_changes is True
+            assert helper.events.form_state(selected_form.id).is_completed is False
+
+        def test_request_changes_platform_admin(
+            self, platform_admin_user, submission_submitted, mock_notification_service_calls
+        ) -> None:
+            submission_submitted.collection.change_requests_enabled = True
+            helper = SubmissionHelper(submission_submitted)
+            forms = helper.get_ordered_visible_forms()
+
+            helper.request_changes(
+                user=platform_admin_user,
+                change_request_reason="Test reason",
+                sections_to_change=[forms[0].id],
+            )
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+        def test_request_changes_fails_when_not_enabled(self, grant_team_user, submission_submitted) -> None:
+            submission_submitted.collection.change_requests_enabled = False
+            helper = SubmissionHelper(submission_submitted)
+            forms = helper.get_ordered_visible_forms()
+
+            with pytest.raises(SubmissionAuthorisationError):
+                helper.request_changes(
+                    user=grant_team_user,
+                    change_request_reason="Test reason",
+                    sections_to_change=[forms[0].id],
+                )
+
+        def test_request_changes_fails_when_collection_not_open(self, grant_team_user, submission_submitted) -> None:
+            submission_submitted.collection.change_requests_enabled = True
+            submission_submitted.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_submitted)
+            forms = helper.get_ordered_visible_forms()
+
+            with pytest.raises(CollectionIsNotOpenError):
+                helper.request_changes(
+                    user=grant_team_user,
+                    change_request_reason="Test reason",
+                    sections_to_change=[forms[0].id],
+                )
+
+        def test_request_changes_fails_when_submission_not_submitted(
+            self, grant_team_user, factories, grant_recipient
+        ) -> None:
+            question = factories.question.create(
+                form__collection__grant=grant_recipient.grant,
+                form__collection__status=CollectionStatusEnum.OPEN,
+                form__collection__change_requests_enabled=True,
+            )
+            submission = factories.submission.create(
+                grant_recipient=grant_recipient,
+                collection=question.form.collection,
+                mode=SubmissionModeEnum.LIVE,
+            )
+            helper = SubmissionHelper(submission)
+
+            with pytest.raises(SubmissionIsNotSubmittedError):
+                helper.request_changes(
+                    user=grant_team_user,
+                    change_request_reason="Test reason",
+                    sections_to_change=[question.form.id],
+                )
+
+        def test_request_changes_fails_with_empty_sections(self, grant_team_user, submission_submitted) -> None:
+            submission_submitted.collection.change_requests_enabled = True
+            helper = SubmissionHelper(submission_submitted)
+
+            with pytest.raises(ValueError, match="At least one section"):
+                helper.request_changes(
+                    user=grant_team_user,
+                    change_request_reason="Test reason",
+                    sections_to_change=[],
+                )
+
+        def test_request_changes_only_affects_selected_forms(
+            self, grant_team_user, submission_submitted, mock_notification_service_calls, factories
+        ) -> None:
+            submission_submitted.collection.change_requests_enabled = True
+            second_form = factories.form.create(collection=submission_submitted.collection)
+            factories.submission_event.create(
+                submission=submission_submitted,
+                related_entity_id=second_form.id,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                created_by=grant_team_user,
+            )
+            helper = SubmissionHelper(submission_submitted)
+            forms = helper.get_ordered_visible_forms()
+            first_form = next(f for f in forms if f.id == submission_submitted.collection.forms[0].id)
+
+            helper.request_changes(
+                user=grant_team_user,
+                change_request_reason="Test reason",
+                sections_to_change=[first_form.id],
+            )
+
+            assert helper.events.form_state(first_form.id).is_requesting_changes is True
+            assert helper.events.form_state(second_form.id).is_requesting_changes is False
+            assert helper.events.form_state(second_form.id).is_completed is True
+
+        def test_request_changes_notification_emails_requires_certification(
+            self,
+            app,
+            grant_team_user,
+            data_provider_user,
+            certifier_user,
+            submission_submitted,
+            mock_notification_service_calls,
+        ) -> None:
+            submission_submitted.collection.change_requests_enabled = True
+            submission_submitted.collection.requires_certification = True
+            helper = SubmissionHelper(submission_submitted)
+            forms = helper.get_ordered_visible_forms()
+
+            helper.request_changes(
+                user=grant_team_user,
+                change_request_reason="Test reason",
+                sections_to_change=[forms[0].id],
+            )
+
+            recipients = [call.kwargs["email_address"] for call in mock_notification_service_calls]
+            assert data_provider_user.email in recipients
+            assert certifier_user.email in recipients
+
+        def test_request_changes_notification_emails_no_certification(
+            self,
+            app,
+            grant_team_user,
+            data_provider_user,
+            certifier_user,
+            submission_submitted,
+            mock_notification_service_calls,
+        ) -> None:
+            submission_submitted.collection.change_requests_enabled = True
+            submission_submitted.collection.requires_certification = False
+            helper = SubmissionHelper(submission_submitted)
+            forms = helper.get_ordered_visible_forms()
+
+            helper.request_changes(
+                user=grant_team_user,
+                change_request_reason="Test reason",
+                sections_to_change=[forms[0].id],
+            )
+
+            recipients = [call.kwargs["email_address"] for call in mock_notification_service_calls]
+            assert data_provider_user.email in recipients
+            assert certifier_user.email not in recipients
+
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")
         def test_last_updated_at_utc_returns_last_submission_event_utc(

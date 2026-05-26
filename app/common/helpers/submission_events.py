@@ -38,6 +38,11 @@ class ReopenedMixin(Protocol):
     reopened_reason: str | None
 
 
+class ChangesRequestedMixin(Protocol):
+    change_request_reason: str | None
+    sections_to_change: list[str] | None
+
+
 @dataclass
 class SubmissionEventBase:
     """Base class for all submission event dataclasses."""
@@ -49,6 +54,7 @@ class SubmissionEventBase:
 class FormCompletedEvent(SubmissionEventBase, CompletedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
     is_completed: bool = True
+    is_requesting_changes: bool = False
 
 
 @dataclass
@@ -113,6 +119,34 @@ class SubmissionApprovedByCertifierEvent(SubmissionEventBase, SignOffMixin):
 class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_SUBMITTED
     is_submitted: bool = True
+    is_requesting_changes: bool = False
+
+
+@dataclass
+class FormChangeRequestedEvent(SubmissionEventBase, CompletedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_CHANGE_REQUESTED
+    is_completed: bool = False
+    is_requesting_changes: bool = True
+    has_requested_changes: bool = True
+
+
+@dataclass
+class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, ChangesRequestedMixin, SubmittedMixin):
+    change_request_reason: str = field(metadata={"stored": True})
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_CHANGES_REQUESTED
+    is_awaiting_sign_off: bool = False
+    is_approved: bool = False
+    is_submitted: bool = False
+    is_requesting_changes: bool = True
+    has_requested_changes: bool = True
+    submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
+    sections_to_change: list[str] = field(default_factory=list, metadata={"stored": True})
+
+
+class ChangesRequestedKwargs(TypedDict, total=False):
+    change_request_reason: str | None
+    submission_data: dict[str, Any] | None
+    sections_to_change: list[str] | None
 
 
 # State - represents a snapshot of the current state of the target entity for those events
@@ -148,16 +182,24 @@ class ReopenedMetadata:
 
 
 @dataclass
+class RequestedChangesMetadata:
+    requested_changes_by: User | None = None
+    requested_changes_at_utc: datetime | None = None
+
+
+@dataclass
 class SubmissionState(
     SentForCertificationMetadata,
     SubmittedMetadata,
     CertifiedMetadata,
     CertificationDeclinedMetadata,
     ReopenedMetadata,
+    RequestedChangesMetadata,
     SignOffMixin,
     SubmittedMixin,
     DeclinedMixin,
     ReopenedMixin,
+    ChangesRequestedMixin,
 ):
     is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
@@ -165,11 +207,17 @@ class SubmissionState(
     declined_reason: str | None = None
     reopened_reason: str | None = None
     submission_data: dict[str, Any] | None = None
+    is_requesting_changes: bool = False
+    has_requested_changes: bool = False
+    change_request_reason: str | None = None
+    sections_to_change: list[str] | None = None
 
 
 @dataclass
 class FormState(CompletedMixin):
     is_completed: bool = False
+    is_requesting_changes: bool = False
+    has_requested_changes: bool = False
 
 
 _SUBMISSION_EVENT_REGISTRY = {event.event_type: event for event in SubmissionEventBase.__subclasses__()}
@@ -285,6 +333,13 @@ class SubmissionEventHelper:
                         reopened_at_utc=event.created_at_utc,
                     )
                 )
+            case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
+                return shallow_asdict(
+                    RequestedChangesMetadata(
+                        requested_changes_by=event.created_by,
+                        requested_changes_at_utc=event.created_at_utc,
+                    )
+                )
             case _:
                 return {}
 
@@ -295,6 +350,13 @@ class SubmissionEventHelper:
             SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER, SubmissionEventType.SUBMISSION_REOPENED
         ],
         **kwargs: Unpack[DeclinedByCertifierKwargs, ReopenedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED],
+        **kwargs: Unpack[ChangesRequestedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

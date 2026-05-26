@@ -66,6 +66,7 @@ from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
 from app.common.helpers.submission_events import (
+    ChangesRequestedKwargs,
     DeclinedByCertifierKwargs,
     ReopenedKwargs,
     SubmissionEventHelper,
@@ -133,6 +134,7 @@ def update_collection(  # noqa: C901
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
+    change_requests_enabled: bool | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     if name is not NOT_PROVIDED:
         collection.name = name
@@ -220,6 +222,9 @@ def update_collection(  # noqa: C901
     if submission_guidance is not NOT_PROVIDED:
         stripped = submission_guidance.strip() if submission_guidance else None
         collection.submission_guidance = stripped or None
+
+    if change_requests_enabled is not NOT_PROVIDED:
+        collection.change_requests_enabled = change_requests_enabled
 
     if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):
@@ -1530,6 +1535,17 @@ def add_submission_event(
 def add_submission_event(
     submission: Submission,
     *,
+    event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[ChangesRequestedKwargs],
+) -> Submission: ...
+
+
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
     event_type: SubmissionEventType,
     user: User,
     related_entity_id: UUID | None = None,
@@ -1578,6 +1594,13 @@ def add_submission_event(
 
         case SubmissionEventType.SUBMISSION_REOPENED:
             emit_metric_count(MetricEventName.SUBMISSION_REOPENED, submission=submission)
+
+        case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
+            emit_metric_count(MetricEventName.SUBMISSION_CHANGES_REQUESTED, submission=submission)
+
+        case SubmissionEventType.FORM_CHANGE_REQUESTED:
+            pass
+
         case _:
             current_app.logger.error(
                 "No metric configured for submission event %(event_type)s for submission %(submission_id)s",

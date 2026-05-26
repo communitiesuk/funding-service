@@ -412,6 +412,45 @@ class NotificationService:
             personalisation=personalisation,
         )
 
+    def send_access_submission_changes_requested(
+        self,
+        user: User,
+        submission_helper: SubmissionHelper,
+    ) -> Notification:
+        submission_state = submission_helper.events.submission_state
+
+        if not submission_state.change_request_reason:
+            raise ValueError(
+                f"Could not send submission changes requested email for submission id={submission_helper.id} because "
+                "there is no change request reason"
+            )
+
+        lines_for_email = ""
+        for line in submission_state.change_request_reason.splitlines():
+            lines_for_email += f"^ {line}\n"
+
+        personalisation = {
+            "is_test_data": "yes"
+            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
+            else "no",
+            "report_name": submission_helper.long_collection_name,
+            "grant_name": submission_helper.collection.grant.name,
+            "reopening_reason": lines_for_email,
+            "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
+            "grant_report_url": url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                grant_id=submission_helper.submission.grant_recipient.grant.id,
+                collection_id=submission_helper.collection.id,
+                _external=True,
+            ),
+        }
+        return self._send_email(
+            email_address=user.email,
+            template_id=current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_CHANGES_REQUESTED_TEMPLATE_ID"],
+            personalisation=personalisation,
+        )
+
     def send_grant_export(
         self,
         email_address: str,
