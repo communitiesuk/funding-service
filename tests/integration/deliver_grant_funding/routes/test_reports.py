@@ -9208,8 +9208,8 @@ class TestListReportDataSets:
             items=None,
         )
         data_source_2 = factories.data_source.create(
-            type=DataSourceType.STATIC,
-            name="Themes Data",
+            type=DataSourceType.GRANT_RECIPIENT,
+            name="Organisation Data",
             grant=client.grant,
             collection=report,
             created_by=uploader,
@@ -9220,7 +9220,7 @@ class TestListReportDataSets:
 
         other_report = factories.collection.create(name="Other Report")
         data_source_3 = factories.data_source.create(
-            type=DataSourceType.STATIC,
+            type=DataSourceType.GRANT_RECIPIENT,
             name="Other Data",
             grant=other_report.grant,
             collection=other_report,
@@ -9760,12 +9760,18 @@ class TestMapDataSetColumns:
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
     ):
         report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+        )
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
                 name="Test Data Set",
-                data_source_type=DataSourceType.PROJECT_LEVEL,
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Area description"],
-                preview_data={"Area description": ["A fine place", "A wonderful place"]},
+                preview_data={"Area description": ["A wonderful place"]},
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
                 s3_key="data-set-uploads/test.csv",
@@ -9773,14 +9779,14 @@ class TestMapDataSetColumns:
 
         all_rows = [
             {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
                 "Area description": "",
             },
             {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Lothlorien",
-                "Area description": "",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                "Area description": "A wonderful place",
             },
         ]
         mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
@@ -10446,7 +10452,7 @@ class TestViewDataSource:
             grant=grant,
             name="Test data set",
             created_at_utc=datetime.datetime(2026, 7, 1, 12, 0, 0),
-            type=DataSourceType.STATIC,
+            type=DataSourceType.GRANT_RECIPIENT,
         )
 
         response = client.get(
@@ -10472,6 +10478,25 @@ class TestViewDataSource:
             else:
                 assert not page_has_link(soup, "Delete data set")
 
+    def test_get_view_data_source_404_if_not_grant_recipient_level_data_set(
+        self, authenticated_grant_member_client, factories
+    ):
+        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
+
+        # Creates a CUSTOM data source by default so should 404
+        data_source = factories.data_source.create(grant=authenticated_grant_member_client.grant, collection=report)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                report_id=report.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 404
+
     @pytest.mark.parametrize(
         "client_fixture, can_delete",
         (
@@ -10487,7 +10512,7 @@ class TestViewDataSource:
             collection=report,
             grant=grant,
             name="Test data set",
-            type=DataSourceType.STATIC,
+            type=DataSourceType.GRANT_RECIPIENT,
         )
 
         response = client.get(
@@ -10521,7 +10546,7 @@ class TestViewDataSource:
             collection=report,
             grant=authenticated_grant_member_client.grant,
             name="Test data set",
-            type=DataSourceType.STATIC,
+            type=DataSourceType.GRANT_RECIPIENT,
             created_by=user,
         )
 
@@ -10585,84 +10610,6 @@ class TestViewDataSource:
         assert "Rivendell Council" in soup.text
         assert "Allocation" in soup.text
         assert "£500,000" in soup.text
-
-    def test_get_shows_project_level_table_with_one_row_per_project(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
-        organisation = factories.organisation.create(external_id="E123", name="Rivendell Council")
-        factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant,
-            organisation=organisation,
-            mode=GrantRecipientModeEnum.LIVE,
-        )
-        data_source = factories.data_source.create(
-            collection=report,
-            grant=authenticated_grant_member_client.grant,
-            name="Test data set",
-            type=DataSourceType.PROJECT_LEVEL,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_project_name": {
-                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
-                        "original_column_name": "Project name",
-                        "presentation_options": {},
-                        "data_options": {},
-                    }
-                }
-            ),
-            items=None,
-        )
-        factories.data_source_organisation_item.create(
-            data_source=data_source,
-            external_id="E123",
-            _data=[
-                {"c_project_name": "Roads"},
-                {"c_project_name": "Bridges"},
-            ],
-        )
-
-        response = authenticated_grant_member_client.get(
-            url_for(
-                "deliver_grant_funding.view_data_source",
-                grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
-                data_source_id=data_source.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        # Both projects should appear as separate rows
-        assert soup.text.count("E123") == 2
-        assert "Roads" in soup.text
-        assert "Bridges" in soup.text
-
-    def test_get_shows_static_table(self, authenticated_grant_member_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_member_client.grant)
-        data_source = factories.data_source.create(
-            collection=report,
-            grant=authenticated_grant_member_client.grant,
-            name="Test data set",
-            type=DataSourceType.STATIC,
-            items=None,
-        )
-        factories.data_source_item.create(data_source=data_source, key="UK", label="United Kingdom", order=0)
-        factories.data_source_item.create(data_source=data_source, key="FR", label="France", order=1)
-
-        response = authenticated_grant_member_client.get(
-            url_for(
-                "deliver_grant_funding.view_data_source",
-                grant_id=authenticated_grant_member_client.grant.id,
-                report_id=report.id,
-                data_source_id=data_source.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert "UK" in soup.text
-        assert "United Kingdom" in soup.text
-        assert "FR" in soup.text
-        assert "France" in soup.text
 
     def test_get_shows_missing_data_tag_for_empty_values(self, authenticated_grant_member_client, factories):
         org = factories.organisation.create(can_manage_grants=False, external_id="E123")
@@ -10834,10 +10781,18 @@ class TestViewDataSource:
         assert db_session.get(DataSource, data_source_id) is None
         assert len(mock_s3_service_calls.delete_file_calls) == 1
 
-    def test_post_delete_shows_flash_message(self, authenticated_grant_admin_client, factories, db_session):
+    def test_post_delete_shows_flash_message(
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
+    ):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
-        data_source = factories.data_source.create(grant=grant, collection=report, name="My Data Set")
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            name="My Data Set",
+            type=DataSourceType.GRANT_RECIPIENT,
+            items=None,
+        )
 
         response = authenticated_grant_admin_client.post(
             url_for(

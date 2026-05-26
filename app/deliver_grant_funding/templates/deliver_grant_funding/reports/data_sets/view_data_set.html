@@ -96,97 +96,40 @@
 
     <div class="govuk-grid-column-full">
       <h2 class="govuk-heading-m">Data columns</h2>
+      {%
+        set head = [
+          {"text": "External ID"},
+          {"text": "Grant recipient"}
+        ]
+      %}
+      {% for slug, col_schema in data_source.schema.root.items() %}
+        {% do head.append({"text": col_schema.original_column_name}) %}
+      {% endfor %}
 
-      {% if data_source.type == enum.data_source_type_enum.STATIC %}
+      {% set rows = [] %}
+      {% for item in data_source.organisation_items %}
+        {% set gr_name = grant_recipient_name_by_external_id.get(item.external_id) %}
+        {% set row = [{"text": item.external_id}] %}
 
-        {%
-          set head = [
-            {"text": "Key"},
-            {"text": "Value"}
-          ]
-        %}
-        {% set rows = [] %}
-        {% for item in data_source.items %}
-          {%
-            set key_cell = {"text": item.key} if item.key
-            else {"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}
-          %}
-          {%
-            set val_cell = {"text": item.label} if item.label
-            else {"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}
-          %}
-          {% do rows.append([key_cell, val_cell]) %}
-        {% endfor %}
-        <div class="moj-scrollable-pane" role="region" aria-label="{{ data_source.name }}" tabindex="0">{{ govukTable({"head": head, "rows": rows}) }}</div>
-      {% elif data_source.type == enum.data_source_type_enum.GRANT_RECIPIENT %}
-        {%
-          set head = [
-            {"text": "External ID"},
-            {"text": "Grant recipient"}
-          ]
-        %}
+        {% if gr_name is none %}
+          {% do row.append({"html":govukTag({"text": "Grant recipient not set up", "classes": "govuk-tag--orange"})}) %}
+        {% else %}
+          {% do row.append({"text": gr_name}) %}
+        {% endif %}
+
+        {% set typed_row = item.data %}
         {% for slug, col_schema in data_source.schema.root.items() %}
-          {% do head.append({"text": col_schema.original_column_name}) %}
-        {% endfor %}
-
-        {% set rows = [] %}
-        {% for item in data_source.organisation_items %}
-          {% set gr_name = grant_recipient_name_by_external_id.get(item.external_id) %}
-          {% set row = [{"text": item.external_id}] %}
-
-          {% if gr_name is none %}
-            {% do row.append({"html":govukTag({"text": "Grant recipient not set up", "classes": "govuk-tag--orange"})}) %}
+          {% set answer = typed_row[slug] %}
+          {% if answer is none %}
+            {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}) %}
           {% else %}
-            {% do row.append({"text": gr_name}) %}
+            {% do row.append({"text": answer.get_value_for_interpolation()}) %}
           {% endif %}
-
-          {% set typed_row = item.data %}
-          {% for slug, col_schema in data_source.schema.root.items() %}
-            {% set answer = typed_row[slug] %}
-            {% if answer is none %}
-              {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}) %}
-            {% else %}
-              {% do row.append({"text": answer.get_value_for_interpolation()}) %}
-            {% endif %}
-          {% endfor %}
-          {% do rows.append(row) %}
         {% endfor %}
+        {% do rows.append(row) %}
+      {% endfor %}
 
-        <div class="moj-scrollable-pane" role="region" aria-label="{{ data_source.name }}" tabindex="0">{{ govukTable({"head": head, "rows": rows}) }}</div>
-      {% elif data_source.type == enum.data_source_type_enum.PROJECT_LEVEL %}
-        {%
-          set head = [
-            {"text": "External ID"},
-            {"text": "Grant recipient"}
-          ]
-        %}
-        {% for slug, col_schema in data_source.schema.root.items() %}
-          {% do head.append({"text": col_schema.original_column_name}) %}
-        {% endfor %}
-
-        {% set rows = [] %}
-        {% for item in data_source.organisation_items %}
-          {% set gr_name = grant_recipient_name_by_external_id.get(item.external_id, item.external_id) %}
-          {% for blob in item.data %}
-            {%
-              set row = [
-                {"text": item.external_id},
-                {"text": gr_name}
-              ]
-            %}
-            {% for slug, col_schema in data_source.schema.root.items() %}
-              {% set answer = blob[slug] %}
-              {% if answer is none %}
-                {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}) %}
-              {% else %}
-                {% do row.append({"text": answer.get_value_for_interpolation()}) %}
-              {% endif %}
-            {% endfor %}
-            {% do rows.append(row) %}
-          {% endfor %}
-        {% endfor %}
-        <div class="moj-scrollable-pane" role="region" aria-label="{{ data_source.name }}" tabindex="0">{{ govukTable({"head": head, "rows": rows}) }}</div>
-      {% endif %}
+      <div class="moj-scrollable-pane" role="region" aria-label="{{ data_source.name }}" tabindex="0">{{ govukTable({"head": head, "rows": rows}) }}</div>
     </div>
   </div>
 {% endblock content %}

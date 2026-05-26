@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.common.data.interfaces.collections import raise_if_data_source_has_references
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
-from app.common.data.models import DataSource, DataSourceItem, DataSourceOrganisationItem
+from app.common.data.models import DataSource, DataSourceOrganisationItem
 from app.common.data.models_user import User
 from app.common.data.types import (
     DataSourceFileMetadata,
@@ -110,39 +110,15 @@ def _create_organisation_items(
     all_rows: TUnvalidatedDataSetRows,
     column_mappings: list[DataSetColumnMapping],
     identifier_columns: list[str],
-    is_project_level: bool = False,
 ) -> None:
     mappings = {m.column_name: m for m in column_mappings}
-    grouped: dict[str, TUnvalidatedDataSetRows] = {}
     for row in all_rows:
-        external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
-        grouped.setdefault(external_id, []).append(row)
-
-    for external_id, rows in grouped.items():
-        data_blobs = [_build_data_blob(row, mappings, identifier_columns) for row in rows]
         item = DataSourceOrganisationItem(
             data_source_id=data_source.id,
-            external_id=external_id,
-            _data=data_blobs if is_project_level else data_blobs[0],
+            external_id=row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip(),
+            _data=_build_data_blob(row, mappings, identifier_columns),
         )
         data_source.organisation_items.append(item)
-        db.session.add(item)
-
-
-def _create_static_items(
-    data_source: DataSource,
-    all_rows: TUnvalidatedDataSetRows,
-    column_mappings: list[DataSetColumnMapping],
-) -> None:
-    key_col, value_col = column_mappings[0].column_name, column_mappings[1].column_name
-    for idx, row in enumerate(all_rows):
-        item = DataSourceItem(
-            data_source_id=data_source.id,
-            key=row.get(key_col, ""),
-            label=row.get(value_col, ""),
-            order=idx,
-        )
-        data_source.items.append(item)
         db.session.add(item)
 
 
@@ -177,12 +153,6 @@ def create_uploaded_data_source(
     match data_source_type:
         case DataSourceType.GRANT_RECIPIENT:
             _create_organisation_items(data_source, all_rows, column_mappings, DATA_SET_IDENTIFIER_COLUMN_HEADERS)
-        case DataSourceType.PROJECT_LEVEL:
-            _create_organisation_items(
-                data_source, all_rows, column_mappings, DATA_SET_IDENTIFIER_COLUMN_HEADERS, is_project_level=True
-            )
-        case DataSourceType.STATIC:
-            _create_static_items(data_source, all_rows, column_mappings)
         case _:
             raise ValueError(f"Unsupported data source type: {data_source_type}")
 

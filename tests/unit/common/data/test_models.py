@@ -409,10 +409,6 @@ class TestDataSourceMakePydanticModel:
         )
         assert data_source.build_typed_org_item_data({"c_capital_allocation": "1000"}) == {}
 
-    def test_returns_empty_list_when_no_schema_and_3d_data(self, factories):
-        data_source = factories.data_source.build(name="Test data set", type=DataSourceType.PROJECT_LEVEL, schema=None)
-        assert data_source.build_typed_org_item_data([{"c_capital_allocation": "1000"}]) == []
-
     def test_text_column_returns_text_single_line_answer(self, factories):
         data_source = factories.data_source.build(
             name="Test data set",
@@ -508,51 +504,6 @@ class TestDataSourceMakePydanticModel:
         assert isinstance(result["theme-name"], TextSingleLineAnswer)
         assert isinstance(result["allocation"], DecimalAnswer)
         assert isinstance(result["headcount"], IntegerAnswer)
-
-    def test_3d_project_level_returns_list_of_dicts(self, factories):
-        data_source = factories.data_source.build(
-            name="Test data set",
-            type=DataSourceType.PROJECT_LEVEL,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "project-name": _text_col("Project name"),
-                    "allocation": _decimal_col("Allocation", prefix="£", max_decimal_places=2),
-                }
-            ),
-        )
-
-        result = data_source.build_typed_org_item_data(
-            [
-                {"project-name": "Alpha", "allocation": "500.00"},
-                {"project-name": "Beta", "allocation": "1500.00"},
-            ]
-        )
-
-        assert isinstance(result, list)
-        assert len(result) == 2
-        assert isinstance(result[0]["project-name"], TextSingleLineAnswer)
-        assert isinstance(result[0]["allocation"], DecimalAnswer)
-        assert result[0]["allocation"].get_value_for_interpolation() == "£500.00"
-        assert result[1]["allocation"].get_value_for_interpolation() == "£1,500.00"
-
-    def test_3d_each_row_in_list_is_independently_typed(self, factories):
-        data_source = factories.data_source.build(
-            name="Test data set",
-            type=DataSourceType.PROJECT_LEVEL,
-            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
-        )
-
-        result = data_source.build_typed_org_item_data(
-            [
-                {"allocation": "100.00"},
-                {"allocation": None},
-                {"allocation": "300.00"},
-            ]
-        )
-
-        assert isinstance(result[0]["allocation"], DecimalAnswer)
-        assert result[1]["allocation"] is None
-        assert isinstance(result[2]["allocation"], DecimalAnswer)
 
 
 class TestDataSourceBuildAnswerForColumn:

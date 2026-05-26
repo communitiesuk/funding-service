@@ -7,13 +7,12 @@
 
 {% set page_title = "Missing data in " ~ session_data.name %}
 
-{% set is_static = session_data.data_source_type == enum.data_source_type_enum.STATIC %}
-
 {% block beforeContent %}
-  {% if is_static %}
-    {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id) %}
-  {% else %}
+  {% set has_manual_formatting = (session_data.column_mappings | selectattr("requires_manual_formatting") | list | length) > 0 %}
+  {% if has_manual_formatting %}
     {% set back_link = url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=grant.id, report_id=report.id) %}
+  {% else %}
+    {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id) %}
   {% endif %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
@@ -33,11 +32,7 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% if is_static %}
-        {% set table_head = [{"text": "Row"}] %}
-      {% else %}
-        {% set table_head = [{"text": "Row"}, {"text": constants.data_set_external_id_column_header}, {"text": constants.data_set_grant_recipient_column_header}] %}
-      {% endif %}
+      {% set table_head = [{"text": "Row"}, {"text": constants.data_set_external_id_column_header}, {"text": constants.data_set_grant_recipient_column_header}] %}
       {% for column in session_data.data_columns %}
         {% do table_head.append({"text": column}) %}
       {% endfor %}
@@ -48,17 +43,13 @@
 
         {# Apologies to future selves - missing_data_row is the index for the row in the list rather than the row
         in the csv, which is what we need to show in this table so the user knows which rows to fix up #}
-        {% if is_static %}
-          {% set row_cells = [{"text": missing_data_row + 2}] %}
-        {% else %}
-          {%
-            set row_cells = [
-              {"text": missing_data_row + 2},
-              {"text": data_row.get(constants.data_set_external_id_column_header)},
-              {"text": data_row.get(constants.data_set_grant_recipient_column_header)}
-            ]
-          %}
-        {% endif %}
+        {%
+          set row_cells = [
+            {"text": missing_data_row + 2},
+            {"text": data_row.get(constants.data_set_external_id_column_header)},
+            {"text": data_row.get(constants.data_set_grant_recipient_column_header)}
+          ]
+        %}
 
         {% for column in session_data.data_columns %}
           {% set val = data_row.get(column, "") %}
