@@ -30,29 +30,19 @@
         <span class="govuk-caption-l">{{ report.name }}</span>
         Upload new data set
       </h1>
-      <p class="govuk-body">Upload data to reference in form guidance, questions, conditions and validation.</p>
+      <p class="govuk-body">
+        To upload a complete data set, <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=grant.id) }}">check the grant recipients</a> have been set up first before uploading
+        the file. The grant recipients will be reflected in the
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.download_grant_recipient_data_set_template', grant_id=grant.id, report_id=report.id) }}">data set template (CSV)</a>.
+      </p>
+      <p class="govuk-body">If you are missing some grant recipients or data, you can still upload the file and replace it later.</p>
       <form method="POST" enctype="multipart/form-data" novalidate>
         {{ form.csrf_token }}
         {{ form.name }}
-        {{
-          form.data_source_type(params={
-            "items": [
-              { "hint": {
-                  "text": "For example, grant allocation",
-                }
-              },
-              {
-                "hint": {
-                  "text": "For example, project details",
-                }
-              },
-              {},
-            ]
-          })
-        }}
         {{ form.file(params={"javascript": true}) }}
+        <p class="govuk-body">Only CSV (.csv) files can be uploaded for data sets.</p>
         <div class="govuk-button-group">
-          {{ form.submit(params={"text": "Continue and map columns" }) }}
+          {{ form.submit(params={"text": "Continue and format data" }) }}
           <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_report_data_sets', grant_id=grant.id, report_id=report.id) }}">Cancel</a>
         </div>
       </form>

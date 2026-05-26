@@ -488,6 +488,7 @@ class DataSourceFileMetadata(BaseModel):
 
 TUnvalidatedDataSetRow = dict[str, str]
 TUnvalidatedDataSetRows = list[TUnvalidatedDataSetRow]
+TDataSetPreviewData = dict[str, list[str]]
 
 
 class DataSourceFileMetadataPostgresType(TypeDecorator):

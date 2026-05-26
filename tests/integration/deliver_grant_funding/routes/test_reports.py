@@ -9270,7 +9270,7 @@ class TestListReportDataSets:
                 "is_grant_recipient_data": True,
                 "is_grant_recipient_project_level_data": False,
                 "data_columns": ["Amount"],
-                "preview_rows": [],
+                "preview_data": {},
                 "all_rows": [],
                 "column_mappings": [],
             }
@@ -9438,9 +9438,9 @@ class TestUploadDataSet:
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = {
                 "name": "Test Data Set",
-                "data_source_type": DataSourceType.PROJECT_LEVEL,
+                "data_source_type": DataSourceType.GRANT_RECIPIENT,
                 "data_columns": ["Amount"],
-                "preview_rows": [],
+                "preview_data": {},
                 "column_mappings": [],
                 "data_source_id": uuid.uuid4(),
                 "original_filename": "test.csv",
@@ -9455,10 +9455,6 @@ class TestUploadDataSet:
         soup = BeautifulSoup(response.text, "html.parser")
         name_input = soup.find("input", {"name": "name"})
         assert name_input["value"] == "Test Data Set"
-        assert (
-            soup.find("input", {"name": "data_source_type", "value": DataSourceType.PROJECT_LEVEL}).get("checked")
-            is not None
-        )
 
     def test_post_valid_csv_redirects_to_map_columns_with_session(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
@@ -9546,15 +9542,24 @@ class TestUploadDataSet:
         assert len(mock_s3_service_calls.upload_file_calls) == 1
         assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.PENDING}
 
-    def test_post_stores_preview_rows(self, authenticated_grant_admin_client, factories, mock_s3_service_calls):
+    def test_post_stores_preview_data(self, authenticated_grant_admin_client, factories, mock_s3_service_calls):
         grant = authenticated_grant_admin_client.grant
         report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E789", organisation__name="Rivendell")
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E000", organisation__name="Gondor")
 
-        rows = ["Col1,Col2"] + [f"val{i},data{i}" for i in range(10)]
-        csv_content = "\n".join(rows)
+        csv_content = (
+            "Organisation ID,Grant recipient,Amount,Category\n"
+            "E123,Lothlorien,,A\n"
+            "E456,Numenor,1000,A\n"
+            "E789,Rivendell,2000,A\n"
+            "E000,Gondor,3000,A"
+        )
         data = {
             "name": "Test Data Set",
-            "data_source_type": DataSourceType.STATIC,
+            "data_source_type": DataSourceType.GRANT_RECIPIENT,
             "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
         }
 
@@ -9568,32 +9573,11 @@ class TestUploadDataSet:
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             session_data = sess.get("data_set_upload")
-            assert len(session_data["preview_rows"]) == 5  # Only first 5 rows
-        assert len(mock_s3_service_calls.upload_file_calls) == 1
-
-    def test_post_static_csv_without_missing_data_proceeds(
-        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
-    ):
-        grant = authenticated_grant_admin_client.grant
-        report = factories.collection.create(grant=grant)
-
-        csv_content = "theme id,theme name\nelectric,Electricity\nwater,Water supply"
-        data = {
-            "name": "Themes",
-            "data_source_type": DataSourceType.STATIC,
-            "file": (io.BytesIO(csv_content.encode("utf-8")), "themes.csv"),
-        }
-
-        response = authenticated_grant_admin_client.post(
-            url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, report_id=report.id),
-            data=data,
-            content_type="multipart/form-data",
-        )
-
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "deliver_grant_funding.map_data_set_columns", grant_id=grant.id, report_id=report.id
-        )
+            assert set(session_data["preview_data"].keys()) == {"Amount", "Category"}
+            for values in session_data["preview_data"].values():
+                assert len(values) == 3
+                assert all(v != "" for v in values)
+            assert session_data["preview_data"]["Amount"] == ["1000", "2000", "3000"]
         assert len(mock_s3_service_calls.upload_file_calls) == 1
 
 
@@ -9612,10 +9596,11 @@ class TestMapDataSetColumns:
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Capital allocation", "Revenue allocation", "Notes"],
-                preview_rows=[
-                    {"Capital allocation": "£1000", "Revenue allocation": "£10000", "Notes": "First"},
-                    {"Capital allocation": "£2000", "Revenue allocation": "£30000", "Notes": "Second"},
-                ],
+                preview_data={
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                    "Notes": ["First", "Second"],
+                },
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
                 s3_key="data-set-uploads/test.csv",
@@ -9631,9 +9616,9 @@ class TestMapDataSetColumns:
 
         assert f"Map {data_set_session_data['name']} data columns" in get_h1_text(soup)
 
-        for row in data_set_session_data["preview_rows"]:
-            for col in data_set_session_data["data_columns"]:
-                assert row[col] in soup.text
+        for _, values in data_set_session_data["preview_data"].items():
+            for value in values:
+                assert value in soup.text
         for idx, col in enumerate(data_set_session_data["data_columns"]):
             assert col in soup.text
             select = soup.find("select", {"name": f"columns-{idx}-column_type"})
@@ -9649,10 +9634,10 @@ class TestMapDataSetColumns:
                     "Capital allocation",
                     "Revenue allocation",
                 ],
-                preview_rows=[
-                    {"Capital allocation": "£1000", "Revenue allocation": "£10000"},
-                    {"Capital allocation": "£2000", "Revenue allocation": "£30000"},
-                ],
+                preview_data={
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
                 column_mappings=[
                     DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
                     DataSetColumnMapping(column_name="Revenue allocation", column_type="DECIMAL"),
@@ -9689,10 +9674,10 @@ class TestMapDataSetColumns:
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Capital allocation", "Additional info"],
-                preview_rows=[
-                    {"Capital allocation": "1000", "Additional info": "Some extra details"},
-                    {"Capital allocation": "2000", "Additional info": "Here are some finer details"},
-                ],
+                preview_data={
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Additional info": ["Some extra details", "Here are some finer details"],
+                },
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
                 s3_key="data-set-uploads/test.csv",
@@ -9729,10 +9714,7 @@ class TestMapDataSetColumns:
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Area description"],
-                preview_rows=[
-                    {"Area description": "A fine place"},
-                    {"Area description": "A wonderful place"},
-                ],
+                preview_data={"Area description": ["A fine place", "A wonderful place"]},
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
                 s3_key="data-set-uploads/test.csv",
@@ -9783,10 +9765,7 @@ class TestMapDataSetColumns:
                 name="Test Data Set",
                 data_source_type=DataSourceType.PROJECT_LEVEL,
                 data_columns=["Area description"],
-                preview_rows=[
-                    {"Area description": "A fine place"},
-                    {"Area description": "A wonderful place"},
-                ],
+                preview_data={"Area description": ["A fine place", "A wonderful place"]},
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
                 s3_key="data-set-uploads/test.csv",
@@ -9834,10 +9813,10 @@ class TestMapDataSetColumns:
                     "Capital allocation",
                     "Revenue allocation",
                 ],
-                preview_rows=[
-                    {"Capital allocation": "£1000", "Revenue allocation": "£10000"},
-                    {"Capital allocation": "£2000", "Revenue allocation": "£30000"},
-                ],
+                preview_data={
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
                 s3_key="data-set-uploads/test.csv",
@@ -9873,10 +9852,11 @@ class TestMapDataSetNumberColumns:
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Additional info", "Capital allocation", "Revenue allocation"],
-                preview_rows=[
-                    {"Additional info": "Some text", "Capital allocation": "£1000", "Revenue allocation": "£10000"},
-                    {"Additional info": "Some text", "Capital allocation": "£2000", "Revenue allocation": "£30000"},
-                ],
+                preview_data={
+                    "Additional info": ["Some text", "Some text"],
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
                 column_mappings=[
                     DataSetColumnMapping(column_name="Additional info", column_type="TEXT"),
                     DataSetColumnMapping(column_name="Capital allocation", column_type="DECIMAL"),
@@ -9912,10 +9892,11 @@ class TestMapDataSetNumberColumns:
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Capital allocation", "Revenue allocation", "Additional info"],
-                preview_rows=[
-                    {"Capital allocation": "£1000", "Revenue allocation": "£10000", "Additional info": "Some text"},
-                    {"Capital allocation": "£2000", "Revenue allocation": "£30000", "Additional info": "Some text"},
-                ],
+                preview_data={
+                    "Additional info": ["Some text", "Some text"],
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
                 column_mappings=[
                     DataSetColumnMapping(
                         column_name="Capital allocation", column_type="DECIMAL", prefix="£", max_decimal_places=2
@@ -9951,10 +9932,11 @@ class TestMapDataSetNumberColumns:
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Capital allocation", "Revenue allocation", "Additional info"],
-                preview_rows=[
-                    {"Capital allocation": "£1000", "Revenue allocation": "£10000", "Additional info": "Some text"},
-                    {"Capital allocation": "£2000", "Revenue allocation": "£30000", "Additional info": "Some text"},
-                ],
+                preview_data={
+                    "Additional info": ["Some text", "Some text"],
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
                 column_mappings=[
                     DataSetColumnMapping(column_name="Capital allocation", column_type="DECIMAL"),
                     DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER"),
@@ -10022,13 +10004,9 @@ class TestMapDataSetNumberColumns:
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Capital allocation"],
-                preview_rows=[
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Org",
-                        "Capital allocation": "",
-                    }
-                ],
+                preview_data={
+                    "Capital allocation": [],
+                },
                 column_mappings=[
                     DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
                 ],
@@ -10076,10 +10054,10 @@ class TestMapDataSetNumberColumns:
                     "Capital allocation",
                     "Revenue allocation",
                 ],
-                preview_rows=[
-                    {"Capital allocation": "£1000", "Revenue allocation": "£10000"},
-                    {"Capital allocation": "£2000", "Revenue allocation": "£30000"},
-                ],
+                preview_data={
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
                 column_mappings=[
                     DataSetColumnMapping(column_name="Capital allocation", column_type="DECIMAL"),
                     DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER"),
@@ -10123,7 +10101,7 @@ class TestMapDataSetNumberColumns:
                 "name": "Test Data Set",
                 "data_source_type": DataSourceType.GRANT_RECIPIENT,
                 "data_columns": ["Capital allocation", "Distance"],
-                "preview_rows": [],
+                "preview_data": {},
                 "data_source_id": uuid.uuid4(),
                 "original_filename": "test.csv",
                 "s3_key": "data-set-uploads/test.csv",
@@ -10205,7 +10183,7 @@ class TestDataSetMissingData:
                 "name": "Test Data Set",
                 "data_source_type": DataSourceType.GRANT_RECIPIENT,
                 "data_columns": ["Capital allocation"],
-                "preview_rows": [],
+                "preview_data": {},
                 "column_mappings": [
                     DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS").model_dump(
                         mode="json"
@@ -10258,20 +10236,18 @@ class TestDataSetMissingData:
                 name="Test Data Set",
                 data_source_type=DataSourceType.GRANT_RECIPIENT,
                 data_columns=["Capital allocation", "Revenue allocation"],
-                preview_rows=[
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
-                        "Capital allocation": "",
-                        "Revenue allocation": "",
-                    },
-                    {
-                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
-                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
-                        "Capital allocation": "",
-                        "Revenue allocation": "£200.00",
-                    },
-                ],
+                preview_data={
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: [
+                        grant_recipient.organisation.external_id,
+                        grant_recipient_2.organisation.external_id,
+                    ],
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: [
+                        grant_recipient.organisation.name,
+                        grant_recipient_2.organisation.name,
+                    ],
+                    "Capital allocation": [],
+                    "Revenue allocation": ["£200.00"],
+                },
                 column_mappings=[
                     DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
                     DataSetColumnMapping(column_name="Revenue allocation", column_type="BRITISH_POUNDS"),
@@ -10466,7 +10442,6 @@ class TestViewDataSource:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert user.name in soup.text
-        assert "Static" in soup.text
         assert "Test data set" in soup.text
 
     def test_get_shows_grant_recipient_table(self, authenticated_grant_member_client, factories):

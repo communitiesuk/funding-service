@@ -22,7 +22,7 @@ def _make_data_set(
         name="Test Data Set",
         data_source_type=data_source_type,
         data_columns=data_columns or [],
-        preview_rows=[],
+        preview_data={},
         column_mappings=column_mappings or [],
         data_source_id=uuid.uuid4(),
         original_filename="test.csv",

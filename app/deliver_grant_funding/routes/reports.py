@@ -3354,21 +3354,27 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
         file: FileStorage = form.file.data
         columns, rows = _parse_data_set_csv(form.file.data)
 
-        if form.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
-            data_columns = [col for col in columns if col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
-        else:
-            data_columns = columns
+        data_columns = [col for col in columns if col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
 
         data_source_id = uuid.uuid4()
         s3_key = build_data_set_upload_s3_key(grant_id=grant_id, report_id=report_id, data_source_id=data_source_id)
         file.stream.seek(0)
         s3_service.upload_file(file, s3_key, {"status": DataSourceFileTagEnum.PENDING})
 
+        preview_data: dict[str, list[str]] = {}
+        for column in data_columns:
+            values = []
+            for row in rows:
+                val = row.get(column, "")
+                if val and len(values) < 3:
+                    values.append(str(escape(val)))
+            preview_data[column] = values
+
         session_data = DataSetUploadSessionModel(
             name=cast(str, form.name.data),
-            data_source_type=form.data_source_type.data,
+            data_source_type=DataSourceType.GRANT_RECIPIENT,
             data_columns=data_columns,
-            preview_rows=rows[:5],
+            preview_data=preview_data,
             s3_key=s3_key,
             original_filename=secure_filename(file.filename),
             data_source_id=data_source_id,
@@ -3376,17 +3382,16 @@ def upload_data_set(grant_id: UUID, report_id: UUID) -> ResponseReturnValue:
 
         session["data_set_upload"] = session_data.model_dump(mode="json")
 
-        if form.data_source_type.data != DataSourceType.STATIC:
-            grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
-            gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients, all_rows=rows)
-            if gr_errors:
-                return render_template(
-                    "deliver_grant_funding/reports/data_sets/upload_dataset.html",
-                    grant=report.grant,
-                    report=report,
-                    form=form,
-                    gr_errors=gr_errors,
-                )
+        grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+        gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients, all_rows=rows)
+        if gr_errors:
+            return render_template(
+                "deliver_grant_funding/reports/data_sets/upload_dataset.html",
+                grant=report.grant,
+                report=report,
+                form=form,
+                gr_errors=gr_errors,
+            )
 
         return redirect(
             url_for(

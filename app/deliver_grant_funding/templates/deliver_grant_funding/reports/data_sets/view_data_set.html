@@ -71,10 +71,6 @@
       {%
         set summary_rows = [
           {
-            "key": {"text": "Data level"},
-            "value": {"text": data_source.type.value}
-          },
-          {
             "key": {"text": "Uploaded by"},
             "value": {"text": data_source.created_by.name if data_source.created_by else "Unknown"}
           },

@@ -27,18 +27,14 @@
         {% set rows = [] %}
         {% for column in session_data.data_columns %}
           {% set idx = loop.index0 %}
-          {% set preview_values = [] %}
-          {% for row in session_data.preview_rows %}
-            {% do preview_values.append(row.get(column, "")) %}
-          {% endfor %}
-          {% set preview_html = preview_values | join(', ') %}
+          {% set preview_html = session_data.preview_data[column] | join('<br>') %}
           {% set select_html %}
             {{ form.columns[idx].form.column_type(params={"label": {"html": "Data type <span class='govuk-visually-hidden'>for " ~ column ~ "</span>" } }) }}
           {% endset %}
           {%
             do rows.append([
               {"text": column},
-              {"text": preview_html},
+              {"html": preview_html},
               {"html": select_html}
             ])
           %}
@@ -48,7 +44,7 @@
           govukTable({
             "head": [
               {"text": "Column name", "classes": "govuk-!-width-one-quarter"},
-              {"text": "Example data", "classes": "govuk-!-width-one-third"},
+              {"text": "Example data", "classes": "govuk-!-width-one-half"},
               {"text": "Data type"}
             ],
             "rows": rows

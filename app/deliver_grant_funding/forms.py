@@ -33,7 +33,6 @@ from app.common.data.interfaces.grants import grant_code_exists, grant_name_exis
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
     ConditionsOperator,
-    DataSourceType,
     ExpressionType,
     FileUploadTypes,
     GroupDisplayOptions,
@@ -997,17 +996,6 @@ class UploadDataSetForm(FlaskForm):
         validators=[DataRequired("Enter the name for this data set")],
     )
 
-    data_source_type = RadioField(
-        "Is this grant recipient level data?",
-        widget=GovRadioInput(),
-        choices=[
-            (DataSourceType.GRANT_RECIPIENT, "Yes, with one row for each grant recipient"),
-            (DataSourceType.PROJECT_LEVEL, "Yes, with more than one row for grant recipients"),
-            (DataSourceType.STATIC, "No"),
-        ],
-        validators=[DataRequired("Select grant recipient level")],
-    )
-
     file = FileField(
         "Upload a file",
         widget=GovFileInput(),
@@ -1067,29 +1055,13 @@ class UploadDataSetForm(FlaskForm):
                     "The CSV file contains rows which are longer or shorter than the number of columns"
                 )
 
-            if self.data_source_type.data in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
-                missing = [col for col in DATA_SET_IDENTIFIER_COLUMN_HEADERS if col not in fieldnames]
-                if missing:
-                    raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
+            missing = [col for col in DATA_SET_IDENTIFIER_COLUMN_HEADERS if col not in fieldnames]
+            if missing:
+                raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
 
-                data_columns = [
-                    col for col in fieldnames if col.strip() and col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS
-                ]
-                if not data_columns:
-                    raise ValidationError("The CSV file must contain at least one column of data")
-
-            if self.data_source_type.data == DataSourceType.STATIC:
-                rows_with_missing = [
-                    idx + 2
-                    for idx, row in enumerate(rows)
-                    if any(not value or not value.strip() for value in row.values())
-                ]
-                if rows_with_missing:
-                    raise ValidationError(
-                        f"The file has missing data in row(s): {', '.join(str(r) for r in rows_with_missing)} "
-                    )
-                if len(fieldnames) != 2:
-                    raise ValidationError("Static data sets can only have two columns")
+            data_columns = [col for col in fieldnames if col.strip() and col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
+            if not data_columns:
+                raise ValidationError("The CSV file must contain at least one column of data")
 
             row_count = len(rows)
             if row_count > 10000:
