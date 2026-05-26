@@ -177,7 +177,7 @@
               {
                 "html": link_to_submission,
               }, {
-                "html": submissionStatusTag(submission_status, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else collection.is_overdue),
+                "html": submissionStatusTag(submission_status, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else collection.is_overdue, grant_recipient_submission_helper.is_requesting_changes if grant_recipient_submission_helper else False, grant_recipient_submission_helper.has_requested_changes if grant_recipient_submission_helper else False),
               }, {
                 "text": format_date_short(grant_recipient_submission_helper.last_updated_at_utc) if grant_recipient_submission_helper else ''
               }

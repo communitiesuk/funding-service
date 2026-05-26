@@ -91,7 +91,7 @@
         enum.submission_status.NOT_SUBMITTED: "govuk-tag--orange",
     }
   %}
-  {% if is_requesting_changes %}
+  {% if status == enum.submission_status.IN_PROGRESS and is_requesting_changes %}
     {{ govukTag({"text": "Changes requested", "classes": "app-status-tag govuk-tag--yellow"}) }}
   {% elif status in show_without_tag %}
     {% set status_text = status %}
