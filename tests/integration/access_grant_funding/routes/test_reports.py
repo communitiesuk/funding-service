@@ -11,6 +11,7 @@ from app.access_grant_funding.forms import DeclineSignOffForm
 from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
 from app.common.data.interfaces.collections import update_collection
 from app.common.data.types import (
+    CollectionType,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -437,6 +438,45 @@ class TestListReports:
         table_elem = soup.find("table", class_="govuk-table")
         assert table_elem is not None
         assert len(table_elem.find_all("tr")) == 3
+
+    def test_get_list_forms_pre_award_enabled(self, authenticated_grant_recipient_member_client, factories):
+        organisation = authenticated_grant_recipient_member_client.organisation or factories.organisation.create(
+            can_manage_grants=False,
+        )
+        grant = authenticated_grant_recipient_member_client.grant
+        grant.status = GrantStatusEnum.LIVE
+        grant.allow_pre_award = True
+
+        _ = factories.collection.create_batch(
+            3,
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=date(2025, 11, 1),
+            submission_period_end_date=date(2026, 2, 28),
+        )
+        _ = factories.collection.create_batch(
+            2,
+            grant=grant,
+            type=CollectionType.MONITORING_REPORT,
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=date(2025, 1, 1),
+            reporting_period_end_date=date(2025, 3, 31),
+            submission_period_start_date=date(2025, 11, 1),
+            submission_period_end_date=date(2026, 2, 28),
+        )
+        response = authenticated_grant_recipient_member_client.get(
+            url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Forms"
+        [pre_award_table, monitoring_table] = soup.find_all("table", class_="govuk-table")
+        assert pre_award_table is not None
+        assert len(pre_award_table.find_all("tr")) == 4
+        assert monitoring_table is not None
+        assert len(monitoring_table.find_all("tr")) == 3
 
     def test_get_list_reports_not_grant_recipient(self, authenticated_grant_recipient_member_client, factories):
         organisation = authenticated_grant_recipient_member_client.organisation
