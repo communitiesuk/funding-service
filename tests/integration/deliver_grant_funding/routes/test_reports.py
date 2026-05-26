@@ -9636,7 +9636,7 @@ class TestMapDataSetColumns:
                 assert row[col] in soup.text
         for idx, col in enumerate(data_set_session_data["data_columns"]):
             assert col in soup.text
-            select = soup.find("select", {"name": f"columns-{idx}-data_type"})
+            select = soup.find("select", {"name": f"columns-{idx}-column_type"})
             assert select is not None
 
     def test_get_repopulates_form_from_session(self, authenticated_grant_admin_client, factories):
@@ -9654,16 +9654,8 @@ class TestMapDataSetColumns:
                     {"Capital allocation": "£2000", "Revenue allocation": "£30000"},
                 ],
                 column_mappings=[
-                    {
-                        "column_name": "Capital allocation",
-                        "data_type": QuestionDataType.NUMBER,
-                        "number_type": NumberTypeEnum.INTEGER,
-                    },
-                    {
-                        "column_name": "Revenue allocation",
-                        "data_type": QuestionDataType.NUMBER,
-                        "number_type": NumberTypeEnum.DECIMAL,
-                    },
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="DECIMAL"),
                 ],
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
@@ -9675,8 +9667,8 @@ class TestMapDataSetColumns:
         )
         soup = BeautifulSoup(response.data, "html.parser")
 
-        select_0 = soup.find("select", {"name": "columns-0-data_type"})
-        select_1 = soup.find("select", {"name": "columns-1-data_type"})
+        select_0 = soup.find("select", {"name": "columns-0-column_type"})
+        select_1 = soup.find("select", {"name": "columns-1-column_type"})
         assert select_0.find("option", {"selected": True})["value"] == "INTEGER"
         assert select_1.find("option", {"selected": True})["value"] == "DECIMAL"
 
@@ -9707,8 +9699,8 @@ class TestMapDataSetColumns:
             ).model_dump(mode="json")
 
         data = {
-            "columns-0-data_type": "INTEGER",
-            "columns-1-data_type": "TEXT",
+            "columns-0-column_type": "INTEGER",
+            "columns-1-column_type": "TEXT",
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
@@ -9761,7 +9753,7 @@ class TestMapDataSetColumns:
         mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         data = {
-            "columns-0-data_type": "TEXT",
+            "columns-0-column_type": "TEXT",
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
@@ -9815,7 +9807,7 @@ class TestMapDataSetColumns:
         mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
         data = {
-            "columns-0-data_type": "TEXT",
+            "columns-0-column_type": "TEXT",
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
@@ -9852,8 +9844,8 @@ class TestMapDataSetColumns:
             ).model_dump(mode="json")
 
         data = {
-            "columns-0-data_type": "",
-            "columns-1-data_type": "INTEGER",
+            "columns-0-column_type": "",
+            "columns-1-column_type": "INTEGER",
             "submit": "y",
         }
         response = authenticated_grant_admin_client.post(
@@ -9886,20 +9878,9 @@ class TestMapDataSetNumberColumns:
                     {"Additional info": "Some text", "Capital allocation": "£2000", "Revenue allocation": "£30000"},
                 ],
                 column_mappings=[
-                    DataSetColumnMapping(
-                        column_name="Additional info",
-                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                    ),
-                    DataSetColumnMapping(
-                        column_name="Capital allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.DECIMAL,
-                    ),
-                    DataSetColumnMapping(
-                        column_name="Revenue allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.INTEGER,
-                    ),
+                    DataSetColumnMapping(column_name="Additional info", column_type="TEXT"),
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="DECIMAL"),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER"),
                 ],
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
@@ -9937,24 +9918,10 @@ class TestMapDataSetNumberColumns:
                 ],
                 column_mappings=[
                     DataSetColumnMapping(
-                        column_name="Capital allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.DECIMAL,
-                        prefix="£",
-                        suffix="",
-                        max_decimal_places=2,
+                        column_name="Capital allocation", column_type="DECIMAL", prefix="£", max_decimal_places=2
                     ),
-                    DataSetColumnMapping(
-                        column_name="Revenue allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.INTEGER,
-                        prefix="",
-                        suffix="km",
-                    ),
-                    DataSetColumnMapping(
-                        column_name="Additional info",
-                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                    ),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER", suffix="km"),
+                    DataSetColumnMapping(column_name="Additional info", column_type="TEXT"),
                 ],
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
@@ -9989,20 +9956,9 @@ class TestMapDataSetNumberColumns:
                     {"Capital allocation": "£2000", "Revenue allocation": "£30000", "Additional info": "Some text"},
                 ],
                 column_mappings=[
-                    DataSetColumnMapping(
-                        column_name="Capital allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.DECIMAL,
-                    ),
-                    DataSetColumnMapping(
-                        column_name="Revenue allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.INTEGER,
-                    ),
-                    DataSetColumnMapping(
-                        column_name="Additional info",
-                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                    ),
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="DECIMAL"),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER"),
+                    DataSetColumnMapping(column_name="Additional info", column_type="TEXT"),
                 ],
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
@@ -10074,11 +10030,7 @@ class TestMapDataSetNumberColumns:
                     }
                 ],
                 column_mappings=[
-                    DataSetColumnMapping(
-                        column_name="Capital allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.INTEGER,
-                    ),
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
                 ],
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
@@ -10129,16 +10081,8 @@ class TestMapDataSetNumberColumns:
                     {"Capital allocation": "£2000", "Revenue allocation": "£30000"},
                 ],
                 column_mappings=[
-                    DataSetColumnMapping(
-                        column_name="Capital allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.DECIMAL,
-                    ),
-                    DataSetColumnMapping(
-                        column_name="Revenue allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.INTEGER,
-                    ),
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="DECIMAL"),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER"),
                 ],
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",
@@ -10184,16 +10128,10 @@ class TestMapDataSetNumberColumns:
                 "original_filename": "test.csv",
                 "s3_key": "data-set-uploads/test.csv",
                 "column_mappings": [
-                    {
-                        "column_name": "Capital allocation",
-                        "data_type": QuestionDataType.NUMBER,
-                        "number_type": NumberTypeEnum.DECIMAL,
-                    },
-                    {
-                        "column_name": "Distance",
-                        "data_type": QuestionDataType.NUMBER,
-                        "number_type": NumberTypeEnum.INTEGER,
-                    },
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="DECIMAL").model_dump(
+                        mode="json"
+                    ),
+                    DataSetColumnMapping(column_name="Distance", column_type="INTEGER").model_dump(mode="json"),
                 ],
             }
 
@@ -10269,13 +10207,9 @@ class TestDataSetMissingData:
                 "data_columns": ["Capital allocation"],
                 "preview_rows": [],
                 "column_mappings": [
-                    {
-                        "column_name": "Capital allocation",
-                        "data_type": QuestionDataType.NUMBER,
-                        "number_type": NumberTypeEnum.DECIMAL,
-                        "prefix": "£",
-                        "max_decimal_places": 2,
-                    }
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS").model_dump(
+                        mode="json"
+                    ),
                 ],
                 "data_source_id": uuid.uuid4(),
                 "original_filename": "test.csv",
@@ -10339,18 +10273,8 @@ class TestDataSetMissingData:
                     },
                 ],
                 column_mappings=[
-                    DataSetColumnMapping(
-                        column_name="Capital allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.INTEGER,
-                    ),
-                    DataSetColumnMapping(
-                        column_name="Revenue allocation",
-                        data_type=QuestionDataType.NUMBER,
-                        number_type=NumberTypeEnum.DECIMAL,
-                        prefix="£",
-                        max_decimal_places=2,
-                    ),
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="INTEGER"),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="BRITISH_POUNDS"),
                 ],
                 data_source_id=uuid.uuid4(),
                 original_filename="test.csv",

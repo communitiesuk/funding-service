@@ -129,11 +129,36 @@ class AddContextToExpressionsModel(_ReferenceDataSessionModel):
 
 class DataSetColumnMapping(BaseModel):
     column_name: str
-    data_type: Literal[QuestionDataType.TEXT_SINGLE_LINE, QuestionDataType.NUMBER]
-    number_type: NumberTypeEnum | None = None
-    prefix: str | None = None
+    column_type: Literal["TEXT", "BRITISH_POUNDS", "INTEGER", "DECIMAL"]
+    prefix: str | None = Field(default_factory=lambda o: "£" if o["column_type"] == "BRITISH_POUNDS" else None)
     suffix: str | None = None
-    max_decimal_places: int | None = None
+    max_decimal_places: int | None = Field(
+        default_factory=lambda o: 2 if o["column_type"] == "BRITISH_POUNDS" else None
+    )
+
+    @property
+    def data_type(self) -> Literal[QuestionDataType.TEXT_SINGLE_LINE, QuestionDataType.NUMBER]:
+        match self.column_type:
+            case "TEXT":
+                return QuestionDataType.TEXT_SINGLE_LINE
+            case "BRITISH_POUNDS" | "INTEGER" | "DECIMAL":
+                return QuestionDataType.NUMBER
+            case _:
+                raise ValueError(f"Unknown column type: {self.column_type}")
+
+    @property
+    def number_type(self) -> NumberTypeEnum | None:
+        match self.column_type:
+            case "INTEGER":
+                return NumberTypeEnum.INTEGER
+            case "BRITISH_POUNDS" | "DECIMAL":
+                return NumberTypeEnum.DECIMAL
+            case _:
+                return None
+
+    @property
+    def requires_manual_formatting(self) -> bool:
+        return self.column_type in ["INTEGER", "DECIMAL"]
 
 
 class DataSetUploadSessionModel(BaseModel):

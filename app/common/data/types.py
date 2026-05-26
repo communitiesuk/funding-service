@@ -69,6 +69,8 @@ class AuthMethodEnum(str, enum.Enum):
 
 
 class QuestionDataType(enum.StrEnum):
+    # NOTE: Changing any of the values here may require a database migration due to the text forming part of
+    # the config on `DataSource.schema` for eg grant recipient data sources
     TEXT_SINGLE_LINE = "Single line of text"
     TEXT_MULTI_LINE = "Multiple lines of text"
     EMAIL = "Email address"

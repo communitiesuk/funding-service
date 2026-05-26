@@ -3422,15 +3422,7 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
 
     if not form.is_submitted() and data_set_data.column_mappings:
         for idx, mapping in enumerate(data_set_data.column_mappings):
-            form.columns.entries[idx].form.data_type.data = (
-                "TEXT"
-                if mapping.data_type == QuestionDataType.TEXT_SINGLE_LINE
-                else "INTEGER"
-                if mapping.number_type == NumberTypeEnum.INTEGER
-                else "DECIMAL"
-                if mapping.number_type == NumberTypeEnum.DECIMAL
-                else ""
-            )
+            form.columns.entries[idx].form.column_type.data = mapping.column_type
 
     if form.validate_on_submit():
         data_set_data.column_mappings = form.get_column_mappings()
@@ -3521,9 +3513,7 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
     if not data_set_data:
         return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
 
-    number_columns = [
-        mapping for mapping in data_set_data.column_mappings if mapping.data_type == QuestionDataType.NUMBER
-    ]
+    number_columns = [mapping for mapping in data_set_data.column_mappings if mapping.requires_manual_formatting]
 
     form = MapNumberColumnsForm(numerical_columns=number_columns, data_set_data=data_set_data)
 
