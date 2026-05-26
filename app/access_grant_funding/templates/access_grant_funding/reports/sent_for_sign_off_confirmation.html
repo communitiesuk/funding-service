@@ -1,16 +1,18 @@
 {% from "govuk_frontend_jinja/components/panel/macro.html" import govukPanel %}
 {% extends "access_grant_funding/base.html" %}
 
-{# todo: move the suffix to the base template and call super #}
-{% set page_title = "Report submitted to certifier - " ~ submission_helper.long_collection_name ~ " - " ~ grant_recipient.grant.name %}
+{% set constants = submission_helper.collection.type.constants %}
 
-{% set active_item_identifier = "reports" %}
+{# todo: move the suffix to the base template and call super #}
+{% set page_title = constants.singular | capitalize ~ " submitted to certifier - " ~ submission_helper.long_collection_name ~ " - " ~ grant_recipient.grant.name %}
+
+{% set active_item_identifier = constants.active_nav %}
 
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% set reference_html %}
-        Report
+        {{ constants.singular | capitalize }}
         <br />
         <strong>{{ submission_helper.long_collection_name }} for {{ submission_helper.collection.grant.name }}</strong>
         <br />
@@ -21,24 +23,27 @@
       {% endset %}
       {{
         govukPanel({
-          "titleText": "Report submitted to certifier",
+          "titleText": constants.singular | capitalize ~ " submitted to certifier",
           "html": reference_html
         })
       }}
 
-      <p class="govuk-body">We have sent a confirmation email to you and anyone else who has access to this report.</p>
+      <p class="govuk-body">We have sent a confirmation email to you and anyone else who has access to this {{ constants.singular }}.</p>
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
       {% set submission_deadline = format_date(submission_helper.collection.submission_period_end_date) if submission_helper.collection.submission_period_end_date else "(Dates to be confirmed)" %}
 
-      <p class="govuk-body">{{ grant_recipient.certifier_names }} will need to review and sign off the report by {{ submission_deadline }}.</p>
+      <p class="govuk-body">{{ grant_recipient.certifier_names }} will need to review and sign off the {{ constants.singular }} by {{ submission_deadline }}.</p>
 
-      <p class="govuk-body">You will receive an email when your report is signed off and submitted.</p>
+      <p class="govuk-body">You will receive an email when your {{ constants.singular }} is signed off and submitted.</p>
 
       <p class="govuk-body">If a certifier needs to decline sign off, you will receive an email with their reason for declining.</p>
 
-      <p class="govuk-body">You cannot make changes while awaiting sign off, or once the report has been signed off and submitted. If you need to make a change before the report is signed off, the certifier should decline sign off.</p>
+      <p class="govuk-body">
+        You cannot make changes while awaiting sign off, or once the {{ constants.singular }} has been signed off and submitted. If you need to make a change before the {{ constants.singular }} is signed off, the certifier should decline
+        sign off.
+      </p>
 
       <p class="govuk-body">
         <a class="govuk-link govuk-link--no-visited-state app-!-no-wrap" href="{{ config.GRANT_RECIPIENT_GENERAL_FEEDBACK_URL }}" target="_blank" rel="noopener noreferrer">Tell us what you think of this service (opens in new tab)</a>
@@ -52,7 +57,7 @@
            url_for("access_grant_funding.list_collection_submissions", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=submission_helper.collection.id)
            )
         %}
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link }}">Return to reports</a>
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link }}">Return to {{ constants.plural }}</a>
       </p>
     </div>
   </div>
