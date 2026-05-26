@@ -2,7 +2,7 @@
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 
-{% set page_title = submission.long_collection_name if submission.is_submitted else "Review report: " ~ submission.long_collection_name %}
+{% set page_title = submission.long_collection_name if submission.is_submitted else "Review " ~ submission.collection.type.constants.singular ~ ": " ~ submission.long_collection_name %}
 {% set show_section_numbers = false %}
 
 {% set assetPath = vite_asset("assets", external=True) %}
@@ -107,7 +107,7 @@
       </div>
 
       <div class="govuk-!-margin-bottom-9">
-        <h2 class="govuk-heading-m">Report sections</h2>
+        <h2 class="govuk-heading-m">{{ submission.collection.type.constants.singular | capitalize }} sections</h2>
         <ul class="{{ 'govuk-list' ~ (' govuk-list--number' if show_section_numbers else '') }}">
           {% for form in submission.get_ordered_visible_forms() %}
             <li><a class="govuk-link govuk-link--no-visited-state" href="#form-{{ form.id }}">{{ form.title }}</a></li>

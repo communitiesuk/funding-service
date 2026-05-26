@@ -14,7 +14,7 @@
           {% set submission_declined_html %}
             <h3 class="govuk-notification-banner__heading">{{ flashes[0]["collection_type_singular"] | capitalize }} declined</h3>
             <p class="govuk-body">
-              {{ flashes[0]["collection_name"] }} report for {{ flashes[0]["grant_name"] }} sign off declined and sent back to {{ flashes[0]["sent_for_certification_by"] }}.
+              {{ flashes[0]["collection_name"] }} {{ flashes[0]["collection_type_singular"] }} for {{ flashes[0]["grant_name"] }} sign off declined and sent back to {{ flashes[0]["sent_for_certification_by"] }}.
               <a
                 class="govuk-notification-banner__link"
                 href="{{ url_for('access_grant_funding.route_to_submission', grant_id=grant_recipient.grant_id, organisation_id=grant_recipient.organisation_id,collection_id=flashes[0]["collection_id"]) }}">
@@ -38,8 +38,6 @@
       <h1 class="govuk-heading-l">Forms</h1>
     </div>
   </div>
-  {# TODO: we'll only show this whole section if there are pre-award forms #}
-  {#       monitoring reports always show, pre-award only if relevant #}
   {% if pre_award_forms|length > 0 %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
