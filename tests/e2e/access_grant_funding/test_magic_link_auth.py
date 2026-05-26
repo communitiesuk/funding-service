@@ -25,7 +25,7 @@ def test_magic_link_redirect_journey(page: Page, domain: str, e2e_test_secrets: 
 
     access_home_page = AccessHomePage(page, domain)
     access_home_page.select_grant("MHCLG Funding Service Test Organisation", "Cheeseboards in parks")
-    expected_url_pattern = rf"^{domain}/access/organisation/[a-f0-9-]{{36}}/grants/[a-f0-9-]{{36}}/reports[#]?$"
+    expected_url_pattern = rf"^{domain}/access/organisation/[a-f0-9-]{{36}}/grants/[a-f0-9-]{{36}}/forms[#]?$"
 
     # JavaScript on the page automatically claims the link and should redirect to where they started.
     expect(page).to_have_url(re.compile(expected_url_pattern))

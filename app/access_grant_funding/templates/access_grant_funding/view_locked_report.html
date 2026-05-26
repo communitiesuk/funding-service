@@ -15,7 +15,7 @@
   {{
     govukBackLink({
       "href": (
-        url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id)
+        url_for("access_grant_funding.list_collections", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id)
         if not submission.collection.allow_multiple_submissions else
         url_for("access_grant_funding.list_collection_submissions", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=submission.collection_id)
       ),
