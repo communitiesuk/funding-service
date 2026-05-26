@@ -11,7 +11,7 @@
   {{ super() }}
   {{
     govukBackLink({
-      "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
+      "href": url_for("access_grant_funding.list_collections", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
       "text": "Back"
     })
   }}

@@ -2200,7 +2200,7 @@ class TestConfirmSentForCertification:
     @pytest.mark.parametrize(
         "allow_multiple_submissions, expected_back_link_route",
         [
-            (False, "access_grant_funding.list_reports"),
+            (False, "access_grant_funding.list_collections"),
             (True, "access_grant_funding.list_collection_submissions"),
         ],
     )

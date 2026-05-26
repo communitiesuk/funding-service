@@ -34,10 +34,10 @@ _pdf_export_lock = threading.Lock()
 # TODO: this would no longer live in a "reports.py" - as everything in Access will work for all collections
 #       types this can likely simply be renamed to "collections.py"
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports", methods=["GET"]
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/forms", methods=["GET"]
 )
 @has_access_grant_role(RoleEnum.MEMBER)
-def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
+def list_collections(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     user = get_current_user()
 
@@ -128,7 +128,7 @@ def view_locked_report(organisation_id: UUID, grant_id: UUID, submission_id: UUI
         # note we're not redirecting to the route to submission as you might have been directed from
         # there, go somewhere we know will load consistently and the user can step back in
         return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation_id, grant_id=grant_id)
         )
 
     form = GenericSubmitForm()
@@ -270,7 +270,7 @@ def decline_report(
             FlashMessageType.SUBMISSION_SIGN_OFF_DECLINED,
         )
         return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation_id, grant_id=grant_id)
         )
 
     return render_template(
@@ -372,7 +372,7 @@ def confirm_report_submission_direct_submission(
             extra={"user_id": user.id, "submission_id": submission_id},
         )
         return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation_id, grant_id=grant_id)
         )
 
     form = GenericSubmitForm()
@@ -432,7 +432,7 @@ def submitted_confirmation(organisation_id: UUID, grant_id: UUID, submission_id:
         # note we're not redirecting to the route to submission as you might have been directed from
         # there, go somewhere we know will load consistently and the user can step back in
         return redirect(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation_id, grant_id=grant_id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation_id, grant_id=grant_id)
         )
 
     return render_template(

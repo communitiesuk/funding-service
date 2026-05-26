@@ -189,7 +189,7 @@ class TestViewLockedReport:
         assert response.status_code == 302
         assert response.location == (
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
             )
@@ -260,7 +260,7 @@ class TestViewLockedReport:
     @pytest.mark.parametrize(
         "allow_multiple_submissions, expected_back_link_route",
         [
-            (False, "access_grant_funding.list_reports"),
+            (False, "access_grant_funding.list_collections"),
             (True, "access_grant_funding.list_collection_submissions"),
         ],
     )
@@ -429,7 +429,7 @@ class TestListReports:
             submission_period_end_date=date(2026, 2, 28),
         )
         response = authenticated_grant_recipient_member_client.get(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation.id, grant_id=grant.id)
         )
 
         assert response.status_code == 200
@@ -466,7 +466,7 @@ class TestListReports:
             submission_period_end_date=date(2026, 2, 28),
         )
         response = authenticated_grant_recipient_member_client.get(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation.id, grant_id=grant.id)
         )
 
         assert response.status_code == 200
@@ -493,7 +493,7 @@ class TestListReports:
             submission_period_end_date=date(2026, 2, 28),
         )
         response = authenticated_grant_recipient_member_client.get(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation.id, grant_id=grant.id)
         )
 
         assert response.status_code == 403
@@ -611,7 +611,7 @@ class TestListCollectionSubmissions:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant.id,
             )
@@ -639,7 +639,7 @@ class TestListCollectionSubmissions:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant.id,
             )
@@ -671,7 +671,7 @@ class TestListCollectionSubmissions:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant.id,
             )
@@ -722,7 +722,7 @@ class TestListCollectionSubmissions:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant.id,
             )
@@ -901,7 +901,7 @@ class TestDeclineSignOff:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.list_collections",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
         )
@@ -1158,7 +1158,7 @@ class TestConfirmReportSubmission:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.list_collections",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
         )
@@ -1458,7 +1458,7 @@ class TestViewSubmittedConfirmation:
         else:
             assert response.status_code == 302
             assert response.location == url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
             )
@@ -1487,7 +1487,7 @@ class TestViewSubmittedConfirmation:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.list_collections",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
         )
@@ -1495,7 +1495,7 @@ class TestViewSubmittedConfirmation:
     @pytest.mark.parametrize(
         "allow_multiple_submissions, expected_back_link_route",
         [
-            (False, "access_grant_funding.list_reports"),
+            (False, "access_grant_funding.list_collections"),
             (True, "access_grant_funding.list_collection_submissions"),
         ],
     )
