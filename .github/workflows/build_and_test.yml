@@ -22,7 +22,7 @@ jobs:
     - name: Install the latest version of uv
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       with:
-        version: "0.11.15"
+        version: "0.11.16"
         enable-cache: true
     - name: Check DB is up to date
       env:
@@ -61,7 +61,7 @@ jobs:
     - name: Install the latest version of uv
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       with:
-        version: "0.11.15"
+        version: "0.11.16"
         enable-cache: true
     - name: Run database migrations
       env:
@@ -98,7 +98,7 @@ jobs:
     - name: Install the latest version of uv
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       with:
-        version: "0.11.15"
+        version: "0.11.16"
         enable-cache: true
     - name: Run database migrations
       env:
@@ -136,7 +136,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.11.15"
+          version: "0.11.16"
           enable-cache: true
       - name: install dependencies
         run: |
@@ -159,7 +159,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.11.15"
+          version: "0.11.16"
           enable-cache: true
       - name: run type checking
         run: uv run ty check
@@ -187,7 +187,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.11.15"
+          version: "0.11.16"
           enable-cache: true
       - name: install dependencies
         run: uv sync
