@@ -31,8 +31,6 @@ from app.types import FlashMessageType
 _pdf_export_lock = threading.Lock()
 
 
-# TODO: this would no longer live in a "reports.py" - as everything in Access will work for all collections
-#       types this can likely simply be renamed to "collections.py"
 @access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/forms", methods=["GET"]
 )
@@ -67,7 +65,7 @@ def list_collections(organisation_id: UUID, grant_id: UUID) -> ResponseReturnVal
     template = (
         "access_grant_funding/list_forms.html"
         if FeatureFlags.PRE_AWARD.is_enabled
-        else "access_grant_funding/report_list.html"
+        else "access_grant_funding/collection_list.html"
     )
     return render_template(
         template,
@@ -149,7 +147,7 @@ def view_locked_submission(
         )
 
     return render_template(
-        "access_grant_funding/view_locked_report.html",
+        "access_grant_funding/view_locked_submission.html",
         grant_recipient=grant_recipient,
         submission=submission,
         form=form,
@@ -170,7 +168,7 @@ def export_submission_pdf(
     submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
     html_content = render_template(
-        "access_grant_funding/view_locked_report_print_baseline.html",
+        "access_grant_funding/view_locked_submission_print_baseline.html",
         grant_recipient=grant_recipient,
         submission=submission,
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
@@ -284,7 +282,7 @@ def decline_submission(
         )
 
     return render_template(
-        "access_grant_funding/decline_report.html",
+        "access_grant_funding/decline_submission.html",
         submission=submission_helper,
         grant_recipient=grant_recipient,
         form=form,
@@ -359,7 +357,7 @@ def confirm_submission_with_certify(
             )
 
     return render_template(
-        "access_grant_funding/reports/submit_report.html",
+        "access_grant_funding/collections/submit.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
         form=form,
@@ -415,7 +413,7 @@ def confirm_submission_direct_submission(
             )
 
     return render_template(
-        "access_grant_funding/reports/submit_report.html",
+        "access_grant_funding/collections/submit.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
         form=form,
@@ -452,7 +450,7 @@ def submitted_confirmation(
         )
 
     return render_template(
-        "access_grant_funding/reports/submitted_confirmation.html",
+        "access_grant_funding/collections/submitted_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
     )

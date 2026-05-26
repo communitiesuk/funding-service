@@ -372,7 +372,7 @@ class TestExportReportPDFLock:
         submission_awaiting_sign_off,
         monkeypatch,
     ):
-        from app.access_grant_funding.routes import reports as reports_module
+        from app.access_grant_funding.routes import collections as reports_module
 
         observed_lock_states: list[bool] = []
 

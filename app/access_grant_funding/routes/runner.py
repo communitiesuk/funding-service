@@ -196,7 +196,9 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
             )
 
     # if complete_submission failed, the runner has appended errors to the form which will show to the user
-    return render_template("access_grant_funding/reports/tasklist.html", grant_recipient=grant_recipient, runner=runner)
+    return render_template(
+        "access_grant_funding/collections/tasklist.html", grant_recipient=grant_recipient, runner=runner
+    )
 
 
 @access_grant_funding_blueprint.route(
@@ -260,7 +262,7 @@ def ask_a_question(
             return redirect(runner.next_url)
 
     return render_template(
-        "access_grant_funding/reports/ask_a_question.html", grant_recipient=grant_recipient, runner=runner
+        "access_grant_funding/collections/ask_a_question.html", grant_recipient=grant_recipient, runner=runner
     )
 
 
@@ -293,7 +295,7 @@ def check_your_answers(
             return abort(403, description="Access denied")
 
     return render_template(
-        "access_grant_funding/reports/check_your_answers.html", grant_recipient=grant_recipient, runner=runner
+        "access_grant_funding/collections/check_your_answers.html", grant_recipient=grant_recipient, runner=runner
     )
 
 
@@ -315,7 +317,7 @@ def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submis
             )
         )
     return render_template(
-        "access_grant_funding/reports/sent_for_sign_off_confirmation.html",
+        "access_grant_funding/collections/sent_for_sign_off_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
     )
