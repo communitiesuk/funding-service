@@ -59,10 +59,10 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {% if reports|length == 0 %}
+      {% if monitoring_reports|length == 0 %}
         <p class="govuk-body">There are no reports for this grant.</p>
       {% else %}
-        {{ collections_table(reports, enum.collection_type_enum.MONITORING_REPORT) }}
+        {{ collections_table(monitoring_reports, enum.collection_type_enum.MONITORING_REPORT) }}
       {% endif %}
     </div>
   </div>

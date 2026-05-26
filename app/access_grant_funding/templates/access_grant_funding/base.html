@@ -55,7 +55,7 @@
     {% if grant_recipient %}
       {%
         set nav_items = [
-            { "text": "Forms" if feature_flags.PRE_AWARD.is_enabled else "Reports", "href": url_for("access_grant_funding.list_collections", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id), "active": active_item_identifier in ["forms", "reports"] },
+            { "text": "Forms" if feature_flags.PRE_AWARD.is_enabled else "Reports", "href": url_for("access_grant_funding.list_collections", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id), "active": active_item_identifier in ["pre_award", "reports"] },
             { "text": "Team", "href": url_for("access_grant_funding.list_grant_team", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id), "active": active_item_identifier == "team" },
         ]
       %}

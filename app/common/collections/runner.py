@@ -703,9 +703,10 @@ class AGFFormRunner(FormRunner):
         ),
         FormRunnerState.VIEW_REPORT_PAGE: (
             lambda runner, _question, _form, source, _add_another_index, _action, _check_entries: url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=runner.submission.submission.grant_recipient.organisation.id,
                 grant_id=runner.submission.grant.id,
+                collection_type=runner.submission.collection.type,
                 submission_id=runner.submission.id,
             )
         ),

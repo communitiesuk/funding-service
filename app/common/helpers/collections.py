@@ -308,10 +308,10 @@ class SubmissionHelper:
                 # templates
                 if helper.in_answers_locked_state:
                     href = url_for(
-                        "access_grant_funding.view_locked_report",
+                        "access_grant_funding.view_locked_submission",
                         organisation_id=grant_recipient.organisation_id,
                         grant_id=grant_recipient.grant_id,
-                        collection_id=collection.id,
+                        collection_type=collection.type,
                         submission_id=submission.id,
                     )
                 else:

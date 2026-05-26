@@ -52,9 +52,10 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
     if submission_helper.in_answers_locked_state:
         return redirect(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -159,9 +160,10 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
     if runner.submission.in_answers_locked_state:
         return redirect(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
+                collection_type=runner.submission.collection.type,
                 submission_id=submission_id,
             )
         )
@@ -185,9 +187,10 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
                 )
             return redirect(
                 url_for(
-                    "access_grant_funding.confirm_report_submission_direct_submission",
+                    "access_grant_funding.confirm_submission_direct_submission",
                     organisation_id=organisation_id,
                     grant_id=grant_id,
+                    collection_type=runner.submission.collection.type,
                     submission_id=submission_id,
                 )
             )
