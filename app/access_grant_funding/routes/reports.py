@@ -18,6 +18,7 @@ from app.common.data.types import RoleEnum, SubmissionStatusEnum
 from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
+from app.common.helpers.feature_flags import FeatureFlags
 from app.extensions import auto_commit_after_request
 from app.metrics import MetricEventName, emit_metric_count
 from app.types import FlashMessageType
@@ -30,6 +31,8 @@ from app.types import FlashMessageType
 _pdf_export_lock = threading.Lock()
 
 
+# TODO: this would no longer live in a "reports.py" - as everything in Access will work for all collections
+#       types this can likely simply be renamed to "collections.py"
 @access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports", methods=["GET"]
 )
@@ -41,24 +44,33 @@ def list_reports(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     # TODO refactor when we persist the collection status and/or implement multiple rounds
     submissions = []
     collection_helpers = []
-    for report in grant_recipient.grant.get_access_reports_for_user(
+
+    reports = grant_recipient.grant.get_access_reports_for_user(user, user_organisation=grant_recipient.organisation)
+    pre_award_forms = grant_recipient.grant.get_access_pre_award_forms_for_user(
         user, user_organisation=grant_recipient.organisation
-    ):
-        collection_helpers.append(CollectionHelper(collection=report))
+    )
+    for collection in reports + pre_award_forms:
+        collection_helpers.append(CollectionHelper(collection=collection))
         submissions.extend(
             [
                 SubmissionHelper(submission=submission)
                 for submission in get_all_submissions_with_mode_for_collection(
-                    collection_id=report.id,
+                    collection_id=collection.id,
                     submission_mode=grant_recipient.submission_mode,
                     grant_recipient_ids=[grant_recipient.id],
                 )
             ]
         )
 
+    template = (
+        "access_grant_funding/list_forms.html"
+        if FeatureFlags.PRE_AWARD.is_enabled
+        else "access_grant_funding/report_list.html"
+    )
     return render_template(
-        "access_grant_funding/report_list.html",
-        reports=grant_recipient.grant.get_access_reports_for_user(user, user_organisation=grant_recipient.organisation),
+        template,
+        reports=reports,
+        pre_award_forms=pre_award_forms,
         organisation_id=organisation_id,
         grant=grant_recipient.grant,
         submissions=submissions,
@@ -253,6 +265,7 @@ def decline_report(
                 if submission_helper.sent_for_certification_by
                 else "the submitter",
                 "collection_id": submission_helper.collection.id,
+                "collection_type_singular": submission_helper.collection.type.constants.singular,
             },
             FlashMessageType.SUBMISSION_SIGN_OFF_DECLINED,
         )

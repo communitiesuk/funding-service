@@ -7,6 +7,7 @@ from app import CollectionStatusEnum
 from app.common.collections.types import DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
 from app.common.data.models import ComponentReference, get_ordered_nested_components
 from app.common.data.types import (
+    CollectionType,
     ConditionsOperator,
     DataSourceSchema,
     DataSourceSchemaColumn,
@@ -16,6 +17,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
 )
 
 
@@ -236,6 +238,116 @@ class TestGrantAccessReports:
         assert results[3].id == report5.id
         assert results[4].id == report4.id
         assert results[5].id == report0.id
+
+
+class TestGrantAccessPreAwardForms:
+    def test_access_pre_award_forms(self, factories):
+        grant = factories.grant.build()
+        form1 = factories.collection.build(
+            grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.OPEN
+        )
+        form2 = factories.collection.build(
+            grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.CLOSED
+        )
+        _ = factories.collection.build(grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.DRAFT)
+        _ = factories.collection.build(
+            grant=grant, type=CollectionType.MONITORING_REPORT, status=CollectionStatusEnum.OPEN
+        )
+        _ = factories.collection.build(
+            grant=grant, type=CollectionType.MONITORING_REPORT, status=CollectionStatusEnum.CLOSED
+        )
+
+        result = grant.access_pre_award_forms
+        assert len(result) == 2
+        assert result[0].id == form1.id
+        assert result[1].id == form2.id
+
+    def test_access_pre_award_forms_no_collections(self, db_session, factories):
+        grant = factories.grant.build()
+
+        result = grant.access_pre_award_forms
+        assert len(result) == 0
+
+    def test_get_access_pre_award_forms(self, factories):
+        grant = factories.grant.build()
+        form0 = factories.collection.build(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.CLOSED,
+            submission_period_end_date=None,
+        )
+        form1 = factories.collection.build(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=date(2024, 1, 1),
+        )
+        form2 = factories.collection.build(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=date(2023, 1, 1),
+        )
+        form3 = factories.collection.build(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=date(2022, 1, 2),
+        )
+        form4 = factories.collection.build(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.CLOSED,
+            submission_period_end_date=date(2023, 2, 1),
+        )
+        form5 = factories.collection.build(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.CLOSED,
+            submission_period_end_date=date(2022, 1, 1),
+        )
+
+        results = grant.access_pre_award_forms
+        assert len(results) == 6
+        assert results[0].id == form3.id
+        assert results[1].id == form2.id
+        assert results[2].id == form1.id
+        assert results[3].id == form5.id
+        assert results[4].id == form4.id
+        assert results[5].id == form0.id
+
+    def test_get_access_pre_award_forms_gets_all_forms_for_deliver_testing(self, factories, mocker):
+        grant = factories.grant.build()
+        user = factories.user.build()
+        factories.user_role.build(
+            user=user, permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN], organisation=None, grant=None
+        )
+
+        form1 = factories.collection.build(
+            grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.OPEN
+        )
+        form2 = factories.collection.build(
+            grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.CLOSED
+        )
+        form3 = factories.collection.build(
+            grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.DRAFT
+        )
+        _ = factories.collection.build(
+            grant=grant, type=CollectionType.MONITORING_REPORT, status=CollectionStatusEnum.OPEN
+        )
+        _ = factories.collection.build(
+            grant=grant, type=CollectionType.MONITORING_REPORT, status=CollectionStatusEnum.CLOSED
+        )
+        _ = factories.collection.build(
+            grant=grant, type=CollectionType.MONITORING_REPORT, status=CollectionStatusEnum.DRAFT
+        )
+
+        mocker.patch("flask.request.path", "/access/")
+        result = grant.get_access_pre_award_forms_for_user(user=user)
+        assert len(result) == 3
+        assert result[0].id == form3.id
+        assert result[1].id == form1.id
+        assert result[2].id == form2.id
 
 
 class TestFullConditionChain:
