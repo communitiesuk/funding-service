@@ -41,6 +41,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
+from app.common.data.submission_data_manager import SubmissionDataAddAnotherIndexInvalid, SubmissionDataManager
 from app.common.data.types import (
     CollectionStatusEnum,
     ComponentVisibilityState,
@@ -466,6 +467,50 @@ class SubmissionHelper:
     @property
     def has_requested_changes(self) -> bool:
         return self.events.submission_state.has_requested_changes
+
+    @cached_property
+    def _pre_change_request_snapshot_data_manager(self) -> SubmissionDataManager | None:
+        if not (self.is_submitted and self.has_requested_changes):
+            return None
+        snapshot_data = self.events.submission_state.submission_data
+        if not snapshot_data:
+            return None
+        return SubmissionDataManager(snapshot_data)
+
+    def get_snapshot_answer_for_question(
+        self, question_id: UUID, *, add_another_index: int | None = None
+    ) -> AllAnswerTypes | None:
+        snapshot_dm = self._pre_change_request_snapshot_data_manager
+        if snapshot_dm is None:
+            return None
+        question = self.get_question(question_id)
+        try:
+            return snapshot_dm.get(question, add_another_index=add_another_index)
+        except SubmissionDataAddAnotherIndexInvalid:
+            return None
+
+    def has_answer_changed_since_change_request(
+        self, question_id: UUID, *, add_another_index: int | None = None
+    ) -> bool:
+        snapshot_dm = self._pre_change_request_snapshot_data_manager
+        if snapshot_dm is None:
+            return False
+        question = self.get_question(question_id)
+        if question.add_another_container:
+            container_key = str(question.add_another_container.id)
+            q_key = str(question_id)
+            snap_entries = snapshot_dm.data.get(container_key, [])
+            curr_entries = self.submission.data_manager.data.get(container_key, [])
+            if add_another_index is not None:
+                snap_val = snap_entries[add_another_index].get(q_key) if add_another_index < len(snap_entries) else None
+                curr_val = curr_entries[add_another_index].get(q_key) if add_another_index < len(curr_entries) else None
+            else:
+                snap_val = snap_entries
+                curr_val = curr_entries
+        else:
+            snap_val = snapshot_dm.data.get(str(question_id))
+            curr_val = self.submission.data_manager.data.get(str(question_id))
+        return snap_val != curr_val
 
     @property
     def id(self) -> UUID:

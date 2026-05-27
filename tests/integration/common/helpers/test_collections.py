@@ -22,6 +22,7 @@ from app.common.collections.types import (
     YesNoAnswer,
 )
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import update_submission_data
 from app.common.data.models import Expression
 from app.common.data.types import (
     CollectionStatusEnum,
@@ -2003,6 +2004,132 @@ class TestSubmissionHelper:
             recipients = [call.kwargs["email_address"] for call in mock_notification_service_calls]
             assert data_provider_user.email in recipients
             assert certifier_user.email not in recipients
+
+    class TestPreChangeRequestSnapshotHelper:
+        def test_returns_none_when_no_changes_requested(self, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+            assert helper._pre_change_request_snapshot_data_manager is None
+
+        def test_returns_none_while_requesting_changes_not_yet_resubmitted(
+            self, grant_team_user, submission_submitted, mock_notification_service_calls
+        ):
+            submission_submitted.collection.change_requests_enabled = True
+            helper = SubmissionHelper(submission_submitted)
+            question = submission_submitted.collection.forms[0].cached_questions[0]
+
+            helper.request_changes(
+                user=grant_team_user,
+                change_request_reason="Please update",
+                sections_to_change=[question.form.id],
+            )
+
+            fresh_helper = SubmissionHelper(submission_submitted)
+            assert not fresh_helper.is_submitted
+            assert fresh_helper._pre_change_request_snapshot_data_manager is None
+
+        def test_returns_snapshot_data_after_resubmission(
+            self, grant_team_user, submission_submitted, mock_notification_service_calls, factories
+        ):
+            submission_submitted.collection.change_requests_enabled = True
+            question = submission_submitted.collection.forms[0].cached_questions[0]
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.request_changes(
+                user=grant_team_user,
+                change_request_reason="Please update",
+                sections_to_change=[question.form.id],
+            )
+
+            submission_submitted.data_manager.set(question, TextSingleLineAnswer("updated value"))
+            update_submission_data(submission_submitted)
+
+            factories.submission_event.create(
+                submission=submission_submitted,
+                related_entity_id=question.form.id,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                created_by=grant_team_user,
+                created_at_utc=datetime(2027, 1, 1, 12, 0, 0),
+            )
+            factories.submission_event.create(
+                submission=submission_submitted,
+                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                created_by=grant_team_user,
+                created_at_utc=datetime(2027, 1, 1, 12, 0, 1),
+            )
+
+            fresh_helper = SubmissionHelper(submission_submitted)
+            assert fresh_helper.is_submitted
+            assert fresh_helper._pre_change_request_snapshot_data_manager is not None
+            assert fresh_helper.get_snapshot_answer_for_question(question.id) == TextSingleLineAnswer("Question answer")
+            assert fresh_helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("updated value")
+
+        def test_has_answer_changed_true_for_changed_question(
+            self, grant_team_user, submission_submitted, mock_notification_service_calls, factories
+        ):
+            submission_submitted.collection.change_requests_enabled = True
+            question = submission_submitted.collection.forms[0].cached_questions[0]
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.request_changes(
+                user=grant_team_user,
+                change_request_reason="Please update",
+                sections_to_change=[question.form.id],
+            )
+
+            submission_submitted.data_manager.set(question, TextSingleLineAnswer("updated value"))
+            update_submission_data(submission_submitted)
+
+            factories.submission_event.create(
+                submission=submission_submitted,
+                related_entity_id=question.form.id,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                created_by=grant_team_user,
+                created_at_utc=datetime(2027, 1, 1, 12, 0, 0),
+            )
+            factories.submission_event.create(
+                submission=submission_submitted,
+                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                created_by=grant_team_user,
+                created_at_utc=datetime(2027, 1, 1, 12, 0, 1),
+            )
+
+            fresh_helper = SubmissionHelper(submission_submitted)
+            assert fresh_helper.has_answer_changed_since_change_request(question.id) is True
+
+        def test_has_answer_changed_false_for_unchanged_question(
+            self, grant_team_user, submission_submitted, mock_notification_service_calls, factories
+        ):
+            submission_submitted.collection.change_requests_enabled = True
+            question = submission_submitted.collection.forms[0].cached_questions[0]
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.request_changes(
+                user=grant_team_user,
+                change_request_reason="Please update",
+                sections_to_change=[question.form.id],
+            )
+
+            factories.submission_event.create(
+                submission=submission_submitted,
+                related_entity_id=question.form.id,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                created_by=grant_team_user,
+                created_at_utc=datetime(2027, 1, 1, 12, 0, 0),
+            )
+            factories.submission_event.create(
+                submission=submission_submitted,
+                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                created_by=grant_team_user,
+                created_at_utc=datetime(2027, 1, 1, 12, 0, 1),
+            )
+
+            fresh_helper = SubmissionHelper(submission_submitted)
+            assert fresh_helper.has_answer_changed_since_change_request(question.id) is False
+
+        def test_has_answer_changed_false_when_no_snapshot(self, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+            question = submission_submitted.collection.forms[0].cached_questions[0]
+            assert helper.has_answer_changed_since_change_request(question.id) is False
 
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")

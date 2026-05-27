@@ -1,8 +1,9 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 
 {# todo: relies on top level template having `interpolate` and `format_thousands` (for example) #}
 {#       we should set all formatters as globally registered filters and set the appropriate interpolator here #}
-{% macro answers_summary_list(helper, container, add_another_index=none, summary_title=none) %}
+{% macro answers_summary_list(helper, container, add_another_index=none, summary_title=none, render_pre_change_request_details=false) %}
   {# each container context will have its own summary list which we'll populate at the end of this macro #}
   {% set add_another_contexts = [] %}
   {% set rows = [] %}
@@ -44,7 +45,7 @@
           <p class="govuk-body">There {% trans count=count %}is {{ count }} answer{% pluralize %}are {{ count }} answers{% endtrans %}</p>
           {% if count %}
             <p class="govuk-body">
-              <a href="#{{ question.add_another_container.id }}-answers" class="govuk-link govuk-link--no-visited-state">Answers for “{{ question.add_another_container.name }}”</a>
+              <a href="#{{ question.add_another_container.id }}-answers" class="govuk-link govuk-link--no-visited-state">Answers for "{{ question.add_another_container.name }}"</a>
             </p>
           {% endif %}
         {% endset %}
@@ -62,6 +63,24 @@
           {% include answer._render_answer_template %}
         {% else %}
           (Not answered)
+        {% endif %}
+        {% if helper.has_answer_changed_since_change_request(question.id, add_another_index=add_another_index) %}
+          {% set original_answer = helper.get_snapshot_answer_for_question(question.id, add_another_index=add_another_index) %}
+          {% set original_answer_html %}
+            {% if original_answer %}
+              {% set answer = original_answer %}
+              {% include answer._render_answer_template %}
+            {% else %}
+              (Not answered)
+            {% endif %}
+          {% endset %}
+          {{
+            govukDetails({
+              "summaryText": "Original answer",
+              "html": original_answer_html,
+              "open": render_pre_change_request_details
+            })
+          }}
         {% endif %}
       {% endset %}
 
@@ -102,7 +121,7 @@
         <h3 class="govuk-heading-s" id="{{ add_another_context.container.id }}-answers">{{ add_another_context.container.name }}</h3>
 
         {% for i in range(add_another_context.count) %}
-          {{ answers_summary_list(helper, add_another_context.container, add_another_index=i, summary_title=add_another_context.summaries[i].summary_text_line) }}
+          {{ answers_summary_list(helper, add_another_context.container, add_another_index=i, summary_title=add_another_context.summaries[i].summary_text_line, render_pre_change_request_details=render_pre_change_request_details) }}
         {% endfor %}
       </div>
     {% endif %}

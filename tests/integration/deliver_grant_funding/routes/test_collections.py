@@ -17,6 +17,7 @@ from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     add_component_validation,
+    update_submission_data,
 )
 from app.common.data.models import (
     Collection,
@@ -9332,6 +9333,82 @@ class TestViewSubmission:
             assert reopen_button is not None
         else:
             assert reopen_button is None
+
+    def test_shows_original_answer_after_resubmission(
+        self, authenticated_grant_member_client, submission_submitted, factories, mock_notification_service_calls
+    ):
+        submission_submitted.collection.change_requests_enabled = True
+        question = submission_submitted.collection.forms[0].cached_questions[0]
+        helper = SubmissionHelper(submission_submitted)
+
+        helper.request_changes(
+            user=authenticated_grant_member_client.user,
+            change_request_reason="Please update",
+            sections_to_change=[question.form.id],
+        )
+
+        submission_submitted.data_manager.set(question, TextSingleLineAnswer("updated value"))
+        update_submission_data(submission_submitted)
+
+        factories.submission_event.create(
+            submission=submission_submitted,
+            related_entity_id=question.form.id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            created_by=authenticated_grant_member_client.user,
+            created_at_utc=datetime.datetime(2027, 1, 1, 12, 0, 0),
+        )
+        factories.submission_event.create(
+            submission=submission_submitted,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            created_by=authenticated_grant_member_client.user,
+            created_at_utc=datetime.datetime(2027, 1, 1, 12, 0, 1),
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        details = soup.find_all("details", class_="govuk-details")
+
+        def _has_original_answer_label(span_text: str | None) -> bool:
+            return bool(span_text and "Original answer" in span_text)
+
+        original_answer_details = [
+            d
+            for d in details
+            if d.find("span", class_="govuk-details__summary-text", string=_has_original_answer_label)
+        ]
+        assert len(original_answer_details) == 1
+        assert "Question answer" in original_answer_details[0].get_text()
+
+    def test_no_original_answer_when_no_change_request(self, authenticated_grant_member_client, submission_submitted):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        details = soup.find_all("details", class_="govuk-details")
+
+        def _has_original_answer_label(span_text: str | None) -> bool:
+            return bool(span_text and "Original answer" in span_text)
+
+        original_answer_details = [
+            d
+            for d in details
+            if d.find("span", class_="govuk-details__summary-text", string=_has_original_answer_label)
+        ]
+        assert len(original_answer_details) == 0
 
 
 class TestReopenSubmission:
