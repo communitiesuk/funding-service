@@ -1202,22 +1202,18 @@ class DataSource(BaseModel, SafeDidMixin):
 
     def build_typed_org_item_data(
         self,
-        data: dict[str, str | int | float | None] | list[dict[str, str | int | float | None]],
-    ) -> dict[str, DataSourceAnswerTypes | None] | list[dict[str, DataSourceAnswerTypes | None]]:
+        data: dict[str, str | int | float | None],
+    ) -> dict[str, DataSourceAnswerTypes | None]:
         """
         Transform raw DataSourceOrganisationItem data into typed answer models.
 
-        2D (GRANT_RECIPIENT or STATIC, though STATIC is bit of a weird one): dict -> dict[str, DataSourceAnswerTypes]
-        3D (PROJECT_LEVEL): list[dict] -> list[dict[str, DataSourceAnswerTypes]]
+        2D (GRANT_RECIPIENT): dict -> dict[str, DataSourceAnswerTypes]
 
         The typed answers carry the presentation & data options (prefix, suffix etc.) so that we can call all the usual
         answer methods eg. get_value_for_interpolation().
         """
         if not self.schema:
-            return {} if isinstance(data, dict) else []
-
-        if isinstance(data, list):
-            return [self._build_typed_data(row) for row in data]
+            return {}
 
         return self._build_typed_data(data)
 
@@ -1319,10 +1315,7 @@ class DataSourceOrganisationItem(BaseModel):
     data_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source.id", ondelete="CASCADE"))
     external_id: Mapped[str]
 
-    # For 2D: dict[str, scalar], for 3D: list[dict[str, scalar]]
-    _data: Mapped[json_flat_scalars | list[json_flat_scalars]] = mapped_column(
-        "data", mutable_json_type(dbtype=JSONB, nested=True)
-    )
+    _data: Mapped[json_flat_scalars] = mapped_column("data", mutable_json_type(dbtype=JSONB, nested=True))
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="organisation_items")
 
@@ -1333,12 +1326,11 @@ class DataSourceOrganisationItem(BaseModel):
     )
 
     @property
-    def data(self) -> dict[str, DataSourceAnswerTypes | None] | list[dict[str, DataSourceAnswerTypes | None]]:
+    def data(self) -> dict[str, DataSourceAnswerTypes | None]:
         """
         Returns raw data as typed answer models via the parent DataSource schema.
 
-        2D (GRANT_RECIPIENT or STATIC): dict[str, DataSourceAnswerTypes]
-        3D (PROJECT_LEVEL): list[dict[str, DataSourceAnswerTypes]]
+        2D (GRANT_RECIPIENT): dict[str, DataSourceAnswerTypes]
         """
         return self.data_source.build_typed_org_item_data(self._data)
 

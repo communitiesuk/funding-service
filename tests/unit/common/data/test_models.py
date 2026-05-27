@@ -412,7 +412,7 @@ class TestDataSourceMakePydanticModel:
     def test_text_column_returns_text_single_line_answer(self, factories):
         data_source = factories.data_source.build(
             name="Test data set",
-            type=DataSourceType.STATIC,
+            type=DataSourceType.GRANT_RECIPIENT,
             schema=DataSourceSchema.model_validate({"theme-name": _text_col("Theme name")}),
         )
 
