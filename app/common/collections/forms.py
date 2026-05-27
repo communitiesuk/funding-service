@@ -183,12 +183,12 @@ class DynamicQuestionForm(FlaskForm):
         group = cast(Group, self._component)
 
         for validation in group.validations:
-            context = (
-                submitted_evaluation_context.with_default_context(self._submission_helper.collection)
-                if self._submission_helper and validation.allow_empty_default_values
-                else submitted_evaluation_context
-            )
-            if evaluate(expression=validation, context=context):
+            if evaluate(
+                expression=validation,
+                context=submitted_evaluation_context.with_default_context(self._submission_helper)
+                if self._submission_helper
+                else submitted_evaluation_context,
+            ):
                 emit_metric_count(
                     MetricEventName.SUBMISSION_MANAGED_VALIDATION_SUCCESS
                     if validation.is_managed

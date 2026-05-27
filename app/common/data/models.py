@@ -946,8 +946,6 @@ class Expression(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    allow_empty_default_values: Mapped[bool] = mapped_column(default=False)
-
     __table_args__ = (
         Index(
             "uq_type_validation_unique_key",

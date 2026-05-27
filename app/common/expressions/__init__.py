@@ -287,12 +287,15 @@ class ExpressionContext(ChainMap[str, Any]):
             default_context=self._default_context,
         )
 
-    def with_default_context(self, collection: Collection) -> ExpressionContext:
+    def with_default_context(self, submission_helper: SubmissionHelper) -> ExpressionContext:
         default_context: dict[str, Any] = {}
-        for form in collection.forms:
+
+        for form in submission_helper.collection.forms:
+            visible_questions = submission_helper.cached_get_ordered_visible_questions(form)
             for question in form.cached_questions:
-                if question.data_type == QuestionDataType.NUMBER:
-                    default_context[question.safe_qid] = 0
+                if question not in visible_questions:
+                    if question.data_type == QuestionDataType.NUMBER:
+                        default_context[question.safe_qid] = 0
         return ExpressionContext(
             submission_data=self._submission_data,
             expression_context=self._expression_context,
