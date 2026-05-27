@@ -1133,8 +1133,6 @@ class MapDataSetColumnsForm(FlaskForm):
             mappings.append(mapping)
         return mappings
 
-    def has_numerical_columns(self) -> bool:
-        return any(entry.form.column_type.data in ["DECIMAL", "INTEGER"] for entry in self.columns.entries)
 
     def get_numerical_columns(self) -> list[str]:
         return [

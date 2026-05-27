@@ -3433,7 +3433,7 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
         data_set_data.column_mappings = form.get_column_mappings()
         session["data_set_upload"] = data_set_data.model_dump(mode="json")
 
-        if form.has_numerical_columns():
+        if data_set_data.has_columns_requiring_manual_formatting():
             return redirect(
                 url_for(
                     "deliver_grant_funding.map_data_set_number_columns",
