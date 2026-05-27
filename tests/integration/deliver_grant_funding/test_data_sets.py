@@ -3,9 +3,8 @@ import uuid
 from app.common.data.types import DataSourceType
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.data_sets import (
+    BritishPoundsError,
     DataTypeError,
-    DecimalError,
-    PrefixError,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -107,7 +106,7 @@ class TestValidateDataSet:
         assert result.missing_columns_by_row[0] == ["Notes"]
         assert result.missing_columns_by_row[1] == ["Notes", "Summary"]
 
-    def test_wrong_prefix_symbol_is_incorrect_data_type(self, factories):
+    def test_wrong_prefix_symbol_for_british_pounds_collapses_to_single_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Capital allocation"],
@@ -124,10 +123,8 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set, all_rows)
 
-        assert result.blocking_errors
-        assert len(result.blocking_errors) == 2
-        assert any(isinstance(error, PrefixError) for error in result.blocking_errors)
-        assert any(isinstance(error, DataTypeError) for error in result.blocking_errors)
+        assert len(result.blocking_errors) == 1
+        assert isinstance(result.blocking_errors[0], BritishPoundsError)
 
     def test_missing_prefix_is_valid(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -167,7 +164,7 @@ class TestValidateDataSet:
         result = validate_data_set(data_set, all_rows)
         assert not result.blocking_errors
 
-    def test_too_many_decimal_places_is_blocking_cell_error(self, factories):
+    def test_too_many_decimal_places_in_british_pounds_is_blocking_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Capital allocation"],
@@ -184,8 +181,8 @@ class TestValidateDataSet:
 
         result = validate_data_set(data_set, all_rows)
 
-        assert result.blocking_errors
-        assert any(isinstance(error, DecimalError) for error in result.blocking_errors)
+        assert len(result.blocking_errors) == 1
+        assert isinstance(result.blocking_errors[0], BritishPoundsError)
 
     def test_incorrect_data_type_integer(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -248,7 +245,7 @@ class TestValidateDataSet:
 
         assert result.blocking_errors
         assert result.has_missing_data
-        assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
+        assert any(isinstance(e, BritishPoundsError) for e in result.blocking_errors)
         assert result.missing_columns_by_row[0] == ["Notes"]
 
     def test_multiple_errors_across_rows(self, factories):
@@ -281,11 +278,10 @@ class TestValidateDataSet:
 
         assert result.blocking_errors
         assert len(result.row_results) == 2
-        assert len(result.blocking_errors) == 4
+        assert len(result.blocking_errors) == 3
 
-        assert any(isinstance(e, PrefixError) for e in result.blocking_errors)
-        assert any(isinstance(e, DecimalError) for e in result.blocking_errors)
-        assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
+        assert sum(isinstance(e, BritishPoundsError) for e in result.blocking_errors) == 2
+        assert sum(isinstance(e, DataTypeError) for e in result.blocking_errors) == 1
 
 
 class TestValidateDataSetGrantRecipients:

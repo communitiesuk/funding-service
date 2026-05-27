@@ -114,6 +114,8 @@ from app.constants import (
     DATA_SET_IDENTIFIER_COLUMN_HEADERS,
 )
 from app.deliver_grant_funding.data_sets import (
+    BritishPoundsError,
+    DataSetValidationResult,
     build_data_set_upload_s3_key,
     validate_data_set,
     validate_data_set_grant_recipients,
@@ -3326,6 +3328,15 @@ def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], TUnvalida
     return columns, rows
 
 
+def _load_and_validate_data_set(
+    data_set_data: DataSetUploadSessionModel,
+) -> tuple[TUnvalidatedDataSetRows, DataSetValidationResult]:
+    file_bytes = s3_service.download_file(data_set_data.s3_key)
+    file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
+    _, rows = _parse_data_set_csv(file_storage)
+    return rows, validate_data_set(data_set_data, rows)
+
+
 def _extract_data_set_data_from_session() -> DataSetUploadSessionModel | None:
     if session_data := session.get("data_set_upload"):
         try:
@@ -3433,6 +3444,24 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
         data_set_data.column_mappings = form.get_column_mappings()
         session["data_set_upload"] = data_set_data.model_dump(mode="json")
 
+        rows: TUnvalidatedDataSetRows | None = None
+        validation_result: DataSetValidationResult | None = None
+
+        if form.has_british_pounds_columns():
+            rows, validation_result = _load_and_validate_data_set(data_set_data)
+            british_pounds_errors = [e for e in validation_result.blocking_errors if isinstance(e, BritishPoundsError)]
+            if british_pounds_errors:
+                errors = sorted(british_pounds_errors, key=lambda e: e.column)
+                column_errors = {col: list(errs) for col, errs in groupby(errors, key=lambda e: e.column)}
+                form.columns.errors = form.build_british_pounds_form_errors(column_errors)
+                return render_template(
+                    "deliver_grant_funding/reports/data_sets/map_columns.html",
+                    grant=report.grant,
+                    report=report,
+                    form=form,
+                    session_data=data_set_data,
+                )
+
         if data_set_data.has_columns_requiring_manual_formatting():
             return redirect(
                 url_for(
@@ -3442,11 +3471,8 @@ def map_data_set_columns(grant_id: UUID, report_id: UUID) -> ResponseReturnValue
                 )
             )
 
-        file_bytes = s3_service.download_file(data_set_data.s3_key)
-        file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
-        _, rows = _parse_data_set_csv(file_storage)
-
-        validation_result = validate_data_set(data_set_data, rows)
+        if validation_result is None:
+            rows, validation_result = _load_and_validate_data_set(data_set_data)
 
         if validation_result.blocking_errors or validation_result.has_missing_data:
             return redirect(
@@ -3540,11 +3566,7 @@ def map_data_set_number_columns(grant_id: UUID, report_id: UUID) -> ResponseRetu
                     mapping.max_decimal_places = settings[mapping.column_name]["max_decimal_places"]
         session["data_set_upload"] = data_set_data.model_dump(mode="json")
 
-        file_bytes = s3_service.download_file(data_set_data.s3_key)
-        file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
-        _, rows = _parse_data_set_csv(file_storage)
-
-        validation_result = validate_data_set(data_set_data, rows)
+        rows, validation_result = _load_and_validate_data_set(data_set_data)
 
         if validation_result.blocking_errors:
             errors = sorted(validation_result.blocking_errors, key=lambda e: e.column)
@@ -3615,11 +3637,7 @@ def data_set_missing_data(grant_id: UUID, report_id: UUID) -> ResponseReturnValu
     if not data_set_data:
         return redirect(url_for("deliver_grant_funding.upload_data_set", grant_id=grant_id, report_id=report_id))
 
-    file_bytes = s3_service.download_file(data_set_data.s3_key)
-    file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
-    _, rows = _parse_data_set_csv(file_storage)
-
-    validation_result = validate_data_set(data_set_data, rows)
+    rows, validation_result = _load_and_validate_data_set(data_set_data)
 
     form = GenericSubmitForm()
 

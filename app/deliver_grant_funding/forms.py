@@ -53,7 +53,14 @@ from app.common.helpers.feature_flags import FeatureFlags
 from app.common.safe_ids import safe_column_id
 from app.common.utils import uppercase_first
 from app.constants import DATA_SET_IDENTIFIER_COLUMN_HEADERS
-from app.deliver_grant_funding.data_sets import CellError, DataTypeError, DecimalError, PrefixError, SuffixError
+from app.deliver_grant_funding.data_sets import (
+    BritishPoundsError,
+    CellError,
+    DataTypeError,
+    DecimalError,
+    PrefixError,
+    SuffixError,
+)
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
@@ -1133,6 +1140,8 @@ class MapDataSetColumnsForm(FlaskForm):
             mappings.append(mapping)
         return mappings
 
+    def has_british_pounds_columns(self) -> bool:
+        return any(entry.form.column_type.data == "BRITISH_POUNDS" for entry in self.columns.entries)
 
     def get_numerical_columns(self) -> list[str]:
         return [
@@ -1140,6 +1149,30 @@ class MapDataSetColumnsForm(FlaskForm):
             for idx, column in enumerate(self.data_columns)
             if self.columns.entries[idx].form.column_type.data in ["DECIMAL", "INTEGER"]
         ]
+
+    def build_british_pounds_form_errors(
+        self,
+        column_errors: dict[str, list[CellError]],
+    ) -> list[dict[str, list[str]]]:
+        columns_error_list: list[dict[str, list[str]]] = []
+        for entry in self.columns.entries:
+            subform = entry.form
+            column_name = subform.column_name.data
+            col_errs = column_errors.get(column_name, []) if column_name else []
+            subform_errors: dict[str, list[str]] = {}
+
+            for error in col_errs:
+                if isinstance(error, BritishPoundsError):
+                    message = (
+                        f"One or more numbers in column '{column_name}' are not formatted as British pounds to 2 "
+                        f"decimal places with the '£' prefix. For example, £100.00"
+                    )
+                    subform.column_type.errors = list(subform.column_type.errors) + [message]
+                    subform_errors.setdefault("column_type", []).append(message)
+
+            columns_error_list.append(subform_errors)
+
+        return columns_error_list
 
 
 class NumberColumnOptionsForm(FlaskForm):
