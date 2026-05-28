@@ -40,6 +40,10 @@ class DataTypeError(CellError):
     table_message: str = "Incorrect data type"
 
 
+class BritishPoundsError(CellError):
+    table_message: str = "Not valid British pounds"
+
+
 class RowValidationResult(BaseModel):
     row_number: int
     cell_errors: list[CellError] = Field(default_factory=list)
@@ -104,6 +108,9 @@ def _validate_cell(column: str, value: str, mapping: DataSetColumnMapping) -> li
 
     if mapping.number_type == NumberTypeEnum.DECIMAL:
         errors.extend(_validate_decimal(stripped, mapping, column))
+
+    if mapping.column_type == "BRITISH_POUNDS" and errors:
+        return [BritishPoundsError(column=column)]
 
     return errors
 

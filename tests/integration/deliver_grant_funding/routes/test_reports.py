@@ -9836,6 +9836,101 @@ class TestMapDataSetColumns:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, f"Select a data type for {session['data_set_upload']['data_columns'][0]}")
 
+    def test_post_british_pounds_with_bad_data_shows_inline_error(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls, mocker
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["Capital allocation"],
+                preview_data={"Capital allocation": ["100", "£200.5"]},
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
+            ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                "Capital allocation": "£200.555",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        data = {
+            "columns-0-column_type": "BRITISH_POUNDS",
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            data=data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        expected_message = (
+            "One or more numbers in column 'Capital allocation' are not formatted as British pounds to 2 "
+            "decimal places with the '£' prefix. For example, £100.00"
+        )
+        assert page_has_error(soup, expected_message)
+        select = soup.find("select", {"name": "columns-0-column_type"})
+        error_id = select.get("aria-describedby", "").split()[-1] if select else ""
+        error_element = soup.find(id=error_id) if error_id else None
+        assert error_element is not None
+        assert expected_message in error_element.get_text()
+
+    def test_post_british_pounds_clean_data_proceeds(
+        self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
+    ):
+        report = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["Capital allocation"],
+                preview_data={"Capital allocation": ["£100.00"]},
+                data_source_id=uuid.uuid4(),
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
+            ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                "Capital allocation": "£100.00",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        data = {
+            "columns-0-column_type": "BRITISH_POUNDS",
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.post(
+            url_for("deliver_grant_funding.map_data_set_columns", grant_id=report.grant.id, report_id=report.id),
+            data=data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location.endswith(
+            url_for("deliver_grant_funding.list_report_data_sets", grant_id=report.grant.id, report_id=report.id)
+        )
+        assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
+
 
 class TestMapDataSetNumberColumns:
     def test_404_for_non_admin(self, authenticated_grant_member_client):

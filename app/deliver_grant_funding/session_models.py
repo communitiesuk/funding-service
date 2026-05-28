@@ -177,3 +177,6 @@ class DataSetUploadSessionModel(BaseModel):
 
     def get_column_mapping(self, column_name: str) -> DataSetColumnMapping | None:
         return next((mapping for mapping in self.column_mappings if mapping.column_name == column_name), None)
+
+    def has_columns_requiring_manual_formatting(self) -> bool:
+        return any(mapping.requires_manual_formatting for mapping in self.column_mappings)
