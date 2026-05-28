@@ -87,12 +87,12 @@ class SubmissionValidator:
         if add_another_index is not None:
             evaluation_context = self.helper.cached_evaluation_context.with_add_another_context(
                 group, self.helper.submission.data_manager, add_another_index=add_another_index, mode="evaluation"
-            )
+            ).with_default_context(self.helper)
             interpolation_context = self.helper.cached_interpolation_context.with_add_another_context(
                 group, self.helper.submission.data_manager, add_another_index=add_another_index, mode="interpolation"
             )
         else:
-            evaluation_context = self.helper.cached_evaluation_context
+            evaluation_context = self.helper.cached_evaluation_context.with_default_context(self.helper)
             interpolation_context = self.helper.cached_interpolation_context
 
         for validation_expr in group.validations:
@@ -133,7 +133,7 @@ class SubmissionValidator:
         if not question.validations:
             return errors
 
-        evaluation_context = self.helper.cached_evaluation_context
+        evaluation_context = self.helper.cached_evaluation_context.with_default_context(self.helper)
         if add_another_index is not None and question.add_another_container:
             evaluation_context = evaluation_context.with_add_another_context(
                 question.add_another_container,

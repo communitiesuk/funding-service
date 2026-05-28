@@ -287,7 +287,24 @@ class ExpressionContext(ChainMap[str, Any]):
             default_context=self._default_context,
         )
 
-    def with_default_context(self, submission_helper: SubmissionHelper) -> ExpressionContext:
+    def with_default_context(self, submission_helper: SubmissionHelper | None) -> ExpressionContext:
+        """To accommodate custom expressions that might reference questions that are
+        conditionally not required given the current answer state, we set default empty values
+        for any question that is not currently visible.
+
+        We won't default answers that should be visible, as anything unhandled here should
+        surface logical errors and defaults could lead to unpredictable failures.
+
+        This method is intentionally separated from building the initial expression context
+        so that any initial visibility checks and interpolation don't worry about default edge cases,
+        this should only be used when evaluating custom validations.
+
+        The scope of this could be expanded to other data sources and other data types
+        as required.
+        """
+        if not submission_helper:
+            return self
+
         default_context: dict[str, Any] = {}
 
         for form in submission_helper.collection.forms:
@@ -296,6 +313,7 @@ class ExpressionContext(ChainMap[str, Any]):
                 if question not in visible_questions:
                     if question.data_type == QuestionDataType.NUMBER:
                         default_context[question.safe_qid] = 0
+
         return ExpressionContext(
             submission_data=self._submission_data,
             expression_context=self._expression_context,
