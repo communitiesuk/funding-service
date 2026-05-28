@@ -262,7 +262,7 @@ class DynamicQuestionForm(FlaskForm):
                 # don't show referenced questions that the user hasn't had to answer
                 if (
                     self._submission_helper
-                    and referenced_question.id not in self._submission_helper.all_visible_questions.keys()
+                    and referenced_question.id not in self._submission_helper.all_visible_questions
                 ):
                     continue
 

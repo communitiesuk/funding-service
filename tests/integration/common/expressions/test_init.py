@@ -5,7 +5,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from app.common.collections.types import TextSingleLineAnswer
+from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
 from app.common.data.models import Expression
 from app.common.data.types import (
     DataSourceSchema,
@@ -30,6 +30,7 @@ class TestExpressionContext:
             submission_data={"a": 1, "b": 1, "e": 1},
             expression_context={"a": 2, "c": 2, "d": 2},
             question_form_context={"a": 3, "f": 3, "g": 3},
+            default_context={"a": 0, "h": 0},
         )
         assert ex["a"] == 3
         assert ex["b"] == 1
@@ -38,9 +39,10 @@ class TestExpressionContext:
         assert ex["e"] == 1
         assert ex["f"] == 3
         assert ex["g"] == 3
+        assert ex["h"] == 0
 
         with pytest.raises(KeyError):
-            assert ex["h"]
+            assert ex["i"]
 
     def test_get(self):
         ex = ExpressionContext(
@@ -905,6 +907,43 @@ class TestExtendingWithQuestionFormContext:
             )
 
             assert new_context["d_abc"]["capital_allocation"] == 1000
+
+
+class TestWithDefaultContext:
+    def test_returns_unchanged_with_no_submission_helper(self):
+        ctx = ExpressionContext(submission_data={"qid": 5})
+        result = ctx.with_default_context(None)
+        assert result is ctx
+
+    def test_defaults_answers_set_based_on_visibility(self, factories):
+        visible_question_with_answer = factories.question.create(data_type=QuestionDataType.NUMBER)
+        visible_question_without_answer = factories.question.create(
+            form=visible_question_with_answer.form, data_type=QuestionDataType.NUMBER
+        )
+        hidden_question = factories.question.create(
+            form=visible_question_with_answer.form, data_type=QuestionDataType.NUMBER
+        )
+        factories.expression.create(
+            question=hidden_question,
+            statement="False",
+            type_=ExpressionType.CONDITION,
+        )
+        submission = factories.submission.create(
+            collection=visible_question_with_answer.form.collection,
+            answers=[FactoryAnswer(visible_question_with_answer, IntegerAnswer(value=123))],
+        )
+        helper = SubmissionHelper(submission)
+
+        result = ExpressionContext.build_expression_context(
+            collection=visible_question_with_answer.form.collection,
+            mode="evaluation",
+            submission_helper=helper,
+            data_manager=helper.submission.data_manager,
+        ).with_default_context(helper)
+
+        assert result.get(visible_question_with_answer.safe_qid) == 123
+        assert result.get(visible_question_without_answer.safe_qid) is None
+        assert result.get(hidden_question.safe_qid) == 0
 
 
 class TestDataSourceInterpolation:

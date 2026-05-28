@@ -8,6 +8,7 @@ from wtforms.fields.choices import SelectField
 from wtforms.validators import DataRequired
 
 from app.common.collections.forms import build_question_form
+from app.common.collections.types import IntegerAnswer, YesNoAnswer
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import create_question
 from app.common.data.types import (
@@ -16,13 +17,16 @@ from app.common.data.types import (
     NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
+    QuestionPresentationOptions,
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.custom import CustomExpression
-from app.common.expressions.managed import GreaterThan, IsAfter, LessThan
+from app.common.expressions.managed import GreaterThan, IsAfter, IsYes, LessThan
 from app.common.expressions.references import ExpressionReference
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
+from app.common.helpers.collections import SubmissionHelper
 from app.metrics import MetricEventName
+from tests.models import FactoryAnswer
 
 EC = ExpressionContext
 
@@ -554,3 +558,119 @@ class TestValidationMetrics:
         assert valid is False
         assert mock_sentry_metrics.call_count == 2
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_CUSTOM_VALIDATION_ERROR, 1)
+
+
+class TestGroupValidationWithDefaultContext:
+    def test_group_validation_passes_when_conditional_number_question_answer_is_missing(
+        self, factories, mock_sentry_metrics
+    ):
+        user = factories.user.create()
+        is_yes_question = factories.question.create(data_type=QuestionDataType.YES_NO, order=0)
+        group = factories.group.create(
+            form=is_yes_question.form,
+            order=1,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        question_number_one = factories.question.create(
+            form=is_yes_question.form, parent=group, data_type=QuestionDataType.NUMBER, order=0
+        )
+        question_number_two = factories.question.create(
+            form=is_yes_question.form, parent=group, data_type=QuestionDataType.NUMBER, order=1
+        )
+        interfaces.collections.add_component_condition(
+            question_number_two,
+            user,
+            IsYes(subject_reference=ExpressionReference.from_question(is_yes_question)),
+        )
+        interfaces.collections.add_component_validation(
+            group,
+            user,
+            CustomExpression(
+                custom_expression=f"(({question_number_two.safe_qid})) + (({question_number_one.safe_qid})) == 50",
+                custom_message="Total must be 50",
+            ),
+        )
+
+        submission = factories.submission.create(
+            collection=is_yes_question.form.collection,
+            answers=[FactoryAnswer(is_yes_question, YesNoAnswer(False))],
+        )
+        helper = SubmissionHelper(submission)
+
+        _FormClass = build_question_form(
+            [question_number_one],
+            evaluation_context=helper.cached_evaluation_context,
+            interpolation_context=helper.cached_interpolation_context,
+            component=group,
+            submission_helper=helper,
+        )
+        form_instance = _FormClass(formdata=MultiDict({question_number_one.safe_qid: "50"}))
+
+        valid = form_instance.validate()
+
+        assert valid is True
+        assert form_instance.group_validation_error is None
+
+    def test_group_validation_error_excludes_invisible_referenced_questions(self, factories, mock_sentry_metrics):
+        user = factories.user.create()
+        is_yes_question = factories.question.create(data_type=QuestionDataType.YES_NO, order=0)
+        question_off_page_hidden = factories.question.create(
+            form=is_yes_question.form, data_type=QuestionDataType.NUMBER, order=1
+        )
+        question_off_page_visible = factories.question.create(
+            form=is_yes_question.form, data_type=QuestionDataType.NUMBER, order=2
+        )
+        interfaces.collections.add_component_condition(
+            question_off_page_hidden,
+            user,
+            IsYes(subject_reference=ExpressionReference.from_question(is_yes_question)),
+        )
+        group = factories.group.create(
+            form=is_yes_question.form,
+            order=3,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        question_on_page = factories.question.create(
+            form=is_yes_question.form, parent=group, data_type=QuestionDataType.NUMBER, order=0
+        )
+        interfaces.collections.add_component_validation(
+            group,
+            user,
+            CustomExpression(
+                custom_expression=f"(({question_on_page.safe_qid})) + (({question_off_page_visible.safe_qid})) "
+                + f"+ (({question_off_page_hidden.safe_qid})) == 150",
+                custom_message="Total must be 150",
+            ),
+        )
+
+        submission = factories.submission.create(
+            collection=is_yes_question.form.collection,
+            answers=[
+                FactoryAnswer(is_yes_question, YesNoAnswer(False)),
+                FactoryAnswer(question_off_page_visible, IntegerAnswer(value=50)),
+            ],
+        )
+        helper = SubmissionHelper(submission)
+
+        _FormClass = build_question_form(
+            [question_on_page],
+            evaluation_context=helper.cached_evaluation_context,
+            interpolation_context=helper.cached_interpolation_context,
+            component=group,
+            submission_helper=helper,
+        )
+        form_instance = _FormClass(formdata=MultiDict({question_on_page.safe_qid: "50"}))
+
+        valid = form_instance.validate()
+
+        # the condition was safely allowed to run, and fails
+        assert valid is False
+        # on_page_entries includes q_on_page (it's a visible field on this form)
+        on_page_ids = {e.question.id for e in form_instance.group_validation_error.on_page_entries}
+        off_page_ids = {e.question.id for e in form_instance.group_validation_error.off_page_entries}
+
+        # errors off page includes visible question but don't include the question that is hidden
+        # by a condition
+        assert question_on_page.id in on_page_ids
+        assert question_off_page_hidden.id not in off_page_ids
+        assert question_off_page_visible.id in off_page_ids
