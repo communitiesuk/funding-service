@@ -6,7 +6,6 @@ from flask import current_app
 from pydantic import BaseModel, Field
 
 from app.common.data.types import (
-    DataSourceType,
     NumberTypeEnum,
     QuestionDataType,
     TUnvalidatedDataSetRow,
@@ -138,7 +137,6 @@ def _check_grant_recipient_row(
     recipient_names: set[str],
     seen_external_ids: set[str],
     seen_recipient_names: set[str],
-    check_duplicates: bool,
 ) -> list[str]:
     errors: list[str] = []
     external_id_unknown = external_id not in external_ids
@@ -147,7 +145,7 @@ def _check_grant_recipient_row(
         errors.append(
             f"Row {index + 2}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' not found in grant recipients"
         )
-    elif check_duplicates and external_id in seen_external_ids:
+    elif external_id in seen_external_ids:
         errors.append(
             f"Row {index + 2}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' already appears in the data set"
         )
@@ -156,7 +154,7 @@ def _check_grant_recipient_row(
         errors.append(
             f"Row {index + 2}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' not found in grant recipients"
         )
-    elif check_duplicates and not external_id_unknown and recipient in seen_recipient_names:
+    elif not external_id_unknown and recipient in seen_recipient_names:
         errors.append(
             f"Row {index + 2}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' already appears in the data set"
         )
@@ -167,15 +165,11 @@ def _check_grant_recipient_row(
 def validate_data_set_grant_recipients(
     data_set: DataSetUploadSessionModel, grant_recipients: Sequence[GrantRecipient], all_rows: TUnvalidatedDataSetRows
 ) -> list[str]:
-    if data_set.data_source_type == DataSourceType.STATIC:
-        return []
-
     errors: list[str] = []
     external_ids = {gr.organisation.external_id for gr in grant_recipients}
     recipient_names = {gr.organisation.name for gr in grant_recipients}
     seen_external_ids: set[str] = set()
     seen_recipient_names: set[str] = set()
-    check_duplicates = data_set.data_source_type == DataSourceType.GRANT_RECIPIENT
 
     for idx, row in enumerate(all_rows):
         external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
@@ -205,7 +199,6 @@ def validate_data_set_grant_recipients(
                 recipient_names,
                 seen_external_ids,
                 seen_recipient_names,
-                check_duplicates,
             )
         )
         seen_external_ids.add(external_id)

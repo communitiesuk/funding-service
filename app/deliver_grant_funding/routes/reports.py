@@ -3701,14 +3701,20 @@ def view_data_source(grant_id: UUID, report_id: UUID, data_source_id: UUID) -> R
 
     data_source = get_data_source(data_source_id, with_organisation_items=True, with_data_source_items=True)
 
+    # TODO FSPT-1044: We should do this filtering in the interface rather than here
+    if data_source.collection_id != report_id or data_source.grant_id != grant_id:
+        abort(404)
+
+    if data_source.type != DataSourceType.GRANT_RECIPIENT:
+        abort(404)
+
     grant_recipient_name_by_external_id: dict[str, str] = {}
-    if data_source.type in [DataSourceType.GRANT_RECIPIENT, DataSourceType.PROJECT_LEVEL]:
-        all_grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
-        grant_recipient_name_by_external_id = {
-            gr.organisation.external_id: gr.organisation.name
-            for gr in all_grant_recipients
-            if gr.organisation.mode == OrganisationModeEnum.LIVE
-        }
+    all_grant_recipients = interfaces.grant_recipients.get_grant_recipients(report.grant, with_organisations=True)
+    grant_recipient_name_by_external_id = {
+        gr.organisation.external_id: gr.organisation.name
+        for gr in all_grant_recipients
+        if gr.organisation.mode == OrganisationModeEnum.LIVE
+    }
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:

@@ -285,10 +285,6 @@ class TestValidateDataSet:
 
 
 class TestValidateDataSetGrantRecipients:
-    def test_returns_empty_for_static(self):
-        data_set = _make_data_set(data_source_type=DataSourceType.STATIC)
-        assert validate_data_set_grant_recipients(data_set, [], []) == []
-
     def test_valid_csv_returns_no_errors(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         data_set = _make_data_set(data_columns=["Amount"])
@@ -347,24 +343,6 @@ class TestValidateDataSetGrantRecipients:
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr.organisation.external_id}' already appears" in e for e in errors
         )
 
-    def test_duplicate_external_id_is_not_error_for_project_level(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(data_source_type=DataSourceType.PROJECT_LEVEL, data_columns=["Amount"])
-        all_rows = [
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                "Amount": "100",
-            },
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                "Amount": "200",
-            },
-        ]
-        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
-        assert not errors
-
     def test_grant_recipient_missing_from_csv(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
         gr2 = factories.grant_recipient.create(organisation__external_id="T0002")
@@ -400,22 +378,13 @@ class TestValidateDataSetGrantRecipients:
 
     def test_data_present_but_no_identifiers_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        data_set = _make_data_set(
-            data_source_type=DataSourceType.PROJECT_LEVEL, data_columns=["project name", "project cost"]
-        )
+        data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                "project name": "Roads",
-                "project cost": "1000",
-            },
             {
                 DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "",
                 DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "",
-                "project name": "Orphan project",
-                "project cost": "500",
-            },
+                "Amount": "100",
+            }
         ]
         errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert any(
