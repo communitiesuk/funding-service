@@ -1205,10 +1205,10 @@ def _build_delegated_rows(
 ) -> list[DelegatedRow]:
     fs_grant_certifiers_by_org: dict[Organisation, dict[str, _FSGrantCertifier]] = {}
     for grant in get_all_grants():
-        override_certifiers = get_grant_override_certifiers_by_organisation(grant_id=grant.id)
+        override_certifiers = get_grant_override_certifiers_by_organisation(
+            grant_id=grant.id, organisation_mode=OrganisationModeEnum.LIVE
+        )
         for fs_org, users in override_certifiers.items():
-            if fs_org.mode != OrganisationModeEnum.LIVE:
-                continue
             for user in users:
                 email = user.email.lower()
                 entry = fs_grant_certifiers_by_org.setdefault(fs_org, {}).setdefault(
@@ -1262,7 +1262,7 @@ class PlatformAdminDeltaCertifiersView(FlaskAdminPlatformAdminGrantLifecycleMana
         certifiers_by_org = get_certifiers_by_organisation()
 
         return self.render(
-            "deliver_grant_funding/admin/certifiers.html",
+            "deliver_grant_funding/admin/delta-certifiers.html",
             org_rows=_build_org_certifier_rows(delta_officers, certifiers_by_org),
             delegated_rows=_build_delegated_rows(delta_officers, certifiers_by_org),
             delta_last_updated_at=delta_last_updated_at,

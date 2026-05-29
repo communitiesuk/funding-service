@@ -333,7 +333,7 @@ routes_with_access_controlled_by_flask_admin = [
     "question.edit_view",
     "question.export",
     "question.index_view",
-    "certifiers.index",
+    "delta_certifiers.index",
 ]
 
 

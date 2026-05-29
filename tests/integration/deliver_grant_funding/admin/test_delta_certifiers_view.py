@@ -52,7 +52,7 @@ def delta_test_data(factories, db_session):
 
 @pytest.fixture
 def page_soup(authenticated_platform_grant_lifecycle_manager_client, delta_csv_path, delta_test_data):
-    response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/certifiers/")
+    response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/delta-certifiers/")
     assert response.status_code == 200
     return BeautifulSoup(response.data, "html.parser")
 
@@ -88,7 +88,7 @@ class TestDeltaCertifiersAdminAccess:
     )
     def test_page_access(self, client_fixture, expected_code, request, delta_csv_path):
         client = request.getfixturevalue(client_fixture)
-        response = client.get("/deliver/admin/certifiers/")
+        response = client.get("/deliver/admin/delta-certifiers/")
         assert response.status_code == expected_code
 
 
@@ -205,7 +205,7 @@ class TestCsvLoadFailure:
     ):
         monkeypatch.setitem(app.config, "DELTA_S151_CSV_PATH_OR_KEY", "/nonexistent/path/s151-data.csv")
         with pytest.raises(FileNotFoundError):
-            authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/certifiers/")
+            authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/delta-certifiers/")
 
 
 class TestS3ZipSource:
@@ -227,7 +227,7 @@ class TestS3ZipSource:
         boto3_client_mock = mocker.patch("app.deliver_grant_funding.admin.views.boto3.client", return_value=s3_client)
         monkeypatch.setitem(app.config, "DELTA_S151_CSV_PATH_OR_KEY", "s3://delta-exports/s151/s151-data.zip")
 
-        response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/certifiers/")
+        response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/delta-certifiers/")
 
         assert response.status_code == 200
         boto3_client_mock.assert_called_once_with("s3")
