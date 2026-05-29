@@ -27,10 +27,10 @@ from tests.models import FactoryAnswer
 class TestExpressionContext:
     def test_layering(self):
         ex = ExpressionContext(
-            submission_data={"a": 1, "b": 1, "e": 1},
+            submission_data={"a": 1, "b": 1, "e": 1, "j": 1},
             expression_context={"a": 2, "c": 2, "d": 2},
             question_form_context={"a": 3, "f": 3, "g": 3},
-            default_context={"a": 0, "h": 0},
+            default_context={"a": 0, "h": 0, "j": 0},
         )
         assert ex["a"] == 3
         assert ex["b"] == 1
@@ -40,6 +40,10 @@ class TestExpressionContext:
         assert ex["f"] == 3
         assert ex["g"] == 3
         assert ex["h"] == 0
+
+        # for now default context is above submission data to avoid
+        # stale data (on now hidden questions) being used in validations
+        assert ex["j"] == 0
 
         with pytest.raises(KeyError):
             assert ex["i"]

@@ -252,11 +252,11 @@ class ExpressionContext(ChainMap[str, Any]):
                 None,
                 [
                     self._question_form_context,
+                    self._default_context,
                     self._add_another_context,
                     self._submission_data,
                     self._data_source_context,
                     self._expression_context,
-                    self._default_context,
                 ],
             )
         )

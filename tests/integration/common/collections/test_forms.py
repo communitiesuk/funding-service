@@ -674,3 +674,58 @@ class TestGroupValidationWithDefaultContext:
         assert question_on_page.id in on_page_ids
         assert question_off_page_hidden.id not in off_page_ids
         assert question_off_page_visible.id in off_page_ids
+
+    def test_group_validation_passes_when_hidden_question_has_stale_persisted_answer(
+        self, factories, mock_sentry_metrics
+    ):
+        user = factories.user.create()
+        is_yes_question = factories.question.create(data_type=QuestionDataType.YES_NO, order=0)
+        group = factories.group.create(
+            form=is_yes_question.form,
+            order=1,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        question_number_one = factories.question.create(
+            form=is_yes_question.form, parent=group, data_type=QuestionDataType.NUMBER, order=0
+        )
+        question_number_two = factories.question.create(
+            form=is_yes_question.form, parent=group, data_type=QuestionDataType.NUMBER, order=1
+        )
+        interfaces.collections.add_component_condition(
+            question_number_two,
+            user,
+            IsYes(subject_reference=ExpressionReference.from_question(is_yes_question)),
+        )
+        interfaces.collections.add_component_validation(
+            group,
+            user,
+            CustomExpression(
+                custom_expression=f"(({question_number_two.safe_qid})) + (({question_number_one.safe_qid})) == 50",
+                custom_message="Total must be 50",
+            ),
+        )
+
+        # question_number_two was answered earlier (when is_yes was True)
+        # is_yes to False so question_number_two is now hidden
+        submission = factories.submission.create(
+            collection=is_yes_question.form.collection,
+            answers=[
+                FactoryAnswer(is_yes_question, YesNoAnswer(False)),
+                FactoryAnswer(question_number_two, IntegerAnswer(value=100)),
+            ],
+        )
+        helper = SubmissionHelper(submission)
+
+        _FormClass = build_question_form(
+            [question_number_one],
+            evaluation_context=helper.cached_evaluation_context,
+            interpolation_context=helper.cached_interpolation_context,
+            component=group,
+            submission_helper=helper,
+        )
+        form_instance = _FormClass(formdata=MultiDict({question_number_one.safe_qid: "50"}))
+
+        valid = form_instance.validate()
+
+        assert valid is True
+        assert form_instance.group_validation_error is None
