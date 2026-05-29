@@ -401,3 +401,48 @@ class TestSubmissionValidator:
         assert errors[0].question_id == inner_group.id
         assert errors[0].form_id == form.id
         assert errors[0].error_message == "Total must be 100"
+
+    def test_group_validation_passes_when_referenced_number_question_is_conditionally_hidden(self, factories):
+        is_yes_question = factories.question.build(id=uuid.uuid4(), data_type=QuestionDataType.YES_NO, order=0)
+        group = factories.group.build(
+            form=is_yes_question.form,
+            id=uuid.uuid4(),
+            order=1,
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        question_number_one = factories.question.build(
+            form=is_yes_question.form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0
+        )
+        factories.expression.build(
+            question=question_number_one,
+            type_=ExpressionType.CONDITION,
+            managed_name=ManagedExpressionsEnum.IS_YES,
+            statement=f"{is_yes_question.safe_qid} is True",
+            context={"subject_reference": ExpressionReference.from_question(is_yes_question)},
+        )
+        question_number_two = factories.question.build(
+            form=is_yes_question.form, parent=group, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1
+        )
+        custom = CustomExpression(
+            custom_expression=f"(({question_number_one.safe_qid})) + (({question_number_two.safe_qid})) == 50",
+            custom_message="Total must be 50",
+        )
+        factories.expression.build(
+            question=group,
+            type_=ExpressionType.VALIDATION,
+            statement=custom.statement,
+            context=custom.model_dump(mode="json"),
+        )
+
+        submission = factories.submission.build(
+            collection=is_yes_question.form.collection,
+            answers=[
+                FactoryAnswer(is_yes_question, YesNoAnswer(False)),
+                FactoryAnswer(question_number_two, IntegerAnswer(value=50)),
+            ],
+        )
+
+        helper = SubmissionHelper(submission)
+        validator = SubmissionValidator(helper)
+
+        assert validator.validate_all_reachable_questions() is None

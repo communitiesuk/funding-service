@@ -11,7 +11,7 @@ from markupsafe import Markup, escape
 from pydantic import BaseModel
 
 from app.common.data.submission_data_manager import SubmissionDataManager
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, QuestionDataType
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions.references import ExpressionReference
 from app.types import NOT_PROVIDED
@@ -188,12 +188,14 @@ class ExpressionContext(ChainMap[str, Any]):
         add_another_context: dict[str, Any] | None = None,
         data_source_context: dict[str, Any] | None = None,
         question_form_context: dict[str, Any] | None = None,
+        default_context: dict[str, Any] | None = None,
     ):
         self._submission_data = submission_data or {}
         self._expression_context = expression_context or {}
         self._add_another_context = add_another_context or {}
         self._data_source_context = data_source_context or {}
         self._question_form_context = question_form_context or {}
+        self._default_context = default_context or {}
 
         super().__init__(*self._ordered_contexts)
 
@@ -240,6 +242,7 @@ class ExpressionContext(ChainMap[str, Any]):
             expression_context=self._expression_context,
             question_form_context=self._question_form_context,
             data_source_context=self._data_source_context,
+            default_context=self._default_context,
         )
 
     @property
@@ -249,6 +252,7 @@ class ExpressionContext(ChainMap[str, Any]):
                 None,
                 [
                     self._question_form_context,
+                    self._default_context,
                     self._add_another_context,
                     self._submission_data,
                     self._data_source_context,
@@ -280,6 +284,43 @@ class ExpressionContext(ChainMap[str, Any]):
             add_another_context=self._add_another_context,
             data_source_context=self._data_source_context,
             question_form_context=submission_answers_from_form,
+            default_context=self._default_context,
+        )
+
+    def with_default_context(self, submission_helper: SubmissionHelper | None) -> ExpressionContext:
+        """To accommodate custom expressions that might reference questions that are
+        conditionally not required given the current answer state, we set default empty values
+        for any question that is not currently visible.
+
+        We won't default answers that should be visible, as anything unhandled here should
+        surface logical errors and defaults could lead to unpredictable failures.
+
+        This method is intentionally separated from building the initial expression context
+        so that any initial visibility checks and interpolation don't worry about default edge cases,
+        this should only be used when evaluating custom validations.
+
+        The scope of this could be expanded to other data sources and other data types
+        as required.
+        """
+        if not submission_helper:
+            return self
+
+        default_context: dict[str, Any] = {}
+
+        for form in submission_helper.collection.forms:
+            visible_questions = submission_helper.cached_get_ordered_visible_questions(form)
+            for question in form.cached_questions:
+                if question not in visible_questions:
+                    if question.data_type == QuestionDataType.NUMBER:
+                        default_context[question.safe_qid] = 0
+
+        return ExpressionContext(
+            submission_data=self._submission_data,
+            expression_context=self._expression_context,
+            add_another_context=self._add_another_context,
+            data_source_context=self._data_source_context,
+            question_form_context=self._question_form_context,
+            default_context=default_context,
         )
 
     @staticmethod
