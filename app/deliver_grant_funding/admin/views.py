@@ -1,10 +1,16 @@
 import csv
+import datetime
+import os
+import zipfile
+from dataclasses import dataclass
 from io import BytesIO, StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal, Sequence, TypedDict, cast
 from uuid import UUID
 
+import boto3
 import markupsafe
 from flask import abort, current_app, flash, make_response, redirect, send_file, url_for
+from flask.typing import ResponseReturnValue
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
@@ -85,6 +91,10 @@ from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformMemberAccessibleMixin,
 )
 from app.extensions import auto_commit_after_request, db, notification_service
+
+if TYPE_CHECKING:
+    from app.common.data.models import Grant, Organisation
+    from app.common.data.models_user import User
 
 
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
@@ -1086,3 +1096,174 @@ class PlatformAdminDeveloperToolsView(FlaskAdminPlatformAdminAccessibleMixin, Ba
             return response
 
         return redirect(url_for("developer_tools.index"))
+
+
+@dataclass(frozen=True)
+class DeltaS151Officer:
+    organisation_code: str
+    organisation_name: str
+    officer_type: Literal["s151-officer", "deputy-s151-officer", "delegated-s151-officer"]
+    email: str
+    name: str
+    delegated_access_groups: str
+    last_modified_date: datetime.datetime
+
+
+class OrgCertifierRow(TypedDict):
+    organisation: Organisation
+    our_certifiers: Sequence[User]
+    delta_officers: Sequence[DeltaS151Officer]
+    has_diff: bool
+
+
+class DelegatedEntry(TypedDict):
+    email: str
+    name: str
+    delegated_access_groups: str
+    our_grants: list[Grant]
+
+
+class DelegatedRow(TypedDict):
+    organisation: Organisation
+    entries: list[DelegatedEntry]
+
+
+class _FSGrantCertifier(TypedDict):
+    user: User
+    grants: list[Grant]
+
+
+def _load_delta_s151_officers() -> tuple[list[DeltaS151Officer], datetime.datetime]:
+    path_or_key = current_app.config["DELTA_S151_CSV_PATH_OR_KEY"]
+    if path_or_key.startswith("s3://"):
+        bucket, _, key = path_or_key.removeprefix("s3://").partition("/")
+        s3_object = boto3.client("s3").get_object(Bucket=bucket, Key=key)
+        last_updated_at = s3_object["LastModified"]
+        zip_bytes = s3_object["Body"].read()
+        with zipfile.ZipFile(BytesIO(zip_bytes)) as archive:
+            csv_name = next(n for n in archive.namelist() if n.endswith(".csv"))
+            csv_text = archive.read(csv_name).decode("utf-8-sig")
+    else:
+        last_updated_at = datetime.datetime.fromtimestamp(os.path.getmtime(path_or_key), tz=datetime.UTC)
+        with open(path_or_key, encoding="utf-8-sig") as f:
+            csv_text = f.read()
+
+    reader = csv.DictReader(csv_text.splitlines())
+    officers = [
+        DeltaS151Officer(
+            organisation_code=row["organisation-code"],
+            organisation_name=row["organisation-name"],
+            officer_type=cast(
+                Literal["s151-officer", "deputy-s151-officer", "delegated-s151-officer"],
+                row["officer-type"],
+            ),
+            email=row["officer-user-email"],
+            name=row["officer-name"],
+            delegated_access_groups=row["delegated-access-groups"],
+            last_modified_date=datetime.datetime.fromisoformat(row["last-modified-date"]),
+        )
+        for row in reader
+        if row["officer-type"] in ("s151-officer", "deputy-s151-officer", "delegated-s151-officer")
+        and row["status"] == "approved"
+        and row["account-status"] == "enabled"
+    ]
+    return officers, last_updated_at
+
+
+def _build_org_certifier_rows(
+    delta_officers: list[DeltaS151Officer],
+    certifiers_by_org: dict[Organisation, Sequence[User]],
+) -> list[OrgCertifierRow]:
+    delta_by_org_code: dict[str, list[DeltaS151Officer]] = {}
+    for officer in delta_officers:
+        if officer.officer_type == "delegated-s151-officer":
+            continue
+        delta_by_org_code.setdefault(officer.organisation_code, []).append(officer)
+
+    rows = []
+    for organisation, our_certifiers in certifiers_by_org.items():
+        delta_for_org = delta_by_org_code.get(organisation.external_id, [])
+        our_emails = {user.email.lower() for user in our_certifiers}
+        delta_emails = {officer.email.lower() for officer in delta_for_org}
+        rows.append(
+            {
+                "organisation": organisation,
+                "our_certifiers": sorted(our_certifiers, key=lambda u: u.email),
+                "delta_officers": sorted(
+                    delta_for_org, key=lambda o: (0 if o.officer_type == "s151-officer" else 1, o.email)
+                ),
+                "has_diff": our_emails != delta_emails,
+            }
+        )
+    rows.sort(key=lambda row: row["organisation"].name)
+    return rows
+
+
+def _build_delegated_rows(
+    delta_officers: list[DeltaS151Officer],
+    certifiers_by_org: dict[Organisation, Sequence[User]],
+) -> list[DelegatedRow]:
+    fs_grant_certifiers_by_org: dict[Organisation, dict[str, _FSGrantCertifier]] = {}
+    for grant in get_all_grants():
+        override_certifiers = get_grant_override_certifiers_by_organisation(
+            grant_id=grant.id, organisation_mode=OrganisationModeEnum.LIVE
+        )
+        for fs_org, users in override_certifiers.items():
+            for user in users:
+                email = user.email.lower()
+                entry = fs_grant_certifiers_by_org.setdefault(fs_org, {}).setdefault(
+                    email, {"user": user, "grants": []}
+                )
+                entry["grants"].append(grant)
+
+    org_by_external_id = {org.external_id: org for org in certifiers_by_org}
+
+    delta_delegated_by_org: dict[Organisation, dict[str, DeltaS151Officer]] = {}
+    for officer in delta_officers:
+        if officer.officer_type != "delegated-s151-officer":
+            continue
+        organisation = org_by_external_id.get(officer.organisation_code)
+        if organisation is None:
+            continue
+        delta_delegated_by_org.setdefault(organisation, {})[officer.email.lower()] = officer
+
+    rows = []
+    for organisation in certifiers_by_org:
+        delta_map = delta_delegated_by_org.get(organisation, {})
+        fs_map = fs_grant_certifiers_by_org.get(organisation, {})
+        entries = []
+        for email in sorted(set(delta_map) | set(fs_map)):
+            delta_officer = delta_map.get(email)
+            fs_data = fs_map.get(email)
+            if delta_officer is not None:
+                name = delta_officer.name
+                delegated_access_groups = delta_officer.delegated_access_groups
+            else:
+                assert fs_data is not None
+                name = fs_data["user"].name
+                delegated_access_groups = ""
+            entries.append(
+                {
+                    "email": email,
+                    "name": name,
+                    "delegated_access_groups": delegated_access_groups,
+                    "our_grants": sorted(fs_data["grants"], key=lambda g: g.name) if fs_data else [],
+                }
+            )
+        rows.append({"organisation": organisation, "entries": entries})
+    rows.sort(key=lambda row: row["organisation"].name)
+    return rows
+
+
+class PlatformAdminDeltaCertifiersView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):
+    @expose("/", methods=["GET"])
+    def index(self) -> ResponseReturnValue:
+        delta_officers, delta_last_updated_at = _load_delta_s151_officers()
+        certifiers_by_org = get_certifiers_by_organisation()
+
+        return self.render(
+            "deliver_grant_funding/admin/delta-certifiers.html",
+            org_rows=_build_org_certifier_rows(delta_officers, certifiers_by_org),
+            delegated_rows=_build_delegated_rows(delta_officers, certifiers_by_org),
+            delta_last_updated_at=delta_last_updated_at,
+        )

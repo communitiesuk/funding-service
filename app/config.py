@@ -315,6 +315,7 @@ class _SharedConfig(_BaseConfig):
     ACCESS_SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1344"
     DELIVER_SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5/group/1343"
     DELTA_SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/6/group/12"
+    DELTA_S151_CSV_PATH_OR_KEY: str = "app/developers/data/s151-data.csv"
 
     # Feedback Surveys
     GRANT_RECIPIENT_GENERAL_FEEDBACK_URL: str = "https://forms.office.com/e/NpWGTr4AAa"

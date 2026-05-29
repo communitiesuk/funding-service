@@ -16,6 +16,7 @@ from app.deliver_grant_funding.admin.entities import (
 )
 from app.deliver_grant_funding.admin.views import (
     PlatformAdminDataAnalysisView,
+    PlatformAdminDeltaCertifiersView,
     PlatformAdminDeveloperToolsView,
     PlatformAdminReportingLifecycleView,
 )
@@ -29,6 +30,9 @@ def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
     )
     flask_admin.add_view(
         PlatformAdminDataAnalysisView(name="Data analysis", endpoint="data_analysis", url="data-analysis")
+    )
+    flask_admin.add_view(
+        PlatformAdminDeltaCertifiersView(name="Delta certifiers", endpoint="delta_certifiers", url="delta-certifiers")
     )
     flask_admin.add_view(PlatformAdminSubmissionView(db_))
     flask_admin.add_view(PlatformAdminSubmissionEventView(db_))

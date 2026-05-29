@@ -1,0 +1,148 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from 'govuk_frontend_jinja/components/tag/macro.html' import govukTag %}
+{% from 'common/govuk/tabs/macro.html' import govukTabs %}
+
+{% macro noneHint() %}
+  <span class="govuk-hint">None</span>
+{% endmacro %}
+
+{% macro statusTag(has_diff) %}
+  {% if has_diff %}
+    {{ govukTag({"text": "Out of sync", "classes": "govuk-tag--red"}) }}
+  {% else %}
+    {{ govukTag({"text": "OK", "classes": "govuk-tag--green"}) }}
+  {% endif %}
+{% endmacro %}
+
+{% macro userList(users) %}
+  {% if users %}
+    <ul class="govuk-list">
+      {% for user in users %}
+        <li>{{ user.name }} ({{ user.email }})</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {{ noneHint() }}
+  {% endif %}
+{% endmacro %}
+
+{% macro deltaOfficerList(officers) %}
+  {% if officers %}
+    <ul class="govuk-list">
+      {% for officer in officers %}
+        <li>
+          {{ officer.name }} ({{ officer.email }})
+          <br />
+          <span class="govuk-hint govuk-!-font-size-16"> {{ officer.officer_type }} &middot; last modified {{ format_datetime_short(officer.last_modified_date) }} </span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {{ noneHint() }}
+  {% endif %}
+{% endmacro %}
+
+{% macro certifierLine(name, email) %}
+  {{ name }}<br />
+  <span class="govuk-hint govuk-!-font-size-16">{{ email }}</span>
+{% endmacro %}
+
+{% macro accessGroupsList(groups_str) %}
+  {% if groups_str %}
+    {{ groups_str.split(';') | map('trim') | sort | join('<br>' | safe) }}
+  {% else %}
+    {{ noneHint() }}
+  {% endif %}
+{% endmacro %}
+
+{% macro grantsList(grants) %}
+  {% if grants %}
+    <ul class="govuk-list">
+      {% for grant in grants %}
+        <li>{{ grant.name }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {{ noneHint() }}
+  {% endif %}
+{% endmacro %}
+
+
+{% set orgTabPanel %}
+  <table class="govuk-table">
+    <thead class="govuk-table__head">
+      <tr class="govuk-table__row">
+        <th scope="col" class="govuk-table__header">Organisation</th>
+        <th scope="col" class="govuk-table__header">Delta certifiers</th>
+        <th scope="col" class="govuk-table__header">Funding Service certifiers</th>
+        <th scope="col" class="govuk-table__header">Status</th>
+      </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+      {% for row in org_rows %}
+        <tr class="govuk-table__row">
+          <th scope="row" class="govuk-table__header">{{ row.organisation.name }}</th>
+          <td class="govuk-table__cell">{{ deltaOfficerList(row.delta_officers) }}</td>
+          <td class="govuk-table__cell">{{ userList(row.our_certifiers) }}</td>
+          <td class="govuk-table__cell">{{ statusTag(row.has_diff) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endset %}
+
+
+{% set delegatedTabPanel %}
+  <table class="govuk-table">
+    <thead class="govuk-table__head">
+      <tr class="govuk-table__row">
+        <th scope="col" class="govuk-table__header">Organisation</th>
+        <th scope="col" class="govuk-table__header">Delegated certifier</th>
+        <th scope="col" class="govuk-table__header">Delta access groups</th>
+        <th scope="col" class="govuk-table__header">Funding Service grants</th>
+      </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+      {% for row in delegated_rows %}
+        {% if row.entries %}
+          {% for entry in row.entries %}
+            <tr class="govuk-table__row">
+              {% if loop.first %}
+                <th scope="row" rowspan="{{ row.entries | length }}" class="govuk-table__header">{{ row.organisation.name }}</th>
+              {% endif %}
+              <td class="govuk-table__cell">{{ certifierLine(entry.name, entry.email) }}</td>
+              <td class="govuk-table__cell">{{ accessGroupsList(entry.delegated_access_groups) }}</td>
+              <td class="govuk-table__cell">{{ grantsList(entry.our_grants) }}</td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr class="govuk-table__row">
+            <th scope="row" class="govuk-table__header">{{ row.organisation.name }}</th>
+            <td class="govuk-table__cell">{{ noneHint() }}</td>
+            <td class="govuk-table__cell">{{ noneHint() }}</td>
+            <td class="govuk-table__cell">{{ noneHint() }}</td>
+          </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+{% endset %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {{ layout.messages() }}
+
+      <h1 class="govuk-heading-l">Delta certifiers</h1>
+      <p class="govuk-body">Compare certifiers configured in Delta against the certifiers set up in the Funding Service. The Delta export was last updated on {{ format_datetime_short(delta_last_updated_at) }}.</p>
+
+      {{
+        govukTabs({
+        "items": [
+          {"label": "Certifiers", "id": "certifiers-by-organisation", "panel": {"html": orgTabPanel
+      }},
+      {"label": "Delegated certifiers", "id": "delegated-certifiers", "panel": {"html": delegatedTabPanel}} ] }) }}
+    </div>
+  </div>
+{% endblock %}
