@@ -47,6 +47,20 @@ class NotificationService:
         app.extensions["notification_service"] = self
         app.extensions["notification_service.client"] = NotificationsAPIClient(app.config["GOVUK_NOTIFY_API_KEY"])
 
+    def _collection_personalisation(self, collection: "Collection", *, collection_name: str) -> dict[str, str]:
+        """Personalisation fields shared by emails about a specific collection (access and related deliver emails)."""
+        deadline = (
+            format_date(collection.submission_period_end_date)
+            if collection.submission_period_end_date
+            else "(Dates to be confirmed)"
+        )
+        return {
+            "collection_name": collection_name,
+            "collection_deadline": deadline,
+            "collection_type": collection.type.constants.singular,
+            "change_requests_enabled": "yes" if collection.change_requests_enabled else "no",
+        }
+
     def _send_email(
         self,
         email_address: str,
@@ -135,24 +149,26 @@ class NotificationService:
         grant_recipient: GrantRecipient,
         submission_helpers: list[SubmissionHelper],
     ) -> Notification:
-        personalisation = {
+        submission_url = url_for(
+            "access_grant_funding.route_to_submission",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+            _external=True,
+        )
+        shared = self._collection_personalisation(collection, collection_name=collection.name)
+        personalisation: dict[str, Any] = {
             "grant_name": grant_recipient.grant.name,
+            # TODO: we'll remove report specific language once deployed and templates are switched
             "report_name": collection.name,
             "requires_certification": "yes" if collection.requires_certification else "no",
-            "report_deadline": format_date(collection.submission_period_end_date)
-            if collection.submission_period_end_date
-            else "(Dates to be confirmed)",
+            "report_deadline": shared["collection_deadline"],
             "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
-            "grant_report_url": url_for(
-                "access_grant_funding.route_to_submission",
-                organisation_id=grant_recipient.organisation.id,
-                grant_id=grant_recipient.grant.id,
-                collection_id=collection.id,
-                _external=True,
-            ),
+            "grant_report_url": submission_url,
             "organisation_name": grant_recipient.organisation.name,
             "allows_multiple_submissions": "yes" if collection.allow_multiple_submissions else "no",
             "submissions": "",
+            **shared,
         }
 
         if collection.allow_multiple_submissions:
@@ -188,6 +204,9 @@ class NotificationService:
                     submission_id=submission.id,
                     _external=True,
                 ),
+                **self._collection_personalisation(
+                    submission.collection, collection_name=submission_helper.long_collection_name
+                ),
             },
         )
 
@@ -196,13 +215,14 @@ class NotificationService:
     ) -> Notification:
         submission = submission_helper.submission
 
+        shared = self._collection_personalisation(
+            submission.collection, collection_name=submission_helper.long_collection_name
+        )
         personalisation = {
             "grant_name": submission.collection.grant.name,
             "report_submitter": submitted_by.name,
             "report_name": submission_helper.long_collection_name,
-            "report_deadline": format_date(submission.collection.submission_period_end_date)
-            if submission.collection.submission_period_end_date
-            else "(Dates to be confirmed)",
+            "report_deadline": shared["collection_deadline"],
             "is_test_data": ("yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
             "grant_report_url": url_for(
                 "access_grant_funding.view_locked_submission",
@@ -215,6 +235,7 @@ class NotificationService:
             "organisation_name": submission.grant_recipient.organisation.name,
             "reference": submission.reference,
             "government_department": submission.collection.grant.organisation.name,
+            **shared,
         }
         return self._send_email(
             email_address,
@@ -236,6 +257,9 @@ class NotificationService:
                 "Missing values on the submission state for submission id %(submission_id)s",
                 dict(submission_id=submission_helper.id),
             )
+        shared = self._collection_personalisation(
+            submission_helper.collection, collection_name=submission_helper.long_collection_name
+        )
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
             "submitter_name": submission_helper.sent_for_certification_by.name
@@ -246,9 +270,7 @@ class NotificationService:
             else "(Certifier not known)",
             "report_name": submission_helper.long_collection_name,
             "certifier_comments": submission_helper.events.submission_state.declined_reason,
-            "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
-            if submission_helper.collection.submission_period_end_date
-            else "(Dates to be confirmed)",
+            "report_deadline": shared["collection_deadline"],
             "decline_date": format_datetime(submission_helper.events.submission_state.declined_at_utc)
             if submission_helper.events.submission_state.declined_at_utc
             else "(Declined date not known)",
@@ -264,6 +286,7 @@ class NotificationService:
                 collection_id=submission_helper.collection.id,
                 _external=True,
             ),
+            **shared,
         }
         return self._send_email(
             email_address=user.email,
@@ -285,15 +308,16 @@ class NotificationService:
                 dict(submission_id=submission_helper.id),
             )
 
+        shared = self._collection_personalisation(
+            submission_helper.collection, collection_name=submission_helper.long_collection_name
+        )
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
             "certifier_name": submission_helper.declined_by.name
             if submission_helper.declined_by
             else "(Certifier not known)",
             "report_name": submission_helper.long_collection_name,
-            "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
-            if submission_helper.collection.submission_period_end_date
-            else "(Dates to be confirmed)",
+            "report_deadline": shared["collection_deadline"],
             "certifier_comments": submission_state.declined_reason,
             "is_test_data": "yes"
             if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
@@ -307,6 +331,7 @@ class NotificationService:
                 collection_id=submission_helper.collection.id,
                 _external=True,
             ),
+            **shared,
         }
         return self._send_email(
             email_address=user.email,
@@ -363,6 +388,9 @@ class NotificationService:
                 _external=True,
             ),
             "government_department": f"the {submission_helper.collection.grant.organisation.name}",
+            **self._collection_personalisation(
+                submission_helper.collection, collection_name=submission_helper.long_collection_name
+            ),
         }
         return self._send_email(
             email_address,
@@ -405,6 +433,9 @@ class NotificationService:
                 collection_id=submission_helper.collection.id,
                 _external=True,
             ),
+            **self._collection_personalisation(
+                submission_helper.collection, collection_name=submission_helper.long_collection_name
+            ),
         }
         return self._send_email(
             email_address=user.email,
@@ -444,10 +475,56 @@ class NotificationService:
                 collection_id=submission_helper.collection.id,
                 _external=True,
             ),
+            **self._collection_personalisation(
+                submission_helper.collection, collection_name=submission_helper.long_collection_name
+            ),
         }
         return self._send_email(
             email_address=user.email,
             template_id=current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_CHANGES_REQUESTED_TEMPLATE_ID"],
+            personalisation=personalisation,
+        )
+
+    def send_deliver_change_request_confirmation(
+        self,
+        user: User,
+        submission_helper: SubmissionHelper,
+    ) -> Notification:
+        submission_state = submission_helper.events.submission_state
+
+        if not submission_state.change_request_reason:
+            raise ValueError(
+                f"Could not send change request confirmation email for submission id={submission_helper.id} "
+                "because there is no change request reason"
+            )
+
+        lines_for_email = ""
+        for line in submission_state.change_request_reason.splitlines():
+            lines_for_email += f"^ {line}\n"
+
+        personalisation = {
+            "is_test_data": "yes"
+            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
+            else "no",
+            "report_name": submission_helper.long_collection_name,
+            "grant_name": submission_helper.collection.grant.name,
+            "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
+            "reference": submission_helper.reference,
+            "change_request_reason": lines_for_email,
+            "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
+            "grant_report_url": url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=submission_helper.submission.grant_recipient.grant.id,
+                submission_id=submission_helper.id,
+                _external=True,
+            ),
+            **self._collection_personalisation(
+                submission_helper.collection, collection_name=submission_helper.long_collection_name
+            ),
+        }
+        return self._send_email(
+            email_address=user.email,
+            template_id=current_app.config["GOVUK_NOTIFY_DELIVER_CHANGE_REQUEST_CONFIRMATION_TEMPLATE_ID"],
             personalisation=personalisation,
         )
 

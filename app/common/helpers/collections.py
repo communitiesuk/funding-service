@@ -1196,6 +1196,10 @@ class SubmissionHelper:
                 submission_helper=self,
             )
 
+        # TODO: if changes are currently requested, get the last user who requested changes
+        #       and email them a confirmation that things have been changed
+        # notification_service.send_deliver_change_request_confirmation()
+
     def mark_as_sent_for_certification(self, user: User) -> None:
         if not self.collection.requires_certification:
             raise ValueError(
@@ -1442,6 +1446,8 @@ class SubmissionHelper:
 
         for recipient in recipients:
             notification_service.send_access_submission_changes_requested(user=recipient, submission_helper=self)
+
+        # notification_service.send_deliver_change_request_confirmation(user=user, submission_helper=self)
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
