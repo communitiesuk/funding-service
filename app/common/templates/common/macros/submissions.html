@@ -59,12 +59,18 @@
     {% else %}
       {% set answer = helper.cached_get_answer_for_question(question.id, add_another_index=add_another_index) %}
       {% set value_html %}
+      {% set has_changed = helper.has_answer_changed_since_change_request(question.id, add_another_index=add_another_index, include_sign_off_changes=true) %}
+        {% if has_changed %}
+          <p class="govuk-body govuk-!-margin-bottom-4">
+            <span class="govuk-tag govuk-tag--blue">Changed</span>
+          </p>
+        {% endif %}
         {% if answer %}
           {% include answer._render_answer_template %}
         {% else %}
           (Not answered)
         {% endif %}
-        {% if helper.has_answer_changed_since_change_request(question.id, add_another_index=add_another_index) %}
+        {% if has_changed %}
           {% set original_answer = helper.get_snapshot_answer_for_question(question.id, add_another_index=add_another_index) %}
           {% set original_answer_html %}
             {% if original_answer %}
@@ -74,12 +80,14 @@
               (Not answered)
             {% endif %}
           {% endset %}
+          {# TODO: I suspect it would be helpful to show when the original response was from too #}
+          {#       in Deliver you could look this up on the timeline but in Access it wouldn't be as clear #}
           {{
             govukDetails({
-              "summaryText": "Original answer",
+              "summaryText": "Original response",
               "html": original_answer_html,
               "open": render_pre_change_request_details,
-              "classes": "govuk-!-margin-top-2"
+              "classes": "govuk-!-margin-top-4"
             })
           }}
         {% endif %}

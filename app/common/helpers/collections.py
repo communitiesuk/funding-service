@@ -485,7 +485,7 @@ class SubmissionHelper:
 
     @cached_property
     def _pre_change_request_snapshot_data_manager(self) -> SubmissionDataManager | None:
-        if not (self.is_submitted and self.has_requested_changes):
+        if not ((self.is_submitted or self.is_awaiting_sign_off) and self.has_requested_changes):
             return None
         snapshot_data = self.events.submission_state.submission_data
         if not snapshot_data:
@@ -559,8 +559,14 @@ class SubmissionHelper:
             return None
 
     def has_answer_changed_since_change_request(
-        self, question_id: UUID, *, add_another_index: int | None = None
+        self, question_id: UUID, *, add_another_index: int | None = None, include_sign_off_changes: bool = False
     ) -> bool:
+        # TODO: streamline duplication between this and getting the data manager
+        if not (
+            (self.is_submitted or (include_sign_off_changes and self.is_awaiting_sign_off))
+            and self.has_requested_changes
+        ):
+            return False
         snapshot_dm = self._pre_change_request_snapshot_data_manager
         if snapshot_dm is None:
             return False

@@ -1353,14 +1353,16 @@ class ReopenSubmissionForm(FlaskForm):
 class RequestChangesForm(FlaskForm):
     REASON_MAX_WORDS = 200
     sections_to_change = SelectMultipleField(
-        "Which sections need changes?",
+        # "Which sections need changes?",
+        # label="",
+        label="",
         default=[],
         widget=GovCheckboxesInput(),
         choices=[],
         validators=[DataRequired("Select at least one section that needs changes")],
     )
     change_request_reason = TextAreaField(
-        "Why are you requesting changes?",
+        "Tell the grant recipient what changes are needed",
         validators=[
             DataRequired("Enter the reason for requesting changes"),
             WordRange(max_words=REASON_MAX_WORDS, field_display_name="reason for requesting changes"),

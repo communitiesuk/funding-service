@@ -22,6 +22,43 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_REOPENED]) %}
+        {% if flashes %}
+          {% set submission_reopened_html %}
+            <h3 class="govuk-notification-banner__heading">Submission reopened and email sent to {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</h3>
+            <p class="govuk-body">Email sent to {{ helper.submission.grant_recipient.organisation.name ~ " users" if helper.submission.grant_recipient else helper.submission.created_by.email }} with your reason for reopening.</p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": submission_reopened_html,
+              "type":"success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_CHANGES_REQUESTED]) %}
+        {% if flashes %}
+          {% set changes_requested_html %}
+            <h3 class="govuk-notification-banner__heading">Changes have been requested</h3>
+            <p class="govuk-body">
+              We've emailed {{ helper.submission.grant_recipient.organisation.name ~ " users" if helper.submission.grant_recipient else helper.submission.created_by.email }} to let them know what changes have been requested.
+            </p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": changes_requested_html,
+              "type": "success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
       <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
         <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
@@ -114,7 +151,12 @@
             </div>
             <div class="govuk-grid-column-three-quarters-from-desktop app-section-content-container">
               <h2 class="govuk-heading-m">{{ constants.singular | capitalize }} response</h2>
-              <a class="govuk-button govuk-button--secondary">Download {{ constants.singular }} response as PDF</a>
+              {# TODO: maybe we can not include the type of collection if the name already ends in anything similar #}
+              <p class="govuk-body">
+                View the response to the {{ helper.submission.collection.name }} {{ constants.singular }} submitted by
+                {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}.
+              </p>
+              <a class="govuk-button govuk-button--secondary govuk-!-margin-bottom-1">Download {{ constants.singular }} response as PDF</a>
               {% for form in helper.get_ordered_visible_forms() %}
                 <h2 id="form-{{ form.id }}" class="govuk-heading-m govuk-!-margin-top-9">{{ form.title }}</h2>
                 {{ answers_summary_list(helper, form) }}

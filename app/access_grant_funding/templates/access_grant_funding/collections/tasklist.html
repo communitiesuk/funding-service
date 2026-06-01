@@ -62,22 +62,6 @@
         <dt class="app-metadata__key">Status:</dt>
         <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(runner.submission.status, runner.submission.is_overdue, runner.submission.is_requesting_changes, runner.submission.has_requested_changes) }}</dd>
       </dl>
-
-      {% if runner.submission.is_requesting_changes %}
-        {% set sections_to_change = runner.submission.events.submission_state.sections_to_change %}
-        {% set inset_html %}
-          <p class="govuk-body"><strong>Changes have been requested for the following sections:</strong></p>
-          <ul class="govuk-list govuk-list--bullet">
-            {% for section in runner.submission.collection.forms if section.id | string in sections_to_change %}
-              <li>{{ section.title }}</li>
-            {% endfor %}
-          </ul>
-          {% if runner.submission.events.submission_state.change_request_reason %}
-            <p class="govuk-body"><strong>Reason:</strong> {{ runner.submission.events.submission_state.change_request_reason }}</p>
-          {% endif %}
-        {% endset %}
-        {{ govukInsetText({"html": inset_html}) }}
-      {% endif %}
     </div>
   </div>
 

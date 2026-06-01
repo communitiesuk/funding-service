@@ -354,6 +354,18 @@
   <span class="govuk-caption-l">{{ form.title }}</span>
   <h1 class="govuk-heading-l">{{ "Your submitted answers" if (submission.in_answers_locked_state) else "Check your answers" }}</h1>
 
+  {% if runner.submission.is_requesting_changes and ((form.id | string) in runner.submission.events.submission_state.sections_to_change) %}
+    {% set inset_html %}
+      <p class="govuk-body">
+        <span class="govuk-tag govuk-tag--yellow">Changes requested</span>
+      </p>
+      {% if runner.submission.events.submission_state.change_request_reason %}
+        <p class="govuk-body">{{ runner.submission.events.submission_state.change_request_reason }}</p>
+      {% endif %}
+    {% endset %}
+    {{ govukInsetText({"html": inset_html}) }}
+  {% endif %}
+
   {{ summary_list_for_answers(form, runner) }}
 
   {% if not runner.can_edit %}
