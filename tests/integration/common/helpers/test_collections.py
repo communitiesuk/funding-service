@@ -346,19 +346,16 @@ class TestSubmissionHelper:
             assert helper.submission.data_manager.get_count_for_add_another(add_another_container) == 1
 
         def test_remove_entry_for_add_another_clears_file_uploads(self, db_session, factories, mock_s3_service_calls):
-            collection = factories.collection.create(
-                create_completed_submissions_add_another_nested_group__test=1,
-                create_completed_submissions_add_another_nested_group__use_random_data=False,
-                create_completed_submissions_add_another_nested_group__number_of_add_another_answers=2,
-            )
-            questions = collection.forms[0].cached_questions
-            add_another_container = questions[2].add_another_container
+
+            add_another_container = factories.group.create(add_another=True)
             file_upload = factories.question.create(
-                form=collection.forms[0],
+                form=add_another_container.form,
                 data_type=QuestionDataType.FILE_UPLOAD,
                 parent=add_another_container,
             )
-            submission = collection.test_submissions[0]
+            submission = factories.submission.create(
+                collection=add_another_container.form.collection,
+            )
             for i in range(2):
                 submission.data_manager.set(
                     file_upload,
