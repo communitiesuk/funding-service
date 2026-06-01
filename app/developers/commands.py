@@ -938,3 +938,23 @@ def check_managed_statements(ctx: click.Context, output: str, s3_key: str | None
 
     if mismatches or errors:
         raise click.exceptions.Exit(1)
+
+
+@developers_blueprint.cli.command(
+    "populate-status-for-all-submissions",
+    help="Load each submission, calculate the status and write this back to the status column on the submission table",
+)
+def populate_status_for_all_submissions() -> None:
+    count = db.session.query(Submission).filter(Submission.status.is_(None)).count()
+    updated = 0
+
+    click.echo(f"Found {count} submissions with no existing status")
+
+    while submission_id := db.session.scalars(select(Submission.id).where(Submission.status.is_(None))).first():
+        helper = SubmissionHelper.load(submission_id)
+        helper.submission.status = helper._calculate_submission_status()
+        db.session.commit()
+        updated += 1
+        click.echo(f"Submission {helper.submission.id} updated with status {helper.submission.status}")
+
+    click.echo(f"Updated {updated} submissions with saved statuses")
