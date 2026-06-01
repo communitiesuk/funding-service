@@ -148,6 +148,8 @@ class SubmissionEventType(enum.StrEnum):
     SUBMISSION_SUBMITTED = "Submission submitted"
     SUBMISSION_REOPENED = "Submission reopened"
     SUBMISSION_CHANGES_REQUESTED = "Submission changes requested"
+    GRANT_TEAM_MARKED_AS_APPROVED = "Grant team marked as approved"
+    GRANT_TEAM_MARKED_AS_REJECTED = "Grant team marked as rejected"
 
 
 class CollectionTypeConstants(typing.NamedTuple):

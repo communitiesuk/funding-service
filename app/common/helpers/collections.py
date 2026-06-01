@@ -397,6 +397,11 @@ class SubmissionHelper:
 
     @property
     def deliver_status(self) -> DeliverSubmissionStatusEnum:
+        is_marked = self.events.submission_state.is_marked_and_approved
+        if is_marked is True:
+            return DeliverSubmissionStatusEnum.MARKED_AS_APPROVED
+        if is_marked is False:
+            return DeliverSubmissionStatusEnum.MARKED_AS_REJECTED
         _access_to_deliver: dict[SubmissionStatusEnum, DeliverSubmissionStatusEnum] = {
             SubmissionStatusEnum.NOT_STARTED: DeliverSubmissionStatusEnum.NOT_STARTED,
             SubmissionStatusEnum.IN_PROGRESS: DeliverSubmissionStatusEnum.IN_PROGRESS,
@@ -407,6 +412,22 @@ class SubmissionHelper:
             SubmissionStatusEnum.PARTIALLY_SUBMITTED: DeliverSubmissionStatusEnum.PARTIALLY_SUBMITTED,
         }
         return _access_to_deliver[self.access_status]
+
+    @property
+    def is_marked_as_approved(self) -> bool:
+        return self.deliver_status == DeliverSubmissionStatusEnum.MARKED_AS_APPROVED
+
+    @property
+    def is_marked_as_rejected(self) -> bool:
+        return self.deliver_status == DeliverSubmissionStatusEnum.MARKED_AS_REJECTED
+
+    @property
+    def marked_by(self) -> User | None:
+        return self.events.submission_state.marked_by
+
+    @property
+    def marked_at_utc(self) -> datetime | None:
+        return self.events.submission_state.marked_at_utc
 
     @property
     def submitted_at_utc(self) -> datetime | None:
@@ -1466,6 +1487,45 @@ class SubmissionHelper:
             notification_service.send_access_submission_changes_requested(user=recipient, submission_helper=self)
 
         # notification_service.send_deliver_change_request_confirmation(user=user, submission_helper=self)
+
+    def can_mark_submission_by_user(self, user: User) -> bool:
+        if not self.is_submitted:
+            return False
+        if self.is_test:
+            return self.collection.is_open
+        return (
+            self.collection.is_open
+            and self.collection.grant.status == GrantStatusEnum.LIVE
+            and AuthorisationHelper.can_reopen_submission(user, self.submission)
+        )
+
+    def mark_submission(self, user: User, *, approved: bool, marked_reason: str | None = None) -> None:
+        if not AuthorisationHelper.can_reopen_submission(user, self.submission):
+            raise SubmissionAuthorisationError(
+                f"User does not have permission to mark submission id={self.id}",
+                user,
+                self.id,
+                RoleEnum.MEMBER,
+            )
+
+        if not self.collection.is_open:
+            raise CollectionIsNotOpenError(
+                f"Could not mark submission id={self.id} because the collection is not open."
+            )
+
+        if not self.is_submitted:
+            raise SubmissionIsNotSubmittedError(f"Could not mark submission id={self.id} because it is not submitted.")
+
+        interfaces.collections.add_submission_event(
+            self.submission,
+            event_type=(
+                SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED
+                if approved
+                else SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED
+            ),
+            user=user,
+            marked_reason=marked_reason,
+        )
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED

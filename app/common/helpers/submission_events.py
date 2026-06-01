@@ -43,6 +43,11 @@ class ChangesRequestedMixin(Protocol):
     sections_to_change: list[str] | None
 
 
+class MarkedMixin(Protocol):
+    is_marked_and_approved: bool | None
+    marked_reason: str | None
+
+
 @dataclass
 class SubmissionEventBase:
     """Base class for all submission event dataclasses."""
@@ -91,6 +96,7 @@ class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, 
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
     is_submitted: bool = False
+    is_marked_and_approved: bool | None = None
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
 
 
@@ -137,6 +143,7 @@ class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, Changes
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
     is_submitted: bool = False
+    is_marked_and_approved: bool | None = None
     is_requesting_changes: bool = True
     has_requested_changes: bool = True
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
@@ -147,6 +154,24 @@ class ChangesRequestedKwargs(TypedDict, total=False):
     change_request_reason: str | None
     submission_data: dict[str, Any] | None
     sections_to_change: list[str] | None
+
+
+@dataclass
+class GrantTeamMarkedAsApprovedEvent(SubmissionEventBase, MarkedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED
+    is_marked_and_approved: bool | None = True
+    marked_reason: str | None = field(default=None, metadata={"stored": True})
+
+
+@dataclass
+class GrantTeamMarkedAsRejectedEvent(SubmissionEventBase, MarkedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED
+    is_marked_and_approved: bool | None = False
+    marked_reason: str | None = field(default=None, metadata={"stored": True})
+
+
+class MarkedKwargs(TypedDict, total=False):
+    marked_reason: str | None
 
 
 # State - represents a snapshot of the current state of the target entity for those events
@@ -188,6 +213,12 @@ class RequestedChangesMetadata:
 
 
 @dataclass
+class MarkedMetadata:
+    marked_by: User | None = None
+    marked_at_utc: datetime | None = None
+
+
+@dataclass
 class SubmissionState(
     SentForCertificationMetadata,
     SubmittedMetadata,
@@ -195,11 +226,13 @@ class SubmissionState(
     CertificationDeclinedMetadata,
     ReopenedMetadata,
     RequestedChangesMetadata,
+    MarkedMetadata,
     SignOffMixin,
     SubmittedMixin,
     DeclinedMixin,
     ReopenedMixin,
     ChangesRequestedMixin,
+    MarkedMixin,
 ):
     is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
@@ -211,6 +244,8 @@ class SubmissionState(
     has_requested_changes: bool = False
     change_request_reason: str | None = None
     sections_to_change: list[str] | None = None
+    is_marked_and_approved: bool | None = None
+    marked_reason: str | None = None
 
 
 @dataclass
@@ -340,6 +375,13 @@ class SubmissionEventHelper:
                         requested_changes_at_utc=event.created_at_utc,
                     )
                 )
+            case SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED | SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED:
+                return shallow_asdict(
+                    MarkedMetadata(
+                        marked_by=event.created_by,
+                        marked_at_utc=event.created_at_utc,
+                    )
+                )
             case _:
                 return {}
 
@@ -357,6 +399,16 @@ class SubmissionEventHelper:
     def event_from(
         event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED],
         **kwargs: Unpack[ChangesRequestedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[
+            SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED,
+            SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED,
+        ],
+        **kwargs: Unpack[MarkedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

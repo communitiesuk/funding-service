@@ -68,6 +68,7 @@ from app.common.forms.helpers import (
 from app.common.helpers.submission_events import (
     ChangesRequestedKwargs,
     DeclinedByCertifierKwargs,
+    MarkedKwargs,
     ReopenedKwargs,
     SubmissionEventHelper,
 )
@@ -1546,6 +1547,20 @@ def add_submission_event(
 def add_submission_event(
     submission: Submission,
     *,
+    event_type: Literal[
+        SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED,
+        SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED,
+    ],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[MarkedKwargs],
+) -> Submission: ...
+
+
+@overload
+def add_submission_event(
+    submission: Submission,
+    *,
     event_type: SubmissionEventType,
     user: User,
     related_entity_id: UUID | None = None,
@@ -1599,6 +1614,9 @@ def add_submission_event(
             emit_metric_count(MetricEventName.SUBMISSION_CHANGES_REQUESTED, submission=submission)
 
         case SubmissionEventType.FORM_CHANGE_REQUESTED:
+            pass
+
+        case SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED | SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED:
             pass
 
         case _:
