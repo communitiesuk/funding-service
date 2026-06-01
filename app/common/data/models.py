@@ -44,6 +44,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
     json_flat_scalars,
     json_scalars,
 )
@@ -383,6 +384,15 @@ class Submission(BaseModel):
         "DataSource",
         primaryjoin=lambda: Submission.collection_id == foreign(DataSource.collection_id),
         viewonly=True,
+    )
+
+    status: Mapped[SubmissionStatusEnum | None] = mapped_column(
+        SqlEnum(
+            SubmissionStatusEnum,
+            name="submission_status_enum",
+            validate_strings=True,
+        ),
+        nullable=True,
     )
 
     @property
