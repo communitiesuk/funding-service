@@ -57,6 +57,17 @@
     </div>
   </div>
 
+  {% if helper.is_submitted %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-full">
+        <div class="govuk-button-group">
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.request_changes', grant_id=helper.submission.collection.grant_id, submission_id=helper.submission.id) }}">Request changes</a>
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.reopen_submission', grant_id=helper.submission.collection.grant_id, submission_id=helper.submission.id) }}">Reopen submission</a>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
       {# consider macro but some of the behaviour and classes might be unique #}
@@ -89,7 +100,27 @@
           </div>
         </div>
         <div class="govuk-tabs__panel" id="form-response">
-          <h2 class="govuk-heading-m">Form response</h2>
+          <div class="govuk-grid-row">
+            <div class="govuk-grid-column-one-quarter-from-desktop app-section-nav-container">
+              <nav aria-label="{{ constants.singular | capitalize }} sections">
+                <ul class="govuk-list app-section-nav-list">
+                  <li class="app-section-nav-list__item app-section-nav-list__item--active"><a class="govuk-link govuk-link--no-visited-state" href="#form-response">Form response</a></li>
+
+                  {% for form in helper.get_ordered_visible_forms() %}
+                    <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#form-{{ form.id }}">{{ form.title }}</a></li>
+                  {% endfor %}
+                </ul>
+              </nav>
+            </div>
+            <div class="govuk-grid-column-three-quarters-from-desktop app-section-content-container">
+              <h2 class="govuk-heading-m">{{ constants.singular | capitalize }} response</h2>
+              <a class="govuk-button govuk-button--secondary">Download {{ constants.singular }} response as PDF</a>
+              {% for form in helper.get_ordered_visible_forms() %}
+                <h2 id="form-{{ form.id }}" class="govuk-heading-m govuk-!-margin-top-9">{{ form.title }}</h2>
+                {{ answers_summary_list(helper, form) }}
+              {% endfor %}
+            </div>
+          </div>
         </div>
       </div>
     </div>
