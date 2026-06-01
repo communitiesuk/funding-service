@@ -1,5 +1,5 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import deliverSubmissionStatusTag with context %}
 {% from "common/macros/collections.html" import collection_tasklist with context %}
 {% extends "deliver_grant_funding/runner/base.html" %}
 
@@ -24,7 +24,7 @@
 
       <dl class="app-metadata govuk-!-margin-bottom-7">
         <dt class="app-metadata__key">Status:</dt>
-        <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(runner.submission.status, runner.submission.is_overdue) }}</dd>
+        <dd class="app-metadata__value" data-testid="submission-status">{{ deliverSubmissionStatusTag(runner.submission.deliver_status, runner.submission.is_overdue) }}</dd>
       </dl>
     </div>
   </div>

@@ -1,7 +1,7 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import accessSubmissionStatusTag with context %}
 {% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 
 {% set constants = submission.collection.type.constants %}
@@ -90,7 +90,7 @@
         </dl>
         <dl class="app-metadata govuk-!-margin-bottom-9">
           <dt class="app-metadata__key">Status:</dt>
-          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue, submission.is_requesting_changes, submission.has_requested_changes) }}</dd>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ accessSubmissionStatusTag(submission.status, submission.is_overdue, submission.is_requesting_changes, submission.has_requested_changes) }}</dd>
         </dl>
       {% else %}
         {# we should only show this page for a non-submitted collection if it is locked #}
@@ -103,7 +103,7 @@
         </dl>
         <dl class="app-metadata">
           <dt class="app-metadata__key">Status:</dt>
-          <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue, submission.is_requesting_changes, submission.has_requested_changes) }}</dd>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ accessSubmissionStatusTag(submission.status, submission.is_overdue, submission.is_requesting_changes, submission.has_requested_changes) }}</dd>
         </dl>
       {% endif %}
 

@@ -1,6 +1,6 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import accessSubmissionStatusTag with context %}
 
 {% set page_title = submission.long_collection_name if submission.is_submitted else "Review " ~ submission.collection.type.constants.singular ~ ": " ~ submission.long_collection_name %}
 {% set show_section_numbers = false %}
@@ -69,7 +69,7 @@
         </dl>
         <dl class="app-metadata">
           <dt class="app-metadata__key">Status:</dt>
-          <dd class="app-metadata__value">{{ submissionStatusTag(submission.status, submission.is_overdue, submission.is_requesting_changes, submission.has_requested_changes) }}</dd>
+          <dd class="app-metadata__value">{{ accessSubmissionStatusTag(submission.status, submission.is_overdue, submission.is_requesting_changes, submission.has_requested_changes) }}</dd>
         </dl>
         {% if submission.sent_for_certification_by %}
           <dl class="app-metadata">

@@ -1,6 +1,6 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import accessSubmissionStatusTag with context %}
 {% from "common/macros/status.html" import multiSubmissionStatusTag with context %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
@@ -95,7 +95,7 @@
       {% set submission = (collection_submissions | first) if collection_submissions else none %}
       {% set submission_status = SubmissionHelper.get_status(submission.submission, collection) %}
       {% set submission_status_html %}
-        {{ submissionStatusTag(submission_status, submission.is_overdue if submission else collection.is_overdue, submission.is_requesting_changes if submission else False, submission.has_requested_changes if submission else False) }}
+        {{ accessSubmissionStatusTag(submission_status, submission.is_overdue if submission else collection.is_overdue, submission.is_requesting_changes if submission else False, submission.has_requested_changes if submission else False) }}
       {% endset %}
       {% set collection_action_config = SubmissionHelper.get_access_submission_action(collection, grant_recipient, submission.submission) %}
       {% set collection_action_html %}

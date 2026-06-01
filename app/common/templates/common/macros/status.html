@@ -76,11 +76,12 @@
   {% if multi_status == enum.submission_status.SUBMITTED %}
     <span class="govuk-body govuk-!-margin-bottom-0">{{ submissions | length }} submitted</span>
   {% else %}
-    {{ submissionStatusTag(multi_status, is_overdue) }}
+    {{ accessSubmissionStatusTag(multi_status, is_overdue) }}
   {% endif %}
 {% endmacro %}
 
-{% macro submissionStatusTag(status, is_overdue, is_requesting_changes=false, has_requested_changes=false) %}
+{# Access interface: pre-submission statuses shown as coloured tags; post-submission as plain text #}
+{% macro accessSubmissionStatusTag(status, is_overdue, is_requesting_changes=false, has_requested_changes=false) %}
   {% set show_without_tag = [ enum.submission_status.SUBMITTED, enum.submission_status.PARTIALLY_SUBMITTED ] %}
   {%
     set classMap = {
@@ -102,5 +103,35 @@
   {% else %}
     {% set status_text = status ~ (" (Overdue)" if is_overdue and status != enum.submission_status.NOT_SUBMITTED else "") %}
     {{ govukTag({"text": status_text, "classes": "app-status-tag " ~ (classMap[status] if not is_overdue or status == enum.submission_status.NOT_SUBMITTED else "govuk-tag--yellow") }) }}
+  {% endif %}
+{% endmacro %}
+
+{# Deliver interface: pre-submission statuses shown as plain text; post-submission as coloured tags #}
+{% macro deliverSubmissionStatusTag(status, is_overdue, is_requesting_changes=false, has_requested_changes=false) %}
+  {%
+    set show_as_tag = [
+        enum.deliver_submission_status.SUBMITTED,
+        enum.deliver_submission_status.PARTIALLY_SUBMITTED,
+        enum.deliver_submission_status.MARKED_AS_APPROVED,
+        enum.deliver_submission_status.MARKED_AS_REJECTED,
+    ]
+  %}
+  {%
+    set classMap = {
+        enum.deliver_submission_status.SUBMITTED: "govuk-tag--blue",
+        enum.deliver_submission_status.PARTIALLY_SUBMITTED: "govuk-tag--blue",
+        enum.deliver_submission_status.MARKED_AS_APPROVED: "govuk-tag--green",
+        enum.deliver_submission_status.MARKED_AS_REJECTED: "govuk-tag--red",
+    }
+  %}
+  {% if status == enum.deliver_submission_status.IN_PROGRESS and is_requesting_changes %}
+    <span class="govuk-body govuk-!-margin-bottom-0">Changes requested</span>
+  {% elif status == enum.deliver_submission_status.SUBMITTED and has_requested_changes %}
+    {{ govukTag({"text": "Submitted with changes", "classes": "app-status-tag govuk-tag--blue"}) }}
+  {% elif status in show_as_tag %}
+    {{ govukTag({"text": status, "classes": "app-status-tag " ~ classMap[status]}) }}
+  {% else %}
+    {% set status_text = status ~ (" (Overdue)" if is_overdue and status != enum.deliver_submission_status.NOT_SUBMITTED else "") %}
+    <span class="govuk-body govuk-!-margin-bottom-0">{{ status_text }}</span>
   {% endif %}
 {% endmacro %}

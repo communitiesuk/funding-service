@@ -1,6 +1,6 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import deliverSubmissionStatusTag with context %}
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
@@ -76,7 +76,7 @@
       <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
       <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
         <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
-        {{ submissionStatusTag(helper.status, helper.is_overdue, helper.is_requesting_changes, helper.has_requested_changes) }}
+        {{ deliverSubmissionStatusTag(helper.deliver_status, helper.is_overdue, helper.is_requesting_changes, helper.has_requested_changes) }}
       </div>
     </div>
   </div>
