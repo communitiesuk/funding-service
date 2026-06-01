@@ -1,3 +1,4 @@
+import datetime
 from datetime import date
 
 import pytest
@@ -8,6 +9,7 @@ from pytest import FixtureRequest
 from app import CollectionStatusEnum, GrantStatusEnum, TasklistSectionStatusEnum
 from app.access_grant_funding.forms import DeclineSignOffForm
 from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
+from app.common.data.interfaces.collections import update_collection
 from app.common.data.types import (
     ExpressionType,
     ManagedExpressionsEnum,
@@ -936,7 +938,12 @@ class TestDeclineSignOff:
         grant_recipient,
         submission_awaiting_sign_off,
     ):
-        submission_awaiting_sign_off.collection.status = CollectionStatusEnum.CLOSED
+        update_collection(
+            submission_awaiting_sign_off.collection,
+            submission_period_start_date=datetime.date.today() - datetime.timedelta(days=1),
+            submission_period_end_date=datetime.date.today(),
+            status=CollectionStatusEnum.CLOSED,
+        )
         helper = SubmissionHelper(submission_awaiting_sign_off)
         assert not helper.is_awaiting_sign_off
         assert helper.in_immutable_state

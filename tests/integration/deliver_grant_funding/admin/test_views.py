@@ -4683,15 +4683,16 @@ class TestCloseReport:
     @pytest.mark.freeze_time("2024-05-01 10:00:00")
     def test_post_closes_report(self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session):
         grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
-        collection = factories.collection.create(
-            grant=grant,
-            name="Q1 Report",
-            status=CollectionStatusEnum.OPEN,
-            reporting_period_start_date=datetime.date(2024, 1, 1),
-            reporting_period_end_date=datetime.date(2024, 3, 31),
-            submission_period_start_date=datetime.date(2024, 4, 1),
-            submission_period_end_date=datetime.date(2024, 4, 30),
+        question = factories.question.create(
+            form__collection__grant=grant,
+            form__collection__name="Q1 Report",
+            form__collection__status=CollectionStatusEnum.OPEN,
+            form__collection__reporting_period_start_date=datetime.date(2024, 1, 1),
+            form__collection__reporting_period_end_date=datetime.date(2024, 3, 31),
+            form__collection__submission_period_start_date=datetime.date(2024, 4, 1),
+            form__collection__submission_period_end_date=datetime.date(2024, 4, 30),
         )
+        collection = question.form.collection
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
@@ -4707,6 +4708,22 @@ class TestCloseReport:
             grant=None,
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
+        sub = factories.submission.create(
+            collection=collection, answers=[FactoryAnswer(question, TextSingleLineAnswer("hi"))]
+        )
+        sub_submitted = factories.submission.create(
+            collection=collection,
+            status=SubmissionStatusEnum.SUBMITTED,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("hi"))],
+        )
+        factories.submission_event.create(
+            submission=sub_submitted,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form_id,
+        )
+        factories.submission_event.create(submission=sub_submitted, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+        SubmissionHelper(sub_submitted)._sync_submission_data_and_status()
+        assert sub_submitted.status == SubmissionStatusEnum.SUBMITTED
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/reporting-lifecycle/{grant.id}/{collection.id}/close-report",
@@ -4721,6 +4738,13 @@ class TestCloseReport:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now closed and grant recipients can make no more changes")
+
+        db_session.refresh(sub)
+        assert sub.status == SubmissionStatusEnum.NOT_SUBMITTED
+
+        db_session.refresh(sub_submitted)
+        assert SubmissionHelper(sub_submitted).status == SubmissionStatusEnum.SUBMITTED
+        assert sub_submitted.status == SubmissionStatusEnum.SUBMITTED
 
     @pytest.mark.freeze_time("2024-05-01 10:00:00")
     def test_post_fails_when_grant_not_open(

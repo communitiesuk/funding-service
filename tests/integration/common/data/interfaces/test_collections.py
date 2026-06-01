@@ -99,6 +99,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.custom import CustomExpression
@@ -760,6 +761,29 @@ class TestUpdateCollection:
             f"You cannot close the report for submissions before the submission period "
             f"end date of {collection.submission_period_end_date}"
         ) in str(exc_info.value)
+
+    @pytest.mark.freeze_time("2025-03-30 10:00:00")
+    def test_close_collection_updates_submission_status(self, db_session, factories):
+        collection = factories.collection.create(
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        factories.question.create(form__collection=collection)
+
+        submission_not_started = factories.submission.create(collection=collection)
+        assert submission_not_started.status == SubmissionStatusEnum.NOT_STARTED
+
+        update_collection(
+            collection,
+            status=CollectionStatusEnum.CLOSED,
+        )
+
+        from_db = db_session.get(Submission, submission_not_started.id)
+        assert from_db.status == SubmissionStatusEnum.NOT_SUBMITTED
 
 
 class TestGetSubmission:

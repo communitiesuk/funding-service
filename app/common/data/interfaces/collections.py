@@ -135,6 +135,11 @@ def update_collection(  # noqa: C901
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
+    """Update the various attributes of a collection.
+
+    NOTE: When transitioning a collection's status, this may need to update the status for all of its submissions, eg
+    when closing a report to change any unsubmitted submissions statuses to NOT_SUBMITTED.
+    """
     if name is not NOT_PROVIDED:
         collection.name = name
         collection.slug = slugify(name)
@@ -296,6 +301,17 @@ def update_collection(  # noqa: C901
                         f"You cannot close the report for submissions before "
                         f"the submission period end date of {collection.submission_period_end_date}"
                     )
+
+                from app.common.helpers.collections import SubmissionHelper
+
+                # TODO don't do this here but we need it for _update_submission_status to calculate the new status below
+                collection.status = status
+
+                for submission in collection._submissions:
+                    # TODO replace this with add_submission_event to record that the colleciton was closed
+                    #   But for expediency now, just call _update_submission_status which will calculate the new status
+                    #   based on the collection now being closed
+                    SubmissionHelper(submission)._update_submission_status()
 
             case _:
                 raise StateTransitionError("Collection", collection.status, status)
