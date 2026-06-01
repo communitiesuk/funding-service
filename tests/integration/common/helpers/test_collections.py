@@ -833,6 +833,8 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert helper.status == SubmissionStatusEnum.NOT_STARTED
+            # TODO: remove redundant status check after full migration to DB submission.status
+            assert helper.submission.status == SubmissionStatusEnum.NOT_STARTED
 
             helper.submit_answer_for_question(
                 question.id,
@@ -846,6 +848,8 @@ class TestSubmissionHelper:
             assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
             assert helper.get_tasklist_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            # TODO: remove redundant status check after full migration to DB submission.status
+            assert helper.submission.status == SubmissionStatusEnum.IN_PROGRESS
 
             helper.submit_answer_for_question(
                 question_two.id,
@@ -860,6 +864,8 @@ class TestSubmissionHelper:
             assert helper.get_tasklist_status_for_form(question_two.form) == TasklistSectionStatusEnum.COMPLETED
 
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+            # TODO: remove redundant status check after full migration to DB submission.status
+            assert helper.submission.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
             helper.mark_as_sent_for_certification(submission.created_by)
 
@@ -870,6 +876,8 @@ class TestSubmissionHelper:
             helper.decline_certification(certifier, "Reason for declining")
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            # TODO: remove redundant status check after full migration to DB submission.status
+            assert helper.submission.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.events.submission_state.sent_for_certification_by is submission.created_by
             assert helper.events.submission_state.is_awaiting_sign_off is False
             assert helper.events.submission_state.declined_by == certifier
@@ -882,10 +890,14 @@ class TestSubmissionHelper:
             helper.toggle_form_completed(question_two.form, submission.created_by, True)
 
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+            # TODO: remove redundant status check after full migration to DB submission.status
+            assert helper.submission.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
             helper.mark_as_sent_for_certification(submission.created_by)
 
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+            # TODO: remove redundant status check after full migration to DB submission.status
+            assert helper.submission.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
             helper.certify(certifier)
 
@@ -894,10 +906,14 @@ class TestSubmissionHelper:
             assert helper.events.submission_state.certified_by == certifier
 
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+            # TODO: remove redundant status check after full migration to DB submission.status
+            assert helper.submission.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
             helper.submit(certifier)
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
+            # TODO: remove redundant status check after full migration to DB submission.status
+            assert helper.submission.status == SubmissionStatusEnum.SUBMITTED
             assert helper.events.submission_state.submitted_by == certifier
             assert helper.events.submission_state.is_approved is True
             assert helper.events.submission_state.is_awaiting_sign_off is False
