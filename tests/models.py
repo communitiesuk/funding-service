@@ -813,6 +813,8 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
             if obj.status is None:
                 obj.status = SubmissionStatusEnum.IN_PROGRESS if extracted else SubmissionStatusEnum.NOT_STARTED
 
+    # TODO: Take 'events' here and process the submission status to get the right thing
+
 
 class _FormFactory(SQLAlchemyModelFactory):
     class Meta:
