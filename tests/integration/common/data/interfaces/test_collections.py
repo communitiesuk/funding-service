@@ -5161,6 +5161,44 @@ class TestGetSubmissions:
 
         assert len(iterate_queries) == baseline_queries
 
+    def test_get_all_submissions_with_mode_for_collection_with_full_schema_no_n_plus_one_for_event_users(
+        self, db_session, factories, track_sql_queries
+    ):
+        collection = factories.collection.create()
+        for _ in range(2):
+            submission = factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
+            factories.submission_event.create(submission=submission)
+            factories.submission_event.create(submission=submission)
+
+        db_session.expire_all()
+        with track_sql_queries() as baseline_queries:
+            submissions = get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                with_full_schema=True,
+            )
+            for submission in submissions:
+                for event in submission.events:
+                    _ = event.created_by
+        baseline = len(baseline_queries)
+
+        submission = factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
+        factories.submission_event.create(submission=submission)
+        factories.submission_event.create(submission=submission)
+
+        db_session.expire_all()
+        with track_sql_queries() as iterate_queries:
+            submissions = get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                with_full_schema=True,
+            )
+            for submission in submissions:
+                for event in submission.events:
+                    _ = event.created_by
+
+        assert len(iterate_queries) == baseline
+
 
 class TestResetTestSubmission:
     def test_reset_test_submission_only_deletes_specified_submission(self, db_session, factories):

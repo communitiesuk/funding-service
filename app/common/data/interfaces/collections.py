@@ -367,7 +367,7 @@ def get_all_submissions_with_mode_for_collection(
             .joinedload(Collection.forms)
             .selectinload(Form._all_components)
             .selectinload(Component.owned_component_references),
-            selectinload(Submission.events),
+            selectinload(Submission.events).joinedload(SubmissionEvent.created_by),
             selectinload(Submission.data_sources),
             joinedload(Submission.created_by),
         )
