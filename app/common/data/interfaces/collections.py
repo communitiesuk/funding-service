@@ -51,6 +51,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.common.data.utils import generate_submission_reference
 from app.common.exceptions import WTFormRenderableException
@@ -314,12 +315,24 @@ def update_collection(  # noqa: C901
 
 @flush_and_rollback_on_exceptions
 def update_submission_data(submission: Submission) -> None:
+    """Update the submission data with the data from the helper.
+
+    NOTE: the submission's status probably needs updating after this; SubmissionHelper owns the status of a submission.
+    This interface should only be called by the SubmissionHelper, and it must make sure that the status of the
+    submission is updated appropriately (after clearing appropriate caches).
+    """
     # We make a deepcopy here so that if any changes are made to `submission.data_manager.data` after this is flushed,
     # the changes are not reflected on the submission.
     submission._data = deepcopy(submission.data_manager.data)
 
     # Bust the DataManager cached property so that it reads the new submission data
     del submission.data_manager
+
+
+@flush_and_rollback_on_exceptions
+def update_submission(submission: Submission, *, status: SubmissionStatusEnum | TNotProvided = NOT_PROVIDED) -> None:
+    if status is not NOT_PROVIDED:
+        submission.status = status
 
 
 def get_all_submissions_with_mode_for_collection(
@@ -495,6 +508,7 @@ def create_submission(
         created_by=created_by,
         mode=mode,
         grant_recipient=grant_recipient,
+        status=SubmissionStatusEnum.NOT_STARTED,
     )
     db.session.add(submission)
     emit_metric_count(MetricEventName.SUBMISSION_CREATED, submission=submission)
@@ -1505,46 +1519,55 @@ def update_question(
 
 
 @overload
-def add_submission_event(
+def _add_submission_event(
     submission: Submission,
     *,
     event_type: Literal[SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER],
     user: User,
     related_entity_id: UUID | None = None,
     **kwargs: Unpack[DeclinedByCertifierKwargs],
-) -> Submission: ...
+) -> None: ...
 
 
 @overload
-def add_submission_event(
+def _add_submission_event(
     submission: Submission,
     *,
     event_type: Literal[SubmissionEventType.SUBMISSION_REOPENED],
     user: User,
     related_entity_id: UUID | None = None,
     **kwargs: Unpack[ReopenedKwargs],
-) -> Submission: ...
+) -> None: ...
 
 
 @overload
-def add_submission_event(
+def _add_submission_event(
     submission: Submission,
     *,
     event_type: SubmissionEventType,
     user: User,
     related_entity_id: UUID | None = None,
-) -> Submission: ...
+) -> None: ...
 
 
 @flush_and_rollback_on_exceptions
-def add_submission_event(
+def _add_submission_event(
     submission: Submission,
     *,
     event_type: SubmissionEventType,
     user: User,
     related_entity_id: UUID | None = None,
     **kwargs: Any,
-) -> Submission:
+) -> None:
+    """Records an immutable submission event.
+
+    NOTE: the submission's status probably needs updating after this; SubmissionHelper owns the status of a submission.
+    This interface should only be called by the SubmissionHelper, and it must make sure that the status of the
+    submission is updated appropriately (after clearing appropriate caches).
+
+    You almost certainly want to use SubmissionHelper.add_submission_event instead of using this directly.
+    """
+
     submission.events.append(
         SubmissionEvent(
             event_type=event_type,
@@ -1578,13 +1601,12 @@ def add_submission_event(
 
         case SubmissionEventType.SUBMISSION_REOPENED:
             emit_metric_count(MetricEventName.SUBMISSION_REOPENED, submission=submission)
+
         case _:
             current_app.logger.error(
                 "No metric configured for submission event %(event_type)s for submission %(submission_id)s",
                 {"event_type": event_type, "submission_id": submission.id},
             )
-
-    return submission
 
 
 def get_referenced_data_source_items_by_managed_expression(

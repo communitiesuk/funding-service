@@ -8,7 +8,6 @@ Create Date: 2026-06-01 11:36:07.895477
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision = "062_add_submission_status"
 down_revision = "061_pre_award_collections"

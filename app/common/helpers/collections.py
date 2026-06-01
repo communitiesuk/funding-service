@@ -37,6 +37,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     get_all_submissions_with_mode_for_collection,
     get_submission,
+    update_submission,
     update_submission_data,
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
@@ -129,6 +130,9 @@ class SubmissionHelper:
 
     It wraps a Submission instance from the DB and encapsulates the business logic that will make it easy to deal with
     conditionals, routing, storing+retrieving data, etc in one place, consistently.
+
+    The SubmissionHelper is responsible for keeping a submission's status in sync and correct; any changes to a
+    submission should go through this helper class to ensure it is kept in a consistent state.
     """
 
     def __init__(self, submission: Submission):
@@ -342,8 +346,38 @@ class SubmissionHelper:
 
         return SubmissionHelper(submission).status
 
-    @property
-    def status(self) -> SubmissionStatusEnum:
+    def clear_caches(self):
+        self.cached_get_answer_for_question.cache_clear()
+        self.cached_get_all_questions_are_answered_for_form.cache_clear()
+        self.cached_get_ordered_visible_questions.cache_clear()
+
+        if "cached_evaluation_context" in self.__dict__:
+            del self.cached_evaluation_context
+
+        if "cached_interpolation_context" in self.__dict__:
+            del self.cached_interpolation_context
+
+    def _update_submission_status(self):
+        self.clear_caches()
+        update_submission(self.submission, status=self._calculate_submission_status())
+
+    def add_submission_event(self, event_type: SubmissionEventType, user: User, related_entity_id: UUID, **kwargs: Any):
+        interfaces.collections._add_submission_event(
+            self.submission,
+            event_type=event_type,
+            user=user,
+            related_entity_id=related_entity_id,
+            **kwargs,
+        )
+
+        self._update_submission_status()
+
+    def _sync_submission_data_and_status(self):
+        update_submission_data(self.submission)
+
+        self._update_submission_status()
+
+    def _calculate_submission_status(self) -> SubmissionStatusEnum:
         submission_state = self.events.submission_state
 
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
@@ -373,6 +407,10 @@ class SubmissionHelper:
             return SubmissionStatusEnum.NOT_STARTED
         else:
             return SubmissionStatusEnum.IN_PROGRESS
+
+    @property
+    def status(self) -> SubmissionStatusEnum:
+        return self._calculate_submission_status()
 
     @property
     def submitted_at_utc(self) -> datetime | None:
@@ -822,13 +860,14 @@ class SubmissionHelper:
     def _emit_submission_events_for_forms_reset_to_in_progress(
         self, current_form: Form, previous_form_statuses: dict[Form, TasklistSectionStatusEnum], user: User
     ) -> None:
+        has_reset = False
         if previous_form_statuses[current_form] == TasklistSectionStatusEnum.COMPLETED:
-            interfaces.collections.add_submission_event(
-                self.submission,
+            self.add_submission_event(
                 event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                 user=user,
                 related_entity_id=current_form.id,
             )
+            has_reset = True
             del previous_form_statuses[current_form]
 
         for form, old_form_status in previous_form_statuses.items():
@@ -836,12 +875,16 @@ class SubmissionHelper:
                 old_form_status == TasklistSectionStatusEnum.COMPLETED
                 and self.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
             ):
-                interfaces.collections.add_submission_event(
-                    self.submission,
+                self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                     user=user,
                     related_entity_id=form.id,
                 )
+            has_reset = True
+
+        if has_reset:
+            self.clear_caches()
+            update_submission(self.submission, status=SubmissionStatusEnum.IN_PROGRESS)
 
     def _get_answer_for_question(
         self, question_id: UUID, add_another_index: int | None = None
@@ -911,16 +954,7 @@ class SubmissionHelper:
             data.key = key
 
         self.submission.data_manager.set(question, data, add_another_index=add_another_index)
-        update_submission_data(self.submission)
-
-        self.cached_get_answer_for_question.cache_clear()
-        self.cached_get_all_questions_are_answered_for_form.cache_clear()
-        del self.cached_evaluation_context
-
-        # FIXME: work out why end to end tests aren't happy without this here
-        #        I've made it work but not happy with not clearly pointing to where
-        #        an instance was failing to route (next_url) appropriately without it
-        self.cached_get_ordered_visible_questions.cache_clear()
+        self._sync_submission_data_and_status()
 
         self._emit_submission_events_for_forms_reset_to_in_progress(current_form, current_form_statuses, user)
 
@@ -942,15 +976,10 @@ class SubmissionHelper:
         self.submission.data_manager.remove_add_another_entry(
             add_another_container, add_another_index=add_another_index
         )
-        update_submission_data(self.submission)
+        self._sync_submission_data_and_status()
 
         for key in keys_to_delete:
             s3_service.delete_file(key)
-
-        self.cached_get_answer_for_question.cache_clear()
-        self.cached_get_all_questions_are_answered_for_form.cache_clear()
-        del self.cached_evaluation_context
-        self.cached_get_ordered_visible_questions.cache_clear()
 
     def remove_answer_for_question(self, question_id: UUID, *, add_another_index: int | None = None) -> None:
         if self.in_answers_locked_state:
@@ -968,15 +997,10 @@ class SubmissionHelper:
                 keys_to_delete.append(answer.key)
 
         self.submission.data_manager.remove(question, add_another_index=add_another_index)
-        update_submission_data(self.submission)
+        self._sync_submission_data_and_status()
 
         for key in keys_to_delete:
             s3_service.delete_file(key)
-
-        self.cached_get_answer_for_question.cache_clear()
-        self.cached_get_all_questions_are_answered_for_form.cache_clear()
-        del self.cached_evaluation_context
-        self.cached_get_ordered_visible_questions.cache_clear()
 
     def _data_providers_for_lifecycle_emails(self, user: User) -> Sequence[User]:
         if self.is_preview:
@@ -1052,8 +1076,7 @@ class SubmissionHelper:
 
         SubmissionValidator(self).validate_all_reachable_questions()
 
-        interfaces.collections.add_submission_event(
-            self.submission,
+        self.add_submission_event(
             event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
             user=user,
             related_entity_id=self.submission.id,
@@ -1083,8 +1106,10 @@ class SubmissionHelper:
         SubmissionValidator(self).validate_all_reachable_questions()
 
         if self.all_needed_forms_are_completed:
-            interfaces.collections.add_submission_event(
-                self.submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, user=user
+            self.add_submission_event(
+                event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+                user=user,
+                related_entity_id=self.id,
             )
 
             for data_provider in self._data_providers_for_lifecycle_emails(user):
@@ -1124,15 +1149,14 @@ class SubmissionHelper:
             )
 
         if self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
-            interfaces.collections.add_submission_event(
-                self.submission,
+            self.add_submission_event(
                 event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
                 user=user,
                 declined_reason=declined_reason,
+                related_entity_id=self.id,
             )
             for form in self.collection.forms:
-                interfaces.collections.add_submission_event(
-                    self.submission,
+                self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
                     user=user,
                     related_entity_id=form.id,
@@ -1181,8 +1205,10 @@ class SubmissionHelper:
                 f"Could not approve certification for submission id={self.id} because it is not awaiting sign off."
             )
 
-        interfaces.collections.add_submission_event(
-            self.submission, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, user=user
+        self.add_submission_event(
+            event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+            user=user,
+            related_entity_id=self.id,
         )
 
     def can_be_reopened_by_user(self, user: User) -> bool:
@@ -1219,16 +1245,15 @@ class SubmissionHelper:
                 f"Could not reopen submission id={self.id} because it is not submitted."
             )
 
-        interfaces.collections.add_submission_event(
-            self.submission,
+        self.add_submission_event(
             event_type=SubmissionEventType.SUBMISSION_REOPENED,
             user=user,
             reopened_reason=reopened_reason,
             submission_data=self.submission.data_manager.data,
+            related_entity_id=self.id,
         )
         for form in self.collection.forms:
-            interfaces.collections.add_submission_event(
-                self.submission,
+            self.add_submission_event(
                 event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                 user=user,
                 related_entity_id=form.id,
@@ -1258,15 +1283,13 @@ class SubmissionHelper:
                     f"Could not mark form id={form.id} as complete because not all questions have been answered."
                 )
 
-            interfaces.collections.add_submission_event(
-                self.submission,
+            self.add_submission_event(
                 event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
                 user=user,
                 related_entity_id=form.id,
             )
         else:
-            interfaces.collections.add_submission_event(
-                self.submission,
+            self.add_submission_event(
                 event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                 user=user,
                 related_entity_id=form.id,

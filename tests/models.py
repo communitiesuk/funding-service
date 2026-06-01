@@ -19,6 +19,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 from sqlalchemy.exc import NoResultFound
 
+from app import SubmissionStatusEnum
 from app.common.collections.types import (
     AllAnswerTypes,
     DateAnswer,
@@ -74,6 +75,7 @@ from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import AnyOf, GreaterThan, Specifically
 from app.common.expressions.references import ExpressionReference
+from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions import db
 from app.types import TRadioItem
@@ -793,19 +795,23 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
         )
     )
     grant_recipient_id = factory.LazyAttribute(lambda o: o.grant_recipient.id if o.grant_recipient else None)
+    status = None
 
     @factory.post_generation
     def answers(obj: Submission, create, extracted: list[FactoryAnswer], **kwargs):
-        if not extracted:
-            return
-        for entry in extracted:
-            obj.data_manager.set(entry.question, entry.answer, add_another_index=entry.add_another_index)
+        if extracted:
+            for entry in extracted:
+                obj.data_manager.set(entry.question, entry.answer, add_another_index=entry.add_another_index)
 
         if create:
-            update_submission_data(obj)
+            SubmissionHelper(obj)._sync_submission_data_and_status()
             db.session.commit()
         else:
             obj._data = obj.data_manager.data
+
+            # TODO: This could be made smarter to work out READY_TO_SUBMIT;
+            if obj.status is None:
+                obj.status = SubmissionStatusEnum.IN_PROGRESS if extracted else SubmissionStatusEnum.NOT_STARTED
 
 
 class _FormFactory(SQLAlchemyModelFactory):
