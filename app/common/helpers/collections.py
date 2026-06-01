@@ -414,6 +414,10 @@ class SubmissionHelper:
         return _access_to_deliver[self.access_status]
 
     @property
+    def is_assessed(self) -> bool:
+        return self.is_marked_as_approved or self.is_marked_as_rejected
+
+    @property
     def is_marked_as_approved(self) -> bool:
         return self.deliver_status == DeliverSubmissionStatusEnum.MARKED_AS_APPROVED
 
