@@ -23,7 +23,7 @@ class TestEncodeAndDecodeLevels:
 
     def test_tampered_token_returns_empty_list(self):
         token = encode_levels([TraceLevelEnum.TRACE], "secret")
-        tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+        tampered = ("a" if token[0] != "a" else "b") + token[1:]
         assert decode_levels(tampered, "secret") == []
 
     def test_malformed_token_returns_empty_list(self):
