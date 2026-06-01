@@ -2,6 +2,7 @@ import csv
 import json
 import uuid
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property, lru_cache, partial
 from io import StringIO
@@ -92,6 +93,20 @@ class FormQuestionsAnswered(NamedTuple):
 class AddAnotherAnswerSummary(NamedTuple):
     summary: str
     is_answered: bool
+
+
+# for things like showing the certifiers
+# or data providers who the event went out to
+# we'll want to show those quite specifically in the HTML
+# so will need to work out a mapping for that
+# - question on how we should go about storing the users
+#   information associated with that event as the by field are currently 1:event
+@dataclass
+class TimelineEvent:
+    event_title: str
+    event_org: str
+    event_date: datetime
+    event_by: str
 
 
 class SubmissionAuthorisationError(Exception):
@@ -476,6 +491,60 @@ class SubmissionHelper:
         if not snapshot_data:
             return None
         return SubmissionDataManager(snapshot_data)
+
+    # the goal is to mix events from submission, the collection and possibly the
+    # grant recipients (initial invite email) into the chronological timeline
+    # this could either map to and create content for a new type interface or that
+    # would be done in the template
+    @property
+    def timeline_events(self) -> list[TimelineEvent]:
+        events = []
+        salient_submission_events = [
+            SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+            # we'll use submitted and say it was certified if that was required
+            # submitted and certified don't feel like they need to be separate events
+            # (in order to show who certified it it would need to refer to the related event)
+            SubmissionEventType.SUBMISSION_SUBMITTED,
+            SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+            SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            SubmissionEventType.SUBMISSION_REOPENED,
+        ]
+        # TODO: add collection events like when it was opened and if in the past when it was closed
+
+        internal_events = [
+            SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            SubmissionEventType.SUBMISSION_REOPENED,
+        ]
+
+        collection_type_singular = self.submission.collection.type.constants.singular
+        event_names = {
+            SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER: "Certifier declined " + collection_type_singular,
+            SubmissionEventType.SUBMISSION_SUBMITTED: collection_type_singular.capitalize() + " submitted",
+            SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION: collection_type_singular.capitalize()
+            + " sent for certification",
+            SubmissionEventType.SUBMISSION_CHANGES_REQUESTED: "Changes requested",
+            SubmissionEventType.SUBMISSION_REOPENED: collection_type_singular.capitalize() + " reopened",
+        }
+
+        for event in self.submission.events:
+            if event.event_type in salient_submission_events:
+                event_is_internal = event.event_type in internal_events
+                events.append(
+                    TimelineEvent(
+                        event_title=event_names.get(event.event_type, event.event_type.value),
+                        event_org=event.submission.collection.grant.organisation.name
+                        if event_is_internal
+                        else (
+                            event.submission.grant_recipient.organisation.name
+                            if event.submission.grant_recipient
+                            else event.submission.created_by.email
+                        ),
+                        event_date=event.created_at_utc,
+                        event_by=event.created_by.name,
+                    )
+                )
+
+        return events
 
     def get_snapshot_answer_for_question(
         self, question_id: UUID, *, add_another_index: int | None = None

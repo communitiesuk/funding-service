@@ -107,6 +107,7 @@ from app.common.helpers.collections import (
     SubmissionHelper,
     SubmissionIsNotSubmittedError,
 )
+from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -3298,7 +3299,9 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
                 )
             )
     return render_template(
-        "deliver_grant_funding/collections/view_submission.html",
+        "deliver_grant_funding/collections/_future_view_submission.html"
+        if FeatureFlags.PRE_AWARD.is_enabled
+        else "deliver_grant_funding/collections/view_submission.html",
         grant=helper.grant,
         helper=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),

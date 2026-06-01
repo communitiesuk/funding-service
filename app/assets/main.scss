@@ -19,6 +19,7 @@ $new-organisation-colours: true;
 );
 
 @use "moj/objects/scrollable-pane";
+@use "moj/components/timeline/timeline";
 
 @use "../../node_modules/accessible-autocomplete"; // TODO: replace with select-with-search
 @use "components/accessible-autocomplete-overrides";

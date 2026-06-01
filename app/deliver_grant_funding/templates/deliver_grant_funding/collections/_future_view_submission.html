@@ -1,0 +1,97 @@
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/submissions.html" import answers_summary_list with context %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = "Submission - " ~ helper.long_collection_name %}
+{% set constants = helper.submission.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
+
+{% block beforeContent %}
+  {% if helper.is_test %}
+    {{ mhclgInlinePageTestDataBanner("Test submission") }}
+  {% endif %}
+
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=helper.submission.collection, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, collection_type=helper.submission.collection.type, collection_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
+      <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
+        <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
+        {{ submissionStatusTag(helper.status, helper.is_overdue, helper.is_requesting_changes, helper.has_requested_changes) }}
+      </div>
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {{
+        govukSummaryList({
+          "rows": [
+            {
+              "key": { "text": "Grant" },
+              "value": { "text": helper.submission.grant_recipient.grant.name }
+            },
+            {
+              "key": { "text": helper.submission.collection.type.constants.singular | capitalize },
+              "value": { "text": helper.submission.collection.name }
+            },
+            {
+              "key": { "text": "Organisation" },
+              "value": { "text": helper.submission.grant_recipient.organisation.name },
+            } if helper.submission.grant_recipient else None,
+            {
+              "key": { "text": "Submitted by" },
+              "value": { "text": helper.submitted_by.name ~ " on " ~ format_date(helper.submission.created_at_utc) },
+            } if helper.is_submitted else None,
+          ]
+        })
+      }}
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {# consider macro but some of the behaviour and classes might be unique #}
+      {# TODO: decide if we're loading multiple pages or if we need a similar context we just load it at once #}
+      <div class="govuk-tabs" data-module="govuk-tabs">
+        <h2 class="govuk-tabs__title">Contents</h2>
+        <ul class="govuk-tabs__list">
+          <li class="govuk-tabs__list-item govuk-tabs__list-item--selected">
+            <a class="govuk-tabs__tab" href="#timeline"> Timeline </a>
+          </li>
+          <li class="govuk-tabs__list-item">
+            <a class="govuk-tabs__tab" href="#form-response"> Form response </a>
+          </li>
+        </ul>
+        <div class="govuk-tabs__panel" id="timeline">
+          <h2 class="govuk-heading-m">Timeline</h2>
+
+          <div class="moj-timeline">
+            {% for event in helper.timeline_events %}
+              <div class="moj-timeline__item">
+                <div class="moj-timeline__header">
+                  <h2 class="moj-timeline__title">{{ event.event_title }}</h2>
+                  <p class="moj-timeline__byline">by {{ event.event_org }}</p>
+                </div>
+                <p class="moj-timeline__date">{{ event.event_by }} on {{ format_date(event.event_date) }}</p>
+                {# <div class="moj-timeline__description"> #}
+                {# </div> #}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="govuk-tabs__panel" id="form-response">
+          <h2 class="govuk-heading-m">Form response</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
