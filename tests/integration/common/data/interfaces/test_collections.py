@@ -3965,9 +3965,19 @@ class TestDeleteCollectionSubmissions:
         user = collection.preview_submissions[0].created_by
 
         for submission in collection.preview_submissions:
-            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+            factories.submission_event.create(
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                submission=submission,
+                created_by=submission.created_by,
+                related_entity_id=collection.forms[0].id,
+            )
         for submission in collection.live_submissions:
-            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+            factories.submission_event.create(
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                submission=submission,
+                created_by=submission.created_by,
+                related_entity_id=collection.forms[0].id,
+            )
 
         collection.live_submissions[0].created_by = user
         collection.live_submissions[0].events[0].created_by = user
@@ -3975,7 +3985,12 @@ class TestDeleteCollectionSubmissions:
         collection.preview_submissions[1].created_by = user
         collection.preview_submissions[1].events[0].created_by = user
 
-        factories.submission_event.create(submission=collection.preview_submissions[0], created_by=user)
+        factories.submission_event.create(
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            submission=collection.preview_submissions[0],
+            created_by=user,
+            related_entity_id=collection.forms[0].id,
+        )
 
         preview_submissions_from_db = (
             db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.PREVIEW).all()
@@ -5163,11 +5178,21 @@ class TestGetSubmissions:
     def test_get_all_submissions_with_mode_for_collection_with_full_schema_no_n_plus_one_for_event_users(
         self, db_session, factories, track_sql_queries
     ):
-        collection = factories.collection.create()
+        question = factories.question.create()
+        collection = question.form.collection
+
         for _ in range(2):
             submission = factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
-            factories.submission_event.create(submission=submission)
-            factories.submission_event.create(submission=submission)
+            factories.submission_event.create(
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                submission=submission,
+                related_entity_id=collection.forms[0].id,
+            )
+            factories.submission_event.create(
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                submission=submission,
+                related_entity_id=collection.forms[0].id,
+            )
 
         db_session.expire_all()
         with track_sql_queries() as baseline_queries:
@@ -5182,8 +5207,16 @@ class TestGetSubmissions:
         baseline = len(baseline_queries)
 
         submission = factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
-        factories.submission_event.create(submission=submission)
-        factories.submission_event.create(submission=submission)
+        factories.submission_event.create(
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            submission=submission,
+            related_entity_id=collection.forms[0].id,
+        )
+        factories.submission_event.create(
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            submission=submission,
+            related_entity_id=collection.forms[0].id,
+        )
 
         db_session.expire_all()
         with track_sql_queries() as iterate_queries:
@@ -5201,13 +5234,19 @@ class TestGetSubmissions:
 
 class TestResetTestSubmission:
     def test_reset_test_submission_only_deletes_specified_submission(self, db_session, factories):
-        collection = factories.collection.create(create_submissions__test=3)
+        question = factories.question.create(form__collection__create_submissions__test=3)
+        collection = question.form.collection
         test_submissions = collection.test_submissions
         submission_to_delete = test_submissions[0]
         submission_to_delete_id = submission_to_delete.id
 
         for submission in test_submissions:
-            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+            factories.submission_event.create(
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                submission=submission,
+                created_by=submission.created_by,
+                related_entity_id=collection.forms[0].id,
+            )
 
         reset_test_submission(submission_to_delete)
 
@@ -5228,12 +5267,18 @@ class TestResetTestSubmission:
 
 class TestResetAllTestSubmissions:
     def test_deletes_all_test_submissions_and_their_events(self, db_session, factories):
-        collection = factories.collection.create(create_submissions__test=3)
+        question = factories.question.create(form__collection__create_submissions__test=3)
+        collection = question.form.collection
         test_submissions = collection.test_submissions
         test_submission_ids = [s.id for s in test_submissions]
 
         for submission in test_submissions:
-            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+            factories.submission_event.create(
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                submission=submission,
+                created_by=submission.created_by,
+                related_entity_id=collection.forms[0].id,
+            )
 
         reset_all_test_submissions(collection)
 
@@ -5246,10 +5291,18 @@ class TestResetAllTestSubmissions:
         assert len(remaining_events) == 0
 
     def test_does_not_delete_live_submissions(self, db_session, factories):
-        collection = factories.collection.create(create_submissions__test=2, create_submissions__live=2)
+        question = factories.question.create(
+            form__collection__create_submissions__test=2, form__collection__create_submissions__live=2
+        )
+        collection = question.form.collection
 
         for submission in collection.test_submissions + collection.live_submissions:
-            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+            factories.submission_event.create(
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                submission=submission,
+                created_by=submission.created_by,
+                related_entity_id=collection.forms[0].id,
+            )
 
         live_submission_ids = [s.id for s in collection.live_submissions]
 

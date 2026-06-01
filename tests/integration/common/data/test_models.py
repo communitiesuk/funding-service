@@ -2,7 +2,7 @@ import pytest
 from psycopg.errors import ForeignKeyViolation
 from sqlalchemy.exc import IntegrityError
 
-from app import QuestionDataType
+from app import QuestionDataType, SubmissionStatusEnum
 from app.common.data.models import ComponentReference, Expression, Group
 from app.common.data.types import (
     DataSourceType,
@@ -47,6 +47,7 @@ class TestSubmissionModel:
             reference="TEST-R123456",
             created_by_id=user.id,
             grant_recipient_id=None,
+            status=SubmissionStatusEnum.NOT_STARTED,
         )
         db_session.add(submission)
 

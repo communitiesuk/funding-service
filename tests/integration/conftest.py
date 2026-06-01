@@ -706,6 +706,7 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
     factories.submission_event.create(
         submission=submission,
         event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+        related_entity_id=submission.id,
         created_by=user,
         created_at_utc=datetime(2025, 11, 25, 0, 0, 1),
     )

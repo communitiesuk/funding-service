@@ -386,13 +386,13 @@ class Submission(BaseModel):
         viewonly=True,
     )
 
-    status: Mapped[SubmissionStatusEnum | None] = mapped_column(
+    status: Mapped[SubmissionStatusEnum] = mapped_column(
         SqlEnum(
             SubmissionStatusEnum,
             name="submission_status_enum",
             validate_strings=True,
         ),
-        nullable=True,
+        nullable=False,
     )
 
     @property

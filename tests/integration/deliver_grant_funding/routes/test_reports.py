@@ -8499,7 +8499,12 @@ class TestListSubmissions:
         test_submission_ids = [s.id for s in report.test_submissions]
 
         for submission in report.test_submissions:
-            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+            factories.submission_event.create(
+                submission=submission,
+                created_by=submission.created_by,
+                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                related_entity_id=submission.id,
+            )
 
         form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
         response = authenticated_grant_member_client.post(

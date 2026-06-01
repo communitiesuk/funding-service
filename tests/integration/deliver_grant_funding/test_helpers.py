@@ -1,16 +1,22 @@
 from app.common.data.models import Submission, SubmissionEvent
-from app.common.data.types import SubmissionModeEnum
+from app.common.data.types import SubmissionEventType, SubmissionModeEnum
 from app.deliver_grant_funding.helpers import start_previewing_collection
 from tests.utils import AnyStringMatching
 
 
 def test_start_previewing_collection(authenticated_grant_admin_client, db_session, factories, mock_s3_service_calls):
     user = authenticated_grant_admin_client.user
-    collection = factories.collection.create(create_completed_submissions_each_question_type__preview=1)
+    question = factories.question.create(form__collection__create_completed_submissions_each_question_type__preview=1)
+    collection = question.form.collection
 
     for submission in collection.preview_submissions:
         submission.created_by = user
-        factories.submission_event.create(submission=submission, created_by=submission.created_by)
+        factories.submission_event.create(
+            submission=submission,
+            created_by=submission.created_by,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
 
     old_preview_submissions_from_db = (
         db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.PREVIEW).all()

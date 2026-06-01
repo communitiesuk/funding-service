@@ -410,7 +410,19 @@ class SubmissionHelper:
 
     @property
     def status(self) -> SubmissionStatusEnum:
-        return self._calculate_submission_status()
+        status = self.submission.status
+
+        if self.collection_helper.is_closed and status not in [
+            SubmissionStatusEnum.SUBMITTED,
+            SubmissionStatusEnum.NOT_SUBMITTED,
+        ]:
+            current_app.logger.error(
+                "Submission %(submission_id)s in status %(status)s but collection is closed",
+                dict(submission_id=self.submission.id, status=status),
+            )
+            return SubmissionStatusEnum.NOT_SUBMITTED
+
+        return self.submission.status
 
     @property
     def submitted_at_utc(self) -> datetime | None:

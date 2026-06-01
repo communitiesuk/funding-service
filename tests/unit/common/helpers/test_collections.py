@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 from werkzeug.datastructures import MultiDict
 
+from app import SubmissionStatusEnum
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import (
     DecimalAnswer,
@@ -597,17 +598,8 @@ class TestSubmissionHelper:
             submission = factories.submission.build(
                 collection=collection,
                 answers=[FactoryAnswer(question, TextSingleLineAnswer("test answer"))],
+                status=SubmissionStatusEnum.SUBMITTED,
             )
-            submission.events = [
-                factories.submission_event.build(
-                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                    related_entity_id=question.form.id,
-                ),
-                factories.submission_event.build(
-                    event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
-                    related_entity_id=submission.id,
-                ),
-            ]
 
             helper = SubmissionHelper(submission)
             assert helper.is_overdue is False

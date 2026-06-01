@@ -17,6 +17,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
+    SubmissionEventType,
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionReference
@@ -105,7 +106,10 @@ class TestSubmissionTasklist:
             answers=[FactoryAnswer(question, TextSingleLineAnswer("test answer"))],
         )
         factories.submission_event.create(
-            created_by=client.user, submission=submission, related_entity_id=question.form.id
+            created_by=client.user,
+            submission=submission,
+            related_entity_id=question.form.id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
         )
 
         with client.session_transaction() as session:
@@ -165,6 +169,7 @@ class TestSubmissionTasklist:
         factories.submission_event.create(
             created_by=client.user,
             submission=submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
             related_entity_id=form.id,
         )
 
@@ -1169,6 +1174,7 @@ class TestGroupValidation:
         factories.submission_event.create(
             created_by=client.user,
             submission=submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
             related_entity_id=group.form.id,
         )
 

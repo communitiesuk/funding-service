@@ -33,7 +33,7 @@ from app.common.collections.types import (
     TextSingleLineAnswer,
     YesNoAnswer,
 )
-from app.common.data.interfaces.collections import _validate_and_sync_component_references, update_submission_data
+from app.common.data.interfaces.collections import _validate_and_sync_component_references
 from app.common.data.models import (
     Collection,
     DataSource,
@@ -68,7 +68,6 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
-    SubmissionEventType,
     SubmissionModeEnum,
 )
 from app.common.data.utils import generate_submission_reference
@@ -318,7 +317,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             sub.data_manager.set(q3, TextSingleLineAnswer("digestive"))
 
             if create:
-                update_submission_data(sub)
+                SubmissionHelper(sub)._sync_submission_data_and_status()
             else:
                 sub._data = sub.data_manager.data
 
@@ -612,7 +611,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 )
 
                 if create:
-                    update_submission_data(sub)
+                    SubmissionHelper(sub)._sync_submission_data_and_status()
                 else:
                     sub._data = sub.data_manager.data
 
@@ -743,7 +742,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                 )
 
                 if create:
-                    update_submission_data(sub)
+                    SubmissionHelper(sub)._sync_submission_data_and_status()
                 else:
                     sub._data = sub.data_manager.data
 
@@ -795,7 +794,7 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
         )
     )
     grant_recipient_id = factory.LazyAttribute(lambda o: o.grant_recipient.id if o.grant_recipient else None)
-    status = None
+    status = SubmissionStatusEnum.NOT_STARTED
 
     @factory.post_generation
     def answers(obj: Submission, create, extracted: list[FactoryAnswer], **kwargs):
@@ -810,8 +809,8 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
             obj._data = obj.data_manager.data
 
             # TODO: This could be made smarter to work out READY_TO_SUBMIT;
-            if obj.status is None:
-                obj.status = SubmissionStatusEnum.IN_PROGRESS if extracted else SubmissionStatusEnum.NOT_STARTED
+            if extracted and obj.status == SubmissionStatusEnum.NOT_SUBMITTED:
+                obj.status = SubmissionStatusEnum.IN_PROGRESS
 
     # TODO: Take 'events' here and process the submission status to get the right thing
 
@@ -1042,7 +1041,7 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     id = factory.LazyFunction(uuid4)
-    event_type = SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
+    event_type = None
     submission = factory.SubFactory(_SubmissionFactory)
     related_entity_id = factory.LazyAttribute(lambda o: o.submission.id)
     created_by = factory.SubFactory(_UserFactory)
@@ -1052,6 +1051,14 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
     created_at_utc = datetime.datetime(2025, 11, 1, 12, 0, 0)
 
     data = factory.LazyAttribute(lambda o: SubmissionEventHelper.event_from(o.event_type))
+
+    @factory.post_generation
+    def status(obj: SubmissionEvent, create, extracted, **kwargs):
+        if not create:
+            return
+
+        SubmissionHelper(obj.submission)._sync_submission_data_and_status()
+        db.session.commit()
 
 
 class _ExpressionFactory(SQLAlchemyModelFactory):

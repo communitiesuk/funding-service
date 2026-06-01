@@ -5061,7 +5061,7 @@ class TestPlatformAdminSubmissionEventView:
         assert event.submission.reference in page
 
     def test_edit_is_disabled(self, authenticated_platform_admin_client, factories, db_session):
-        event = factories.submission_event.create()
+        event = factories.submission_event.create(event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
 
         response = authenticated_platform_admin_client.get(
             f"/deliver/admin/submissionevent/edit/?id={event.id}",
@@ -5078,7 +5078,8 @@ class TestPlatformAdminSubmissionEventView:
 
     def test_filter_by_submission_mode(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant)
+        question = factories.question.create(form__collection__grant=grant)
+        collection = question.form.collection
         grant_recipient = factories.grant_recipient.create(grant=grant)
 
         live_submission = factories.submission.create(
@@ -5090,8 +5091,16 @@ class TestPlatformAdminSubmissionEventView:
             collection=collection,
             mode=SubmissionModeEnum.PREVIEW,
         )
-        factories.submission_event.create(submission=live_submission)
-        factories.submission_event.create(submission=preview_submission)
+        factories.submission_event.create(
+            submission=live_submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        factories.submission_event.create(
+            submission=preview_submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
 
         response = authenticated_platform_admin_client.get("/deliver/admin/submissionevent/?flt0_0=LIVE")
         assert response.status_code == 200
@@ -5100,11 +5109,16 @@ class TestPlatformAdminSubmissionEventView:
         assert preview_submission.reference not in page
 
     def test_filter_by_event_type(self, authenticated_platform_admin_client, factories, db_session):
+        question = factories.question.create()
         completed_event = factories.submission_event.create(
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+            submission__collection=question.form.collection,
         )
         submitted_event = factories.submission_event.create(
             event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            related_entity_id=completed_event.submission.id,
+            submission__collection=question.form.collection,
         )
 
         response = authenticated_platform_admin_client.get(
