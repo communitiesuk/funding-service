@@ -1,0 +1,54 @@
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = "Approve or reject submission - " ~ helper.long_collection_name %}
+{% set constants = helper.submission.collection.type.constants %}
+{% set active_item_identifier = constants.active_nav %}
+
+{% block beforeContent %}
+  {% if helper.is_test %}
+    {{ mhclgInlinePageTestDataBanner("Test submission") }}
+  {% endif %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.view_submission", grant_id=grant.id, submission_id=helper.submission.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l govuk-!-margin-bottom-0">
+        <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
+        Approve or reject submission
+      </h1>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.outcome(params={
+            "fieldset": {
+              "legend": {
+                "text": "What is the outcome of this submission?",
+                "classes": "govuk-fieldset__legend--m"
+              }
+            }
+          })
+        }}
+        {{
+          form.marked_reason(params={
+            "label": {
+              "text": "Add a note (optional)",
+              "classes": "govuk-label--m"
+            },
+            "maxwords": form.REASON_MAX_WORDS
+          })
+        }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

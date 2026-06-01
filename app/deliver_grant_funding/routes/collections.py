@@ -131,6 +131,7 @@ from app.deliver_grant_funding.forms import (
     GroupForm,
     MapDataSetColumnsForm,
     MapNumberColumnsForm,
+    MarkSubmissionForm,
     PublicSignUpSettingsForm,
     QuestionForm,
     QuestionTypeForm,
@@ -3372,6 +3373,44 @@ def request_changes(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
             form.form_errors.append("You cannot request changes because this submission has not been submitted")
     return render_template(
         "deliver_grant_funding/collections/request_changes.html",
+        form=form,
+        helper=submission_helper,
+        grant=submission_helper.grant,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/mark", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def mark_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+    if not submission_helper.can_mark_submission_by_user(get_current_user()):
+        abort(403)
+    form = MarkSubmissionForm()
+    if form.validate_on_submit():
+        try:
+            submission_helper.mark_submission(
+                user=get_current_user(),
+                approved=(form.outcome.data == "approved"),
+                marked_reason=form.marked_reason.data or None,
+            )
+            flash(
+                "Submission marked as approved" if form.outcome.data == "approved" else "Submission marked as rejected",
+                FlashMessageType.SUBMISSION_MARKED,
+            )
+            return redirect(
+                url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+            )
+        except SubmissionAuthorisationError:
+            form.form_errors.append("You do not have permission to mark this submission")
+        except CollectionIsNotOpenError:
+            form.form_errors.append("You cannot mark this submission because the collection is not open")
+        except SubmissionIsNotSubmittedError:
+            form.form_errors.append("You cannot mark this submission because it has not been submitted")
+    return render_template(
+        "deliver_grant_funding/collections/mark_submission.html",
         form=form,
         helper=submission_helper,
         grant=submission_helper.grant,

@@ -1374,3 +1374,21 @@ class RequestChangesForm(FlaskForm):
     def __init__(self, *args: Any, form_choices: list[tuple[str, str]], **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.sections_to_change.choices = form_choices
+
+
+class MarkSubmissionForm(FlaskForm):
+    REASON_MAX_WORDS = 200
+    outcome = RadioField(
+        "What is the outcome of this submission?",
+        choices=[("approved", "Mark as approved"), ("rejected", "Mark as rejected")],
+        validators=[DataRequired("Select whether to mark this submission as approved or rejected")],
+        widget=GovRadioInput(),
+    )
+    marked_reason = TextAreaField(
+        "Add a note (optional)",
+        validators=[
+            WordRange(max_words=REASON_MAX_WORDS, field_display_name="note"),
+        ],
+        widget=GovCharacterCount(),
+    )
+    submit = SubmitField("Save outcome", widget=GovSubmitInput())

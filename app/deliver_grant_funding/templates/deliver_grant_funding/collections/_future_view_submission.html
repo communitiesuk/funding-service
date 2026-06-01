@@ -54,6 +54,20 @@
           }}
         {% endif %}
       {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_MARKED]) %}
+        {% if flashes %}
+          {% set marked_html %}
+            <h3 class="govuk-notification-banner__heading">{{ flashes[0] }}</h3>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": marked_html,
+              "type": "success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
     </div>
   </div>
 
@@ -98,6 +112,9 @@
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-full">
         <div class="govuk-button-group">
+          {% if helper.can_mark_submission_by_user(current_user) %}
+            <a class="govuk-button" href="{{ url_for('deliver_grant_funding.mark_submission', grant_id=helper.submission.collection.grant_id, submission_id=helper.submission.id) }}">Approve or reject submission</a>
+          {% endif %}
           <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.request_changes', grant_id=helper.submission.collection.grant_id, submission_id=helper.submission.id) }}">Request changes</a>
           <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.reopen_submission', grant_id=helper.submission.collection.grant_id, submission_id=helper.submission.id) }}">Reopen submission</a>
         </div>
