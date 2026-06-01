@@ -116,6 +116,18 @@ class SubmissionStatusEnum(enum.StrEnum):
     PARTIALLY_SUBMITTED = "Partially submitted"
 
 
+class DeliverSubmissionStatusEnum(enum.StrEnum):
+    NOT_STARTED = "Not started"
+    IN_PROGRESS = "In progress"
+    READY_TO_SUBMIT = "Ready to submit"
+    AWAITING_SIGN_OFF = "Awaiting sign off"
+    SUBMITTED = "Submitted"
+    NOT_SUBMITTED = "Not submitted"
+    PARTIALLY_SUBMITTED = "Partially submitted"
+    MARKED_AS_APPROVED = "Marked as approved"
+    MARKED_AS_REJECTED = "Marked as rejected"
+
+
 class TasklistSectionStatusEnum(enum.StrEnum):
     CANNOT_START_YET = "Cannot start yet"
     NOT_STARTED = "Not started"

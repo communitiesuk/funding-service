@@ -47,6 +47,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     ComponentVisibilityState,
     ConditionsOperator,
+    DeliverSubmissionStatusEnum,
     ExpressionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
@@ -359,7 +360,7 @@ class SubmissionHelper:
         return SubmissionHelper(submission).status
 
     @property
-    def status(self) -> SubmissionStatusEnum:
+    def access_status(self) -> SubmissionStatusEnum:
         submission_state = self.events.submission_state
 
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
@@ -389,6 +390,23 @@ class SubmissionHelper:
             return SubmissionStatusEnum.NOT_STARTED
         else:
             return SubmissionStatusEnum.IN_PROGRESS
+
+    @property
+    def status(self) -> SubmissionStatusEnum:
+        return self.access_status
+
+    @property
+    def deliver_status(self) -> DeliverSubmissionStatusEnum:
+        _access_to_deliver: dict[SubmissionStatusEnum, DeliverSubmissionStatusEnum] = {
+            SubmissionStatusEnum.NOT_STARTED: DeliverSubmissionStatusEnum.NOT_STARTED,
+            SubmissionStatusEnum.IN_PROGRESS: DeliverSubmissionStatusEnum.IN_PROGRESS,
+            SubmissionStatusEnum.READY_TO_SUBMIT: DeliverSubmissionStatusEnum.READY_TO_SUBMIT,
+            SubmissionStatusEnum.AWAITING_SIGN_OFF: DeliverSubmissionStatusEnum.AWAITING_SIGN_OFF,
+            SubmissionStatusEnum.SUBMITTED: DeliverSubmissionStatusEnum.SUBMITTED,
+            SubmissionStatusEnum.NOT_SUBMITTED: DeliverSubmissionStatusEnum.NOT_SUBMITTED,
+            SubmissionStatusEnum.PARTIALLY_SUBMITTED: DeliverSubmissionStatusEnum.PARTIALLY_SUBMITTED,
+        }
+        return _access_to_deliver[self.access_status]
 
     @property
     def submitted_at_utc(self) -> datetime | None:
