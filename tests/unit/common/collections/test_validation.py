@@ -181,9 +181,7 @@ class TestSubmissionValidator:
         assert validator.validate_all_reachable_questions() is None
 
         submission.data_manager.set(q1, IntegerAnswer(value=150))
-        helper.cached_get_answer_for_question.cache_clear()
-
-        del helper.cached_evaluation_context
+        helper.clear_caches()
 
         with pytest.raises(SubmissionValidationFailed) as e:
             validator.validate_all_reachable_questions()

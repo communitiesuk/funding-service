@@ -222,9 +222,6 @@ def test_reference_data_validation__integer(factories, db_session):
     q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, name="First question")
     q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
-    if hasattr(form, "cached_all_components"):
-        del form.cached_all_components
-
     interfaces.collections.add_component_validation(
         q2,
         user,
@@ -258,9 +255,6 @@ def test_reference_data_validation__number__custom(factories, db_session):
     q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER, name="Second question")
     q3 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
 
-    if hasattr(form, "cached_all_components"):
-        del form.cached_all_components
-
     interfaces.collections.add_component_validation(
         q3,
         user,
@@ -290,9 +284,6 @@ def test_reference_data_validation__date(factories, db_session):
     form = factories.form.create()
     q1 = factories.question.create(form=form, data_type=QuestionDataType.DATE, name="First question")
     q2 = factories.question.create(form=form, data_type=QuestionDataType.DATE, name="Second question")
-
-    if hasattr(form, "cached_all_components"):
-        del form.cached_all_components
 
     interfaces.collections.add_component_validation(
         q2,

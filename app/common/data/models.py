@@ -454,6 +454,12 @@ class Form(BaseModel):
         cascade="all, save-update, merge",
     )
 
+    def clear_caches(self):
+        for attr, value in self.__class__.__dict__.items():
+            if isinstance(value, cached_property):
+                if attr in self.__dict__:
+                    del self.__dict__[attr]
+
     @cached_property
     def cached_questions(self) -> list[Question]:
         """Consistently returns all questions in the form, respecting order and any level of nesting."""
@@ -842,6 +848,12 @@ class Group(Component):
     if TYPE_CHECKING:
         # reflect that groups will never have a data type but don't hook in a competing migration
         data_type: None
+
+    def clear_caches(self):
+        for attr, value in self.__class__.__dict__.items():
+            if isinstance(value, cached_property):
+                if attr in self.__dict__:
+                    del self.__dict__[attr]
 
     # todo: rename to something that makes it clear this is processed, something like all_nested_questions
     @cached_property

@@ -2643,7 +2643,7 @@ class TestMoveQuestion:
                 direction=direction,
             )
         )
-        del form.cached_questions
+        form.clear_caches()
         assert response.status_code == 302
 
         if direction == "up":
@@ -2672,7 +2672,7 @@ class TestMoveQuestion:
                 direction="down",
             )
         )
-        del form.cached_questions
+        form.clear_caches()
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/questions")
@@ -2688,7 +2688,7 @@ class TestMoveQuestion:
                 direction="down",
             )
         )
-        del form.cached_questions
+        form.clear_caches()
         assert response.status_code == 302
         assert response.location == AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
 
