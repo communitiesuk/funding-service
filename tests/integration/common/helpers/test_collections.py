@@ -2875,13 +2875,7 @@ class TestSubmissionValidation:
         helper.toggle_form_completed(form, user, True)
 
         submission.data_manager.set(q1, IntegerAnswer(value=150))
-        helper.cached_get_answer_for_question.cache_clear()
-        helper.cached_evaluation_context = ExpressionContext.build_expression_context(
-            collection=submission.collection,
-            submission_helper=helper,
-            data_manager=helper.submission.data_manager,
-            mode="evaluation",
-        )
+        helper.clear_caches()
 
         with pytest.raises(ValueError) as e:
             helper.submit(user)
@@ -2957,13 +2951,7 @@ class TestSubmissionValidation:
         helper.toggle_form_completed(form, user, True)
 
         submission.data_manager.set(q1, IntegerAnswer(value=150))
-        helper.cached_get_answer_for_question.cache_clear()
-        helper.cached_evaluation_context = ExpressionContext.build_expression_context(
-            collection=submission.collection,
-            submission_helper=helper,
-            data_manager=helper.submission.data_manager,
-            mode="evaluation",
-        )
+        helper.clear_caches()
 
         with pytest.raises(ValueError) as e:
             helper.mark_as_sent_for_certification(user)

@@ -3926,7 +3926,7 @@ class TestDeleteQuestion:
         assert form.cached_questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
 
         delete_question(questions[2])
-        del form.cached_questions
+        form.clear_caches()
 
         assert [q.order for q in form.cached_questions] == [0, 1, 2, 3]
         assert form.cached_questions == [questions[0], questions[1], questions[3], questions[4]]
@@ -3942,7 +3942,7 @@ class TestDeleteQuestion:
         assert form.cached_questions == [question1, *[q for q in group_questions], question2]
 
         delete_question(group)
-        del form.cached_questions
+        form.clear_caches()
 
         assert db_session.get(Group, group.id) is None
         assert db_session.get(Question, group_questions[0].id) is None
@@ -3960,8 +3960,8 @@ class TestDeleteQuestion:
         assert form.cached_questions == [questions[0], questions[1], questions[2], questions[3], questions[4]]
 
         delete_question(questions[2])
-        del form.cached_questions
-        del group.cached_questions
+        form.clear_caches()
+        group.clear_caches()
 
         assert [c.order for c in form.components] == [0]
         assert [q.order for q in group.cached_questions] == [0, 1, 2, 3]
@@ -4218,9 +4218,6 @@ class TestValidateAndSyncExpressionReferences:
 
         assert len(expression.component_references) == 0
 
-        if hasattr(form, "cached_all_components"):
-            del form.cached_all_components
-
         # This shouldn't raise an IncompatibleDataTypeException as the question evaluated by the managed expression
         # matches the data types of the questions used as reference values. The target_question (the one with the
         # expression attached) is irrelevant in terms of question data type.
@@ -4254,9 +4251,6 @@ class TestValidateAndSyncExpressionReferences:
 
         assert len(expression.component_references) == 0
 
-        if hasattr(form, "cached_all_components"):
-            del form.cached_all_components
-
         _validate_and_sync_expression_references(expression)
         assert len(expression.component_references) == 1
         referenced_components = {ref.depends_on_component for ref in expression.component_references}
@@ -4287,9 +4281,6 @@ class TestValidateAndSyncExpressionReferences:
 
         assert len(expression.component_references) == 0
 
-        if hasattr(form, "cached_all_components"):
-            del form.cached_all_components
-
         with pytest.raises(DependencyOrderException):
             _validate_and_sync_expression_references(expression)
 
@@ -4317,9 +4308,6 @@ class TestValidateAndSyncExpressionReferences:
         db_session.flush()
 
         assert len(expression.component_references) == 0
-
-        if hasattr(form, "cached_all_components"):
-            del form.cached_all_components
 
         with pytest.raises(IncompatibleDataTypeException):
             _validate_and_sync_expression_references(expression)
@@ -4349,9 +4337,6 @@ class TestValidateAndSyncExpressionReferences:
         db_session.flush()
 
         assert len(expression.component_references) == 0
-
-        if hasattr(form, "cached_all_components"):
-            del form.cached_all_components
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_and_sync_expression_references(expression)
@@ -4383,9 +4368,6 @@ class TestValidateAndSyncExpressionReferences:
 
         assert len(expression.component_references) == 0
 
-        if hasattr(form, "cached_all_components"):
-            del form.cached_all_components
-
         with pytest.raises(AddAnotherDependencyException):
             _validate_and_sync_expression_references(expression)
 
@@ -4415,9 +4397,6 @@ class TestValidateAndSyncExpressionReferences:
         db_session.flush()
 
         assert len(expression.component_references) == 0
-
-        if hasattr(form, "cached_all_components"):
-            del form.cached_all_components
 
         with pytest.raises(AddAnotherDependencyException):
             _validate_and_sync_expression_references(expression)

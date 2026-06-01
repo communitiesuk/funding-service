@@ -2643,7 +2643,7 @@ class TestMoveQuestion:
                 direction=direction,
             )
         )
-        del form.cached_questions
+        form.clear_caches()
         assert response.status_code == 302
 
         if direction == "up":
@@ -2672,7 +2672,7 @@ class TestMoveQuestion:
                 direction="down",
             )
         )
-        del form.cached_questions
+        form.clear_caches()
 
         assert response.status_code == 302
         assert response.location == AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/section/[a-z0-9-]{36}/questions")
@@ -2688,7 +2688,7 @@ class TestMoveQuestion:
                 direction="down",
             )
         )
-        del form.cached_questions
+        form.clear_caches()
         assert response.status_code == 302
         assert response.location == AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/group/[a-z0-9-]{36}/questions")
 
@@ -8408,6 +8408,7 @@ class TestListSubmissions:
             grant=authenticated_grant_member_client.grant,
             name="Closed Report",
             status=CollectionStatusEnum.CLOSED,
+            submission_period_end_date=datetime.date(2026, 1, 1),
         )
         factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant, organisation__name="Organisation Without Submission"
