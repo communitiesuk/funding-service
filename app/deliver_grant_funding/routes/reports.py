@@ -3131,16 +3131,20 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
             )
         )
 
-    helper = AllSubmissionsHelper(collection=report, submission_mode=submission_mode)
-
+    submissions = get_all_submissions_with_mode_for_collection(
+        collection_id=report_id,
+        submission_mode=submission_mode,
+        with_full_schema=False,
+        with_users=False,
+        with_submission_summary_info=True,
+    )
     return render_template(
         "deliver_grant_funding/reports/list_submissions.html",
         grant=report.grant,
         report=report,
-        helper=helper,
         submission_mode=submission_mode,
         delete_all_form=delete_all_form if submission_mode == SubmissionModeEnum.TEST else None,
-        SubmissionHelper=SubmissionHelper,
+        submissions=submissions,
     )
 
 

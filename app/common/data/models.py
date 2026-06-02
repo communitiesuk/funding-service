@@ -396,6 +396,13 @@ class Submission(BaseModel):
     )
 
     @property
+    def last_updated_at_utc(self) -> datetime.datetime:
+        from app.common.helpers.submission_events import SubmissionEventHelper
+
+        event_helper = SubmissionEventHelper(self)
+        return max(filter(None, [event_helper.latest_event_utc, self.updated_at_utc]))
+
+    @property
     def s3_key_prefix(self) -> str:
         return f"{current_app.config['SUBMISSION_FILES_PREFIX']}/{self.mode}/{self.collection_id}/{self.id}"
 
@@ -407,6 +414,21 @@ class Submission(BaseModel):
         using the `update_submission_data` interface.
         """
         return SubmissionDataManager(self._data)
+
+    @property
+    def name(self) -> str:
+        """
+        For submissions in a multi-submission collection, this provides a name for the submission based on a provided
+        answer.
+
+        For non-multi-submission collection we just return the submission's generated reference.
+        """
+        question = self.collection.submission_name_question
+        if question:
+            answer = self.data_manager.get(question)
+            if answer is not None:
+                return answer.get_value_for_text_export()
+        return self.reference
 
     __table_args__ = (
         CheckConstraint(
