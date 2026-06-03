@@ -83,6 +83,7 @@ if TYPE_CHECKING:
         Group,
         Question,
         Submission,
+        SubmissionEvent,
     )
 
 
@@ -108,6 +109,7 @@ class TimelineEvent:
     event_org: str
     event_date: datetime
     event_by: str
+    db_event: SubmissionEvent | None
 
 
 class SubmissionAuthorisationError(Exception):
@@ -584,6 +586,7 @@ class SubmissionHelper:
                         ),
                         event_date=event.created_at_utc,
                         event_by=event.created_by.name,
+                        db_event=event,
                     )
                 )
 

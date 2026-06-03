@@ -360,7 +360,7 @@
         <span class="govuk-tag govuk-tag--yellow">Changes requested</span>
       </p>
       {% if runner.submission.events.submission_state.change_request_reason %}
-        <p class="govuk-body">{{ runner.submission.events.submission_state.change_request_reason }}</p>
+        <p class="govuk-body">{{ runner.submission.events.submission_state.change_request_reason | govuk_markdown | safe }}</p>
       {% endif %}
     {% endset %}
     {{ govukInsetText({"html": inset_html}) }}

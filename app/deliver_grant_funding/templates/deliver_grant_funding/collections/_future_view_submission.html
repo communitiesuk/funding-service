@@ -4,6 +4,7 @@
 {% from "common/macros/submissions.html" import answers_summary_list with context %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
@@ -133,7 +134,7 @@
             <a class="govuk-tabs__tab" href="#timeline"> Timeline </a>
           </li>
           <li class="govuk-tabs__list-item">
-            <a class="govuk-tabs__tab" href="#form-response"> Form response </a>
+            <a class="govuk-tabs__tab" href="#form-response">Form response</a>
           </li>
         </ul>
         <div class="govuk-tabs__panel" id="timeline">
@@ -146,9 +147,48 @@
                   <h2 class="moj-timeline__title">{{ event.event_title }}</h2>
                   <p class="moj-timeline__byline">by {{ event.event_org }}</p>
                 </div>
-                <p class="moj-timeline__date">{{ event.event_by }} on {{ format_date(event.event_date) }}</p>
-                {# <div class="moj-timeline__description"> #}
-                {# </div> #}
+                <p class="moj-timeline__date">{{ event.event_by }} at {{ format_datetime(event.event_date) }}</p>
+
+                {# TODO: move out to macro or partial #}
+                {% if event.db_event %}
+                  {% if event.db_event.event_type == enum.submission_event_type.SUBMISSION_CHANGES_REQUESTED %}
+                    <div class="moj-timeline__description">
+                      {{
+                        govukDetails({
+                          "summaryText": "Change request details",
+                          "html": event.db_event.data.change_request_reason | govuk_markdown | safe
+                        })
+                      }}
+                    </div>
+                  {% elif event.db_event.event_type == enum.submission_event_type.SUBMISSION_REOPENED %}
+                    <div class="moj-timeline__description">
+                      {{
+                        govukDetails({
+                          "summaryText": "Reopen reason",
+                          "html": event.db_event.data.reopen_reason | govuk_markdown | safe
+                        })
+                      }}
+                    </div>
+                  {% elif event.db_event.event_type in [enum.submission_event_type.GRANT_TEAM_MARKED_AS_APPROVED, enum.submission_event_type.GRANT_TEAM_MARKED_AS_REJECTED] and event.db_event.data.marked_reason %}
+                    <div class="moj-timeline__description">
+                      {{
+                        govukDetails({
+                          "summaryText": "Marking details",
+                          "html": event.db_event.data.marked_reason | govuk_markdown | safe
+                        })
+                      }}
+                    </div>
+                  {% elif event.db_event.event_type == enum.submission_event_type.SUBMISSION_DECLINED_BY_CERTIFIER and event.db_event.data.declined_reason %}
+                    <div class="moj-timeline__description">
+                      {{
+                        govukDetails({
+                          "summaryText": "Decline reason",
+                          "html": event.db_event.data.declined_reason | govuk_markdown | safe
+                        })
+                      }}
+                    </div>
+                  {% endif %}
+                {% endif %}
               </div>
             {% endfor %}
           </div>
