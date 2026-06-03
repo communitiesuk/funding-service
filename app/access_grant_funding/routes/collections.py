@@ -1,6 +1,5 @@
 import io
 import os
-import threading
 from uuid import UUID
 
 from flask import abort, current_app, flash, redirect, render_template, send_file, url_for
@@ -19,16 +18,10 @@ from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.common.helpers.feature_flags import FeatureFlags
+from app.common.helpers.pdf import pdf_export_lock
 from app.extensions import auto_commit_after_request
 from app.metrics import MetricEventName, emit_metric_count
 from app.types import FlashMessageType
-
-# Playwright's sync API runs an asyncio loop while it talks to chromium. Under gunicorn+gevent,
-# multiple greenlets share an OS thread and asyncio's running-loop is thread-local, so concurrent
-# PDF exports on one worker would observe each other's loop and Playwright would raise. Serialise
-# PDF generation per worker. threading.Lock is monkey-patched by gevent into a greenlet-aware lock,
-# so blocked greenlets cooperatively yield rather than block the OS thread.
-_pdf_export_lock = threading.Lock()
 
 
 @access_grant_funding_blueprint.route(
@@ -174,7 +167,7 @@ def export_submission_pdf(
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
     )
 
-    with _pdf_export_lock:
+    with pdf_export_lock:
         # as we're calling to an external binary this makes sure we're set up if the flask app
         # has defined its own path, this could also be set in the container terraform
         if current_app.config["PLAYWRIGHT_BROWSERS_PATH"] is not None:

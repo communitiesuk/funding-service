@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 import uuid
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, cast
@@ -9,6 +10,7 @@ from flask import abort, current_app, flash, g, redirect, render_template, reque
 from flask.typing import ResponseReturnValue
 from flask_wtf import FlaskForm
 from markupsafe import Markup, escape
+from playwright.sync_api import sync_playwright
 from pydantic import BaseModel, ValidationError
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -108,6 +110,7 @@ from app.common.helpers.collections import (
     SubmissionIsNotSubmittedError,
 )
 from app.common.helpers.feature_flags import FeatureFlags
+from app.common.helpers.pdf import pdf_export_lock
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -3992,3 +3995,65 @@ def download_data_source_csv(
     filename = secure_filename(data_source.file_metadata.original_filename)
 
     return send_file(io.BytesIO(file_bytes), mimetype="text/csv", as_attachment=True, download_name=filename, max_age=0)
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/export-pdf", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def export_submission_pdf(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id=submission_id)
+
+    html_content = render_template(
+        "access_grant_funding/view_locked_submission_print_baseline.html",
+        grant_recipient=submission_helper.submission.grant_recipient,
+        submission=submission_helper,
+        interpolate=SubmissionHelper.get_interpolator(
+            collection=submission_helper.collection, submission_helper=submission_helper
+        ),
+    )
+
+    # TODO: move all of this part that is shared out to the PDF lib
+    #       (doesn't need to be right away but probably more appropriate as a flask extension)
+    with pdf_export_lock:
+        # as we're calling to an external binary this makes sure we're set up if the flask app
+        # has defined its own path, this could also be set in the container terraform
+        if current_app.config["PLAYWRIGHT_BROWSERS_PATH"] is not None:
+            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = current_app.config["PLAYWRIGHT_BROWSERS_PATH"]
+
+        # note that we're opening a new browser per request
+        # with a single request at a time this responds in ~200ms but if we ever anticipate higher
+        # simultaneous usage we'd probably want a singleton module to manage the browser connection
+        # and close and open pages as needed, this would allow a lot more simultaneous requests to be
+        # processed performantly
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+
+            page = browser.new_page(
+                java_script_enabled=False,
+                http_credentials={
+                    "username": current_app.config["BASIC_AUTH_USERNAME"],
+                    "password": current_app.config["BASIC_AUTH_PASSWORD"],
+                }
+                if current_app.config["BASIC_AUTH_ENABLED"]
+                else None,
+            )
+            page.set_content(html_content, wait_until="load")
+
+            pdf_bytes = page.pdf(
+                format="A4",
+                print_background=True,
+                scale=0.9,
+                margin={"top": "5mm", "bottom": "5mm", "left": "5mm", "right": "5mm"},
+            )
+
+    emit_metric_count(MetricEventName.SUBMISSION_PDF_DOWNLOADED, submission=submission_helper.submission)
+
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"{submission_helper.collection.grant.name} - {submission_helper.long_collection_name}.pdf",
+        max_age=0,
+    )
