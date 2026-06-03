@@ -21,28 +21,36 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-l govuk-!-margin-bottom-0">
+      <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
-        Which sections need to be changed?
+        Request changes
       </h1>
+
+      <p class="govuk-body">We will send an email with your reason for requesting changes to:</p>
+      <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-6">
+        {% if helper.collection.requires_certification %}
+          {% for user in helper.submission.grant_recipient.unique_data_providers_and_certifiers | sort(attribute="name") %}
+            <li>{{ user.name }} ({{ user.email }})</li>
+          {% endfor %}
+        {% else %}
+          {% for user in helper.submission.grant_recipient.data_providers | sort(attribute="name") %}
+            <li>{{ user.name }} ({{ user.email }})</li>
+          {% endfor %}
+        {% endif %}
+      </ul>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {# "fieldset": {
+        {{
+          form.sections_to_change(params={
+            "fieldset": {
               "legend": {
                 "text": form.sections_to_change.label.text,
                 "classes": "govuk-fieldset__legend--m"
               }
             },
-            "hint": {"text": "Select all sections that need to be revised. Only selected sections will be returned to in progress."} #}
-        {{
-          form.sections_to_change(params={
-
           })
         }}
-        {# {% set label_html %} #}
-        {# <p class="govuk-visually-hidden">Why are you requesting changes?</p> #}
-        {# {% endset %} #}
         {{
           form.change_request_reason(
             params={
@@ -53,19 +61,6 @@
             }
           )
         }}
-
-        <p class="govuk-body">We will send an email with your reason for requesting changes to:</p>
-        <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-6">
-          {% if helper.collection.requires_certification %}
-            {% for user in helper.submission.grant_recipient.unique_data_providers_and_certifiers | sort(attribute="name") %}
-              <li>{{ user.name }} ({{ user.email }})</li>
-            {% endfor %}
-          {% else %}
-            {% for user in helper.submission.grant_recipient.data_providers | sort(attribute="name") %}
-              <li>{{ user.name }} ({{ user.email }})</li>
-            {% endfor %}
-          {% endif %}
-        </ul>
 
         {{ form.submit }}
       </form>

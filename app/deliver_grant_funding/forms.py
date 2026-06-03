@@ -1353,9 +1353,7 @@ class ReopenSubmissionForm(FlaskForm):
 class RequestChangesForm(FlaskForm):
     REASON_MAX_WORDS = 200
     sections_to_change = SelectMultipleField(
-        # "Which sections need changes?",
-        # label="",
-        label="",
+        "Which sections need to be changed?",
         default=[],
         widget=GovCheckboxesInput(),
         choices=[],
@@ -1379,16 +1377,38 @@ class RequestChangesForm(FlaskForm):
 class MarkSubmissionForm(FlaskForm):
     REASON_MAX_WORDS = 200
     outcome = RadioField(
-        "What is the outcome of this submission?",
+        label="",
         choices=[("approved", "Mark as approved"), ("rejected", "Mark as rejected")],
         validators=[DataRequired("Select whether to mark this submission as approved or rejected")],
         widget=GovRadioInput(),
     )
-    marked_reason = TextAreaField(
-        "Add a note (optional)",
+    approved_comment = TextAreaField(
+        "Additional comments (optional)",
         validators=[
-            WordRange(max_words=REASON_MAX_WORDS, field_display_name="note"),
+            Optional(),
+        ],
+        widget=GovCharacterCount(),
+    )
+    rejected_reason = TextAreaField(
+        "Why are you marking this submission as rejected?",
+        validators=[
+            Optional(),
         ],
         widget=GovCharacterCount(),
     )
     submit = SubmitField("Save outcome", widget=GovSubmitInput())
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
+        if self.outcome.data == "approved":
+            self.rejected_reason.validators = [Optional()]
+            self.approved_comment.validators = [
+                Optional(),
+                WordRange(max_words=self.REASON_MAX_WORDS),
+            ]
+        elif self.outcome.data == "rejected":
+            self.approved_comment.validators = [Optional()]
+            self.rejected_reason.validators = [
+                DataRequired("Enter the reason for rejecting this submission"),
+                WordRange(max_words=self.REASON_MAX_WORDS),
+            ]
+        return super().validate(extra_validators)

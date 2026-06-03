@@ -3,7 +3,7 @@ import json
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, time
 from functools import cached_property, lru_cache, partial
 from io import StringIO
 from itertools import chain
@@ -107,7 +107,8 @@ class AddAnotherAnswerSummary(NamedTuple):
 class TimelineEvent:
     event_title: str
     event_org: str
-    event_date: datetime
+    event_date: date | datetime
+    date_has_time: bool | None
     event_by: str
     db_event: SubmissionEvent | None
 
@@ -553,12 +554,16 @@ class SubmissionHelper:
             SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
             SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
             SubmissionEventType.SUBMISSION_REOPENED,
+            SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED,
+            SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED,
         ]
-        # TODO: add collection events like when it was opened and if in the past when it was closed
 
+        # TODO this should be a property on the enum or event definition
         internal_events = [
             SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
             SubmissionEventType.SUBMISSION_REOPENED,
+            SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED,
+            SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED,
         ]
 
         collection_type_singular = self.submission.collection.type.constants.singular
@@ -569,7 +574,25 @@ class SubmissionHelper:
             + " sent for certification",
             SubmissionEventType.SUBMISSION_CHANGES_REQUESTED: "Changes requested",
             SubmissionEventType.SUBMISSION_REOPENED: collection_type_singular.capitalize() + " reopened",
+            SubmissionEventType.GRANT_TEAM_MARKED_AS_APPROVED: "Submission marked as approved",
+            SubmissionEventType.GRANT_TEAM_MARKED_AS_REJECTED: "Submission marked as rejected",
         }
+
+        if self.submission.collection.submission_period_start_date:
+            events.append(
+                TimelineEvent(
+                    event_title="Collection opened",
+                    event_org=self.submission.collection.grant.organisation.name,
+                    event_date=self.submission.collection.submission_period_start_date,
+                    date_has_time=False,
+                    # TODO: use the notify user
+                    event_by="Funding service",
+                    db_event=None,
+                )
+            )
+
+        # TODO: there's no indication of when a collection was closed in the current data model, this will
+        #       likely be refined when we track the closing of a report as a key event on the submission itself
 
         for event in self.submission.events:
             if event.event_type in salient_submission_events:
@@ -585,12 +608,19 @@ class SubmissionHelper:
                             else event.submission.created_by.email
                         ),
                         event_date=event.created_at_utc,
+                        date_has_time=True,
                         event_by=event.created_by.name,
                         db_event=event,
                     )
                 )
 
-        return events
+        return sorted(
+            events,
+            key=lambda e: (
+                e.event_date if isinstance(e.event_date, datetime) else datetime.combine(e.event_date, time.min)
+            ),
+            reverse=True,
+        )
 
     def get_snapshot_answer_for_question(
         self, question_id: UUID, *, add_another_index: int | None = None

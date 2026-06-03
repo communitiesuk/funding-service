@@ -3394,7 +3394,7 @@ def mark_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
             submission_helper.mark_submission(
                 user=get_current_user(),
                 approved=(form.outcome.data == "approved"),
-                marked_reason=form.marked_reason.data or None,
+                marked_reason=form.approved_comment.data or form.rejected_reason.data or None,
             )
             flash(
                 "Submission marked as approved" if form.outcome.data == "approved" else "Submission marked as rejected",

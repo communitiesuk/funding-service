@@ -3,6 +3,14 @@
 {% set cspNonce = csp_nonce() %}
 
 {% set nav_items = [] %}
+{%
+  do nav_items.append({
+    "text": "Grant details",
+    "key": "grant_details",
+    "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
+    "current": active_item_identifier == "details"
+  })
+%}
 
 {% if feature_flags.PRE_AWARD.is_enabled %}
   {%
@@ -27,12 +35,6 @@
           "key": "grant_users",
           "href": url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id),
           "current": active_item_identifier == "grant_team"
-      },
-      {
-          "text": "Grant details",
-          "key": "grant_details",
-          "href": url_for("deliver_grant_funding.grant_details", grant_id=grant.id),
-          "current": active_item_identifier == "details"
       },
   ])
 %}
