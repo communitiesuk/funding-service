@@ -8310,12 +8310,14 @@ class TestListSubmissions:
             mode=SubmissionModeEnum.TEST,
             grant_recipient=test_grant_recipient,
             created_by__email="submitter-test@recipient.org",
+            status=SubmissionStatusEnum.NOT_STARTED,
         )
         factories.submission.create(
             collection=report,
             mode=SubmissionModeEnum.LIVE,
             grant_recipient=live_grant_recipient,
             created_by__email="submitter-live@recipient.org",
+            status=SubmissionStatusEnum.NOT_STARTED,
         )
 
         test_response = authenticated_grant_member_client.get(
