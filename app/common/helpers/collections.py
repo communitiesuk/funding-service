@@ -410,7 +410,7 @@ class SubmissionHelper:
 
     @property
     def status(self) -> SubmissionStatusEnum:
-        return self._calculate_submission_status()
+        return self.submission.status
 
     @property
     def submitted_at_utc(self) -> datetime | None:
