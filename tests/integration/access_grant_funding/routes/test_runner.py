@@ -2142,6 +2142,7 @@ class TestConfirmSentForCertification:
         factories.submission_event.create(
             submission=submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
         )
+        submission.status = SubmissionStatusEnum.AWAITING_SIGN_OFF
 
         response = client.get(
             url_for(
@@ -2227,6 +2228,7 @@ class TestConfirmSentForCertification:
         factories.submission_event.create(
             submission=submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
         )
+        submission.status = SubmissionStatusEnum.AWAITING_SIGN_OFF
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(

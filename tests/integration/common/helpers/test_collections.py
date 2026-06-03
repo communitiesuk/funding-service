@@ -1311,12 +1311,7 @@ class TestSubmissionHelper:
                 permissions=[RoleEnum.CERTIFIER],
             )
 
-            factories.submission_event.create(
-                submission=submission_awaiting_sign_off,
-                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
-                created_by=certifier_user,
-                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
-            )
+            helper.certify(certifier_user)
 
             with pytest.raises(SubmissionAuthorisationError) as error:
                 helper.submit(submitter_user)
@@ -1381,13 +1376,8 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission_awaiting_sign_off)
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
-            factories.submission_event.create(
-                created_by=certifier_user,
-                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
-                related_entity_id=submission_awaiting_sign_off.id,
-                submission=submission_awaiting_sign_off,
-                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
-            )
+            helper.certify(certifier_user)
+
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
             helper.submit(user=certifier_user)
@@ -1452,13 +1442,7 @@ class TestSubmissionHelper:
         ):
             helper = SubmissionHelper(submission_awaiting_sign_off)
 
-            factories.submission_event.create(
-                created_by=certifier_user,
-                created_at_utc=datetime(2025, 12, 1, 0, 0, 0),
-                related_entity_id=submission_awaiting_sign_off.id,
-                submission=submission_awaiting_sign_off,
-                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
-            )
+            helper.certify(certifier_user)
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
             with pytest.raises(SubmissionAuthorisationError) as e:
                 helper.submit(data_provider_user)
@@ -1521,7 +1505,7 @@ class TestSubmissionHelper:
             submission_ready_to_submit.collection.status = CollectionStatusEnum.CLOSED
             helper = SubmissionHelper(submission_ready_to_submit)
 
-            with pytest.raises(ValueError, match="not ready to submit"):
+            with pytest.raises(ValueError, match="as it is in an immutable state"):
                 helper.submit(data_provider_user)
 
             assert len(mock_notification_service_calls) == 0

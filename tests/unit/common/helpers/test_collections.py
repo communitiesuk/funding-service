@@ -27,6 +27,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
     TasklistSectionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
@@ -614,6 +615,7 @@ class TestSubmissionHelper:
                     related_entity_id=submission.id,
                 ),
             ]
+            submission.status = SubmissionStatusEnum.SUBMITTED
 
             helper = SubmissionHelper(submission)
             assert helper.is_overdue is False

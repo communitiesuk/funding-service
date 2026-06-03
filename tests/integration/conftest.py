@@ -39,6 +39,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
@@ -638,7 +639,9 @@ def grant_recipient(
 
 
 @pytest.fixture(scope="function")
-def submission_in_progress(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+def submission_in_progress(
+    factories: _Factories, db_session, grant_recipient: GrantRecipient, user: User
+) -> Submission:
     question = factories.question.create(
         id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
         form__collection__grant=grant_recipient.grant,
@@ -652,11 +655,15 @@ def submission_in_progress(factories: _Factories, grant_recipient: GrantRecipien
         mode=SubmissionModeEnum.LIVE,
         answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
+    submission.status = SubmissionStatusEnum.IN_PROGRESS
+    db_session.commit()
     return cast(Submission, submission)
 
 
 @pytest.fixture(scope="function")
-def submission_ready_to_submit(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+def submission_ready_to_submit(
+    factories: _Factories, db_session, grant_recipient: GrantRecipient, user: User
+) -> Submission:
     question = factories.question.create(
         id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
         form__collection__grant=grant_recipient.grant,
@@ -677,11 +684,15 @@ def submission_ready_to_submit(factories: _Factories, grant_recipient: GrantReci
         created_by=user,
         created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
     )
+    submission.status = SubmissionStatusEnum.READY_TO_SUBMIT
+    db_session.commit()
     return cast(Submission, submission)
 
 
 @pytest.fixture(scope="function")
-def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+def submission_awaiting_sign_off(
+    factories: _Factories, grant_recipient: GrantRecipient, user: User, db_session
+) -> Submission:
     question = factories.question.create(
         id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
         form__collection__grant=grant_recipient.grant,
@@ -709,11 +720,13 @@ def submission_awaiting_sign_off(factories: _Factories, grant_recipient: GrantRe
         created_by=user,
         created_at_utc=datetime(2025, 11, 25, 0, 0, 1),
     )
+    submission.status = SubmissionStatusEnum.AWAITING_SIGN_OFF
+    db_session.commit()
     return cast(Submission, submission)
 
 
 @pytest.fixture(scope="function")
-def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient, user: User) -> Submission:
+def submission_submitted(factories: _Factories, db_session, grant_recipient: GrantRecipient, user: User) -> Submission:
     question = factories.question.create(
         id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
         form__collection__grant=grant_recipient.grant,
@@ -750,11 +763,18 @@ def submission_submitted(factories: _Factories, grant_recipient: GrantRecipient,
         event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
         created_by=user,
     )
+    submission.status = SubmissionStatusEnum.SUBMITTED
+    db_session.commit()
+
     return cast(Submission, submission)
 
 
 @pytest.fixture(scope="function")
-def submission_submitted_multiple_submissions(factories: _Factories, grant_recipient, db_session) -> list[Submission]:
+def submission_submitted_multiple_submissions(
+    factories: _Factories,
+    db_session,
+    grant_recipient,
+) -> list[Submission]:
     question = factories.question.create(
         id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
         data_type=QuestionDataType.TEXT_SINGLE_LINE,
@@ -803,6 +823,9 @@ def submission_submitted_multiple_submissions(factories: _Factories, grant_recip
         event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
         created_by=user,
     )
+    submission_1.status = SubmissionStatusEnum.SUBMITTED
+    submission_2.status = SubmissionStatusEnum.SUBMITTED
+    db_session.commit()
 
     return [submission_1, submission_2]
 

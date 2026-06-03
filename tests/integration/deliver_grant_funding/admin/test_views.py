@@ -1269,6 +1269,7 @@ class TestSendEmailsToRecipients:
             created_by=user_1,
             grant_recipient=gr1,
             answers=[FactoryAnswer(question, TextSingleLineAnswer("answer 1"))],
+            status=SubmissionStatusEnum.IN_PROGRESS,
         )
 
         # org 2 has submitted their report, so should not be in the list
@@ -1288,6 +1289,7 @@ class TestSendEmailsToRecipients:
         factories.submission_event.create(
             event_type=SubmissionEventType.SUBMISSION_SUBMITTED, submission=submission_2, created_by=user_3
         )
+        submission_2.status = SubmissionStatusEnum.SUBMITTED
         assert SubmissionHelper(submission_2).status == SubmissionStatusEnum.SUBMITTED
 
         # org 3 has not started their report (has no submission) so should be in the list
@@ -1400,6 +1402,7 @@ class TestSendEmailsToRecipients:
             created_by=user_1,
             grant_recipient=gr1,
             answers=[FactoryAnswer(question, TextSingleLineAnswer("answer 1"))],
+            status=SubmissionStatusEnum.IN_PROGRESS,
         )
 
         # org 2 has submitted their report, so should not be in the list
@@ -1419,7 +1422,7 @@ class TestSendEmailsToRecipients:
         factories.submission_event.create(
             event_type=SubmissionEventType.SUBMISSION_SUBMITTED, submission=submission_2, created_by=user_3
         )
-        assert SubmissionHelper(submission_2).status == SubmissionStatusEnum.SUBMITTED
+        submission_2.status = SubmissionStatusEnum.SUBMITTED
 
         # org 3 has not started their report (has no submission) so should be in the list
 
@@ -1507,7 +1510,7 @@ class TestSendEmailsToRecipients:
             submission=submitted_submission,
             created_by=user,
         )
-        assert SubmissionHelper(submitted_submission).is_submitted
+        submitted_submission.status = SubmissionStatusEnum.SUBMITTED
 
         factories.submission.create(
             mode=SubmissionModeEnum.LIVE,

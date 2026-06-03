@@ -538,7 +538,10 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         def _create_submission_of_type(submission_mode: SubmissionModeEnum, count: int) -> None:
             for _ in range(0, count):
                 item_choice = faker.Faker().random_int(min=0, max=2) if use_random_data else 0
-                sub = _SubmissionFactory.create(collection=obj, mode=submission_mode)
+                sub = _SubmissionFactory.create(
+                    collection=obj,
+                    mode=submission_mode,
+                )
                 sub.data_manager.set(
                     q1,
                     TextSingleLineAnswer(faker.Faker().name() if use_random_data else "test name"),
@@ -610,6 +613,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                         mime_type="application/pdf",
                     ),
                 )
+                sub.status = SubmissionStatusEnum.IN_PROGRESS
 
                 if create:
                     update_submission_data(sub)
@@ -741,6 +745,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
                     q5,
                     IntegerAnswer(value=random.randint(0, 10) if use_random_data else 3),
                 )
+                sub.status = SubmissionStatusEnum.IN_PROGRESS
 
                 if create:
                     update_submission_data(sub)
@@ -795,7 +800,8 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
         )
     )
     grant_recipient_id = factory.LazyAttribute(lambda o: o.grant_recipient.id if o.grant_recipient else None)
-    status = None
+
+    status = SubmissionStatusEnum.NOT_STARTED
 
     @factory.post_generation
     def answers(obj: Submission, create, extracted: list[FactoryAnswer], **kwargs):
