@@ -358,6 +358,7 @@ def get_all_submissions_with_mode_for_collection(
     *,
     with_full_schema: bool = True,
     with_users: bool = False,
+    with_submission_summary_info: bool = False,
 ) -> Sequence[Submission]:
     """
     Use this function to get all submission data for a collection - it
@@ -366,8 +367,8 @@ def get_all_submissions_with_mode_for_collection(
     through them all individually.
     """
 
-    if with_full_schema and with_users:
-        raise ValueError("Only one of with_full_schema or with_users should be set")
+    if sum([with_full_schema, with_users, with_submission_summary_info]) > 1:
+        raise ValueError("Only one of with_full_schema, with_submission_summary_info or with_users should be set")
 
     # todo: this feels redundant because this interface should probably be limited to a single collection and fetch
     #       that through a specific interface which already exists - this can then focus on submissions
@@ -404,6 +405,9 @@ def get_all_submissions_with_mode_for_collection(
         stmt = stmt.options(
             joinedload(Submission.created_by),
         )
+    elif with_submission_summary_info:
+        stmt = stmt.options(selectinload(Submission.events))
+        stmt = stmt.options(joinedload(Submission.grant_recipient).joinedload(GrantRecipient.organisation))
 
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))

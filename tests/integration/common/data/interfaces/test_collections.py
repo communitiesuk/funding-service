@@ -5146,12 +5146,34 @@ class TestGetSubmissions:
     ):
         collection = factories.collection.create()
 
-        with pytest.raises(ValueError, match="Only one of with_full_schema or with_users should be set"):
+        with pytest.raises(
+            ValueError, match="Only one of with_full_schema, with_submission_summary_info or with_users should be set"
+        ):
             get_all_submissions_with_mode_for_collection(
                 collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 with_full_schema=True,
                 with_users=True,
+            )
+        with pytest.raises(
+            ValueError, match="Only one of with_full_schema, with_submission_summary_info or with_users should be set"
+        ):
+            get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                with_full_schema=True,
+                with_users=True,
+                with_submission_summary_info=True,
+            )
+        with pytest.raises(
+            ValueError, match="Only one of with_full_schema, with_submission_summary_info or with_users should be set"
+        ):
+            get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+                with_full_schema=True,
+                with_users=False,
+                with_submission_summary_info=True,
             )
 
     def test_get_all_submissions_with_mode_for_collection_with_full_schema_no_n_plus_one(
