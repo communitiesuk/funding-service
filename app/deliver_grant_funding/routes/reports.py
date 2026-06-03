@@ -3131,11 +3131,6 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
             )
         )
 
-    # TODO[FSPT-1405]: remove me; very short term service stability guard
-    submissions = report.live_submissions if submission_mode == SubmissionModeEnum.LIVE else report.test_submissions
-    if len(submissions) > 100:
-        abort(503)
-
     helper = AllSubmissionsHelper(collection=report, submission_mode=submission_mode)
 
     return render_template(
