@@ -16,12 +16,12 @@ from app.common.data.interfaces.collections import (
     NestedGroupDisplayTypeSamePageException,
     NestedGroupException,
     SectionComponentDependencyException,
+    _add_submission_event,
     _validate_and_sync_component_references,
     _validate_and_sync_expression_references,
     _validate_reference,
     add_component_condition,
     add_component_validation,
-    add_submission_event,
     components_in_same_group_and_on_same_page,
     create_collection,
     create_form,
@@ -99,12 +99,14 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan, Specifically
 from app.common.expressions.references import ExpressionReference
 from app.common.forms.helpers import components_in_valid_add_another_combination
+from app.common.helpers.collections import SubmissionHelper
 from app.metrics import MetricEventName
 from tests.models import FactoryAnswer
 
@@ -759,6 +761,29 @@ class TestUpdateCollection:
             f"You cannot close the report for submissions before the submission period "
             f"end date of {collection.submission_period_end_date}"
         ) in str(exc_info.value)
+
+    @pytest.mark.freeze_time("2025-03-30 10:00:00")
+    def test_close_collection_updates_submission_status(self, db_session, factories):
+        collection = factories.collection.create(
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        factories.question.create(form__collection=collection)
+
+        submission_not_started = factories.submission.create(collection=collection)
+        assert submission_not_started.status == SubmissionStatusEnum.NOT_STARTED
+
+        update_collection(
+            collection,
+            status=CollectionStatusEnum.CLOSED,
+        )
+
+        from_db = db_session.get(Submission, submission_not_started.id)
+        assert from_db.status == SubmissionStatusEnum.NOT_SUBMITTED
 
 
 class TestGetSubmission:
@@ -2933,13 +2958,13 @@ class TestAddSubmissionEvent:
         submission = factories.submission.create(collection=form.collection)
         db_session.add(submission)
 
-        add_submission_event(
-            submission=submission,
+        _add_submission_event(
+            submission,
             user=user,
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
             related_entity_id=form.id,
         )
-        add_submission_event(submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+        _add_submission_event(submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
 
         # pull it back out of the database to also check all of the serialisation/ enums are mapped appropriately
         from_db = get_submission(submission.id, with_full_schema=True)
@@ -2950,7 +2975,7 @@ class TestAddSubmissionEvent:
         assert from_db.events[0].data == {}
 
         assert from_db.events[1].event_type == SubmissionEventType.SUBMISSION_SUBMITTED
-        assert from_db.events[1].related_entity_id is submission.id
+        assert from_db.events[1].related_entity_id == submission.id
         assert from_db.events[1].data == {}
 
     def test_add_certification_and_submission_event(self, db_session, factories):
@@ -2959,21 +2984,25 @@ class TestAddSubmissionEvent:
         submission = factories.submission.create(collection=form.collection)
         db_session.add(submission)
 
-        add_submission_event(
-            submission=submission,
+        _add_submission_event(
+            submission,
             user=user,
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
             related_entity_id=form.id,
         )
-        add_submission_event(
-            submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
+        _add_submission_event(
+            submission,
+            user=user,
+            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
         )
-        add_submission_event(
-            submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
+        _add_submission_event(
+            submission,
+            user=user,
+            event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
         )
-        add_submission_event(submission=submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
-        add_submission_event(
-            submission=submission,
+        _add_submission_event(submission, user=user, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+        _add_submission_event(
+            submission,
             user=user,
             event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
             declined_reason="inaccurate data",
@@ -3014,8 +3043,8 @@ class TestAddSubmissionEvent:
         submission._data = test_data
         db_session.add(submission)
 
-        add_submission_event(
-            submission=submission,
+        _add_submission_event(
+            submission,
             user=user,
             event_type=SubmissionEventType.SUBMISSION_REOPENED,
             reopened_reason="Test reason",
@@ -3031,7 +3060,6 @@ class TestAddSubmissionEvent:
     def test_reopen_submission_event_with_helpers(self, db_session, factories):
 
         from app.common.collections.forms import build_question_form
-        from app.common.helpers.collections import SubmissionHelper
 
         user = factories.user.create()
         form = factories.form.create()
@@ -3046,8 +3074,8 @@ class TestAddSubmissionEvent:
 
         db_session.add(submission)
 
-        add_submission_event(
-            submission=submission,
+        _add_submission_event(
+            submission,
             user=user,
             event_type=SubmissionEventType.SUBMISSION_REOPENED,
             reopened_reason="Test reason",
@@ -3071,30 +3099,46 @@ class TestAddSubmissionEvent:
         assert state.reopened_by == user
 
     @pytest.mark.parametrize(
-        "event_type,exp_metric",
+        "event_type,is_form_event,exp_metric",
         [
-            (SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION),
-            (SubmissionEventType.SUBMISSION_SUBMITTED, MetricEventName.SUBMISSION_SUBMITTED),
-            (SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS, MetricEventName.SECTION_RESET_TO_IN_PROGRESS),
-            (SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, MetricEventName.SECTION_MARKED_COMPLETE),
+            (
+                SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+                False,
+                MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION,
+            ),
+            (SubmissionEventType.SUBMISSION_SUBMITTED, False, MetricEventName.SUBMISSION_SUBMITTED),
+            (
+                SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                True,
+                MetricEventName.SECTION_RESET_TO_IN_PROGRESS,
+            ),
+            (SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, True, MetricEventName.SECTION_MARKED_COMPLETE),
             (
                 SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
+                True,
                 MetricEventName.SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER,
             ),
-            (SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, MetricEventName.SUBMISSION_CERTIFIED),
-            (SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER, MetricEventName.SUBMISSION_CERTIFICATION_DECLINED),
-            (SubmissionEventType.SUBMISSION_REOPENED, MetricEventName.SUBMISSION_REOPENED),
+            (SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, False, MetricEventName.SUBMISSION_CERTIFIED),
+            (
+                SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+                False,
+                MetricEventName.SUBMISSION_CERTIFICATION_DECLINED,
+            ),
+            (SubmissionEventType.SUBMISSION_REOPENED, False, MetricEventName.SUBMISSION_REOPENED),
         ],
     )
-    def test_add_submission_event_metrics(self, db_session, factories, mock_sentry_metrics, event_type, exp_metric):
+    def test_add_submission_event_metrics(
+        self, db_session, factories, mock_sentry_metrics, event_type, is_form_event, exp_metric
+    ):
 
         user = factories.user.create()
         form = factories.form.create()
         submission = factories.submission.create(collection=form.collection)
 
-        add_submission_event(
-            submission=submission,
+        _add_submission_event(
+            submission,
             user=user,
+            related_entity_id=form.id if is_form_event else submission.id,
             event_type=event_type,
         )
 
