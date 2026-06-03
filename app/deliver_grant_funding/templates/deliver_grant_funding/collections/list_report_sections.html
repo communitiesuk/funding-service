@@ -132,6 +132,11 @@
             Configure change requests
           </a>
         </li>
+        <li>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_mark_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+            Configure mark submissions
+          </a>
+        </li>
         {% if collection.allow_multiple_submissions %}
           <li>
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.set_guidance_for_multiple_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">

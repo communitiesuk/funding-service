@@ -135,6 +135,7 @@ from app.deliver_grant_funding.forms import (
     MapDataSetColumnsForm,
     MapNumberColumnsForm,
     MarkSubmissionForm,
+    MarkSubmissionsSettingsForm,
     PublicSignUpSettingsForm,
     QuestionForm,
     QuestionTypeForm,
@@ -424,6 +425,41 @@ def collection_configure_change_requests(
 
     return render_template(
         "deliver_grant_funding/collections/configure_change_requests.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-mark-submissions",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def collection_configure_mark_submissions(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    form = MarkSubmissionsSettingsForm(obj=collection if request.method == "GET" else None)
+
+    if form.validate_on_submit():
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
+            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
+        else:
+            update_collection(collection, mark_submissions_enabled=form.mark_submissions_enabled.data == "True")
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_collection_sections",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/collections/configure_mark_submissions.html",
         grant=collection.grant,
         collection=collection,
         form=form,

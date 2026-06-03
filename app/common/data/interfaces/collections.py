@@ -136,6 +136,7 @@ def update_collection(  # noqa: C901
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
     change_requests_enabled: bool | TNotProvided = NOT_PROVIDED,
+    mark_submissions_enabled: bool | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     if name is not NOT_PROVIDED:
         collection.name = name
@@ -226,6 +227,9 @@ def update_collection(  # noqa: C901
 
     if change_requests_enabled is not NOT_PROVIDED:
         collection.change_requests_enabled = change_requests_enabled
+
+    if mark_submissions_enabled is not NOT_PROVIDED:
+        collection.mark_submissions_enabled = mark_submissions_enabled
 
     if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):

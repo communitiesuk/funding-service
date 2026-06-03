@@ -949,6 +949,16 @@ class ChangeRequestsSettingsForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class MarkSubmissionsSettingsForm(FlaskForm):
+    mark_submissions_enabled = RadioField(
+        "Should this collection allow grant team members to approve or reject submissions?",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[DataRequired("Select whether the collection should allow marking submissions")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
 class PublicSignUpSettingsForm(FlaskForm):
     allow_public_sign_up = RadioField(
         "Should this collection allow public self sign up?",

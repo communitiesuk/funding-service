@@ -1526,6 +1526,8 @@ class SubmissionHelper:
         # notification_service.send_deliver_change_request_confirmation(user=user, submission_helper=self)
 
     def can_mark_submission_by_user(self, user: User) -> bool:
+        if not self.collection.mark_submissions_enabled:
+            return False
         if not self.is_submitted:
             return False
         if self.is_test:
