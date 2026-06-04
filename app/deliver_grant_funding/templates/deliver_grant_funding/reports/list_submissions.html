@@ -107,24 +107,28 @@
       {% if report.allow_multiple_submissions %}
         {% set rows=[] %}
 
-        {% for submission in submissions | sort(attribute="grant_recipient.organisation.name,name") %}
-          {% set link_to_submission %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.id) }}" data-submission-link> {{ submission.name }} </a>
-          {% endset %}
-          {%
-            do rows.append([
-              {
-                "html": link_to_submission,
-              }, {
-                "text": submission.grant_recipient.organisation.name,
-              }, {
-                "html": submissionStatusTag(submission.status,  report.is_closed and not submission.status == enum.submission_status.SUBMITTED),
-              }, {
-                "text": format_date_short(submission.last_updated_at_utc)
-              }
-            ])
-          %}
-        {% else %}
+        {% for grant_recipient in grant_recipients | sort(attribute="organisation.name") %}
+
+          {% for submission in grant_recipient.submissions | sort(attribute="grant_recipient.organisation.name,name") %}
+            {% set link_to_submission %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.id) }}" data-submission-link> {{ submission.name }} </a>
+            {% endset %}
+            {%
+              do rows.append([
+                {
+                  "html": link_to_submission,
+                }, {
+                  "text": submission.grant_recipient.organisation.name,
+                }, {
+                  "html": submissionStatusTag(submission.status,  report.is_closed and not submission.status == enum.submission_status.SUBMITTED),
+                }, {
+                  "text": format_date_short(submission.last_updated_at_utc)
+                }
+              ])
+            %}
+          {% endfor %}
+        {% endfor %}
+        {% if rows | length == 0 %}
           {% set no_submissions_text %}
             <span>No submissions found for this monitoring report</span>
           {% endset %}
@@ -136,7 +140,7 @@
               }
             ])
           %}
-        {% endfor %}
+        {% endif %}
 
         {{
           govukTable({
