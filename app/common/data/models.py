@@ -1388,6 +1388,14 @@ class GrantRecipient(BaseModel):
         lazy="select",  # TODO: FSPT-977 raiseload, decide joining method explicitly?
     )
 
+    @property
+    def test_submissions(self) -> list[Submission]:
+        return list(submission for submission in self.submissions if submission.mode == SubmissionModeEnum.TEST)
+
+    @property
+    def live_submissions(self) -> list[Submission]:
+        return list(submission for submission in self.submissions if submission.mode == SubmissionModeEnum.LIVE)
+
     data_providers: Mapped[list[User]] = relationship(
         "User",
         secondary="user_role",

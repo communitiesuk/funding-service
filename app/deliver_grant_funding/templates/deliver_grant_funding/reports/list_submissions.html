@@ -109,7 +109,7 @@
 
         {% for grant_recipient in grant_recipients | sort(attribute="organisation.name") %}
 
-          {% for submission in grant_recipient.submissions | sort(attribute="grant_recipient.organisation.name,name") %}
+          {% for submission in (grant_recipient.live_submissions if submission_mode==enum.submission_mode.LIVE else grant_recipient.test_submissions) | sort(attribute="grant_recipient.organisation.name,name") %}
             {% set link_to_submission %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.id) }}" data-submission-link> {{ submission.name }} </a>
             {% endset %}
@@ -158,8 +158,17 @@
         {% set rows=[] %}
         {% for grant_recipient in grant_recipients | sort(attribute="organisation.name") %}
 
-          {% if grant_recipient.submissions %}
-            {% set submission = grant_recipient.submissions[0] %}
+          {% if submission_mode==enum.submission_mode.LIVE %}
+            {% if grant_recipient.live_submissions | length > 0 %}
+              {% set submission = grant_recipient.live_submissions[0] %}
+            {% endif %}
+          {% endif %}
+          {% if submission_mode==enum.submission_mode.TEST %}
+            {% if grant_recipient.test_submissions | length > 0 %}
+              {% set submission = grant_recipient.test_submissions[0] %}
+            {% endif %}
+          {% endif %}
+          {% if submission %}
             {% set link_to_submission %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.id) }}" data-submission-link>
                 {{ submission.grant_recipient.organisation.name }}

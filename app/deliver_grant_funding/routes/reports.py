@@ -3137,7 +3137,6 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         mode=GrantRecipientModeEnum.LIVE if submission_mode == SubmissionModeEnum.LIVE else GrantRecipientModeEnum.TEST,
         with_organisations=True,
         with_submissions_for_collection=report_id,
-        submission_mode=submission_mode,
     )
 
     return render_template(

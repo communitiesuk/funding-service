@@ -19,7 +19,6 @@ def get_grant_recipients(
     with_certifiers: bool = False,
     with_organisations: bool = False,
     with_submissions_for_collection: uuid.UUID | None = None,
-    submission_mode: SubmissionModeEnum = SubmissionModeEnum.LIVE,
 ) -> Sequence[GrantRecipient]:
     stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
 
@@ -35,9 +34,7 @@ def get_grant_recipients(
     if with_submissions_for_collection:
         stmt = stmt.options(
             selectinload(
-                GrantRecipient.submissions.and_(Submission.collection_id == with_submissions_for_collection).and_(
-                    Submission.mode == submission_mode
-                )
+                GrantRecipient.submissions.and_(Submission.collection_id == with_submissions_for_collection)
             ).joinedload(Submission.events)
         )
 
