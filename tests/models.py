@@ -11,7 +11,7 @@ import random
 import secrets
 from dataclasses import field
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import factory.fuzzy
 import faker
@@ -769,6 +769,15 @@ class FactoryAnswer:
     add_another_index: int | None = field(kw_only=True, default=None)
 
 
+@dataclasses.dataclass
+class FactoryEvent:
+    event_type: SubmissionEventType
+    created_by: User | None = field(kw_only=True, default=None)
+    related_entity_id: UUID | None = field(kw_only=True, default=None)
+    created_at_utc: datetime.datetime | None = field(kw_only=True, default=None)
+    data: dict[str, Any] | None = field(kw_only=True, default=None)
+
+
 class _SubmissionFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Submission
@@ -804,16 +813,76 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
                 obj.data_manager.set(entry.question, entry.answer, add_another_index=entry.add_another_index)
 
         if create:
-            SubmissionHelper(obj)._sync_submission_data_and_status()
+            update_submission_data(obj)  # We don't sync submission.status here; `events` below does that.
             db.session.commit()
         else:
             obj._data = obj.data_manager.data
 
-            # TODO: This could be made smarter to work out READY_TO_SUBMIT;
-            if obj.status is None:
-                obj.status = SubmissionStatusEnum.IN_PROGRESS if extracted else SubmissionStatusEnum.NOT_STARTED
+    @factory.post_generation
+    def events(obj: Submission, create, extracted: list[FactoryEvent], **kwargs):
+        """Create the given submission events and let `_SubmissionEventFactory` recalculate the submission status.
 
-    # TODO: Take 'events' here and process the submission status to get the right thing
+        Each entry is a `FactoryEvent`; any unset fields fall through to the `_SubmissionEventFactory` defaults. This
+        runs after `answers`, so the final event recalculates the status against the already-synced submission data.
+        """
+        if not extracted:
+            extracted = []
+
+        if not extracted and obj.status != SubmissionStatusEnum.NOT_STARTED:
+            if obj.status in {
+                SubmissionStatusEnum.AWAITING_SIGN_OFF,
+                SubmissionStatusEnum.READY_TO_SUBMIT,
+                SubmissionStatusEnum.SUBMITTED,
+            }:
+                extracted.extend(
+                    [
+                        FactoryEvent(
+                            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                            created_by=obj.created_by,
+                            related_entity_id=f.id,
+                        )
+                        for f in obj.collection.forms
+                    ]
+                )
+
+                if obj.status == SubmissionStatusEnum.AWAITING_SIGN_OFF:
+                    if not obj.collection.requires_certification:
+                        raise ValueError(
+                            "Cannot create submission awaiting sign-off for a collection that does not require "
+                            "certification"
+                        )
+
+                if obj.collection.requires_certification:
+                    extracted.append(
+                        FactoryEvent(
+                            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, created_by=obj.created_by
+                        )
+                    )
+                    if obj.status in {SubmissionStatusEnum.READY_TO_SUBMIT, SubmissionStatusEnum.SUBMITTED}:
+                        extracted.append(
+                            FactoryEvent(
+                                event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                                created_by=obj.created_by,
+                            )
+                        )
+                else:
+                    if obj.status in {SubmissionStatusEnum.SUBMITTED}:
+                        extracted.append(
+                            FactoryEvent(event_type=SubmissionEventType.SUBMISSION_SUBMITTED, created_by=obj.created_by)
+                        )
+
+        for event in extracted:
+            event_kwargs = {
+                f.name: getattr(event, f.name) for f in dataclasses.fields(event) if getattr(event, f.name) is not None
+            }
+            if create:
+                _SubmissionEventFactory.create(submission=obj, **event_kwargs)
+            else:
+                _SubmissionEventFactory.build(submission=obj, **event_kwargs)
+
+        if create:
+            SubmissionHelper(obj)._sync_submission_data_and_status()
+            db.session.commit()
 
 
 class _FormFactory(SQLAlchemyModelFactory):
@@ -1065,6 +1134,14 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
     created_at_utc = datetime.datetime(2025, 11, 1, 12, 0, 0)
 
     data = factory.LazyAttribute(lambda o: SubmissionEventHelper.event_from(o.event_type))
+
+    @factory.post_generation
+    def recalculate_submission_status(obj: SubmissionEvent, create, extracted, **kwargs):
+        if create:
+            SubmissionHelper(obj.submission)._update_submission_status()
+            db.session.commit()
+        else:
+            obj.submission.status = SubmissionHelper(obj.submission)._calculate_submission_status()
 
 
 class _ExpressionFactory(SQLAlchemyModelFactory):

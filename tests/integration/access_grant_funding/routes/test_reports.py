@@ -645,7 +645,6 @@ class TestListCollectionSubmissions:
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
         grant = grant_recipient.grant
         grant.status = GrantStatusEnum.LIVE
-        user = authenticated_grant_recipient_member_client.user
         question = factories.question.create(
             form__collection__grant=grant,
             form__collection__allow_multiple_submissions=True,
@@ -658,22 +657,12 @@ class TestListCollectionSubmissions:
         )
         collection = question.form.collection
         for i in range(2):
-            submission = factories.submission.create(
+            factories.submission.create(
                 collection=collection,
                 grant_recipient=grant_recipient,
                 mode=SubmissionModeEnum.LIVE,
+                status=SubmissionStatusEnum.SUBMITTED,
                 answers=[FactoryAnswer(question, TextSingleLineAnswer(f"Answer {i}"))],
-            )
-            factories.submission_event.create(
-                submission=submission,
-                related_entity_id=question.form.id,
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                created_by=user,
-            )
-            factories.submission_event.create(
-                submission=submission,
-                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
-                created_by=user,
             )
 
         response = authenticated_grant_recipient_member_client.get(
