@@ -202,6 +202,7 @@ class TestViewLockedReport:
         organisation = authenticated_grant_recipient_certifier_client.organisation
         grant = authenticated_grant_recipient_certifier_client.grant
 
+        assert submission_awaiting_sign_off.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
         helper = SubmissionHelper(submission_awaiting_sign_off)
         assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
@@ -225,6 +226,7 @@ class TestViewLockedReport:
             grant_id=grant.id,
             submission_id=submission_awaiting_sign_off.id,
         )
+        assert submission_awaiting_sign_off.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
         assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
@@ -290,6 +292,7 @@ class TestViewLockedReport:
         factories.submission_event.create(
             submission=submission, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
         )
+        submission.status = SubmissionStatusEnum.AWAITING_SIGN_OFF
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
@@ -675,6 +678,7 @@ class TestListCollectionSubmissions:
                 event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
                 created_by=user,
             )
+            submission.status = SubmissionStatusEnum.SUBMITTED
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
@@ -1339,6 +1343,7 @@ class TestConfirmReportSubmission:
             related_entity_id=form.id,
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
         )
+        submission.status = SubmissionStatusEnum.READY_TO_SUBMIT
 
         certifier = factories.user.create()
         factories.user_role.create(
@@ -1485,7 +1490,7 @@ class TestViewSubmittedConfirmation:
             related_entity_id=question.form.id,
         )
         factories.submission_event.create(submission=submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
-
+        submission.status = SubmissionStatusEnum.SUBMITTED
         response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
                 "access_grant_funding.submitted_confirmation",

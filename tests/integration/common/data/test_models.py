@@ -11,6 +11,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     RoleEnum,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.common.expressions.managed import GreaterThan, Specifically
 from app.common.expressions.references import ExpressionReference
@@ -47,6 +48,7 @@ class TestSubmissionModel:
             reference="TEST-R123456",
             created_by_id=user.id,
             grant_recipient_id=None,
+            status=SubmissionStatusEnum.NOT_STARTED,
         )
         db_session.add(submission)
 

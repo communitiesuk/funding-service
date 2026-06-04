@@ -194,18 +194,7 @@ class SubmissionHelper:
 
     @property
     def submission_name(self) -> str:
-        """
-        For submissions in a multi-submission collection, this provides a name for the submission based on a provided
-        answer.
-
-        For non-multi-submission collection we just return the submission's generated reference.
-        """
-        question = self.collection.submission_name_question
-        if question:
-            answer = self.cached_get_answer_for_question(question.id)
-            if answer is not None:
-                return answer.get_value_for_text_export()
-        return self.submission.reference
+        return self.submission.name
 
     @property
     def long_collection_name(self) -> str:
@@ -410,7 +399,7 @@ class SubmissionHelper:
 
     @property
     def status(self) -> SubmissionStatusEnum:
-        return self._calculate_submission_status()
+        return self.submission.status
 
     @property
     def submitted_at_utc(self) -> datetime | None:
@@ -483,7 +472,7 @@ class SubmissionHelper:
 
     @property
     def last_updated_at_utc(self) -> datetime:
-        return max(filter(None, [self.events.latest_event_utc, self.submission.updated_at_utc]))
+        return self.submission.last_updated_at_utc
 
     @property
     def reopened_at_utc(self) -> datetime | None:

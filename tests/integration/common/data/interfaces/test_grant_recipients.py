@@ -14,7 +14,13 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipients_with_outstanding_submissions_for_collection,
 )
 from app.common.data.models import GrantRecipient
-from app.common.data.types import GrantRecipientModeEnum, RoleEnum, SubmissionEventType, SubmissionModeEnum
+from app.common.data.types import (
+    GrantRecipientModeEnum,
+    RoleEnum,
+    SubmissionEventType,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
 from tests.models import FactoryAnswer
 
 
@@ -349,6 +355,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
         factories.submission_event.create(
             submission=submission1, event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
         )
+        submission1.status = SubmissionStatusEnum.AWAITING_SIGN_OFF
 
         # gr2 has submitted so should not be in the list
         submission2 = factories.submission.create(
@@ -363,6 +370,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
             event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
         )
         factories.submission_event.create(submission=submission2, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+        submission2.status = SubmissionStatusEnum.SUBMITTED
 
         # gr3 has had their certification declined, so should be in the list
         submission3 = factories.submission.create(
@@ -382,6 +390,7 @@ class TestGetGrantRecipientsWithOutstandingReports:
         factories.submission_event.create(
             submission=submission3, event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER
         )
+        submission3.status = SubmissionStatusEnum.IN_PROGRESS
         # org 4 has not started their report yet so should be in the list
 
         result = get_grant_recipients_with_outstanding_submissions_for_collection(

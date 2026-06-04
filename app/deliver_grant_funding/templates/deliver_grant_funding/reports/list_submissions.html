@@ -10,7 +10,7 @@
 {% set active_item_identifier = "reports" %}
 
 {% block beforeContent %}
-  {% if helper.is_test_mode %}
+  {% if submission_mode==enum.submission_mode.TEST %}
     {{ mhclgInlinePageTestDataBanner("Test submissions") }}
   {% endif %}
   {{ deliver_grant_funding_reports_breadcrumb(grant=grant, this_page_breadcrumb_item={"text":"Submissions"}) }}
@@ -106,22 +106,21 @@
     <div class="govuk-grid-column-full">
       {% if report.allow_multiple_submissions %}
         {% set rows=[] %}
-        {% for submission_helper in helper.submission_helpers.values() | sort(attribute="submission.grant_recipient.organisation.name,submission_name") %}
+
+        {% for submission in submissions | sort(attribute="grant_recipient.organisation.name,name") %}
           {% set link_to_submission %}
-            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission_helper.submission.id) }}" data-submission-link>
-              {{ submission_helper.submission_name }}
-            </a>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.id) }}" data-submission-link> {{ submission.name }} </a>
           {% endset %}
           {%
             do rows.append([
               {
                 "html": link_to_submission,
               }, {
-                "text": submission_helper.submission.grant_recipient.organisation.name,
+                "text": submission.grant_recipient.organisation.name,
               }, {
-                "html": submissionStatusTag(submission_helper.status, submission_helper.is_overdue)
+                "html": submissionStatusTag(submission.status,  report.is_closed and not submission.status == enum.submission_status.SUBMITTED),
               }, {
-                "text": format_date_short(submission_helper.last_updated_at_utc)
+                "text": format_date_short(submission.last_updated_at_utc)
               }
             ])
           %}
@@ -153,29 +152,40 @@
         }}
       {% else %}
         {% set rows=[] %}
-        {% for grant_recipient in helper.grant_recipients | sort(attribute="organisation.name") %}
-          {% set grant_recipient_submission_helper = helper.grant_recipients_submission_helpers[grant_recipient.id] %}
-          {% set link_to_submission %}
-            {% if grant_recipient_submission_helper %}
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=grant_recipient_submission_helper.submission.id) }}" data-submission-link>
-                {{ grant_recipient.organisation.name }}
+        {% for grant_recipient in grant_recipients | sort(attribute="organisation.name") %}
+
+          {% if grant_recipient.submissions %}
+            {% set submission = grant_recipient.submissions[0] %}
+            {% set link_to_submission %}
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.id) }}" data-submission-link>
+                {{ submission.grant_recipient.organisation.name }}
               </a>
-            {% else %}
-              {{ grant_recipient.organisation.name }}
-            {% endif %}
-          {% endset %}
-          {% set submission_status = SubmissionHelper.get_status(grant_recipient_submission_helper.submission, report) %}
-          {%
-            do rows.append([
-              {
-                "html": link_to_submission,
-              }, {
-                "html": submissionStatusTag(submission_status, grant_recipient_submission_helper.is_overdue if grant_recipient_submission_helper else report.is_overdue),
-              }, {
-                "text": format_date_short(grant_recipient_submission_helper.last_updated_at_utc) if grant_recipient_submission_helper else ''
-              }
-            ])
-          %}
+            {% endset %}
+            {% set submission_status = submission.status %}
+            {%
+              do rows.append([
+                {
+                  "html": link_to_submission,
+                }, {
+                  "html": submissionStatusTag(submission_status, report.is_closed and not submission.status == enum.submission_status.SUBMITTED),
+                }, {
+                  "text": format_date_short(submission.last_updated_at_utc)
+                }
+              ])
+            %}
+          {% else %}
+            {%
+              do rows.append([
+                {
+                  "text": grant_recipient.organisation.name
+                }, {
+                  "html": submissionStatusTag(enum.submission_status.NOT_STARTED if not report.is_closed else enum.submission_status.NOT_SUBMITTED, report.is_closed),
+                }, {
+                  "text": ""
+                }
+              ])
+            %}
+          {% endif %}
         {% else %}
           {% set no_collections_text %}
             <span>No submissions found for this monitoring report</span>
