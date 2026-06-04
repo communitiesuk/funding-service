@@ -369,7 +369,13 @@ class SubmissionHelper:
     def _calculate_submission_status(self) -> SubmissionStatusEnum:
         submission_state = self.events.submission_state
 
-        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
+        form_statuses_by_id = {
+            form.id: self.get_status_for_form(form)
+            for form in self.collection.forms
+            if not self.form_is_managed_by_service(form)
+        }
+
+        form_statuses = {status for form_id, status in form_statuses_by_id.items()}
         all_forms_completed_or_not_needed = form_statuses <= {
             TasklistSectionStatusEnum.COMPLETED,
             TasklistSectionStatusEnum.NOT_NEEDED,
@@ -518,6 +524,29 @@ class SubmissionHelper:
         if add_another_index is not None:
             key += f"/{add_another_index}"
         return key
+
+    def form_is_managed_by_service(self, form: Form) -> bool:
+        if not self.collection.allow_multiple_submissions:
+            return False
+
+        if not self.collection.multiple_submissions_are_managed_by_service:
+            return False
+
+        if not self.collection.submission_name_question:
+            raise RuntimeError("Submission name question is required for multiple submissions")
+
+        submission_name_form = self.collection.submission_name_question.form
+        if form.id != submission_name_form.id:
+            return False
+
+        submission_name_form_questions = self.cached_get_ordered_visible_questions(submission_name_form)
+        if (
+            len(submission_name_form_questions) == 1
+            and submission_name_form_questions[0] == self.collection.submission_name_question
+        ):
+            return True
+
+        return False
 
     def answer_to_question_is_managed_by_service(self, question: Question) -> bool:
         if not self.collection.allow_multiple_submissions:
