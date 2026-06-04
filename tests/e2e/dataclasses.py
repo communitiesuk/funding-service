@@ -65,7 +65,12 @@ class E2EManagedExpression:
     context_source: DataReferenceConfig | None = None
     # TODO this is so that we can reference multiple fields in an expression.
     #  Need to refactor this class so we aren't duplicating where we put references
-    expression_references: dict[str, DataReferenceConfig] | None = dataclasses.field(default_factory=dict)
+    expression_references: dict[str, DataReferenceConfig] = dataclasses.field(default_factory=dict)
+
+
+class GrantDict(TypedDict):
+    name: str
+    id: uuid.UUID | None
 
 
 class ReportDict(TypedDict):

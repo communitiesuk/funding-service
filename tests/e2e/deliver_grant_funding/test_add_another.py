@@ -9,6 +9,7 @@ from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser, QuestionDict, QuestionGroupDict, QuestionResponse
 from tests.e2e.deliver_grant_funding.helpers import (
     create_grant,
+    create_question_or_group,
     extract_uuid_from_url,
     navigate_to_report_sections_page,
 )
@@ -19,7 +20,6 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     RunnerCheckYourAnswersPage,
     RunnerQuestionPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question_or_group
 from tests.e2e.helpers import delete_grant_through_admin
 
 _shared_setup_data: dict | None = None
@@ -132,7 +132,7 @@ def test_add_another_setup(
     # Grant
     all_grants_page = AllGrantsPage(page, domain)
     all_grants_page.navigate()
-    grant_dashboard_page = create_grant(grant_name, grant_name_uuid, all_grants_page)
+    grant_dashboard_page = create_grant(grant_name, f"E2E-{grant_name_uuid[:8].upper()}", all_grants_page)
     grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
 
     # Report
