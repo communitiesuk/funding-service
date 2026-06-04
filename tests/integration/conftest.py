@@ -3,7 +3,7 @@ import os
 import typing as t
 import uuid
 from contextlib import _GeneratorContextManager, contextmanager
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any, Generator, cast
 from unittest.mock import patch
 
@@ -37,7 +37,6 @@ from app.common.data.types import (
     GrantStatusEnum,
     QuestionDataType,
     RoleEnum,
-    SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
@@ -655,8 +654,6 @@ def submission_in_progress(
         mode=SubmissionModeEnum.LIVE,
         answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
-    submission.status = SubmissionStatusEnum.IN_PROGRESS
-    db_session.commit()
     return cast(Submission, submission)
 
 
@@ -676,16 +673,8 @@ def submission_ready_to_submit(
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
         answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
+        status=SubmissionStatusEnum.READY_TO_SUBMIT,
     )
-    factories.submission_event.create(
-        submission=submission,
-        related_entity_id=question.form.id,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        created_by=user,
-        created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
-    )
-    submission.status = SubmissionStatusEnum.READY_TO_SUBMIT
-    db_session.commit()
     return cast(Submission, submission)
 
 
@@ -706,22 +695,8 @@ def submission_awaiting_sign_off(
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
         answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
+        status=SubmissionStatusEnum.AWAITING_SIGN_OFF,
     )
-    factories.submission_event.create(
-        submission=submission,
-        related_entity_id=question.form.id,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        created_by=user,
-        created_at_utc=datetime(2025, 11, 25, 0, 0, 0),
-    )
-    factories.submission_event.create(
-        submission=submission,
-        event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
-        created_by=user,
-        created_at_utc=datetime(2025, 11, 25, 0, 0, 1),
-    )
-    submission.status = SubmissionStatusEnum.AWAITING_SIGN_OFF
-    db_session.commit()
     return cast(Submission, submission)
 
 
@@ -741,30 +716,8 @@ def submission_submitted(factories: _Factories, db_session, grant_recipient: Gra
         collection=question.form.collection,
         mode=SubmissionModeEnum.LIVE,
         answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
+        status=SubmissionStatusEnum.SUBMITTED,
     )
-    factories.submission_event.create(
-        submission=submission,
-        related_entity_id=question.form.id,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        created_by=user,
-    )
-    factories.submission_event.create(
-        submission=submission,
-        event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
-        created_by=user,
-    )
-    factories.submission_event.create(
-        submission=submission,
-        event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
-        created_by=user,
-    )
-    factories.submission_event.create(
-        submission=submission,
-        event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
-        created_by=user,
-    )
-    submission.status = SubmissionStatusEnum.SUBMITTED
-    db_session.commit()
 
     return cast(Submission, submission)
 
@@ -786,7 +739,6 @@ def submission_submitted_multiple_submissions(
     collection = question.form.collection
     collection.submission_name_question_id = question.id
     db_session.flush()
-    user = factories.user.create()
 
     grant_recipient = factories.grant_recipient.create(grant=collection.grant)
     submission_1 = factories.submission.create(
@@ -794,38 +746,16 @@ def submission_submitted_multiple_submissions(
         grant_recipient=grant_recipient,
         mode=SubmissionModeEnum.LIVE,
         answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha"))],
+        status=SubmissionStatusEnum.SUBMITTED,
     )
-    factories.submission_event.create(
-        submission=submission_1,
-        related_entity_id=question.form.id,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        created_by=user,
-    )
-    factories.submission_event.create(
-        submission=submission_1,
-        event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
-        created_by=user,
-    )
+
     submission_2 = factories.submission.create(
         collection=collection,
         grant_recipient=grant_recipient,
         mode=SubmissionModeEnum.LIVE,
         answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta"))],
+        status=SubmissionStatusEnum.SUBMITTED,
     )
-    factories.submission_event.create(
-        submission=submission_2,
-        related_entity_id=question.form.id,
-        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        created_by=user,
-    )
-    factories.submission_event.create(
-        submission=submission_2,
-        event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
-        created_by=user,
-    )
-    submission_1.status = SubmissionStatusEnum.SUBMITTED
-    submission_2.status = SubmissionStatusEnum.SUBMITTED
-    db_session.commit()
 
     return [submission_1, submission_2]
 
@@ -846,6 +776,7 @@ def submission_collection_closed(factories: _Factories, grant_recipient: GrantRe
         mode=SubmissionModeEnum.LIVE,
         answers=[FactoryAnswer(question, TextSingleLineAnswer("Question answer"))],
     )
+    # TODO make this use status=NOT_SUBMITTED when we have events that calculate that
     return cast(Submission, submission)
 
 

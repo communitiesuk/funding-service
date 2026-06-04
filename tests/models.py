@@ -19,7 +19,6 @@ from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 from sqlalchemy.exc import NoResultFound
 
-from app import SubmissionStatusEnum
 from app.common.collections.types import (
     AllAnswerTypes,
     DateAnswer,
@@ -70,6 +69,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ExpressionContext
@@ -803,12 +803,92 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
 
     status = SubmissionStatusEnum.NOT_STARTED
 
+    # @factory.post_generation
+    @staticmethod
+    def _build_events_for_status(obj: Submission, desired_status: SubmissionStatusEnum):
+        match desired_status:
+            case None:
+                obj.status = SubmissionStatusEnum.NOT_STARTED
+            case SubmissionStatusEnum.IN_PROGRESS:
+                pass  # no events needed if it is not complete
+            case SubmissionStatusEnum.READY_TO_SUBMIT:
+                for form in obj.collection.forms:
+                    obj.events.append(
+                        _SubmissionEventFactory.build(
+                            submission=obj,
+                            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                            related_entity_id=form.id,
+                            created_by=obj.created_by,
+                        )
+                    )
+
+            case SubmissionStatusEnum.AWAITING_SIGN_OFF:
+                for form in obj.collection.forms:
+                    obj.events.append(
+                        _SubmissionEventFactory.build(
+                            submission=obj,
+                            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                            related_entity_id=form.id,
+                            created_by=obj.created_by,
+                        )
+                    )
+                obj.events.append(
+                    _SubmissionEventFactory.build(
+                        submission=obj,
+                        event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+                        created_by=obj.created_by,
+                        created_at_utc=datetime.datetime(2025, 11, 25, 0, 0, 1),
+                    )
+                )
+            case SubmissionStatusEnum.SUBMITTED:
+                for form in obj.collection.forms:
+                    obj.events.append(
+                        _SubmissionEventFactory.build(
+                            submission=obj,
+                            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                            related_entity_id=form.id,
+                            created_by=obj.created_by,
+                        )
+                    )
+                if obj.collection.requires_certification:
+                    obj.events.append(
+                        _SubmissionEventFactory.build(
+                            submission=obj,
+                            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+                            created_by=obj.created_by,
+                        )
+                    )
+                    obj.events.append(
+                        _SubmissionEventFactory.build(
+                            submission=obj,
+                            event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                            created_by=obj.created_by,
+                        )
+                    )
+                    obj.events.append(
+                        _SubmissionEventFactory.build(
+                            submission=obj,
+                            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                            created_by=obj.created_by,
+                        )
+                    )
+                else:
+                    obj.events.append(
+                        _SubmissionEventFactory.build(
+                            submission=obj,
+                            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                            created_by=obj.created_by,
+                        )
+                    )
+
     @factory.post_generation
     def answers(obj: Submission, create, extracted: list[FactoryAnswer], **kwargs):
         if extracted:
             for entry in extracted:
                 obj.data_manager.set(entry.question, entry.answer, add_another_index=entry.add_another_index)
 
+        desired_status = obj.status
+        _SubmissionFactory._build_events_for_status(obj, desired_status)
         if create:
             SubmissionHelper(obj)._sync_submission_data_and_status()
             db.session.commit()
