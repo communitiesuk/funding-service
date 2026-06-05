@@ -12,7 +12,7 @@ from uuid import UUID
 import click
 from flask import current_app
 from pydantic import BaseModel as PydanticBaseModel
-from sqlalchemy import delete, inspect, or_, select
+from sqlalchemy import delete, inspect, or_, select, update
 from sqlalchemy.exc import NoResultFound
 from werkzeug.datastructures import FileStorage, MultiDict
 
@@ -941,20 +941,53 @@ def check_managed_statements(ctx: click.Context, output: str, s3_key: str | None
 
 
 @developers_blueprint.cli.command(
-    "populate-status-for-all-submissions",
-    help="Load each submission, calculate the status and write this back to the status column on the submission table",
+    "refresh-status-for-multi-submissions",
+    help="Refresh submission statuses for multi-submission collections",
 )
-def populate_status_for_all_submissions() -> None:
-    count = db.session.query(Submission).filter(Submission.status.is_(None)).count()
+@click.option("--commit", is_flag=True, help="Actually commit changes proposed by this command; defaults to a dry run")
+def refresh_status_for_multi_submissions(commit: bool) -> None:
+    submission_ids = db.session.scalars(
+        select(Submission.id).join(Collection).filter(Collection.allow_multiple_submissions.is_(True))
+    ).all()
     updated = 0
 
-    click.echo(f"Found {count} submissions with no existing status")
+    click.echo(f"Found {len(submission_ids)} multi-submissions")
 
-    while submission_id := db.session.scalars(select(Submission.id).where(Submission.status.is_(None))).first():
+    for submission_id in submission_ids:
         helper = SubmissionHelper.load(submission_id)
-        helper.submission.status = helper._calculate_submission_status()
-        db.session.commit()
-        updated += 1
-        click.echo(f"Submission {helper.submission.id} updated with status {helper.submission.status}")
+        submission = helper.submission
 
-    click.echo(f"Updated {updated} submissions with saved statuses")
+        last_updated_at = submission.updated_at_utc
+        from_status = helper.status
+
+        # Manually assign updated_at_utc to prevent it being automatically updated
+        db.session.execute(
+            update(Submission)
+            .where(Submission.id == submission_id)
+            .values(updated_at_utc=last_updated_at, status=helper._calculate_submission_status())
+        )
+
+        db.session.flush()
+        db.session.refresh(submission)
+
+        if submission.updated_at_utc != last_updated_at:
+            click.echo(
+                f"Failed to preserve updated_at_utc on submission {submission_id} "
+                f"(was {last_updated_at}, now is {submission.updated_at_utc}; aborting)"
+            )
+            db.session.rollback()
+            raise click.exceptions.Exit(1)
+
+        if commit:
+            click.echo(f"Updated submission {submission.id} from status {from_status} to {submission.status}")
+            db.session.commit()
+        else:
+            click.echo(f"Would update submission {submission.id} from status {from_status} to {submission.status}")
+            db.session.rollback()
+
+        updated += 1
+
+    if commit:
+        click.echo(f"Updated {updated} submissions with saved statuses")
+    else:
+        click.echo(f"Would update {updated} submissions with saved statuses")

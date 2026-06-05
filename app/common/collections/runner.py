@@ -264,8 +264,23 @@ class FormRunner:
 
         return True
 
-    def can_edit_question(self, question: Question) -> bool:
+    def can_edit_form(self, form: Form) -> bool:
+        if form.collection_id != self.submission.collection_id:
+            raise ValueError("Form does not belong to this submission")
+
         if not self.can_edit:
+            return False
+
+        if self.submission.form_is_managed_by_service(form):
+            return False
+
+        return True
+
+    def can_edit_question(self, question: Question) -> bool:
+        if question.form.collection_id != self.submission.collection_id:
+            raise ValueError("Question does not belong to this submission")
+
+        if not self.can_edit_form(question.form):
             return False
 
         if self.submission.answer_to_question_is_managed_by_service(question):

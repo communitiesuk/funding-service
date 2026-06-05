@@ -1094,6 +1094,127 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
+    class TestIgnoredFormsForSubmissionStatus:
+        @staticmethod
+        def _managed_collection(factories, db_session, extra_name_form_questions=0):
+            name_question = factories.question.create(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                form__collection__allow_multiple_submissions=True,
+                form__collection__multiple_submissions_are_managed_by_service=True,
+            )
+            collection = name_question.form.collection
+            collection.submission_name_question_id = name_question.id
+            extra_name_questions = [
+                factories.question.create(form=name_question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+                for _ in range(extra_name_form_questions)
+            ]
+            other_form = factories.form.create(collection=collection)
+            other_question = factories.question.create(form=other_form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+            return collection, name_question, extra_name_questions, other_question
+
+        @staticmethod
+        def _answer(helper, question, value, user):
+            helper.submit_answer_for_question(
+                question.id,
+                build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                    **{question.safe_qid: value}
+                ),
+                user,
+            )
+
+        @classmethod
+        def _complete_form(cls, helper, form, questions, user):
+            for question in questions:
+                cls._answer(helper, question, "answer", user)
+            helper.toggle_form_completed(form, user, True)
+
+        def test_completed_name_only_form_is_treated_as_not_started(self, db_session, factories):
+            collection, name_question, _, other_question = self._managed_collection(factories, db_session)
+            submission = factories.submission.create(collection=collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.form_is_managed_by_service(name_question.form) is True
+            assert helper.status == SubmissionStatusEnum.NOT_STARTED
+
+            self._complete_form(helper, name_question.form, [name_question], submission.created_by)
+
+            assert helper.get_status_for_form(name_question.form) == TasklistSectionStatusEnum.COMPLETED
+            assert helper.status == SubmissionStatusEnum.NOT_STARTED
+
+            self._answer(helper, other_question, "data", submission.created_by)
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+        def test_name_form_with_additional_questions_counts_towards_status(self, db_session, factories):
+            collection, name_question, extra_name_questions, other_question = self._managed_collection(
+                factories, db_session, extra_name_form_questions=1
+            )
+            submission = factories.submission.create(collection=collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.form_is_managed_by_service(name_question.form) is False
+            assert helper.status == SubmissionStatusEnum.NOT_STARTED
+
+            self._complete_form(
+                helper, name_question.form, [name_question, *extra_name_questions], submission.created_by
+            )
+
+            assert helper.get_status_for_form(name_question.form) == TasklistSectionStatusEnum.COMPLETED
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+            self._complete_form(helper, other_question.form, [other_question], submission.created_by)
+
+            assert helper.get_status_for_form(other_question.form) == TasklistSectionStatusEnum.COMPLETED
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+        def test_name_form_counts_when_not_managed_by_service(self, db_session, factories):
+            name_question = factories.question.create(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                form__collection__allow_multiple_submissions=True,
+                form__collection__multiple_submissions_are_managed_by_service=False,
+            )
+            collection = name_question.form.collection
+            collection.submission_name_question_id = name_question.id
+            factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+            db_session.flush()
+            submission = factories.submission.create(collection=collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.form_is_managed_by_service(name_question.form) is False
+            assert helper.status == SubmissionStatusEnum.NOT_STARTED
+
+            self._complete_form(helper, name_question.form, [name_question], submission.created_by)
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+        def test_single_submission_collection_ignores_nothing(self, db_session, factories):
+            question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.form_is_managed_by_service(question.form) is False
+            assert helper.status == SubmissionStatusEnum.NOT_STARTED
+
+            self._answer(helper, question, "data", submission.created_by)
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+        def test_raises_when_managed_multi_submission_has_no_name_question(self, db_session, factories):
+            question = factories.question.create(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                form__collection__allow_multiple_submissions=True,
+                form__collection__multiple_submissions_are_managed_by_service=False,
+            )
+            collection = question.form.collection
+            submission = factories.submission.create(collection=collection)
+            collection.multiple_submissions_are_managed_by_service = True
+            db_session.flush()
+            helper = SubmissionHelper(submission)
+
+            with pytest.raises(RuntimeError, match="Submission name question is required for multiple submissions"):
+                helper.form_is_managed_by_service(question.form)
+
     class TestRequiresCertification:
         def test_decline_certification_requires_certification(self, factories, submission_awaiting_sign_off, user):
             collection = submission_awaiting_sign_off.collection

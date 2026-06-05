@@ -2051,10 +2051,14 @@ class TestCheckYourAnswers:
         soup = BeautifulSoup(response.data, "html.parser")
 
         change_link = page_has_link(soup, "Change")
+        completed_section = "Have you completed this section?" in soup.text
+
         if multiple_submissions_are_managed_by_service:
             assert change_link is None
+            assert completed_section is False
         else:
             assert change_link is not None
+            assert completed_section is True
 
     def test_redirects_to_view_locked_report_when_collection_closed(
         self, authenticated_grant_recipient_data_provider_client, factories
