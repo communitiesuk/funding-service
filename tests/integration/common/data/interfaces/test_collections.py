@@ -4,7 +4,7 @@ import uuid
 import pytest
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from app.common.collections.types import EmailAnswer, TextSingleLineAnswer
+from app.common.collections.types import EmailAnswer, SingleChoiceFromListAnswer, TextSingleLineAnswer
 from app.common.data.interfaces import collections
 from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
@@ -40,6 +40,7 @@ from app.common.data.interfaces.collections import (
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
     get_submission,
+    get_submission_list_for_collection,
     get_submissions_by_grant_recipient_collection,
     group_name_exists,
     is_component_dependency_order_valid,
@@ -88,6 +89,7 @@ from app.common.data.types import (
     DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
+    GrantRecipientModeEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
     MultilineTextInputRows,
@@ -5146,34 +5148,12 @@ class TestGetSubmissions:
     ):
         collection = factories.collection.create()
 
-        with pytest.raises(
-            ValueError, match="Only one of with_full_schema, with_submission_summary_info or with_users should be set"
-        ):
+        with pytest.raises(ValueError, match="Only one of with_full_schema or with_users should be set"):
             get_all_submissions_with_mode_for_collection(
                 collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
                 with_full_schema=True,
                 with_users=True,
-            )
-        with pytest.raises(
-            ValueError, match="Only one of with_full_schema, with_submission_summary_info or with_users should be set"
-        ):
-            get_all_submissions_with_mode_for_collection(
-                collection_id=collection.id,
-                submission_mode=SubmissionModeEnum.LIVE,
-                with_full_schema=True,
-                with_users=True,
-                with_submission_summary_info=True,
-            )
-        with pytest.raises(
-            ValueError, match="Only one of with_full_schema, with_submission_summary_info or with_users should be set"
-        ):
-            get_all_submissions_with_mode_for_collection(
-                collection_id=collection.id,
-                submission_mode=SubmissionModeEnum.LIVE,
-                with_full_schema=True,
-                with_users=False,
-                with_submission_summary_info=True,
             )
 
     def test_get_all_submissions_with_mode_for_collection_with_full_schema_no_n_plus_one(
@@ -5263,6 +5243,285 @@ class TestGetSubmissions:
                 for event in submission.events:
                     _ = event.created_by
 
+        assert len(iterate_queries) == baseline
+
+
+class TestGetSubmissionListForCollection:
+    def test_single_submission_collection_returns_a_row_per_grant_recipient(self, db_session, factories):
+        collection = factories.collection.create()
+        recipient_with_submission = factories.grant_recipient.create(
+            grant=collection.grant, organisation__name="Acme Corp"
+        )
+        factories.grant_recipient.create(grant=collection.grant, organisation__name="Beta Ltd")
+        submission = factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=recipient_with_submission,
+        )
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        rows_by_org = {row.organisation_name: row for row in rows}
+        assert set(rows_by_org) == {"Acme Corp", "Beta Ltd"}
+
+        started = rows_by_org["Acme Corp"]
+        assert started.submission_id == submission.id
+        assert started.status == submission.status
+        assert started.name is None
+
+        not_started = rows_by_org["Beta Ltd"]
+        assert not_started.submission_id is None
+        assert not_started.status is None
+        assert not_started.last_updated_at_utc is None
+        assert not_started.name is None
+
+    def test_multi_submission_collection_returns_a_row_per_submission(self, db_session, factories):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant, organisation__name="Acme Corp")
+        first = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        second = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert {row.submission_id for row in rows} == {first.id, second.id}
+        assert all(row.organisation_name == "Acme Corp" for row in rows)
+
+    def test_multi_submission_collection_returns_a_row_for_recipients_with_no_submissions(self, db_session, factories):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        recipient_with_submission = factories.grant_recipient.create(
+            grant=collection.grant, organisation__name="Acme Corp"
+        )
+        factories.grant_recipient.create(grant=collection.grant, organisation__name="Beta Ltd")
+        submission = factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=recipient_with_submission,
+        )
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        rows_by_org = {row.organisation_name: row for row in rows}
+        assert set(rows_by_org) == {"Acme Corp", "Beta Ltd"}
+
+        started = rows_by_org["Acme Corp"]
+        assert started.submission_id == submission.id
+        assert started.status == submission.status
+
+        not_started = rows_by_org["Beta Ltd"]
+        assert not_started.submission_id is None
+        assert not_started.name is None
+        assert not_started.status is None
+        assert not_started.last_updated_at_utc is None
+
+    def test_single_submission_collection_orders_rows_by_organisation_name(self, db_session, factories):
+        collection = factories.collection.create()
+        for org_name in ["Charlie Ltd", "Alpha Ltd", "Bravo Ltd"]:
+            factories.grant_recipient.create(grant=collection.grant, organisation__name=org_name)
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert [row.organisation_name for row in rows] == ["Alpha Ltd", "Bravo Ltd", "Charlie Ltd"]
+
+    def test_multi_submission_collection_orders_rows_by_organisation_name_then_submission_name(
+        self, db_session, factories
+    ):
+        question = factories.question.create(
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        db_session.flush()
+        acme = factories.grant_recipient.create(grant=collection.grant, organisation__name="Acme Corp")
+        beta = factories.grant_recipient.create(grant=collection.grant, organisation__name="Beta Ltd")
+        for grant_recipient, submission_name in [
+            (beta, "Project Z"),
+            (acme, "Project B"),
+            (acme, "Project A"),
+        ]:
+            factories.submission.create(
+                collection=collection,
+                mode=SubmissionModeEnum.LIVE,
+                grant_recipient=grant_recipient,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer(submission_name))],
+            )
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert [(row.organisation_name, row.name) for row in rows] == [
+            ("Acme Corp", "Project A"),
+            ("Acme Corp", "Project B"),
+            ("Beta Ltd", "Project Z"),
+        ]
+
+    def test_uses_submission_name_question_answer_for_name(self, db_session, factories):
+        question = factories.question.create(
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        db_session.flush()
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha Project"))],
+        )
+
+        summaries = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert len(summaries) == 1
+        assert summaries[0].name == "Alpha Project"
+
+    def test_uses_radios_name_question_label_for_name(self, db_session, factories):
+        question = factories.question.create(
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.RADIOS,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        db_session.flush()
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            answers=[FactoryAnswer(question, SingleChoiceFromListAnswer(key="region-north", label="North region"))],
+        )
+
+        summaries = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert len(summaries) == 1
+        assert summaries[0].name == "North region"
+
+    def test_falls_back_to_reference_when_name_question_unanswered(self, db_session, factories):
+        question = factories.question.create(
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        db_session.flush()
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+        submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+
+        summaries = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert len(summaries) == 1
+        assert summaries[0].name == submission.reference
+
+    def test_only_returns_rows_for_the_requested_mode(self, db_session, factories):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        live_recipient = factories.grant_recipient.create(grant=collection.grant)
+        test_recipient = factories.grant_recipient.create(grant=collection.grant, mode=GrantRecipientModeEnum.TEST)
+        live_submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=live_recipient
+        )
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=test_recipient)
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert [row.submission_id for row in rows] == [live_submission.id]
+
+    def test_last_updated_at_utc_reflects_latest_event(self, db_session, factories):
+        collection = factories.collection.create()
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+        submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        latest_event_at = datetime.datetime(2030, 1, 1, 12, 0, 0)
+        factories.submission_event.create(submission=submission, created_at_utc=datetime.datetime(2029, 1, 1, 12, 0, 0))
+        factories.submission_event.create(submission=submission, created_at_utc=latest_event_at)
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert rows[0].last_updated_at_utc == latest_event_at
+
+    def test_constant_query_count_regardless_of_submission_count(self, db_session, factories, track_sql_queries):
+        question = factories.question.create(
+            form__collection__allow_multiple_submissions=True,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+        db_session.flush()
+
+        def _create_submission(name: str) -> None:
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            submission = factories.submission.create(
+                collection=collection,
+                mode=SubmissionModeEnum.LIVE,
+                grant_recipient=grant_recipient,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer(name))],
+            )
+            factories.submission_event.create(submission=submission)
+            factories.submission_event.create(submission=submission)
+
+        _create_submission("First")
+
+        db_session.expire_all()
+        with track_sql_queries() as baseline_queries:
+            for summary in get_submission_list_for_collection(
+                collection=collection, submission_mode=SubmissionModeEnum.LIVE
+            ):
+                _ = (summary.name, summary.organisation_name, summary.last_updated_at_utc)
+        baseline = len(baseline_queries)
+
+        for index in range(3):
+            _create_submission(f"Extra {index}")
+
+        db_session.expire_all()
+        with track_sql_queries() as iterate_queries:
+            summaries = get_submission_list_for_collection(
+                collection=collection, submission_mode=SubmissionModeEnum.LIVE
+            )
+            for summary in summaries:
+                _ = (summary.name, summary.organisation_name, summary.last_updated_at_utc)
+
+        assert len(summaries) == 4
+        assert len(iterate_queries) == baseline
+
+    def test_single_submission_collection_constant_query_count(self, db_session, factories, track_sql_queries):
+        collection = factories.collection.create()
+
+        def _create_recipient_with_submission() -> None:
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            submission = factories.submission.create(
+                collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+            )
+            factories.submission_event.create(submission=submission)
+            factories.submission_event.create(submission=submission)
+
+        _create_recipient_with_submission()
+        factories.grant_recipient.create(grant=collection.grant)
+
+        db_session.expire_all()
+        with track_sql_queries() as baseline_queries:
+            for row in get_submission_list_for_collection(
+                collection=collection, submission_mode=SubmissionModeEnum.LIVE
+            ):
+                _ = (row.name, row.organisation_name, row.status, row.last_updated_at_utc)
+        baseline = len(baseline_queries)
+
+        for _ in range(3):
+            _create_recipient_with_submission()
+            factories.grant_recipient.create(grant=collection.grant)
+
+        db_session.expire_all()
+        with track_sql_queries() as iterate_queries:
+            rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+            for row in rows:
+                _ = (row.name, row.organisation_name, row.status, row.last_updated_at_utc)
+
+        assert len(rows) == 8
         assert len(iterate_queries) == baseline
 
 

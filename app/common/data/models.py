@@ -6,11 +6,25 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from flask import current_app, url_for
-from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint, and_, or_, select, text
+from sqlalchemy import (
+    CheckConstraint,
+    ColumnElement,
+    ForeignKey,
+    Index,
+    Text,
+    UniqueConstraint,
+    and_,
+    case,
+    func,
+    or_,
+    select,
+    text,
+)
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
-from sqlalchemy.orm import Mapped, column_property, foreign, mapped_column, relationship, remote
+from sqlalchemy.orm import Mapped, aliased, column_property, foreign, mapped_column, relationship, remote
 from sqlalchemy_json import mutable_json_type
 
 from app.common.collections.types import DataSourceAnswerTypes, DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
@@ -395,12 +409,24 @@ class Submission(BaseModel):
         nullable=False,
     )
 
-    @property
+    @hybrid_property
     def last_updated_at_utc(self) -> datetime.datetime:
         from app.common.helpers.submission_events import SubmissionEventHelper
 
         event_helper = SubmissionEventHelper(self)
         return max(filter(None, [event_helper.latest_event_utc, self.updated_at_utc]))
+
+    @last_updated_at_utc.inplace.expression
+    @classmethod
+    def _last_updated_at_utc_expression(cls) -> ColumnElement[datetime.datetime]:
+        # Postgres GREATEST ignores NULLs, so this falls back to updated_at_utc when there are no events.
+        return func.greatest(
+            cls.updated_at_utc,
+            select(func.max(SubmissionEvent.created_at_utc))
+            .where(SubmissionEvent.submission_id == cls.id)
+            .correlate(cls)
+            .scalar_subquery(),
+        )
 
     @property
     def s3_key_prefix(self) -> str:
@@ -415,13 +441,11 @@ class Submission(BaseModel):
         """
         return SubmissionDataManager(self._data)
 
-    @property
+    @hybrid_property
     def name(self) -> str:
         """
         For submissions in a multi-submission collection, this provides a name for the submission based on a provided
-        answer.
-
-        For non-multi-submission collection we just return the submission's generated reference.
+        answer. If the answer hasn't been provided yet, we just use the submission's generated reference.
         """
         question = self.collection.submission_name_question
         if question:
@@ -429,6 +453,37 @@ class Submission(BaseModel):
             if answer is not None:
                 return answer.get_value_for_text_export()
         return self.reference
+
+    @name.inplace.expression
+    @classmethod
+    def _name_expression(cls) -> ColumnElement[str]:
+        # Mirrors `get_value_for_text_export()` for the only data types allowed as a submission name question
+        # (see QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES). This hardcodes how each answer type is stored
+        # in the `data` blob: TEXT_SINGLE_LINE is the raw value, whereas RADIOS stores a {"key", "label"} object whose
+        # display value is the label. Keep this in sync with the answer models in app.common.collections.types if the
+        # set of allowed name question types or their stored shape changes.
+        name_question = aliased(Component)
+        name_question_key = Collection.submission_name_question_id.cast(Text)
+        answer_value = case(
+            (
+                name_question.data_type == QuestionDataType.TEXT_SINGLE_LINE,
+                cls._data[name_question_key].astext,
+            ),
+            (
+                name_question.data_type == QuestionDataType.RADIOS,
+                cls._data[name_question_key]["label"].astext,
+            ),
+        )
+        # Falls back to the reference when there is no name question (single-submission) or it is unanswered.
+        return func.coalesce(
+            select(answer_value)
+            .select_from(Collection)
+            .join(name_question, name_question.id == Collection.submission_name_question_id)
+            .where(Collection.id == cls.collection_id)
+            .correlate(cls)
+            .scalar_subquery(),
+            cls.reference,
+        )
 
     __table_args__ = (
         CheckConstraint(

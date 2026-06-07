@@ -8668,12 +8668,35 @@ class TestListSubmissionsMultipleSubmissions:
         assert "Project name" in table_headers
         assert "Grant recipient" in table_headers
 
-    def test_multi_submission_no_submissions_shows_empty_message(
+    def test_multi_submission_no_grant_recipients_shows_empty_message(
+        self, authenticated_grant_member_client_no_grant_recipients, factories, db_session
+    ):
+        report = factories.collection.create(
+            grant=authenticated_grant_member_client_no_grant_recipients.grant,
+            allow_multiple_submissions=True,
+        )
+
+        response = authenticated_grant_member_client_no_grant_recipients.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client_no_grant_recipients.grant.id,
+                report_id=report.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "No submissions found for this monitoring report" in response.text
+
+    def test_multi_submission_table_shows_no_submission_for_recipients_without_submissions(
         self, authenticated_grant_member_client, factories, db_session
     ):
         report = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             allow_multiple_submissions=True,
+        )
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Organisation Without Submission"
         )
 
         response = authenticated_grant_member_client.get(
@@ -8686,7 +8709,12 @@ class TestListSubmissionsMultipleSubmissions:
         )
 
         assert response.status_code == 200
-        assert "No submissions found for this monitoring report" in response.text
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Organisation Without Submission" in soup.text
+        assert "No submission" in soup.text
+        assert page_has_link(soup, "No submission") is None
+        submission_tags = soup.select(".govuk-tag")
+        assert {tag.text.strip() for tag in submission_tags} == {"Not started"}
 
 
 class TestExportReportSubmissions:

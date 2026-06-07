@@ -45,6 +45,7 @@ from app.common.data.interfaces.collections import (
     get_form_by_id,
     get_group_by_id,
     get_question_by_id,
+    get_submission_list_for_collection,
     move_component_down,
     move_component_up,
     move_form_down,
@@ -66,7 +67,6 @@ from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
-from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
@@ -3132,25 +3132,7 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
             )
         )
 
-    grant_recipients = []
-    submissions = []
-    if report.allow_multiple_submissions:
-        submissions = get_all_submissions_with_mode_for_collection(
-            collection_id=report_id,
-            submission_mode=submission_mode,
-            with_full_schema=False,
-            with_submission_summary_info=True,
-        )
-    else:
-        grant_recipients = get_grant_recipients(
-            report.grant,
-            mode=GrantRecipientModeEnum.LIVE
-            if submission_mode == SubmissionModeEnum.LIVE
-            else GrantRecipientModeEnum.TEST,
-            with_organisations=True,
-            with_submissions_for_collection=report_id,
-            submission_mode=submission_mode,
-        )
+    submissions = get_submission_list_for_collection(collection=report, submission_mode=submission_mode)
 
     return render_template(
         "deliver_grant_funding/reports/list_submissions.html",
@@ -3158,7 +3140,6 @@ def list_submissions(grant_id: UUID, report_id: UUID, submission_mode: Submissio
         report=report,
         submission_mode=submission_mode,
         delete_all_form=delete_all_form if submission_mode == SubmissionModeEnum.TEST else None,
-        grant_recipients=grant_recipients,
         submissions=submissions,
     )
 

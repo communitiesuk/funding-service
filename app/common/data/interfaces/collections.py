@@ -2,11 +2,12 @@ import datetime
 import uuid
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Literal, Never, Protocol, Unpack, overload
+from dataclasses import dataclass
+from typing import Any, List, Literal, Never, Protocol, Unpack, overload
 from uuid import UUID
 
 from flask import current_app
-from sqlalchemy import and_, delete, or_, select, text
+from sqlalchemy import and_, delete, func, null, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -34,6 +35,7 @@ from app.common.data.models import (
     Grant,
     GrantRecipient,
     Group,
+    Organisation,
     Question,
     Submission,
     SubmissionEvent,
@@ -45,6 +47,7 @@ from app.common.data.types import (
     ConditionsOperator,
     DataSourceType,
     ExpressionType,
+    GrantRecipientModeEnum,
     GrantStatusEnum,
     QuestionDataOptions,
     QuestionDataType,
@@ -358,7 +361,6 @@ def get_all_submissions_with_mode_for_collection(
     *,
     with_full_schema: bool = True,
     with_users: bool = False,
-    with_submission_summary_info: bool = False,
 ) -> Sequence[Submission]:
     """
     Use this function to get all submission data for a collection - it
@@ -367,8 +369,8 @@ def get_all_submissions_with_mode_for_collection(
     through them all individually.
     """
 
-    if sum([with_full_schema, with_users, with_submission_summary_info]) > 1:
-        raise ValueError("Only one of with_full_schema, with_submission_summary_info or with_users should be set")
+    if sum([with_full_schema, with_users]) > 1:
+        raise ValueError("Only one of with_full_schema or with_users should be set")
 
     # todo: this feels redundant because this interface should probably be limited to a single collection and fetch
     #       that through a specific interface which already exists - this can then focus on submissions
@@ -405,13 +407,107 @@ def get_all_submissions_with_mode_for_collection(
         stmt = stmt.options(
             joinedload(Submission.created_by),
         )
-    elif with_submission_summary_info:
-        stmt = stmt.options(selectinload(Submission.events))
-        stmt = stmt.options(joinedload(Submission.grant_recipient).joinedload(GrantRecipient.organisation))
 
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))
     return db.session.scalars(stmt).unique().all()
+
+
+@dataclass(frozen=True)
+class ListSubmissionData:
+    """Lightweight view of a row in the submissions list.
+
+    Holds only the fields needed to render a row, avoiding the cost of loading full submission rows
+    (including the potentially large `data` blob and every related event).
+
+    Every grant recipient produces at least one row. For multiple-submission collections a recipient
+    produces one row per submission (plus a single `submission_id=None` row when they have none yet);
+    for single-submission collections a recipient produces exactly one row (with `submission_id=None`
+    if they have not started one yet).
+    """
+
+    organisation_name: str | None
+    name: str | None
+    submission_id: UUID | None
+    status: SubmissionStatusEnum | None
+    last_updated_at_utc: datetime.datetime | None
+
+
+def get_submission_list_for_collection(
+    collection: Collection,
+    submission_mode: SubmissionModeEnum,
+) -> Sequence[ListSubmissionData]:
+    """Fetch the rows needed to render a collection's submissions list.
+
+    Both modes are grant-recipient centric: every grant recipient produces at least one row, so the
+    listing can show recipients who have not started a submission. For multiple-submission collections
+    a recipient with submissions produces one row per submission (and one `submission_id=None` row when
+    they have none yet); for single-submission collections a recipient produces exactly one row.
+
+    Selects only the columns needed to render the list, deriving the submission name in SQL (via the
+    Submission hybrid property) rather than loading the full `data` blob into Python. The last-updated
+    timestamp is derived by left-joining a single pre-aggregated max of event dates per submission,
+    rather than the per-row correlated subquery the `last_updated_at_utc` hybrid would emit. This is a further
+    optimisation for performance, as the correlated subquery can be expensive for large datasets.
+
+    Rows are ordered by organisation name, then by submission name for multiple-submission collections.
+    """
+    # An optimisation to avoid the `Submission.last_updated_at_utc` subquery; here we instead join the max event date
+    # directly to squeak out a bit more performance/efficiency
+    latest_event = (
+        select(
+            SubmissionEvent.submission_id.label("submission_id"),
+            func.max(SubmissionEvent.created_at_utc).label("max_created_at_utc"),
+        )
+        .join(Submission, Submission.id == SubmissionEvent.submission_id)
+        .where(Submission.collection_id == collection.id, Submission.mode == submission_mode)
+        .group_by(SubmissionEvent.submission_id)
+        .subquery()
+    )
+    last_updated_at_utc = func.greatest(Submission.updated_at_utc, latest_event.c.max_created_at_utc).label(
+        "last_updated_at_utc"
+    )
+
+    grant_recipient_mode = (
+        GrantRecipientModeEnum.LIVE if submission_mode == SubmissionModeEnum.LIVE else GrantRecipientModeEnum.TEST
+    )
+    name_column = Submission.name.label("name") if collection.allow_multiple_submissions else null().label("name")
+    order_by: List[Any] = [Organisation.name]
+    if collection.allow_multiple_submissions:
+        order_by.append(name_column)
+
+    stmt = (
+        select(
+            Organisation.name.label("organisation_name"),
+            name_column,
+            Submission.id.label("submission_id"),
+            Submission.status,
+            last_updated_at_utc,
+        )
+        .select_from(GrantRecipient)
+        .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
+        .outerjoin(
+            Submission,
+            and_(
+                Submission.grant_recipient_id == GrantRecipient.id,
+                Submission.collection_id == collection.id,
+                Submission.mode == submission_mode,
+            ),
+        )
+        .outerjoin(latest_event, latest_event.c.submission_id == Submission.id)
+        .where(GrantRecipient.grant_id == collection.grant_id, GrantRecipient.mode == grant_recipient_mode)
+        .order_by(*order_by)
+    )
+    return [
+        ListSubmissionData(
+            organisation_name=row.organisation_name,
+            name=row.name,
+            submission_id=row.submission_id,
+            status=row.status,
+            last_updated_at_utc=row.last_updated_at_utc,
+        )
+        for row in db.session.execute(stmt).all()
+    ]
 
 
 def get_submissions_by_grant_recipient_collection(
