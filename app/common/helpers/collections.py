@@ -1423,9 +1423,7 @@ class AllSubmissionsHelper:
         self.submissions = [s for s in (get_all_submissions_with_mode_for_collection(collection.id, submission_mode))]
         self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
 
-        grant_recipient_mode = (
-            GrantRecipientModeEnum.TEST if submission_mode == SubmissionModeEnum.TEST else GrantRecipientModeEnum.LIVE
-        )
+        grant_recipient_mode = GrantRecipientModeEnum.from_similar(submission_mode)
         self.grant_recipients = get_grant_recipients(
             self.collection.grant, mode=grant_recipient_mode, with_organisations=True
         )

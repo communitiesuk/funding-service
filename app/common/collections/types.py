@@ -169,6 +169,11 @@ class DecimalAnswer(_NumberAnswer[Decimal]):
 
 
 class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):
+    """
+    NOTE: If the data structure changes, we may also need to sync/update the following places:
+    - Submission.name (for multi-submissions)
+    """
+
     key: str
     label: str
 

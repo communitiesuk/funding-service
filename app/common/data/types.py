@@ -97,15 +97,27 @@ class SubmissionModeEnum(enum.StrEnum):
     PREVIEW = "preview"
     LIVE = "live"
 
+    @staticmethod
+    def from_similar(mode: GrantRecipientModeEnum | OrganisationModeEnum) -> SubmissionModeEnum:
+        return SubmissionModeEnum(mode.value)
+
 
 class OrganisationModeEnum(enum.StrEnum):
     LIVE = "live"
     TEST = "test"
 
+    @staticmethod
+    def from_similar(mode: GrantRecipientModeEnum | SubmissionModeEnum) -> OrganisationModeEnum:
+        return OrganisationModeEnum(mode.value)
+
 
 class GrantRecipientModeEnum(enum.StrEnum):
     LIVE = "live"
     TEST = "test"
+
+    @staticmethod
+    def from_similar(mode: OrganisationModeEnum | SubmissionModeEnum) -> GrantRecipientModeEnum:
+        return GrantRecipientModeEnum(mode.value)
 
 
 class SubmissionStatusEnum(enum.StrEnum):

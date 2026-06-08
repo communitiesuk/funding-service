@@ -64,6 +64,9 @@ class SubmissionDataManager:
 
     This is *only* concerned with managing the structure of the `submission.data` blob, not any higher-level concerns
     such as 'how complete is this submission' or 'what is the current state of the submission'.
+
+    NOTE: If the data structure changes, we may also need to sync/update the following places:
+    - Submission.name (for multi-submissions)
     """
 
     def __init__(self, data: dict[str, Any]) -> None:
