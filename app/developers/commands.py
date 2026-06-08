@@ -793,7 +793,7 @@ def create_multi_submissions(  # noqa: C901
         click.echo(f"ERROR: Could not find user {service_user_email_address}")
         return
 
-    submission_mode = SubmissionModeEnum(mode.value)
+    submission_mode = SubmissionModeEnum.from_similar(mode)
     form_cls = build_question_form([question], evaluation_context, interpolation_context)
 
     created = 0

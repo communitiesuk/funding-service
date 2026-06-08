@@ -468,9 +468,7 @@ def get_submission_list_for_collection(
         "last_updated_at_utc"
     )
 
-    grant_recipient_mode = (
-        GrantRecipientModeEnum.LIVE if submission_mode == SubmissionModeEnum.LIVE else GrantRecipientModeEnum.TEST
-    )
+    grant_recipient_mode = GrantRecipientModeEnum.from_similar(submission_mode)
     name_column = Submission.name.label("name") if collection.allow_multiple_submissions else null().label("name")
     order_by: List[Any] = [Organisation.name]
     if collection.allow_multiple_submissions:
