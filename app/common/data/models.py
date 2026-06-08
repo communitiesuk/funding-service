@@ -414,7 +414,7 @@ class Submission(BaseModel):
         from app.common.helpers.submission_events import SubmissionEventHelper
 
         event_helper = SubmissionEventHelper(self)
-        return max(filter(None, [event_helper.latest_event_utc, self.updated_at_utc]))
+        return max(filter(None, [event.created_at_utc for event in event_helper.events] + [self.updated_at_utc]))
 
     @last_updated_at_utc.inplace.expression
     @classmethod
