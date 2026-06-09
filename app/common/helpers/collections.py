@@ -340,11 +340,11 @@ class SubmissionHelper:
         self.cached_get_all_questions_are_answered_for_form.cache_clear()
         self.cached_get_ordered_visible_questions.cache_clear()
 
-        if "cached_evaluation_context" in self.__dict__:
-            del self.cached_evaluation_context
-
-        if "cached_interpolation_context" in self.__dict__:
-            del self.cached_interpolation_context
+        # Clear all `@cached_property`s
+        for attr, value in self.__class__.__dict__.items():
+            if isinstance(value, cached_property):
+                if attr in self.__dict__:
+                    del self.__dict__[attr]
 
     def _update_submission_status(self):
         self.clear_caches()

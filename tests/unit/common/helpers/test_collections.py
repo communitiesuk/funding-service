@@ -424,8 +424,7 @@ class TestSubmissionHelper:
             all_answered = helper.cached_get_all_questions_are_answered_for_form(q1.form).all_answered
             assert all_answered is False
 
-            helper.cached_get_answer_for_question.cache_clear()
-            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
+            helper.clear_caches()
 
             submission.data_manager.set(q2, TextSingleLineAnswer("answer 2"))
 
@@ -494,8 +493,7 @@ class TestSubmissionHelper:
             all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
             assert all_answered is False
 
-            helper.cached_get_answer_for_question.cache_clear()
-            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
+            helper.clear_caches()
 
             submission.data_manager.set(q2, TextSingleLineAnswer("answer 1"), add_another_index=0)
             submission.data_manager.set(q2, TextSingleLineAnswer("answer 2"), add_another_index=1)
@@ -524,8 +522,7 @@ class TestSubmissionHelper:
             all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
             assert all_answered is False
 
-            helper.cached_get_answer_for_question.cache_clear()
-            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
+            helper.clear_caches()
 
             submission.data_manager.set(q2, TextSingleLineAnswer("answer 3"), add_another_index=2)
 
@@ -544,11 +541,8 @@ class TestSubmissionHelper:
 
             # empty collections are not completed
             assert helper.all_needed_forms_are_completed is False
-            del helper.all_needed_forms_are_completed
 
             submission.data_manager.set(question_one, TextSingleLineAnswer("User submitted data"))
-            helper.cached_get_answer_for_question.cache_clear()
-            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
             submission.events = [
                 factories.submission_event.build(
                     submission=submission,
@@ -556,17 +550,16 @@ class TestSubmissionHelper:
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
                 )
             ]
+            helper.clear_caches()
 
             # one complete form and one incomplete is still not completed
             assert helper.all_needed_forms_are_completed is False
 
             submission.data_manager.set(question_two, TextSingleLineAnswer("User submitted data"))
-            helper.cached_get_answer_for_question.cache_clear()
-            helper.cached_get_all_questions_are_answered_for_form.cache_clear()
+            helper.clear_caches()
 
             # all questions complete but a form not marked as completed is still not completed
             assert helper.all_needed_forms_are_completed is False
-            del helper.all_needed_forms_are_completed
 
             submission.events.append(
                 factories.submission_event.build(
@@ -575,6 +568,7 @@ class TestSubmissionHelper:
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
                 )
             )
+            helper.clear_caches()
 
             # all questions answered and all marked as complete is complete
             assert helper.all_needed_forms_are_completed is True

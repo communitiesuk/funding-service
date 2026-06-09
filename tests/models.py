@@ -949,14 +949,11 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     conditions_operator = ConditionsOperator.ALL
 
     @factory.post_generation
-    def form_components_join(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
+    def form_components_join(obj: Question, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
-            self.form.components = [component for component in self.form.components if component.parent is None]  # type: ignore[attr-defined]
-            if hasattr(self.form, "cached_questions"):
-                del self.form.cached_questions
-            if hasattr(self.form, "cached_all_components"):
-                del self.form.cached_all_components
+            obj.form.components = [component for component in obj.form.components if component.parent is None]  # type: ignore[attr-defined]
+            obj.form.clear_caches()
 
     @factory.post_generation
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
@@ -971,21 +968,17 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             db.session.commit()
 
     @factory.post_generation
-    def _references(self: "Question", create: bool, extracted: list[Any], **kwargs: Any) -> None:
+    def _references(obj: "Question", create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not create:
             return
 
         _validate_and_sync_component_references(
-            self,
-            ExpressionContext.build_expression_context(collection=self.form.collection, mode="interpolation"),
+            obj,
+            ExpressionContext.build_expression_context(collection=obj.form.collection, mode="interpolation"),
         )
 
         # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions
-        del self.form.cached_questions
-        try:
-            del self.form.cached_all_components
-        except AttributeError:
-            pass
+        obj.form.clear_caches()
         db.session.commit()
 
 
@@ -1014,14 +1007,11 @@ class _GroupFactory(SQLAlchemyModelFactory):
     conditions_operator = ConditionsOperator.ALL
 
     @factory.post_generation
-    def form_components_join(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
+    def form_components_join(obj: Group, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
-            self.form.components = [component for component in self.form.components if component.parent is None]  # type: ignore[attr-defined]
-            if hasattr(self.form, "cached_questions"):
-                del self.form.cached_questions
-            if hasattr(self.form, "cached_all_components"):
-                del self.form.cached_all_components
+            obj.form.components = [component for component in obj.form.components if component.parent is None]  # type: ignore[attr-defined]
+            obj.form.clear_caches()
 
     @factory.post_generation
     def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
@@ -1036,21 +1026,18 @@ class _GroupFactory(SQLAlchemyModelFactory):
             db.session.commit()
 
     @factory.post_generation
-    def _references(self: "Group", create: bool, extracted: list[Any], **kwargs: Any) -> None:
+    def _references(obj: "Group", create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not create:
             return
 
         _validate_and_sync_component_references(
-            self,
-            ExpressionContext.build_expression_context(collection=self.form.collection, mode="interpolation"),
+            obj,
+            ExpressionContext.build_expression_context(collection=obj.form.collection, mode="interpolation"),
         )
 
         # Wipe the cache of questions on a form - because we're likely to be creating more forms/questions
-        del self.form.cached_questions
-        try:
-            del self.form.cached_all_components
-        except AttributeError:
-            pass
+        obj.clear_caches()
+        obj.form.clear_caches()
         db.session.commit()
 
 
