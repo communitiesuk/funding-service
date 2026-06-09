@@ -1,5 +1,7 @@
+import csv
 import uuid
 from decimal import Decimal, InvalidOperation
+from io import StringIO
 from typing import TYPE_CHECKING, Sequence
 
 from flask import current_app
@@ -228,3 +230,15 @@ def validate_data_set(
 
 def build_data_set_upload_s3_key(grant_id: uuid.UUID, collection_id: uuid.UUID, data_source_id: uuid.UUID) -> str:
     return f"{current_app.config['REFERENCE_FILES_PREFIX']}/{grant_id}/{collection_id}/{data_source_id}"
+
+
+def generate_latest_csv_template() -> str:
+    headers = ["Organisation ID", "Grant recipient"]
+    csv_output = StringIO()
+    csv_writer = csv.DictWriter(csv_output, fieldnames=headers)
+    csv_writer.writeheader()
+    #
+    # row_data = {}
+    # csv_writer.writerow(row_data)
+
+    return csv_output.getvalue()

@@ -1,10 +1,19 @@
+import csv
 import uuid
+from io import StringIO
 
-from app.common.data.types import DataSourceType
+from app.common.data.types import (
+    DataSourceSchemaColumn,
+    DataSourceType,
+    QuestionDataOptions,
+    QuestionDataType,
+    QuestionPresentationOptions,
+)
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataTypeError,
+    generate_latest_csv_template,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -470,3 +479,196 @@ class TestValidateDataSetGrantRecipients:
         assert any(f"'{gr3.organisation.name}' is missing from the CSV" in e for e in errors)
         assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'AB1111' not found in grant recipients" in e for e in errors)
         assert any("Grant recipient 'Rivendell' not found in grant recipients" in e for e in errors)
+
+
+class TestGenerateLatestCsvTemplate:
+    def test_generate_no_changes(self, factories):
+        grant = factories.grant.create()
+        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
+        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
+        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[123, 456, 789],
+        )
+
+        csv_content = generate_latest_csv_template(data_source.id)
+        reader = csv.reader(StringIO(csv_content))
+
+        rows = list(reader)
+        assert len(rows) == 4
+
+        assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation"]
+        assert rows[1] == ["EC123", gr.organisation.name, "123"]
+        assert rows[2] == ["EC456", gr2.organisation.name, "456"]
+        assert rows[3] == ["EC789", gr3.organisation.name, "789"]
+
+    def test_generate_grant_recipient_added(self, factories):
+        grant = factories.grant.create()
+        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
+        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
+        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[123, 456, 789],
+        )
+        gr4 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC444")
+
+        csv_content = generate_latest_csv_template(data_source.id)
+        reader = csv.reader(StringIO(csv_content))
+
+        rows = list(reader)
+        assert len(rows) == 5
+
+        assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation"]
+        assert rows[1] == ["EC123", gr.organisation.name, "123"]
+        assert rows[2] == ["EC456", gr2.organisation.name, "456"]
+        assert rows[3] == ["EC789", gr3.organisation.name, "789"]
+        assert rows[4] == ["EC444", gr4.organisation.name, ""]
+
+    def test_generate_grant_recipient_removed(self, factories, db_session):
+        grant = factories.grant.create()
+        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
+        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
+        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="TO_REMOVE")
+
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[123, 456, 789],
+        )
+
+        db_session.delete(gr3)
+
+        csv_content = generate_latest_csv_template(data_source.id)
+        reader = csv.reader(StringIO(csv_content))
+
+        rows = list(reader)
+        assert len(rows) == 3
+
+        assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation"]
+        assert rows[1] == ["EC123", gr.organisation.name, "123"]
+        assert rows[2] == ["EC456", gr2.organisation.name, "456"]
+
+    def test_generate_no_changes_data_missing(self, factories):
+        grant = factories.grant.create()
+        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
+        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
+        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[123, None, 789],
+        )
+
+        csv_content = generate_latest_csv_template(data_source.id)
+        reader = csv.reader(StringIO(csv_content))
+
+        rows = list(reader)
+        assert len(rows) == 4
+
+        assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation"]
+        assert rows[1] == ["EC123", gr.organisation.name, "123"]
+        assert rows[2] == ["EC456", gr2.organisation.name, ""]
+        assert rows[3] == ["EC789", gr3.organisation.name, "789"]
+
+    def test_generate_columns_added_with_data(self, factories, db_session):
+        grant = factories.grant.create()
+        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
+        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
+        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        ds_org_item_1 = factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="EC123", _data={"c_allocation": "123"}
+        )
+        ds_org_item_2 = factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="EC456", _data={"c_allocation": "456"}
+        )
+        ds_org_item_3 = factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="EC789", _data={"c_allocation": "789"}
+        )
+        data_source.schema.root["c_added_col"] = DataSourceSchemaColumn(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            presentation_options=QuestionPresentationOptions(),
+            data_options=QuestionDataOptions(),
+            original_column_name="Added column",
+        )
+        ds_org_item_1._data["c_added_col"] = "one"
+        ds_org_item_2._data["c_added_col"] = "two"
+        ds_org_item_3._data["c_added_col"] = "three"
+        db_session.flush()
+
+        csv_content = generate_latest_csv_template(data_source.id)
+        reader = csv.reader(StringIO(csv_content))
+
+        rows = list(reader)
+        assert len(rows) == 4
+
+        assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation", "Added column"]
+        assert rows[1] == ["EC123", gr.organisation.name, "123", "one"]
+        assert rows[2] == ["EC456", gr2.organisation.name, "456", "two"]
+        assert rows[3] == ["EC789", gr3.organisation.name, "789", "three"]
+
+    def test_generate_columns_added_no_data(self, factories, db_session):
+        grant = factories.grant.create()
+        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
+        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
+        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[1, 2, 3],
+        )
+
+        data_source.schema.root["c_added_col"] = DataSourceSchemaColumn(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            presentation_options=QuestionPresentationOptions(),
+            data_options=QuestionDataOptions(),
+            original_column_name="Added column",
+        )
+        db_session.flush()
+
+        csv_content = generate_latest_csv_template(data_source.id)
+        reader = csv.reader(StringIO(csv_content))
+
+        rows = list(reader)
+        assert len(rows) == 4
+
+        assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation", "Added column"]
+        assert rows[1] == ["EC123", gr.organisation.name, "1", ""]
+        assert rows[2] == ["EC456", gr2.organisation.name, "2", ""]
+        assert rows[3] == ["EC789", gr3.organisation.name, "3", ""]
