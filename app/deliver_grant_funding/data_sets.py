@@ -1,5 +1,7 @@
+import csv
 import uuid
 from decimal import Decimal, InvalidOperation
+from io import StringIO
 from typing import TYPE_CHECKING, Sequence
 
 from flask import current_app
@@ -239,3 +241,15 @@ def check_missing_data(data_columns: list[str], all_rows: TUnvalidatedDataSetRow
         if missing:
             result.row_results.append(MissingDataRow(row_number=idx, missing_columns=missing))
     return result
+
+
+def generate_latest_csv_template() -> str:
+    headers = ["Organisation ID", "Grant recipient"]
+    csv_output = StringIO()
+    csv_writer = csv.DictWriter(csv_output, fieldnames=headers)
+    csv_writer.writeheader()
+    #
+    # row_data = {}
+    # csv_writer.writerow(row_data)
+
+    return csv_output.getvalue()
