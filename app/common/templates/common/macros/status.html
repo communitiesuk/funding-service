@@ -132,6 +132,6 @@
     {{ govukTag({"text": status, "classes": "app-status-tag " ~ classMap[status]}) }}
   {% else %}
     {% set status_text = status ~ (" (Overdue)" if is_overdue and status != enum.deliver_submission_status.NOT_SUBMITTED else "") %}
-    <span class="govuk-body govuk-!-margin-bottom-0">{{ status_text }}</span>
+    <span class="app-deliver-status-tag-text govuk-body govuk-!-margin-bottom-0">{{ status_text }}</span>
   {% endif %}
 {% endmacro %}

@@ -8541,8 +8541,8 @@ class TestListSubmissions:
             "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
         )
 
-        test_submission_tags = test_soup.select(".govuk-tag")
-        live_submission_tags = live_soup.select(".govuk-tag")
+        test_submission_tags = test_soup.select(".app-deliver-status-tag-text")
+        live_submission_tags = live_soup.select(".app-deliver-status-tag-text")
         assert {tag.text.strip() for tag in test_submission_tags} == {"Not started"}
         assert {tag.text.strip() for tag in live_submission_tags} == {"Not started"}
 
@@ -8589,7 +8589,7 @@ class TestListSubmissions:
         link_without_submission = page_has_link(soup, "Organisation Without Submission")
         assert link_without_submission is None
 
-        submission_tags = soup.select(".govuk-tag")
+        submission_tags = soup.select(".app-deliver-status-tag-text")
         tag_texts = {tag.text.strip() for tag in submission_tags}
         assert "Not started" in tag_texts
 
@@ -8617,7 +8617,7 @@ class TestListSubmissions:
         soup = BeautifulSoup(response.data, "html.parser")
         assert response.status_code == 200
 
-        submission_tags = soup.select(".govuk-tag")
+        submission_tags = soup.select(".app-deliver-status-tag-text")
         tag_texts = {tag.text.strip() for tag in submission_tags}
         assert "Not submitted" in tag_texts
 
@@ -9377,7 +9377,7 @@ class TestViewSubmission:
         details = soup.find_all("details", class_="govuk-details")
 
         def _has_original_answer_label(span_text: str | None) -> bool:
-            return bool(span_text and "Original answer" in span_text)
+            return bool(span_text and "Original response" in span_text)
 
         original_answer_details = [
             d
