@@ -31,6 +31,8 @@ def get_organisations(
     if with_external_ids is not None:
         statement = statement.where(Organisation.external_id.in_(with_external_ids))
 
+    statement = statement.order_by(Organisation.name)
+
     return db.session.scalars(statement).all()
 
 
