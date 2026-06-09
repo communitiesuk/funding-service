@@ -12,7 +12,7 @@ from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExte
 from app.services.notify import NotificationService
 from app.services.s3 import S3Service
 
-db = SQLAlchemy(engine_options={"echo": False})
+db = SQLAlchemy(engine_options={"echo": False, "connect_args": {"prepare_threshold": None}})
 auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
 notification_service = NotificationService()
