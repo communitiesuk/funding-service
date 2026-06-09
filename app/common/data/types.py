@@ -472,9 +472,7 @@ class AuditEventType(enum.Enum):
 
 class DataSourceType(enum.StrEnum):
     CUSTOM = "Custom"
-    STATIC = "Static"
     GRANT_RECIPIENT = "Grant recipient"
-    PROJECT_LEVEL = "Project level"
 
 
 class DataSourceSchemaColumn(BaseModel):
