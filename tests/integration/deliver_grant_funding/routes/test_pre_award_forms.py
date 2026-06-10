@@ -37,7 +37,7 @@ class TestListPreAwardForms:
         assert client.grant.name in soup.text
 
         expected_links = [
-            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/application/set-up")),
+            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/set-up")),
         ]
         for expected_link in expected_links:
             button = page_has_link(soup, expected_link[0])
@@ -71,19 +71,19 @@ class TestListPreAwardForms:
         test_submission_links = page_has_link(soup, "0 test submissions")
         assert test_submission_links is not None
         assert test_submission_links.get("href") == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/application/[a-z0-9-]{36}/submissions/test"
+            r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/submissions/test"
         )
 
         live_submissions_links = page_has_link(soup, "0 live submissions")
         assert live_submissions_links is not None
         assert live_submissions_links.get("href") == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/application/[a-z0-9-]{36}/submissions/live"
+            r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/submissions/live"
         )
 
         expected_links = [
-            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/application/set-up")),
-            ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/application/[a-z0-9-]{36}/add-section")),
-            ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/application/[a-z0-9-]{36}/change-name")),
+            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/set-up")),
+            ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/add-section")),
+            ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/change-name")),
             ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/pre-award\?delete")),
         ]
         for expected_link in expected_links:

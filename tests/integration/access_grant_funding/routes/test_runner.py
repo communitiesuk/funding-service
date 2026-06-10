@@ -197,7 +197,7 @@ class TestRouteToSubmission:
         assert response.status_code == 302
         expected_location = (
             f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-            f"/{submission_awaiting_sign_off.collection.type.name.lower()}/{submission_awaiting_sign_off.id}/view"
+            f"/reports/{submission_awaiting_sign_off.id}/view"
         )
         assert response.location == expected_location
 
@@ -658,7 +658,7 @@ class TestTasklist:
             data_provider_confirmation_email = mock_notification_service_calls[0]
             certifier_notification_email = mock_notification_service_calls[1]
             assert data_provider_confirmation_email.kwargs["personalisation"]["grant_report_url"] == AnyStringMatching(
-                r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/.+/view"
+                r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+/view"
             )
             assert certifier_notification_email.kwargs["personalisation"]["report_submitter"] == client.user.name
 
@@ -685,7 +685,7 @@ class TestTasklist:
 
         expected_location = (
             f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-            f"/{submission_ready_to_submit.collection.type.name.lower()}/{submission_ready_to_submit.id}/confirm-submission"
+            f"/reports/{submission_ready_to_submit.id}/confirm-submission"
         )
         assert response.location == expected_location
         assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
@@ -723,7 +723,7 @@ class TestTasklist:
         assert len(mock_notification_service_calls) == 2
         data_provider_confirmation_email = mock_notification_service_calls[0]
         assert data_provider_confirmation_email.kwargs["personalisation"]["grant_report_url"] == AnyStringMatching(
-            r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/.+/view"
+            r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+/view"
         )
 
     def test_post_tasklist_shows_validation_error_when_answers_invalid(

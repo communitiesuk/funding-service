@@ -239,7 +239,7 @@ class TestNotificationService:
                             "reference": "TG-R123456",
                             "report_name": "Test collection",
                             "is_test_data": "no",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/{submission.collection.type.name.lower()}/{submission.id}/view",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                         },
                     }
                 )
@@ -283,7 +283,7 @@ class TestNotificationService:
                             "report_name": "Test collection",
                             "report_deadline": "Tuesday 18 November 2025",
                             "is_test_data": "no",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/{submission.collection.type.name.lower()}/{submission.id}/view",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                             "government_department": "Test Organisation",
                         },
                     }
@@ -521,7 +521,7 @@ class TestNotificationService:
                             "report_name": "Test collection",
                             "date_submitted": "10:37am on Tuesday 25 November 2025",
                             "is_test_data": "no",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/{submission.collection.type.name.lower()}/{submission.id}/view",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                             "government_department": "the Test Organisation",
                         },
                     }
@@ -579,7 +579,7 @@ class TestNotificationService:
                             "report_name": "Test collection",
                             "is_test_data": "no",
                             "date_submitted": "10:37am on Tuesday 25 November 2025",
-                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/{submission.collection.type.name.lower()}/{submission.id}/view",
+                            "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                             "government_department": "the Test Organisation",
                         },
                     }

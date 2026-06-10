@@ -231,7 +231,7 @@ class DeliverTestGrantRecipientJourneyPage(ReportsBasePage):
 
     def navigate(self) -> None:
         self.page.goto(
-            f"{self.domain}/deliver/grant/{self.grant_id}/monitoring_report/{self.collection_id}/test-grant-recipient-journey"
+            f"{self.domain}/deliver/grant/{self.grant_id}/reports/{self.collection_id}/test-grant-recipient-journey"
         )
         expect(self.heading).to_be_visible()
 

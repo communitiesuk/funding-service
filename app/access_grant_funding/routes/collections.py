@@ -32,6 +32,9 @@ _pdf_export_lock = threading.Lock()
 
 
 @access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports", methods=["GET"]
+)
+@access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/forms", methods=["GET"]
 )
 @has_access_grant_role(RoleEnum.MEMBER)
