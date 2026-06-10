@@ -45,7 +45,7 @@
   {% endif %}
   <dl class="app-metadata">
     <dt class="app-metadata__key">Status:</dt>
-    <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(helper.status, helper.is_overdue) }}</dd>
+    <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(helper.status, helper.submission.is_overdue) }}</dd>
   </dl>
 
   <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" />

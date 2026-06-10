@@ -69,7 +69,7 @@
             {% set submission = (report_submissions | first) if report_submissions else none %}
             {% set submission_status = SubmissionHelper.get_status(submission.submission, report) %}
             {% set submission_status_html %}
-              {{ submissionStatusTag(submission_status, submission.is_overdue if submission else report.is_overdue) }}
+              {{ submissionStatusTag(submission_status, submission.submission.is_overdue if submission else report.is_overdue) }}
             {% endset %}
             {% set report_action_config = SubmissionHelper.get_access_submission_action(report, grant_recipient, submission.submission) %}
             {% set report_action_html %}

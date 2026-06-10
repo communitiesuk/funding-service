@@ -256,12 +256,6 @@ class SubmissionHelper:
             for question in self.cached_get_ordered_visible_questions(form)
         }
 
-    @property
-    def is_overdue(self) -> bool:
-        # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
-        #       a batch job decision that is then added as a submission event rather than calculated by the server
-        return self.collection.is_overdue and not self.is_submitted
-
     @staticmethod
     def get_access_submission_action(
         collection: Collection, grant_recipient: GrantRecipient, submission: Submission | None

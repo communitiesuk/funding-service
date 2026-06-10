@@ -511,6 +511,21 @@ class Submission(BaseModel):
             cls.reference,
         )
 
+    @hybrid_property
+    def is_overdue(self) -> bool:
+        # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
+        #       a batch job decision that is then added as a submission event rather than calculated by the server
+        return self.collection.is_overdue and not self.status == SubmissionStatusEnum.SUBMITTED
+
+    @is_overdue.inplace.expression
+    @classmethod
+    def _is_overdue_expression(cls) -> ColumnElement[bool]:
+        return (
+            Collection.submission_period_end_date.isnot(None)
+            & (Collection.submission_period_end_date < func.timezone("Europe/London", func.now()))
+            & (cls.status != SubmissionStatusEnum.SUBMITTED)
+        )
+
     __table_args__ = (
         CheckConstraint(
             "mode = 'TEST' OR grant_recipient_id IS NOT NULL",
