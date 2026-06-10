@@ -227,7 +227,7 @@ class GreaterThan(ManagedExpression):
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
-        "deliver_grant_funding/reports/managed_expressions/greater_than.html"
+        "deliver_grant_funding/collections/managed_expressions/greater_than.html"
     )
 
     _key: ManagedExpressionsEnum = name
@@ -335,7 +335,7 @@ class LessThan(ManagedExpression):
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
-        "deliver_grant_funding/reports/managed_expressions/less_than.html"
+        "deliver_grant_funding/collections/managed_expressions/less_than.html"
     )
 
     _key: ManagedExpressionsEnum = name
@@ -439,7 +439,7 @@ class Between(ManagedExpression):
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.NUMBER}
     managed_expression_form_template: ClassVar[str | None] = (
-        "deliver_grant_funding/reports/managed_expressions/between.html"
+        "deliver_grant_funding/collections/managed_expressions/between.html"
     )
 
     _key: ManagedExpressionsEnum = name
@@ -815,7 +815,7 @@ class IsBefore(ManagedExpression):
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     managed_expression_form_template: ClassVar[str | None] = (
-        "deliver_grant_funding/reports/managed_expressions/is_before.html"
+        "deliver_grant_funding/collections/managed_expressions/is_before.html"
     )
 
     _key: ManagedExpressionsEnum = name
@@ -939,7 +939,7 @@ class IsAfter(ManagedExpression):
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     managed_expression_form_template: ClassVar[str | None] = (
-        "deliver_grant_funding/reports/managed_expressions/is_after.html"
+        "deliver_grant_funding/collections/managed_expressions/is_after.html"
     )
 
     _key: ManagedExpressionsEnum = name
@@ -1061,7 +1061,7 @@ class BetweenDates(ManagedExpression):
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.DATE}
     managed_expression_form_template: ClassVar[str | None] = (
-        "deliver_grant_funding/reports/managed_expressions/between_dates.html"
+        "deliver_grant_funding/collections/managed_expressions/between_dates.html"
     )
 
     _key: ManagedExpressionsEnum = name
