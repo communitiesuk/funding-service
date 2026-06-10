@@ -851,24 +851,18 @@ class TestDataSourceModel:
     def test_filtering_organisation_items(self, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
-        org1, org2, org3, org4 = factories.organisation.create_batch(4)
+        gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=grant)
         data_source = factories.data_source.create(
             name="Test data set",
             grant=grant,
             collection=report,
             type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
         )
-        org1_item = factories.data_source_organisation_item.create(
-            data_source=data_source, external_id=org1.external_id
-        )
-        org2_item = factories.data_source_organisation_item.create(
-            data_source=data_source, external_id=org2.external_id
-        )
-        org3_item = factories.data_source_organisation_item.create(
-            data_source=data_source, external_id=org3.external_id
-        )
+        gr4 = factories.grant_recipient.create(grant=grant)
 
-        assert data_source.get_filtered_organisation_item(org1.external_id) == org1_item
-        assert data_source.get_filtered_organisation_item(org2.external_id) == org2_item
-        assert data_source.get_filtered_organisation_item(org3.external_id) == org3_item
-        assert data_source.get_filtered_organisation_item(org4.external_id) is None
+        assert data_source.get_filtered_organisation_item(gr1.organisation.external_id)._data["c_allocation"] == 111
+        assert data_source.get_filtered_organisation_item(gr2.organisation.external_id)._data["c_allocation"] == 222
+        assert data_source.get_filtered_organisation_item(gr3.organisation.external_id)._data["c_allocation"] == 333
+        assert data_source.get_filtered_organisation_item(gr4.organisation.external_id) is None

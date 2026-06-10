@@ -10819,33 +10819,13 @@ class TestViewDataSource:
 
     def test_get_shows_grant_recipient_table(self, authenticated_grant_member_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
-        organisation = factories.organisation.create(external_id="E123", name="Rivendell Council")
-        factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant,
-            organisation=organisation,
-            mode=GrantRecipientModeEnum.LIVE,
-        )
+        organisation = authenticated_grant_member_client.grant_recipient.organisation
         data_source = factories.data_source.create(
             collection=collection,
             grant=authenticated_grant_member_client.grant,
-            name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_allocation": {
-                        "data_type": QuestionDataType.NUMBER,
-                        "original_column_name": "Allocation",
-                        "presentation_options": {"prefix": "£", "suffix": ""},
-                        "data_options": {"number_type": NumberTypeEnum.INTEGER, "max_decimal_places": None},
-                    }
-                }
-            ),
-            items=None,
-        )
-        factories.data_source_organisation_item.create(
-            data_source=data_source,
-            external_id="E123",
-            _data={"c_allocation": 500000},
+            create_gr_org_items=True,
+            create_gr_org_items__data=[500_000],
         )
 
         response = authenticated_grant_member_client.get(
@@ -10860,38 +10840,19 @@ class TestViewDataSource:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "E123" in soup.text
-        assert "Rivendell Council" in soup.text
+        assert organisation.external_id in soup.text
+        assert organisation.name in soup.text
         assert "Allocation" in soup.text
         assert "£500,000" in soup.text
 
     def test_get_shows_missing_data_tag_for_empty_values(self, authenticated_grant_member_client, factories):
-        org = factories.organisation.create(can_manage_grants=False, external_id="E123")
-        factories.grant_recipient.create(
-            organisation=org, grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.LIVE
-        )
         collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
         data_source = factories.data_source.create(
             collection=collection,
             grant=authenticated_grant_member_client.grant,
-            name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_notes": {
-                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
-                        "original_column_name": "Notes",
-                        "presentation_options": {},
-                        "data_options": {},
-                    }
-                }
-            ),
-            items=None,
-        )
-        factories.data_source_organisation_item.create(
-            data_source=data_source,
-            external_id=org.external_id,
-            _data={"c_notes": None},
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
         )
 
         response = authenticated_grant_member_client.get(
@@ -10915,24 +10876,12 @@ class TestViewDataSource:
         data_source = factories.data_source.create(
             collection=collection,
             grant=authenticated_grant_member_client.grant,
-            name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_notes": {
-                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
-                        "original_column_name": "Notes",
-                        "presentation_options": {},
-                        "data_options": {},
-                    }
-                }
-            ),
-            items=None,
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            _data={"c_notes": None},
+            _data={"c_allocation": None},
         )
 
         response = authenticated_grant_member_client.get(
@@ -10969,23 +10918,11 @@ class TestViewDataSource:
             collection=collection,
             grant=authenticated_grant_member_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
-            name="Test data set",
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_notes": {
-                        "data_type": QuestionDataType.TEXT_SINGLE_LINE,
-                        "original_column_name": "Notes",
-                        "presentation_options": {},
-                        "data_options": {},
-                    }
-                }
-            ),
-            items=None,
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id="E123",
-            _data={"c_notes": "hello"},
+            _data={"c_allocation": 1234},
         )
 
         response = authenticated_grant_member_client.get(
@@ -11074,15 +11011,13 @@ class TestViewDataSource:
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        factories.grant_recipient.create_batch(2, grant=collection.grant)
         data_source = factories.data_source.create(
-            name="Test data set",
             collection=collection,
             grant=authenticated_grant_admin_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
+            create_gr_org_items=True,
         )
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
 
         authenticated_grant_admin_client.post(
             url_for(

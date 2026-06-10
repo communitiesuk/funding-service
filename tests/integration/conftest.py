@@ -364,6 +364,7 @@ def authenticated_grant_member_client(
     anonymous_client.user = user
     anonymous_client.grant = grant
     anonymous_client.organisation = grant.organisation
+    anonymous_client.grant_recipient = grant_recipient
     db_session.commit()
 
     yield anonymous_client
