@@ -226,5 +226,5 @@ def validate_data_set(
     return result
 
 
-def build_data_set_upload_s3_key(grant_id: uuid.UUID, report_id: uuid.UUID, data_source_id: uuid.UUID) -> str:
-    return f"{current_app.config['REFERENCE_FILES_PREFIX']}/{grant_id}/{report_id}/{data_source_id}"
+def build_data_set_upload_s3_key(grant_id: uuid.UUID, collection_id: uuid.UUID, data_source_id: uuid.UUID) -> str:
+    return f"{current_app.config['REFERENCE_FILES_PREFIX']}/{grant_id}/{collection_id}/{data_source_id}"

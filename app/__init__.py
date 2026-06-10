@@ -14,7 +14,7 @@ from flask_wtf.csrf import generate_csrf
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from sqlalchemy.exc import NoResultFound, ProgrammingError
-from werkzeug.routing import BaseConverter
+from werkzeug.routing import BaseConverter, ValidationError
 from xgovuk_flask_admin import XGovukFlaskAdmin
 from xgovuk_flask_admin.theme import XGovukFrontendTheme
 
@@ -176,8 +176,21 @@ def _register_custom_converters(app: Flask) -> None:
         def to_url(self, value: str | ExpressionReference) -> str | ExpressionReference:
             return value
 
+    class CollectionTypeConverter(BaseConverter):
+        def to_python(self, value: str) -> CollectionType:
+            try:
+                return CollectionType[value.upper()]
+            except KeyError as e:
+                # validation error raised in the context of rule converter will indicate the URL doesn't match
+                # and move on to match other routes or eventually 404
+                raise ValidationError from e
+
+        def to_url(self, value: CollectionType) -> str:
+            return value.name.lower()
+
     app.url_map.converters["submission_mode"] = SubmissionModeConverter
     app.url_map.converters["expression_reference"] = ExpressionReferenceConverter
+    app.url_map.converters["collection_type"] = CollectionTypeConverter
 
 
 def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:

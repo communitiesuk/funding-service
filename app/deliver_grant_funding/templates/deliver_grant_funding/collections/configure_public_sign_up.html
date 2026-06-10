@@ -1,0 +1,48 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Configure public sign up - " ~ collection.name %}
+{% set type_constants = collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        <!-- display sign_up_url here once the public sign up endpoint is registered -->
+        {% set sign_up_url = collection.public_sign_up %}
+
+        {{
+          form.allow_public_sign_up(params={
+            "fieldset": {"legend": {"text": form.allow_public_sign_up.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} },
+            "items": [
+              {
+                "value": true,
+                "text": "Yes",
+                "conditional": {
+                  "html": "<p class='govuk-body'>A public page will be available at <a class='govuk-link' href='"~ sign_up_url ~"'>" ~ sign_up_url ~ "</a> where grant recipients can sign up to this grant.</p>"
+                }
+              },
+              {"value": false, "text": "No"}
+            ]
+          })
+        }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Save"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

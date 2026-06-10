@@ -1,0 +1,30 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
+
+{% set page_title = "Change section name" %}
+{% set type_constants = db_form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% block beforeContent %}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=db_form.collection, form=db_form, this_page_breadcrumb_item={"text":"Section name"}) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l">What is the name of the section?</h1>
+      <p class="govuk-body">Use sections to group related questions together. This helps the person completing the form to focus on one topic or ‘section’ at a time.</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.title(params={"label": {"classes": "govuk-visually-hidden"} }) }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Update section name"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for("deliver_grant_funding.list_section_questions", grant_id=grant.id, form_id=db_form.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

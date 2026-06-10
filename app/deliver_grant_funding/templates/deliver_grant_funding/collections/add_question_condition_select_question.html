@@ -1,0 +1,21 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% set type_constants = component.form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% block pageTitle %}Add a condition - {{ component.name }} - Deliver grant funding{% endblock pageTitle %}
+
+{% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.add_question_condition_select_calculation", grant_id=grant.id, component_id=component.id) %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Add a condition</h1>
+
+      {% include "deliver_grant_funding/collections/_add_question_condition_context.html" %}
+    </div>
+  </div>
+{% endblock content %}

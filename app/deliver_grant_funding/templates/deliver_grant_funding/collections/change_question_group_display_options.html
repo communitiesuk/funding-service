@@ -1,0 +1,71 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
+
+{% set page_title = "Change question group display options" ~ " - " ~ group.name %}
+{% set type_constants = db_form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% block beforeContent %}
+
+  {% set truncated=False %}
+  {% if group.parent %}
+    {% set truncated=True %}
+  {% endif %}
+
+
+  {% set parent_html %}
+    <span class="govuk-visually-hidden">Question group:</span>
+    <span>{{ group.name }}</span>
+  {% endset %}
+  {% set parent_item={"html": parent_html, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=group.id)} %}
+
+  {{
+    deliver_grant_funding_collection_breadcrumb(
+        grant=grant,
+        collection=db_form.collection,
+        form=db_form,
+        immediate_parent_breadcrumb_item=parent_item,
+        this_page_breadcrumb_item={"text":"Question group display"},
+        truncated=truncated
+    )
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l govuk-!-margin-bottom-0">How should the question group be displayed?</h1>
+
+      {% if group.validations %}
+        <p class="govuk-body">This question group has validation rules attached, so it must continue to display all questions on the same page. Delete the group validations before switching to one question per page.</p>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.show_questions_on_the_same_page(params={
+            "fieldset": {
+              "legend": {
+                "classes": "govuk-visually-hidden"
+              }
+            },
+            "items": [
+              {},
+              {
+                "hint": {
+                  "text": "The question group name will be the page title",
+                }
+              }
+            ]
+          })
+        }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Update question group display"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=group.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

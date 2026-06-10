@@ -57,13 +57,11 @@
       {% endif %}
 
       {% if grant_admin %}
-
-        {# TODO: in the next commit the collection type will be included to any url for collection pages like add section, change name, etc. #}
         {{
           govukButton({
             "text": "Add a form",
             "classes": "" if not grant.pre_award_forms else "govuk-button--secondary",
-            "href": url_for('deliver_grant_funding.set_up_report', grant_id=grant.id)
+            "href": url_for('deliver_grant_funding.set_up_collection', grant_id=grant.id, collection_type=enum.collection_type_enum.APPLICATION)
           })
         }}
       {% endif %}

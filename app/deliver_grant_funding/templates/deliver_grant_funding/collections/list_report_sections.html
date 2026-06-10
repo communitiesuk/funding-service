@@ -1,0 +1,177 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
+{% from "common/macros/status.html" import reportStatusTag with context %}
+{% from "deliver_grant_funding/macros/dependency_banner.html" import section_dependency_banner %}
+
+{% set type_constants = collection.type.constants %}
+{% set page_title = collection.name %}
+{% set active_item_identifier = type_constants.active_nav %}
+{% set can_edit = authorisation_helper.can_edit_collection(current_user, collection.id) %}
+{% set can_preview = collection.data_sources | length == 0 and collection.status != enum.collection_status.CLOSED %}
+
+{# this does kick off one more request to the database - we could revisit making this check more concise #}
+{% set user_can_test_grant_recipient_journey = grant.test_grant_recipients and grant in current_user.access_grants %}
+
+{% block beforeContent %}
+  {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection_type=collection.type, this_page_breadcrumb_item={"text":collection.name}) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-three-quarters">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SECTION_DEPENDENCY_ORDER_ERROR.value]) %}
+        {% if flashes %}
+          {{ section_dependency_banner(flashes[0]) }}
+        {% endif %}
+      {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
+        {% if flashes %}
+          {{ govukNotificationBanner(params={"titleText": "Preview complete", "text": flashes[0]}) }}
+        {% endif %}
+        {% set errors = None %}
+      {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.TESTING_GRANT_RECIPIENT_JOURNEY_STARTED.value]) %}
+        {% if flashes %}
+          {{ govukNotificationBanner(params={"titleText": "Success", "type": "success", "text": flashes[0]}) }}
+        {% endif %}
+        {% set errors = None %}
+      {% endwith %}
+      {% if delete_form %}
+        {% set banner_html %}
+          <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to delete the section "{{ delete_task.title }}"?</p>
+          <form method="post" novalidate>
+            {{ delete_form.csrf_token }}
+            <div class="govuk-button-group govuk-!-margin-bottom-0">
+              {{ delete_form.confirm_deletion(params={"text": "Yes, delete this section", "classes": "govuk-button--warning govuk-!-margin-bottom-0"}) }}
+              <a class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0" href="{{ url_for('deliver_grant_funding.change_form_name', grant_id=grant.id, form_id=db_form.id) }}">Cancel</a>
+            </div>
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner(params={"role": "alert", "titleText": "Important", "classes": "", "html": banner_html}) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">{{ collection.name }}</h1>
+
+      <p class="govuk-body">
+        <strong>Submission period</strong>:
+        {{ format_date_range(collection.submission_period_start_date, collection.submission_period_end_date) if collection.submission_period_start_date and collection.submission_period_end_date else "Not set" }}
+      </p>
+      <p class="govuk-body"><strong>{{ type_constants.singular | uppercase_first }} status</strong>: {{ reportStatusTag(collection.status) }}</p>
+
+      <h2 class="govuk-heading-m govuk-!-margin-top-4">Sections</h2>
+      {% if not collection.forms %}
+        <p class="govuk-body">This {{ type_constants.singular }} has no sections.</p>
+        {% if can_edit %}
+          <p class="govuk-body">
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Add a section</a>
+          </p>
+        {% endif %}
+      {% else %}
+        {% set rows = [] %}
+        {% for form in collection.forms %}
+          {% set taskHtml %}
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=form.id) }}">{{ form.title }}</a>
+          {% endset %}
+          {% set questionsHtml %}
+            {{ form.cached_questions | length }}
+            questions<span class="govuk-visually-hidden"> in {{ form.title }}</span>
+          {% endset %}
+          {% set actions = [] %}
+          {% if can_edit and collection.forms|length > 1 %}
+            {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
+            {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
+          {% else %}
+            {# Append some empty actions in order to keep the layout visually the same - might need to think about this more when we have examples #}
+            {% do actions.append({}) %}
+          {% endif %}
+          {%
+            do rows.append(
+            {
+              "key": {"html": taskHtml, "classes": "govuk-!-font-weight-regular"},
+              "value": {"html": questionsHtml},
+              "actions": {
+                "items": actions,
+                "classes": "govuk-!-width-one-third",
+              },
+            })
+          %}
+        {% endfor %}
+
+        {{
+          govukSummaryList({
+            "rows": rows
+          })
+        }}
+      {% endif %}
+
+      {% if can_edit %}
+        <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Add another section</a>
+      {% endif %}
+
+      <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage collection</h2>
+      <ul class="govuk-list govuk-list--spaced">
+        <li>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_multiple_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+            Configure multiple submissions
+          </a>
+        </li>
+        {% if feature_flags.PRE_AWARD.is_enabled %}
+          <li>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_public_sign_up', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+              Configure public sign up
+            </a>
+          </li>
+        {% endif %}
+        {% if collection.allow_multiple_submissions %}
+          <li>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.set_guidance_for_multiple_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+              Set guidance for multiple submissions
+            </a>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+    <div class="govuk-grid-column-one-quarter">
+      <div class="app-actions">
+        <h3 class="govuk-heading-s">Actions</h3>
+        <div class="govuk-button-group app-button-group--full-width-on-desktop">
+          {% if can_preview %}
+            <form method="post" novalidate>
+              {{ form.csrf_token }}
+              {{ form.submit(params={"text": "Preview " ~ type_constants.singular, "classes": "govuk-button--secondary"}) }}
+
+              {% if previewers and authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
+                {% set previewer_list_html %}
+                  <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+                    {% for previewer in previewers %}
+                      <li>{{ previewer.name }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endset %}
+                {{
+                  govukDetails({
+                    "id": "previewers-details",
+                    "summaryText": (previewers | length) ~ " previewers",
+                    "html": previewer_list_html
+                  })
+                }}
+              {% endif %}
+            </form>
+          {% else %}
+            <p class="govuk-body">Preview not available</p>
+          {% endif %}
+          {% if user_can_test_grant_recipient_journey %}
+            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}"
+              >Test grant recipient journey</a
+            >
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
