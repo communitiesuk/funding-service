@@ -595,16 +595,6 @@ class TestListCollectionSections:
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
 
         response = authenticated_grant_member_client.get(
@@ -2614,16 +2604,6 @@ class TestListSectionQuestions:
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
 
         response = authenticated_grant_admin_client.get(
@@ -3739,18 +3719,8 @@ class TestSelectContextSourceQuestion:
             collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
-        data_set_reference = ExpressionReference.from_data_source_column(data_set, "c_capital_allocation")
+        data_set_reference = ExpressionReference.from_data_source_column(data_set, "c_allocation")
 
         with authenticated_grant_admin_client.session_transaction() as sess:
             sess["question"] = AddContextToExpressionsModel(
@@ -4120,16 +4090,6 @@ class TestSelectContextSourceDataSet:
             collection=collection,
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
 
         data_source_2 = factories.data_source.create(
@@ -4137,16 +4097,6 @@ class TestSelectContextSourceDataSet:
             collection=collection,
             name="Second data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
 
         data_source_3 = factories.data_source.create(
@@ -4171,16 +4121,6 @@ class TestSelectContextSourceDataSet:
             collection=report_2,
             name="Data set that shouldn't be shown",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
 
         with authenticated_grant_admin_client.session_transaction() as sess:

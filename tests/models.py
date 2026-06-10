@@ -13,6 +13,7 @@ from dataclasses import field
 from typing import Any, cast
 from uuid import uuid4
 
+import factory
 import factory.fuzzy
 import faker
 from factory.alchemy import SQLAlchemyModelFactory
@@ -57,6 +58,7 @@ from app.common.data.types import (
     ConditionsOperator,
     DataSourceFileMetadata,
     DataSourceSchema,
+    DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -865,6 +867,18 @@ class _DataSourceItemFactory(SQLAlchemyModelFactory):
     data_source = None
 
 
+_GRANT_RECIPIENT_DEFAULT_SCHEMA = DataSourceSchema.model_validate(
+    {
+        "c_allocation": DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(prefix="£"),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            original_column_name="Allocation",
+        )
+    }
+)
+
+
 class _DataSourceFactory(SQLAlchemyModelFactory):
     class Meta:
         model = DataSource
@@ -873,16 +887,7 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     type = DataSourceType.CUSTOM
-    name = factory.LazyAttribute(lambda o: None if o.type == DataSourceType.CUSTOM else "Test data set")
-    schema = factory.LazyAttribute(lambda o: None if o.type == DataSourceType.CUSTOM else DataSourceSchema({}))
-    file_metadata = factory.LazyAttribute(
-        lambda o: (
-            None
-            if o.type == DataSourceType.CUSTOM
-            else DataSourceFileMetadata.model_validate({"s3_key": "file/key", "original_filename": "test-file.csv"})
-        )
-    )
-    items = factory.RelatedFactoryList(_DataSourceItemFactory, size=3, factory_related_name="data_source")
+
     # No organisation items are created by default - tests which need them should create them explicitly and set the
     # items size to 0
     organisation_items = factory.RelatedFactoryList(
@@ -890,6 +895,33 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
         size=0,
         factory_related_name="data_source",
     )
+    items = factory.Maybe(
+        factory.LazyAttribute(lambda o: o.type == DataSourceType.CUSTOM),
+        yes_declaration=factory.RelatedFactoryList(
+            _DataSourceItemFactory,
+            factory_related_name="data_source",  # Triggers parent relation mapping
+            size=3,
+        ),
+        no_declaration=[],
+    )
+
+    @classmethod
+    def _adjust_kwargs(cls, **kwargs) -> dict[str, Any]:
+        ds_type = kwargs.get("type", DataSourceType.CUSTOM)
+
+        match ds_type:
+            case DataSourceType.GRANT_RECIPIENT:
+                kwargs.setdefault("name", "Grant allocation")
+                kwargs.setdefault("schema", _GRANT_RECIPIENT_DEFAULT_SCHEMA)
+
+                kwargs.setdefault(
+                    "file_metadata",
+                    DataSourceFileMetadata.model_validate({"s3_key": "file/key", "original_filename": "test-file.csv"}),
+                )
+            case DataSourceType.CUSTOM:
+                pass
+
+        return kwargs
 
     grant = None
     grant_id = factory.LazyAttribute(lambda o: o.grant.id if o.grant else None)

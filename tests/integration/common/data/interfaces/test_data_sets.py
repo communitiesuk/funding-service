@@ -18,13 +18,9 @@ from app.common.data.interfaces.data_sets import (
 from app.common.data.models import ComponentReference, DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.types import (
     DataSourceFileMetadata,
-    DataSourceSchema,
-    DataSourceSchemaColumn,
     DataSourceType,
     NumberTypeEnum,
-    QuestionDataOptions,
     QuestionDataType,
-    QuestionPresentationOptions,
 )
 from app.common.expressions import ExpressionContext
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
@@ -577,17 +573,6 @@ class TestDeleteDataSource:
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Allocation",
-                    )
-                }
-            ),
         )
         form = factories.form.create(collection=collection)
         question = factories.question.create(
@@ -613,21 +598,9 @@ class TestDeleteDataSource:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Allocation",
-                    )
-                }
-            ),
         )
         form = factories.form.create(collection=collection)
         question = factories.question.create(

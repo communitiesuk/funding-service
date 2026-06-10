@@ -8,13 +8,9 @@ from flask import url_for
 from app.common.collections.types import FileUploadAnswer, IntegerAnswer, TextSingleLineAnswer, YesNoAnswer
 from app.common.data.interfaces.collections import add_component_validation
 from app.common.data.types import (
-    DataSourceSchema,
-    DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
-    NumberTypeEnum,
-    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     SubmissionModeEnum,
@@ -921,20 +917,9 @@ class TestGroupValidation:
         grant_recipient = factories.grant_recipient.create(grant=client.grant, organisation=organisation)
 
         data_source = factories.data_source.create(
-            name="Allocations",
             grant=client.grant,
             collection=group.form.collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
@@ -977,7 +962,7 @@ class TestGroupValidation:
         assert "On this page:" in error_summary.text
         assert "On a different page:" not in error_summary.text
         assert "Other information referenced:" in error_summary.text
-        assert "Capital Allocation" in error_summary.text
+        assert "Allocation" in error_summary.text
         assert "£1,000" in error_summary.text
 
         on_page_links = error_summary.find_all("a")

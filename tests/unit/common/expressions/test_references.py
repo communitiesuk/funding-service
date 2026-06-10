@@ -1,15 +1,7 @@
 import pytest
 from pydantic import BaseModel
 
-from app.common.data.types import (
-    DataSourceSchema,
-    DataSourceSchemaColumn,
-    DataSourceType,
-    NumberTypeEnum,
-    QuestionDataOptions,
-    QuestionDataType,
-    QuestionPresentationOptions,
-)
+from app.common.data.types import DataSourceType
 from app.common.expressions.references import (
     DataSourceReference,
     ExpressionReference,
@@ -55,18 +47,8 @@ class TestExpressionReference:
 
         def test_data_source_reference_decomposes_to_ds_ref(self, factories):
             collection = factories.collection.build()
-            allocation_column = DataSourceSchemaColumn(
-                data_type=QuestionDataType.NUMBER,
-                presentation_options=QuestionPresentationOptions(prefix="£"),
-                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                original_column_name="Allocation",
-            )
             data_source = factories.data_source.build(
-                grant=collection.grant,
-                collection=collection,
-                type=DataSourceType.GRANT_RECIPIENT,
-                items=None,
-                schema=DataSourceSchema.model_validate({"c_allocation": allocation_column}),
+                grant=collection.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
             )
 
             reference = ExpressionReference.from_data_source_column(data_source, "c_allocation")

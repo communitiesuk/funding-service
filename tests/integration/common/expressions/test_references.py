@@ -3,13 +3,8 @@ from uuid import uuid4
 import pytest
 
 from app.common.data.types import (
-    DataSourceSchema,
-    DataSourceSchemaColumn,
     DataSourceType,
-    NumberTypeEnum,
-    QuestionDataOptions,
     QuestionDataType,
-    QuestionPresentationOptions,
 )
 from app.common.expressions.references import ExpressionReference
 
@@ -46,22 +41,12 @@ class TestExpressionReference:
     class TestDataSourceColumn:
         def test_data_source_exists(self, factories):
             collection = factories.collection.create()
-            allocation_column = DataSourceSchemaColumn(
-                data_type=QuestionDataType.NUMBER,
-                presentation_options=QuestionPresentationOptions(prefix="£"),
-                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                original_column_name="Allocation",
-            )
             data_source = factories.data_source.create(
-                grant=collection.grant,
-                collection=collection,
-                type=DataSourceType.GRANT_RECIPIENT,
-                items=None,
-                schema=DataSourceSchema.model_validate({"c_allocation": allocation_column}),
+                grant=collection.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
             )
 
             reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
-            assert reference.data_source_column == allocation_column
+            assert reference.data_source_column == data_source.schema.root["c_allocation"]
 
         def test_data_source_does_not_exist(self):
             reference = ExpressionReference(f"d_{uuid4().hex}.c_col")
@@ -74,20 +59,7 @@ class TestExpressionReference:
         def test_data_source_column_only_queries_db_on_first_access(self, factories, track_sql_queries):
             collection = factories.collection.create()
             data_source = factories.data_source.create(
-                grant=collection.grant,
-                collection=collection,
-                type=DataSourceType.GRANT_RECIPIENT,
-                items=None,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(prefix="£"),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Allocation",
-                        ),
-                    }
-                ),
+                grant=collection.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
             )
             reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
 
@@ -119,22 +91,9 @@ class TestExpressionReference:
             grant = factories.grant.create()
             collection = factories.collection.create(grant=grant)
             data_source = factories.data_source.create(
-                grant=grant,
-                collection=collection,
-                type=DataSourceType.GRANT_RECIPIENT,
-                items=None,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_threshold": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(prefix="£"),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Threshold",
-                        ),
-                    }
-                ),
+                grant=collection.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
             )
-            reference = ExpressionReference.from_data_source_column(data_source, "c_threshold")
+            reference = ExpressionReference.from_data_source_column(data_source, "c_allocation")
 
             assert reference.data_type == QuestionDataType.NUMBER
 
@@ -142,20 +101,7 @@ class TestExpressionReference:
             grant = factories.grant.create()
             collection = factories.collection.create(grant=grant)
             data_source = factories.data_source.create(
-                grant=grant,
-                collection=collection,
-                type=DataSourceType.GRANT_RECIPIENT,
-                items=None,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_threshold": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Threshold",
-                        ),
-                    }
-                ),
+                grant=collection.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
             )
             reference = ExpressionReference.from_data_source_column(data_source, "c_missing")
 
@@ -177,20 +123,9 @@ class TestExpressionReference:
     class TestGetDataSource:
         def test_data_source_exists(self, factories):
             collection = factories.collection.create()
-            allocation_column = DataSourceSchemaColumn(
-                data_type=QuestionDataType.NUMBER,
-                presentation_options=QuestionPresentationOptions(prefix="£"),
-                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                original_column_name="Allocation",
-            )
             data_source = factories.data_source.create(
-                grant=collection.grant,
-                collection=collection,
-                type=DataSourceType.GRANT_RECIPIENT,
-                items=None,
-                schema=DataSourceSchema.model_validate({"c_allocation": allocation_column}),
+                grant=collection.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
             )
-
             reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
             assert reference.data_source == data_source
 
@@ -205,20 +140,7 @@ class TestExpressionReference:
         def test_data_source_only_queries_db_on_first_access(self, factories, track_sql_queries):
             collection = factories.collection.create()
             data_source = factories.data_source.create(
-                grant=collection.grant,
-                collection=collection,
-                type=DataSourceType.GRANT_RECIPIENT,
-                items=None,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(prefix="£"),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Allocation",
-                        ),
-                    }
-                ),
+                grant=collection.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
             )
             reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
 
@@ -240,22 +162,11 @@ class TestExpressionReference:
 
         def test_data_source_label(self, factories):
             collection = factories.collection.create()
-            allocation_column = DataSourceSchemaColumn(
-                data_type=QuestionDataType.NUMBER,
-                presentation_options=QuestionPresentationOptions(prefix="£"),
-                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                original_column_name="Allocation",
-            )
             data_source = factories.data_source.create(
-                grant=collection.grant,
-                collection=collection,
-                type=DataSourceType.GRANT_RECIPIENT,
-                items=None,
-                schema=DataSourceSchema.model_validate({"c_allocation": allocation_column}),
+                grant=collection.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
             )
-
             reference = ExpressionReference(f"{data_source.safe_did}.c_allocation")
-            assert reference.label == f"{allocation_column.original_column_name} from {data_source.name} data set"
+            assert reference.label == f"Allocation from {data_source.name} data set"
 
         def test_invalid_reference_error(self):
             reference = ExpressionReference("something_else")
