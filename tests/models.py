@@ -885,6 +885,10 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
 
+    #
+    # class Params:
+    #     create_gr_org_items = False
+
     id = factory.LazyFunction(uuid4)
     type = DataSourceType.CUSTOM
 
