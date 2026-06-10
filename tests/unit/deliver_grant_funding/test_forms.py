@@ -9,14 +9,11 @@ from werkzeug.datastructures import FileStorage, MultiDict
 from wtforms import ValidationError
 
 from app.common.data.types import (
-    DataSourceSchema,
-    DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
     MaximumFileSize,
     NumberTypeEnum,
-    QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
@@ -577,19 +574,10 @@ class TestSelectDataSourceQuestionForm:
             form=integer_q1.form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE
         )
 
-        data_set_column = DataSourceSchemaColumn(
-            data_type=QuestionDataType.NUMBER,
-            presentation_options=QuestionPresentationOptions(),
-            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-            original_column_name="Capital Allocation",
-        )
-
         data_set = factories.data_source.build(
             grant=integer_q1.form.collection.grant,
             collection=integer_q1.form.collection,
-            name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate({"c_capital_allocation": data_set_column}),
         )
 
         all_questions = [integer_q1, multi_line_q, integer_q2, text_question, integer_q3, text_q4]
@@ -601,7 +589,10 @@ class TestSelectDataSourceQuestionForm:
         mocker.patch.object(group.form, "cached_all_components", [group] + all_questions)
         mocker.patch.object(ExpressionReference, "question", new_callable=mock.PropertyMock, return_value=None)
         mocker.patch.object(
-            ExpressionReference, "data_source_column", new_callable=mock.PropertyMock, return_value=data_set_column
+            ExpressionReference,
+            "data_source_column",
+            new_callable=mock.PropertyMock,
+            return_value=data_set.schema.root["c_allocation"],
         )
 
         form = SelectDataSourceQuestionForm(

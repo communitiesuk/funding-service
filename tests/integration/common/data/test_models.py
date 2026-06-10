@@ -750,7 +750,7 @@ class TestComponentReferenceModel:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, items=None
+            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
         )
         question = factories.question.create(form__collection=collection)
 
@@ -780,7 +780,10 @@ class TestComponentReferenceModel:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, items=None
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
         )
         q1 = factories.question.create(form__collection=collection)
         q2 = factories.question.create(form=q1.form)
@@ -800,7 +803,10 @@ class TestComponentReferenceModel:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, items=None
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
         )
         question = factories.question.create(form__collection=collection)
 
@@ -819,7 +825,10 @@ class TestComponentReferenceModel:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, items=None
+            name="Budget data",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
         )
         question = factories.question.create(form__collection=collection)
         db_session.add(
@@ -844,7 +853,10 @@ class TestDataSourceModel:
         report = factories.collection.create(grant=grant)
         org1, org2, org3, org4 = factories.organisation.create_batch(4)
         data_source = factories.data_source.create(
-            name="Test data set", grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT, items=None
+            name="Test data set",
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
         )
         org1_item = factories.data_source_organisation_item.create(
             data_source=data_source, external_id=org1.external_id

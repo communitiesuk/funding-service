@@ -4460,21 +4460,9 @@ class TestValidateAndSyncExpressionReferences:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_threshold": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Threshold",
-                    ),
-                }
-            ),
         )
         form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
@@ -4483,7 +4471,7 @@ class TestValidateAndSyncExpressionReferences:
             GreaterThan(
                 subject_reference=ExpressionReference.from_question(question),
                 minimum_value=None,
-                minimum_expression=ExpressionReference.from_data_source_column(data_source, "c_threshold"),
+                minimum_expression=ExpressionReference.from_data_source_column(data_source, "c_allocation"),
             ),
             ExpressionType.VALIDATION,
             user,
@@ -4501,18 +4489,16 @@ class TestValidateAndSyncExpressionReferences:
         assert ref.expression == expression
         assert ref.depends_on_component is None
         assert ref.depends_on_data_source == data_source
-        assert ref.depends_on_column_name == "c_threshold"
+        assert ref.depends_on_column_name == "c_allocation"
 
     def test_creates_column_references_for_both_between_bounds(self, db_session, factories):
         user = factories.user.create()
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
             schema=DataSourceSchema.model_validate(
                 {
                     "c_min": DataSourceSchemaColumn(
@@ -4560,27 +4546,9 @@ class TestValidateAndSyncExpressionReferences:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_min": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Min",
-                    ),
-                    "c_max": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Max",
-                    ),
-                }
-            ),
         )
         form = factories.form.create(collection=collection)
         min_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
@@ -4592,7 +4560,7 @@ class TestValidateAndSyncExpressionReferences:
                 minimum_value=None,
                 minimum_expression=ExpressionReference.from_question(min_question),
                 maximum_value=None,
-                maximum_expression=ExpressionReference.from_data_source_column(data_source, "c_max"),
+                maximum_expression=ExpressionReference.from_data_source_column(data_source, "c_allocation"),
             ),
             ExpressionType.VALIDATION,
             user,
@@ -4607,28 +4575,16 @@ class TestValidateAndSyncExpressionReferences:
         component_refs = [ref for ref in expression.component_references if ref.depends_on_component_id]
         column_refs = [ref for ref in expression.component_references if ref.depends_on_data_source_id]
         assert {ref.depends_on_component for ref in component_refs} == {min_question}
-        assert {ref.depends_on_column_name for ref in column_refs} == {"c_max"}
+        assert {ref.depends_on_column_name for ref in column_refs} == {"c_allocation"}
 
     def test_rejects_column_reference_to_missing_column(self, db_session, factories):
         user = factories.user.create()
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_threshold": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Threshold",
-                    ),
-                }
-            ),
         )
         form = factories.form.create(collection=collection)
         question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
@@ -4908,21 +4864,9 @@ class TestValidateAndSyncComponentReferences:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Allocation",
-                    )
-                }
-            ),
         )
         form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)
@@ -4945,11 +4889,9 @@ class TestValidateAndSyncComponentReferences:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
             schema=DataSourceSchema.model_validate(
                 {
                     "c_allocation": DataSourceSchemaColumn(
@@ -4994,21 +4936,9 @@ class TestValidateAndSyncComponentReferences:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            items=None,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Allocation",
-                    ),
-                }
-            ),
         )
         form = factories.form.create(collection=collection)
         question = factories.question.create(form=form)

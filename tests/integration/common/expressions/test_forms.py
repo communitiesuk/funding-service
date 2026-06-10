@@ -6,15 +6,12 @@ from werkzeug.datastructures import MultiDict
 from app.common.data.interfaces.collections import DependencyOrderException, IncompatibleDataTypeInCalculationException
 from app.common.data.interfaces.exceptions import InvalidReferenceInExpression
 from app.common.data.types import (
-    DataSourceSchema,
-    DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
     NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
-    QuestionPresentationOptions,
 )
 from app.common.expressions import (
     DisallowedExpression,
@@ -660,16 +657,6 @@ class TestValidateCustomSyntax:
             grant=db_form.collection.grant,
             collection=db_form.collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
@@ -678,7 +665,7 @@ class TestValidateCustomSyntax:
         _validate_custom_syntax(
             q3,
             ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
-            f"(({q3.safe_qid})) < (({data_source.safe_did}.c_capital_allocation))",
+            f"(({q3.safe_qid})) < (({data_source.safe_did}.c_allocation))",
             ExpressionType.VALIDATION,
             "custom_expression",
             validate_with_evaluation=True,

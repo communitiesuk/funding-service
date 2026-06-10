@@ -12,7 +12,6 @@ from app.common.data.types import (
     DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
-    NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -252,23 +251,13 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "capital_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(),
-                            data_options=QuestionDataOptions(),
-                            original_column_name="Capital Allocation",
-                        )
-                    }
-                ),
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
 
             assert data_source.safe_did in context
-            assert context[data_source.safe_did]["capital_allocation"] is None
+            assert context[data_source.safe_did]["c_allocation"] is None
 
         def test_org_item_none_interpolation_exposes_placeholder_labels(self, factories):
             grant = factories.grant.create()
@@ -281,26 +270,13 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "capital_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(),
-                            data_options=QuestionDataOptions(),
-                            original_column_name="Capital Allocation",
-                        )
-                    }
-                ),
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
 
             assert data_source.safe_did in context
-            assert (
-                context[data_source.safe_did]["capital_allocation"]
-                == "((Capital Allocation from Allocations data set))"
-            )
+            assert context[data_source.safe_did]["c_allocation"] == "((Allocation from Allocations data set))"
 
         def test_non_dict_typed_data_is_skipped(self, factories, mocker):
             grant = factories.grant.create()
@@ -312,21 +288,11 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_capital_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Capital Allocation",
-                        )
-                    }
-                ),
             )
             org_item = factories.data_source_organisation_item.create(
                 data_source=data_source,
                 external_id=organisation.external_id,
-                _data={"c_capital_allocation": 1000},
+                _data={"c_allocation": 1000},
             )
 
             mocker.patch.object(type(org_item), "data", new_callable=PropertyMock, return_value=[{"col": "val"}])
@@ -345,28 +311,18 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_capital_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Capital Allocation",
-                        )
-                    }
-                ),
             )
             factories.data_source_organisation_item.create(
                 data_source=data_source,
                 external_id=organisation.external_id,
-                _data={"c_capital_allocation": 1000},
+                _data={"c_allocation": 1000},
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
 
             assert data_source.safe_did in context
-            assert context[data_source.safe_did]["c_capital_allocation"] == 1000
+            assert context[data_source.safe_did]["c_allocation"] == 1000
 
         def test_data_source_organisation_item_filtering(self, factories):
             grant = factories.grant.create()
@@ -384,35 +340,25 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_capital_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(prefix="£"),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Capital Allocation",
-                        )
-                    }
-                ),
             )
             factories.data_source_organisation_item.create(
                 data_source=data_source,
                 external_id=organisation.external_id,
-                _data={"c_capital_allocation": 1000},
+                _data={"c_allocation": 1000},
             )
             factories.data_source_organisation_item.create(
                 data_source=data_source,
                 external_id=organisation_2.external_id,
-                _data={"c_capital_allocation": 9999},
+                _data={"c_allocation": 9999},
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
-            assert context[data_source.safe_did]["c_capital_allocation"] == "£1,000"
+            assert context[data_source.safe_did]["c_allocation"] == "£1,000"
 
             helper = SubmissionHelper.load(submission_2.id, grant_recipient_id=grant_recipient_2.id)
             context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
-            assert context[data_source.safe_did]["c_capital_allocation"] == "£9,999"
+            assert context[data_source.safe_did]["c_allocation"] == "£9,999"
 
         def test_real_org_item_interpolation_returns_formatted_string(self, factories):
             grant = factories.grant.create()
@@ -424,28 +370,18 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_capital_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(prefix="£"),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Capital Allocation",
-                        )
-                    }
-                ),
             )
             factories.data_source_organisation_item.create(
                 data_source=data_source,
                 external_id=organisation.external_id,
-                _data={"c_capital_allocation": 1000},
+                _data={"c_allocation": 1000},
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
 
             assert data_source.safe_did in context
-            assert context[data_source.safe_did]["c_capital_allocation"] == "£1,000"
+            assert context[data_source.safe_did]["c_allocation"] == "£1,000"
 
         def test_none_column_value_in_org_item_not_in_context(self, factories):
             # This is explicitly testing _build_data_source_context where _data with None values do not get added to
@@ -460,27 +396,17 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "c_capital_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(),
-                            data_options=QuestionDataOptions(),
-                            original_column_name="Capital Allocation",
-                        )
-                    }
-                ),
             )
             factories.data_source_organisation_item.create(
                 data_source=data_source,
                 external_id=organisation.external_id,
-                _data={"c_capital_allocation": None},
+                _data={"c_allocation": None},
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
 
-            assert "c_capital_allocation" not in context[data_source.safe_did]
+            assert "c_allocation" not in context[data_source.safe_did]
 
         def test_multiple_data_sources_all_included(self, factories):
             grant = factories.grant.create()
@@ -494,16 +420,6 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate(
-                    {
-                        "capital_allocation": DataSourceSchemaColumn(
-                            data_type=QuestionDataType.NUMBER,
-                            presentation_options=QuestionPresentationOptions(),
-                            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                            original_column_name="Capital Allocation",
-                        )
-                    }
-                ),
             )
             ds2 = factories.data_source.create(
                 name="Test data set 2",
@@ -961,28 +877,18 @@ class TestDataSourceInterpolation:
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id=organisation.external_id,
-            _data={"c_capital_allocation": 1000},
+            _data={"c_allocation": 1000},
         )
 
         helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
         ds_context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
         context = ExpressionContext(data_source_context=ds_context)
 
-        result = interpolate(f"(({data_source.safe_did}.c_capital_allocation))", context)
+        result = interpolate(f"(({data_source.safe_did}.c_allocation))", context)
         assert result == "£1,000"
 
     def test_data_source_reference_with_no_org_item_renders_placeholder(self, factories):
@@ -992,28 +898,17 @@ class TestDataSourceInterpolation:
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
         submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
         data_source = factories.data_source.create(
-            name="Allocations",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
 
         helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
         ds_context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
         context = ExpressionContext(data_source_context=ds_context)
 
-        result = interpolate(f"(({data_source.safe_did}.capital_allocation))", context)
-        assert result == "((Capital Allocation from Allocations data set))"
+        result = interpolate(f"(({data_source.safe_did}.c_allocation))", context)
+        assert result == "((Allocation from Grant allocation data set))"
 
     def test_unknown_data_source_reference_renders_raw(self):
         context = ExpressionContext(data_source_context={})
@@ -1033,21 +928,11 @@ class TestDataSourceEvaluation:
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate(
-                {
-                    "c_capital_allocation": DataSourceSchemaColumn(
-                        data_type=QuestionDataType.NUMBER,
-                        presentation_options=QuestionPresentationOptions(prefix="£"),
-                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
-                        original_column_name="Capital Allocation",
-                    )
-                }
-            ),
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
             external_id=organisation.external_id,
-            _data={"c_capital_allocation": 1000},
+            _data={"c_allocation": 1000},
         )
 
         helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
@@ -1055,7 +940,7 @@ class TestDataSourceEvaluation:
         context = ExpressionContext(data_source_context=ds_context)
 
         expr = Expression(
-            statement=f"{data_source.safe_did}.c_capital_allocation > 500",
+            statement=f"{data_source.safe_did}.c_allocation > 500",
             type_=ExpressionType.CONDITION,
         )
         assert evaluate(expr, context) is True
