@@ -3782,7 +3782,7 @@ def view_data_source(
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_source = get_data_source(data_source_id, with_organisation_items=True, with_data_source_items=True)
+    data_source = get_data_source(data_source_id, with_organisation_items=True)
 
     # TODO FSPT-1044: We should do this filtering in the interface rather than here
     if data_source.collection_id != collection_id or data_source.grant_id != grant_id:

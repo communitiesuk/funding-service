@@ -2,6 +2,7 @@ import csv
 import uuid
 from io import StringIO
 
+from app.common.data.interfaces.data_sets import get_data_source
 from app.common.data.types import (
     DataSourceSchemaColumn,
     DataSourceType,
@@ -509,7 +510,7 @@ class TestGenerateLatestCsvTemplate:
         )
 
         csv_content = generate_latest_csv_template(data_source)
-        reader = csv.reader(StringIO(csv_content))
+        reader = csv.reader(StringIO(csv_content.getvalue()))
 
         rows = list(reader)
         assert len(rows) == 4
@@ -545,7 +546,7 @@ class TestGenerateLatestCsvTemplate:
         )
 
         csv_content = generate_latest_csv_template(data_source)
-        reader = csv.reader(StringIO(csv_content))
+        reader = csv.reader(StringIO(csv_content.getvalue()))
 
         rows = list(reader)
         assert len(rows) == 5
@@ -575,7 +576,7 @@ class TestGenerateLatestCsvTemplate:
         db_session.delete(gr3)
 
         csv_content = generate_latest_csv_template(data_source)
-        reader = csv.reader(StringIO(csv_content))
+        reader = csv.reader(StringIO(csv_content.getvalue()))
 
         rows = list(reader)
         assert len(rows) == 3
@@ -601,7 +602,7 @@ class TestGenerateLatestCsvTemplate:
         )
 
         csv_content = generate_latest_csv_template(data_source)
-        reader = csv.reader(StringIO(csv_content))
+        reader = csv.reader(StringIO(csv_content.getvalue()))
 
         rows = list(reader)
         assert len(rows) == 4
@@ -646,7 +647,7 @@ class TestGenerateLatestCsvTemplate:
         db_session.flush()
 
         csv_content = generate_latest_csv_template(data_source)
-        reader = csv.reader(StringIO(csv_content))
+        reader = csv.reader(StringIO(csv_content.getvalue()))
 
         rows = list(reader)
         assert len(rows) == 4
@@ -681,7 +682,7 @@ class TestGenerateLatestCsvTemplate:
         db_session.flush()
 
         csv_content = generate_latest_csv_template(data_source)
-        reader = csv.reader(StringIO(csv_content))
+        reader = csv.reader(StringIO(csv_content.getvalue()))
 
         rows = list(reader)
         assert len(rows) == 4
@@ -690,3 +691,28 @@ class TestGenerateLatestCsvTemplate:
         assert rows[1] == ["EC123", gr.organisation.name, "1", ""]
         assert rows[2] == ["EC456", gr2.organisation.name, "2", ""]
         assert rows[3] == ["EC789", gr3.organisation.name, "3", ""]
+
+    def test_generate_csv_large(self, factories, track_sql_queries, db_session):
+        grant = factories.grant.create()
+        factories.grant_recipient.create_batch(20, grant=grant)
+
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        db_session.expire_all()
+
+        # retrieve this here to mimic the behaviour of the route
+        data_source = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
+        with track_sql_queries() as queries:
+            result = generate_latest_csv_template(data_source)
+
+        reader = csv.reader(StringIO(result.getvalue()))
+
+        rows = list(reader)
+        assert len(rows) == 21
+        assert len(queries) == 3

@@ -7,17 +7,24 @@ from typing import TYPE_CHECKING, Sequence
 from flask import current_app
 from pydantic import BaseModel, Field
 
+from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.types import (
+    DataSourceType,
     NumberTypeEnum,
+    OrganisationModeEnum,
     QuestionDataType,
     TUnvalidatedDataSetRow,
     TUnvalidatedDataSetRows,
 )
-from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
+from app.constants import (
+    DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+    DATA_SET_IDENTIFIER_COLUMN_HEADERS,
+)
 from app.deliver_grant_funding.session_models import DataSetColumnMapping, DataSetUploadSessionModel
 
 if TYPE_CHECKING:
-    from app.common.data.models import GrantRecipient
+    from app.common.data.models import DataSource, GrantRecipient
 
 
 class CellError(BaseModel):
@@ -243,13 +250,36 @@ def check_missing_data(data_columns: list[str], all_rows: TUnvalidatedDataSetRow
     return result
 
 
-def generate_latest_csv_template() -> str:
-    headers = ["Organisation ID", "Grant recipient"]
+def generate_latest_csv_template(data_source: DataSource) -> StringIO:
+    if not data_source.type == DataSourceType.GRANT_RECIPIENT or not data_source.grant or not data_source.schema:
+        raise NotImplementedError("Cannot generate latest CSV template for a non-grant recipient data source")
+
+    headers = []
+    headers += DATA_SET_IDENTIFIER_COLUMN_HEADERS
+    for _, col_schema in data_source.schema.root.items():
+        headers.append(col_schema.original_column_name)
+
     csv_output = StringIO()
     csv_writer = csv.DictWriter(csv_output, fieldnames=headers)
     csv_writer.writeheader()
-    #
-    # row_data = {}
-    # csv_writer.writerow(row_data)
+    grant_recipients = get_grant_recipients(grant=data_source.grant, with_organisations=True)
+    for gr in grant_recipients:
+        if gr.organisation.mode == OrganisationModeEnum.TEST:
+            continue
 
-    return csv_output.getvalue()
+        row_data = {
+            DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+            DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+        }
+        organisation_data_item = data_source.get_filtered_organisation_item(
+            organisation_external_id=gr.organisation.external_id
+        )
+        if organisation_data_item and organisation_data_item.data:
+            for k, v in organisation_data_item.data.items():
+                if not v:
+                    continue
+                row_data[data_source.schema.root[k].original_column_name] = str(v.get_value_for_evaluation())
+
+        csv_writer.writerow(row_data)
+
+    return csv_output

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import lazyload, selectinload
 
 from app.common.data.interfaces.collections import raise_if_data_source_has_references
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
@@ -31,15 +31,12 @@ def get_data_source(
     data_source_id: uuid.UUID,
     *,
     with_organisation_items: bool = False,
-    with_data_source_items: bool = False,
 ) -> DataSource:
     stmt = select(DataSource).where(DataSource.id == data_source_id)
 
     if with_organisation_items:
         stmt = stmt.options(selectinload(DataSource.organisation_items))
-
-    if with_data_source_items:
-        stmt = stmt.options(selectinload(DataSource.items))
+        stmt = stmt.options(lazyload(DataSource.items))
 
     return db.session.execute(stmt).scalar_one()
 

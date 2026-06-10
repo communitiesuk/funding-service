@@ -480,38 +480,6 @@ class TestGetDataSource:
 
         assert len(queries) == 0
 
-    def test_get_data_source_with_data_source_items(self, db_session, factories, track_sql_queries):
-        data_source = factories.data_source.create()
-        db_session.expire_all()
-
-        from_db = get_data_source(data_source.id, with_data_source_items=True)
-
-        with track_sql_queries() as queries:
-            items = from_db.items
-            assert len(items) == 3
-
-        assert len(queries) == 0
-
-    def test_get_data_source_with_both_flags(self, db_session, factories, track_sql_queries):
-
-        grant = factories.grant.create()
-        factories.grant_recipient.create(grant=grant)
-        data_source = factories.data_source.create(
-            grant=grant,
-            collection=factories.collection.create(grant=grant),
-            type=DataSourceType.GRANT_RECIPIENT,
-            create_gr_org_items=True,
-        )
-        db_session.expire_all()
-
-        from_db = get_data_source(data_source.id, with_organisation_items=True, with_data_source_items=True)
-
-        with track_sql_queries() as queries:
-            assert len(from_db.organisation_items) == 1
-            assert len(from_db.items) == 0
-
-        assert len(queries) == 0
-
     def test_get_data_source_without_flags_does_not_eagerly_load_items(self, db_session, factories, track_sql_queries):
         grant = factories.grant.create()
         factories.grant_recipient.create(grant=grant)
