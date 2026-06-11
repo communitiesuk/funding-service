@@ -181,9 +181,10 @@ class NotificationService:
                 "reference": submission.reference,
                 "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
                 "grant_report_url": url_for(
-                    "access_grant_funding.view_locked_report",
+                    "access_grant_funding.view_locked_submission",
                     organisation_id=submission.grant_recipient.organisation.id,
                     grant_id=submission.grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
                     submission_id=submission.id,
                     _external=True,
                 ),
@@ -204,9 +205,10 @@ class NotificationService:
             else "(Dates to be confirmed)",
             "is_test_data": ("yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
             "grant_report_url": url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=submission.grant_recipient.organisation.id,
                 grant_id=submission.grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 _external=True,
             ),
@@ -353,9 +355,10 @@ class NotificationService:
             if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
             else "no",
             "grant_report_url": url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
                 grant_id=submission_helper.submission.grant_recipient.grant.id,
+                collection_type=submission_helper.collection.type,
                 submission_id=submission_helper.id,
                 _external=True,
             ),

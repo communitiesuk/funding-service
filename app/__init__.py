@@ -179,14 +179,14 @@ def _register_custom_converters(app: Flask) -> None:
     class CollectionTypeConverter(BaseConverter):
         def to_python(self, value: str) -> CollectionType:
             try:
-                return CollectionType[value.upper()]
-            except KeyError as e:
+                return CollectionType.from_slug(value)
+            except ValueError as e:
                 # validation error raised in the context of rule converter will indicate the URL doesn't match
                 # and move on to match other routes or eventually 404
                 raise ValidationError from e
 
         def to_url(self, value: CollectionType) -> str:
-            return value.name.lower()
+            return value.constants.slug
 
     app.url_map.converters["submission_mode"] = SubmissionModeConverter
     app.url_map.converters["expression_reference"] = ExpressionReferenceConverter

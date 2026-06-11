@@ -158,10 +158,36 @@ class Grant(BaseModel):
             access_reports, key=lambda report: (report.status, report.submission_period_end_date or datetime.date.max)
         )
 
+    def get_access_pre_award_forms_for_user(
+        self, user: User | None = None, *, user_organisation: Organisation | None = None
+    ) -> list[Collection]:
+        from app.common.auth.authorisation_helper import AuthorisationHelper
+
+        # Deliver users testing Access see all pre-award forms
+        if user and AuthorisationHelper.is_deliver_user_testing_access(user, user_organisation=user_organisation):
+            return sorted(
+                self.pre_award_forms,
+                key=lambda form: (form.status, form.submission_period_end_date or datetime.date.max),
+            )
+
+        # Regular Access users see only OPEN/CLOSED pre-award forms
+        access_forms = [
+            form
+            for form in self.pre_award_forms
+            if form.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED]
+        ]
+        return sorted(
+            access_forms, key=lambda form: (form.status, form.submission_period_end_date or datetime.date.max)
+        )
+
     @property
     def access_reports(self) -> list[Collection]:
         """Backward compatibility - uses regular Access user filtering."""
         return self.get_access_reports_for_user(user=None)
+
+    @property
+    def access_pre_award_forms(self) -> list[Collection]:
+        return self.get_access_pre_award_forms_for_user(user=None)
 
     @property
     def can_go_live(self) -> bool:

@@ -586,9 +586,10 @@ class TestTasklist:
 
         assert response.status_code == 302
         expected_location = url_for(
-            "access_grant_funding.view_locked_report",
+            "access_grant_funding.view_locked_submission",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission.collection.type,
             submission_id=submission.id,
         )
         assert response.location == expected_location
@@ -657,7 +658,7 @@ class TestTasklist:
             data_provider_confirmation_email = mock_notification_service_calls[0]
             certifier_notification_email = mock_notification_service_calls[1]
             assert data_provider_confirmation_email.kwargs["personalisation"]["grant_report_url"] == AnyStringMatching(
-                r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+"
+                r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+/view"
             )
             assert certifier_notification_email.kwargs["personalisation"]["report_submitter"] == client.user.name
 
@@ -684,7 +685,7 @@ class TestTasklist:
 
         expected_location = (
             f"/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}"
-            f"/reports/{submission_ready_to_submit.id}/confirm-report-submission"
+            f"/reports/{submission_ready_to_submit.id}/confirm-submission"
         )
         assert response.location == expected_location
         assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
@@ -722,7 +723,7 @@ class TestTasklist:
         assert len(mock_notification_service_calls) == 2
         data_provider_confirmation_email = mock_notification_service_calls[0]
         assert data_provider_confirmation_email.kwargs["personalisation"]["grant_report_url"] == AnyStringMatching(
-            r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+"
+            r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+/view"
         )
 
     def test_post_tasklist_shows_validation_error_when_answers_invalid(
@@ -809,9 +810,10 @@ class TestTasklist:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.view_locked_report",
+            "access_grant_funding.view_locked_submission",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission.collection.type,
             submission_id=submission.id,
         )
 
@@ -1824,9 +1826,10 @@ class TestAskAQuestion:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.view_locked_report",
+            "access_grant_funding.view_locked_submission",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission.collection.type,
             submission_id=submission.id,
         )
 
@@ -2084,9 +2087,10 @@ class TestCheckYourAnswers:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.view_locked_report",
+            "access_grant_funding.view_locked_submission",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission.collection.type,
             submission_id=submission.id,
         )
 
@@ -2200,7 +2204,7 @@ class TestConfirmSentForCertification:
     @pytest.mark.parametrize(
         "allow_multiple_submissions, expected_back_link_route",
         [
-            (False, "access_grant_funding.list_reports"),
+            (False, "access_grant_funding.list_collections"),
             (True, "access_grant_funding.list_collection_submissions"),
         ],
     )

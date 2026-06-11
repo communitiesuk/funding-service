@@ -5,13 +5,13 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
 {% set page_title = collection.name %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = collection.type.constants.active_nav %}
 
 {% block beforeContent %}
   {{ super() }}
   {{
     govukBackLink({
-      "href": url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
+      "href": url_for("access_grant_funding.list_collections", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id),
       "text": "Back"
     })
   }}
@@ -44,7 +44,7 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
       {% if submission_helpers|length == 0 %}
-        <p class="govuk-body govuk-!-margin-bottom-7">You have not started any reports yet.</p>
+        <p class="govuk-body govuk-!-margin-bottom-7">You have not started any {{ collection.type.constants.plural }} yet.</p>
       {% else %}
         {% set rows=[] %}
         {% for submission_helper in submission_helpers|sort(attribute="submission_name") %}

@@ -41,7 +41,7 @@ class TestListReports:
         assert client.grant.name in soup.text
 
         expected_links = [
-            ("Add a monitoring report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/set-up")),
+            ("Add a monitoring report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/set-up")),
         ]
         for expected_link in expected_links:
             button = page_has_link(soup, expected_link[0])
@@ -74,27 +74,27 @@ class TestListReports:
         test_submission_links = page_has_link(soup, "0 test submissions")
         assert test_submission_links is not None
         assert test_submission_links.get("href") == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/submissions/test"
+            r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/submissions/test"
         )
 
         live_submissions_links = page_has_link(soup, "0 live submissions")
         assert live_submissions_links is not None
         assert live_submissions_links.get("href") == AnyStringMatching(
-            r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/submissions/live"
+            r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/submissions/live"
         )
 
         expected_links = [
             (
                 "Add another monitoring report",
-                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/set-up"),
+                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/set-up"),
             ),
             (
                 "Add sections",
-                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/add-section"),
+                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/add-section"),
             ),
             (
                 "Change name",
-                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/change-name"),
+                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/change-name"),
             ),
             ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports\?delete")),
         ]

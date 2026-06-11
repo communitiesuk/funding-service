@@ -1,0 +1,136 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import multiSubmissionStatusTag with context %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+
+{% set page_title = "Forms" %}
+{% set active_item_identifier = "pre_award" %}
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_SIGN_OFF_DECLINED]) %}
+        {% if flashes %}
+          {% set submission_declined_html %}
+            <h3 class="govuk-notification-banner__heading">{{ flashes[0]["collection_type_singular"] | uppercase_first }} declined</h3>
+            <p class="govuk-body">
+              {{ flashes[0]["collection_name"] }} {{ flashes[0]["collection_type_singular"] }} for {{ flashes[0]["grant_name"] }} sign off declined and sent back to {{ flashes[0]["sent_for_certification_by"] }}.
+              <a
+                class="govuk-notification-banner__link"
+                href="{{ url_for('access_grant_funding.route_to_submission', grant_id=grant_recipient.grant_id, organisation_id=grant_recipient.organisation_id,collection_id=flashes[0]["collection_id"]) }}">
+                View {{ flashes[0]["collection_type_singular"] }}
+              </a>
+            </p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": submission_declined_html,
+              "type":"success",
+              "titleText": "Confirmed"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Forms</h1>
+    </div>
+  </div>
+  {% if pre_award_forms|length > 0 %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+        <h2 class="govuk-heading-m">Grant funding</h2>
+        <p class="govuk-body">View and complete forms relating to grant funding. These may include forms to apply for, express interest for, or accept grant funding.</p>
+      </div>
+    </div>
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-full govuk-!-margin-bottom-6">{{ collections_table(pre_award_forms, enum.collection_type_enum.APPLICATION) }}</div>
+    </div>
+  {% endif %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m">Monitoring reports</h2>
+      <p class="govuk-body">View and complete monitoring reports if you have been successful for grant funding.</p>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% if monitoring_reports|length == 0 %}
+        <p class="govuk-body">There are no reports for this grant.</p>
+      {% else %}
+        {{ collections_table(monitoring_reports, enum.collection_type_enum.MONITORING_REPORT) }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+
+{% macro collections_table(collections, section_collection_type) %}
+  {% set rows=[] %}
+  {% for collection in collections %}
+    {% set collection_name = collection.name or (format_date_range_short(collection.reporting_period_start_date, collection.reporting_period_end_date) if (collection.reporting_period_start_date and collection.reporting_period_end_date) else "Dates to be confirmed") %}
+    {% set collection_submissions = submissions | selectattr("collection_id", "equalto", collection.id) | list %}
+    {% set collection_helper = collection_helpers | selectattr("id", "equalto", collection.id) | list | first %}
+
+    {% if collection.allow_multiple_submissions %}
+      {% set submission_status_html %}
+        {{ multiSubmissionStatusTag(collection_submissions, collection_helper, collection.is_overdue) }}
+      {% endset %}
+      {% set collection_action_html %}
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.route_to_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=collection.id) }}">
+          Go to {{ collection.type.constants.plural }}
+          <span class="govuk-visually-hidden"> for {{ collection_name }} </span>
+        </a>
+      {% endset %}
+      {%
+        do rows.append([
+          {"text": collection_name},
+          {"text": format_date_short(collection.submission_period_end_date) if collection.submission_period_end_date else "Dates to be confirmed"},
+          {"html": submission_status_html},
+          {"html": collection_action_html}
+        ])
+      %}
+    {% else %}
+      {% set submission = (collection_submissions | first) if collection_submissions else none %}
+      {% set submission_status = SubmissionHelper.get_status(submission.submission, collection) %}
+      {% set submission_status_html %}
+        {{ submissionStatusTag(submission_status, submission.is_overdue if submission else collection.is_overdue) }}
+      {% endset %}
+      {% set collection_action_config = SubmissionHelper.get_access_submission_action(collection, grant_recipient, submission.submission) %}
+      {% set collection_action_html %}
+        {% if collection_action_config.href %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ collection_action_config.href }}">
+            {{ collection_action_config.label }}
+            <span class="govuk-visually-hidden"> for {{ collection_name }} </span>
+          </a>
+        {% elif collection_action_config.label %}
+          <span>{{ collection_action_config.label }}</span>
+        {% endif %}
+      {% endset %}
+      {# todo: standardise this behaviour everywhere by adding this logic as a property on the model if its signed off #}
+      {%
+        do rows.append([
+          {"text": collection_name},
+          {"text": format_date_short(collection.submission_period_end_date) if collection.submission_period_end_date else "Dates to be confirmed"}, {"html": submission_status_html},
+          {"html": collection_action_html}
+        ])
+      %}
+    {% endif %}
+  {% endfor %}
+  {% set actions_html %}
+    <span class="govuk-visually-hidden">Actions</span>
+  {% endset %}
+  {{
+    govukTable(params={
+            "firstCellIsHeader": false,
+            "head":[
+              {"text": section_collection_type.constants.plural | uppercase_first},
+              {"text": "Due date"},
+              {"text": "Status"},
+              {"html": actions_html}
+            ],
+            "rows":rows
+    })
+  }}
+{% endmacro %}

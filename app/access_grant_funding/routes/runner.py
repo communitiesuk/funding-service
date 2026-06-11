@@ -52,9 +52,10 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
     if submission_helper.in_answers_locked_state:
         return redirect(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -159,9 +160,10 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
     if runner.submission.in_answers_locked_state:
         return redirect(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
+                collection_type=runner.submission.collection.type,
                 submission_id=submission_id,
             )
         )
@@ -185,15 +187,18 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
                 )
             return redirect(
                 url_for(
-                    "access_grant_funding.confirm_report_submission_direct_submission",
+                    "access_grant_funding.confirm_submission_direct_submission",
                     organisation_id=organisation_id,
                     grant_id=grant_id,
+                    collection_type=runner.submission.collection.type,
                     submission_id=submission_id,
                 )
             )
 
     # if complete_submission failed, the runner has appended errors to the form which will show to the user
-    return render_template("access_grant_funding/reports/tasklist.html", grant_recipient=grant_recipient, runner=runner)
+    return render_template(
+        "access_grant_funding/collections/tasklist.html", grant_recipient=grant_recipient, runner=runner
+    )
 
 
 @access_grant_funding_blueprint.route(
@@ -257,7 +262,7 @@ def ask_a_question(
             return redirect(runner.next_url)
 
     return render_template(
-        "access_grant_funding/reports/ask_a_question.html", grant_recipient=grant_recipient, runner=runner
+        "access_grant_funding/collections/ask_a_question.html", grant_recipient=grant_recipient, runner=runner
     )
 
 
@@ -290,7 +295,7 @@ def check_your_answers(
             return abort(403, description="Access denied")
 
     return render_template(
-        "access_grant_funding/reports/check_your_answers.html", grant_recipient=grant_recipient, runner=runner
+        "access_grant_funding/collections/check_your_answers.html", grant_recipient=grant_recipient, runner=runner
     )
 
 
@@ -312,7 +317,7 @@ def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submis
             )
         )
     return render_template(
-        "access_grant_funding/reports/sent_for_sign_off_confirmation.html",
+        "access_grant_funding/collections/sent_for_sign_off_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
     )

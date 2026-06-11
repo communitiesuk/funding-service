@@ -3,7 +3,7 @@
 {% extends "access_grant_funding/base.html" %}
 
 {% set page_title = "Check your answers - " ~ runner.form.title %}
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = runner.submission.collection.type.constants.active_nav %}
 
 {% set form = runner.check_your_answers_form %}
 

@@ -4,22 +4,23 @@
 {% from "common/macros/status.html" import submissionStatusTag with context %}
 {% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 
-{% set page_title = ("Review report: " ~ submission.long_collection_name) if submission.is_awaiting_sign_off else submission.long_collection_name %}
+{% set constants = submission.collection.type.constants %}
+{% set page_title = ("Review " ~ constants.singular ~ ": " ~ submission.long_collection_name) if submission.is_awaiting_sign_off else submission.long_collection_name %}
 
 {% set mainClasses = "app-full-screen-with-section-nav" %}
 
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = constants.active_nav %}
 {% block beforeContent %}
   {{ super() }}
 
   {{
     govukBackLink({
       "href": (
-        url_for("access_grant_funding.list_reports", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id)
+        url_for("access_grant_funding.list_collections", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id)
         if not submission.collection.allow_multiple_submissions else
         url_for("access_grant_funding.list_collection_submissions", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=submission.collection_id)
       ),
-      "text": "Back to reports"
+      "text": "Back to " ~ constants.plural
     })
   }}
 {% endblock beforeContent %}
@@ -28,7 +29,7 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-one-quarter-from-desktop app-section-nav-container">
-      <nav aria-label="Report sections">
+      <nav aria-label="{{ constants.singular | uppercase_first }} sections">
         <ul class="govuk-list app-section-nav-list">
           <li class="app-section-nav-list__item app-section-nav-list__item--active"><a class="govuk-link govuk-link--no-visited-state" href="#submission">{{ page_title }}</a></li>
 
@@ -37,7 +38,7 @@
           {% endfor %}
 
           {% if should_certify %}
-            <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#sign-off-and-submit-report">Sign off and submit report</a></li>
+            <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#sign-off-and-submit-{{ constants.singular }}">Sign off and submit {{ constants.singular }}</a></li>
           {% endif %}
         </ul>
       </nav>
@@ -45,8 +46,8 @@
       <a
         class="govuk-button govuk-button--secondary"
         download
-        href="{{ url_for('access_grant_funding.export_report_pdf', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission.submission.id) }}">
-        Download report PDF
+        href="{{ url_for('access_grant_funding.export_submission_pdf', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_type=submission.collection.type, submission_id=submission.submission.id) }}">
+        Download {{ constants.singular }} PDF
       </a>
     </div>
     <div class="govuk-grid-column-three-quarters-from-desktop app-section-content-container">
@@ -92,9 +93,9 @@
           <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(submission.status, submission.is_overdue) }}</dd>
         </dl>
       {% else %}
-        {# we should only show this page for a non-submitted report if the collection is locked #}
+        {# we should only show this page for a non-submitted collection if it is locked #}
         {# and we're showing the users incomplete answers #}
-        {{ govukInsetText({"text": "You cannot edit or submit this report."} ) }}
+        {{ govukInsetText({"text": "You cannot edit or submit this " ~ constants.singular ~ "."} ) }}
 
         <dl class="app-metadata">
           <dt class="app-metadata__key">Submission deadline:</dt>
@@ -112,19 +113,21 @@
       {% endfor %}
 
       {% if should_certify %}
-        <h2 id="sign-off-and-submit-report" class="govuk-heading-m govuk-!-margin-top-9">Sign off and submit report</h2>
+        <h2 id="sign-off-and-submit-{{ constants.singular }}" class="govuk-heading-m govuk-!-margin-top-9">Sign off and submit {{ constants.singular }}</h2>
         <p class="govuk-body">
-          Sign off and submit the report to the {{ submission.collection.grant.organisation.name }} by
+          Sign off and submit the {{ constants.singular }} to the {{ submission.collection.grant.organisation.name }} by
           {{ format_date_short(submission.collection.submission_period_end_date) if submission.collection.submission_period_end_date else "(Dates to be confirmed)" }}.
         </p>
 
-        <p class="govuk-body">If you need to decline the report, provide a reason so {{ submission.sent_for_certification_by.name }} can update and resubmit the report.</p>
+        <p class="govuk-body">If you need to decline the {{ constants.singular }}, provide a reason so {{ submission.sent_for_certification_by.name }} can update and resubmit the {{ constants.singular }}.</p>
 
         <form method="POST" novalidate>
           <div class="govuk-button-group">
             {{ form.csrf_token }}
             {{ form.submit(params={"text": "Continue to sign off and submit" }) }}
-            <a class="govuk-button--secondary govuk-button" href="{{ url_for("access_grant_funding.decline_report", organisation_id=grant_recipient.organisation_id, grant_id=grant_recipient.grant_id, submission_id=submission.id) }}">
+            <a
+              class="govuk-button--secondary govuk-button"
+              href="{{ url_for("access_grant_funding.decline_submission", organisation_id=grant_recipient.organisation_id, grant_id=grant_recipient.grant_id, collection_type=submission.collection.type, submission_id=submission.id) }}">
               Decline sign off
             </a>
           </div>

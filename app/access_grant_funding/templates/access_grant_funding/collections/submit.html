@@ -1,11 +1,12 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
-{% set title_text = "Confirm sign off and submit report" if submission_helper.collection.requires_certification else "Confirm and submit report" %}
+{% set constants = submission_helper.collection.type.constants %}
+{% set title_text = "Confirm sign off and submit " ~ constants.singular if submission_helper.collection.requires_certification else "Confirm and submit " ~ constants.singular %}
 {% set action_text = "Confirm sign off and submit" if submission_helper.collection.requires_certification else "Confirm and submit" %}
 {% set page_title = title_text ~ ": " ~ submission_helper.long_collection_name %}
 
-{% set active_item_identifier = "reports" %}
+{% set active_item_identifier = constants.active_nav %}
 
 {% set return_link = url_for("access_grant_funding.route_to_submission", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id = submission_helper.collection_id) %}
 
@@ -23,8 +24,8 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">{{ title_text }}</h1>
-      <p class="govuk-body">You are submitting the {{ submission_helper.long_collection_name }} report for {{ submission_helper.grant.name }}.</p>
-      <p class="govuk-body">By submitting this report, you confirm that the information provided in the report is correct.</p>
+      <p class="govuk-body">You are submitting the {{ submission_helper.long_collection_name }} {{ constants.singular }} for {{ submission_helper.grant.name }}.</p>
+      <p class="govuk-body">By submitting this {{ constants.singular }}, you confirm that the information provided in the {{ constants.singular }} is correct.</p>
 
       <form method="POST" novalidate>
         <div class="govuk-button-group">

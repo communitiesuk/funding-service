@@ -155,6 +155,24 @@ class CollectionTypeConstants(typing.NamedTuple):
     plural: str
     active_nav: str
     list_endpoint: str
+    slug: str
+
+
+monitoring_report_constants = CollectionTypeConstants(
+    singular="report",
+    plural="reports",
+    active_nav="reports",
+    list_endpoint="deliver_grant_funding.list_reports",
+    slug="reports",
+)
+
+application_constants = CollectionTypeConstants(
+    singular="form",
+    plural="forms",
+    active_nav="pre_award",
+    list_endpoint="deliver_grant_funding.list_pre_award_forms",
+    slug="applications",
+)
 
 
 class CollectionType(enum.StrEnum):
@@ -163,20 +181,23 @@ class CollectionType(enum.StrEnum):
 
     @property
     def constants(self) -> CollectionTypeConstants:
-        return {
-            CollectionType.MONITORING_REPORT: CollectionTypeConstants(
-                singular="report",
-                plural="reports",
-                active_nav="reports",
-                list_endpoint="deliver_grant_funding.list_reports",
-            ),
-            CollectionType.APPLICATION: CollectionTypeConstants(
-                singular="form",
-                plural="forms",
-                active_nav="pre_award",
-                list_endpoint="deliver_grant_funding.list_pre_award_forms",
-            ),
-        }[self]
+        match self:
+            case CollectionType.APPLICATION:
+                return application_constants
+            case CollectionType.MONITORING_REPORT:
+                return monitoring_report_constants
+            case _:
+                raise ValueError(f"No constants defined for {self=}")
+
+    @staticmethod
+    def from_slug(slug: str) -> "CollectionType":
+        match slug:
+            case "applications":
+                return CollectionType.APPLICATION
+            case "reports":
+                return CollectionType.MONITORING_REPORT
+            case _:
+                raise ValueError(f"No collection type defined for {slug=}")
 
 
 PRE_AWARD_COLLECTIONS = frozenset([CollectionType.APPLICATION])

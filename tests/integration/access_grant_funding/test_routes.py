@@ -14,7 +14,7 @@ class TestIndex:
         assert response.status_code == 302
         assert response.location == (
             f"/access/organisation/{authenticated_grant_recipient_member_client.organisation.id}"
-            f"/grants/{authenticated_grant_recipient_member_client.grant.id}/reports"
+            f"/grants/{authenticated_grant_recipient_member_client.grant.id}/forms"
         )
 
     def test_get_index_two_grant_recipients_same_org_redirects(
@@ -161,7 +161,7 @@ class TestCookieBanner:
     ):
         response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
             )

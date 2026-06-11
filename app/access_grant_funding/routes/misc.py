@@ -38,7 +38,7 @@ def index() -> ResponseReturnValue:
             grant_recipient = grant_recipients[0]
             return redirect(
                 url_for(
-                    "access_grant_funding.list_reports",
+                    "access_grant_funding.list_collections",
                     organisation_id=grant_recipient.organisation.id,
                     grant_id=grant_recipient.grant.id,
                 )

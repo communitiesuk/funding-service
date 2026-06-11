@@ -11,6 +11,7 @@ from app.access_grant_funding.forms import DeclineSignOffForm
 from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
 from app.common.data.interfaces.collections import update_collection
 from app.common.data.types import (
+    CollectionType,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -49,9 +50,10 @@ class TestViewLockedReport:
 
         response = client.get(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             )
         )
@@ -84,9 +86,10 @@ class TestViewLockedReport:
 
         response = client.get(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             )
         )
@@ -115,9 +118,10 @@ class TestViewLockedReport:
         grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
         response = authenticated_grant_recipient_certifier_client.get(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_submitted.collection.type,
                 submission_id=submission_submitted.id,
             )
         )
@@ -146,9 +150,10 @@ class TestViewLockedReport:
         grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
         response = authenticated_grant_recipient_certifier_client.get(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_collection_closed.collection.type,
                 submission_id=submission_collection_closed.id,
             )
         )
@@ -178,9 +183,10 @@ class TestViewLockedReport:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -188,7 +194,7 @@ class TestViewLockedReport:
         assert response.status_code == 302
         assert response.location == (
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
             )
@@ -210,9 +216,10 @@ class TestViewLockedReport:
 
         response = authenticated_grant_recipient_certifier_client.post(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=organisation.id,
                 grant_id=grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
             data=form.data,
@@ -221,9 +228,10 @@ class TestViewLockedReport:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.confirm_report_submission_with_certify",
+            "access_grant_funding.confirm_submission_with_certify",
             organisation_id=organisation.id,
             grant_id=grant.id,
+            collection_type=submission_awaiting_sign_off.collection.type,
             submission_id=submission_awaiting_sign_off.id,
         )
         assert submission_awaiting_sign_off.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
@@ -243,9 +251,10 @@ class TestViewLockedReport:
 
         response = authenticated_grant_recipient_data_provider_client.post(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=organisation.id,
                 grant_id=grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
             data=form.data,
@@ -259,7 +268,7 @@ class TestViewLockedReport:
     @pytest.mark.parametrize(
         "allow_multiple_submissions, expected_back_link_route",
         [
-            (False, "access_grant_funding.list_reports"),
+            (False, "access_grant_funding.list_collections"),
             (True, "access_grant_funding.list_collection_submissions"),
         ],
     )
@@ -296,9 +305,10 @@ class TestViewLockedReport:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.view_locked_report",
+                "access_grant_funding.view_locked_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -340,9 +350,10 @@ class TextExportReportPDF:
 
         response = client.get(
             url_for(
-                "access_grant_funding.export_report_pdf",
+                "access_grant_funding.export_submission_pdf",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             )
         )
@@ -361,7 +372,7 @@ class TestExportReportPDFLock:
         submission_awaiting_sign_off,
         monkeypatch,
     ):
-        from app.access_grant_funding.routes import reports as reports_module
+        from app.access_grant_funding.routes import collections as reports_module
 
         observed_lock_states: list[bool] = []
 
@@ -398,9 +409,10 @@ class TestExportReportPDFLock:
 
         response = client.get(
             url_for(
-                "access_grant_funding.export_report_pdf",
+                "access_grant_funding.export_submission_pdf",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             )
         )
@@ -428,7 +440,7 @@ class TestListReports:
             submission_period_end_date=date(2026, 2, 28),
         )
         response = authenticated_grant_recipient_member_client.get(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation.id, grant_id=grant.id)
         )
 
         assert response.status_code == 200
@@ -437,6 +449,45 @@ class TestListReports:
         table_elem = soup.find("table", class_="govuk-table")
         assert table_elem is not None
         assert len(table_elem.find_all("tr")) == 3
+
+    def test_get_list_forms_pre_award_enabled(self, authenticated_grant_recipient_member_client, factories):
+        organisation = authenticated_grant_recipient_member_client.organisation or factories.organisation.create(
+            can_manage_grants=False,
+        )
+        grant = authenticated_grant_recipient_member_client.grant
+        grant.status = GrantStatusEnum.LIVE
+        grant.allow_pre_award = True
+
+        _ = factories.collection.create_batch(
+            3,
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=date(2025, 11, 1),
+            submission_period_end_date=date(2026, 2, 28),
+        )
+        _ = factories.collection.create_batch(
+            2,
+            grant=grant,
+            type=CollectionType.MONITORING_REPORT,
+            status=CollectionStatusEnum.OPEN,
+            reporting_period_start_date=date(2025, 1, 1),
+            reporting_period_end_date=date(2025, 3, 31),
+            submission_period_start_date=date(2025, 11, 1),
+            submission_period_end_date=date(2026, 2, 28),
+        )
+        response = authenticated_grant_recipient_member_client.get(
+            url_for("access_grant_funding.list_collections", organisation_id=organisation.id, grant_id=grant.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Forms"
+        [pre_award_table, monitoring_table] = soup.find_all("table", class_="govuk-table")
+        assert pre_award_table is not None
+        assert len(pre_award_table.find_all("tr")) == 4
+        assert monitoring_table is not None
+        assert len(monitoring_table.find_all("tr")) == 3
 
     def test_get_list_reports_not_grant_recipient(self, authenticated_grant_recipient_member_client, factories):
         organisation = authenticated_grant_recipient_member_client.organisation
@@ -453,7 +504,7 @@ class TestListReports:
             submission_period_end_date=date(2026, 2, 28),
         )
         response = authenticated_grant_recipient_member_client.get(
-            url_for("access_grant_funding.list_reports", organisation_id=organisation.id, grant_id=grant.id)
+            url_for("access_grant_funding.list_collections", organisation_id=organisation.id, grant_id=grant.id)
         )
 
         assert response.status_code == 403
@@ -571,7 +622,7 @@ class TestListCollectionSubmissions:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant.id,
             )
@@ -599,7 +650,7 @@ class TestListCollectionSubmissions:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant.id,
             )
@@ -631,7 +682,7 @@ class TestListCollectionSubmissions:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant.id,
             )
@@ -682,7 +733,7 @@ class TestListCollectionSubmissions:
 
         response = authenticated_grant_recipient_member_client.get(
             url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant.id,
             )
@@ -851,9 +902,10 @@ class TestDeclineSignOff:
 
         response = authenticated_grant_recipient_certifier_client.post(
             url_for(
-                "access_grant_funding.decline_report",
+                "access_grant_funding.decline_submission",
                 organisation_id=grant_recipient.organisation_id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
             data=decline_form.data,
@@ -861,7 +913,7 @@ class TestDeclineSignOff:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.list_collections",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
         )
@@ -891,9 +943,10 @@ class TestDeclineSignOff:
 
         response = authenticated_grant_recipient_certifier_client.post(
             url_for(
-                "access_grant_funding.decline_report",
+                "access_grant_funding.decline_submission",
                 organisation_id=grant_recipient.organisation_id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
             data=decline_form.data,
@@ -921,17 +974,19 @@ class TestDeclineSignOff:
 
         response = authenticated_grant_recipient_certifier_client.get(
             url_for(
-                "access_grant_funding.decline_report",
+                "access_grant_funding.decline_submission",
                 organisation_id=grant_recipient.organisation_id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_in_progress.collection.type,
                 submission_id=submission_in_progress.id,
             ),
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.view_locked_report",
+            "access_grant_funding.view_locked_submission",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission_in_progress.collection.type,
             submission_id=submission_in_progress.id,
         )
 
@@ -954,17 +1009,19 @@ class TestDeclineSignOff:
 
         response = authenticated_grant_recipient_certifier_client.get(
             url_for(
-                "access_grant_funding.decline_report",
+                "access_grant_funding.decline_submission",
                 organisation_id=grant_recipient.organisation_id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.view_locked_report",
+            "access_grant_funding.view_locked_submission",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission_awaiting_sign_off.collection.type,
             submission_id=submission_awaiting_sign_off.id,
         )
 
@@ -973,9 +1030,10 @@ class TestDeclineSignOff:
     ):
         response = authenticated_grant_recipient_certifier_client.get(
             url_for(
-                "access_grant_funding.decline_report",
+                "access_grant_funding.decline_submission",
                 organisation_id=grant_recipient.organisation_id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
         )
@@ -1007,9 +1065,10 @@ class TestConfirmReportSubmission:
 
         response = client.get(
             url_for(
-                "access_grant_funding.confirm_report_submission_direct_submission",
+                "access_grant_funding.confirm_submission_direct_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_ready_to_submit.collection.type,
                 submission_id=submission_ready_to_submit.id,
             ),
             follow_redirects=False,
@@ -1041,9 +1100,10 @@ class TestConfirmReportSubmission:
 
         response = client.get(
             url_for(
-                "access_grant_funding.confirm_report_submission_with_certify",
+                "access_grant_funding.confirm_submission_with_certify",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
             follow_redirects=False,
@@ -1064,18 +1124,20 @@ class TestConfirmReportSubmission:
 
         response = authenticated_grant_recipient_certifier_client.get(
             url_for(
-                "access_grant_funding.confirm_report_submission_with_certify",
+                "access_grant_funding.confirm_submission_with_certify",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
             follow_redirects=False,
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.view_locked_report",
+            "access_grant_funding.view_locked_submission",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission_awaiting_sign_off.collection.type,
             submission_id=submission_awaiting_sign_off.id,
         )
 
@@ -1086,18 +1148,20 @@ class TestConfirmReportSubmission:
 
         response = authenticated_grant_recipient_certifier_client.get(
             url_for(
-                "access_grant_funding.confirm_report_submission_with_certify",
+                "access_grant_funding.confirm_submission_with_certify",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_ready_to_submit.collection.type,
                 submission_id=submission_ready_to_submit.id,
             ),
             follow_redirects=False,
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.view_locked_report",
+            "access_grant_funding.view_locked_submission",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission_ready_to_submit.collection.type,
             submission_id=submission_ready_to_submit.id,
         )
 
@@ -1109,16 +1173,17 @@ class TestConfirmReportSubmission:
 
         response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
-                "access_grant_funding.confirm_report_submission_direct_submission",
+                "access_grant_funding.confirm_submission_direct_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_in_progress.collection.type,
                 submission_id=submission_in_progress.id,
             ),
             follow_redirects=False,
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.list_collections",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
         )
@@ -1170,9 +1235,10 @@ class TestConfirmReportSubmission:
 
         response = authenticated_grant_recipient_certifier_client.post(
             url_for(
-                "access_grant_funding.confirm_report_submission_with_certify",
+                "access_grant_funding.confirm_submission_with_certify",
                 organisation_id=organisation.id,
                 grant_id=grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
             data=form.data,
@@ -1184,6 +1250,7 @@ class TestConfirmReportSubmission:
             "access_grant_funding.submitted_confirmation",
             organisation_id=organisation.id,
             grant_id=grant.id,
+            collection_type=submission_awaiting_sign_off.collection.type,
             submission_id=submission_awaiting_sign_off.id,
         )
 
@@ -1225,9 +1292,10 @@ class TestConfirmReportSubmission:
 
         response = authenticated_grant_recipient_data_provider_client.post(
             url_for(
-                "access_grant_funding.confirm_report_submission_direct_submission",
+                "access_grant_funding.confirm_submission_direct_submission",
                 organisation_id=organisation.id,
                 grant_id=grant.id,
+                collection_type=submission_ready_to_submit.collection.type,
                 submission_id=submission_ready_to_submit.id,
             ),
             data=form.data,
@@ -1239,6 +1307,7 @@ class TestConfirmReportSubmission:
             "access_grant_funding.submitted_confirmation",
             organisation_id=organisation.id,
             grant_id=grant.id,
+            collection_type=submission_ready_to_submit.collection.type,
             submission_id=submission_ready_to_submit.id,
         )
 
@@ -1284,9 +1353,10 @@ class TestConfirmReportSubmission:
 
         response = authenticated_grant_recipient_certifier_client.post(
             url_for(
-                "access_grant_funding.confirm_report_submission_with_certify",
+                "access_grant_funding.confirm_submission_with_certify",
                 organisation_id=organisation.id,
                 grant_id=grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
                 submission_id=submission_awaiting_sign_off.id,
             ),
             data=form.data,
@@ -1353,9 +1423,10 @@ class TestConfirmReportSubmission:
         )
         response = authenticated_grant_recipient_data_provider_client.post(
             url_for(
-                "access_grant_funding.confirm_report_submission_direct_submission",
+                "access_grant_funding.confirm_submission_direct_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             ),
             data={"submit": "y"},
@@ -1402,6 +1473,7 @@ class TestViewSubmittedConfirmation:
                 "access_grant_funding.submitted_confirmation",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_submitted.collection.type,
                 submission_id=submission_submitted.id,
             )
         )
@@ -1418,7 +1490,7 @@ class TestViewSubmittedConfirmation:
         else:
             assert response.status_code == 302
             assert response.location == url_for(
-                "access_grant_funding.list_reports",
+                "access_grant_funding.list_collections",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
             )
@@ -1442,12 +1514,13 @@ class TestViewSubmittedConfirmation:
                 "access_grant_funding.submitted_confirmation",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.list_reports",
+            "access_grant_funding.list_collections",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
         )
@@ -1455,7 +1528,7 @@ class TestViewSubmittedConfirmation:
     @pytest.mark.parametrize(
         "allow_multiple_submissions, expected_back_link_route",
         [
-            (False, "access_grant_funding.list_reports"),
+            (False, "access_grant_funding.list_collections"),
             (True, "access_grant_funding.list_collection_submissions"),
         ],
     )
@@ -1496,6 +1569,7 @@ class TestViewSubmittedConfirmation:
                 "access_grant_funding.submitted_confirmation",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )

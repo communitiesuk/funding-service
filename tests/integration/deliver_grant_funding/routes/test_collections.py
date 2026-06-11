@@ -444,9 +444,7 @@ class TestAddSection:
             assert response.status_code == 403
         else:
             assert response.status_code == 302
-            assert response.location == AnyStringMatching(
-                "^/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}$"
-            )
+            assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}$")
 
             assert len(collection.forms) == 1
             assert collection.forms[0].title == "Organisation information"
@@ -511,9 +509,7 @@ class TestListCollectionSections:
         assert (add_section_link is not None) is can_edit
 
         if add_section_link:
-            expected_href = AnyStringMatching(
-                r"/deliver/grant/[a-z0-9-]{36}/monitoring_report/[a-z0-9-]{36}/add-section"
-            )
+            expected_href = AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/add-section")
             assert add_section_link.get("href") == expected_href
 
     @pytest.mark.parametrize(

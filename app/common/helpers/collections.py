@@ -269,7 +269,7 @@ class SubmissionHelper:
         if submission and collection and submission.collection != collection:
             raise ValueError("Submission does not belong to the provided collection")
 
-        label = "Start report"
+        label = f"Start {collection.type.constants.singular}"
         href = url_for(
             "access_grant_funding.route_to_submission",
             organisation_id=grant_recipient.organisation_id,
@@ -286,14 +286,14 @@ class SubmissionHelper:
         elif submission:
             helper = SubmissionHelper(submission)
             if helper.status == SubmissionStatusEnum.NOT_SUBMITTED:
-                label = "View report"
+                label = f"View {collection.type.constants.singular}"
 
             elif helper.status == SubmissionStatusEnum.NOT_STARTED:
-                label = "Start report"
+                label = f"Start {collection.type.constants.singular}"
             elif helper.status == SubmissionStatusEnum.IN_PROGRESS:
-                label = "Continue report"
+                label = f"Continue {collection.type.constants.singular}"
             else:
-                label = "View report"
+                label = f"View {collection.type.constants.singular}"
 
             if collection.allow_multiple_submissions:
                 # route to a generic in-progress submission can only work for non multi-submission collections
@@ -301,10 +301,10 @@ class SubmissionHelper:
                 # templates
                 if helper.in_answers_locked_state:
                     href = url_for(
-                        "access_grant_funding.view_locked_report",
+                        "access_grant_funding.view_locked_submission",
                         organisation_id=grant_recipient.organisation_id,
                         grant_id=grant_recipient.grant_id,
-                        collection_id=collection.id,
+                        collection_type=collection.type,
                         submission_id=submission.id,
                     )
                 else:
