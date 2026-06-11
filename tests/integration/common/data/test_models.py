@@ -750,7 +750,7 @@ class TestComponentReferenceModel:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data", grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
+            grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT
         )
         question = factories.question.create(form__collection=collection)
 
@@ -780,7 +780,6 @@ class TestComponentReferenceModel:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
@@ -803,7 +802,6 @@ class TestComponentReferenceModel:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
@@ -825,7 +823,6 @@ class TestComponentReferenceModel:
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
@@ -853,7 +850,6 @@ class TestDataSourceModel:
         report = factories.collection.create(grant=grant)
         gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=grant)
         data_source = factories.data_source.create(
-            name="Test data set",
             grant=grant,
             collection=report,
             type=DataSourceType.GRANT_RECIPIENT,
