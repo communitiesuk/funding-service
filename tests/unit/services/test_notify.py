@@ -27,7 +27,7 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": "test@test.com",
-                        "template_id": "1e5b3cce-99ea-4813-ab39-e52f578c88f6",
+                        "template_id": app.config["GOVUK_NOTIFY_MAGIC_LINK_TEMPLATE_ID"],
                         "personalisation": {
                             "magic_link": "https://magic-link",
                             "magic_link_expires_at": "1:00pm on 4 April 2025",
@@ -98,7 +98,7 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": email_address,
-                        "template_id": "49ba98c5-0573-4c77-8cb0-3baebe70ee86",
+                        "template_id": app.config["GOVUK_NOTIFY_MEMBER_CONFIRMATION_TEMPLATE_ID"],
                         "personalisation": {
                             "grant_name": grant.name,
                             "sign_in_url": f"http://funding.communities.gov.localhost:8080/deliver/grant/{grant.id}/reports",
@@ -123,7 +123,7 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": email_address,
-                        "template_id": "fd143e8b-c735-4e12-9eb5-1655724216d5",
+                        "template_id": app.config["GOVUK_NOTIFY_DELIVER_ORGANISATION_ADMIN_TEMPLATE_ID"],
                         "personalisation": {
                             "organisation_name": "Test organisation",
                             "sign_in_url": "http://funding.communities.gov.localhost:8080/deliver/grants",
@@ -150,7 +150,7 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": email_address,
-                        "template_id": "fc85bd85-89bb-4bfc-87af-26e5cdc6cfed",
+                        "template_id": app.config["GOVUK_NOTIFY_DELIVER_ORGANISATION_MEMBER_TEMPLATE_ID"],
                         "personalisation": {
                             "organisation_name": "Test organisation",
                             "sign_in_url": "http://funding.communities.gov.localhost:8080/deliver/grants",
@@ -388,7 +388,10 @@ class TestNotificationService:
         )
         assert len(mock_notification_service_calls) == 1
         assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
-        assert mock_notification_service_calls[0].kwargs["template_id"] == "791d1a61-c249-4752-9163-6cc81abf4ba9"
+        assert (
+            mock_notification_service_calls[0].kwargs["template_id"]
+            == app.config["GOVUK_NOTIFY_ACCESS_SUBMITTER_REPORT_DECLINED_TEMPLATE_ID"]
+        )
         assert mock_notification_service_calls[0].kwargs["email_address"] == "submitter@test.com"
 
     @responses.activate
@@ -424,7 +427,10 @@ class TestNotificationService:
         )
         assert len(mock_notification_service_calls) == 1
         assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
-        assert mock_notification_service_calls[0].kwargs["template_id"] == "ad07a53a-d930-4cb3-ad57-595a1c104e61"
+        assert (
+            mock_notification_service_calls[0].kwargs["template_id"]
+            == app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_REOPENED_TEMPLATE_ID"]
+        )
         assert mock_notification_service_calls[0].kwargs["email_address"] == "certifier@communities.gov.uk"
 
     @responses.activate
@@ -460,7 +466,10 @@ class TestNotificationService:
         )
         assert len(mock_notification_service_calls) == 1
         assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
-        assert mock_notification_service_calls[0].kwargs["template_id"] == "ad07a53a-d930-4cb3-ad57-595a1c104e61"
+        assert (
+            mock_notification_service_calls[0].kwargs["template_id"]
+            == app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_REOPENED_TEMPLATE_ID"]
+        )
         assert mock_notification_service_calls[0].kwargs["email_address"] == "certifier@communities.gov.uk"
 
     @responses.activate
@@ -637,7 +646,7 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": "dev@communities.gov.uk",
-                        "template_id": "580db095-420e-4690-a640-c0ebd9748a0b",
+                        "template_id": app.config["GOVUK_NOTIFY_GRANT_EXPORT_TEMPLATE_ID"],
                         "personalisation": {
                             "link_to_file": {
                                 "file": "eyJoZWxsbyI6ICJ3b3JsZCJ9",
