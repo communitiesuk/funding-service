@@ -65,10 +65,6 @@ class MissingDataResult(BaseModel):
     row_results: list[MissingDataRow] = Field(default_factory=list)
 
     @property
-    def missing_columns_by_row(self) -> dict[int, list[str]]:
-        return {r.row_number: r.missing_columns for r in self.row_results}
-
-    @property
     def has_missing_data(self) -> bool:
         return bool(self.row_results)
 
