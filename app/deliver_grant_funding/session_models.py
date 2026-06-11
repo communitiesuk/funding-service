@@ -170,6 +170,7 @@ class DataSetUploadSessionModel(BaseModel):
     s3_key: str
     preview_data: TDataSetPreviewData
     column_mappings: list[DataSetColumnMapping] = Field(default_factory=list)
+    has_missing_data: bool = False
 
     @classmethod
     def from_session(cls, session_data: dict[str, Any]) -> DataSetUploadSessionModel:

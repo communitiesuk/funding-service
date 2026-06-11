@@ -5,6 +5,7 @@ from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_REC
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataTypeError,
+    check_missing_data,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -52,59 +53,6 @@ class TestValidateDataSet:
         result = validate_data_set(data_set, all_rows)
 
         assert not result.blocking_errors
-        assert not result.has_missing_data
-
-    def test_missing_value_is_non_blocking_for_grant_recipient(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
-        data_set = _make_data_set(
-            data_columns=["Notes"],
-            column_mappings=[DataSetColumnMapping(column_name="Notes", column_type="TEXT")],
-        )
-
-        all_rows = [
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                "Notes": "",
-            }
-        ]
-
-        result = validate_data_set(data_set, all_rows)
-
-        assert not result.blocking_errors
-        assert result.has_missing_data
-        assert result.missing_columns_by_row[0] == ["Notes"]
-
-    def test_missing_columns_by_row_tracks_correct_columns(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(organisation__external_id="EC456")
-        data_set = _make_data_set(
-            data_columns=["Notes", "Summary"],
-            column_mappings=[
-                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
-                DataSetColumnMapping(column_name="Summary", column_type="TEXT"),
-            ],
-        )
-
-        all_rows = [
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                "Notes": "",
-                "Summary": "ok",
-            },
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
-                "Notes": "",
-                "Summary": "",
-            },
-        ]
-
-        result = validate_data_set(data_set, all_rows)
-
-        assert result.missing_columns_by_row[0] == ["Notes"]
-        assert result.missing_columns_by_row[1] == ["Notes", "Summary"]
 
     def test_wrong_prefix_symbol_for_british_pounds_collapses_to_single_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -222,7 +170,7 @@ class TestValidateDataSet:
         assert result.blocking_errors
         assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
 
-    def test_row_with_both_blocking_error_and_missing_column(self, factories):
+    def test_row_with_blocking_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
         data_set = _make_data_set(
             data_columns=["Capital allocation", "Notes"],
@@ -244,9 +192,7 @@ class TestValidateDataSet:
         result = validate_data_set(data_set, all_rows)
 
         assert result.blocking_errors
-        assert result.has_missing_data
         assert any(isinstance(e, BritishPoundsError) for e in result.blocking_errors)
-        assert result.missing_columns_by_row[0] == ["Notes"]
 
     def test_multiple_errors_across_rows(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="EC123")
@@ -282,6 +228,39 @@ class TestValidateDataSet:
 
         assert sum(isinstance(e, BritishPoundsError) for e in result.blocking_errors) == 2
         assert sum(isinstance(e, DataTypeError) for e in result.blocking_errors) == 1
+
+
+class TestCheckMissingData:
+    def test_missing_data_flagged_and_tracks_correct_columns(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr2 = factories.grant_recipient.create(organisation__external_id="EC456")
+        data_set = _make_data_set(
+            data_columns=["Notes", "Summary"],
+            column_mappings=[
+                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Summary", column_type="TEXT"),
+            ],
+        )
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Notes": "",
+                "Summary": "ok",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                "Notes": "",
+                "Summary": "",
+            },
+        ]
+
+        result = check_missing_data(data_set.data_columns, all_rows)
+
+        assert result.row_results[0].missing_columns == ["Notes"]
+        assert result.row_results[1].missing_columns == ["Notes", "Summary"]
 
 
 class TestValidateDataSetGrantRecipients:

@@ -46,7 +46,6 @@ class BritishPoundsError(CellError):
 class RowValidationResult(BaseModel):
     row_number: int
     cell_errors: list[CellError] = Field(default_factory=list)
-    missing_columns: list[str] = Field(default_factory=list)
 
 
 class DataSetValidationResult(BaseModel):
@@ -56,13 +55,18 @@ class DataSetValidationResult(BaseModel):
     def blocking_errors(self) -> list[CellError]:
         return [e for r in self.row_results for e in r.cell_errors]
 
-    @property
-    def missing_columns_by_row(self) -> dict[int, list[str]]:
-        return {r.row_number: r.missing_columns for r in self.row_results if r.missing_columns}
+
+class MissingDataRow(BaseModel):
+    row_number: int
+    missing_columns: list[str]
+
+
+class MissingDataResult(BaseModel):
+    row_results: list[MissingDataRow] = Field(default_factory=list)
 
     @property
     def has_missing_data(self) -> bool:
-        return any(r.missing_columns for r in self.row_results)
+        return bool(self.row_results)
 
 
 def _validate_decimal(stripped: str, mapping: DataSetColumnMapping, column: str) -> list[CellError]:
@@ -121,9 +125,7 @@ def _validate_row(row: TUnvalidatedDataSetRow, idx: int, data_set: DataSetUpload
         value = row.get(column, "").strip()
         mapping = data_set.get_column_mapping(column)
 
-        if not value:
-            result.missing_columns.append(column)
-        elif mapping:
+        if value and mapping:
             result.cell_errors.extend(_validate_cell(column, value, mapping))
 
     return result
@@ -221,10 +223,19 @@ def validate_data_set(
     result = DataSetValidationResult()
     for idx, row in enumerate(all_rows):
         row_result = _validate_row(row, idx, data_set)
-        if row_result.cell_errors or row_result.missing_columns:
+        if row_result.cell_errors:
             result.row_results.append(row_result)
     return result
 
 
 def build_data_set_upload_s3_key(grant_id: uuid.UUID, collection_id: uuid.UUID, data_source_id: uuid.UUID) -> str:
     return f"{current_app.config['REFERENCE_FILES_PREFIX']}/{grant_id}/{collection_id}/{data_source_id}"
+
+
+def check_missing_data(data_columns: list[str], all_rows: TUnvalidatedDataSetRows) -> MissingDataResult:
+    result = MissingDataResult()
+    for idx, row in enumerate(all_rows):
+        missing = [col for col in data_columns if not row.get(col, "").strip()]
+        if missing:
+            result.row_results.append(MissingDataRow(row_number=idx, missing_columns=missing))
+    return result
