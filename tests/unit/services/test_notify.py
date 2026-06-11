@@ -376,10 +376,14 @@ class TestNotificationService:
             "reference": submission_awaiting_sign_off.reference,
             "certifier_name": "Certifier User",
             "report_name": "Test collection",
+            "submission_name": "Test collection",
             "certifier_comments": "Decline reason",
             "report_deadline": "Wednesday 3 December 2025",
+            "submission_deadline": "Wednesday 3 December 2025",
             "is_test_data": "no",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
+            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
+            "collection_type_noun": "report",
         }
 
         notification_service.send_access_submitter_submission_declined(
@@ -415,10 +419,14 @@ class TestNotificationService:
         expected_personalisation = {
             "is_test_data": "no",
             "report_name": "Test collection",
+            "submission_name": "Test collection",
             "grant_name": "Test grant",
             "reopening_reason": "^ Reopen reason\n",
             "requires_certification": "yes",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
+            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
+            "requires_certification_text": "A certifier will need to sign off your updated report.",
+            "collection_type_noun": "report",
         }
 
         notification_service.send_access_submission_reopened(
@@ -454,10 +462,14 @@ class TestNotificationService:
         expected_personalisation = {
             "is_test_data": "no",
             "report_name": "Test collection",
+            "submission_name": "Test collection",
             "grant_name": "Test grant",
             "reopening_reason": "^ Reopen reason\n^ On\n^ \n^ Multiple lines\n",
             "requires_certification": "yes",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
+            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
+            "requires_certification_text": "A certifier will need to sign off your updated report.",
+            "collection_type_noun": "report",
         }
 
         notification_service.send_access_submission_reopened(

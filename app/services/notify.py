@@ -140,6 +140,7 @@ class NotificationService:
             # TO DO: Delete `report_name`
             "report_name": collection.name,
             "submission_name": collection.name,
+            # TO DO: Delete `requires_certification`
             "requires_certification": "yes" if collection.requires_certification else "no",
             # TO DO: Delete `report_deadline`
             "report_deadline": (
@@ -385,26 +386,49 @@ class NotificationService:
 
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "certifier_name": submission_helper.declined_by.name
-            if submission_helper.declined_by
-            else "(Certifier not known)",
+            "certifier_name": (
+                submission_helper.declined_by.name if submission_helper.declined_by else "(Certifier not known)"
+            ),
+            # TO DO: Delete `report_name`
             "report_name": submission_helper.long_collection_name,
-            "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
-            if submission_helper.collection.submission_period_end_date
-            else "(Dates to be confirmed)",
+            "submission_name": submission_helper.long_collection_name,
+            # TO DO: Delete `report_deadline`
+            "report_deadline": (
+                format_date(submission_helper.collection.submission_period_end_date)
+                if submission_helper.collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
+            "submission_deadline": (
+                format_date(submission_helper.collection.submission_period_end_date)
+                if submission_helper.collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
             "certifier_comments": submission_state.declined_reason,
-            "is_test_data": "yes"
-            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
-            else "no",
+            "is_test_data": (
+                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
+            ),
             "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
             "reference": submission_helper.reference,
-            "grant_report_url": url_for(
-                "access_grant_funding.route_to_submission",
-                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                grant_id=submission_helper.submission.grant_recipient.grant.id,
-                collection_id=submission_helper.collection.id,
-                _external=True,
+            # TO DO: Delete `grant_report_url`
+            "grant_report_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
             ),
+            "grant_submission_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
+            ),
+            "collection_type_noun": submission_helper.collection.type.constants.singular,
         }
         return self._send_email(
             email_address=user.email,
@@ -503,20 +527,44 @@ class NotificationService:
             lines_for_email += f"^ {line}\n"
 
         personalisation = {
-            "is_test_data": "yes"
-            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
-            else "no",
+            "is_test_data": (
+                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
+            ),
+            # TO DO: Delete `report_name`
             "report_name": submission_helper.long_collection_name,
+            "submission_name": submission_helper.long_collection_name,
             "grant_name": submission_helper.collection.grant.name,
             "reopening_reason": lines_for_email,
+            # TO DO: Delete `requires_certification`
             "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
-            "grant_report_url": url_for(
-                "access_grant_funding.route_to_submission",
-                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                grant_id=submission_helper.submission.grant_recipient.grant.id,
-                collection_id=submission_helper.collection.id,
-                _external=True,
+            # TO DO: Delete `grant_report_url`
+            "grant_report_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
             ),
+            "grant_submission_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
+            ),
+            "requires_certification_text": (
+                (
+                    "A certifier will need to sign off your "
+                    f"updated {submission_helper.collection.type.constants.singular}."
+                )
+                if submission_helper.collection.requires_certification
+                else ""
+            ),
+            "collection_type_noun": submission_helper.collection.type.constants.singular,
         }
         return self._send_email(
             email_address=user.email,
