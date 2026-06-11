@@ -6,15 +6,10 @@
 {% set type_constants = collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% set page_title = "Missing data in " ~ session_data.name %}
+{% set page_title = "Review missing data in " ~ session_data.name ~ " data set" %}
 
 {% block beforeContent %}
-  {% set has_manual_formatting = (session_data.column_mappings | selectattr("requires_manual_formatting") | list | length) > 0 %}
-  {% if has_manual_formatting %}
-    {% set back_link = url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
-  {% else %}
-    {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
-  {% endif %}
+  {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
 
@@ -23,9 +18,9 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ collection.name }}</span>
-        Missing data in {{ session_data.name }}
+        Review missing data in {{ session_data.name }} data set
       </h1>
-      {{ govukWarningText({"text": ("Grant recipients with missing data cannot complete the " ~ type_constants.singular ~ " until the missing data is uploaded.")}) }}
+      {{ govukWarningText({"text": ("Grant recipients will not be able to complete the " ~ type_constants.singular ~ " until their missing data is uploaded. You can replace the data set file to update it later.")}) }}
     </div>
   </div>
   <div class="govuk-grid-row">
@@ -36,7 +31,7 @@
       {% endfor %}
 
       {% set rows = [] %}
-      {% for missing_data_row in validation_result.missing_columns_by_row %}
+      {% for missing_data_row in missing_result.missing_columns_by_row %}
         {% set data_row = all_rows[missing_data_row] %}
 
         {# Apologies to future selves - missing_data_row is the index for the row in the list rather than the row
@@ -52,7 +47,7 @@
         {% for column in session_data.data_columns %}
           {% set val = data_row.get(column, "") %}
           {% if not val %}
-            {% do row_cells.append({"html": "<span class='govuk-tag govuk-tag--yellow'>Data missing</span>"}) %}
+            {% do row_cells.append({"html": "<span class='govuk-tag govuk-tag--orange'>Data missing</span>"}) %}
           {% else %}
             {% do row_cells.append({"text": val}) %}
           {% endif %}
@@ -65,7 +60,7 @@
       <form method="POST" novalidate>
         <div class="govuk-button-group">
           {{ form.csrf_token }}
-          {{ form.submit(params={"text": "Continue and upload data set" }) }}
+          {{ form.submit(params={"text": "Continue" }) }}
           <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_data_sets', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
         </div>
       </form>

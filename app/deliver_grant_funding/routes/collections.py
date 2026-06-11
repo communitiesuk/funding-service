@@ -117,6 +117,7 @@ from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataSetValidationResult,
     build_data_set_upload_s3_key,
+    check_missing_data,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -3384,12 +3385,17 @@ def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], TUnvalida
     return columns, rows
 
 
-def _load_and_validate_data_set(
-    data_set_data: DataSetUploadSessionModel,
-) -> tuple[TUnvalidatedDataSetRows, DataSetValidationResult]:
+def _load_rows(data_set_data: DataSetUploadSessionModel) -> TUnvalidatedDataSetRows:
     file_bytes = s3_service.download_file(data_set_data.s3_key)
     file_storage = FileStorage(stream=io.BytesIO(file_bytes), filename=data_set_data.original_filename)
     _, rows = _parse_data_set_csv(file_storage)
+    return rows
+
+
+def _load_and_validate_data_set(
+    data_set_data: DataSetUploadSessionModel,
+) -> tuple[TUnvalidatedDataSetRows, DataSetValidationResult]:
+    rows = _load_rows(data_set_data)
     return rows, validate_data_set(data_set_data, rows)
 
 
@@ -3461,6 +3467,20 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
                 collection=collection,
                 form=form,
                 gr_errors=gr_errors,
+            )
+
+        missing_result = check_missing_data(session_data.data_columns, rows)
+        if missing_result.has_missing_data:
+            session_data.has_missing_data = True
+            session["data_set_upload"] = session_data.model_dump(mode="json")
+
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.data_set_missing_data",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
             )
 
         return redirect(
@@ -3542,16 +3562,6 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
 
         if validation_result is None:
             rows, validation_result = _load_and_validate_data_set(data_set_data)
-
-        if validation_result.blocking_errors or validation_result.has_missing_data:
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.data_set_missing_data",
-                    grant_id=grant_id,
-                    collection_type=collection_type,
-                    collection_id=collection_id,
-                )
-            )
 
         try:
             data_source = create_uploaded_data_source(
@@ -3655,16 +3665,6 @@ def map_data_set_number_columns(
             errors = sorted(validation_result.blocking_errors, key=lambda e: e.column)
             column_errors = {col: list(errs) for col, errs in groupby(errors, key=lambda e: e.column)}
             form.columns.errors = form.build_number_column_form_errors(column_errors)
-
-        elif validation_result.has_missing_data:
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.data_set_missing_data",
-                    grant_id=grant_id,
-                    collection_type=collection_type,
-                    collection_id=collection_id,
-                )
-            )
         else:
             data_source = create_uploaded_data_source(
                 name=data_set_data.name,
@@ -3723,7 +3723,6 @@ def map_data_set_number_columns(
 @auto_commit_after_request
 def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
-    user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session()
     if not data_set_data:
@@ -3736,44 +3735,25 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
             )
         )
 
-    rows, validation_result = _load_and_validate_data_set(data_set_data)
+    rows = _load_rows(data_set_data)
+    missing_result = check_missing_data(data_set_data.data_columns, rows)
+
+    if not missing_result.has_missing_data:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
 
     form = GenericSubmitForm()
 
-    if form.validate_on_submit() and not validation_result.blocking_errors:
-        data_source = create_uploaded_data_source(
-            name=data_set_data.name,
-            data_source_type=data_set_data.data_source_type,
-            grant_id=grant_id,
-            collection_id=collection.id,
-            column_mappings=data_set_data.column_mappings,
-            all_rows=rows,
-            user=user,
-            s3_key=data_set_data.s3_key,
-            original_filename=data_set_data.original_filename,
-            data_source_id=data_set_data.data_source_id,
-        )
-
-        s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
-
-        data_source_url = url_for(
-            "deliver_grant_funding.view_data_source",
-            grant_id=grant_id,
-            collection_type=collection_type,
-            collection_id=collection_id,
-            data_source_id=data_source.id,
-        )
-        session.pop("data_set_upload", None)
-        # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
-        flash(
-            Markup(
-                f"You can now reference {escape(data_set_data.name)} data in the {escape(collection.name)} grant form. "
-                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
-            )
-        )
+    if form.validate_on_submit():
         return redirect(
             url_for(
-                "deliver_grant_funding.list_collection_data_sets",
+                "deliver_grant_funding.map_data_set_columns",
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
@@ -3786,7 +3766,7 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
         collection=collection,
         session_data=data_set_data,
         form=form,
-        validation_result=validation_result,
+        missing_result=missing_result,
         all_rows=rows,
     )
 

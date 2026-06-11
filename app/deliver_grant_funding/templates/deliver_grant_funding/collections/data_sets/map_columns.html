@@ -8,7 +8,11 @@
 {% set page_title = "Map " ~ session_data.name ~ " data columns" %}
 
 {% block beforeContent %}
-  {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+  {% if session_data.has_missing_data %}
+    {% set back_link = url_for("deliver_grant_funding.data_set_missing_data", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+  {% else %}
+    {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+  {% endif %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
 
