@@ -186,16 +186,21 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": email_address,
-                        "template_id": "4fc8d831-e241-4648-a8d3-04fb1bd9193e",
+                        "template_id": app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"],
                         "personalisation": {
                             "grant_name": "Test grant",
                             "organisation_name": "Test organisation",
                             "report_name": "Test collection",
+                            "submission_name": "Test collection",
                             "requires_certification": "yes",
                             "report_deadline": "Wednesday 31 December 2025",
+                            "submission_deadline": "Wednesday 31 December 2025",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/collection/{collection.id}",
+                            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/collection/{collection.id}",
+                            "requires_certification_text": "A certifier will need to sign off your report.",
                             "allows_multiple_submissions": "no",
+                            "collection_type_noun": "report",
                             "submissions": "",
                         },
                     }
@@ -232,14 +237,19 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": email_address,
-                        "template_id": "e78b9c68-5d45-40a1-8339-04fe7ffc8caa",
+                        "template_id": app.config[
+                            "GOVUK_NOTIFY_ACCESS_SUBMISSION_SENT_FOR_CERTIFICATION_CONFIRMATION_TEMPLATE_ID"
+                        ],
                         "personalisation": {
                             "grant_name": "Test grant",
                             "organisation_name": "Test organisation",
                             "reference": "TG-R123456",
                             "report_name": "Test collection",
+                            "submission_name": "Test collection",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
+                            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
+                            "collection_type_noun": "report",
                         },
                     }
                 )
@@ -274,17 +284,23 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": email_address,
-                        "template_id": "e511c0d0-2ac8-4ded-80a2-13b79023c5d5",
+                        "template_id": app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_READY_TO_CERTIFY_TEMPLATE_ID"],
                         "personalisation": {
                             "grant_name": "Test grant",
                             "organisation_name": "Test organisation",
                             "reference": "TG-R123456",
                             "report_submitter": "Submitter User",
+                            "submitter": "Submitter User",
                             "report_name": "Test collection",
+                            "submission_name": "Test collection",
                             "report_deadline": "Tuesday 18 November 2025",
+                            "submission_deadline": "Tuesday 18 November 2025",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
+                            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                             "government_department": "Test Organisation",
+                            "collection_type_noun": "report",
+                            "collection_type_noun_capitalised": "Report",
                         },
                     }
                 )
@@ -319,10 +335,14 @@ class TestNotificationService:
             "certifier_name": "Certifier User",
             "certifier_comments": "Decline reason",
             "report_name": "Test collection",
+            "submission_name": "Test collection",
             "report_deadline": "Wednesday 3 December 2025",
+            "submission_deadline": "Wednesday 3 December 2025",
             "decline_date": "9:30am on Monday 1 December 2025",
             "is_test_data": "no",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
+            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_awaiting_sign_off.grant_recipient.organisation.id}/grants/{submission_awaiting_sign_off.grant_recipient.grant.id}/collection/{submission_awaiting_sign_off.collection.id}",
+            "collection_type_noun": "report",
         }
         notification_service.send_access_certifier_confirm_submission_declined(
             user=certifier,
@@ -330,7 +350,10 @@ class TestNotificationService:
         )
         assert len(mock_notification_service_calls) == 1
         assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
-        assert mock_notification_service_calls[0].kwargs["template_id"] == "1245cb41-5aec-4957-872c-6471657e57e6"
+        assert (
+            mock_notification_service_calls[0].kwargs["template_id"]
+            == app.config["GOVUK_NOTIFY_ACCESS_CERTIFIER_REPORT_DECLINED_TEMPLATE_ID"]
+        )
         assert mock_notification_service_calls[0].kwargs["email_address"] == "certifier@test.com"
 
     @responses.activate
@@ -510,7 +533,9 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": "test@communities.gov.uk",
-                        "template_id": "a8ffd584-0899-40df-ba56-cba95b2db0de",
+                        "template_id": app.config[
+                            "GOVUK_NOTIFY_ACCESS_SUBMISSION_CERTIFICATION_SUBMISSION_CONFIRMATION_TEMPLATE_ID"
+                        ],
                         "personalisation": {
                             "grant_name": "Test grant",
                             "organisation_name": submission.grant_recipient.organisation.name,
@@ -519,10 +544,13 @@ class TestNotificationService:
                             "certifier_name": "Certifier User",
                             "requires_certification": "yes",
                             "report_name": "Test collection",
+                            "submission_name": "Test collection",
                             "date_submitted": "10:37am on Tuesday 25 November 2025",
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
+                            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                             "government_department": "the Test Organisation",
+                            "collection_type_noun": "report",
                         },
                     }
                 )
@@ -568,7 +596,9 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": "submitter@communities.gov.uk",
-                        "template_id": "a8ffd584-0899-40df-ba56-cba95b2db0de",
+                        "template_id": app.config[
+                            "GOVUK_NOTIFY_ACCESS_SUBMISSION_CERTIFICATION_SUBMISSION_CONFIRMATION_TEMPLATE_ID"
+                        ],
                         "personalisation": {
                             "grant_name": "Test grant",
                             "organisation_name": submission.grant_recipient.organisation.name,
@@ -577,10 +607,13 @@ class TestNotificationService:
                             "certifier_name": "",
                             "requires_certification": "no",
                             "report_name": "Test collection",
+                            "submission_name": "Test collection",
                             "is_test_data": "no",
                             "date_submitted": "10:37am on Tuesday 25 November 2025",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
+                            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission.grant_recipient.organisation.id}/grants/{submission.grant_recipient.grant.id}/reports/{submission.id}/view",
                             "government_department": "the Test Organisation",
+                            "collection_type_noun": "report",
                         },
                     }
                 )
