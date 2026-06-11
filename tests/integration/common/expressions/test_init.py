@@ -6,7 +6,7 @@ from unittest.mock import PropertyMock
 import pytest
 
 from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
-from app.common.data.models import Expression
+from app.common.data.models import DataSourceOrganisationItem, Expression
 from app.common.data.types import (
     DataSourceSchema,
     DataSourceSchemaColumn,
@@ -284,18 +284,17 @@ class TestExpressionContext:
             organisation = factories.organisation.create()
             grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
             submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
-            data_source = factories.data_source.create(
+            factories.data_source.create(
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-            )
-            org_item = factories.data_source_organisation_item.create(
-                data_source=data_source,
-                external_id=organisation.external_id,
-                _data={"c_allocation": 1000},
+                create_gr_org_items=True,
+                create_gr_org_items__data=[1000],
             )
 
-            mocker.patch.object(type(org_item), "data", new_callable=PropertyMock, return_value=[{"col": "val"}])
+            mocker.patch.object(
+                DataSourceOrganisationItem, "data", new_callable=PropertyMock, return_value=[{"col": "val"}]
+            )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
@@ -311,11 +310,8 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-            )
-            factories.data_source_organisation_item.create(
-                data_source=data_source,
-                external_id=organisation.external_id,
-                _data={"c_allocation": 1000},
+                create_gr_org_items=True,
+                create_gr_org_items__data=[1000],
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
@@ -328,28 +324,18 @@ class TestExpressionContext:
             grant = factories.grant.create()
             collection = factories.collection.create(grant=grant)
 
-            organisation = factories.organisation.create()
-            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+            grant_recipient = factories.grant_recipient.create(grant=grant)
             submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
 
-            organisation_2 = factories.organisation.create()
-            grant_recipient_2 = factories.grant_recipient.create(grant=grant, organisation=organisation_2)
+            grant_recipient_2 = factories.grant_recipient.create(grant=grant)
             submission_2 = factories.submission.create(collection=collection, grant_recipient=grant_recipient_2)
 
             data_source = factories.data_source.create(
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-            )
-            factories.data_source_organisation_item.create(
-                data_source=data_source,
-                external_id=organisation.external_id,
-                _data={"c_allocation": 1000},
-            )
-            factories.data_source_organisation_item.create(
-                data_source=data_source,
-                external_id=organisation_2.external_id,
-                _data={"c_allocation": 9999},
+                create_gr_org_items=True,
+                create_gr_org_items__data=[1000, 9999],
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
@@ -370,11 +356,8 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-            )
-            factories.data_source_organisation_item.create(
-                data_source=data_source,
-                external_id=organisation.external_id,
-                _data={"c_allocation": 1000},
+                create_gr_org_items=True,
+                create_gr_org_items__data=[1000],
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
@@ -396,11 +379,8 @@ class TestExpressionContext:
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-            )
-            factories.data_source_organisation_item.create(
-                data_source=data_source,
-                external_id=organisation.external_id,
-                _data={"c_allocation": None},
+                create_gr_org_items=True,
+                create_gr_org_items__data=[None],
             )
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
@@ -877,11 +857,8 @@ class TestDataSourceInterpolation:
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-        )
-        factories.data_source_organisation_item.create(
-            data_source=data_source,
-            external_id=organisation.external_id,
-            _data={"c_allocation": 1000},
+            create_gr_org_items=True,
+            create_gr_org_items__data=[1000],
         )
 
         helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
@@ -928,11 +905,8 @@ class TestDataSourceEvaluation:
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
-        )
-        factories.data_source_organisation_item.create(
-            data_source=data_source,
-            external_id=organisation.external_id,
-            _data={"c_allocation": 1000},
+            create_gr_org_items=True,
+            create_gr_org_items__data=[1000],
         )
 
         helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)

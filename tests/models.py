@@ -890,11 +890,7 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
 
     # No organisation items are created by default - tests which need them should create them explicitly and set the
     # items size to 0
-    organisation_items = factory.RelatedFactoryList(
-        _DataSourceOrganisationItemFactory,
-        size=0,
-        factory_related_name="data_source",
-    )
+    organisation_items = []
     items = factory.Maybe(
         factory.LazyAttribute(lambda o: o.type == DataSourceType.CUSTOM),
         yes_declaration=factory.RelatedFactoryList(
@@ -922,6 +918,18 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
                 pass
 
         return kwargs
+
+    @factory.post_generation
+    def create_gr_org_items(obj: DataSource, create: bool, extracted: list[Any], **kwargs: Any) -> None:
+        if create and extracted:
+            if obj.collection and obj.collection.grant:
+                gr_data = kwargs.get("data", [])
+                for i, gr in enumerate(obj.collection.grant.grant_recipients):
+                    _DataSourceOrganisationItemFactory.create(
+                        data_source=obj,
+                        external_id=gr.organisation.external_id,
+                        _data={"c_allocation": gr_data[i] if gr_data else faker.Faker().random_int(min=1000, max=2000)},
+                    )
 
     grant = None
     grant_id = factory.LazyAttribute(lambda o: o.grant.id if o.grant else None)

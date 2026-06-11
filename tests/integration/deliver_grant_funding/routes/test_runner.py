@@ -920,11 +920,8 @@ class TestGroupValidation:
             grant=client.grant,
             collection=group.form.collection,
             type=DataSourceType.GRANT_RECIPIENT,
-        )
-        factories.data_source_organisation_item.create(
-            data_source=data_source,
-            external_id=organisation.external_id,
-            _data={"c_allocation": 1000},
+            create_gr_org_items=True,
+            create_gr_org_items__data=[1000],
         )
 
         add_component_validation(

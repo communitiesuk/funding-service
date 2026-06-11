@@ -462,9 +462,14 @@ class TestGetDataSource:
             get_data_source(uuid.uuid4())
 
     def test_get_data_source_with_organisation_items(self, db_session, factories, track_sql_queries):
-        data_source = factories.data_source.create(items=None)
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+        grant = factories.grant.create()
+        factories.grant_recipient.create_batch(2, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=factories.collection.create(grant=grant),
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
         db_session.expire_all()
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -488,8 +493,15 @@ class TestGetDataSource:
         assert len(queries) == 0
 
     def test_get_data_source_with_both_flags(self, db_session, factories, track_sql_queries):
-        data_source = factories.data_source.create(items=None)
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+
+        grant = factories.grant.create()
+        factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=factories.collection.create(grant=grant),
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
         db_session.expire_all()
 
         from_db = get_data_source(data_source.id, with_organisation_items=True, with_data_source_items=True)
@@ -501,8 +513,14 @@ class TestGetDataSource:
         assert len(queries) == 0
 
     def test_get_data_source_without_flags_does_not_eagerly_load_items(self, db_session, factories, track_sql_queries):
-        data_source = factories.data_source.create(items=None)
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
+        grant = factories.grant.create()
+        factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=factories.collection.create(grant=grant),
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
         db_session.expire_all()
 
         get_data_source(data_source.id)
@@ -540,9 +558,17 @@ class TestDeleteDataSource:
         assert mock_s3_service_calls.delete_file_calls[0].args[0] == "data-set-uploads/test.csv"
 
     def test_delete_data_source_cascades_organisation_items(self, db_session, factories):
-        data_source = factories.data_source.create(items=None)
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E123")
-        factories.data_source_organisation_item.create(data_source=data_source, external_id="E456")
+
+        grant = factories.grant.create()
+        factories.grant_recipient.create_batch(2, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=factories.collection.create(grant=grant),
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            file_metadata=None,
+        )
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
 
         delete_data_source(data_source)
         db_session.flush()
@@ -550,11 +576,23 @@ class TestDeleteDataSource:
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 0
 
     def test_delete_only_deletes_target_data_source(self, db_session, factories):
-        data_source_1 = factories.data_source.create(items=None)
-        data_source_2 = factories.data_source.create(items=None)
-        org_item_1 = factories.data_source_organisation_item.create(data_source=data_source_1, external_id="E123")
-        org_item_2 = factories.data_source_organisation_item.create(data_source=data_source_2, external_id="E456")
-
+        grant = factories.grant.create()
+        factories.grant_recipient.create(grant=grant)
+        data_source_1 = factories.data_source.create(
+            grant=grant,
+            collection=factories.collection.create(grant=grant),
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            file_metadata=None,
+        )
+        data_source_2 = factories.data_source.create(
+            name="DS 2",
+            grant=grant,
+            collection=factories.collection.create(grant=grant),
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            file_metadata=None,
+        )
         delete_data_source(data_source_1)
         db_session.flush()
 
@@ -562,14 +600,12 @@ class TestDeleteDataSource:
         assert db_session.get(DataSource, data_source_2.id) is not None
 
         assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 1
-        assert db_session.get(DataSourceOrganisationItem, org_item_1.id) is None
-        assert db_session.get(DataSourceOrganisationItem, org_item_2.id) is not None
+        assert db_session.get(DataSourceOrganisationItem, data_source_1.organisation_items[0].id) is None
 
     def test_delete_blocked_when_column_is_referenced(self, db_session, factories, mock_s3_service_calls):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(
-            name="Budget data",
             grant=grant,
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
@@ -589,7 +625,7 @@ class TestDeleteDataSource:
             delete_data_source(data_source)
 
         assert e.value.data_source_id == data_source.id
-        assert e.value.data_source_name == "Budget data"
+        assert e.value.data_source_name == "Grant allocation"
         assert e.value.referenced_columns == {"c_allocation"}
         assert db_session.get(DataSource, data_source.id) is not None
         assert mock_s3_service_calls.delete_file_calls == []

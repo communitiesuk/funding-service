@@ -576,21 +576,19 @@ class TestDataSourceMakePydanticModel:
         data_source = factories.data_source.build(
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
         )
 
-        result = data_source.build_typed_org_item_data({"allocation": None})
-        assert result["allocation"] is None
+        result = data_source.build_typed_org_item_data({"c_allocation": None})
+        assert result["c_allocation"] is None
 
     def test_missing_key_in_row_treated_as_none(self, factories):
         data_source = factories.data_source.build(
             name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate({"allocation": _decimal_col("Allocation", prefix="£")}),
         )
 
         result = data_source.build_typed_org_item_data({})
-        assert result["allocation"] is None
+        assert result["c_allocation"] is None
 
     def test_multiple_columns_all_typed_correctly(self, factories):
         data_source = factories.data_source.build(
@@ -643,12 +641,10 @@ class TestDataSourceBuildAnswerForColumn:
 
     def test_integer_value_stored_as_int_is_correctly_parsed(self, factories):
         data_source = factories.data_source.build(
-            name="Test data set",
             type=DataSourceType.GRANT_RECIPIENT,
-            schema=DataSourceSchema.model_validate({"allocation": _integer_col("Allocation")}),
         )
 
-        result = data_source._build_answer_for_column(42, data_source.schema.root["allocation"])
+        result = data_source._build_answer_for_column(42, data_source.schema.root["c_allocation"])
 
         assert isinstance(result, IntegerAnswer)
         assert result.value == 42
