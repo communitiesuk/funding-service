@@ -4,14 +4,17 @@ import uuid
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from functools import cached_property, lru_cache, partial
+from graphlib import CycleError
 from io import StringIO
 from itertools import chain
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
+import sentry_sdk
 from flask import current_app, url_for
 from pydantic import BaseModel as PydanticBaseModel
+from sentry_sdk.tracing import NoOpSpan
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -56,6 +59,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
     TasklistSectionStatusEnum,
+    TraceLevelEnum,
 )
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import (
@@ -67,7 +71,9 @@ from app.common.expressions import (
     evaluate,
     interpolate,
 )
+from app.common.helpers.request_tracing import get_tracing_levels
 from app.common.helpers.submission_events import SubmissionEventHelper
+from app.common.helpers.visibility import VisibilityResolver
 from app.extensions import notification_service, s3_service
 
 if TYPE_CHECKING:
@@ -191,6 +197,18 @@ class SubmissionHelper:
             data_manager=self.submission.data_manager,
             mode="interpolation",
         )
+
+    @cached_property
+    def resolver(self) -> VisibilityResolver | None:
+        try:
+            resolver = VisibilityResolver(
+                self.collection.dependency_graph, self.cached_evaluation_context, self.submission.data_manager
+            )
+        except CycleError as e:
+            sentry_sdk.capture_exception(e)
+            return None
+
+        return resolver
 
     @property
     def submission_name(self) -> str:
@@ -345,6 +363,9 @@ class SubmissionHelper:
             if isinstance(value, cached_property):
                 if attr in self.__dict__:
                     del self.__dict__[attr]
+
+        if "resolver" in self.__dict__:
+            del self.resolver
 
     def _update_submission_status(self):
         self.clear_caches()
@@ -676,9 +697,33 @@ class SubmissionHelper:
         that question's visibility. If the referenced question is HIDDEN, it will
         never be answered, so this component is also HIDDEN.
         """
-        return self._get_component_visibility_state_internal(
-            component, context, add_another_index=add_another_index, visited=None, check_undetermined=check_undetermined
-        )
+        trace_component_visibility = TraceLevelEnum.TRACE in get_tracing_levels()
+        start_span = sentry_sdk.start_span if trace_component_visibility else NoOpSpan
+
+        with start_span(op="get-component-visibility-state[old]", name=str(component.id)):
+            state = self._get_component_visibility_state_internal(
+                component,
+                context,
+                add_another_index=add_another_index,
+                visited=None,
+                check_undetermined=check_undetermined,
+            )
+
+        if self.resolver:
+            with start_span(op="get-component-visibility-state[new]", name=str(component.id)):
+                if add_another_index is not None:
+                    resolver_state = self.resolver.get_visibility_for_add_another(component, add_another_index)
+                else:
+                    resolver_state = self.resolver.get_visibility(component)
+
+            if state != resolver_state:
+                current_app.logger.error(
+                    "Old SubmissionHelper visibility mismatch with new VisibilityResolver visibility on "
+                    "%(component)s [add_another_index=%(add_another_index)s]: old=%(old)s new=%(new)s",
+                    dict(component=component.id, add_another_index=add_another_index, old=state, new=resolver_state),
+                )
+
+        return state
 
     def _check_reference_visibility(
         self,
