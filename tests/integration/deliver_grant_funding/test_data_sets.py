@@ -672,3 +672,28 @@ class TestGenerateLatestCsvTemplate:
         assert rows[1] == ["EC123", gr.organisation.name, "1", ""]
         assert rows[2] == ["EC456", gr2.organisation.name, "2", ""]
         assert rows[3] == ["EC789", gr3.organisation.name, "3", ""]
+
+    def test_generate_csv_large(self, factories, track_sql_queries):
+        grant = factories.grant.create()
+        factories.grant_recipient.create_batch(100, grant=grant)
+
+        collection = factories.collection.create(grant=grant)
+
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+
+        with track_sql_queries() as queries:
+            result = generate_latest_csv_template(data_source.id)
+
+        for q in queries:
+            print(q.statement[:100])
+
+        reader = csv.reader(StringIO(result))
+
+        rows = list(reader)
+        assert len(rows) == 101
+        assert len(queries) == 4
