@@ -893,13 +893,10 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 "submission_name",
                 "submission_deadline",
                 "grant_submission_url",
-                "requires_certification_text",
             ],
         )
         csv_writer.writeheader()
         email_recipients = set()
-
-        requires_certification_text = ""
 
         match email_type:
             case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
@@ -909,11 +906,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     for grant_recipient in grant_recipients
                     for data_provider in grant_recipient.data_providers
                 }
-                requires_certification_text = (
-                    (f"A certifier will need to sign off your updated {collection.type.constants.singular}.")
-                    if collection.requires_certification
-                    else ""
-                )
             case (
                 ReportAdminEmailTypeEnum.DEADLINE_REMINDER
                 | ReportAdminEmailTypeEnum.REPORT_OVERDUE
@@ -973,7 +965,6 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     "submission_name": report_name,
                     "submission_deadline": report_deadline,
                     "grant_submission_url": grant_report_url,
-                    "requires_certification_text": requires_certification_text,
                 }
             )
 

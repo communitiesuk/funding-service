@@ -140,7 +140,6 @@ class NotificationService:
             # TO DO: Delete `report_name`
             "report_name": collection.name,
             "submission_name": collection.name,
-            # TO DO: Delete `requires_certification`
             "requires_certification": "yes" if collection.requires_certification else "no",
             # TO DO: Delete `report_deadline`
             "report_deadline": (
@@ -172,11 +171,6 @@ class NotificationService:
                     collection_id=collection.id,
                     _external=True,
                 )
-            ),
-            "requires_certification_text": (
-                f"A certifier will need to sign off your {collection.type.constants.singular}."
-                if collection.requires_certification
-                else ""
             ),
             "organisation_name": grant_recipient.organisation.name,
             "allows_multiple_submissions": "yes" if collection.allow_multiple_submissions else "no",
@@ -535,7 +529,6 @@ class NotificationService:
             "submission_name": submission_helper.long_collection_name,
             "grant_name": submission_helper.collection.grant.name,
             "reopening_reason": lines_for_email,
-            # TO DO: Delete `requires_certification`
             "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
             # TO DO: Delete `grant_report_url`
             "grant_report_url": (
@@ -555,14 +548,6 @@ class NotificationService:
                     collection_id=submission_helper.collection.id,
                     _external=True,
                 )
-            ),
-            "requires_certification_text": (
-                (
-                    "A certifier will need to sign off your "
-                    f"updated {submission_helper.collection.type.constants.singular}."
-                )
-                if submission_helper.collection.requires_certification
-                else ""
             ),
             "collection_type_noun": submission_helper.collection.type.constants.singular,
         }

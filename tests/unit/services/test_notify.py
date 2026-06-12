@@ -163,7 +163,6 @@ class TestNotificationService:
                             "is_test_data": "no",
                             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/collection/{collection.id}",
                             "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/collection/{collection.id}",
-                            "requires_certification_text": "A certifier will need to sign off your report.",
                             "allows_multiple_submissions": "no",
                             "collection_type_noun": "report",
                             "submissions": "",
@@ -382,7 +381,6 @@ class TestNotificationService:
             "requires_certification": "yes",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
             "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
-            "requires_certification_text": "A certifier will need to sign off your updated report.",
             "collection_type_noun": "report",
         }
 
@@ -422,7 +420,6 @@ class TestNotificationService:
             "requires_certification": "yes",
             "grant_report_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
             "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
-            "requires_certification_text": "A certifier will need to sign off your updated report.",
             "collection_type_noun": "report",
         }
 
