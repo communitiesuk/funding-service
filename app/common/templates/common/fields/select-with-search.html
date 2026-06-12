@@ -1,0 +1,54 @@
+{#
+  GOV.UK Select with Search component.
+
+  Vendored from the exemplar in xgovuk-flask-admin, which is based on the select-with-search
+  component from govuk_publishing_components:
+  https://github.com/alphagov/govuk_publishing_components/blob/main/app/views/govuk_publishing_components/components/_select_with_search.html.erb
+
+  Uses Choices.js for progressive enhancement (see app/assets/components/select-with-search).
+
+  Extended from the exemplar to support:
+    - label rendered as the page heading (params.label.isPageHeading)
+    - per-option attributes, used for `data-hint` option hint text
+#}
+
+<div class="govuk-form-group{% if params.errorMessage %}govuk-form-group--error{% endif %} gem-c-select-with-search">
+  {% set labelHtml %}
+    <label class="govuk-label{% if params.label.classes %}{{ params.label.classes }}{% endif %}" for="{{ params.id }}" id="{{ params.id }}-label"> {{ params.label.text }} </label>
+  {% endset %}
+  {% if params.label.isPageHeading %}
+    <h1 class="govuk-label-wrapper">{{ labelHtml }}</h1>
+  {% else %}
+    {{ labelHtml }}
+  {% endif %}
+
+  {% if params.hint %}
+    <div id="{{ params.id }}-hint" class="govuk-hint">{{ params.hint.text }}</div>
+  {% endif %}
+
+  {% if params.errorMessage %}
+    <p id="{{ params.id }}-error" class="govuk-error-message"><span class="govuk-visually-hidden">Error:</span> {{ params.errorMessage.text }}</p>
+  {% endif %}
+
+  <select
+    class="govuk-select{% if params.errorMessage %}govuk-select--error{% endif %}"
+    id="{{ params.id }}"
+    name="{{ params.name }}"
+    {% if params.multiple %}multiple{% endif %}
+    data-module="select-with-search"
+    {% if params.hint %}aria-describedby="{{ params.id }}-hint{% if params.errorMessage %}{{ params.id }}-error{% endif %}"{% elif params.errorMessage %}aria-describedby="{{ params.id }}-error"{% endif %}
+    {% for attr, value in params.attributes.items() %}
+      {# Skip 'multiple' as it's already handled above #}
+      {% if attr != 'multiple' %}
+        {% if value == attr %}
+          {{ attr }}
+        {% else %}
+          {{ attr }}="{{ value }}"
+        {% endif %}
+      {% endif %}
+    {% endfor %}>
+    {% for item in params.select_items %}
+      <option value="{{ item.value }}" {% if item.selected %}selected{% endif %}{% for attr, value in (item.attributes or {}).items() %}{{ attr }}="{{ value }}"{% endfor %}>{{ item.text }}</option>
+    {% endfor %}
+  </select>
+</div>

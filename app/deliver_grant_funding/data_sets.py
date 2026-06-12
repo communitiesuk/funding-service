@@ -1,21 +1,31 @@
+import csv
+import io
 import uuid
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Sequence
 
 from flask import current_app
 from pydantic import BaseModel, Field
+from werkzeug.datastructures import FileStorage
 
 from app.common.data.types import (
+    DataSourceFileMetadata,
+    DataSourceFileTagEnum,
     NumberTypeEnum,
     QuestionDataType,
     TUnvalidatedDataSetRow,
     TUnvalidatedDataSetRows,
 )
-from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
+from app.constants import (
+    DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+    DATA_SET_IDENTIFIER_COLUMN_HEADERS,
+)
 from app.deliver_grant_funding.session_models import DataSetColumnMapping, DataSetUploadSessionModel
+from app.extensions import s3_service
 
 if TYPE_CHECKING:
-    from app.common.data.models import GrantRecipient
+    from app.common.data.models import Collection, GrantRecipient
 
 
 class CellError(BaseModel):
@@ -228,3 +238,35 @@ def validate_data_set(
 
 def build_data_set_upload_s3_key(grant_id: uuid.UUID, collection_id: uuid.UUID, data_source_id: uuid.UUID) -> str:
     return f"{current_app.config['REFERENCE_FILES_PREFIX']}/{grant_id}/{collection_id}/{data_source_id}"
+
+
+def upload_header_only_data_set_files(collection: "Collection") -> None:
+    """Give a copied collection's uploaded data sets their own header-only files in S3.
+
+    `copy_collection` copies a data set's schema but not its rows or the original uploaded file, as the data may be
+    collection-specific or sensitive. Upload a CSV containing just the column headers under a key owned by the new
+    collection, so the copy's file metadata never points at the source collection's data.
+    """
+    for data_source in collection.data_sources:
+        if not data_source.file_metadata or not data_source.schema:
+            continue
+
+        headers = DATA_SET_IDENTIFIER_COLUMN_HEADERS + [
+            column.original_column_name for column in data_source.schema.root.values()
+        ]
+        header_csv = io.StringIO()
+        csv.writer(header_csv).writerow(headers)
+
+        new_key = build_data_set_upload_s3_key(collection.grant_id, collection.id, data_source.id)
+        s3_service.upload_file(
+            FileStorage(
+                io.BytesIO(header_csv.getvalue().encode("utf-8")),
+                filename=data_source.file_metadata.original_filename,
+            ),
+            new_key,
+            {"status": DataSourceFileTagEnum.IN_USE},
+        )
+        data_source.file_metadata = DataSourceFileMetadata(
+            s3_key=new_key,
+            original_filename=data_source.file_metadata.original_filename,
+        )

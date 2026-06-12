@@ -1,10 +1,12 @@
 import decimal
-from typing import Any, List
+from typing import Any, List, cast
 
 from govuk_frontend_wtf.gov_form_base import GovFormBase, GovIterableBase
 from govuk_frontend_wtf.wtforms_widgets import GovSelect
 from wtforms import DecimalField, Field
+from wtforms.fields.choices import SelectFieldBase
 from wtforms.fields.numeric import IntegerField as WTFormsIntegerField
+from wtforms.widgets.core import Select
 
 
 class IntegerWithCommasField(WTFormsIntegerField):
@@ -67,6 +69,44 @@ class MHCLGAccessibleAutocomplete(GovSelect):
 
         params["attributes"] = attributes
         return super().__call__(field, **kwargs)
+
+
+class MHCLGSelectWithSearch(GovFormBase, Select):
+    """
+    GOV.UK select enhanced with search functionality using Choices.js.
+
+    Vendored from the exemplar in xgovuk-flask-admin, which in turn adapts the select-with-search
+    component from govuk_publishing_components:
+    https://github.com/alphagov/govuk_publishing_components/tree/main/app/views/govuk_publishing_components/components/select_with_search
+
+    Renders a <select> element with data-module="select-with-search", which our JS progressively
+    enhances with Choices.js. Extended from the exemplar to support per-option hint text: pass
+    choices as (value, label, {"data-hint": "..."}) tuples and the hint is shown below the option
+    label in the dropdown.
+    """
+
+    template = "common/fields/select-with-search.html"
+
+    def __call__(self, field: Field, **kwargs: Any) -> Any:
+        kwargs.setdefault("id", field.id)
+
+        if "required" not in kwargs and "required" in getattr(field, "flags", []):
+            kwargs["required"] = True
+
+        kwargs["items"] = [
+            {"text": label, "value": value, "selected": selected, "attributes": render_kw or {}}
+            for value, label, selected, render_kw in cast(SelectFieldBase, field).iter_choices()
+        ]
+
+        return super().__call__(field, **kwargs)
+
+    def map_gov_params(self, field: Field, **kwargs: Any) -> dict[str, Any]:
+        # Save the items list before the parent maps it into govuk select params; use 'select_items'
+        # to avoid colliding with dict.items() in the template.
+        select_items = kwargs.get("items", [])
+        params = super().map_gov_params(field, **kwargs)
+        params["select_items"] = select_items
+        return params
 
 
 class MHCLGDividableIterableBase(GovIterableBase):

@@ -9,6 +9,7 @@ import ajaxMarkdownPreview from "./components/ajax-markdown-preview";
 import textareaNoNewlines from "./components/textarea-no-newlines/index.js";
 import contextAwareEditor from "./components/context-aware-editor/index.js";
 import { initSectionNavScroll } from "./components/submission-section-nav/index.js";
+import selectWithSearch from "./components/select-with-search/index.js";
 
 initAll();
 // mojInitAll();
@@ -74,4 +75,10 @@ document
     .querySelectorAll('[data-module="textarea-no-newlines"]')
     .forEach((element) => {
         textareaNoNewlines(element);
+    });
+
+document
+    .querySelectorAll('[data-module="select-with-search"]')
+    .forEach((element) => {
+        selectWithSearch(element);
     });
