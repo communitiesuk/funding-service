@@ -890,6 +890,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 "requires_certification",
                 "submissions",
                 "unsubmitted_submissions",
+                "submission_name",
+                "submission_deadline",
+                "grant_submission_url",
             ],
         )
         csv_writer.writeheader()
@@ -937,8 +940,11 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     "email_address": email_recipient.email,
                     "grant_name": grant.name,
                     "organisation_name": grant_recipient.organisation.name,
+                    # TO DO: Delete `report_name`
                     "report_name": report_name,
+                    # TO DO: Delete `report_deadline`
                     "report_deadline": report_deadline,
+                    # TO DO: Delete `grant_report_url`
                     "grant_report_url": grant_report_url,
                     "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
                     "requires_certification": "yes" if collection.requires_certification else "no",
@@ -956,6 +962,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     )
                     if collection.multiple_submissions_are_managed_by_service
                     else "",
+                    "submission_name": report_name,
+                    "submission_deadline": report_deadline,
+                    "grant_submission_url": grant_report_url,
                 }
             )
 
