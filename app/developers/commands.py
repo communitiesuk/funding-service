@@ -684,7 +684,12 @@ def sync_test_grant_recipients(commit: bool) -> None:
                 created += 1
                 pass
 
-            create_grant_recipients(grant, [matching_test_organisation.id], mode=GrantRecipientModeEnum.TEST)
+            create_grant_recipients(
+                grant,
+                [matching_test_organisation.id],
+                status=live_grant_recipient.status,
+                mode=GrantRecipientModeEnum.TEST,
+            )
 
             click.echo(
                 f" -> Created test grant recipient for live organisation {live_grant_recipient.organisation.name}"

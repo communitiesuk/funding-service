@@ -16,6 +16,7 @@ from app.common.data.interfaces.grant_recipients import (
 from app.common.data.models import GrantRecipient
 from app.common.data.types import (
     GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -498,30 +499,42 @@ class TestCreateGrantRecipients:
         org2 = factories.organisation.create(name="Organisation 2")
         org3 = factories.organisation.create(name="Organisation 3")
 
-        create_grant_recipients(grant, [org1.id, org2.id, org3.id])
+        create_grant_recipients(grant, [org1.id, org2.id, org3.id], status=GrantRecipientStatusEnum.AWARDED)
 
         db_session.expire_all()
         grant_recipients = db_session.query(GrantRecipient).filter_by(grant_id=grant.id).all()
         assert len(grant_recipients) == 3
         assert {gr.organisation_id for gr in grant_recipients} == {org1.id, org2.id, org3.id}
+        assert all(gr.status == GrantRecipientStatusEnum.AWARDED for gr in grant_recipients)
 
     def test_creates_single_grant_recipient(self, factories, db_session):
         grant = factories.grant.create()
         org = factories.organisation.create(name="Organisation 1")
 
-        create_grant_recipients(grant, [org.id])
+        create_grant_recipients(grant, [org.id], status=GrantRecipientStatusEnum.AWARDED)
 
         db_session.expire_all()
         grant_recipients = db_session.query(GrantRecipient).filter_by(grant_id=grant.id).all()
         assert len(grant_recipients) == 1
         assert grant_recipients[0].organisation_id == org.id
         assert grant_recipients[0].grant_id == grant.id
+        assert grant_recipients[0].status == GrantRecipientStatusEnum.AWARDED
+
+    def test_creates_grant_recipients_with_given_status(self, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(name="Organisation 1")
+
+        create_grant_recipients(grant, [org.id], status=GrantRecipientStatusEnum.APPLYING)
+
+        db_session.expire_all()
+        grant_recipient = db_session.query(GrantRecipient).filter_by(grant_id=grant.id).one()
+        assert grant_recipient.status == GrantRecipientStatusEnum.APPLYING
 
     def test_handles_empty_list(self, factories, db_session):
         grant = factories.grant.create()
         initial_count = db_session.query(GrantRecipient).count()
 
-        create_grant_recipients(grant, [])
+        create_grant_recipients(grant, [], status=GrantRecipientStatusEnum.AWARDED)
 
         db_session.expire_all()
         final_count = db_session.query(GrantRecipient).count()
@@ -535,7 +548,7 @@ class TestCreateGrantRecipients:
 
         factories.grant_recipient.create(grant=grant, organisation=org1)
 
-        create_grant_recipients(grant, [org2.id, org3.id])
+        create_grant_recipients(grant, [org2.id, org3.id], status=GrantRecipientStatusEnum.AWARDED)
 
         db_session.expire_all()
         grant_recipients = db_session.query(GrantRecipient).filter_by(grant_id=grant.id).all()

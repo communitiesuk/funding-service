@@ -120,6 +120,12 @@ class GrantRecipientModeEnum(enum.StrEnum):
         return GrantRecipientModeEnum(mode.value)
 
 
+class GrantRecipientStatusEnum(enum.StrEnum):
+    APPLYING = "applying"
+    ALLOCATED = "allocated"
+    AWARDED = "awarded"
+
+
 class SubmissionStatusEnum(enum.StrEnum):
     NOT_STARTED = "Not started"
     IN_PROGRESS = "In progress"

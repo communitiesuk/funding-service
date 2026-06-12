@@ -45,6 +45,7 @@ from app.common.data.types import (
     ExpressionType,
     FileUploadTypes,
     GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
     MaximumFileSize,
@@ -1473,6 +1474,7 @@ class GrantRecipient(BaseModel):
     organisation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organisation.id"))
     grant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("grant.id"))
     mode: Mapped[GrantRecipientModeEnum] = mapped_column(default=GrantRecipientModeEnum.LIVE)
+    status: Mapped[GrantRecipientStatusEnum]
 
     organisation: Mapped[Organisation] = relationship("Organisation")
     grant: Mapped[Grant] = relationship("Grant", back_populates="grant_recipients")

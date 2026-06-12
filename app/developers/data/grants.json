@@ -1507,13 +1507,15 @@
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4058b3cf-e06c-4c5a-ba36-fe14c9dc0765",
           "mode": "test",
-          "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799"
+          "organisation_id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
+          "status": "awarded"
         },
         {
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "7aa70608-4bd7-4326-bf6a-74010d30f696",
           "mode": "live",
-          "organisation_id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510"
+          "organisation_id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
+          "status": "awarded"
         }
       ],
       "questions": [

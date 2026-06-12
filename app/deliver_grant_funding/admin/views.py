@@ -46,6 +46,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
     GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
     ReportAdminEmailTypeEnum,
@@ -451,7 +452,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         )
 
         if form.validate_on_submit():
-            create_grant_recipients(grant=grant, organisation_ids=form.recipients.data)
+            create_grant_recipients(
+                grant=grant, organisation_ids=form.recipients.data, status=GrantRecipientStatusEnum.AWARDED
+            )
 
             live_organisations = get_organisations(mode=OrganisationModeEnum.LIVE, with_ids=form.recipients.data)
             test_organisations = get_organisations(
@@ -460,7 +463,10 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             )
             test_organisation_ids = [org.id for org in test_organisations]
             create_grant_recipients(
-                grant=grant, organisation_ids=test_organisation_ids, mode=GrantRecipientModeEnum.TEST
+                grant=grant,
+                organisation_ids=test_organisation_ids,
+                status=GrantRecipientStatusEnum.AWARDED,
+                mode=GrantRecipientModeEnum.TEST,
             )
 
             # Set up grant team members as data providers/certifiers for the test grant recipients
