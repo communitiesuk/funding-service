@@ -33,7 +33,7 @@ class SSOSignInPage(BasePage):
         # If already logged in, this will redirect to /grants
         expect(
             self.title.or_(self.page.get_by_role("heading", name="Grants", exact=True)).or_(
-                self.page.get_by_role("heading", name="Reports")
+                self.page.get_by_role("heading", name="Grant details")
             )
         ).to_be_visible()
 

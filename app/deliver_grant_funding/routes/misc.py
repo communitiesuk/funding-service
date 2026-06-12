@@ -16,7 +16,7 @@ from app.types import FlashMessageType
 @deliver_grant_funding_blueprint.route("/<uuid:grant_id>/index", methods=["GET"])
 @has_deliver_grant_role(RoleEnum.MEMBER)
 def grant_homepage(grant_id: UUID) -> ResponseReturnValue:
-    return redirect(url_for("deliver_grant_funding.list_reports", grant_id=grant_id))
+    return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
 
 
 @deliver_grant_funding_blueprint.route("/grants", methods=["GET"])
