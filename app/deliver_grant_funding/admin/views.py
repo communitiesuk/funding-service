@@ -889,16 +889,13 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 "email_address",
                 "grant_name",
                 "organisation_name",
-                "report_name",
-                "report_deadline",
-                "grant_report_url",
+                "submission_name",
+                "submission_deadline",
+                "grant_submission_url",
                 "is_test_data",
                 "requires_certification",
                 "submissions",
                 "unsubmitted_submissions",
-                "submission_name",
-                "submission_deadline",
-                "grant_submission_url",
             ],
         )
         csv_writer.writeheader()
@@ -928,10 +925,10 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             case _:
                 return abort(404)
         for email_recipient, grant_recipient in sorted(email_recipients, key=lambda u: u[0].email):
-            report_name = collection.name
-            report_deadline = format_date(collection.submission_period_end_date)
+            submission_name = collection.name
+            submission_deadline = format_date(collection.submission_period_end_date)
 
-            grant_report_url = url_for(
+            grant_submission_url = url_for(
                 "access_grant_funding.route_to_submission",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
@@ -946,31 +943,29 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     "email_address": email_recipient.email,
                     "grant_name": grant.name,
                     "organisation_name": grant_recipient.organisation.name,
-                    # TO DO: Delete `report_name`
-                    "report_name": report_name,
-                    # TO DO: Delete `report_deadline`
-                    "report_deadline": report_deadline,
-                    # TO DO: Delete `grant_report_url`
-                    "grant_report_url": grant_report_url,
+                    "submission_name": submission_name,
+                    "submission_deadline": submission_deadline,
+                    "grant_submission_url": grant_submission_url,
                     "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
                     "requires_certification": "yes" if collection.requires_certification else "no",
-                    "submissions": "\n".join(sorted(f"* {submission.submission_name}" for submission in submissions))
-                    if collection.multiple_submissions_are_managed_by_service
-                    else "",
-                    "unsubmitted_submissions": "\n".join(
-                        sorted(
-                            (
-                                f"* {submission.submission_name}"
-                                for submission in submissions
-                                if not submission.is_submitted
+                    "submissions": (
+                        "\n".join(sorted(f"* {submission.submission_name}" for submission in submissions))
+                        if collection.multiple_submissions_are_managed_by_service
+                        else ""
+                    ),
+                    "unsubmitted_submissions": (
+                        "\n".join(
+                            sorted(
+                                (
+                                    f"* {submission.submission_name}"
+                                    for submission in submissions
+                                    if not submission.is_submitted
+                                )
                             )
                         )
-                    )
-                    if collection.multiple_submissions_are_managed_by_service
-                    else "",
-                    "submission_name": report_name,
-                    "submission_deadline": report_deadline,
-                    "grant_submission_url": grant_report_url,
+                        if collection.multiple_submissions_are_managed_by_service
+                        else ""
+                    ),
                 }
             )
 
