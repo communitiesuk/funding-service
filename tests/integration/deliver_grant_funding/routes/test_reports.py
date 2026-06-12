@@ -48,7 +48,7 @@ class TestListReports:
         assert client.grant.name in soup.text
 
         expected_links = [
-            ("Add a monitoring report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/set-up")),
+            ("Create a report", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/set-up")),
         ]
         for expected_link in expected_links:
             button = page_has_link(soup, expected_link[0])
@@ -92,7 +92,7 @@ class TestListReports:
 
         expected_links = [
             (
-                "Add another monitoring report",
+                "Create another report",
                 AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/set-up"),
             ),
             (

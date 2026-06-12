@@ -627,6 +627,7 @@ dependencies = [
     { name = "sentry-sdk" },
     { name = "simpleeval" },
     { name = "sqlalchemy" },
+    { name = "sqlalchemy-clone" },
     { name = "sqlalchemy-json" },
     { name = "types-boto3", extra = ["s3"] },
     { name = "wtforms", extra = ["email"] },
@@ -693,6 +694,7 @@ requires-dist = [
     { name = "sentry-sdk", specifier = "==2.59.0" },
     { name = "simpleeval", specifier = "==1.0.7" },
     { name = "sqlalchemy", specifier = "==2.0.51" },
+    { name = "sqlalchemy-clone", git = "https://github.com/communitiesuk/sqlalchemy-clone.git?tag=v0.1.0" },
     { name = "sqlalchemy-json", specifier = "==0.7.0" },
     { name = "types-boto3", extras = ["s3"], specifier = "==1.43.10" },
     { name = "wtforms", extras = ["email"], specifier = "==3.2.2" },
@@ -1628,6 +1630,14 @@ wheels = [
 [package.optional-dependencies]
 asyncio = [
     { name = "greenlet" },
+]
+
+[[package]]
+name = "sqlalchemy-clone"
+version = "0.1.0"
+source = { git = "https://github.com/communitiesuk/sqlalchemy-clone.git?tag=v0.1.0#a6a02513bfc158bbb847c70a4f0956951512e599" }
+dependencies = [
+    { name = "sqlalchemy" },
 ]
 
 [[package]]

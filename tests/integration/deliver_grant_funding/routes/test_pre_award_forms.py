@@ -37,7 +37,7 @@ class TestListPreAwardForms:
         assert client.grant.name in soup.text
 
         expected_links = [
-            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/set-up")),
+            ("Create a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/set-up")),
         ]
         for expected_link in expected_links:
             button = page_has_link(soup, expected_link[0])
@@ -81,7 +81,7 @@ class TestListPreAwardForms:
         )
 
         expected_links = [
-            ("Add a form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/set-up")),
+            ("Create another form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/set-up")),
             ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/add-section")),
             ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/change-name")),
             ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/pre-award\?delete")),

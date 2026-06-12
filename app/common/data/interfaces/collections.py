@@ -1,15 +1,17 @@
 import datetime
+import types
 import uuid
 from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, List, Literal, Never, Protocol, Unpack, cast, overload
+from typing import Any, List, Literal, Never, Protocol, Union, Unpack, cast, get_args, get_origin, overload
 from uuid import UUID
 
 from flask import current_app
-from sqlalchemy import and_, delete, func, null, or_, select, text
+from sqlalchemy import and_, delete, func, inspect, null, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy_clone import CloneContext, CloneSpec, Entity, Follow, Persist, clone
 
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
@@ -66,8 +68,12 @@ from app.common.expressions import (
 from app.common.expressions.managed import BaseDataSourceManagedExpression
 from app.common.expressions.references import (
     DataSourceReference,
+    EvaluationStatement,
+    EvaluationStatementType,
     ExpressionReference,
+    ExpressionStatement,
     InterpolationStatement,
+    InterpolationStatementType,
     PExpressionReferences,
 )
 from app.common.forms.helpers import (
@@ -80,6 +86,7 @@ from app.common.helpers.submission_events import (
     SubmissionEventHelper,
 )
 from app.common.utils import slugify
+from app.deliver_grant_funding.data_sets import upload_header_only_data_set_files
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
@@ -97,6 +104,200 @@ def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionT
     )
     db.session.add(collection)
     return collection
+
+
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
+def copy_collection(collection: Collection, *, name: str, user: User, grant: Grant) -> Collection:  # noqa: C901
+    """Create a new collection in the given grant as a deep copy of an existing one (from any grant).
+
+    Copies the full schema (forms, questions/groups, expressions, data sources and component references), giving
+    every copied entity a new ID and remapping all internal references — foreign keys, ``q_<id>``/``d_<id>``
+    references in component text and expression statements/context — to point at the copied entities.
+
+    Submissions are not copied and the new collection always starts in draft. Uploaded data sets keep their schema
+    but not their organisation-item rows or the underlying S3 file, as that data may be collection-specific or
+    sensitive; callers should give the copies header-only files (see `upload_header_only_data_set_files` in
+    deliver_grant_funding).
+    """
+
+    def _rewrite_refs(statement: ExpressionStatement, ctx: CloneContext) -> ExpressionStatement:
+        """Rewrites question/datasource references in an ExpressionStatement to point at the newly-minted entities"""
+        for reference in statement.references:
+            if question_id := reference.question_id:
+                new_pk = cast(uuid.UUID, ctx.new_id(Component, question_id))
+                new_reference = ExpressionReference.from_question_id(new_pk)
+
+            elif ds_ref := reference.data_source_reference:
+                new_pk = cast(uuid.UUID, ctx.new_id(DataSource, ds_ref.data_source_id))
+                new_reference = ExpressionReference.from_data_source_column_id(new_pk, ds_ref.column_name)
+
+            else:
+                raise ValueError(f"Unknown reference type: {reference}")
+
+            statement = statement.rewrite_reference(reference, new_reference)
+
+        return statement
+
+    def _rewrite_expression_reference(ref: ExpressionReference, ctx: CloneContext) -> ExpressionReference:
+        """Rewrites a single ExpressionReference to point at the newly-minted reference"""
+        if question_id := ref.question_id:
+            new_pk = cast(uuid.UUID, ctx.new_id(Component, question_id))
+            return ExpressionReference.from_question_id(new_pk)
+        elif ds_ref := ref.data_source_reference:
+            new_pk = cast(uuid.UUID, ctx.new_id(DataSource, ds_ref.data_source_id))
+            return ExpressionReference.from_data_source_column_id(new_pk, ds_ref.column_name)
+        else:
+            raise ValueError(f"Unknown reference type: {ref}")
+
+    def _annotation_contains(annotation: Any, target: type) -> bool:
+        """Detect whether a Pydantic model definition contains a field of a given type (eg InterpolationStatement)"""
+        origin = get_origin(annotation)
+        if origin is Union or origin is types.UnionType:
+            return any(_is_subclass_safe(arg, target) for arg in get_args(annotation) if arg is not type(None))
+        return _is_subclass_safe(annotation, target)
+
+    def _is_subclass_safe(cls: Any, target: type) -> bool:
+        try:
+            return issubclass(cls, target)
+        except TypeError:
+            return False
+
+    def _rewrite_statement_fields(old: Any, new: Any, ctx: CloneContext) -> None:
+        """Find and rewrite all fields on a SQLAlchemy model that need to be updated.
+
+        This scans both SQLAlchemy fields and an Expression's pydantic model fields. For example:
+
+        - Component.text
+        - Component.hint
+        - Expression.context["minimum_expression"]
+        """
+        # Iterate all SQLAlchemy model fields, find InterpolationStatement/EvaluatableExpressions fields, and update
+        # references inside
+        for prop in inspect(type(new)).column_attrs:
+            col_type = prop.columns[0].type
+            if isinstance(col_type, (InterpolationStatementType, EvaluationStatementType)):
+                value = getattr(new, prop.key)
+                if value:
+                    setattr(new, prop.key, _rewrite_refs(value, ctx))
+
+        # For expressions, iterate the EvaluateExpression pydantic model fields and update references inside any
+        # InterpolationStatement/EvaluatableExpressions fields, or ExpressionReference fields.
+        if isinstance(new, Expression) and new.context is not None:
+            evaluatable_expression = new.evaluatable_expression
+            updates: dict[str, Any] = {}
+
+            for field_name, field_info in type(evaluatable_expression).model_fields.items():
+                value = getattr(evaluatable_expression, field_name)
+                if value is None:
+                    continue
+
+                annotation = field_info.annotation
+                if _annotation_contains(annotation, ExpressionStatement):
+                    updates[field_name] = _rewrite_refs(value, ctx)
+                elif _annotation_contains(annotation, ExpressionReference):
+                    updates[field_name] = _rewrite_expression_reference(value, ctx)
+
+            if updates:
+                evaluatable_expression = evaluatable_expression.model_copy(update=updates)
+
+            new.context = evaluatable_expression.model_dump(mode="json")
+
+    def _upload_data_set_headers(old: DataSource, new: DataSource, ctx: CloneContext) -> None:
+        if new.type == DataSourceType.GRANT_RECIPIENT:
+            upload_header_only_data_set_files(new)
+
+    spec = CloneSpec(
+        entities={
+            Collection: Entity(
+                follow=[Collection.forms, Collection.data_sources],
+                exclude=[
+                    Collection.grant,
+                    Collection.created_by,
+                    Collection._submissions,
+                    Collection.submission_name_question,
+                ],
+                fields={
+                    Collection.grant_id: lambda old, new, ctx: grant.id,
+                    Collection.name: lambda old, new, ctx: name,
+                    Collection.status: lambda old, new, ctx: CollectionStatusEnum.DRAFT,
+                    Collection.slug: lambda old, new, ctx: slugify(new.name),
+                    Collection.created_by_id: lambda old, new, ctx: user.id,
+                },
+            ),
+            Form: Entity(
+                follow=[Form.components],
+                exclude=[
+                    Form._all_components,
+                    Form.collection,
+                ],
+            ),
+            Component: Entity(
+                follow=[
+                    Component.components,
+                    Component.expressions,
+                    Component.data_source,
+                ],
+                exclude=[
+                    Component.form,
+                    Component.owned_component_references,
+                    Component.parent,
+                    Component.depended_on_by,
+                ],
+                after_remap=_rewrite_statement_fields,
+            ),
+            Expression: Entity(
+                exclude=[
+                    Expression.component_references,
+                    Expression.question,
+                    Expression.created_by,
+                ],
+                fields={
+                    Expression.created_by_id: lambda old, new, ctx: user.id,
+                },
+                after_remap=_rewrite_statement_fields,
+            ),
+            DataSource: Entity(
+                follow=[
+                    Follow(DataSource.items, when=lambda ds: ds.type == DataSourceType.CUSTOM),
+                ],
+                exclude=[
+                    DataSource.organisation_items,
+                    DataSource.questions,
+                    DataSource.collection,
+                    DataSource.grant,
+                    DataSource.created_by,
+                    DataSource.updated_by,
+                    DataSource.questions,
+                    DataSource.depended_on_by_columns,
+                ],
+                fields={
+                    DataSource.created_by_id: lambda old, new, ctx: user.id,
+                    DataSource.updated_by_id: lambda old, new, ctx: user.id,
+                    DataSource.grant_id: lambda old, new, ctx: grant.id if old.grant_id else None,
+                },
+                after_flush=_upload_data_set_headers,
+            ),
+            DataSourceItem: Entity(
+                exclude=[
+                    DataSourceItem.data_source,
+                    DataSourceItem.component_references,
+                ],
+            ),
+        },
+        strict=True,
+        on_unconfigured="error",
+        on_external_fk="keep",
+    )
+    result = clone(collection, spec, session=db.session, persist=Persist.FLUSH)
+    new_collection: Collection = result.root
+
+    expression_context = ExpressionContext.build_expression_context(collection=new_collection, mode="interpolation")
+
+    for new_instance in result.objects:
+        if isinstance(new_instance, Component):
+            _validate_and_sync_component_references(new_instance, expression_context)
+
+    return new_collection
 
 
 def get_collection(
