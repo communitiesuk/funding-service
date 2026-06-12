@@ -139,9 +139,9 @@
         {% endif %}
 
         {% if submission.submission_id %}
-          {% do cells.append({"html": submissionStatusTag(submission.status, collection.is_overdue and not submission.status == enum.submission_status.SUBMITTED)}) %}
+          {% do cells.append({"html": submissionStatusTag(submission.status, submission.is_overdue)}) %}
         {% else %}
-          {% do cells.append({"html": submissionStatusTag(enum.submission_status.NOT_SUBMITTED if collection.is_overdue else enum.submission_status.NOT_STARTED, collection.is_closed)}) %}
+          {% do cells.append({"html": submissionStatusTag(enum.submission_status.NOT_SUBMITTED if collection.is_closed else enum.submission_status.NOT_STARTED, collection.is_overdue)}) %}
         {% endif %}
         {% do cells.append({"text": format_date_short(submission.last_updated_at_utc) if submission.last_updated_at_utc else ""}) %}
         {% do rows.append(cells) %}

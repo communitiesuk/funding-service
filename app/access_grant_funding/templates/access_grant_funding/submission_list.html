@@ -50,7 +50,7 @@
         {% for submission_helper in submission_helpers|sort(attribute="submission_name") %}
           {% set submission_status = submission_helper.status %}
           {% set submission_status_html %}
-            {{ submissionStatusTag(submission_status, submission_helper.is_overdue) }}
+            {{ submissionStatusTag(submission_status, submission_helper.submission.is_overdue) }}
           {% endset %}
           {% set action_config = submission_helper.get_access_submission_action(collection, grant_recipient, submission_helper.submission) %}
           {% set action_html %}

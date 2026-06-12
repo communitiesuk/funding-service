@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -27,7 +27,6 @@ from app.common.data.types import (
     QuestionPresentationOptions,
     SubmissionEventType,
     SubmissionModeEnum,
-    SubmissionStatusEnum,
     TasklistSectionStatusEnum,
 )
 from app.common.expressions import ExpressionContext
@@ -572,47 +571,6 @@ class TestSubmissionHelper:
 
             # all questions answered and all marked as complete is complete
             assert helper.all_needed_forms_are_completed is True
-
-    class TestIsOverdue:
-        def test_is_overdue_no_deadline(self, factories):
-            submission = factories.submission.build(collection__submission_period_end_date=None)
-            assert SubmissionHelper(submission).is_overdue is False
-
-        @pytest.mark.freeze_time("2025-01-10 12:00:00")
-        def test_is_overdue_when_past_deadline(self, factories):
-            submission = factories.submission.build(collection__submission_period_end_date=date(2020, 1, 1))
-            assert SubmissionHelper(submission).is_overdue is True
-
-        @pytest.mark.freeze_time("2025-01-10 12:00:00")
-        def test_is_overdue_when_before_deadline(self, factories):
-            submission = factories.submission.build(collection__submission_period_end_date=date(2030, 1, 1))
-            assert SubmissionHelper(submission).is_overdue is False
-
-        @pytest.mark.freeze_time("2025-01-10 12:00:00")
-        def test_is_overdue_when_completed(self, factories):
-            collection = factories.collection.build(
-                submission_period_end_date=date(2020, 1, 1),
-                requires_certification=False,
-            )
-            question = factories.question.build(form__collection=collection)
-            submission = factories.submission.build(
-                collection=collection,
-                answers=[FactoryAnswer(question, TextSingleLineAnswer("test answer"))],
-            )
-            submission.events = [
-                factories.submission_event.build(
-                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                    related_entity_id=question.form.id,
-                ),
-                factories.submission_event.build(
-                    event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
-                    related_entity_id=submission.id,
-                ),
-            ]
-            submission.status = SubmissionStatusEnum.SUBMITTED
-
-            helper = SubmissionHelper(submission)
-            assert helper.is_overdue is False
 
     class TestVisibleQuestion:
         def test_is_question_always_visible_with_no_conditions(self, factories):

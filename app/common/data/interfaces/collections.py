@@ -431,6 +431,7 @@ class ListSubmissionData:
     submission_id: UUID | None
     status: SubmissionStatusEnum | None
     last_updated_at_utc: datetime.datetime | None
+    is_overdue: bool | None
 
 
 def get_submission_list_for_collection(
@@ -481,6 +482,7 @@ def get_submission_list_for_collection(
             Submission.id.label("submission_id"),
             Submission.status,
             last_updated_at_utc,
+            Submission.is_overdue.label("is_overdue"),
         )
         .select_from(GrantRecipient)
         .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
@@ -492,6 +494,7 @@ def get_submission_list_for_collection(
                 Submission.mode == submission_mode,
             ),
         )
+        .outerjoin(Collection, Collection.id == Submission.collection_id)
         .outerjoin(latest_event, latest_event.c.submission_id == Submission.id)
         .where(GrantRecipient.grant_id == collection.grant_id, GrantRecipient.mode == grant_recipient_mode)
         .order_by(*order_by)
@@ -503,6 +506,7 @@ def get_submission_list_for_collection(
             submission_id=row.submission_id,
             status=row.status,
             last_updated_at_utc=row.last_updated_at_utc,
+            is_overdue=row.is_overdue,
         )
         for row in db.session.execute(stmt).all()
     ]

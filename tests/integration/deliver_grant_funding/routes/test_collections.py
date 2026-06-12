@@ -8242,6 +8242,95 @@ class TestListSubmissions:
         tag_texts = {tag.text.strip() for tag in submission_tags}
         assert "Not started" in tag_texts
 
+    def test_live_mode_shows_overdue_status_when_submission_period_passed(
+        self, authenticated_grant_member_client, grant_recipient, factories, db_session
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            submission_period_end_date=date(2020, 1, 1),  # past date
+            name="Test Report",
+        )
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        submission_tags = soup.select(".govuk-tag")
+        tag_texts = {tag.text.strip() for tag in submission_tags}
+        assert "Ready to submit (Overdue)" in tag_texts
+
+    def test_live_mode_shows_not_started_overdue_status_for_open_collections_without_submissions(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            allow_multiple_submissions=True,
+            grant=authenticated_grant_member_client.grant,
+            submission_period_end_date=date(2020, 1, 1),  # past date
+            status=CollectionStatusEnum.OPEN,
+            name="Test Report",
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        submission_tags = soup.select(".govuk-tag")
+        tag_texts = {tag.text.strip() for tag in submission_tags}
+        assert len(tag_texts) == 1
+        assert "Not started (Overdue)" in tag_texts
+
+    def test_live_mode_wont_show_not_submitted_overdue_status_for_closed_collections_without_submissions(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            allow_multiple_submissions=True,
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            submission_period_end_date=date(2020, 1, 1),  # past date
+            status=CollectionStatusEnum.CLOSED,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+
+        submission_tags = soup.select(".govuk-tag")
+        tag_texts = {tag.text.strip() for tag in submission_tags}
+        assert len(tag_texts) == 1
+        assert "Not submitted" in tag_texts
+
     def test_closed_collection_shows_not_submitted_for_grant_recipients_without_submissions(
         self, authenticated_grant_member_client, factories, db_session
     ):
