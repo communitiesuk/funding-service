@@ -1,4 +1,5 @@
 import datetime
+import re
 import uuid
 from collections.abc import Sequence
 from copy import deepcopy
@@ -10,6 +11,7 @@ from flask import current_app
 from sqlalchemy import and_, delete, func, null, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy_clone import CloneContext, CloneSpec, Entity, Follow, Persist, clone
 
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
@@ -75,6 +77,7 @@ from app.common.helpers.submission_events import (
     SubmissionEventHelper,
 )
 from app.common.utils import slugify
+from app.deliver_grant_funding.data_sets import upload_header_only_data_set_files
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
@@ -92,6 +95,158 @@ def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionT
     )
     db.session.add(collection)
     return collection
+
+
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
+def copy_collection(collection: Collection, *, name: str, user: User, grant: Grant) -> Collection:  # noqa: C901
+    """Create a new collection in the given grant as a deep copy of an existing one (from any grant).
+
+    Copies the full schema (forms, questions/groups, expressions, data sources and component references), giving
+    every copied entity a new ID and remapping all internal references — foreign keys, ``q_<id>``/``d_<id>``
+    references in component text and expression statements/context — to point at the copied entities. This follows
+    the same serialise -> replace IDs -> rebuild approach as the `export-grants`/`seed-grants` developer commands.
+
+    Submissions are not copied and the new collection always starts in draft. Uploaded data sets keep their schema
+    but not their organisation-item rows or the underlying S3 file, as that data may be collection-specific or
+    sensitive; callers should give the copies header-only files (see `upload_header_only_data_set_files` in
+    deliver_grant_funding).
+    """
+    # --- after_remap hook: rewrite q_<hex> (question) / d_<hex> (data source) references
+    #     embedded in Expression.statement and Expression.context to the NEW ids.
+    #     Out-of-set references (e.g. cross-collection) resolve to None and are left intact.
+    _REF = re.compile(r"\b([qd])_([0-9a-f]{32})")
+
+    def _rewrite_refs(text: str, ctx: CloneContext) -> str:
+        def repl(m: re.Match[str]) -> str:
+            kind, hexid = m.group(1), m.group(2)
+            model = Component if kind == "q" else DataSource  # q_ -> component.id, d_ -> data_source.id
+            new_id = ctx.new_id(model, uuid.UUID(hexid))
+            return f"{kind}_{new_id.hex}" if new_id is not None else m.group(0)
+
+        return _REF.sub(repl, text)
+
+    def _rewrite_json(node: Any, ctx: CloneContext) -> Any:
+        if isinstance(node, str):
+            return _rewrite_refs(node, ctx)
+        if isinstance(node, list):
+            return [_rewrite_json(v, ctx) for v in node]
+        if isinstance(node, dict):
+            return {k: _rewrite_json(v, ctx) for k, v in node.items()}
+        return node
+
+    def _rewrite_expression(old: Expression, new: Expression, ctx: CloneContext) -> None:
+        if new.statement:
+            new.statement = _rewrite_refs(new.statement, ctx)
+        if new.context is not None:  # JSONB already deep-copied
+            new.context = _rewrite_json(new.context, ctx)
+
+    def _rewrite_interpolation(old: Component, new: Component, ctx: CloneContext) -> None:
+        new.text = _rewrite_refs(new.text, ctx)
+        if new.hint:
+            new.hint = _rewrite_refs(new.hint, ctx)
+
+        if new.guidance_body:
+            new.guidance_body = _rewrite_refs(new.guidance_body, ctx)
+
+        if new.add_another_guidance_body:
+            new.add_another_guidance_body = _rewrite_refs(new.add_another_guidance_body, ctx)
+
+    def _upload_data_set_headers(old: DataSource, new: DataSource, ctx: CloneContext) -> None:
+        if new.type == DataSourceType.GRANT_RECIPIENT:
+            upload_header_only_data_set_files(new)
+
+    spec = CloneSpec(
+        entities={
+            Collection: Entity(
+                follow=[Collection.forms, Collection.data_sources],
+                exclude=[
+                    Collection.grant,
+                    Collection.created_by,
+                    Collection._submissions,
+                    Collection.submission_name_question,
+                ],
+                fields={
+                    Collection.grant_id: lambda old, new, ctx: grant.id,
+                    Collection.name: lambda old, new, ctx: name,
+                    Collection.status: lambda old, new, ctx: CollectionStatusEnum.DRAFT,
+                    Collection.slug: lambda old, new, ctx: slugify(new.name),
+                    Collection.created_by_id: lambda old, new, ctx: user.id,
+                },
+            ),
+            Form: Entity(
+                follow=[Form.components],
+                exclude=[
+                    Form._all_components,
+                    Form.collection,
+                ],
+            ),
+            Component: Entity(
+                follow=[
+                    Component.components,
+                    Component.expressions,
+                    Component.data_source,
+                ],
+                exclude=[
+                    Component.form,
+                    Component.owned_component_references,
+                    Component.parent,
+                    Component.depended_on_by,
+                ],
+                after_remap=_rewrite_interpolation,
+            ),
+            Expression: Entity(
+                exclude=[
+                    Expression.component_references,
+                    Expression.question,
+                    Expression.created_by,
+                ],
+                fields={
+                    Expression.created_by_id: lambda old, new, ctx: user.id,
+                },
+                after_remap=_rewrite_expression,
+            ),
+            DataSource: Entity(
+                follow=[
+                    Follow(DataSource.items, when=lambda ds: ds.type == DataSourceType.CUSTOM),
+                ],
+                exclude=[
+                    DataSource.organisation_items,
+                    DataSource.questions,
+                    DataSource.collection,
+                    DataSource.grant,
+                    DataSource.created_by,
+                    DataSource.updated_by,
+                    DataSource.questions,
+                    DataSource.depended_on_by_columns,
+                ],
+                fields={
+                    DataSource.created_by_id: lambda old, new, ctx: user.id,
+                    DataSource.updated_by_id: lambda old, new, ctx: user.id,
+                    DataSource.grant_id: lambda old, new, ctx: grant.id if old.grant_id else None,
+                },
+                after_flush=_upload_data_set_headers,
+            ),
+            DataSourceItem: Entity(
+                exclude=[
+                    DataSourceItem.data_source,
+                    DataSourceItem.component_references,
+                ],
+            ),
+        },
+        strict=True,
+        on_unconfigured="error",
+        on_external_fk="keep",
+    )
+    result = clone(collection, spec, session=db.session, persist=Persist.FLUSH)
+    new_collection: Collection = result.root
+
+    expression_context = ExpressionContext.build_expression_context(collection=new_collection, mode="interpolation")
+
+    for new_instance in result.objects:
+        if isinstance(new_instance, Component):
+            _validate_and_sync_component_references(new_instance, expression_context)
+
+    return new_collection
 
 
 def get_collection(

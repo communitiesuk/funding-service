@@ -9,7 +9,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("deliver_grant_funding.select_collection_to_copy", grant_id=grant.id, collection_type=collection_type) if source_collection else url_for(type_constants.list_endpoint, grant_id=grant.id),
+      "href": url_for(type_constants.list_endpoint, grant_id=grant.id),
     })
   }}
 {% endblock %}
@@ -20,11 +20,7 @@
       <span class="govuk-caption-l">{{ grant.name }}</span>
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {% if source_collection %}
-          {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l"}, "hint": {"text": "This " + type_constants.singular + " will start as a copy of ‘" + source_collection.name + "’ from " + source_collection.grant.name + "."} }) }}
-        {% else %}
-          {{ form.name(params={"label": {"isPageHeading": true, "classes": "govuk-label--l"} }) }}
-        {% endif %}
+        {{ form.method(params={"fieldset": {"legend": {"text": form.method.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} } }) }}
 
         <div class="govuk-button-group">
           {{ form.submit }}

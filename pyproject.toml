@@ -39,6 +39,7 @@ dependencies = [
     "boto3==1.43.30",
     "types-boto3[s3]==1.43.10",
     "alembic==1.18.4",
+    "sqlalchemy-clone",
 ]
 
 [dependency-groups]
@@ -74,6 +75,9 @@ dev = [
 required-version = ">=0.11.11"
 add-bounds = "exact"
 exclude-newer = "7 days"  # In line with our renovate spec minimumReleaseAge
+
+[tool.uv.sources]
+sqlalchemy-clone = { git = "https://github.com/samuelhwilliams/sqlalchemy-clone.git", tag = "v0.1.0" }
 
 [tool.ty.terminal]
 error-on-warning = true

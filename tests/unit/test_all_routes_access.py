@@ -39,6 +39,8 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.grant_change_description",
     "deliver_grant_funding.grant_change_contact",
     "deliver_grant_funding.set_up_collection",
+    "deliver_grant_funding.choose_collection_creation_method",
+    "deliver_grant_funding.select_collection_to_copy",
     "deliver_grant_funding.change_collection_name",
     "deliver_grant_funding.add_section",
     "deliver_grant_funding.change_form_name",
