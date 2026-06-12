@@ -154,8 +154,8 @@ def build_managed_expression_form(
             ]
             if self._show_calculated_validation_option:
                 # This creates a placeholder which is then replaced by the 'or' divider at render time below
-                self.type.choices.append((None, None))
-                self.type.choices.append(("CUSTOM", "Calculation with two or more numbers"))
+                self.type.choices.append((None, None))  # ty: ignore[invalid-argument-type]
+                self.type.choices.append(("CUSTOM", "Calculation with two or more numbers"))  # ty: ignore[invalid-argument-type]
 
         def get_managed_expression_radio_items(self) -> list[dict[str, dict[str, Markup]]]:
             items = super().get_managed_expression_radio_conditional_items()
@@ -265,7 +265,7 @@ def _validate_custom_syntax(  # noqa:C901
 
         if expression_type == ExpressionType.VALIDATION:
             if component.is_question:
-                references_to_self_count = validated_references.count(cast("Question", component).safe_qid)
+                references_to_self_count = validated_references.count(cast("Question", component).safe_qid)  # ty: ignore[invalid-argument-type]
                 if references_to_self_count != 1:
                     raise DisallowedExpression(
                         message=(
@@ -292,7 +292,7 @@ def _validate_custom_syntax(  # noqa:C901
         # which grant recipient's data to pull in (for grant-recipient data sets). We don't have that grant
         # recipient context here, so evaluation ExpressionContexts don't pull in any data set data currently.
         # This feels like a significant hack/workaround that we should really tidy up.
-        fake_submission_data = _fake_submission_data(component, validated_references)
+        fake_submission_data = _fake_submission_data(component, validated_references)  # ty: ignore[invalid-argument-type]
         fake_data_sources_data = _fake_data_source_data(component)
 
         faked_data_expression_context = ExpressionContext(

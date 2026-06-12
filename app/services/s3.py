@@ -39,4 +39,4 @@ class S3Service:
 
     def update_file_tags(self, key: str, tags: dict[str, str]) -> None:
         tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
-        self._client.put_object_tagging(Bucket=self._bucket_name, Key=key, Tagging={"TagSet": tag_set})
+        self._client.put_object_tagging(Bucket=self._bucket_name, Key=key, Tagging={"TagSet": tag_set})  # ty: ignore[invalid-argument-type]

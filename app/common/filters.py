@@ -12,9 +12,9 @@ def _coerce_tz[T: date | datetime](value: T, tz: ZoneInfo | None) -> T:
     if tz is None or not isinstance(value, datetime):
         return value
     if value.tzinfo is None:
-        value = value.replace(tzinfo=UTC)
+        value = value.replace(tzinfo=UTC)  # ty: ignore[invalid-assignment]
 
-    return cast(T, value.astimezone(tz))
+    return cast(T, value.astimezone(tz))  # ty: ignore[unresolved-attribute]
 
 
 def format_date(value: date | datetime, tz: ZoneInfo | None = DEFAULT_DISPLAY_TZ) -> str:

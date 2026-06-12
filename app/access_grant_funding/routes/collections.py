@@ -269,7 +269,7 @@ def decline_submission(
         submission_helper.decline_certification(certifier_user, declined_reason=declined_reason)
 
         flash(
-            {  # type:ignore [arg-type]
+            {  # ty: ignore[invalid-argument-type]
                 "collection_name": submission_helper.long_collection_name,
                 "grant_name": submission_helper.grant.name,
                 "sent_for_certification_by": submission_helper.sent_for_certification_by.name

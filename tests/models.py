@@ -171,10 +171,10 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
         test_org = _OrganisationFactory.build(
             external_id=self.external_id,
             name=f"{self.name} (test)",
-            status=self.status,  # type: ignore[attr-defined]
+            status=self.status,  # ty: ignore[unresolved-attribute]
             type=self.type,
-            active_date=self.active_date,  # type: ignore[attr-defined]
-            retirement_date=self.retirement_date,  # type: ignore[attr-defined]
+            active_date=self.active_date,  # ty: ignore[unresolved-attribute]
+            retirement_date=self.retirement_date,  # ty: ignore[unresolved-attribute]
             can_manage_grants=self.can_manage_grants,
             mode=OrganisationModeEnum.TEST,
         )
@@ -768,7 +768,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         # Runs after all of the other post_generation hooks (hopefully) and commits anything created to the DB,
         # so that our clean-session-tracking logic has a clean session again.
         if create:
-            _CollectionFactory._meta.sqlalchemy_session_factory().commit()  # type: ignore
+            _CollectionFactory._meta.sqlalchemy_session_factory().commit()  # ty: ignore[unresolved-attribute]
 
 
 @dataclasses.dataclass
@@ -994,7 +994,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     def form_components_join(obj: Question, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
-            obj.form.components = [component for component in obj.form.components if component.parent is None]  # type: ignore[attr-defined]
+            obj.form.components = [component for component in obj.form.components if component.parent is None]  # ty: ignore[invalid-assignment]
             obj.form.clear_caches()
 
     @factory.post_generation
@@ -1052,7 +1052,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
     def form_components_join(obj: Group, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
-            obj.form.components = [component for component in obj.form.components if component.parent is None]  # type: ignore[attr-defined]
+            obj.form.components = [component for component in obj.form.components if component.parent is None]  # ty: ignore[invalid-assignment]
             obj.form.clear_caches()
 
     @factory.post_generation

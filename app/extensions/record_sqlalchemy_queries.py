@@ -82,7 +82,7 @@ class RecordSqlalchemyQueriesExtension:
         if not has_app_context():
             return
 
-        context._rsq_start_time = perf_counter()  # type: ignore[attr-defined]
+        context._rsq_start_time = perf_counter()  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def _record_end(context: ExecutionContext, **kwargs: t.Any) -> None:
@@ -117,7 +117,7 @@ class RecordSqlalchemyQueriesExtension:
             QueryInfo(
                 statement=context.statement,
                 parameters=context.parameters,
-                start_time=context._rsq_start_time,  # type: ignore[attr-defined]
+                start_time=context._rsq_start_time,  # ty: ignore[unresolved-attribute]
                 end_time=perf_counter(),
                 location=location,
             )

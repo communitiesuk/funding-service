@@ -43,7 +43,7 @@ def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
                 PreviewGuidanceSuccessResponse(
                     guidance_html=interpolate(
                         current_app.extensions["govuk_markdown"].convert(form.guidance.data),
-                        with_interpolation_highlighting=True,  # type: ignore[call-arg]
+                        with_interpolation_highlighting=True,  # ty: ignore[unknown-argument]
                     )
                 ).model_dump(mode="json")
             ), 200

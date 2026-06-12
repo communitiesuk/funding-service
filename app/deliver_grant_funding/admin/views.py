@@ -1206,7 +1206,7 @@ def _build_org_certifier_rows(
             }
         )
     rows.sort(key=lambda row: row["organisation"].name)
-    return rows
+    return rows  # ty: ignore[invalid-return-type]
 
 
 def _build_delegated_rows(
@@ -1262,7 +1262,7 @@ def _build_delegated_rows(
             )
         rows.append({"organisation": organisation, "entries": entries})
     rows.sort(key=lambda row: row["organisation"].name)
-    return rows
+    return rows  # ty: ignore[invalid-return-type]
 
 
 class PlatformAdminDeltaCertifiersView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):

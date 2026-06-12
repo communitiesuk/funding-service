@@ -208,7 +208,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         },
     }
 
-    def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # type: ignore[override]
+    def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
             if "status" in audit_event.changes:
                 emit_metric_count(MetricEventName.COLLECTION_STATUS_CHANGED, count=1, collection=model)
@@ -284,7 +284,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
             )
         return form
 
-    def after_model_change(self, form: Form, model: Grant, is_created: bool) -> None:  # type: ignore[override]
+    def after_model_change(self, form: Form, model: Grant, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
             if "status" in audit_event.changes:
                 emit_metric_count(MetricEventName.GRANT_STATUS_CHANGED, count=1, grant=model)
@@ -332,7 +332,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
 
-            if user := self.session.session.scalar(select(User).where(User.email == form.email.data)):  # type: ignore[attr-defined]
+            if user := self.session.session.scalar(select(User).where(User.email == form.email.data)):  # ty: ignore[unresolved-attribute]
                 model.user = user
 
         return super().on_model_change(form, model, is_created)
@@ -363,7 +363,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
 
         return result
 
-    def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # type: ignore[override]
+    def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
         if is_created:
             if (not model.organisation or not model.organisation.can_manage_grants) or model.grant:
                 db.session.delete(model)

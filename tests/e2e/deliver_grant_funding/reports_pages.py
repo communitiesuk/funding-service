@@ -1983,7 +1983,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             grant_name=self.grant_name,
             report_name=self.report_name,
             section_name=self.section_name,
-            group_name=self.parent_group_name,  # type: ignore[arg-type]
+            group_name=self.parent_group_name,  # ty: ignore[invalid-argument-type]
         )
         expect(manage_parent_group_page.heading).to_be_visible()
         return manage_parent_group_page

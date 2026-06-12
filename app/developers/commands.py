@@ -129,7 +129,7 @@ def _sort_export_data_in_place(export_data: ExportData) -> None:
             if k == "grant":
                 continue
 
-            v.sort(key=lambda u: u["id"])  # type: ignore[attr-defined]
+            v.sort(key=lambda u: u["id"])  # ty: ignore[unresolved-attribute]
 
 
 def __replace_id(export_data: ExportData, old_id: str, new_id: str) -> ExportData:

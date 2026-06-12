@@ -163,7 +163,7 @@ class TestUpdateGrant:
         grant = factories.grant.create(name="test_grant")
 
         with pytest.raises(StateTransitionError) as e:
-            update_grant(grant=grant, status="invalid-state")  # type: ignore[arg-type]
+            update_grant(grant=grant, status="invalid-state")
 
         assert str(e.value) == "Unsupported state transition for grant from draft to invalid-state"
 
