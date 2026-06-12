@@ -7,7 +7,13 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User, UserRole
-from app.common.data.types import GrantRecipientModeEnum, RoleEnum, SubmissionModeEnum, SubmissionStatusEnum
+from app.common.data.types import (
+    GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
+    RoleEnum,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+)
 from app.extensions import db
 
 
@@ -104,12 +110,17 @@ def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = Gran
 
 @flush_and_rollback_on_exceptions()
 def create_grant_recipients(
-    grant: Grant, organisation_ids: list[uuid.UUID], mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE
+    grant: Grant,
+    organisation_ids: list[uuid.UUID],
+    status: GrantRecipientStatusEnum,
+    mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
 ) -> None:
     grant_recipients = []
 
     for organisation_id in organisation_ids:
-        grant_recipients.append(GrantRecipient(grant_id=grant.id, organisation_id=organisation_id, mode=mode))
+        grant_recipients.append(
+            GrantRecipient(grant_id=grant.id, organisation_id=organisation_id, mode=mode, status=status)
+        )
 
     db.session.add_all(grant_recipients)
 

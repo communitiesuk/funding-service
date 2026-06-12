@@ -15,6 +15,7 @@ from app.common.data.types import (
     AuditEventType,
     CollectionStatusEnum,
     GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
     OrganisationStatus,
@@ -2295,6 +2296,7 @@ class TestSetupGrantRecipients:
         recipient_org_ids = {gr.organisation_id for gr in grant_recipients}
         assert org1.id in recipient_org_ids
         assert org2.id in recipient_org_ids
+        assert all(gr.status == GrantRecipientStatusEnum.AWARDED for gr in grant_recipients)
 
         test_grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.TEST)
         assert len(test_grant_recipients) == 2

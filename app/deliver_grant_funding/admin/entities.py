@@ -429,8 +429,8 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
     can_edit = False
     can_delete = True
 
-    column_list = ["grant.name", "organisation.name", "mode"]
-    column_filters = ["grant.name", "organisation.name", "mode"]
+    column_list = ["grant.name", "organisation.name", "mode", "status"]
+    column_filters = ["grant.name", "organisation.name", "mode", "status"]
     column_searchable_list = ["grant.name", "organisation.name"]
     column_labels = {"grant.name": "Grant name", "organisation.name": "Organisation name"}
 
@@ -439,7 +439,7 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
         "organisation": lambda v, c, m, n: m.organisation.name,
     }
 
-    form_columns = ["grant", "organisation", "mode"]
+    form_columns = ["grant", "organisation", "mode", "status"]
 
     form_args = {
         "grant": {
