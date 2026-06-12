@@ -657,10 +657,12 @@ class TestTasklist:
             assert len(mock_notification_service_calls) == 2
             data_provider_confirmation_email = mock_notification_service_calls[0]
             certifier_notification_email = mock_notification_service_calls[1]
-            assert data_provider_confirmation_email.kwargs["personalisation"]["grant_report_url"] == AnyStringMatching(
+            assert data_provider_confirmation_email.kwargs["personalisation"][
+                "grant_submission_url"
+            ] == AnyStringMatching(
                 r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+/view"
             )
-            assert certifier_notification_email.kwargs["personalisation"]["report_submitter"] == client.user.name
+            assert certifier_notification_email.kwargs["personalisation"]["submitter"] == client.user.name
 
     @pytest.mark.freeze_time("2025-01-02 12:00:00")
     def test_post_tasklist_complete_submission_no_certification_redirects(
@@ -722,7 +724,7 @@ class TestTasklist:
         # 1 email for the data provider, plus generic user that exists for the client
         assert len(mock_notification_service_calls) == 2
         data_provider_confirmation_email = mock_notification_service_calls[0]
-        assert data_provider_confirmation_email.kwargs["personalisation"]["grant_report_url"] == AnyStringMatching(
+        assert data_provider_confirmation_email.kwargs["personalisation"]["grant_submission_url"] == AnyStringMatching(
             r"http://funding.communities.gov.localhost:8080/access/organisation/.+/grants/.+/reports/.+/view"
         )
 

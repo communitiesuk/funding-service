@@ -1179,9 +1179,9 @@ class TestSendEmailsToRecipients:
         assert "email_address" == header[0]
         assert "grant_name" == header[1]
         assert "organisation_name" == header[2]
-        assert "report_name" == header[3]
-        assert "report_deadline" == header[4]
-        assert "grant_report_url" == header[5]
+        assert "submission_name" == header[3]
+        assert "submission_deadline" == header[4]
+        assert "grant_submission_url" == header[5]
         assert "is_test_data" == header[6]
         assert "requires_certification" == header[7]
         assert "submissions" == header[8]
@@ -1196,8 +1196,7 @@ class TestSendEmailsToRecipients:
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
-        # Assertion is a bit of a pain to fix for this PR, will be uncommented in Step 2
-        # assert all(line.endswith(",,") for line in lines[1:])
+        assert all(line.endswith(",,") for line in lines[1:])
 
     def test_download_csv_format_and_content_deadline_reminder(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -1311,9 +1310,9 @@ class TestSendEmailsToRecipients:
         assert "email_address" == header[0]
         assert "grant_name" == header[1]
         assert "organisation_name" == header[2]
-        assert "report_name" == header[3]
-        assert "report_deadline" == header[4]
-        assert "grant_report_url" == header[5]
+        assert "submission_name" == header[3]
+        assert "submission_deadline" == header[4]
+        assert "grant_submission_url" == header[5]
         assert "is_test_data" == header[6]
         assert "requires_certification" == header[7]
         assert "submissions" == header[8]
@@ -1330,8 +1329,7 @@ class TestSendEmailsToRecipients:
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
-        # Assertion is a bit of a pain to fix for this PR, will be uncommented in Step 2
-        # assert all(line.endswith(",,") for line in lines[1:])
+        assert all(line.endswith(",,") for line in lines[1:])
 
     def test_download_csv_format_and_content_report_closed(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -1444,9 +1442,9 @@ class TestSendEmailsToRecipients:
         assert "email_address" == header[0]
         assert "grant_name" == header[1]
         assert "organisation_name" == header[2]
-        assert "report_name" == header[3]
-        assert "report_deadline" == header[4]
-        assert "grant_report_url" == header[5]
+        assert "submission_name" == header[3]
+        assert "submission_deadline" == header[4]
+        assert "grant_submission_url" == header[5]
         assert "is_test_data" == header[6]
         assert "requires_certification" == header[7]
         assert "submissions" == header[8]
@@ -1463,8 +1461,7 @@ class TestSendEmailsToRecipients:
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
-        # Assertion is a bit of a pain to fix for this PR, will be uncommented in Step 2
-        # assert all(line.endswith(",,") for line in lines[1:])
+        assert all(line.endswith(",,") for line in lines[1:])
 
     def test_download_csv_multi_submission_collection(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
