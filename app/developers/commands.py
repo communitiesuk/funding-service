@@ -11,13 +11,11 @@ from uuid import UUID
 
 import click
 from flask import current_app
-from pydantic import BaseModel as PydanticBaseModel
-from sqlalchemy import delete, inspect, or_, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import NoResultFound
 from werkzeug.datastructures import FileStorage, MultiDict
 
 from app.common.collections.forms import build_question_form
-from app.common.data.base import BaseModel
 from app.common.data.interfaces.collections import (
     _validate_and_sync_component_references,
     create_submission,
@@ -63,6 +61,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
+from app.common.data.utils import to_dict
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import SubmissionHelper
@@ -76,17 +75,6 @@ export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 # The export process anonymises user data, but if any users need to be consistent
 # across environments (eg SSO test users), their emails can be added here and they will not be anonymised.
 USERS_NOT_TO_ANONYMISE = ["fsd-post-award@levellingup.gov.uk", "john.cheese@communities.gov.uk"]
-
-
-def to_dict(instance: BaseModel, exclude: list[str] | None = None) -> dict[str, Any]:
-    return {
-        prop.key: (field.model_dump(mode="json", exclude_none=True) if isinstance(field, PydanticBaseModel) else field)
-        for prop in inspect(instance.__class__).column_attrs
-        if (field := getattr(instance, prop.key)) is not None
-        and prop.columns[0].name not in {"created_at_utc", "updated_at_utc"}
-        and not prop.key.startswith("_")
-        and (exclude is None or prop.key not in exclude)
-    }
 
 
 class GrantExport(TypedDict):

@@ -47,7 +47,7 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext
 from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import get_registered_data_types
-from app.common.forms.fields import MHCLGAccessibleAutocomplete
+from app.common.forms.fields import MHCLGAccessibleAutocomplete, MHCLGSelectWithSearch
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.feature_flags import FeatureFlags
@@ -834,6 +834,37 @@ class SetUpCollectionForm(FlaskForm):
         self.name.label.text = f"What is the name of the {collection_type.constants.singular}?"
         self.name.validators = [DataRequired(f"Enter a name for the {collection_type.constants.singular}")]
         self.submit.label.text = f"Continue and set up {collection_type.constants.singular}"
+
+
+class CollectionCreationMethodForm(FlaskForm):
+    method = RadioField(widget=GovRadioInput())
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, collection_type: CollectionType, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        singular = collection_type.constants.singular
+        self.method.label.text = f"How do you want to create the {singular}?"
+        self.method.choices = [
+            ("copy", f"Copy an existing {singular}"),
+            ("scratch", f"Create a new empty {singular}"),
+        ]
+        self.method.validators = [DataRequired(f"Select how you want to create the {singular}")]
+
+
+class SelectCollectionToCopyForm(FlaskForm):
+    collection = SelectField(widget=MHCLGSelectWithSearch())
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(
+        self, *args: Any, collection_type: CollectionType, collections: Sequence["Collection"], **kwargs: Any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        singular = collection_type.constants.singular
+        self.collection.label.text = f"Which {singular} do you want to copy?"
+        self.collection.choices = [("", "")] + [
+            (str(collection.id), collection.name, {"data-hint": collection.grant.name}) for collection in collections
+        ]
+        self.collection.validators = [DataRequired(f"Select the {singular} you want to copy")]
 
 
 class AddSectionForm(FlaskForm):

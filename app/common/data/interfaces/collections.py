@@ -44,7 +44,10 @@ from app.common.data.models_user import User
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
+    ComponentType,
     ConditionsOperator,
+    DataSourceFileMetadata,
+    DataSourceSchema,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -56,7 +59,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
-from app.common.data.utils import generate_submission_reference
+from app.common.data.utils import generate_submission_reference, to_dict
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
     ALLOWED_INTERPOLATION_REGEX,
@@ -92,6 +95,142 @@ def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionT
     )
     db.session.add(collection)
     return collection
+
+
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
+def copy_collection(collection: Collection, *, name: str, user: User, grant: Grant) -> Collection:  # noqa: C901
+    """Create a new collection in the given grant as a deep copy of an existing one (from any grant).
+
+    Copies the full schema (forms, questions/groups, expressions, data sources and component references), giving
+    every copied entity a new ID and remapping all internal references — foreign keys, ``q_<id>``/``d_<id>``
+    references in component text and expression statements/context — to point at the copied entities. This follows
+    the same serialise -> replace IDs -> rebuild approach as the `export-grants`/`seed-grants` developer commands.
+
+    Submissions are not copied and the new collection always starts in draft. Uploaded data sets keep their schema
+    but not their organisation-item rows or the underlying S3 file, as that data may be collection-specific or
+    sensitive; callers should give the copies header-only files (see `upload_header_only_data_set_files` in
+    deliver_grant_funding).
+    """
+    bundle: dict[str, list[dict[str, Any]]] = {
+        "collections": [to_dict(collection)],
+        "forms": [],
+        "components": [],
+        "expressions": [],
+        "data_sources": [],
+        "data_source_items": [],
+        "component_references": [],
+    }
+
+    def _serialise_data_source(data_source: DataSource) -> None:
+        bundle["data_sources"].append(to_dict(data_source))
+        for item in data_source.items:
+            bundle["data_source_items"].append(to_dict(item))
+
+    def _serialise_component(component: Component) -> None:
+        bundle["components"].append(to_dict(component))
+        for expression in component.expressions:
+            bundle["expressions"].append(to_dict(expression))
+        if component.data_source:
+            _serialise_data_source(component.data_source)
+        for component_reference in component.owned_component_references:
+            bundle["component_references"].append(to_dict(component_reference))
+        if isinstance(component, Group):
+            for sub_component in component.components:
+                _serialise_component(sub_component)
+
+    for form in collection.forms:
+        bundle["forms"].append(to_dict(form))
+        for component in form.components:
+            _serialise_component(component)
+
+    for data_source in collection.data_sources:
+        # Question-owned (CUSTOM) data sources are serialised alongside their question above; this picks up the
+        # collection-level uploaded data sets.
+        if data_source.type != DataSourceType.CUSTOM:
+            _serialise_data_source(data_source)
+
+    id_map: dict[uuid.UUID, uuid.UUID] = {
+        entity["id"]: uuid.uuid4() for entities in bundle.values() for entity in entities
+    }
+    # Re-point everything that hangs off the source grant (collection, uploaded data sources) at the target grant.
+    id_map[collection.grant_id] = grant.id
+
+    def _remap_string(value: str) -> str:
+        for old_id, new_id in id_map.items():
+            # Cover both UUID renderings: dashed (foreign keys serialised by pydantic) and hex (safe_qid/safe_did
+            # references embedded in component text and expression statements/context).
+            if old_id.hex in value or str(old_id) in value:
+                value = value.replace(str(old_id), str(new_id)).replace(old_id.hex, new_id.hex)
+        return value
+
+    def _remap(value: Any) -> Any:
+        match value:
+            case uuid.UUID():
+                return id_map.get(value, value)
+            case str():
+                return _remap_string(value)
+            case dict():
+                return {key: _remap(item) for key, item in value.items()}
+            case list():
+                return [_remap(item) for item in value]
+            case _:
+                return value
+
+    remapped: dict[str, list[dict[str, Any]]] = _remap(bundle)
+
+    collection_data = remapped["collections"][0]
+    collection_data.update(
+        name=name,
+        slug=slugify(name),
+        created_by_id=user.id,
+        status=CollectionStatusEnum.DRAFT,
+    )
+    # Points at a component that won't exist until later, so hold it back and set it once components are flushed.
+    submission_name_question_id = collection_data.pop("submission_name_question_id", None)
+
+    new_collection = Collection(**collection_data)
+    db.session.add(new_collection)
+
+    for form_data in remapped["forms"]:
+        db.session.add(Form(**form_data))
+    db.session.flush()
+
+    for data_source_data in remapped["data_sources"]:
+        if data_source_data.get("schema") is not None:
+            data_source_data["schema"] = DataSourceSchema.model_validate(data_source_data["schema"])
+        if data_source_data.get("file_metadata") is not None:
+            data_source_data["file_metadata"] = DataSourceFileMetadata.model_validate(data_source_data["file_metadata"])
+        db.session.add(DataSource(**data_source_data))
+    for data_source_item_data in remapped["data_source_items"]:
+        db.session.add(DataSourceItem(**data_source_item_data))
+    db.session.flush()
+
+    for component_data in remapped["components"]:
+        if "presentation_options" in component_data:
+            component_data["presentation_options"] = QuestionPresentationOptions(
+                **component_data["presentation_options"]
+            )
+        if "data_options" in component_data:
+            component_data["data_options"] = QuestionDataOptions(**component_data["data_options"])
+        match component_data["type"]:
+            case ComponentType.QUESTION:
+                db.session.add(Question(**component_data))
+            case ComponentType.GROUP:
+                db.session.add(Group(**component_data))
+            case _:
+                raise ValueError(f"Cannot copy component of unknown type {component_data['type']}")
+
+    for expression_data in remapped["expressions"]:
+        db.session.add(Expression(**expression_data))
+
+    for component_reference_data in remapped["component_references"]:
+        db.session.add(ComponentReference(**component_reference_data))
+    db.session.flush()
+
+    if submission_name_question_id:
+        new_collection.submission_name_question_id = submission_name_question_id
+
+    return new_collection
 
 
 def get_collection(

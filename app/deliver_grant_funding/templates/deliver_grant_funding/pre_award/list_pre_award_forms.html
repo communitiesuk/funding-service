@@ -61,7 +61,7 @@
           govukButton({
             "text": "Add a form",
             "classes": "" if not grant.pre_award_forms else "govuk-button--secondary",
-            "href": url_for('deliver_grant_funding.set_up_collection', grant_id=grant.id, collection_type=enum.collection_type_enum.APPLICATION)
+            "href": url_for('deliver_grant_funding.choose_collection_creation_method', grant_id=grant.id, collection_type=enum.collection_type_enum.APPLICATION)
           })
         }}
       {% endif %}

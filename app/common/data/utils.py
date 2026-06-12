@@ -1,9 +1,25 @@
 import random
 import re
 from collections.abc import Sequence
+from typing import Any
 
+from pydantic import BaseModel as PydanticBaseModel
+from sqlalchemy import inspect
+
+from app.common.data.base import BaseModel
 from app.common.data.models import Collection
 from app.common.data.types import CollectionType
+
+
+def to_dict(instance: BaseModel, exclude: list[str] | None = None) -> dict[str, Any]:
+    return {
+        prop.key: (field.model_dump(mode="json", exclude_none=True) if isinstance(field, PydanticBaseModel) else field)
+        for prop in inspect(instance.__class__).column_attrs
+        if (field := getattr(instance, prop.key)) is not None
+        and prop.columns[0].name not in {"created_at_utc", "updated_at_utc"}
+        and not prop.key.startswith("_")
+        and (exclude is None or prop.key not in exclude)
+    }
 
 
 def generate_grant_code(name: str) -> str:
