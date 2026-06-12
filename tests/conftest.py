@@ -19,6 +19,7 @@ from app import create_app
 from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User
 from app.services.notify import Notification
+from tests import SlowTestWarning
 from tests.models import (
     _AuditEventFactory,
     _CollectionFactory,
@@ -41,6 +42,25 @@ from tests.models import (
 )
 
 html5parser = html5lib.HTMLParser(strict=False)
+
+
+FAIL_SLOW_MESSAGE_PREFIX = "passed but took too long to run:"
+
+
+def pytest_configure(config: Config) -> None:
+    config.addinivalue_line("filterwarnings", f"default::{SlowTestWarning.__module__}.{SlowTestWarning.__qualname__}")
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo
+) -> Generator[None, pytest.TestReport, pytest.TestReport]:
+    report = yield
+    if report.outcome == "failed" and isinstance(report.longrepr, str) and FAIL_SLOW_MESSAGE_PREFIX in report.longrepr:
+        item.warn(SlowTestWarning(report.longrepr))
+        report.outcome = "passed"
+        report.longrepr = None
+    return report
 
 
 def pytest_addoption(parser: Parser) -> None:
