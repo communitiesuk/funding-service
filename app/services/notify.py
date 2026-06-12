@@ -137,21 +137,44 @@ class NotificationService:
     ) -> Notification:
         personalisation = {
             "grant_name": grant_recipient.grant.name,
+            # TO DO: Delete `report_name`
             "report_name": collection.name,
+            "submission_name": collection.name,
             "requires_certification": "yes" if collection.requires_certification else "no",
-            "report_deadline": format_date(collection.submission_period_end_date)
-            if collection.submission_period_end_date
-            else "(Dates to be confirmed)",
+            # TO DO: Delete `report_deadline`
+            "report_deadline": (
+                format_date(collection.submission_period_end_date)
+                if collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
+            "submission_deadline": (
+                format_date(collection.submission_period_end_date)
+                if collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
             "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
-            "grant_report_url": url_for(
-                "access_grant_funding.route_to_submission",
-                organisation_id=grant_recipient.organisation.id,
-                grant_id=grant_recipient.grant.id,
-                collection_id=collection.id,
-                _external=True,
+            # TO DO: Delete `grant_report_url`
+            "grant_report_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_id=collection.id,
+                    _external=True,
+                )
+            ),
+            "grant_submission_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_id=collection.id,
+                    _external=True,
+                )
             ),
             "organisation_name": grant_recipient.organisation.name,
             "allows_multiple_submissions": "yes" if collection.allow_multiple_submissions else "no",
+            "collection_type_noun": collection.type.constants.singular,
             "submissions": "",
         }
 
@@ -176,18 +199,34 @@ class NotificationService:
             current_app.config["GOVUK_NOTIFY_ACCESS_SUBMISSION_SENT_FOR_CERTIFICATION_CONFIRMATION_TEMPLATE_ID"],
             personalisation={
                 "grant_name": submission.collection.grant.name,
+                # TO DO: Delete `report_name`
                 "report_name": submission_helper.long_collection_name,
+                "submission_name": submission_helper.long_collection_name,
                 "organisation_name": submission.grant_recipient.organisation.name,
                 "reference": submission.reference,
                 "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
-                "grant_report_url": url_for(
-                    "access_grant_funding.view_locked_submission",
-                    organisation_id=submission.grant_recipient.organisation.id,
-                    grant_id=submission.grant_recipient.grant.id,
-                    collection_type=submission.collection.type,
-                    submission_id=submission.id,
-                    _external=True,
+                # TO DO: Delete `grant_report_url`
+                "grant_report_url": (
+                    url_for(
+                        "access_grant_funding.view_locked_submission",
+                        organisation_id=submission.grant_recipient.organisation.id,
+                        grant_id=submission.grant_recipient.grant.id,
+                        collection_type=submission.collection.type,
+                        submission_id=submission.id,
+                        _external=True,
+                    )
                 ),
+                "grant_submission_url": (
+                    url_for(
+                        "access_grant_funding.view_locked_submission",
+                        organisation_id=submission.grant_recipient.organisation.id,
+                        grant_id=submission.grant_recipient.grant.id,
+                        collection_type=submission.collection.type,
+                        submission_id=submission.id,
+                        _external=True,
+                    )
+                ),
+                "collection_type_noun": submission.collection.type.constants.singular,
             },
         )
 
@@ -198,23 +237,50 @@ class NotificationService:
 
         personalisation = {
             "grant_name": submission.collection.grant.name,
+            # TO DO: Delete `report_submitter`
             "report_submitter": submitted_by.name,
+            "submitter": submitted_by.name,
+            # TO DO: Delete `report_name`
             "report_name": submission_helper.long_collection_name,
-            "report_deadline": format_date(submission.collection.submission_period_end_date)
-            if submission.collection.submission_period_end_date
-            else "(Dates to be confirmed)",
-            "is_test_data": ("yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
-            "grant_report_url": url_for(
-                "access_grant_funding.view_locked_submission",
-                organisation_id=submission.grant_recipient.organisation.id,
-                grant_id=submission.grant_recipient.grant.id,
-                collection_type=submission.collection.type,
-                submission_id=submission.id,
-                _external=True,
+            "submission_name": submission_helper.long_collection_name,
+            # TO DO: Delete `report_deadline`
+            "report_deadline": (
+                format_date(submission.collection.submission_period_end_date)
+                if submission.collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
+            "submission_deadline": (
+                format_date(submission.collection.submission_period_end_date)
+                if submission.collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
+            "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+            # TO DO: Delete `grant_report_url`
+            "grant_report_url": (
+                url_for(
+                    "access_grant_funding.view_locked_submission",
+                    organisation_id=submission.grant_recipient.organisation.id,
+                    grant_id=submission.grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
+                    submission_id=submission.id,
+                    _external=True,
+                )
+            ),
+            "grant_submission_url": (
+                url_for(
+                    "access_grant_funding.view_locked_submission",
+                    organisation_id=submission.grant_recipient.organisation.id,
+                    grant_id=submission.grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
+                    submission_id=submission.id,
+                    _external=True,
+                )
             ),
             "organisation_name": submission.grant_recipient.organisation.name,
             "reference": submission.reference,
             "government_department": submission.collection.grant.organisation.name,
+            "collection_type_noun": submission.collection.type.constants.singular,
+            "collection_type_noun_capitalised": submission.collection.type.constants.singular.capitalize(),
         }
         return self._send_email(
             email_address,
@@ -238,32 +304,59 @@ class NotificationService:
             )
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "submitter_name": submission_helper.sent_for_certification_by.name
-            if submission_helper.sent_for_certification_by
-            else "(Submitter not known)",
-            "certifier_name": submission_helper.declined_by.name
-            if submission_helper.declined_by
-            else "(Certifier not known)",
+            "submitter_name": (
+                submission_helper.sent_for_certification_by.name
+                if submission_helper.sent_for_certification_by
+                else "(Submitter not known)"
+            ),
+            "certifier_name": (
+                submission_helper.declined_by.name if submission_helper.declined_by else "(Certifier not known)"
+            ),
+            "submission_name": submission_helper.long_collection_name,
+            # TO DO: Delete `report_name`
             "report_name": submission_helper.long_collection_name,
             "certifier_comments": submission_helper.events.submission_state.declined_reason,
-            "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
-            if submission_helper.collection.submission_period_end_date
-            else "(Dates to be confirmed)",
-            "decline_date": format_datetime(submission_helper.events.submission_state.declined_at_utc)
-            if submission_helper.events.submission_state.declined_at_utc
-            else "(Declined date not known)",
-            "is_test_data": "yes"
-            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
-            else "no",
+            "submission_deadline": (
+                format_date(submission_helper.collection.submission_period_end_date)
+                if submission_helper.collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
+            # TO DO: Delete `report_deadline`
+            "report_deadline": (
+                format_date(submission_helper.collection.submission_period_end_date)
+                if submission_helper.collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
+            "decline_date": (
+                format_datetime(submission_helper.events.submission_state.declined_at_utc)
+                if submission_helper.events.submission_state.declined_at_utc
+                else "(Declined date not known)"
+            ),
+            "is_test_data": (
+                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
+            ),
             "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
             "reference": submission_helper.reference,
-            "grant_report_url": url_for(
-                "access_grant_funding.route_to_submission",
-                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                grant_id=submission_helper.submission.grant_recipient.grant.id,
-                collection_id=submission_helper.collection.id,
-                _external=True,
+            # TO DO: Delete `grant_report_url`
+            "grant_report_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
             ),
+            "grant_submission_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
+            ),
+            "collection_type_noun": submission_helper.collection.type.constants.singular,
         }
         return self._send_email(
             email_address=user.email,
@@ -287,26 +380,49 @@ class NotificationService:
 
         personalisation = {
             "grant_name": submission_helper.collection.grant.name,
-            "certifier_name": submission_helper.declined_by.name
-            if submission_helper.declined_by
-            else "(Certifier not known)",
+            "certifier_name": (
+                submission_helper.declined_by.name if submission_helper.declined_by else "(Certifier not known)"
+            ),
+            # TO DO: Delete `report_name`
             "report_name": submission_helper.long_collection_name,
-            "report_deadline": format_date(submission_helper.collection.submission_period_end_date)
-            if submission_helper.collection.submission_period_end_date
-            else "(Dates to be confirmed)",
+            "submission_name": submission_helper.long_collection_name,
+            # TO DO: Delete `report_deadline`
+            "report_deadline": (
+                format_date(submission_helper.collection.submission_period_end_date)
+                if submission_helper.collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
+            "submission_deadline": (
+                format_date(submission_helper.collection.submission_period_end_date)
+                if submission_helper.collection.submission_period_end_date
+                else "(Dates to be confirmed)"
+            ),
             "certifier_comments": submission_state.declined_reason,
-            "is_test_data": "yes"
-            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
-            else "no",
+            "is_test_data": (
+                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
+            ),
             "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
             "reference": submission_helper.reference,
-            "grant_report_url": url_for(
-                "access_grant_funding.route_to_submission",
-                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                grant_id=submission_helper.submission.grant_recipient.grant.id,
-                collection_id=submission_helper.collection.id,
-                _external=True,
+            # TO DO: Delete `grant_report_url`
+            "grant_report_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
             ),
+            "grant_submission_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
+            ),
+            "collection_type_noun": submission_helper.collection.type.constants.singular,
         }
         return self._send_email(
             email_address=user.email,
@@ -345,15 +461,20 @@ class NotificationService:
             "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
             "submitter_name": submitter_name,
             "certifier_name": certifier_name,
+            "submission_name": submission_helper.long_collection_name,
+            # TO DO: Delete `report_name`
             "report_name": submission_helper.long_collection_name,
             "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
             "reference": submission_helper.reference,
-            "date_submitted": format_datetime(submission_helper.submitted_at_utc)
-            if submission_helper.submitted_at_utc
-            else "(Date submitted not known)",
-            "is_test_data": "yes"
-            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
-            else "no",
+            "date_submitted": (
+                format_datetime(submission_helper.submitted_at_utc)
+                if submission_helper.submitted_at_utc
+                else "(Date submitted not known)"
+            ),
+            "is_test_data": (
+                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
+            ),
+            # TO DO: Delete `grant_report_url`
             "grant_report_url": url_for(
                 "access_grant_funding.view_locked_submission",
                 organisation_id=submission_helper.submission.grant_recipient.organisation.id,
@@ -362,7 +483,16 @@ class NotificationService:
                 submission_id=submission_helper.id,
                 _external=True,
             ),
+            "grant_submission_url": url_for(
+                "access_grant_funding.view_locked_submission",
+                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                grant_id=submission_helper.submission.grant_recipient.grant.id,
+                collection_type=submission_helper.collection.type,
+                submission_id=submission_helper.id,
+                _external=True,
+            ),
             "government_department": f"the {submission_helper.collection.grant.organisation.name}",
+            "collection_type_noun": submission_helper.collection.type.constants.singular,
         }
         return self._send_email(
             email_address,
@@ -391,20 +521,35 @@ class NotificationService:
             lines_for_email += f"^ {line}\n"
 
         personalisation = {
-            "is_test_data": "yes"
-            if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST
-            else "no",
+            "is_test_data": (
+                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
+            ),
+            # TO DO: Delete `report_name`
             "report_name": submission_helper.long_collection_name,
+            "submission_name": submission_helper.long_collection_name,
             "grant_name": submission_helper.collection.grant.name,
             "reopening_reason": lines_for_email,
             "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
-            "grant_report_url": url_for(
-                "access_grant_funding.route_to_submission",
-                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                grant_id=submission_helper.submission.grant_recipient.grant.id,
-                collection_id=submission_helper.collection.id,
-                _external=True,
+            # TO DO: Delete `grant_report_url`
+            "grant_report_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
             ),
+            "grant_submission_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
+            ),
+            "collection_type_noun": submission_helper.collection.type.constants.singular,
         }
         return self._send_email(
             email_address=user.email,
