@@ -422,8 +422,7 @@ class FormRunner:
         ):
             check_entries = self.submission.get_count_for_add_another(self.component.add_another_container)
 
-        # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
-        return self.url_map[state](  # ty: ignore[invalid-key]
+        return self.url_map[state](
             self, question or self.component, form or self.form, source, add_another_index, action, check_entries
         )
 

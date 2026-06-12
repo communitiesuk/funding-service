@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 if TYPE_CHECKING:
     from app.common.collections.runner import FormRunner
-    from app.common.data.models import Form, Question
+    from app.common.data.models import Form, Group, Question
     from app.deliver_grant_funding.forms import GroupDisplayOptionsForm, QuestionForm
 
 scalars = str | int | float | bool | None
@@ -282,7 +282,7 @@ class FormRunnerState(enum.StrEnum):
 TRunnerUrlMapCallable = Callable[
     [
         "FormRunner",
-        Optional["Question"],
+        Optional["Question | Group"],
         Optional["Form"],
         Optional["FormRunnerState"],
         Optional[int],
@@ -293,15 +293,7 @@ TRunnerUrlMapCallable = Callable[
 ]
 
 
-TRunnerUrlMap = typing.TypedDict(
-    "TRunnerUrlMap",
-    {
-        FormRunnerState.TASKLIST: TRunnerUrlMapCallable,  # ty: ignore[invalid-argument-type]
-        FormRunnerState.QUESTION: TRunnerUrlMapCallable,  # ty: ignore[invalid-argument-type]
-        FormRunnerState.CHECK_YOUR_ANSWERS: TRunnerUrlMapCallable,  # ty: ignore[invalid-argument-type]
-        FormRunnerState.VIEW_REPORT_PAGE: TRunnerUrlMapCallable,  # ty: ignore[invalid-argument-type]
-    },
-)
+TRunnerUrlMap = dict[FormRunnerState, TRunnerUrlMapCallable]
 
 
 class MultilineTextInputRows(IntEnum):
