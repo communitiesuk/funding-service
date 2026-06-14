@@ -8,7 +8,7 @@
   {% if grant.reports|length == 1 %}
     {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.index') }) }}
   {% else %}
-    {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.select_report', grant_id=grant.id) }) }}
+    {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.select_collection', grant_id=grant.id) }) }}
   {% endif %}
 {% endblock %}
 
@@ -22,7 +22,7 @@
         Collection lifecycle
       </h1>
 
-      <p class="govuk-body">Prepare for a monitoring report to go live by completing these tasks.</p>
+      <p class="govuk-body">Prepare for {{ 'an application' if collection.type.value == 'application' else 'a monitoring report' }} to go live by completing these tasks.</p>
 
       <h2 class="govuk-heading-m">Platform tasks</h2>
       {% set rows=[] %}
@@ -124,14 +124,16 @@
           {{ govukTag({"text": "Optional", "classes": "govuk-tag--blue"}) }}
         {% endif %}
       {% endset %}
-      {%
-        do rows.append({
-          "title": {"text": "Set reporting dates", "classes": "govuk-link--no-visited-state"},
-          "hint": {"text": format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date)} if collection.reporting_period_start_date and collection.reporting_period_end_date else {},
-          "status": {"html": reportingDatesTag},
-          "href": url_for('collection_lifecycle.set_collection_dates', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.DRAFT else "",
-        })
-      %}
+      {% if collection.type.value == 'monitoring report' %}
+        {%
+          do rows.append({
+            "title": {"text": "Set reporting dates", "classes": "govuk-link--no-visited-state"},
+            "hint": {"text": format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date)} if collection.reporting_period_start_date and collection.reporting_period_end_date else {},
+            "status": {"html": reportingDatesTag},
+            "href": url_for('collection_lifecycle.set_collection_dates', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.DRAFT else "",
+          })
+        %}
+      {% endif %}
 
 
       {% set submissionDatesTag %}

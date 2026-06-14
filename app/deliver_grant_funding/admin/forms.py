@@ -302,8 +302,8 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
         widget=GovTextInput(),
     )
     send_notification_email = BooleanField(
-        "Send 'report is ready to complete' email",
-        description="Send an email to notify the data provider that the report is open for submissions.",
+        "Send 'submission is ready to complete' email",
+        description="Send an email to notify the data provider that the collection is open for submissions.",
         widget=GovCheckboxInput(),
     )
     submit = SubmitField("Add data provider", widget=GovSubmitInput())
