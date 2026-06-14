@@ -428,7 +428,7 @@ def authenticated_platform_grant_lifecycle_manager_client(
     anonymous_client: FundingServiceTestClient, factories: _Factories, db_session: Session, request: FixtureRequest
 ) -> Generator[FundingServiceTestClient, None, None]:
     """
-    Create a client authenticated as a platform grant lifecycle manager (GRANT_REPORTING_LIFECYCLE at platform level,
+    Create a client authenticated as a platform grant lifecycle manager (GRANT_COLLECTION_LIFECYCLE at platform level,
     No org/grant)
     """
     email_mark = request.node.get_closest_marker("authenticate_as")

@@ -4,7 +4,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
 {% block beforeContent %}
-  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
 {% endblock %}
 
 {% block action_panel %}
@@ -70,7 +70,7 @@
       {{
         govukButton({
           "text": "Download CSV",
-          "href": url_for('reporting_lifecycle.download_data_providers_csv', grant_id=grant.id, collection_id=collection.id, email_type=email_type),
+          "href": url_for('collection_lifecycle.download_data_providers_csv', grant_id=grant.id, collection_id=collection.id, email_type=email_type),
           "classes": "govuk-!-margin-bottom-8"
         })
       }}

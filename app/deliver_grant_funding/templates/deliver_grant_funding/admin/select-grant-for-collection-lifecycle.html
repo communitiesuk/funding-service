@@ -11,8 +11,8 @@
         {{ govukErrorSummary(wtforms_errors(form)) }}
       {% endif %}
 
-      <h1 class="govuk-heading-l">Reporting lifecycle</h1>
-      <p class="govuk-body">Select the grant you want to view the reporting lifecycle for.</p>
+      <h1 class="govuk-heading-l">Collection lifecycle</h1>
+      <p class="govuk-body">Select the grant you want to view the collection lifecycle for.</p>
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.grant_id }}

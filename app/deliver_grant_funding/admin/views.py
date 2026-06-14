@@ -80,7 +80,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminRevokeGrantOverrideCertifiersForm,
     PlatformAdminRevokeGrantRecipientUsersForm,
     PlatformAdminScheduleReportForm,
-    PlatformAdminSelectGrantForReportingLifecycleForm,
+    PlatformAdminSelectGrantForCollectionLifecycleForm,
     PlatformAdminSelectReportForm,
     PlatformAdminSetCollectionDatesForm,
     PlatformAdminSetPrivacyPolicyForm,
@@ -102,20 +102,20 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
     pass
 
 
-class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):
+class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):
     @expose("/", methods=["GET", "POST"])
     def index(self) -> Any:
-        form = PlatformAdminSelectGrantForReportingLifecycleForm(grants=get_all_grants())
+        form = PlatformAdminSelectGrantForCollectionLifecycleForm(grants=get_all_grants())
         if form.validate_on_submit():
             grant = get_grant(form.grant_id.data, with_all_collections=True)
             if len(grant.reports) == 1:
                 return redirect(
-                    url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=grant.reports[0].id)
+                    url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=grant.reports[0].id)
                 )
             else:
-                return redirect(url_for("reporting_lifecycle.select_report", grant_id=grant.id))
+                return redirect(url_for("collection_lifecycle.select_report", grant_id=grant.id))
 
-        return self.render("deliver_grant_funding/admin/select-grant-for-reporting-lifecycle.html", form=form)
+        return self.render("deliver_grant_funding/admin/select-grant-for-collection-lifecycle.html", form=form)
 
     @expose("/<uuid:grant_id>/select-report", methods=["GET", "POST"])
     def select_report(self, grant_id: UUID) -> Any:
@@ -123,11 +123,11 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         form = PlatformAdminSelectReportForm(collections=grant.reports)
         if form.validate_on_submit():
             return redirect(
-                url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=form.collection_id.data)
+                url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=form.collection_id.data)
             )
 
         return self.render(
-            "deliver_grant_funding/admin/select-report-for-reporting-lifecycle.html", form=form, grant=grant
+            "deliver_grant_funding/admin/select-report-for-collection-lifecycle.html", form=form, grant=grant
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>")
@@ -148,7 +148,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         test_users_count = get_grant_recipient_data_providers_count(grant=grant, mode=GrantRecipientModeEnum.TEST)
 
         return self.render(
-            "deliver_grant_funding/admin/reporting-lifecycle-tasklist.html",
+            "deliver_grant_funding/admin/collection-lifecycle-tasklist.html",
             grant=grant,
             collection=collection,
             organisation_count=organisation_count,
@@ -167,14 +167,16 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 
         if grant.status == GrantStatusEnum.LIVE:
             flash(f"{grant.name} is already live.")
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         form = PlatformAdminMakeGrantLiveForm()
         if form.validate_on_submit():
             try:
                 update_grant(grant, status=GrantStatusEnum.LIVE)
                 flash(f"{grant.name} is now live.", "success")
-                return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+                return redirect(
+                    url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
+                )
             except StateTransitionError:
                 form.form_errors.append("Unable to make grant live")
 
@@ -190,13 +192,13 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 
         if grant.status in [GrantStatusEnum.ONBOARDING, GrantStatusEnum.LIVE]:
             flash(f"{grant.name} is already marked as onboarding.")
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         form = PlatformAdminMarkAsOnboardingForm()
         if form.validate_on_submit():
             update_grant(grant, status=GrantStatusEnum.ONBOARDING)
             flash(f"{grant.name} is now marked as onboarding.", "success")
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
             "deliver_grant_funding/admin/confirm-make-grant-active-onboarding.html",
@@ -215,7 +217,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
         if form.validate_on_submit():
             update_grant(grant, privacy_policy_markdown=form.privacy_policy_markdown.data)
             flash(f"Privacy policy updated for {grant.name}.", "success")
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
             "deliver_grant_funding/admin/set-privacy-policy.html",
@@ -239,7 +241,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 f"Created or updated {len(organisations)} organisations and {len(organisations)} test organisations.",
                 "success",
             )
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
             "deliver_grant_funding/admin/set-up-organisations.html",
@@ -271,7 +273,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     count += 1
 
             flash(f"Created or updated {count} certifier(s).", "success")
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
             "deliver_grant_funding/admin/set-up-global-certifiers.html",
@@ -322,7 +324,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     )
                     return redirect(
                         url_for(
-                            "reporting_lifecycle.revoke_global_certifiers",
+                            "collection_lifecycle.revoke_global_certifiers",
                             grant_id=grant.id,
                             collection_id=collection.id,
                         )
@@ -370,7 +372,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
             )
             return redirect(
                 url_for(
-                    "reporting_lifecycle.override_grant_certifiers",
+                    "collection_lifecycle.override_grant_certifiers",
                     grant_id=grant.id,
                     collection_id=collection.id,
                 )
@@ -426,7 +428,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     )
                     return redirect(
                         url_for(
-                            "reporting_lifecycle.revoke_grant_override_certifiers",
+                            "collection_lifecycle.revoke_grant_override_certifiers",
                             grant_id=grant.id,
                             collection_id=collection.id,
                         )
@@ -488,7 +490,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 ),
                 "success",
             )
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
             "deliver_grant_funding/admin/set-up-grant-recipients.html",
@@ -532,7 +534,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 
             return redirect(
                 url_for(
-                    "reporting_lifecycle.tasklist",
+                    "collection_lifecycle.tasklist",
                     grant_id=grant.id,
                     collection_id=collection.id,
                 )
@@ -572,7 +574,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 
             return redirect(
                 url_for(
-                    "reporting_lifecycle.tasklist",
+                    "collection_lifecycle.tasklist",
                     grant_id=grant.id,
                     collection_id=collection.id,
                 )
@@ -695,7 +697,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
 
             return redirect(
                 url_for(
-                    "reporting_lifecycle.add_bulk_data_providers",
+                    "collection_lifecycle.add_bulk_data_providers",
                     grant_id=grant.id,
                     collection_id=collection.id,
                 )
@@ -719,7 +721,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 f"You cannot set dates for {collection.name} because it is not in draft status.",
                 "error",
             )
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         form = PlatformAdminSetCollectionDatesForm(obj=collection)
 
@@ -732,7 +734,7 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                 submission_period_end_date=form.submission_period_end_date.data,
             )
             flash(f"Updated dates for {collection.name}.", "success")
-            return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
             "deliver_grant_funding/admin/set-collection-dates.html",
@@ -755,7 +757,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     f"{collection.name} is now locked and form designers cannot make any more changes.",
                     "success",
                 )
-                return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+                return redirect(
+                    url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
+                )
             except StateTransitionError as e:
                 form.form_errors.append(
                     f"{collection.name} can only be scheduled from the 'draft' state; it is currently {e.from_state}",
@@ -796,7 +800,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     ),
                     "success",
                 )
-                return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+                return redirect(
+                    url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
+                )
             except StateTransitionError as e:
                 form.form_errors.append(
                     f"{collection.name} can only be made live from the 'scheduled' state; "
@@ -997,7 +1003,9 @@ class PlatformAdminReportingLifecycleView(FlaskAdminPlatformAdminGrantLifecycleM
                     ),
                     "success",
                 )
-                return redirect(url_for("reporting_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+                return redirect(
+                    url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
+                )
             except StateTransitionError as e:
                 form.form_errors.append(
                     f"{collection.name} can only be closed from the 'open' state; it is currently {e.from_state}",

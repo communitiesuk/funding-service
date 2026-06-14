@@ -34,12 +34,12 @@ if TYPE_CHECKING:
     from app.common.data.models_user import User
 
 
-class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
+class PlatformAdminSelectGrantForCollectionLifecycleForm(FlaskForm):
     grant_id = SelectField(
         "Grant",
         choices=[],
         widget=GovSelectWithSearch(),
-        validators=[DataRequired("Select a grant to view its reporting lifecycle")],
+        validators=[DataRequired("Select a grant to view its collection lifecycle")],
     )
     submit = SubmitField("Select grant", widget=GovSubmitInput())
 

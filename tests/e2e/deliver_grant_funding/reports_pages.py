@@ -2066,7 +2066,7 @@ class EditQuestionGroupPage(ReportsBasePage):
         return add_guidance_page
 
 
-class AdminReportingLifecycleTasklistPage:
+class AdminCollectionLifecycleTasklistPage:
     def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str) -> None:
         self.page = page
         self.domain = domain
@@ -2075,7 +2075,7 @@ class AdminReportingLifecycleTasklistPage:
 
     def navigate(self) -> None:
         self.page.goto(
-            url=f"{self.domain}/deliver/admin/reporting-lifecycle/{str(self.grant_id)}/{str(self.collection_id)}"
+            url=f"{self.domain}/deliver/admin/collection-lifecycle/{str(self.grant_id)}/{str(self.collection_id)}"
         )
 
     def click_task(self, task_name: str) -> None:
@@ -2096,17 +2096,17 @@ class SetUpOrganisationsPage:
 
     def navigate(self) -> None:
         self.page.goto(
-            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/set-up-organisations"
+            f"{self.domain}/deliver/admin/collection-lifecycle/{self.grant_id}/{self.collection_id}/set-up-organisations"
         )
         expect(self.heading).to_be_visible()
 
     def fill_organisations_tsv_data(self, tsv_data: str) -> None:
         self.organisations_textarea.fill(tsv_data)
 
-    def click_set_up_organisations(self) -> "AdminReportingLifecycleTasklistPage":
+    def click_set_up_organisations(self) -> "AdminCollectionLifecycleTasklistPage":
         self.set_up_button.click()
         expect(self.page.get_by_text("Created or updated 1 organisation")).to_be_visible()
-        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
+        return AdminCollectionLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
 class SetUpGrantRecipientsPage:
@@ -2129,10 +2129,10 @@ class SetUpGrantRecipientsPage:
         self.page.get_by_role("option", name=org_name).click()
         self.page.keyboard.press("Escape")
 
-    def click_set_up_grant_recipients(self) -> "AdminReportingLifecycleTasklistPage":
+    def click_set_up_grant_recipients(self) -> "AdminCollectionLifecycleTasklistPage":
         self.set_up_button.click()
         expect(self.page.get_by_text("Created 1 grant recipient")).to_be_visible()
-        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
+        return AdminCollectionLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
 class SetUpTestGrantRecipientUsersPage:
@@ -2186,17 +2186,17 @@ class SetUpDataProvidersPage:
 
     def navigate(self) -> None:
         self.page.goto(
-            f"{self.domain}/deliver/admin/reporting-lifecycle/{self.grant_id}/{self.collection_id}/add-bulk-data-providers"
+            f"{self.domain}/deliver/admin/collection-lifecycle/{self.grant_id}/{self.collection_id}/add-bulk-data-providers"
         )
         expect(self.heading).to_be_visible()
 
     def fill_users_tsv_data(self, tsv_data: str) -> None:
         self.users_textarea.fill(tsv_data)
 
-    def click_set_up_users(self) -> "AdminReportingLifecycleTasklistPage":
+    def click_set_up_users(self) -> "AdminCollectionLifecycleTasklistPage":
         self.set_up_button.click()
         expect(self.page.get_by_text("Successfully set up 1 grant recipient data provider.")).to_be_visible()
-        return AdminReportingLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
+        return AdminCollectionLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
 class OverrideGrantRecipientCertifiersPage:
