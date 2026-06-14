@@ -177,7 +177,7 @@ class TestCollectionLifecycleSelectGrant:
             follow_redirects=False,
         )
         assert response.status_code == 302
-        assert response.location == f"/deliver/admin/collection-lifecycle/{grant.id}/select-report"
+        assert response.location == f"/deliver/admin/collection-lifecycle/{grant.id}/select-collection"
 
     def test_post_without_grant_id_shows_validation_error(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -214,7 +214,7 @@ class TestCollectionLifecycleSelectReport:
         grant = factories.grant.create()
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/select-report")
+        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/select-collection")
         assert response.status_code == expected_code
 
     def test_get_select_report_page(self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session):
@@ -223,12 +223,12 @@ class TestCollectionLifecycleSelectReport:
         collection2 = factories.collection.create(grant=grant, name="Q2 Report")
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/select-report"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/select-collection"
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Select monitoring report"
+        assert get_h1_text(soup) == "Select collection"
 
         select_element = soup.find("select", {"id": "collection_id"})
         assert select_element is not None
@@ -237,8 +237,8 @@ class TestCollectionLifecycleSelectReport:
         option_texts = [opt.get_text(strip=True) for opt in options]
         option_values = [opt.get("value") for opt in options]
 
-        assert "Q1 Report" in option_texts
-        assert "Q2 Report" in option_texts
+        assert "Q1 Report (monitoring report)" in option_texts
+        assert "Q2 Report (monitoring report)" in option_texts
         assert str(collection1.id) in option_values
         assert str(collection2.id) in option_values
 
@@ -249,7 +249,7 @@ class TestCollectionLifecycleSelectReport:
         collection = factories.collection.create(grant=grant, name="Q1 Report")
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/select-report",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/select-collection",
             data={"collection_id": str(collection.id), "submit": "y"},
             follow_redirects=False,
         )

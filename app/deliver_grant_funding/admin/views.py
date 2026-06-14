@@ -79,8 +79,8 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminRevokeGrantOverrideCertifiersForm,
     PlatformAdminRevokeGrantRecipientUsersForm,
     PlatformAdminScheduleReportForm,
+    PlatformAdminSelectCollectionForm,
     PlatformAdminSelectGrantForCollectionLifecycleForm,
-    PlatformAdminSelectReportForm,
     PlatformAdminSetCollectionDatesForm,
     PlatformAdminSetPrivacyPolicyForm,
 )
@@ -112,21 +112,21 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=grant.reports[0].id)
                 )
             else:
-                return redirect(url_for("collection_lifecycle.select_report", grant_id=grant.id))
+                return redirect(url_for("collection_lifecycle.select_collection", grant_id=grant.id))
 
         return self.render("deliver_grant_funding/admin/select-grant-for-collection-lifecycle.html", form=form)
 
-    @expose("/<uuid:grant_id>/select-report", methods=["GET", "POST"])
-    def select_report(self, grant_id: UUID) -> Any:
+    @expose("/<uuid:grant_id>/select-collection", methods=["GET", "POST"])
+    def select_collection(self, grant_id: UUID) -> Any:
         grant = get_grant(grant_id, with_all_collections=True)
-        form = PlatformAdminSelectReportForm(collections=grant.reports)
+        form = PlatformAdminSelectCollectionForm(collections=grant.collections)
         if form.validate_on_submit():
             return redirect(
                 url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=form.collection_id.data)
             )
 
         return self.render(
-            "deliver_grant_funding/admin/select-report-for-collection-lifecycle.html", form=form, grant=grant
+            "deliver_grant_funding/admin/select-collection-for-collection-lifecycle.html", form=form, grant=grant
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>")

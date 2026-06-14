@@ -281,7 +281,7 @@ routes_with_access_controlled_by_flask_admin = [
     "grantrecipient.export",
     "grantrecipient.index_view",
     "collection_lifecycle.index",
-    "collection_lifecycle.select_report",
+    "collection_lifecycle.select_collection",
     "collection_lifecycle.tasklist",
     "collection_lifecycle.mark_as_onboarding",
     "collection_lifecycle.set_privacy_policy",

@@ -51,19 +51,24 @@ class PlatformAdminSelectGrantForCollectionLifecycleForm(FlaskForm):
         self.grant_id.choices = [("", "")] + [(str(grant.id), grant.name) for grant in grants]
 
 
-class PlatformAdminSelectReportForm(FlaskForm):
+class PlatformAdminSelectCollectionForm(FlaskForm):
     collection_id = SelectField(
-        "Monitoring report",
+        "Collection",
         choices=[],
         widget=GovSelectWithSearch(),
-        validators=[DataRequired("Select a monitoring report to manage")],
+        validators=[DataRequired("Select a collection to manage")],
     )
-    submit = SubmitField("Select monitoring report", widget=GovSubmitInput())
+    submit = SubmitField("Select collection", widget=GovSubmitInput())
 
     def __init__(self, collections: Sequence[Collection]) -> None:
         super().__init__()
 
-        self.collection_id.choices = [("", "")] + [(str(collection.id), collection.name) for collection in collections]
+        choices = [("", "")]
+        for collection in collections:
+            label = f"{collection.name} ({collection.type.value})"
+            choices.append((str(collection.id), label))
+
+        self.collection_id.choices = choices
 
 
 class PlatformAdminMakeGrantLiveForm(FlaskForm):
