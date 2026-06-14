@@ -2274,7 +2274,7 @@ class TestSetupGrantRecipients:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
-            data={"recipients": [str(org1.id), str(org2.id)], "submit": "y"},
+            data={"recipients": [str(org1.id), str(org2.id)], "status": "awarded", "submit": "y"},
             follow_redirects=True,
         )
         assert response.status_code == 200
@@ -2322,7 +2322,7 @@ class TestSetupGrantRecipients:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
-            data={"recipients": [str(org1.id)], "submit": "y"},
+            data={"recipients": [str(org1.id)], "status": "awarded", "submit": "y"},
             follow_redirects=True,
         )
         assert response.status_code == 200
@@ -2360,7 +2360,7 @@ class TestSetupGrantRecipients:
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-grant-recipients",
-            data={"recipients": [str(org.id)], "submit": "y"},
+            data={"recipients": [str(org.id)], "status": "applying", "submit": "y"},
             follow_redirects=False,
         )
         assert response.status_code == 302

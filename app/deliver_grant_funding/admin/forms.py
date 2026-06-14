@@ -10,18 +10,20 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovCheckboxesInput,
     GovCheckboxInput,
     GovDateInput,
+    GovRadioInput,
     GovSubmitInput,
     GovTextArea,
     GovTextInput,
 )
 from markupsafe import Markup, escape
-from wtforms import DateField, SubmitField
+from wtforms import DateField, RadioField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.simple import BooleanField, EmailField, StringField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
 from app.common.data.types import (
+    GrantRecipientStatusEnum,
     OrganisationData,
     OrganisationType,
     TraceLevelEnum,
@@ -183,7 +185,12 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
     recipients = SelectMultipleField(
         "Grant recipients", choices=[], widget=GovSelectWithSearch(multiple=True), validators=[DataRequired()]
     )
-
+    status = RadioField(
+        "Grant recipient status",
+        choices=[(s.value, s.value.capitalize()) for s in GrantRecipientStatusEnum],
+        validators=[DataRequired()],
+        widget=GovRadioInput(),
+    )
     submit = SubmitField("Set up grant recipients", widget=GovSubmitInput())
 
     def __init__(

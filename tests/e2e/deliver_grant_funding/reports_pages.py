@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Literal, cast
 from playwright.sync_api import Locator, Page, expect
 
 from app.common.data.types import (
+    GrantRecipientStatusEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
     MultilineTextInputRows,
@@ -2128,6 +2129,9 @@ class SetUpGrantRecipientsPage:
         self.grant_recipients_combobox.click()
         self.page.get_by_role("option", name=org_name).click()
         self.page.keyboard.press("Escape")
+
+    def select_status(self, status: GrantRecipientStatusEnum) -> None:
+        self.page.get_by_role("radio", name=status.value).click()
 
     def click_set_up_grant_recipients(self) -> "AdminCollectionLifecycleTasklistPage":
         self.set_up_button.click()

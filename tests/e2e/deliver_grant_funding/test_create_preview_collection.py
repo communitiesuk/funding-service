@@ -8,6 +8,7 @@ from playwright.sync_api import Locator, Page, expect
 
 from app import NumberTypeEnum
 from app.common.data.types import (
+    GrantRecipientStatusEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
     MultilineTextInputRows,
@@ -1291,6 +1292,7 @@ def test_setup_grant_and_collection(
     collection_lifecycle_tasklist_page.click_task("Set up grant recipients")
     set_up_grant_recipients_page = SetUpGrantRecipientsPage(page, domain, grant_id, collection_id)
     set_up_grant_recipients_page.select_organisation(org_name)
+    set_up_grant_recipients_page.select_status(GrantRecipientStatusEnum.AWARDED)
     set_up_grant_recipients_page.click_set_up_grant_recipients()
 
     tsv_data = f"organisation-name\tfull-name\temail-address\n{org_name}\t{user_name}\t{user_email}\n"
