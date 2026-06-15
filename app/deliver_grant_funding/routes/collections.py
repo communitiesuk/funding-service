@@ -108,6 +108,7 @@ from app.common.helpers.collections import (
     SubmissionHelper,
     SubmissionIsNotSubmittedError,
 )
+from app.common.utils import slugify
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -118,6 +119,7 @@ from app.deliver_grant_funding.data_sets import (
     DataSetValidationResult,
     build_data_set_upload_s3_key,
     check_missing_data,
+    generate_latest_csv_template,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -3368,6 +3370,33 @@ def download_grant_recipient_data_set_template(
         mimetype="text/csv",
         as_attachment=True,
         download_name=f"{collection.slug}-grant-recipient-data-template.csv",
+        max_age=0,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-sets/<uuid:data_source_id>/template",
+    methods=["GET"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def download_latest_data_set_template(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(
+        collection_id=collection_id, grant_id=grant_id, with_full_schema=False, type_=collection_type
+    )
+    data_source = get_data_source(data_source_id, with_organisation_items=True)
+
+    # TODO FSPT-1044: We should do this filtering in the interface rather than here
+    if data_source.collection_id != collection_id or data_source.grant_id != grant_id:
+        abort(404)
+
+    csv_content = generate_latest_csv_template(data_source)
+    return send_file(
+        io.BytesIO(csv_content.getvalue().encode("utf-8-sig")),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"{collection.slug}-{slugify(data_source.name)}-template.csv",  # ty:ignore[invalid-argument-type]
         max_age=0,
     )
 
