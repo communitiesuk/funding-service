@@ -470,7 +470,12 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
 
 
 class PlatformAdminScheduleReportForm(FlaskForm):
-    submit = SubmitField("Sign off and lock collection", widget=GovSubmitInput())
+    submit = SubmitField("", widget=GovSubmitInput())
+
+    def __init__(self, collection: Collection, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.submit.label.text = Markup(f"Sign off and lock the {collection.type.constants.singular}")
 
 
 class PlatformAdminMakeReportLiveForm(FlaskForm):

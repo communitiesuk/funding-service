@@ -745,7 +745,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
 
-        form = PlatformAdminScheduleReportForm()
+        form = PlatformAdminScheduleReportForm(collection=collection)
         if form.validate_on_submit():
             try:
                 update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
