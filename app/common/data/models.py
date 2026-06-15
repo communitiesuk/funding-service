@@ -16,6 +16,7 @@ from sqlalchemy import (
     and_,
     case,
     func,
+    not_,
     or_,
     select,
     text,
@@ -1339,6 +1340,50 @@ class DataSource(BaseModel, SafeDidMixin):
         if self.type == DataSourceType.CUSTOM:
             return None
         return f"{column.original_column_name} from {self.name} data set"
+
+    @hybrid_property
+    def has_missing_data(self) -> bool:
+        if self.type == DataSourceType.CUSTOM:
+            return False
+
+        assert self.schema, f"DataSource {self.id} has type {self.type} but no schema"
+
+        if not self.organisation_items:
+            return True
+
+        schema_columns = set(self.schema.root.keys())
+        return any(item._data.get(col) is None for item in self.organisation_items for col in schema_columns)
+
+    @has_missing_data.inplace.expression
+    @classmethod
+    def _has_missing_data_expression(cls) -> ColumnElement[bool]:
+        has_null_value = (
+            select(DataSourceOrganisationItem.data_source_id)
+            .where(
+                DataSourceOrganisationItem.data_source_id == cls.id,
+                func.jsonb_path_exists(
+                    DataSourceOrganisationItem._data,
+                    # JSONPath expression to check if any top-level value in the org item JSONB object is null
+                    # $.* iterates all top-level values, ? (@ == null) filters to nulls
+                    # ::jsonpath casts the string to Postgres jsonpath type
+                    text("'$.* ? (@ == null)'::jsonpath"),
+                ),
+            )
+            .correlate(cls)
+            .exists()
+        )
+
+        has_no_org_items = not_(
+            select(DataSourceOrganisationItem.data_source_id)
+            .where(DataSourceOrganisationItem.data_source_id == cls.id)
+            .correlate(cls)
+            .exists()
+        )
+
+        return and_(
+            cls.type != DataSourceType.CUSTOM,
+            has_null_value | has_no_org_items,
+        )
 
 
 class DataSourceItem(BaseModel):

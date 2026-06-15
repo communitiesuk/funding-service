@@ -2,13 +2,14 @@ from datetime import date
 
 import pytest
 from psycopg.errors import ForeignKeyViolation
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app import QuestionDataType
 from app.common.collections.types import (
     TextSingleLineAnswer,
 )
-from app.common.data.models import ComponentReference, Expression, Group
+from app.common.data.models import ComponentReference, DataSource, Expression, Group
 from app.common.data.types import (
     DataSourceType,
     ExpressionType,
@@ -910,3 +911,77 @@ class TestDataSourceModel:
         assert data_source.get_filtered_organisation_item(gr2.organisation.external_id)._data["c_allocation"] == 222
         assert data_source.get_filtered_organisation_item(gr3.organisation.external_id)._data["c_allocation"] == 333
         assert data_source.get_filtered_organisation_item(gr4.organisation.external_id) is None
+
+    def test_has_missing_data_python_true_when_null_values(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+
+        assert data_source.has_missing_data is True
+
+    def test_has_missing_data_python_false_when_all_values_present(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        assert data_source.has_missing_data is False
+
+    def test_has_missing_data_python_true_when_no_org_items(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
+
+        assert data_source.has_missing_data is True
+
+    def test_has_missing_data_sql_true_when_null_values(self, factories, db_session, track_sql_queries):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        data_source_2 = factories.data_source.create(
+            name="Missing data set",
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data)).all()
+        assert data_source_2 in results
+        assert data_source not in results
+
+    def test_has_missing_data_sql_true_when_grant_recipients_and_no_org_items(self, factories, db_session):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
+
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data)).all()
+        assert data_source in results
+
+    def test_has_missing_data_sql_false_for_custom_type(self, factories, db_session):
+        data_source = factories.data_source.create(type=DataSourceType.CUSTOM)
+
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data)).all()
+        assert data_source not in results
