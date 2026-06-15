@@ -1026,15 +1026,67 @@ class UploadDataSetForm(FlaskForm):
 
     submit = SubmitField("Continue and map columns", widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, existing_data_source_names: list[str | None], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        existing_data_source_names: list[str | None],
+        existing_datasource: DataSource | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._existing_data_source_names = existing_data_source_names or []
+        self.existing_datasource = existing_datasource
 
     def validate_name(self, field: StringField) -> None:
         if field.data and field.data in self._existing_data_source_names:
             raise ValidationError("A data set with this name already exists for this monitoring report")
 
-    def validate_file(self, field: Field) -> None:  # noqa: C901
+    @staticmethod
+    def _validate_minimum_columns(fieldnames) -> None:
+        if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
+            raise ValidationError("The CSV file must have at least one column")
+
+        if any(not fieldname.strip() for fieldname in fieldnames):
+            raise ValidationError("The CSV file must have a name for each column")
+
+        missing = [col for col in DATA_SET_IDENTIFIER_COLUMN_HEADERS if col not in fieldnames]
+        if missing:
+            raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
+
+        data_columns = [col for col in fieldnames if col.strip() and col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
+        if not data_columns:
+            raise ValidationError("The CSV file must contain at least one column of data")
+
+    @staticmethod
+    def _validate_duplicate_column_names_in_csv(fieldnames) -> None:
+        if len(fieldnames) != len(set(fieldnames)):
+            counter = Counter(fieldnames)
+            duplicate_fieldnames = [fieldname for fieldname, count in counter.items() if count > 1]
+            raise ValidationError(f"The CSV file contains duplicate column names: {', '.join(duplicate_fieldnames)}")
+
+        fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
+        counter = Counter(fieldnames_to_safe_ids.values())
+        duplicate_safe_ids = {safe_id for safe_id, count in counter.items() if count > 1}
+        if duplicate_safe_ids:
+            duplicate_originals = [
+                name for name, safe_id in fieldnames_to_safe_ids.items() if safe_id in duplicate_safe_ids
+            ]
+            raise ValidationError(f"The CSV file contains duplicate column names: {', '.join(duplicate_originals)}")
+
+    @staticmethod
+    def _validate_columns_in_each_row(rows) -> None:
+        if any(None in row or None in row.values() for row in rows):
+            raise ValidationError("The CSV file contains rows which are longer or shorter than the number of columns")
+
+    @staticmethod
+    def _validate_max_rows(rows) -> None:
+        row_count = len(rows)
+        if row_count > 10000:
+            raise ValidationError("The file must contain no more than 10,000 rows")
+
+    def validate_file(self, field: Field) -> None:
+        if self.existing_datasource:
+            raise NotImplementedError("Cannot yet validate replacement of a datasource")
         if not field.data or not hasattr(field.data, "stream"):
             return
 
@@ -1046,44 +1098,11 @@ class UploadDataSetForm(FlaskForm):
             reader.fieldnames = fieldnames
             rows = list(reader)
 
-            if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
-                raise ValidationError("The CSV file must have at least one column")
+            UploadDataSetForm._validate_minimum_columns(fieldnames)
+            UploadDataSetForm._validate_duplicate_column_names_in_csv(fieldnames)
+            UploadDataSetForm._validate_columns_in_each_row(rows)
+            UploadDataSetForm._validate_max_rows(rows)
 
-            if any(not fieldname.strip() for fieldname in fieldnames):
-                raise ValidationError("The CSV file must have a name for each column")
-
-            if len(fieldnames) != len(set(fieldnames)):
-                counter = Counter(fieldnames)
-                duplicate_fieldnames = [fieldname for fieldname, count in counter.items() if count > 1]
-                raise ValidationError(
-                    f"The CSV file contains duplicate column names: {', '.join(duplicate_fieldnames)}"
-                )
-
-            fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
-            counter = Counter(fieldnames_to_safe_ids.values())
-            duplicate_safe_ids = {safe_id for safe_id, count in counter.items() if count > 1}
-            if duplicate_safe_ids:
-                duplicate_originals = [
-                    name for name, safe_id in fieldnames_to_safe_ids.items() if safe_id in duplicate_safe_ids
-                ]
-                raise ValidationError(f"The CSV file contains duplicate column names: {', '.join(duplicate_originals)}")
-
-            if any(None in row or None in row.values() for row in rows):
-                raise ValidationError(
-                    "The CSV file contains rows which are longer or shorter than the number of columns"
-                )
-
-            missing = [col for col in DATA_SET_IDENTIFIER_COLUMN_HEADERS if col not in fieldnames]
-            if missing:
-                raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
-
-            data_columns = [col for col in fieldnames if col.strip() and col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
-            if not data_columns:
-                raise ValidationError("The CSV file must contain at least one column of data")
-
-            row_count = len(rows)
-            if row_count > 10000:
-                raise ValidationError("The file must contain no more than 10,000 rows")
         finally:
             field.data.stream.seek(0)
 
