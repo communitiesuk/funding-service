@@ -566,7 +566,7 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
             del self.confirm_managed_by_service
             del self.confirm_managed_submissions_count
 
-        self.submit.label.text = Markup(f"Open the {collection.type.constants.singular} for submissions")
+        self.submit.label.text = f"Open the {collection.type.constants.singular} for submissions"
 
 
 class PlatformAdminCreateGrantOverrideCertifiersForm(FlaskForm):
