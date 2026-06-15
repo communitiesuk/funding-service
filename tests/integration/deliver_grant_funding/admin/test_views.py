@@ -4164,7 +4164,7 @@ class TestMakeReportLive:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Test Grant Open the collection for submissions"
+        assert get_h1_text(soup) == "Test Grant Open the report for submissions"
 
         checkboxes = soup.find_all("input", {"type": "checkbox"})
         checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
@@ -4177,7 +4177,7 @@ class TestMakeReportLive:
             in checkbox_labels
         )
         assert "The privacy policy has been set up" in checkbox_labels
-        assert "It is correct that the collection has certification enabled" in checkbox_labels
+        assert "It is correct that the report has certification enabled" in checkbox_labels
         assert "The submission dates are 1 April 2024 until 30 April 2024" in checkbox_labels
         assert "It is correct that multiple submissions are disabled" in checkbox_labels
 
