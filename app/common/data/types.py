@@ -210,7 +210,7 @@ PRE_AWARD_COLLECTIONS = frozenset([CollectionType.APPLICATION])
 MONITORING_COLLECTIONS = frozenset([CollectionType.MONITORING_REPORT])
 
 
-class ReportAdminEmailTypeEnum(enum.StrEnum):
+class CollectionAdminEmailTypeEnum(enum.StrEnum):
     COLLECTION_OPEN_NOTIFICATION = "collection-open-notification"
     DEADLINE_REMINDER = "deadline-reminder"
     COLLECTION_OVERDUE = "collection-overdue"

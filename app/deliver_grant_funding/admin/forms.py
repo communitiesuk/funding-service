@@ -303,7 +303,6 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
     )
     send_notification_email = BooleanField(
         "Send 'submission is ready to complete' email",
-        description="",
         widget=GovCheckboxInput(),
     )
     submit = SubmitField("Add data provider", widget=GovSubmitInput())
@@ -469,16 +468,16 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
         return result
 
 
-class PlatformAdminScheduleReportForm(FlaskForm):
-    submit = SubmitField("", widget=GovSubmitInput())
+class PlatformAdminScheduleCollectionForm(FlaskForm):
+    submit = SubmitField(widget=GovSubmitInput())
 
     def __init__(self, collection: Collection, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-        self.submit.label.text = Markup(f"Sign off and lock the {collection.type.constants.singular}")
+        self.submit.label.text = f"Sign off and lock the {collection.type.constants.singular}"
 
 
-class PlatformAdminMakeReportLiveForm(FlaskForm):
+class PlatformAdminMakeCollectionLiveForm(FlaskForm):
     confirm_grant_recipients = BooleanField(
         validators=[DataRequired("Confirm the number of grant recipients")], widget=GovCheckboxInput()
     )

@@ -23,6 +23,7 @@ from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.types import (
+    CollectionAdminEmailTypeEnum,
     CollectionStatusEnum,
     CollectionType,
     ComponentType,
@@ -35,7 +36,6 @@ from app.common.data.types import (
     NumberTypeEnum,
     OrganisationType,
     QuestionDataType,
-    ReportAdminEmailTypeEnum,
     RoleEnum,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -343,7 +343,7 @@ def create_app() -> Flask:  # noqa: C901
                 role_enum=RoleEnum,
                 number_type_enum=NumberTypeEnum,
                 component_type_enum=ComponentType,
-                report_admin_email_type_enum=ReportAdminEmailTypeEnum,
+                report_admin_email_type_enum=CollectionAdminEmailTypeEnum,
                 file_upload_types_enum=FileUploadTypes,
                 maximum_file_size_enum=MaximumFileSize,
                 data_source_type_enum=DataSourceType,

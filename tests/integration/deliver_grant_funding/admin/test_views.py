@@ -5,7 +5,7 @@ import io
 import pytest
 from bs4 import BeautifulSoup
 
-from app import ReportAdminEmailTypeEnum
+from app import CollectionAdminEmailTypeEnum
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
 from app.common.data.interfaces.user import get_user, get_user_by_email
@@ -468,10 +468,10 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[4]
+        send_emails_task = collection_task_items[5]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Send emails to data providers"
+        assert task_title.get_text(strip=True) == "Send deadline reminder emails"
 
         task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
@@ -1052,19 +1052,19 @@ class TestSendEmailsToRecipients:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{closed_collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{closed_collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
 
@@ -1079,7 +1079,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
         )
         assert response.status_code == 404
 
@@ -1110,7 +1110,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == expected_status
 
@@ -1139,7 +1139,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
         )
         assert response.status_code == expected_status
 
@@ -1147,25 +1147,25 @@ class TestSendEmailsToRecipients:
         "email_type, report_status, expected_heading, template_id",
         [
             (
-                ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value,
+                CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value,
                 CollectionStatusEnum.OPEN,
                 "Send emails to data providers",
                 "4fc8d831-e241-4648-a8d3-04fb1bd9193e",
             ),
             (
-                ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value,
+                CollectionAdminEmailTypeEnum.DEADLINE_REMINDER.value,
                 CollectionStatusEnum.OPEN,
                 "Send deadline reminder emails",
                 "6e482561-e1dc-4d4d-8a9e-3b5ad8add968",
             ),
             (
-                ReportAdminEmailTypeEnum.COLLECTION_OVERDUE.value,
+                CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value,
                 CollectionStatusEnum.OPEN,
                 "Send report overdue emails",
                 "b11391b3-c589-48ae-a8a3-e2acaf951787",
             ),
             (
-                ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value,
+                CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value,
                 CollectionStatusEnum.CLOSED,
                 "Send report closed emails",
                 "b38d160d-800e-4b6a-b115-63ca7fc8975b",
@@ -1242,19 +1242,19 @@ class TestSendEmailsToRecipients:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
 
@@ -1309,7 +1309,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
         )
 
         assert response.status_code == 200
@@ -1440,7 +1440,7 @@ class TestSendEmailsToRecipients:
         # org 3 has not started their report (has no submission) so should be in the list
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
         )
 
         assert response.status_code == 200
@@ -1572,7 +1572,7 @@ class TestSendEmailsToRecipients:
         # org 3 has not started their report (has no submission) so should be in the list
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
         )
 
         assert response.status_code == 200
@@ -1666,7 +1666,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
         )
 
         assert response.status_code == 200
