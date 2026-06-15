@@ -11,6 +11,7 @@ from app.common.data.interfaces.collections import (
     delete_collection,
     get_collection,
 )
+from app.common.data.interfaces.data_sets import get_collection_ids_with_missing_data_data_sets
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
 @auto_commit_after_request
 def list_reports(grant_id: UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id, with_all_collections=True)
+    collections_with_missing_data_data_sets = get_collection_ids_with_missing_data_data_sets(grant_id)
 
     delete_wtform, delete_report = None, None
     if delete_report_id := request.args.get("delete"):
@@ -57,4 +59,5 @@ def list_reports(grant_id: UUID) -> ResponseReturnValue:
         grant=grant,
         delete_form=delete_wtform,
         delete_report=delete_report,
+        collections_with_missing_data_data_sets=collections_with_missing_data_data_sets,
     )

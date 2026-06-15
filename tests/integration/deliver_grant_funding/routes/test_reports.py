@@ -11,6 +11,7 @@ from app.common.data.models import (
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
+    DataSourceType,
     SubmissionModeEnum,
 )
 from app.common.forms import GenericConfirmDeletionForm
@@ -136,6 +137,42 @@ class TestListReports:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_button(soup, "Yes, delete this report")
+
+    def test_get_shows_missing_data_tag_for_data_sets(self, authenticated_platform_admin_client, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant, name="Test Report")
+        report_2 = factories.collection.create(grant=grant, name="Test Report 2")
+
+        factories.grant_recipient.create_batch(3, grant=grant)
+        factories.data_source.create(
+            name="Allocations Data",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=report,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        factories.data_source.create(
+            name="Organisation Data",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=report_2,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+
+        response = authenticated_platform_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_reports",
+                grant_id=grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        data_missing_tags = soup.select(".govuk-tag")
+        tag_texts = [tag.text.strip() for tag in data_missing_tags]
+        assert tag_texts.count("Data missing") == 1
 
     @pytest.mark.parametrize(
         "client_fixture, can_delete",

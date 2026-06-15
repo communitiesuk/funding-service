@@ -1,5 +1,6 @@
 {% from "common/macros/status.html" import reportStatusTag with context %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {% macro collection_card(collection) %}
   {% set can_edit = authorisation_helper.can_edit_collection(current_user, collection.id) %}
@@ -35,6 +36,9 @@
       {% trans count = collection.data_sources | length %}{{ count }} data set{% pluralize %}{{ count }} data sets{% endtrans %}
       <span class="govuk-visually-hidden"> for {{ collection.name }}</span>
     </a>
+    {% if collections_with_missing_data_data_sets and collection.id in collections_with_missing_data_data_sets %}
+      {{ govukTag({"text": "Data missing", "classes": "govuk-tag--orange govuk-!-margin-left-1"}) }}
+    {% endif %}
   {% endset %}
 
 
