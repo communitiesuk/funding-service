@@ -239,7 +239,9 @@ def update_collection(  # noqa: C901
                 actioning = "opening" if collection.status == CollectionStatusEnum.SCHEDULED else "scheduling"
 
                 if collection.grant.status != GrantStatusEnum.LIVE:
-                    raise GrantMustBeLiveError(f"{collection.grant.name} must be made live before {actioning} a report")
+                    raise GrantMustBeLiveError(
+                        f"{collection.grant.name} must be made live before {actioning} a collection"
+                    )
 
                 try:
                     assert collection.submission_period_start_date
@@ -270,12 +272,13 @@ def update_collection(  # noqa: C901
 
                 if not get_grant_recipients(collection.grant):
                     raise GrantRecipientUsersRequiredError(
-                        f"Grant recipients must be set up before {actioning} a report"
+                        f"Grant recipients must be set up before {actioning} a collection"
                     )
 
                 if not all_grant_recipients_have_data_providers(collection.grant):
                     raise GrantRecipientUsersRequiredError(
-                        f"All grant recipients must have at least one data provider set up before {actioning} a report"
+                        "All grant recipients must have at least one data "
+                        f"provider set up before {actioning} a collection"
                     )
 
                 if status == CollectionStatusEnum.OPEN:

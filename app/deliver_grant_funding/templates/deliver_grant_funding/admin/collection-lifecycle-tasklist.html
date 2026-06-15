@@ -164,9 +164,9 @@
       {% endif %}
       {%
         do rows.append({
-          "title": {"text": "Sign off and lock report", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Sign off and lock collection", "classes": "govuk-link--no-visited-state"},
           "status": scheduledReportStatus,
-          "href": url_for('collection_lifecycle.schedule_report', grant_id=grant.id, collection_id=collection.id) if prerequisites_met and collection.status == enum.collection_status.DRAFT else "",
+          "href": url_for('collection_lifecycle.schedule_collection', grant_id=grant.id, collection_id=collection.id) if prerequisites_met and collection.status == enum.collection_status.DRAFT else "",
         })
       %}
 
@@ -179,9 +179,9 @@
       {% endif %}
       {%
         do rows.append({
-          "title": {"text": "Open the report for submissions", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Open the collection for submissions", "classes": "govuk-link--no-visited-state"},
           "status": makeReportLiveStatus,
-          "href": url_for('collection_lifecycle.make_report_live', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.SCHEDULED else "",
+          "href": url_for('collection_lifecycle.make_collection_live', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.SCHEDULED else "",
         })
       %}
 

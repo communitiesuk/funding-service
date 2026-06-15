@@ -20,11 +20,11 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        Sign off and lock report
+        Sign off and lock collection
       </h1>
-      <p class="govuk-body">Schedule the report when the grant team has signed off on the form. Form designers cannot edit a scheduled report.</p>
+      <p class="govuk-body">Schedule the collection when the grant team has signed off on the form. Form designers cannot edit a scheduled collection.</p>
 
-      {{ govukInsetText({ "text": "A scheduled report will not automatically go live on the first day of the submission period. A platform admin must manually open the report for submissions and Send emails to data providers." }) }}
+      {{ govukInsetText({ "text": "A scheduled collection will not automatically go live on the first day of the submission period. A platform admin must manually open the collection for submissions and Send emails to data providers." }) }}
 
       {{
         govukSummaryList({
@@ -32,7 +32,7 @@
             "key": { "text": "Collection name" },
             "value": { "text": collection.name },
           }, {
-            "key": { "text": "Reporting period" },
+            "key": { "text": "Collection period" },
             "value": { "text": format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date) if collection.reporting_period_start_date and collection.reporting_period_end_date else "Not set" },
           }, {
             "key": { "text": "Submission period" },

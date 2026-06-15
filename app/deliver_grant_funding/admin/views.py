@@ -740,9 +740,9 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/schedule-report", methods=["GET", "POST"])
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/schedule-collection", methods=["GET", "POST"])
     @auto_commit_after_request
-    def schedule_report(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def schedule_collection(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
@@ -765,15 +765,15 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 form.form_errors.append(str(e))
 
         return self.render(
-            "deliver_grant_funding/admin/confirm-schedule-report.html",
+            "deliver_grant_funding/admin/confirm-schedule-collection.html",
             form=form,
             grant=grant,
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/make-report-live", methods=["GET", "POST"])
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/make-collection-live", methods=["GET", "POST"])
     @auto_commit_after_request
-    def make_report_live(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def make_collection_live(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
 
@@ -792,7 +792,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     (
                         f"{markupsafe.escape(collection.name)} is now live and grant recipients can start making "
                         f"submissions. "
-                        "<strong>You must now send emails to grant recipient users to let them know the report is "
+                        "<strong>You must now send emails to grant recipient users to let them know the collection is "
                         "open for submissions.</strong>"
                     ),
                     "success",
@@ -809,7 +809,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 form.form_errors.append(str(e))
 
         return self.render(
-            "deliver_grant_funding/admin/confirm-make-report-live.html",
+            "deliver_grant_funding/admin/confirm-make-collection-live.html",
             form=form,
             grant=grant,
             collection=collection,

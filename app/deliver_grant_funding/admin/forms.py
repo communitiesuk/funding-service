@@ -464,7 +464,7 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
 
 
 class PlatformAdminScheduleReportForm(FlaskForm):
-    submit = SubmitField("Sign off and lock report", widget=GovSubmitInput())
+    submit = SubmitField("Sign off and lock collection", widget=GovSubmitInput())
 
 
 class PlatformAdminMakeReportLiveForm(FlaskForm):
@@ -494,7 +494,7 @@ class PlatformAdminMakeReportLiveForm(FlaskForm):
     confirm_managed_submissions_count = BooleanField(
         validators=[DataRequired("Confirm the number of managed submissions")], widget=GovCheckboxInput()
     )
-    submit = SubmitField("Open report for submissions", widget=GovSubmitInput())
+    submit = SubmitField("Open collection for submissions", widget=GovSubmitInput())
 
     def __init__(
         self,
@@ -521,7 +521,7 @@ class PlatformAdminMakeReportLiveForm(FlaskForm):
         )
         certification_status = "enabled" if collection.requires_certification else "disabled"
         self.confirm_certification.label.text = Markup(
-            f"It is correct that the report has certification <strong {bold}>{certification_status}</strong>"
+            f"It is correct that the collection has certification <strong {bold}>{certification_status}</strong>"
         )
         if collection.submission_period_start_date and collection.submission_period_end_date:
             start = format_date_short(collection.submission_period_start_date)

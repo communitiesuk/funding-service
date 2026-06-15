@@ -305,14 +305,14 @@ class TestCollectionLifecycleTasklist:
         soup = BeautifulSoup(response.data, "html.parser")
         platform_task_list = soup.find("ul", {"id": "platform-tasks"})
         grant_task_list = soup.find("ul", {"id": "grant-tasks"})
-        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        collection_task_list = soup.find("ul", {"id": "report-tasks"})
         assert platform_task_list is not None
         assert grant_task_list is not None
-        assert report_task_list is not None
+        assert collection_task_list is not None
 
         platform_task_items = platform_task_list.find_all("li", {"class": "govuk-task-list__item"})
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
-        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        report_task_items = collection_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
         assert len(grant_task_items) == 6
         assert len(report_task_items) == 9
@@ -415,13 +415,13 @@ class TestCollectionLifecycleTasklist:
         assert "0 overrides" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        set_reporting_dates_task = report_task_items[0]
-        task_title = set_reporting_dates_task.find("a", {"class": "govuk-link"})
+        set_collection_dates_task = report_task_items[0]
+        task_title = set_collection_dates_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set reporting dates"
         assert f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
 
-        task_status = set_reporting_dates_task.find("strong", {"class": "govuk-tag"})
+        task_status = set_collection_dates_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "Optional" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
@@ -437,22 +437,22 @@ class TestCollectionLifecycleTasklist:
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
 
-        schedule_report_task = report_task_items[2]
-        task_title = schedule_report_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        schedule_collection_task = report_task_items[2]
+        task_title = schedule_collection_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Sign off and lock report"
+        assert task_title.get_text(strip=True) == "Sign off and lock collection"
 
-        task_status = schedule_report_task.find("div", {"class": "govuk-task-list__status"})
+        task_status = schedule_collection_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        make_report_live_task = report_task_items[3]
-        task_title = make_report_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        make_collection_live_task = report_task_items[3]
+        task_title = make_collection_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Open the report for submissions"
+        assert task_title.get_text(strip=True) == "Open the collection for submissions"
 
-        task_status = make_report_live_task.find("div", {"class": "govuk-task-list__status"})
+        task_status = make_collection_live_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
@@ -613,10 +613,10 @@ class TestCollectionLifecycleTasklist:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        report_task_list = soup.find("ul", {"id": "report-tasks"})
-        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        collection_task_list = soup.find("ul", {"id": "report-tasks"})
+        collection_task_items = collection_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_emails_task = report_task_items[4]
+        send_emails_task = collection_task_items[4]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send emails to data providers"
@@ -3667,7 +3667,7 @@ class TestScheduleReport:
         )
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-report")
+        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection")
         assert response.status_code == expected_code
 
     def test_get_confirm_page_with_prerequisites_met(
@@ -3689,12 +3689,12 @@ class TestScheduleReport:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-report"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection"
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Test Grant Sign off and lock report"
+        assert get_h1_text(soup) == "Test Grant Sign off and lock collection"
 
     def test_post_schedules_collection(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -3719,8 +3719,8 @@ class TestScheduleReport:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-report",
-            data={"submit": "Sign off and lock report"},
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection",
+            data={"submit": "Sign off and lock collection"},
             follow_redirects=True,
         )
         assert response.status_code == 200
@@ -3748,7 +3748,7 @@ class TestScheduleReport:
         factories.grant_recipient.create(grant=grant)
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-report",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection",
             data={"submit": "Schedule report"},
             follow_redirects=False,
         )
@@ -3756,7 +3756,7 @@ class TestScheduleReport:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(
-            soup, "All grant recipients must have at least one data provider set up before scheduling a report"
+            soup, "All grant recipients must have at least one data provider set up before scheduling a collection"
         )
 
         db_session.refresh(collection)
@@ -3954,7 +3954,7 @@ class TestMakeReportLive:
             ("anonymous_client", 302),
         ],
     )
-    def test_make_report_live_permissions(self, client_fixture, expected_code, request, factories, db_session):
+    def test_make_collection_live_permissions(self, client_fixture, expected_code, request, factories, db_session):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
@@ -3980,7 +3980,7 @@ class TestMakeReportLive:
         )
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live")
+        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live")
         assert response.status_code == expected_code
 
     def test_get_confirm_page_with_all_prerequisites_met(
@@ -4013,12 +4013,12 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Test Grant Open the report for submissions"
+        assert get_h1_text(soup) == "Test Grant Open the collection for submissions"
 
         checkboxes = soup.find_all("input", {"type": "checkbox"})
         checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
@@ -4031,7 +4031,7 @@ class TestMakeReportLive:
             in checkbox_labels
         )
         assert "The privacy policy has been set up" in checkbox_labels
-        assert "It is correct that the report has certification enabled" in checkbox_labels
+        assert "It is correct that the collection has certification enabled" in checkbox_labels
         assert "The submission dates are 1 April 2024 until 30 April 2024" in checkbox_labels
         assert "It is correct that multiple submissions are disabled" in checkbox_labels
 
@@ -4058,7 +4058,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
         )
         assert response.status_code == 200
 
@@ -4092,7 +4092,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
         )
         assert response.status_code == 200
 
@@ -4124,7 +4124,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
             data={"submit": "y"},
             follow_redirects=False,
         )
@@ -4168,7 +4168,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
             data={
                 "confirm_grant_recipients": "y",
                 "confirm_grant_recipient_users": "y",
@@ -4219,7 +4219,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
             data={
                 "confirm_grant_recipients": "y",
                 "confirm_grant_recipient_users": "y",
@@ -4234,7 +4234,7 @@ class TestMakeReportLive:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Test Grant must be made live before opening a report")
+        assert page_has_error(soup, "Test Grant must be made live before opening a collection")
 
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
@@ -4254,7 +4254,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
             data={
                 "confirm_grant_recipients": "y",
                 "confirm_grant_recipient_users": "y",
@@ -4269,7 +4269,7 @@ class TestMakeReportLive:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Grant recipients must be set up before opening a report")
+        assert page_has_error(soup, "Grant recipients must be set up before opening a collection")
 
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
@@ -4297,7 +4297,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
             data={
                 "confirm_grant_recipients": "y",
                 "confirm_grant_recipient_users": "y",
@@ -4313,7 +4313,7 @@ class TestMakeReportLive:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(
-            soup, "All grant recipients must have at least one data provider set up before opening a report"
+            soup, "All grant recipients must have at least one data provider set up before opening a collection"
         )
 
         db_session.refresh(collection)
@@ -4345,7 +4345,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
             data={
                 "confirm_grant_recipients": "y",
                 "confirm_grant_recipient_users": "y",
@@ -4395,7 +4395,7 @@ class TestMakeReportLive:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-report-live",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
             data={
                 "confirm_grant_recipients": "y",
                 "confirm_grant_recipient_users": "y",
@@ -4403,7 +4403,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_submission_dates": "y",
                 "confirm_multiple_submissions": "y",
-                "submit": "Open report for submissions",
+                "submit": "Open collection for submissions",
             },
             follow_redirects=False,
         )
