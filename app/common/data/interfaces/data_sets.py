@@ -1,9 +1,12 @@
+import datetime
 import uuid
+from collections.abc import Sequence
+from dataclasses import dataclass
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import lazyload, selectinload
+from sqlalchemy.orm import aliased, lazyload, selectinload
 
 from app.common.data.interfaces.collections import raise_if_data_source_has_references
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
@@ -164,3 +167,58 @@ def delete_data_source(data_source: DataSource) -> None:
         s3_service.delete_file(data_source.file_metadata.s3_key)
 
     db.session.delete(data_source)
+
+
+@dataclass(frozen=True)
+class ListDataSourceData:
+    id: uuid.UUID
+    name: str
+    updated_at_utc: datetime.datetime
+    uploaded_by_name: str | None
+    has_missing_data: bool
+
+
+def get_data_source_list_for_collection(collection_id: uuid.UUID) -> Sequence[ListDataSourceData]:
+    user_updated = aliased(User)
+    user_created = aliased(User)
+
+    stmt = (
+        select(
+            DataSource.id,
+            DataSource.name,
+            DataSource.updated_at_utc,
+            func.coalesce(user_updated.name, user_created.name).label("uploaded_by_name"),
+            DataSource.has_missing_data.label("has_missing_data"),
+        )
+        .outerjoin(user_created, DataSource.created_by_id == user_created.id)
+        .outerjoin(user_updated, DataSource.updated_by_id == user_updated.id)
+        .where(
+            DataSource.collection_id == collection_id,
+            DataSource.type == DataSourceType.GRANT_RECIPIENT,
+        )
+        .order_by(DataSource.name)
+    )
+    return [
+        ListDataSourceData(
+            id=row.id,
+            name=row.name,
+            updated_at_utc=row.updated_at_utc,
+            uploaded_by_name=row.uploaded_by_name,
+            has_missing_data=row.has_missing_data,
+        )
+        for row in db.session.execute(stmt).all()
+    ]
+
+
+def get_collection_ids_with_missing_data_data_sets(grant_id: uuid.UUID) -> set[uuid.UUID]:
+    stmt = (
+        select(DataSource.collection_id)
+        .where(
+            DataSource.grant_id == grant_id,
+            DataSource.type == DataSourceType.GRANT_RECIPIENT,
+            DataSource.collection_id.is_not(None),
+            DataSource.has_missing_data,
+        )
+        .distinct()
+    )
+    return {id for id in db.session.scalars(stmt).all() if id is not None}
