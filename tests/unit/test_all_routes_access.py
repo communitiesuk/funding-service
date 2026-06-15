@@ -301,7 +301,7 @@ routes_with_access_controlled_by_flask_admin = [
     "collection_lifecycle.send_emails_to_recipients",
     "collection_lifecycle.download_data_providers_csv",
     "collection_lifecycle.set_up_test_grant_recipient_users",
-    "collection_lifecycle.close_report",
+    "collection_lifecycle.close_collection",
     "data_analysis.index",
     "data_analysis.download_certification_events_csv",
     "developer_tools.index",

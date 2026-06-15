@@ -22,7 +22,7 @@
         Collection lifecycle
       </h1>
 
-      <p class="govuk-body">Prepare for {{ 'an application' if collection.type.value == 'application' else 'a monitoring report' }} to go live by completing these tasks.</p>
+      <p class="govuk-body">Prepare for a {{ collection.type.constants.singular }} to go live by completing these tasks.</p>
 
       <h2 class="govuk-heading-m">Platform tasks</h2>
       {% set rows=[] %}
@@ -115,7 +115,7 @@
       %}
       {{ govukTaskList({ "idPrefix": "grant-tasks", "items": rows, "attributes": {"id": "grant-tasks"} }) }}
 
-      <h2 class="govuk-heading-m">Collection tasks</h2>
+      <h2 class="govuk-heading-m">{{ collection.type.constants.singular | capitalize }} tasks</h2>
       {% set rows=[] %}
       {% set reportingDatesTag %}
         {% if collection.reporting_period_start_date and collection.reporting_period_end_date %}
@@ -164,7 +164,7 @@
       {% endif %}
       {%
         do rows.append({
-          "title": {"text": "Sign off and lock collection", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Sign off and lock " + collection.type.constants.singular, "classes": "govuk-link--no-visited-state"},
           "status": scheduledReportStatus,
           "href": url_for('collection_lifecycle.schedule_collection', grant_id=grant.id, collection_id=collection.id) if prerequisites_met and collection.status == enum.collection_status.DRAFT else "",
         })
@@ -179,7 +179,7 @@
       {% endif %}
       {%
         do rows.append({
-          "title": {"text": "Open the collection for submissions", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Open the " + collection.type.constants.singular + " for submissions", "classes": "govuk-link--no-visited-state"},
           "status": makeReportLiveStatus,
           "href": url_for('collection_lifecycle.make_collection_live', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.SCHEDULED else "",
         })
@@ -196,7 +196,7 @@
         do rows.append({
           "title": {"text": "Send emails to data providers", "classes": "govuk-link--no-visited-state"},
           "status": sendEmailsStatus,
-          "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.REPORT_OPEN_NOTIFICATION) if collection.status == enum.collection_status.OPEN else "",
+          "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.COLLECTION_OPEN_NOTIFICATION) if collection.status == enum.collection_status.OPEN else "",
         })
       %}
       {%
@@ -216,9 +216,9 @@
       {% endif %}
       {%
         do rows.append({
-          "title": {"text": "Send report overdue emails", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Send " ~ collection.type.constants.singular ~ " overdue emails", "classes": "govuk-link--no-visited-state"},
           "status": sendReportClosedEmailsStatus,
-          "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.REPORT_OVERDUE) if collection.status == enum.collection_status.OPEN and collection.is_overdue else "",
+          "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.COLLECTION_OVERDUE) if collection.status == enum.collection_status.OPEN and collection.is_overdue else "",
         })
       %}
 
@@ -231,9 +231,9 @@
       {% endif %}
       {%
         do rows.append({
-          "title": {"text": "Close the report", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Close the " ~ collection.type.constants.singular, "classes": "govuk-link--no-visited-state"},
           "status": closeReportStatus,
-          "href": url_for('collection_lifecycle.close_report', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.OPEN and collection.is_overdue else "",
+          "href": url_for('collection_lifecycle.close_collection', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.OPEN and collection.is_overdue else "",
         })
       %}
 
@@ -244,9 +244,9 @@
       {% endif %}
       {%
         do rows.append({
-          "title": {"text": "Send report closed emails", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Send " ~ collection.type.constants.singular ~ " closed emails", "classes": "govuk-link--no-visited-state"},
           "status": sendReportClosedNotificationStatus,
-          "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.REPORT_CLOSED_NOTIFICATION) if collection.status == enum.collection_status.CLOSED else "",
+          "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.COLLECTION_CLOSED_NOTIFICATION) if collection.status == enum.collection_status.CLOSED else "",
         })
       %}
 

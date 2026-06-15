@@ -303,15 +303,21 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
     )
     send_notification_email = BooleanField(
         "Send 'submission is ready to complete' email",
-        description="Send an email to notify the data provider that the collection is open for submissions.",
+        description="",
         widget=GovCheckboxInput(),
     )
     submit = SubmitField("Add data provider", widget=GovSubmitInput())
 
-    def __init__(self, grant_recipients: Sequence[GrantRecipient], *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, collection: Collection, grant_recipients: Sequence[GrantRecipient], *args: Any, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.grant_recipients = grant_recipients
         self.grant_recipient.choices = [("", "")] + [(str(gr.id), gr.organisation.name) for gr in grant_recipients]
+        self.send_notification_email.description = (
+            "Send an email to notify the data provider that the "
+            f"{collection.type.constants.singular} is open for submissions."
+        )
 
 
 class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):

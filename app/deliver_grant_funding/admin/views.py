@@ -44,7 +44,6 @@ from app.common.data.interfaces.user import (
 )
 from app.common.data.types import (
     CollectionStatusEnum,
-    CollectionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
@@ -505,7 +504,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
         data_providers_by_grant_recipient = {gr: gr.data_providers for gr in grant_recipients}
 
-        form = PlatformAdminAddSingleDataProviderForm(grant_recipients=grant_recipients)
+        form = PlatformAdminAddSingleDataProviderForm(collection=collection, grant_recipients=grant_recipients)
         if form.validate_on_submit():
             grant_recipient = next(gr for gr in grant_recipients if str(gr.id) == form.grant_recipient.data)
             user = upsert_user_by_email(email_address=form.email_address.data, name=form.full_name.data)
@@ -711,7 +710,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
     @auto_commit_after_request
     def set_collection_dates(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
-        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+        collection = get_collection(collection_id, grant_id=grant_id)
 
         if collection.status != CollectionStatusEnum.DRAFT:
             flash(
@@ -744,7 +743,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
     @auto_commit_after_request
     def schedule_collection(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
-        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+        collection = get_collection(collection_id, grant_id=grant_id)
 
         form = PlatformAdminScheduleReportForm()
         if form.validate_on_submit():
@@ -775,7 +774,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
     @auto_commit_after_request
     def make_collection_live(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
-        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+        collection = get_collection(collection_id, grant_id=grant_id)
 
         grant_recipients_count = get_grant_recipients_count(grant)
         data_providers_count = get_grant_recipient_data_providers_count(grant)
@@ -792,8 +791,8 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     (
                         f"{markupsafe.escape(collection.name)} is now live and grant recipients can start making "
                         f"submissions. "
-                        "<strong>You must now send emails to grant recipient users to let them know the collection is "
-                        "open for submissions.</strong>"
+                        "<strong>You must now send emails to grant recipient users to let them know the "
+                        f"{collection.type.constants.singular} is open for submissions.</strong>"
                     ),
                     "success",
                 )
@@ -820,11 +819,11 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         self, grant_id: UUID, collection_id: UUID, email_type: ReportAdminEmailTypeEnum
     ) -> Any:
         grant = get_grant(grant_id)
-        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+        collection = get_collection(collection_id, grant_id=grant_id)
 
         notify_service_id = current_app.config["GOVUK_NOTIFY_SERVICE_ID"]
         match email_type:
-            case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
+            case ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION:
                 if collection.multiple_submissions_are_managed_by_service:
                     notify_template_id = current_app.config[
                         "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_NOTIFICATION_TEMPLATE_ID"
@@ -845,7 +844,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     notify_template_id = current_app.config[
                         "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
                     ]
-            case ReportAdminEmailTypeEnum.REPORT_OVERDUE:
+            case ReportAdminEmailTypeEnum.COLLECTION_OVERDUE:
                 if collection.status != CollectionStatusEnum.OPEN or not collection.is_overdue:
                     return abort(404)
                 if collection.multiple_submissions_are_managed_by_service:
@@ -854,7 +853,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     ]
                 else:
                     notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_OVERDUE_TEMPLATE_ID"]
-            case ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION:
+            case ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION:
                 if collection.status != CollectionStatusEnum.CLOSED:
                     return abort(404)
                 if collection.multiple_submissions_are_managed_by_service:
@@ -881,7 +880,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         self, grant_id: UUID, collection_id: UUID, email_type: ReportAdminEmailTypeEnum
     ) -> Any:
         grant = get_grant(grant_id)
-        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+        collection = get_collection(collection_id, grant_id=grant_id)
 
         assert collection.submission_period_end_date
 
@@ -905,7 +904,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         email_recipients = set()
 
         match email_type:
-            case ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION:
+            case ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION:
                 grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
                 email_recipients = {
                     (data_provider, grant_recipient)
@@ -914,8 +913,8 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 }
             case (
                 ReportAdminEmailTypeEnum.DEADLINE_REMINDER
-                | ReportAdminEmailTypeEnum.REPORT_OVERDUE
-                | ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION
+                | ReportAdminEmailTypeEnum.COLLECTION_OVERDUE
+                | ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION
             ):
                 grant_recipients = get_grant_recipients_with_outstanding_submissions_for_collection(
                     grant, collection_id=collection.id, with_data_providers=True, with_certifiers=True
@@ -981,11 +980,11 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
 
         return send_file(csv_bytes, mimetype="text/csv", as_attachment=True, download_name=filename, max_age=1)
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/close-report", methods=["GET", "POST"])
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/close-collection", methods=["GET", "POST"])
     @auto_commit_after_request
-    def close_report(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def close_collection(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
-        collection = get_collection(collection_id, grant_id=grant_id, type_=CollectionType.MONITORING_REPORT)
+        collection = get_collection(collection_id, grant_id=grant_id)
 
         form = GenericSubmitForm()
         if form.validate_on_submit():
@@ -995,8 +994,8 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     (
                         f"{markupsafe.escape(collection.name)} is now closed and grant recipients can make no more "
                         f"changes. "
-                        "<strong>You must now send emails to grant recipient users to let them know the report is "
-                        "closed.</strong>"
+                        "<strong>You must now send emails to grant recipient users to let them know the "
+                        f"{collection.type.constants.singular} is closed.</strong>"
                     ),
                     "success",
                 )
@@ -1011,7 +1010,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 form.form_errors.append(str(e))
 
         return self.render(
-            "deliver_grant_funding/admin/confirm-close-report.html",
+            "deliver_grant_funding/admin/confirm-close-collection.html",
             form=form,
             grant=grant,
             collection=collection,

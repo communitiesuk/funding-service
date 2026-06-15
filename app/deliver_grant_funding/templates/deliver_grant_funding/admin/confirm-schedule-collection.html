@@ -20,19 +20,19 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        Sign off and lock collection
+        Sign off and lock {{ collection.type.constants.singular }}
       </h1>
-      <p class="govuk-body">Schedule the collection when the grant team has signed off on the form. Form designers cannot edit a scheduled collection.</p>
+      <p class="govuk-body">Schedule the {{ collection.type.constants.singular }} when the grant team has signed off on the form. Form designers cannot edit a scheduled {{ collection.type.constants.singular }}.</p>
 
-      {{ govukInsetText({ "text": "A scheduled collection will not automatically go live on the first day of the submission period. A platform admin must manually open the collection for submissions and Send emails to data providers." }) }}
+      {{ govukInsetText({ "text": "A scheduled " + collection.type.constants.singular + " will not automatically go live on the first day of the submission period. A platform admin must manually open the " + collection.type.constants.singular + " for submissions and Send emails to data providers." }) }}
 
       {{
         govukSummaryList({
           "rows": [{
-            "key": { "text": "Collection name" },
+            "key": { "text": collection.type.constants.singular | capitalize + " name" },
             "value": { "text": collection.name },
           }, {
-            "key": { "text": "Collection period" },
+            "key": { "text": collection.type.constants.singular | capitalize + " period" },
             "value": { "text": format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date) if collection.reporting_period_start_date and collection.reporting_period_end_date else "Not set" },
           }, {
             "key": { "text": "Submission period" },

@@ -14,6 +14,7 @@ from app.common.data.models_audit import AuditEvent
 from app.common.data.types import (
     AuditEventType,
     CollectionStatusEnum,
+    CollectionType,
     GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
     GrantStatusEnum,
@@ -312,10 +313,10 @@ class TestCollectionLifecycleTasklist:
 
         platform_task_items = platform_task_list.find_all("li", {"class": "govuk-task-list__item"})
         grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
-        report_task_items = collection_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        collection_task_items = collection_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
         assert len(grant_task_items) == 6
-        assert len(report_task_items) == 9
+        assert len(collection_task_items) == 9
 
         # TODO: update for testing task list
 
@@ -415,18 +416,18 @@ class TestCollectionLifecycleTasklist:
         assert "0 overrides" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        set_collection_dates_task = report_task_items[0]
-        task_title = set_collection_dates_task.find("a", {"class": "govuk-link"})
+        set_reporting_dates_task = collection_task_items[0]
+        task_title = set_reporting_dates_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set reporting dates"
         assert f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
 
-        task_status = set_collection_dates_task.find("strong", {"class": "govuk-tag"})
+        task_status = set_reporting_dates_task.find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "Optional" in task_status.get_text(strip=True)
         assert "govuk-tag--blue" in task_status.get("class")
 
-        set_submission_dates_task = report_task_items[1]
+        set_submission_dates_task = collection_task_items[1]
         task_title = set_submission_dates_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Set submission dates"
@@ -437,30 +438,173 @@ class TestCollectionLifecycleTasklist:
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
 
-        schedule_collection_task = report_task_items[2]
+        schedule_collection_task = collection_task_items[2]
         task_title = schedule_collection_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Sign off and lock collection"
+        assert task_title.get_text(strip=True) == "Sign off and lock report"
 
         task_status = schedule_collection_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        make_collection_live_task = report_task_items[3]
+        make_collection_live_task = collection_task_items[3]
         task_title = make_collection_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Open the collection for submissions"
+        assert task_title.get_text(strip=True) == "Open the report for submissions"
 
         task_status = make_collection_live_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = report_task_items[4]
+        send_emails_task = collection_task_items[4]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send emails to data providers"
+
+        task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        send_emails_task = collection_task_items[4]
+        task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send emails to data providers"
+
+        task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        send_emails_task = collection_task_items[6]
+        task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send report overdue emails"
+
+        task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        send_emails_task = collection_task_items[7]
+        task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Close the report"
+
+        task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        send_emails_task = collection_task_items[8]
+        task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send report closed emails"
+
+        task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+    def test_shows_all_tasklists_for_pre_award(self, authenticated_platform_grant_lifecycle_manager_client, factories):
+        grant = factories.grant.create(
+            name="Test Grant",
+            privacy_policy_markdown="hello",
+            allow_pre_award=True,
+        )
+        collection = factories.collection.create(grant=grant, name="Q1 Report", type=CollectionType.APPLICATION)
+        org_1 = factories.organisation.create(name="Org 1", can_manage_grants=False)
+        org_2 = factories.organisation.create(name="Org 2", can_manage_grants=False)
+        _ = factories.organisation.create(name="Org 3", can_manage_grants=False)
+        _ = factories.organisation.create(name="Org 4", can_manage_grants=False, mode=OrganisationModeEnum.TEST)
+
+        factories.user_role.create(
+            organisation=_get_grant_managing_organisation(), grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+        factories.user_role.create(
+            organisation=_get_grant_managing_organisation(), grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+
+        factories.user_role.create(organisation=org_1, permissions=[RoleEnum.CERTIFIER])
+        factories.user_role.create(organisation=org_2, permissions=[RoleEnum.CERTIFIER])
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        platform_task_list = soup.find("ul", {"id": "platform-tasks"})
+        grant_task_list = soup.find("ul", {"id": "grant-tasks"})
+        collection_task_list = soup.find("ul", {"id": "report-tasks"})
+        assert platform_task_list is not None
+        assert grant_task_list is not None
+        assert collection_task_list is not None
+
+        platform_task_items = platform_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        grant_task_items = grant_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        collection_task_items = collection_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        assert len(platform_task_items) == 2
+        assert len(grant_task_items) == 6
+        assert len(collection_task_items) == 8  # set-reporting-dates is not shown for pre-award collections
+
+        # Prove set-reporting-dates is not showing up
+        first_task_status = collection_task_items[0]
+        task_title = first_task_status.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) != "Set reporting dates"
+        assert task_title.get_text(strip=True) == "Set submission dates"
+        assert f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-dates" in task_title.get("href")
+        task_status = first_task_status.find("strong", {"class": "govuk-tag"})
+        assert "To do" in task_status.get_text(strip=True)
+        assert "govuk-tag--grey" in task_status.get("class")
+
+        schedule_collection_task = collection_task_items[1]
+        task_title = schedule_collection_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Sign off and lock form"
+
+        task_status = schedule_collection_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        make_collection_live_task = collection_task_items[2]
+        task_title = make_collection_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Open the form for submissions"
+
+        task_status = make_collection_live_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        send_emails_task = collection_task_items[5]
+        task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send form overdue emails"
+
+        task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        send_emails_task = collection_task_items[6]
+        task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Close the form"
+
+        task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
+        assert task_status is not None
+        assert "Cannot start yet" in task_status.get_text(strip=True)
+        assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
+
+        send_emails_task = collection_task_items[7]
+        task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Send form closed emails"
 
         task_status = send_emails_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
@@ -649,7 +793,7 @@ class TestCollectionLifecycleTasklist:
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send emails to data providers"
         assert (
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/report-open-notification"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/collection-open-notification"
             in task_title.get("href")
         )
 
@@ -799,7 +943,7 @@ class TestCollectionLifecycleTasklist:
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send report overdue emails"
         assert (
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/report-overdue"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/collection-overdue"
             in task_title.get("href")
         )
 
@@ -869,7 +1013,7 @@ class TestCollectionLifecycleTasklist:
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send report closed emails"
         assert (
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/report-closed-notification"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/collection-closed-notification"
             in task_title.get("href")
         )
 
@@ -908,7 +1052,7 @@ class TestSendEmailsToRecipients:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
@@ -916,11 +1060,11 @@ class TestSendEmailsToRecipients:
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_OVERDUE.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{closed_collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{closed_collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
 
@@ -966,7 +1110,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_OVERDUE.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == expected_status
 
@@ -995,7 +1139,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
         )
         assert response.status_code == expected_status
 
@@ -1003,7 +1147,7 @@ class TestSendEmailsToRecipients:
         "email_type, report_status, expected_heading, template_id",
         [
             (
-                ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value,
+                ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value,
                 CollectionStatusEnum.OPEN,
                 "Send emails to data providers",
                 "4fc8d831-e241-4648-a8d3-04fb1bd9193e",
@@ -1015,13 +1159,13 @@ class TestSendEmailsToRecipients:
                 "6e482561-e1dc-4d4d-8a9e-3b5ad8add968",
             ),
             (
-                ReportAdminEmailTypeEnum.REPORT_OVERDUE.value,
+                ReportAdminEmailTypeEnum.COLLECTION_OVERDUE.value,
                 CollectionStatusEnum.OPEN,
                 "Send report overdue emails",
                 "b11391b3-c589-48ae-a8a3-e2acaf951787",
             ),
             (
-                ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value,
+                ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value,
                 CollectionStatusEnum.CLOSED,
                 "Send report closed emails",
                 "b38d160d-800e-4b6a-b115-63ca7fc8975b",
@@ -1098,7 +1242,7 @@ class TestSendEmailsToRecipients:
 
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
@@ -1106,11 +1250,11 @@ class TestSendEmailsToRecipients:
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OVERDUE.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == expected_code
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
         )
         assert response.status_code == expected_code
 
@@ -1165,7 +1309,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
         )
 
         assert response.status_code == 200
@@ -1428,7 +1572,7 @@ class TestSendEmailsToRecipients:
         # org 3 has not started their report (has no submission) so should be in the list
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_CLOSED_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION.value}"
         )
 
         assert response.status_code == 200
@@ -1522,7 +1666,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.REPORT_OPEN_NOTIFICATION.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{ReportAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION.value}"
         )
 
         assert response.status_code == 200
@@ -3694,7 +3838,7 @@ class TestScheduleReport:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Test Grant Sign off and lock collection"
+        assert get_h1_text(soup) == "Test Grant Sign off and lock report"
 
     def test_post_schedules_collection(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -3756,7 +3900,9 @@ class TestScheduleReport:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(
-            soup, "All grant recipients must have at least one data provider set up before scheduling a collection"
+            soup,
+            "All grant recipients must have at least one data provider set up before scheduling a "
+            f"{collection.type.constants.singular}",
         )
 
         db_session.refresh(collection)
@@ -4234,7 +4380,9 @@ class TestMakeReportLive:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Test Grant must be made live before opening a collection")
+        assert page_has_error(
+            soup, f"Test Grant must be made live before opening a {collection.type.constants.singular}"
+        )
 
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
@@ -4269,7 +4417,9 @@ class TestMakeReportLive:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Grant recipients must be set up before opening a collection")
+        assert page_has_error(
+            soup, f"Grant recipients must be set up before opening a {collection.type.constants.singular}"
+        )
 
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
@@ -4313,7 +4463,9 @@ class TestMakeReportLive:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(
-            soup, "All grant recipients must have at least one data provider set up before opening a collection"
+            soup,
+            "All grant recipients must have at least one data provider set up before opening a "
+            f"{collection.type.constants.singular}",
         )
 
         db_session.refresh(collection)
@@ -4360,7 +4512,10 @@ class TestMakeReportLive:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Cannot change collection status to Open: submission period dates must be set")
+        assert page_has_error(
+            soup,
+            "Cannot change report status to Open: submission period dates must be set",
+        )
 
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
@@ -4623,7 +4778,7 @@ class TestCloseReport:
             ("anonymous_client", 302),
         ],
     )
-    def test_close_report_permissions(self, client_fixture, expected_code, request, factories, db_session):
+    def test_close_collection_permissions(self, client_fixture, expected_code, request, factories, db_session):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
@@ -4649,7 +4804,7 @@ class TestCloseReport:
         )
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-report")
+        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-collection")
         assert response.status_code == expected_code
 
     def test_get_confirm_page_with_all_prerequisites_met(
@@ -4682,7 +4837,7 @@ class TestCloseReport:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-report"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-collection"
         )
         assert response.status_code == 200
 
@@ -4735,7 +4890,7 @@ class TestCloseReport:
         assert sub_submitted.status == SubmissionStatusEnum.SUBMITTED
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-report",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-collection",
             data={"submit": "y"},
             follow_redirects=True,
         )
@@ -4786,7 +4941,7 @@ class TestCloseReport:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-report",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-collection",
             data={"submit": "y"},
             follow_redirects=False,
         )
@@ -4832,7 +4987,7 @@ class TestCloseReport:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-report",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/close-collection",
             data={"submit": "y"},
             follow_redirects=False,
         )
