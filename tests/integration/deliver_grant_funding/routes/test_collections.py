@@ -9180,8 +9180,11 @@ class TestListCollectionDataSets:
     def test_get(self, request: FixtureRequest, client_fixture: str, can_upload: bool, factories):
         client = request.getfixturevalue(client_fixture)
         collection = factories.collection.create(grant=client.grant, name="Test Report")
+        factories.grant_recipient.create_batch(3, grant=client.grant)
+
         uploader = factories.user.create(name="Bilbo Baggins")
         uploader_2 = factories.user.create(name="Frodo Baggins")
+
         data_source_1 = factories.data_source.create(
             type=DataSourceType.GRANT_RECIPIENT,
             name="Allocations Data",
@@ -9190,7 +9193,7 @@ class TestListCollectionDataSets:
             created_by=uploader,
             updated_by=None,
             created_at_utc=datetime.datetime(2025, 7, 1, 13, 30, 0),
-            items=None,
+            create_gr_org_items=True,
         )
         data_source_2 = factories.data_source.create(
             type=DataSourceType.GRANT_RECIPIENT,
@@ -9201,6 +9204,7 @@ class TestListCollectionDataSets:
             updated_by=uploader_2,
             created_at_utc=datetime.datetime(2025, 7, 1, 13, 30, 0),
             updated_at_utc=datetime.datetime(2025, 7, 1, 14, 30, 0),
+            create_gr_org_items=True,
         )
 
         other_report = factories.collection.create(name="Other Report")
@@ -9232,10 +9236,50 @@ class TestListCollectionDataSets:
         assert data_source_timestamps[0].text == "1 Jul 2025 at 2:30pm"
         assert data_source_timestamps[1].text == "1 Jul 2025 at 3:30pm"
 
+        data_missing_tags = soup.select(".govuk-tag")
+        assert len(data_missing_tags) == 0
+
         if not can_upload:
             assert page_has_button(soup, button_text="Upload new data set") is None
         else:
             assert page_has_button(soup, button_text="Upload new data set") is not None
+
+    def test_get_shows_missing_data_tag(self, authenticated_org_admin_client, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, name="Test Report")
+        factories.grant_recipient.create_batch(3, grant=grant)
+        factories.data_source.create(
+            name="Allocations Data",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        factories.data_source.create(
+            name="Organisation Data",
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=grant,
+            collection=collection,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+
+        response = authenticated_org_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 200
+        data_missing_tags = soup.select(".govuk-tag")
+        assert len(data_missing_tags) == 1
+        tag_texts = {tag.text.strip() for tag in data_missing_tags}
+        assert "Data missing" in tag_texts
 
     def test_get_upload_button_not_visible_for_live_report(self, authenticated_org_admin_client, factories):
         grant = factories.grant.create()
@@ -10732,7 +10776,9 @@ class TestViewDataSource:
         assert "Allocation" in soup.text
         assert "£500,000" in soup.text
 
-    def test_get_shows_missing_data_tag_for_empty_values(self, authenticated_grant_member_client, factories):
+    def test_get_shows_missing_data_tag_and_warning_for_empty_values(
+        self, authenticated_grant_member_client, factories
+    ):
         collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
         data_source = factories.data_source.create(
             collection=collection,
@@ -10755,6 +10801,10 @@ class TestViewDataSource:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Data missing" in soup.text
+        assert (
+            "Grant recipients with missing data will not be able to complete the report"
+            " until their missing data is uploaded" in soup.text
+        )
 
     def test_get_shows_missing_grant_recipient_tag_for_not_set_up_grant_recipient(
         self, authenticated_grant_member_client, factories

@@ -4,6 +4,7 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
+{% from "govuk_frontend_jinja/components/warning-text/macro.html" import govukWarningText %}
 
 {% set type_constants = collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
@@ -96,6 +97,10 @@
 
       {{ govukSummaryList({"rows": summary_rows}) }}
 
+      {% if data_source.has_missing_data %}
+        {{ govukWarningText({"text": ("Grant recipients with missing data will not be able to complete the report until their missing data is uploaded.")}) }}
+      {% endif %}
+
       {% if authorisation_helper.can_edit_collection(current_user, collection.id) %}
         <div class="govuk-button-group">
           <a class="govuk-button govuk-button--warning" href="?delete">Delete data set</a>
@@ -130,7 +135,7 @@
         {% for slug, col_schema in data_source.schema.root.items() %}
           {% set answer = typed_row[slug] %}
           {% if answer is none %}
-            {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--yellow"})}) %}
+            {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--orange"})}) %}
           {% else %}
             {% do row.append({"text": answer.get_value_for_interpolation()}) %}
           {% endif %}

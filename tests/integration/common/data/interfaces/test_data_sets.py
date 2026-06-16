@@ -13,7 +13,9 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.data_sets import (
     create_uploaded_data_source,
     delete_data_source,
+    get_collection_ids_with_missing_data_data_sets,
     get_data_source,
+    get_data_source_list_for_collection,
 )
 from app.common.data.models import ComponentReference, DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.types import (
@@ -713,3 +715,201 @@ class TestDataSourceOrganisationItemDataProperty:
         # Confirm typed .data returns None
         assert org_item.data["c_notes"] is None
         assert org_item.data["c_capital_allocation"] is None
+
+
+class TestGetDataSourceListForCollection:
+    def test_returns_data_sources_for_collection(self, factories, track_sql_queries):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        collection_id = collection.id
+        factories.grant_recipient.create_batch(3, grant=grant)
+        user_1 = factories.user.create()
+        user_2 = factories.user.create()
+        data_source = factories.data_source.create(
+            name="First data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+            created_by=user_1,
+        )
+        data_source_2 = factories.data_source.create(
+            name="Second data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+            created_by=user_1,
+            updated_by=user_2,
+        )
+
+        with track_sql_queries() as queries:
+            rows = get_data_source_list_for_collection(collection_id)
+        assert len(queries) == 1
+
+        assert len(rows) == 2
+        assert [(row.name, row.uploaded_by_name) for row in rows] == [
+            (data_source.name, data_source.created_by.name),
+            (data_source_2.name, data_source_2.updated_by.name),
+        ]
+
+    def test_has_missing_data_true_when_org_item_has_null(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            name="First data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+        data_source_2 = factories.data_source.create(
+            name="Second data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        rows = get_data_source_list_for_collection(collection.id)
+        rows_by_id = {row.id: row for row in rows}
+        assert rows_by_id[data_source.id].has_missing_data is True
+        assert rows_by_id[data_source_2.id].has_missing_data is False
+
+    def test_excludes_data_sources_from_other_collections(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        collection_2 = factories.collection.create(grant=grant)
+
+        factories.grant_recipient.create_batch(3, grant=grant)
+
+        data_source = factories.data_source.create(
+            name="First data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+        factories.data_source.create(
+            name="Second data set",
+            grant=grant,
+            collection=collection_2,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        rows = get_data_source_list_for_collection(collection.id)
+        assert len(rows) == 1
+        assert rows[0].name == data_source.name
+
+    def test_ordering_is_by_name(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            name="Zzzz data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+
+        data_source_2 = factories.data_source.create(
+            name="Mmmm data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        data_source_3 = factories.data_source.create(
+            name="Aaaa data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        rows = get_data_source_list_for_collection(collection.id)
+        assert [row.name for row in rows] == [
+            data_source_3.name,
+            data_source_2.name,
+            data_source.name,
+        ]
+
+
+class TestGetCollectionIdsWithMissingDataDataSets:
+    def test_returns_collection_id_when_data_source_has_missing_data(self, factories, track_sql_queries):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        collection_2 = factories.collection.create(grant=grant)
+
+        factories.grant_recipient.create_batch(3, grant=grant)
+
+        factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+        factories.data_source.create(
+            name="Second data set",
+            grant=grant,
+            collection=collection_2,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        grant_id = grant.id
+
+        with track_sql_queries() as queries:
+            result = get_collection_ids_with_missing_data_data_sets(grant_id)
+        assert len(queries) == 1
+
+        assert collection.id in result
+        assert collection_2.id not in result
+
+    def test_excludes_collections_from_other_grants(self, factories):
+        grant = factories.grant.create()
+        grant_2 = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        collection_2 = factories.collection.create(grant=grant_2)
+
+        factories.grant_recipient.create_batch(3, grant=grant)
+
+        factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+        factories.data_source.create(
+            name="Second data set",
+            grant=grant_2,
+            collection=collection_2,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        result = get_collection_ids_with_missing_data_data_sets(grant.id)
+        assert collection.id in result
+        assert collection_2.id not in result
+
+    def test_returns_empty_set_when_no_data_sources(self, factories):
+        grant = factories.grant.create()
+        factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+
+        result = get_collection_ids_with_missing_data_data_sets(grant.id)
+
+        assert result == set()

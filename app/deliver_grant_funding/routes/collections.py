@@ -60,7 +60,12 @@ from app.common.data.interfaces.collections import (
     update_group,
     update_question,
 )
-from app.common.data.interfaces.data_sets import create_uploaded_data_source, delete_data_source, get_data_source
+from app.common.data.interfaces.data_sets import (
+    create_uploaded_data_source,
+    delete_data_source,
+    get_data_source,
+    get_data_source_list_for_collection,
+)
 from app.common.data.interfaces.exceptions import (
     DuplicateDataSourceItemError,
     DuplicateValueError,
@@ -3314,6 +3319,7 @@ def list_collection_data_sets(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    data_sources = get_data_source_list_for_collection(collection_id)
 
     form = GenericSubmitForm()
 
@@ -3335,6 +3341,7 @@ def list_collection_data_sets(
         grant=collection.grant,
         collection=collection,
         form=form,
+        data_sources=data_sources,
     )
 
 
