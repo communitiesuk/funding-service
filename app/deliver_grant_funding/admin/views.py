@@ -43,9 +43,9 @@ from app.common.data.interfaces.user import (
     upsert_user_by_email,
 )
 from app.common.data.types import (
+    PRE_AWARD_COLLECTIONS,
     CollectionAdminEmailTypeEnum,
     CollectionStatusEnum,
-    CollectionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
@@ -723,7 +723,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             )
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
-        if collection.type == CollectionType.APPLICATION:
+        if collection.type in PRE_AWARD_COLLECTIONS:
             flash(
                 f"You cannot set reporting dates for {collection.name} because it is not a monitoring report.",
                 "error",
