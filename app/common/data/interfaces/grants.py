@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -12,7 +12,7 @@ from app.common.data.interfaces.exceptions import (
 )
 from app.common.data.models import Collection, Grant, Organisation
 from app.common.data.models_user import User
-from app.common.data.types import GrantStatusEnum
+from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
@@ -67,6 +67,33 @@ def get_all_grants(statuses: list[GrantStatusEnum] | None = None) -> Sequence[Gr
         statement = statement.where(Grant.status.in_(statuses))
 
     statement = statement.order_by(Grant.name)
+    return db.session.scalars(statement).all()
+
+
+def get_active_grants() -> Sequence[Grant]:
+    """Returns a list of 'active' grants
+
+    An 'active' grant is one that is LIVE, and has at least one collection that has previously opened.
+
+    This interface powers our Jira service desk grant dropdown to prevent manual re-work for every grant launch.
+    """
+    statement = (
+        select(Grant)
+        .where(Grant.status == GrantStatusEnum.LIVE)
+        .where(
+            exists(
+                select(Collection.id)
+                .where(Collection.grant_id == Grant.id)
+                .where(
+                    or_(
+                        Collection.status == CollectionStatusEnum.OPEN,
+                        Collection.status == CollectionStatusEnum.CLOSED,
+                    )
+                )
+            )
+        )
+        .order_by(Grant.name)
+    )
     return db.session.scalars(statement).all()
 
 

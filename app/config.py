@@ -353,6 +353,9 @@ class _SharedConfig(_BaseConfig):
 
     PLAYWRIGHT_BROWSERS_PATH: str | None = None
 
+    # Jira data connector
+    JIRA_DATA_CONNECTOR_API_TOKEN: str
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD
@@ -396,6 +399,9 @@ class LocalConfig(_SharedConfig):
     GOVUK_NOTIFY_DISABLE: bool = True  # By default; update in .env when you have a key.
     GOVUK_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
     GOVUK_NOTIFY_CALLBACK_TOKEN: str = "local-use-secret"
+
+    # Jira data connector
+    JIRA_DATA_CONNECTOR_API_TOKEN: str = "insecure-local-token"  # pragma: allowlist secret
 
     ASSETS_VITE_LIVE_ENABLED: bool = True
 
