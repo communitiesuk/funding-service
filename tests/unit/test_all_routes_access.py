@@ -142,6 +142,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.view_data_source",
     "deliver_grant_funding.download_data_source_csv",
     "deliver_grant_funding.reopen_submission",
+    "deliver_grant_funding.download_latest_data_set_template",
 ]
 
 routes_with_expected_access_grant_funding_logged_in_access = [

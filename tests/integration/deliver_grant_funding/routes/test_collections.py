@@ -11208,6 +11208,110 @@ class TestDownloadDataSourceCsv:
         assert mock_s3_service_calls.download_file_calls[0].args[0] == "data-set-uploads/test.csv"
 
 
+class TestDownloadLatestDataSetTemplate:
+    def test_404(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.download_latest_data_set_template",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+                data_source_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    def test_404_when_data_source_doesnt_belong_to_collection(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        grant2 = factories.grant.create()
+        collection2 = factories.collection.create(grant=grant2)
+        data_source2 = factories.data_source.create(
+            name="Test data set",
+            collection=collection2,
+            grant=grant2,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.download_latest_data_set_template",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source2.id,
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_member_client", True),
+        ),
+    )
+    def test_get_access(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, mock_s3_service_calls
+    ):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant or factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        _ = client.grant_recipient or factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            name="Test data set",
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.download_latest_data_set_template",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    def test_get_returns_file_with_correct_name_and_content(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant = authenticated_grant_admin_client.grant
+        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Test org")
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=authenticated_grant_admin_client.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[1000],
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.download_latest_data_set_template",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert response.content_type.startswith("text/csv")
+        assert f"filename={collection.slug}-grant-allocation-template.csv" in response.headers["Content-Disposition"]
+        assert b"Organisation ID,Grant recipient,Allocation\r\nE123,Test org,1000" in response.data
+
+
 class TestAddCustomQuestionValidation:
     def test_post_success(self, authenticated_platform_admin_client, factories, db_session):
         collection = factories.collection.create(name="Test Report")
