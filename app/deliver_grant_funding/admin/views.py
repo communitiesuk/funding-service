@@ -448,7 +448,9 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         organisations = get_organisations(can_manage_grants=False)
         existing_grant_recipients = get_grant_recipients(grant=grant, with_data_providers=True, with_organisations=True)
         form = PlatformAdminBulkCreateGrantRecipientsForm(
-            organisations=organisations, existing_grant_recipients=existing_grant_recipients
+            organisations=organisations,
+            existing_grant_recipients=existing_grant_recipients,
+            collection_type=collection.type,
         )
 
         if form.validate_on_submit():
