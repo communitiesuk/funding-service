@@ -37,6 +37,21 @@
         {
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "4032990c-110c-460b-a3e8-107c6bebcb6d",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "Validation form",
+          "requires_certification": false,
+          "slug": "validation-form",
+          "status": "Draft",
+          "submission_period_end_date": "Sun, 31 May 2026 00:00:00 GMT",
+          "submission_period_start_date": "Fri, 01 May 2026 00:00:00 GMT",
+          "type": "application"
+        },
+        {
+          "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -315,6 +330,12 @@
           "depends_on_component_id": "459a385f-f293-497b-b6fb-76011304306c",
           "expression_id": "d5b8174f-6b9e-49d7-b1ac-1bb29749009e",
           "id": "ea2cb455-8461-45d5-9288-f183eb23d8b8"
+        },
+        {
+          "component_id": "019855a5-5f0b-471f-aec6-861623a8953d",
+          "depends_on_column_name": "c_allocation",
+          "depends_on_data_source_id": "7fd1f129-e42e-49e3-90f2-2e45b118e4d7",
+          "id": "f025f8bb-a6d6-47d9-87b4-7255104462d8"
         }
       ],
       "data_source_items": [
@@ -1054,7 +1075,16 @@
           "order": 33
         }
       ],
-      "data_source_organisation_items": [],
+      "data_source_organisation_items": [
+        {
+          "_data": {
+            "c_allocation": "100000"
+          },
+          "data_source_id": "7fd1f129-e42e-49e3-90f2-2e45b118e4d7",
+          "external_id": "T0001",
+          "id": "8be8b294-97e3-45ac-a518-efc2b59a013b"
+        }
+      ],
       "data_sources": [
         {
           "id": "078503ab-e87d-4dac-9533-1491943ab9c1",
@@ -1087,6 +1117,32 @@
         {
           "id": "7e3fb2b7-634f-42ce-bb98-69833f7cd1e2",
           "type": "Custom"
+        },
+        {
+          "collection_id": "4032990c-110c-460b-a3e8-107c6bebcb6d",
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "file_metadata": {
+            "original_filename": "validation-form-grant-recipient-data-template_1.csv",
+            "s3_key": "data-set-uploads/caf0ce3f-5175-f69c-66a9-41e2c2245845/4032990c-110c-460b-a3e8-107c6bebcb6d/7fd1f129-e42e-49e3-90f2-2e45b118e4d7"
+          },
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "7fd1f129-e42e-49e3-90f2-2e45b118e4d7",
+          "name": "Allocation",
+          "schema": {
+            "c_allocation": {
+              "data_options": {
+                "max_decimal_places": 2,
+                "number_type": "Decimal number"
+              },
+              "data_type": "A number",
+              "original_column_name": "Allocation",
+              "presentation_options": {
+                "prefix": "\u00a3",
+                "suffix": ""
+              }
+            }
+          },
+          "type": "Grant recipient"
         },
         {
           "id": "82136a87-4e27-44cb-a696-aa52241b82ba",
@@ -1463,6 +1519,13 @@
           "title": "Programme progress"
         },
         {
+          "collection_id": "4032990c-110c-460b-a3e8-107c6bebcb6d",
+          "id": "a5711e9c-7273-48b7-895f-c87c02d8d08e",
+          "order": 0,
+          "slug": "declarations",
+          "title": "Declarations"
+        },
+        {
           "collection_id": "0b264b13-eacd-4ccc-b187-9fcdb23c8c7a",
           "id": "c98aeb88-e4e6-4ad9-a673-4e8197ce5c8d",
           "order": 0,
@@ -1492,7 +1555,7 @@
         }
       ],
       "grant": {
-        "allow_pre_award": false,
+        "allow_pre_award": true,
         "code": "CIP",
         "description": "Funding to help local cheesemongers provide samples to park visitors, with the intention to increase the local community's satisfaction with the variety and quality of local cheeses.",
         "ggis_number": "GGIS-000000",
@@ -1519,6 +1582,21 @@
         }
       ],
       "questions": [
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Yes or no",
+          "form_id": "a5711e9c-7273-48b7-895f-c87c02d8d08e",
+          "hint": "Your allocation is ((d_7fd1f129e42e49e390f22e45b118e4d7.c_allocation))",
+          "id": "019855a5-5f0b-471f-aec6-861623a8953d",
+          "name": "agreement to meet grant outcomes",
+          "order": 0,
+          "presentation_options": {},
+          "slug": "do-you-agree-to-meet-the-grant-outcomes-within-your-allocated-budget",
+          "text": "Do you agree to meet the grant outcomes within your allocated budget?",
+          "type": "QUESTION"
+        },
         {
           "add_another": false,
           "conditions_operator": "ALL",
