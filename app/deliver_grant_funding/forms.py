@@ -1083,11 +1083,34 @@ class UploadDataSetForm(FlaskForm):
         if row_count > 10000:
             raise ValidationError("The file must contain no more than 10,000 rows")
 
-    def validate_file(self, field: Field) -> None:
-        if self.existing_datasource:
-            raise NotImplementedError("Cannot yet validate replacement of a datasource")
+    def _validate_existing_references(self, existing_datasource: DataSource, fieldnames: list) -> bool:
+        fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
+
+        validation_result = True
+        for dependent_reference in existing_datasource.depended_on_by_columns:
+            if dependent_reference.depends_on_column_name not in fieldnames_to_safe_ids:
+                validation_result = False
+                column = existing_datasource.schema.root[dependent_reference.depends_on_column_name]  # ty:ignore[unresolved-attribute]
+                col_name = column.original_column_name
+                q_name = dependent_reference.component.name
+                usage_text = "used in "
+                if dependent_reference.expression:
+                    if dependent_reference.expression.type_ == ExpressionType.VALIDATION:
+                        usage_text = "referenced in validation for "
+                    elif dependent_reference.expression.type_ == ExpressionType.CONDITION:
+                        usage_text += "a condition for "
+                self.file.errors.append(  # ty:ignore[unresolved-attribute]
+                    (
+                        f"Column '{col_name}' is missing from the selected file but is being "
+                        + usage_text
+                        + f"'{q_name}' Add the column to the file or remove the form reference"
+                    )
+                )
+        return validation_result
+
+    def validate_file(self, field: Field) -> bool:
         if not field.data or not hasattr(field.data, "stream"):
-            return
+            return False
 
         field.data.stream.seek(0)
         try:
@@ -1101,6 +1124,11 @@ class UploadDataSetForm(FlaskForm):
             UploadDataSetForm._validate_duplicate_column_names_in_csv(fieldnames)
             UploadDataSetForm._validate_columns_in_each_row(rows)
             UploadDataSetForm._validate_max_rows(rows)
+
+            if self.existing_datasource:
+                if not self._validate_existing_references(self.existing_datasource, fieldnames):
+                    return False
+            return True
 
         finally:
             field.data.stream.seek(0)
