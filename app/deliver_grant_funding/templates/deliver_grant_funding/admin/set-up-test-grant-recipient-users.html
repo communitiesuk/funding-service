@@ -36,7 +36,7 @@
 {% endmacro %}
 
 {% block beforeContent %}
-  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
 {% endblock %}
 
 {% block action_panel %}

@@ -5,7 +5,7 @@
 {% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
 
 {% block beforeContent %}
-  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
 {% endblock %}
 
 {% block action_panel %}
@@ -19,13 +19,13 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        Open the report for submissions
+        Open the {{ collection.type.constants.singular }} for submissions
       </h1>
-      <p class="govuk-body">Opening the report will allow grant recipients to start making submissions.</p>
+      <p class="govuk-body">Opening the {{ collection.type.constants.singular }} will allow grant recipients to start making submissions.</p>
 
-      {{ govukInsetText({ "text": "Once the report is live, grant recipients will be able to access it and begin submitting their data." }) }}
+      {{ govukInsetText({ "text": "Once the " + collection.type.constants.singular + " is live, grant recipients will be able to access it and begin submitting their data." }) }}
 
-      <p class="govuk-body">Confirm the following before opening the report for submissions:</p>
+      <p class="govuk-body">Confirm the following before opening the {{ collection.type.constants.singular }} for submissions:</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}

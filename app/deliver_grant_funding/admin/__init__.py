@@ -15,17 +15,17 @@ from app.deliver_grant_funding.admin.entities import (
     PlatformAdminUserView,
 )
 from app.deliver_grant_funding.admin.views import (
+    PlatformAdminCollectionLifecycleView,
     PlatformAdminDataAnalysisView,
     PlatformAdminDeltaCertifiersView,
     PlatformAdminDeveloperToolsView,
-    PlatformAdminReportingLifecycleView,
 )
 
 
 def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
     flask_admin.add_view(
-        PlatformAdminReportingLifecycleView(
-            name="Reporting lifecycle", endpoint="reporting_lifecycle", url="reporting-lifecycle"
+        PlatformAdminCollectionLifecycleView(
+            name="Collection lifecycle", endpoint="collection_lifecycle", url="collection-lifecycle"
         )
     )
     flask_admin.add_view(

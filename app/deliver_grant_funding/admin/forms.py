@@ -10,18 +10,20 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovCheckboxesInput,
     GovCheckboxInput,
     GovDateInput,
+    GovRadioInput,
     GovSubmitInput,
     GovTextArea,
     GovTextInput,
 )
 from markupsafe import Markup, escape
-from wtforms import DateField, SubmitField
+from wtforms import DateField, RadioField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.simple import BooleanField, EmailField, StringField, TextAreaField
 from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
 from app.common.data.types import (
+    GrantRecipientStatusEnum,
     OrganisationData,
     OrganisationType,
     TraceLevelEnum,
@@ -34,12 +36,12 @@ if TYPE_CHECKING:
     from app.common.data.models_user import User
 
 
-class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
+class PlatformAdminSelectGrantForCollectionLifecycleForm(FlaskForm):
     grant_id = SelectField(
         "Grant",
         choices=[],
         widget=GovSelectWithSearch(),
-        validators=[DataRequired("Select a grant to view its reporting lifecycle")],
+        validators=[DataRequired("Select a grant to view its collection lifecycle")],
     )
     submit = SubmitField("Select grant", widget=GovSubmitInput())
 
@@ -49,19 +51,24 @@ class PlatformAdminSelectGrantForReportingLifecycleForm(FlaskForm):
         self.grant_id.choices = [("", "")] + [(str(grant.id), grant.name) for grant in grants]
 
 
-class PlatformAdminSelectReportForm(FlaskForm):
+class PlatformAdminSelectCollectionForm(FlaskForm):
     collection_id = SelectField(
-        "Monitoring report",
+        "Collection",
         choices=[],
         widget=GovSelectWithSearch(),
-        validators=[DataRequired("Select a monitoring report to manage")],
+        validators=[DataRequired("Select a collection to manage")],
     )
-    submit = SubmitField("Select monitoring report", widget=GovSubmitInput())
+    submit = SubmitField("Select collection", widget=GovSubmitInput())
 
     def __init__(self, collections: Sequence[Collection]) -> None:
         super().__init__()
 
-        self.collection_id.choices = [("", "")] + [(str(collection.id), collection.name) for collection in collections]
+        choices = [("", "")]
+        for collection in collections:
+            label = f"{collection.name} ({collection.type.value})"
+            choices.append((str(collection.id), label))
+
+        self.collection_id.choices = choices
 
 
 class PlatformAdminMakeGrantLiveForm(FlaskForm):
@@ -183,7 +190,12 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
     recipients = SelectMultipleField(
         "Grant recipients", choices=[], widget=GovSelectWithSearch(multiple=True), validators=[DataRequired()]
     )
-
+    status = RadioField(
+        "Grant recipient status",
+        choices=[(s.value, s.value.capitalize()) for s in GrantRecipientStatusEnum],
+        validators=[DataRequired()],
+        widget=GovRadioInput(),
+    )
     submit = SubmitField("Set up grant recipients", widget=GovSubmitInput())
 
     def __init__(
@@ -290,16 +302,21 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
         widget=GovTextInput(),
     )
     send_notification_email = BooleanField(
-        "Send 'report is ready to complete' email",
-        description="Send an email to notify the data provider that the report is open for submissions.",
+        "Send 'submission is ready to complete' email",
         widget=GovCheckboxInput(),
     )
     submit = SubmitField("Add data provider", widget=GovSubmitInput())
 
-    def __init__(self, grant_recipients: Sequence[GrantRecipient], *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self, collection: Collection, grant_recipients: Sequence[GrantRecipient], *args: Any, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.grant_recipients = grant_recipients
         self.grant_recipient.choices = [("", "")] + [(str(gr.id), gr.organisation.name) for gr in grant_recipients]
+        self.send_notification_email.description = (
+            "Send an email to notify the data provider that the "
+            f"{collection.type.constants.singular} is open for submissions."
+        )
 
 
 class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
@@ -451,11 +468,16 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
         return result
 
 
-class PlatformAdminScheduleReportForm(FlaskForm):
-    submit = SubmitField("Sign off and lock report", widget=GovSubmitInput())
+class PlatformAdminScheduleCollectionForm(FlaskForm):
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, collection: Collection, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.submit.label.text = f"Sign off and lock the {collection.type.constants.singular}"
 
 
-class PlatformAdminMakeReportLiveForm(FlaskForm):
+class PlatformAdminMakeCollectionLiveForm(FlaskForm):
     confirm_grant_recipients = BooleanField(
         validators=[DataRequired("Confirm the number of grant recipients")], widget=GovCheckboxInput()
     )
@@ -482,7 +504,7 @@ class PlatformAdminMakeReportLiveForm(FlaskForm):
     confirm_managed_submissions_count = BooleanField(
         validators=[DataRequired("Confirm the number of managed submissions")], widget=GovCheckboxInput()
     )
-    submit = SubmitField("Open report for submissions", widget=GovSubmitInput())
+    submit = SubmitField("", widget=GovSubmitInput())
 
     def __init__(
         self,
@@ -509,7 +531,8 @@ class PlatformAdminMakeReportLiveForm(FlaskForm):
         )
         certification_status = "enabled" if collection.requires_certification else "disabled"
         self.confirm_certification.label.text = Markup(
-            f"It is correct that the report has certification <strong {bold}>{certification_status}</strong>"
+            f"It is correct that the {collection.type.constants.singular} has certification "
+            f"<strong {bold}>{certification_status}</strong>"
         )
         if collection.submission_period_start_date and collection.submission_period_end_date:
             start = format_date_short(collection.submission_period_start_date)
@@ -542,6 +565,8 @@ class PlatformAdminMakeReportLiveForm(FlaskForm):
         else:
             del self.confirm_managed_by_service
             del self.confirm_managed_submissions_count
+
+        self.submit.label.text = f"Open the {collection.type.constants.singular} for submissions"
 
 
 class PlatformAdminCreateGrantOverrideCertifiersForm(FlaskForm):

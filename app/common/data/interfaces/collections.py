@@ -201,7 +201,10 @@ def update_collection(  # noqa: C901
             and collection.id is not None
         ):
             if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
-                raise ValueError("Cannot disable multiple submissions: submissions already exist for this collection")
+                raise ValueError(
+                    "Cannot disable multiple submissions: submissions already exist for this "
+                    f"{collection.type.constants.singular}"
+                )
 
         collection.allow_multiple_submissions = allow_multiple_submissions
         if not allow_multiple_submissions:
@@ -239,14 +242,18 @@ def update_collection(  # noqa: C901
                 actioning = "opening" if collection.status == CollectionStatusEnum.SCHEDULED else "scheduling"
 
                 if collection.grant.status != GrantStatusEnum.LIVE:
-                    raise GrantMustBeLiveError(f"{collection.grant.name} must be made live before {actioning} a report")
+                    raise GrantMustBeLiveError(
+                        f"{collection.grant.name} must be made live before {actioning} a "
+                        f"{collection.type.constants.singular}"
+                    )
 
                 try:
                     assert collection.submission_period_start_date
                     assert collection.submission_period_end_date
                 except AssertionError as e:
                     raise CollectionChronologyError(
-                        f"Cannot change collection status to {status.value}: submission period dates must be set"
+                        f"Cannot change {collection.type.constants.singular} status to {status.value}: "
+                        "submission period dates must be set"
                     ) from e
 
                 if (collection.reporting_period_start_date or collection.reporting_period_end_date) and not (
@@ -270,12 +277,13 @@ def update_collection(  # noqa: C901
 
                 if not get_grant_recipients(collection.grant):
                     raise GrantRecipientUsersRequiredError(
-                        f"Grant recipients must be set up before {actioning} a report"
+                        f"Grant recipients must be set up before {actioning} a {collection.type.constants.singular}"
                     )
 
                 if not all_grant_recipients_have_data_providers(collection.grant):
                     raise GrantRecipientUsersRequiredError(
-                        f"All grant recipients must have at least one data provider set up before {actioning} a report"
+                        "All grant recipients must have at least one data "
+                        f"provider set up before {actioning} a {collection.type.constants.singular}"
                     )
 
                 if status == CollectionStatusEnum.OPEN:
@@ -283,7 +291,7 @@ def update_collection(  # noqa: C901
                         collection.submission_period_start_date, datetime.time.min, tzinfo=datetime.UTC
                     ):
                         raise CollectionChronologyError(
-                            f"You cannot open the report for submissions before "
+                            f"You cannot open the {collection.type.constants.singular} for submissions before "
                             f"the submission period start date of {collection.submission_period_start_date}"
                         )
 
@@ -301,7 +309,7 @@ def update_collection(  # noqa: C901
                     collection.submission_period_end_date, datetime.time.min, tzinfo=datetime.UTC
                 ):
                     raise CollectionChronologyError(
-                        f"You cannot close the report for submissions before "
+                        f"You cannot close the {collection.type.constants.singular} for submissions before "
                         f"the submission period end date of {collection.submission_period_end_date}"
                     )
 

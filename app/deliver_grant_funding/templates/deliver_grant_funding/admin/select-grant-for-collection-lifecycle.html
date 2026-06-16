@@ -1,11 +1,6 @@
 {% extends "admin/master.html" %}
 {% import 'admin/layout.html' as layout with context %}
 {% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
-{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-
-{% block beforeContent %}
-  {{ govukBackLink({"href": url_for(".index"), "text": "Back"}) }}
-{% endblock %}
 
 {% block action_panel %}
   <div class="govuk-grid-row">
@@ -16,12 +11,11 @@
         {{ govukErrorSummary(wtforms_errors(form)) }}
       {% endif %}
 
-      <span class="govuk-caption-l">{{ grant.name }}</span>
-      <h1 class="govuk-heading-l">Select monitoring report</h1>
-      <p class="govuk-body">Select which monitoring report you want to manage the lifecycle for.</p>
+      <h1 class="govuk-heading-l">Collection lifecycle</h1>
+      <p class="govuk-body">Select the grant you want to view the collection lifecycle for.</p>
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.collection_id }}
+        {{ form.grant_id }}
         {{ form.submit }}
       </form>
     </div>

@@ -4,7 +4,7 @@
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
 {% block beforeContent %}
-  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
 {% endblock %}
 
 {% block action_panel %}
@@ -12,13 +12,13 @@
     <div class="govuk-grid-column-one-half">
       {{ layout.messages() }}
 
-      {% if email_type == enum.report_admin_email_type_enum.REPORT_OPEN_NOTIFICATION %}
+      {% if email_type == enum.report_admin_email_type_enum.COLLECTION_OPEN_NOTIFICATION %}
         <h1 class="govuk-heading-l">
           <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
           Send emails to data providers
         </h1>
 
-        <p class="govuk-body">Let grant recipient users know that their report is ready to complete. This email is sent to all data providers for all grant recipients for {{ collection.grant.name }}.</p>
+        <p class="govuk-body">Let grant recipient users know that their {{ collection.type.constants.singular }} is ready to complete. This email is sent to all data providers for all grant recipients for {{ collection.grant.name }}.</p>
       {% elif email_type == enum.report_admin_email_type_enum.DEADLINE_REMINDER %}
         <h1 class="govuk-heading-l">
           <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
@@ -26,42 +26,43 @@
         </h1>
 
         <p class="govuk-body">
-          Let grant recipient users know that there is only one week left until their report needs to be submitted for {{ collection.grant.name }}. This email is sent to all data providers and certifiers for grant recipients that have not
-          yet submitted this report.
+          Let grant recipient users know that there is only one week left until their {{ collection.type.constants.singular }} needs to be submitted for {{ collection.grant.name }}. This email is sent to all data providers and certifiers
+          for grant recipients that have not yet submitted this {{ collection.type.constants.singular }}.
         </p>
         <ul class="govuk-list govuk-list--bullet">
           <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
           <li>Date to send reminder email: {{ format_date_short(collection.submission_period_end_date - timedelta(days=7)) }}</li>
         </ul>
-      {% elif email_type == enum.report_admin_email_type_enum.REPORT_OVERDUE %}
+      {% elif email_type == enum.report_admin_email_type_enum.COLLECTION_OVERDUE %}
         <h1 class="govuk-heading-l">
           <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
-          Send report overdue emails
+          Send {{ collection.type.constants.singular }} overdue emails
         </h1>
 
         <p class="govuk-body">
-          Let grant recipient users know that the reporting round submission deadline has passed for {{ collection.grant.name }}. This email is sent to all data providers and certifiers for grant recipients that have not yet fully submitted
-          this report.
+          Let grant recipient users know that the submission deadline has passed for {{ collection.grant.name }}. This email is sent to all data providers and certifiers for grant recipients that have not yet fully submitted this
+          {{ collection.type.constants.singular }}.
         </p>
         <ul class="govuk-list govuk-list--bullet">
           <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
           <li>Date to send overdue email: {{ format_date_short(collection.submission_period_end_date + timedelta(days=1)) }}</li>
         </ul>
-      {% elif email_type == enum.report_admin_email_type_enum.REPORT_CLOSED_NOTIFICATION %}
+      {% elif email_type == enum.report_admin_email_type_enum.COLLECTION_CLOSED_NOTIFICATION %}
         <h1 class="govuk-heading-l">
           <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
-          Send report closed emails
+          Send {{ collection.type.constants.singular }} closed emails
         </h1>
 
         <p class="govuk-body">
-          Let grant recipient users know that the report has now closed and no further changes can be made to their submissions. This email is sent to all data providers for all grant recipients for {{ collection.grant.name }}.
+          Let grant recipient users know that the {{ collection.type.constants.singular }} has now closed and no further changes can be made to their submissions. This email is sent to all data providers for all grant recipients for
+          {{ collection.grant.name }}.
         </p>
       {% endif %}
 
       <h2 class="govuk-heading-m">How to send emails</h2>
 
       <ol class="govuk-list govuk-list--number">
-        <li>Download the CSV file containing grant recipient email addresses and report details</li>
+        <li>Download the CSV file containing grant recipient email addresses and {{ collection.type.constants.singular }} details</li>
         <li>Open the <a href="{{ notify_template_url }}" class="govuk-link govuk-link--no-visited-state" target="_blank" rel="noopener noreferrer">GOV.UK Notify template</a> (opens in new tab)</li>
         <li>Upload the CSV file to GOV.UK Notify and send the emails</li>
         <li>Delete the CSV file</li>
@@ -70,7 +71,7 @@
       {{
         govukButton({
           "text": "Download CSV",
-          "href": url_for('reporting_lifecycle.download_data_providers_csv', grant_id=grant.id, collection_id=collection.id, email_type=email_type),
+          "href": url_for('collection_lifecycle.download_data_providers_csv', grant_id=grant.id, collection_id=collection.id, email_type=email_type),
           "classes": "govuk-!-margin-bottom-8"
         })
       }}

@@ -5,7 +5,7 @@
 {% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
 
 {% block beforeContent %}
-  {{ govukBackLink({"text": "Back", "href": url_for('reporting_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
 {% endblock %}
 
 {% block action_panel %}
@@ -19,15 +19,15 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }}</span>
-        Close the report
+        Close the {{ collection.type.constants.singular }}
       </h1>
-      <p class="govuk-body">Closing the report will prevent grant recipients from starting, continuing or completing submissions, including certifying submissions which require certification.</p>
+      <p class="govuk-body">Closing the {{ collection.type.constants.singular }} will prevent grant recipients from starting, continuing or completing submissions, including certifying submissions which require certification.</p>
 
-      {{ govukInsetText({ "text": "Once the report is closed, grant recipients will not be able to make any more changes to their submissions." }) }}
+      {{ govukInsetText({ "text": "Once the "+collection.type.constants.singular+" is closed, grant recipients will not be able to make any more changes to their submissions." }) }}
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Close the report"}) }}
+        {{ form.submit(params={"text": "Close the " + collection.type.constants.singular}) }}
       </form>
     </div>
   </div>
