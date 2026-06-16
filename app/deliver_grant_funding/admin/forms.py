@@ -23,6 +23,9 @@ from wtforms.validators import DataRequired, Email, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
 from app.common.data.types import (
+    MONITORING_COLLECTIONS,
+    PRE_AWARD_COLLECTIONS,
+    CollectionType,
     GrantRecipientStatusEnum,
     OrganisationData,
     OrganisationType,
@@ -199,13 +202,35 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
     submit = SubmitField("Set up grant recipients", widget=GovSubmitInput())
 
     def __init__(
-        self, organisations: Sequence[Organisation], existing_grant_recipients: Sequence[GrantRecipient]
+        self,
+        organisations: Sequence[Organisation],
+        existing_grant_recipients: Sequence[GrantRecipient],
+        collection_type: CollectionType,
     ) -> None:
         super().__init__()
         existing_grant_recipient_org_ids = {gr.organisation.id for gr in existing_grant_recipients}
         self.recipients.choices = [
             (str(org.id), org.name) for org in organisations if org.id not in existing_grant_recipient_org_ids
         ]
+
+        status_items: list[dict] = []
+        for s in GrantRecipientStatusEnum:
+            item: dict = {}
+            if s == GrantRecipientStatusEnum.APPLYING:
+                item["disabled"] = True
+                item["hint"] = {"text": "More work is needed in Deliver to support applying recipients"}
+            elif s == GrantRecipientStatusEnum.AWARDED and collection_type in PRE_AWARD_COLLECTIONS:
+                item["disabled"] = True
+                item["hint"] = {"text": "Only available for monitoring report collections"}
+            elif s == GrantRecipientStatusEnum.ALLOCATED and collection_type in MONITORING_COLLECTIONS:
+                item["disabled"] = True
+                item["hint"] = {"text": "Only available for pre-award collections"}
+            else:
+                current_app.logger.error(
+                    "Create grant recipient form does not know about status=%(status)s", {"status": s}
+                )
+            status_items.append(item)
+        self.status.render_kw = {"params": {"items": status_items}}
 
 
 class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
