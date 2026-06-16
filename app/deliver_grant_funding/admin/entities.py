@@ -1,10 +1,12 @@
 import datetime
+import uuid
 from abc import abstractmethod
 from collections import namedtuple
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urlencode
 
 import markupsafe
-from flask import flash, g, url_for
+from flask import flash, g, redirect, request, url_for
 from flask_admin.actions import action
 from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.helpers import is_form_submitted
@@ -13,6 +15,7 @@ from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
+from werkzeug.wrappers import Response
 from wtforms import Form
 from wtforms.validators import Email
 from xgovuk_flask_admin import XGovukModelView
@@ -36,8 +39,10 @@ from app.common.data.models import (
 )
 from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import AuditEventType, RoleEnum, SubmissionEventType
+from app.common.data.types import AuditEventType, GrantRecipientStatusEnum, RoleEnum, SubmissionEventType
 from app.common.helpers.collections import SubmissionHelper
+from app.common.security.utils import sanitise_redirect_url
+from app.deliver_grant_funding.admin.forms import PlatformAdminChangeGrantRecipientStatusForm
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
     FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
@@ -429,6 +434,8 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
     can_edit = False
     can_delete = True
 
+    list_template = "deliver_grant_funding/admin/grant-recipient-list.html"
+
     column_list = ["grant.name", "organisation.name", "mode", "status"]
     column_filters = ["grant.name", "organisation.name", "mode", "status"]
     column_searchable_list = ["grant.name", "organisation.name"]
@@ -450,6 +457,69 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
             "query_factory": lambda: db.session.query(Organisation).filter_by(can_manage_grants=False),
         },
     }
+
+    def render(self, template, **kwargs):
+        if "change_status_form" not in kwargs:
+            kwargs["change_status_form"] = PlatformAdminChangeGrantRecipientStatusForm()
+        if request.args.get("_change_status"):
+            preserved_params = [
+                (k, v) for k, v in request.args.items(multi=True) if k not in ("_change_status", "rowid")
+            ]
+            base = request.base_url
+            kwargs["change_status_cancel_url"] = f"{base}?{urlencode(preserved_params)}" if preserved_params else base
+            kwargs["change_status_return_url"] = kwargs["change_status_cancel_url"]
+        return super().render(template, **kwargs)
+
+    @action(
+        "change_status",
+        "Change status",
+    )
+    def change_status(self, ids: list[str]) -> Response | None:
+        new_status = request.form.get("new_status")
+        if not new_status:
+            return_url = sanitise_redirect_url(request.form.get("url", self.get_url(".index_view")))
+            separator = "&" if "?" in return_url else "?"
+            params = [("rowid", id_) for id_ in ids]
+            params.append(("_change_status", "1"))
+            return redirect(f"{return_url}{separator}{urlencode(params)}")
+
+        try:
+            status = GrantRecipientStatusEnum(new_status)
+        except ValueError:
+            flash("Invalid status selected.", "error")
+            return
+
+        try:
+            grant_recipient_ids = [uuid.UUID(id_) for id_ in ids]
+        except ValueError:
+            flash("Invalid grant recipient selection.", "error")
+            return
+
+        grant_recipients = (
+            self.session.session.execute(select(GrantRecipient).where(GrantRecipient.id.in_(grant_recipient_ids)))
+            .scalars()
+            .all()
+        )
+
+        for grant_recipient in grant_recipients:
+            grant_recipient.status = status
+            audit_event = create_database_model_change_for_update(grant_recipient, get_current_user())
+            if audit_event:
+                track_audit_event(audit_event, get_current_user())
+
+        self.session.session.commit()
+
+        count = len(grant_recipients)
+        flash(
+            ngettext(
+                "%(count)s grant recipient status changed to %(status)s.",
+                "%(count)s grant recipient statuses changed to %(status)s.",
+                count,
+                count=count,
+                status=status.value,
+            ),
+            "success",
+        )
 
 
 def _format_json_data(view, context, model, name):

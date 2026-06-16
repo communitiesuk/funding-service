@@ -1,0 +1,43 @@
+{% extends 'admin/model/list.html' %}
+{% from 'govuk_frontend_jinja/components/button/macro.html' import govukButton %}
+{% from 'govuk_frontend_jinja/components/notification-banner/macro.html' import govukNotificationBanner %}
+{% import 'admin/layout.html' as layout with context %}
+
+{# fmt:off #}
+{% block action_panel %}
+  {% if request.args.get('_change_status') %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+        {% set banner_html %}
+          <h3 class="govuk-notification-banner__heading">Change status</h3>
+          <p class="govuk-body"><strong>{{ request.args.getlist('rowid')|length }} item(s) selected</strong></p>
+
+          <form method="POST" action="{{ get_url('.action_view') }}">
+            {% if action_form.csrf_token is defined and action_form.csrf_token %}
+              {{ action_form.csrf_token }}
+            {% elif csrf_token is defined and csrf_token %}
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            {% endif %}
+            <input type="hidden" name="action" value="change_status" />
+            <input type="hidden" name="url" value="{{ change_status_return_url }}" />
+
+            {% for rowid in request.args.getlist('rowid') %}
+              <input type="hidden" name="rowid" value="{{ rowid }}" />
+            {% endfor %}
+
+            {{ change_status_form.new_status() }}
+
+            <div class="govuk-button-group govuk-!-margin-bottom-0">
+              {{ govukButton({"text": "Change status", "classes": "govuk-button--primary"}) }}
+              <a href="{{ change_status_cancel_url }}" class="govuk-link govuk-link--no-visited-state">Cancel</a>
+            </div>
+          </form>
+        {% endset %}
+
+        {{ govukNotificationBanner({"html": banner_html, "titleText": "Change status"}) }}
+      </div>
+    </div>
+  {% endif %}
+  {{ super() }}
+{% endblock %}
+{# fmt:on #}

@@ -5523,3 +5523,146 @@ class TestPlatformAdminQuestionView:
         assert question.text == "Untouched text"
         assert question.hint == "Untouched hint"
         assert question.name == "renamed"
+
+
+class TestGrantRecipientChangeStatus:
+    def test_change_status_action_appears_on_list_page(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        org = factories.organisation.create(can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/grantrecipient/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        action_button = soup.find("button", string=lambda t: t and "Change status" in t)
+        assert action_button is not None
+
+    def test_change_status_redirects_to_confirmation(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(can_manage_grants=False)
+        gr = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/grantrecipient/action/",
+            data={"action": "change_status", "rowid": str(gr.id), "url": "/deliver/admin/grantrecipient/"},
+        )
+        assert response.status_code == 302
+        assert "_change_status=1" in response.location
+        assert f"rowid={gr.id}" in response.location
+
+    def test_change_status_redirect_preserves_filters(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(can_manage_grants=False)
+        gr = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/grantrecipient/action/",
+            data={
+                "action": "change_status",
+                "rowid": str(gr.id),
+                "url": "/deliver/admin/grantrecipient/?flt0_0=some_filter",
+            },
+        )
+        assert response.status_code == 302
+        assert "flt0_0=some_filter" in response.location
+        assert "_change_status=1" in response.location
+        assert f"rowid={gr.id}" in response.location
+
+    def test_confirmation_page_shows_radios(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(can_manage_grants=False)
+        gr = factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_admin_client.get(
+            f"/deliver/admin/grantrecipient/?_change_status=1&rowid={gr.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        radios = soup.find_all("input", {"type": "radio", "name": "new_status"})
+        assert len(radios) == 3
+
+        radio_values = {r["value"] for r in radios}
+        assert radio_values == {"applying", "allocated", "awarded"}
+
+        banner = soup.find(class_="govuk-notification-banner")
+        assert banner is not None
+        assert "1 item(s) selected" in banner.get_text()
+
+    def test_change_status_updates_grant_recipients(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        org_1 = factories.organisation.create(can_manage_grants=False)
+        org_2 = factories.organisation.create(can_manage_grants=False)
+        gr_1 = factories.grant_recipient.create(
+            grant=grant, organisation=org_1, status=GrantRecipientStatusEnum.APPLYING
+        )
+        gr_2 = factories.grant_recipient.create(
+            grant=grant, organisation=org_2, status=GrantRecipientStatusEnum.APPLYING
+        )
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/grantrecipient/action/",
+            data={
+                "action": "change_status",
+                "rowid": [str(gr_1.id), str(gr_2.id)],
+                "new_status": "awarded",
+                "url": "/deliver/admin/grantrecipient/",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        db_session.expire_all()
+        assert gr_1.status == GrantRecipientStatusEnum.AWARDED
+        assert gr_2.status == GrantRecipientStatusEnum.AWARDED
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "2 grant recipient statuses changed to awarded")
+
+    def test_change_status_creates_audit_events(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(can_manage_grants=False)
+        gr = factories.grant_recipient.create(grant=grant, organisation=org, status=GrantRecipientStatusEnum.APPLYING)
+
+        authenticated_platform_admin_client.post(
+            "/deliver/admin/grantrecipient/action/",
+            data={
+                "action": "change_status",
+                "rowid": str(gr.id),
+                "new_status": "allocated",
+                "url": "/deliver/admin/grantrecipient/",
+            },
+        )
+
+        audit_events = db_session.execute(
+            AuditEvent.__table__.select().where(AuditEvent.event_type == AuditEventType.PLATFORM_ADMIN_DB_EVENT)
+        ).fetchall()
+        assert len(audit_events) >= 1
+
+    def test_change_status_with_invalid_status_shows_error(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        org = factories.organisation.create(can_manage_grants=False)
+        gr = factories.grant_recipient.create(grant=grant, organisation=org, status=GrantRecipientStatusEnum.APPLYING)
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/grantrecipient/action/",
+            data={
+                "action": "change_status",
+                "rowid": str(gr.id),
+                "new_status": "invalid_status",
+                "url": "/deliver/admin/grantrecipient/",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        db_session.expire(gr)
+        assert gr.status == GrantRecipientStatusEnum.APPLYING
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Invalid status selected")
