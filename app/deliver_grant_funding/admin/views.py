@@ -890,6 +890,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             fieldnames=[
                 "email_address",
                 "grant_name",
+                "collection_type_noun",
                 "organisation_name",
                 "submission_name",
                 "submission_deadline",
@@ -944,6 +945,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 {
                     "email_address": email_recipient.email,
                     "grant_name": grant.name,
+                    "collection_type_noun": collection.type.constants.singular,
                     "organisation_name": grant_recipient.organisation.name,
                     "submission_name": submission_name,
                     "submission_deadline": submission_deadline,
