@@ -30,10 +30,12 @@
 {% endmacro %}
 
 {% macro grantStatusDescription(grant) %}
+  {% set collection_type = enum.collection_type_enum.APPLICATION if grant.pre_award_forms else enum.collection_type_enum.MONITORING_REPORT %}
   {% if grant.status == enum.grant_status.DRAFT %}
-    Reports cannot be published until the grant is live.
+    {{ collection_type.constants.plural | capitalize }}
+    cannot be published until the grant is live.
   {% elif grant.status == enum.grant_status.LIVE and grant.reports | selectattr('status', 'equalto', enum.collection_status.OPEN) | list | length == 0 %}
-    There are no reports live.
+    There are no {{ collection_type.constants.plural }} live.
   {% endif %}
 {% endmacro %}
 
