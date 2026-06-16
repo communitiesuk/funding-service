@@ -1322,14 +1322,15 @@ class TestSendEmailsToRecipients:
         header = lines[0].split(",")
         assert "email_address" == header[0]
         assert "grant_name" == header[1]
-        assert "organisation_name" == header[2]
-        assert "submission_name" == header[3]
-        assert "submission_deadline" == header[4]
-        assert "grant_submission_url" == header[5]
-        assert "is_test_data" == header[6]
-        assert "requires_certification" == header[7]
-        assert "submissions" == header[8]
-        assert "unsubmitted_submissions" == header[9]
+        assert "collection_type_noun" == header[2]
+        assert "organisation_name" == header[3]
+        assert "submission_name" == header[4]
+        assert "submission_deadline" == header[5]
+        assert "grant_submission_url" == header[6]
+        assert "is_test_data" == header[7]
+        assert "requires_certification" == header[8]
+        assert "submissions" == header[9]
+        assert "unsubmitted_submissions" == header[10]
 
         assert "user1@org1.example.com" in lines[1]
         assert "user2@org1.example.com" in lines[2]
@@ -1337,6 +1338,7 @@ class TestSendEmailsToRecipients:
         assert "user4@org3.example.com" not in response.text
 
         assert all("Test Grant" in line for line in lines[1:])
+        assert all("report" in line for line in lines[1:])
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
@@ -1453,14 +1455,15 @@ class TestSendEmailsToRecipients:
         header = lines[0].split(",")
         assert "email_address" == header[0]
         assert "grant_name" == header[1]
-        assert "organisation_name" == header[2]
-        assert "submission_name" == header[3]
-        assert "submission_deadline" == header[4]
-        assert "grant_submission_url" == header[5]
-        assert "is_test_data" == header[6]
-        assert "requires_certification" == header[7]
-        assert "submissions" == header[8]
-        assert "unsubmitted_submissions" == header[9]
+        assert "collection_type_noun" == header[2]
+        assert "organisation_name" == header[3]
+        assert "submission_name" == header[4]
+        assert "submission_deadline" == header[5]
+        assert "grant_submission_url" == header[6]
+        assert "is_test_data" == header[7]
+        assert "requires_certification" == header[8]
+        assert "submissions" == header[9]
+        assert "unsubmitted_submissions" == header[10]
 
         assert "user3@org2.example.com" not in response.text
         assert "user4@org2.example.com" not in response.text
@@ -1470,6 +1473,7 @@ class TestSendEmailsToRecipients:
         assert "user5@org3.example.com" in lines[3]
 
         assert all("Test Grant" in line for line in lines[1:])
+        assert all("report" in line for line in lines[1:])
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
@@ -1585,14 +1589,15 @@ class TestSendEmailsToRecipients:
         header = lines[0].split(",")
         assert "email_address" == header[0]
         assert "grant_name" == header[1]
-        assert "organisation_name" == header[2]
-        assert "submission_name" == header[3]
-        assert "submission_deadline" == header[4]
-        assert "grant_submission_url" == header[5]
-        assert "is_test_data" == header[6]
-        assert "requires_certification" == header[7]
-        assert "submissions" == header[8]
-        assert "unsubmitted_submissions" == header[9]
+        assert "collection_type_noun" == header[2]
+        assert "organisation_name" == header[3]
+        assert "submission_name" == header[4]
+        assert "submission_deadline" == header[5]
+        assert "grant_submission_url" == header[6]
+        assert "is_test_data" == header[7]
+        assert "requires_certification" == header[8]
+        assert "submissions" == header[9]
+        assert "unsubmitted_submissions" == header[10]
 
         assert "user3@org2.example.com" not in response.text
         assert "user4@org2.example.com" not in response.text
@@ -1602,6 +1607,7 @@ class TestSendEmailsToRecipients:
         assert "user5@org3.example.com" in lines[3]
 
         assert all("Test Grant" in line for line in lines[1:])
+        assert all("report" in line for line in lines[1:])
         assert all("Q1 Report" in line for line in lines[1:])
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
