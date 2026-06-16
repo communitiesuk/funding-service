@@ -219,12 +219,14 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
             if s == GrantRecipientStatusEnum.APPLYING:
                 item["disabled"] = True
                 item["hint"] = {"text": "More work is needed in Deliver to support applying recipients"}
-            elif s == GrantRecipientStatusEnum.AWARDED and collection_type in PRE_AWARD_COLLECTIONS:
-                item["disabled"] = True
-                item["hint"] = {"text": "Only available for monitoring report collections"}
-            elif s == GrantRecipientStatusEnum.ALLOCATED and collection_type in MONITORING_COLLECTIONS:
-                item["disabled"] = True
-                item["hint"] = {"text": "Only available for pre-award collections"}
+            elif s == GrantRecipientStatusEnum.AWARDED:
+                if collection_type in PRE_AWARD_COLLECTIONS:
+                    item["disabled"] = True
+                    item["hint"] = {"text": "Only available for monitoring report collections"}
+            elif s == GrantRecipientStatusEnum.ALLOCATED:
+                if collection_type in MONITORING_COLLECTIONS:
+                    item["disabled"] = True
+                    item["hint"] = {"text": "Only available for pre-award collections"}
             else:
                 current_app.logger.error(
                     "Create grant recipient form does not know about status=%(status)s", {"status": s}
