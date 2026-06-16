@@ -76,6 +76,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     RunnerTasklistPage,
     SetPrivacyPolicyPage,
     SetReportingDatesPage,
+    SetSubmissionDatesPage,
     SetUpDataProvidersPage,
     SetUpGrantRecipientsPage,
     SetUpOrganisationsPage,
@@ -1310,8 +1311,14 @@ def test_setup_grant_and_collection(
     collection_lifecycle_tasklist_page.navigate()
     collection_lifecycle_tasklist_page.click_task("Set reporting dates")
     set_reporting_dates_page = SetReportingDatesPage(page, domain, grant_id, collection_id)
-    set_reporting_dates_page.set_dates_for_open_report()
+    set_reporting_dates_page.set_reporting_dates_for_open_report()
     set_reporting_dates_page.click_save_dates(report_name=new_report_name)
+
+    collection_lifecycle_tasklist_page.navigate()
+    collection_lifecycle_tasklist_page.click_task("Set submission dates")
+    set_submission_dates_page = SetSubmissionDatesPage(page, domain, grant_id, collection_id)
+    set_submission_dates_page.set_submission_dates_for_open_report()
+    set_submission_dates_page.click_save_dates(report_name=new_report_name)
 
     collection_lifecycle_tasklist_page.click_task("Mark as onboarding with Funding Service")
     mark_as_onboarding_page = MarkAsOnboardingWithFundingServicePage(page, domain, grant_id, collection_id)

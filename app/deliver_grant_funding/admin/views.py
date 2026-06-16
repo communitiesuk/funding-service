@@ -45,6 +45,7 @@ from app.common.data.interfaces.user import (
 from app.common.data.types import (
     CollectionAdminEmailTypeEnum,
     CollectionStatusEnum,
+    CollectionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
@@ -80,7 +81,8 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminScheduleCollectionForm,
     PlatformAdminSelectCollectionForm,
     PlatformAdminSelectGrantForCollectionLifecycleForm,
-    PlatformAdminSetCollectionDatesForm,
+    PlatformAdminSetCollectionReportingDatesForm,
+    PlatformAdminSetCollectionSubmissionDatesForm,
     PlatformAdminSetPrivacyPolicyForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
@@ -708,34 +710,74 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-dates", methods=["GET", "POST"])
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-reporting-dates", methods=["GET", "POST"])
     @auto_commit_after_request
-    def set_collection_dates(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def set_reporting_dates(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
 
         if collection.status != CollectionStatusEnum.DRAFT:
             flash(
-                f"You cannot set dates for {collection.name} because it is not in draft status.",
+                f"You cannot set reporting dates for {collection.name} because it is not in draft status.",
                 "error",
             )
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
-        form = PlatformAdminSetCollectionDatesForm(obj=collection)
+        if collection.type == CollectionType.APPLICATION:
+            flash(
+                f"You cannot set reporting dates for {collection.name} because it is not a monitoring report.",
+                "error",
+            )
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        form = PlatformAdminSetCollectionReportingDatesForm(collection=collection)
 
         if form.validate_on_submit():
             update_collection(
                 collection,
                 reporting_period_start_date=form.reporting_period_start_date.data,
                 reporting_period_end_date=form.reporting_period_end_date.data,
-                submission_period_start_date=form.submission_period_start_date.data,
-                submission_period_end_date=form.submission_period_end_date.data,
             )
-            flash(f"Updated dates for {collection.name}.", "success")
+
+            flash(f"Updated reporting dates for {collection.name}.", "success")
+
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
             "deliver_grant_funding/admin/set-collection-dates.html",
+            title="Set reporting dates",
+            form=form,
+            grant=grant,
+            collection=collection,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-submission-dates", methods=["GET", "POST"])
+    @auto_commit_after_request
+    def set_submission_dates(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+
+        if collection.status != CollectionStatusEnum.DRAFT:
+            flash(
+                f"You cannot set submission dates for {collection.name} because it is not in draft status.",
+                "error",
+            )
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        form = PlatformAdminSetCollectionSubmissionDatesForm(collection=collection)
+
+        if form.validate_on_submit():
+            update_collection(
+                collection,
+                submission_period_start_date=form.submission_period_start_date.data,
+                submission_period_end_date=form.submission_period_end_date.data,
+            )
+            flash(f"Updated submission dates for {collection.name}.", "success")
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/set-collection-dates.html",
+            title="Set submission dates",
             form=form,
             grant=grant,
             collection=collection,
