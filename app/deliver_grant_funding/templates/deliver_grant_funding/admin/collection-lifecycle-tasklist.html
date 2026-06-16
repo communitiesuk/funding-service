@@ -5,7 +5,7 @@
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {% block beforeContent %}
-  {% if grant.reports|length == 1 %}
+  {% if grant.collections|length == 1 %}
     {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.index') }) }}
   {% else %}
     {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.select_collection', grant_id=grant.id) }) }}
