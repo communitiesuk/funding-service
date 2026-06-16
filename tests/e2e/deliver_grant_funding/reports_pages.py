@@ -2249,7 +2249,7 @@ class SetReportingDatesPage:
         self.domain = domain
         self.grant_id = grant_id
         self.collection_id = collection_id
-        self.heading = page.get_by_role("heading", name="Set reporting and submission dates")
+        self.heading = page.get_by_role("heading", name="Set reporting dates")
         self.save_dates_button = page.get_by_role("button", name="Save dates")
 
     def complete_reporting_start_date(self, start_date: datetime.date) -> None:
@@ -2263,6 +2263,31 @@ class SetReportingDatesPage:
             self.page.get_by_role("group", name="Reporting period end date"),
             start_date,
         )
+
+    def click_save_dates(self, report_name: str) -> None:
+        self.save_dates_button.click()
+        expect(self.page.get_by_text(f"Updated reporting dates for {report_name}.")).to_be_visible()
+
+    def set_reporting_dates_for_open_report(self) -> None:
+        now = datetime.datetime.now()
+        self.complete_reporting_start_date(now - datetime.timedelta(weeks=12))
+        self.complete_reporting_end_date(now - datetime.timedelta(weeks=8))
+
+
+class SetSubmissionDatesPage:
+    def __init__(
+        self,
+        page: Page,
+        domain: str,
+        grant_id: str,
+        collection_id: str,
+    ) -> None:
+        self.page = page
+        self.domain = domain
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.heading = page.get_by_role("heading", name="Set submission dates")
+        self.save_dates_button = page.get_by_role("button", name="Save dates")
 
     def complete_submission_start_date(self, start_date: datetime.date) -> None:
         ReportsBasePage.fill_in_date_fields(
@@ -2278,12 +2303,10 @@ class SetReportingDatesPage:
 
     def click_save_dates(self, report_name: str) -> None:
         self.save_dates_button.click()
-        expect(self.page.get_by_text(f"Updated dates for {report_name}.")).to_be_visible()
+        expect(self.page.get_by_text(f"Updated submission dates for {report_name}.")).to_be_visible()
 
-    def set_dates_for_open_report(self) -> None:
+    def set_submission_dates_for_open_report(self) -> None:
         now = datetime.datetime.now()
-        self.complete_reporting_start_date(now - datetime.timedelta(weeks=12))
-        self.complete_reporting_end_date(now - datetime.timedelta(weeks=8))
         self.complete_submission_start_date(now - datetime.timedelta(days=15))
         self.complete_submission_end_date(now + datetime.timedelta(days=15))
 

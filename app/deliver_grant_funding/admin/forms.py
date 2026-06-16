@@ -416,7 +416,7 @@ class PlatformAdminRevokeCertifiersForm(FlaskForm):
         self.organisation_id.choices = [("", "")] + [(str(org.id), org.name) for org in organisations]
 
 
-class PlatformAdminSetCollectionDatesForm(FlaskForm):
+class PlatformAdminSetCollectionReportingDatesForm(FlaskForm):
     reporting_period_start_date = DateField(
         "Reporting period start date",
         validators=[Optional()],
@@ -429,6 +429,45 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
         widget=GovDateInput(),
         format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],
     )
+    submit = SubmitField("Save dates", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        collection: "Collection | None" = kwargs.get("collection")
+        self.existing_submission_period_start_date = collection.submission_period_start_date if collection else None
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
+        result: bool = super().validate(extra_validators)
+
+        if (self.reporting_period_start_date.data or self.reporting_period_end_date.data) and not (
+            self.reporting_period_start_date.data and self.reporting_period_end_date.data
+        ):
+            self.reporting_period_start_date.errors.append("Set both a reporting start and end date, or neither")  # type: ignore[attr-defined]
+            self.reporting_period_end_date.errors.append("Set both a reporting start and end date, or neither")  # type: ignore[attr-defined]
+            return False
+
+        if self.reporting_period_start_date.data and self.reporting_period_end_date.data:
+            if self.reporting_period_start_date.data >= self.reporting_period_end_date.data:
+                self.reporting_period_start_date.errors.append(  # type: ignore[attr-defined]
+                    "report period start date must be before reporting period end date"
+                )
+                self.reporting_period_end_date.errors.append(  # type: ignore[attr-defined]
+                    "report period end date must be after reporting period start date"
+                )
+                return False
+
+        if self.reporting_period_end_date.data and self.existing_submission_period_start_date:
+            if self.reporting_period_end_date.data >= self.existing_submission_period_start_date:
+                self.reporting_period_end_date.errors.append(  # type: ignore[attr-defined]
+                    "Report period end date must be before submission period start date"
+                )
+                return False
+
+        return result
+
+
+class PlatformAdminSetCollectionSubmissionDatesForm(FlaskForm):
     submission_period_start_date = DateField(
         "Submission period start date",
         validators=[Optional()],
@@ -443,15 +482,14 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
     )
     submit = SubmitField("Save dates", widget=GovSubmitInput())
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        collection: "Collection | None" = kwargs.get("collection")
+        self.existing_reporting_period_end_date = collection.reporting_period_end_date if collection else None
+
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         result: bool = super().validate(extra_validators)
-
-        if (self.reporting_period_start_date.data or self.reporting_period_end_date.data) and not (
-            self.reporting_period_start_date.data and self.reporting_period_end_date.data
-        ):
-            self.reporting_period_start_date.errors.append("Set both a reporting start and end date, or neither")  # type: ignore[attr-defined]
-            self.reporting_period_end_date.errors.append("Set both a reporting start and end date, or neither")  # type: ignore[attr-defined]
-            return False
 
         if (self.submission_period_start_date.data or self.submission_period_end_date.data) and not (
             self.submission_period_start_date.data and self.submission_period_end_date.data
@@ -459,16 +497,6 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
             self.submission_period_start_date.errors.append("Set both a submission start and end date, or neither")  # type: ignore[attr-defined]
             self.submission_period_end_date.errors.append("Set both a submission start and end date, or neither")  # type: ignore[attr-defined]
             return False
-
-        if self.reporting_period_start_date.data and self.reporting_period_end_date.data:
-            if self.reporting_period_start_date.data >= self.reporting_period_end_date.data:
-                self.reporting_period_start_date.errors.append(  # type: ignore[attr-defined]
-                    "report period start date must be before reporting period end date"
-                )
-                self.reporting_period_end_date.errors.append(  # type: ignore[attr-defined]
-                    "report period end date must be after reporting period start date"
-                )
-                return False
 
         if self.submission_period_start_date.data and self.submission_period_end_date.data:
             if self.submission_period_start_date.data >= self.submission_period_end_date.data:
@@ -480,11 +508,8 @@ class PlatformAdminSetCollectionDatesForm(FlaskForm):
                 )
                 return False
 
-        if self.reporting_period_end_date.data and self.submission_period_start_date.data:
-            if self.reporting_period_end_date.data >= self.submission_period_start_date.data:
-                self.reporting_period_end_date.errors.append(  # type: ignore[attr-defined]
-                    "Report period end date must be before submission period start date"
-                )
+        if self.existing_reporting_period_end_date and self.submission_period_start_date.data:
+            if self.existing_reporting_period_end_date >= self.submission_period_start_date.data:
                 self.submission_period_start_date.errors.append(  # type: ignore[attr-defined]
                     "Report period end date must be before submission period start date"
                 )
