@@ -509,6 +509,37 @@ class TestListReports:
 
         assert response.status_code == 403
 
+    def test_get_list_collections_with_overdue_status(
+        self, authenticated_grant_recipient_member_client, grant_recipient, factories
+    ):
+        collection = factories.collection.create(
+            status=CollectionStatusEnum.OPEN,
+            grant=authenticated_grant_recipient_member_client.grant,
+            submission_period_end_date=date(2020, 1, 1),  # past date
+            name="Test Report",
+        )
+
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_collections",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=authenticated_grant_recipient_member_client.grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+
+        assert "Ready to submit (Overdue)" in tag_texts
+
 
 class TestListCollectionSubmissions:
     def test_lists_submissions_for_collection(self, authenticated_grant_recipient_member_client, factories):
