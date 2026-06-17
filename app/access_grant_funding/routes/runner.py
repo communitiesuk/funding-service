@@ -333,17 +333,18 @@ def confirm_sent_for_certification(
 # todo: decide if this should be a K:V lookup for a simplified file key or if it should lookup the
 # question like other pages
 @access_grant_funding_blueprint.route(
-    "/download/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>",
+    "/download/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>",
     methods=["GET"],
 )
 @access_grant_funding_blueprint.route(
-    "/download/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
+    "/download/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
     methods=["GET"],
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def download_file(
     organisation_id: UUID,
     grant_id: UUID,
+    collection_type: str,
     submission_id: UUID,
     question_id: UUID,
     add_another_index: int | None = None,
