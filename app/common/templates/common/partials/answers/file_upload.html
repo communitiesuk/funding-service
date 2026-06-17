@@ -7,7 +7,7 @@
     {% set url = url_for('deliver_grant_funding.download_file', grant_id=submission.collection.grant.id, submission_id=submission.id, question_id=question.id, add_another_index=add_another_index) %}
   {% else %}
     {% set grant_recipient = submission.submission.grant_recipient %}
-    {% set url = url_for('access_grant_funding.download_file', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, submission_id=submission.id, question_id=question.id, add_another_index=add_another_index) %}
+    {% set url = url_for('access_grant_funding.download_file', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_type=submission.collection.type, submission_id=submission.id, question_id=question.id, add_another_index=add_another_index) %}
   {% endif %}
 
   <a class="govuk-link govuk-link--no-visited-state" href="{{ url }}"> {{ answer.filename }} </a>

@@ -14,7 +14,7 @@ from app.common.collections.types import FileUploadAnswer
 from app.common.data import interfaces
 from app.common.data.interfaces import rollback
 from app.common.data.interfaces.collections import get_collection
-from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
+from app.common.data.types import CollectionType, FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext, interpolate
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
@@ -65,6 +65,7 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
                 "access_grant_funding.tasklist",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -127,6 +128,7 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
                     "access_grant_funding.tasklist",
                     organisation_id=organisation_id,
                     grant_id=grant_id,
+                    collection_type=submission.collection.type,
                     submission_id=submission.id,
                 )
             )
@@ -142,12 +144,14 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/tasklist",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/tasklist",
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)
-def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+def tasklist(
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID
+) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 
@@ -182,6 +186,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
                         "access_grant_funding.confirm_sent_for_certification",
                         organisation_id=organisation_id,
                         grant_id=grant_id,
+                        collection_type=runner.submission.collection.type,
                         submission_id=submission_id,
                     )
                 )
@@ -202,19 +207,19 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>",
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<any('clear'):action>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>/<any('clear'):action>",
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>/<any('remove', 'clear'):action>",  # noqa: E501
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>/<any('remove', 'clear'):action>",  # noqa: E501
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
@@ -222,6 +227,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> Resp
 def ask_a_question(
     organisation_id: UUID,
     grant_id: UUID,
+    collection_type: CollectionType,
     submission_id: UUID,
     question_id: UUID,
     add_another_index: int | None = None,
@@ -267,13 +273,13 @@ def ask_a_question(
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/check-your-answers/<uuid:section_id>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/check-your-answers/<uuid:section_id>",
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)
 def check_your_answers(
-    organisation_id: UUID, grant_id: UUID, submission_id: UUID, section_id: UUID
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID, section_id: UUID
 ) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
@@ -300,11 +306,13 @@ def check_your_answers(
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/sent-for-sign-off-confirmation",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/sent-for-sign-off-confirmation",
     methods=["GET"],
 )
 @has_access_grant_role(RoleEnum.MEMBER)
-def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+def confirm_sent_for_certification(
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID
+) -> ResponseReturnValue:
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     if not submission_helper.in_answers_locked_state:
@@ -313,6 +321,7 @@ def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submis
                 "access_grant_funding.tasklist",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
+                collection_type=submission_helper.collection.type,
                 submission_id=submission_id,
             )
         )
@@ -326,17 +335,18 @@ def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submis
 # todo: decide if this should be a K:V lookup for a simplified file key or if it should lookup the
 # question like other pages
 @access_grant_funding_blueprint.route(
-    "/download/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>",
+    "/download/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>",
     methods=["GET"],
 )
 @access_grant_funding_blueprint.route(
-    "/download/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
+    "/download/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
     methods=["GET"],
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def download_file(
     organisation_id: UUID,
     grant_id: UUID,
+    collection_type: CollectionType,
     submission_id: UUID,
     question_id: UUID,
     add_another_index: int | None = None,
