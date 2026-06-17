@@ -31,7 +31,7 @@
 
 {% macro grantStatusDescription(grant, collection_type) %}
   {% if grant.status == enum.grant_status.DRAFT %}
-    {{ collection_type.constants.plural | capitalize }}
+    {{ collection_type.constants.plural | uppercase_first }}
     cannot be published until the grant is live.
   {% elif grant.status == enum.grant_status.LIVE and grant.reports | selectattr('status', 'equalto', enum.collection_status.OPEN) | list | length == 0 %}
     There are no {{ collection_type.constants.plural }} live.
