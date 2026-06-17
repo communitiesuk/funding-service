@@ -631,6 +631,7 @@ class TestAskAQuestion:
                 "access_grant_funding.ask_a_question",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 question_id=question.id,
                 action="clear",
@@ -643,6 +644,7 @@ class TestAskAQuestion:
             "access_grant_funding.ask_a_question",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission.collection.type,
             submission_id=submission.id,
             question_id=question.id,
         )

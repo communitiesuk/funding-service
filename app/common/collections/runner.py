@@ -690,6 +690,7 @@ class AGFFormRunner(FormRunner):
                 "access_grant_funding.ask_a_question",
                 organisation_id=runner.submission.submission.grant_recipient.organisation.id,
                 grant_id=runner.submission.submission.grant_recipient.grant.id,
+                collection_type=runner.submission.collection.type,
                 submission_id=runner.submission.id,
                 question_id=question.id if question else None,
                 source=source,

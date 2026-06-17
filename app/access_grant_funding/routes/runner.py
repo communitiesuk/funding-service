@@ -204,19 +204,19 @@ def tasklist(organisation_id: UUID, grant_id: UUID, collection_type: str, submis
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>",
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<any('clear'):action>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>/<any('clear'):action>",
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>",
     methods=["GET", "POST"],
 )
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>/<any('remove', 'clear'):action>",  # noqa: E501
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/questions/<uuid:question_id>/<int:add_another_index>/<any('remove', 'clear'):action>",  # noqa: E501
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
@@ -224,6 +224,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, collection_type: str, submis
 def ask_a_question(
     organisation_id: UUID,
     grant_id: UUID,
+    collection_type: str,
     submission_id: UUID,
     question_id: UUID,
     add_another_index: int | None = None,
@@ -315,6 +316,7 @@ def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submis
                 "access_grant_funding.tasklist",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
+                collection_type=submission_helper.collection.type,
                 submission_id=submission_id,
             )
         )
