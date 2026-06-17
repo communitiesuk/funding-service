@@ -3765,6 +3765,48 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-sets/<uuid:data_source_id>/replace",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def replace_data_set(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    data_source = get_data_source(data_source_id)
+
+    if (
+        data_source.collection_id != collection_id
+        or data_source.grant_id != grant_id
+        or collection.grant_id != grant_id
+    ):
+        abort(404)
+    form = UploadDataSetForm(
+        existing_data_source_names=[], existing_datasource=data_source, data={"name": data_source.name}
+    )
+    # TODO validate grant recipients
+    gr_errors = []
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=grant_id,
+                collection_id=collection_id,
+                collection_type=collection_type,
+                data_source_id=data_source_id,
+            )
+        )
+    return render_template(
+        "deliver_grant_funding/collections/data_sets/replace_dataset.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+        gr_errors=gr_errors,
+        data_source=data_source,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/map-columns",
     methods=["GET", "POST"],
 )
