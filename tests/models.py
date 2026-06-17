@@ -988,7 +988,9 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     class Params:
-        has_column_of_each_type = factory.Trait(schema=_GRANT_RECIPIENT_SCHEMA_WITH_COLUMN_OF_EACH_TYPE)
+        has_column_of_each_type = factory.Trait(
+            schema=_GRANT_RECIPIENT_SCHEMA_WITH_COLUMN_OF_EACH_TYPE,
+        )
 
     id = factory.LazyFunction(uuid4)
     type = DataSourceType.CUSTOM
