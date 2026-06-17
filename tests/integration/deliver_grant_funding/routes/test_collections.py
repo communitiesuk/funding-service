@@ -44,6 +44,7 @@ from app.common.data.types import (
     OrganisationModeEnum,
     QuestionDataOptions,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -87,6 +88,7 @@ from app.deliver_grant_funding.session_models import (
     DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
+from tests.integration.utils import build_file_upload_form_data
 from tests.models import FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
@@ -10821,6 +10823,127 @@ class TestDataSetMissingData:
             grant_id=collection.grant.id,
             collection_type=CollectionType.MONITORING_REPORT,
             collection_id=collection.id,
+        )
+
+
+class TestReplaceDataSet:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+                data_source_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    def test_mismatched_collection_data_source_ids(self, authenticated_grant_admin_client, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection, grant=grant, type=DataSourceType.GRANT_RECIPIENT
+        )
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, client_fixture, can_access, request: FixtureRequest, factories):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            name="access test",
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        if can_access:
+            assert response.status_code == 200
+            assert f"{collection.name} Replace access test data set" in get_h1_text(soup)
+        else:
+            assert response.status_code == 403
+
+    def test_upload_with_multiple_data_errors_shows_all(
+        self, factories, authenticated_grant_admin_client, dataset_with_column_of_each_type
+    ):
+
+        grant = dataset_with_column_of_each_type.grant
+        factories.user_role.create(
+            user=authenticated_grant_admin_client.user,
+            grant=grant,
+            permissions=[RoleEnum.ADMIN],
+        )
+
+        factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E123",
+            organisation__name="Rivendell",
+        )
+        factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E456",
+            organisation__name="Lothlorien",
+        )
+
+        data = build_file_upload_form_data(
+            csv_content=(
+                dataset_with_column_of_each_type.expected_headers
+                + "\nE123,Rivendell,£100,1.2123123,hello,5,$10,12km"
+                + "\nE456,Lothlorien,£100abc,1.2,hello,5.9,$10,12km"
+            )
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=grant.id,
+                collection_type=dataset_with_column_of_each_type.collection.type,
+                collection_id=dataset_with_column_of_each_type.collection.id,
+                data_source_id=dataset_with_column_of_each_type.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "One or more numbers in column 'British pounds' are not formatted as British pounds to 2 decimal places "
+            + "with the '£' prefix. For example, £100.00",
+        )
+        assert page_has_error(soup, "One or more numbers in column 'Whole number' are not whole numbers")
+        assert page_has_error(
+            soup,
+            "One or more numbers in column 'Decimal number' has more than 3 decimal places",
         )
 
 

@@ -72,6 +72,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.collection_configure_public_sign_up",
     "deliver_grant_funding.set_guidance_for_multiple_submissions",
     "deliver_grant_funding.upload_data_set",
+    "deliver_grant_funding.replace_data_set",
     "deliver_grant_funding.map_data_set_columns",
     "deliver_grant_funding.map_data_set_number_columns",
     "deliver_grant_funding.data_set_missing_data",
