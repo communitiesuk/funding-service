@@ -21,7 +21,8 @@ def list_active_grants() -> ResponseReturnValue:
 
     grants = get_active_grants()
     grants_data = {
-        "grants": [{"id": grant.code, "label": grant.name} for grant in grants],
+        "grants": [{"id": grant.code, "label": grant.name} for grant in grants]
+        + [{"id": "not-listed", "label": "An other grant not listed"}],
     }
 
     return jsonify(grants_data), 200
