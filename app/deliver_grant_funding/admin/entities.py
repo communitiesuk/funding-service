@@ -155,6 +155,8 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
     can_edit = True
     can_delete = True
 
+    can_export = True
+
     column_list = ["external_id", "name", "type", "mode", "status", "can_manage_grants"]
     column_searchable_list = ["external_id", "name"]
     column_filters = ["external_id", "name", "type", "mode", "status", "can_manage_grants"]
