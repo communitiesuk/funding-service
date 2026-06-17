@@ -90,7 +90,7 @@
       {% if can_create_submissions %}
         {{
           govukButton({
-          "text": "Start a new report",
+          "text": "Start a new " + collection.type.constants.singular,
           "classes": "govuk-button--secondary" if submission_helpers|length else "",
           "href": url_for('access_grant_funding.start_new_multiple_submission', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id=collection.id)})
         }}

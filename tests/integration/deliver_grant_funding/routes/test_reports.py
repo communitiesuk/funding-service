@@ -12,6 +12,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
     DataSourceType,
+    GrantStatusEnum,
     SubmissionModeEnum,
 )
 from app.common.forms import GenericConfirmDeletionForm
@@ -221,3 +222,30 @@ class TestListReports:
 
         assert change_name_link is None
         assert delete_link is None
+
+    @pytest.mark.parametrize(
+        "status, expected",
+        (
+            (GrantStatusEnum.DRAFT, "Reports cannot be published until the grant is live."),
+            (GrantStatusEnum.LIVE, "There are no reports live."),
+        ),
+    )
+    def test_get_reports_grant_status_description(
+        self,
+        factories,
+        authenticated_platform_admin_client,
+        status: GrantStatusEnum,
+        expected: str,
+    ):
+        grant = factories.grant.create(status=status)
+
+        response = authenticated_platform_admin_client.get(
+            url_for("deliver_grant_funding.list_reports", grant_id=grant.id)
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert grant.name in soup.text
+
+        assert expected in " ".join(soup.text.split())

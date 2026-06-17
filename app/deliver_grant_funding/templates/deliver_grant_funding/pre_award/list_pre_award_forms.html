@@ -43,7 +43,7 @@
       </h1>
 
       <p class="govuk-body"><strong>Grant status</strong>: {{ grantStatusTag(grant.status) }}</p>
-      <p class="govuk-body">{{ grantStatusDescription(grant) }}</p>
+      <p class="govuk-body">{{ grantStatusDescription(grant, enum.collection_type_enum.APPLICATION) }}</p>
     </div>
   </div>
   <div class="govuk-grid-row">

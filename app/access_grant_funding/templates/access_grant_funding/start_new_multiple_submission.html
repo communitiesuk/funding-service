@@ -24,7 +24,7 @@
         <span class="govuk-caption-l">{{ collection.name }}</span>
         {{ collection_render_single_question(form, question, interpolator, questionAsPageHeading=true) }}
 
-        {{ form.submit(params={"text": "Start the report"}) }}
+        {{ form.submit(params={"text": "Start the " + collection.type.constants.singular}) }}
       </form>
     </div>
   </div>

@@ -29,11 +29,12 @@
   {{ govukTag({"text": status | title, "classes": classMap[status] }) }}
 {% endmacro %}
 
-{% macro grantStatusDescription(grant) %}
+{% macro grantStatusDescription(grant, collection_type) %}
   {% if grant.status == enum.grant_status.DRAFT %}
-    Reports cannot be published until the grant is live.
+    {{ collection_type.constants.plural | uppercase_first }}
+    cannot be published until the grant is live.
   {% elif grant.status == enum.grant_status.LIVE and grant.reports | selectattr('status', 'equalto', enum.collection_status.OPEN) | list | length == 0 %}
-    There are no reports live.
+    There are no {{ collection_type.constants.plural }} live.
   {% endif %}
 {% endmacro %}
 
