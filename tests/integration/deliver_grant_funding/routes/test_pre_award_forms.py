@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.models import Collection
-from app.common.data.types import CollectionStatusEnum, CollectionType
+from app.common.data.types import CollectionStatusEnum, CollectionType, GrantStatusEnum
 from app.common.forms import GenericConfirmDeletionForm
 from tests.utils import AnyStringMatching, get_form_data, page_has_button, page_has_link
 
@@ -172,6 +172,33 @@ class TestListPreAwardForms:
             url_for("deliver_grant_funding.list_pre_award_forms", grant_id=authenticated_grant_admin_client.grant.id)
         )
         assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "status, expected",
+        (
+            (GrantStatusEnum.DRAFT, "Forms cannot be published until the grant is live."),
+            (GrantStatusEnum.LIVE, "There are no forms live."),
+        ),
+    )
+    def test_get_grant_status_description(
+        self,
+        factories,
+        authenticated_platform_admin_client,
+        status: GrantStatusEnum,
+        expected: str,
+    ):
+        grant = factories.grant.create(status=status, allow_pre_award=True)
+
+        response = authenticated_platform_admin_client.get(
+            url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id)
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert grant.name in soup.text
+
+        assert expected in " ".join(soup.text.split())
 
 
 class TestPreAwardNavigation:
