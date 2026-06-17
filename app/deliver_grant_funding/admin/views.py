@@ -57,6 +57,7 @@ from app.common.data.types import (
 from app.common.filters import format_date
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.feature_flags import FeatureFlags, SessionFeatureFlag
 from app.common.helpers.request_tracing import (
     REQUEST_TRACING_COOKIE_NAME,
     REQUEST_TRACING_TTL,
@@ -84,6 +85,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetCollectionReportingDatesForm,
     PlatformAdminSetCollectionSubmissionDatesForm,
     PlatformAdminSetPrivacyPolicyForm,
+    PlatformAdminToggleFeatureFlagForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
@@ -1156,6 +1158,39 @@ class PlatformAdminDeveloperToolsView(FlaskAdminPlatformAdminAccessibleMixin, Ba
             return response
 
         return redirect(url_for("developer_tools.index"))
+
+
+class PlatformAdminFeatureFlagsView(FlaskAdminPlatformMemberAccessibleMixin, BaseView):
+    @expose("/")
+    def index(self) -> Any:
+        return self.render(
+            "deliver_grant_funding/admin/feature-flags.html",
+            flags=FeatureFlags.all(),
+        )
+
+    @expose("/toggle/<flag_name>", methods=["GET", "POST"])
+    def toggle(self, flag_name: str) -> Any:
+        if not hasattr(FeatureFlags, flag_name):
+            abort(404)
+
+        flag = getattr(FeatureFlags, flag_name)
+        if not isinstance(flag, SessionFeatureFlag):
+            abort(404)
+
+        form = PlatformAdminToggleFeatureFlagForm(data={"enabled": "on" if flag.is_enabled else "off"})
+        if form.validate_on_submit():
+            desired = form.enabled.data == "on"
+            if desired != flag.is_enabled:
+                flag.toggle()
+
+            return redirect(url_for("feature_flags.index"))
+
+        return self.render(
+            "deliver_grant_funding/admin/toggle-feature-flag.html",
+            flag=flag,
+            flag_name=flag_name,
+            form=form,
+        )
 
 
 @dataclass(frozen=True)

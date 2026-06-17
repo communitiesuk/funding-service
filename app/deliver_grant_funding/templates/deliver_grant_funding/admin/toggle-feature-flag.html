@@ -1,0 +1,37 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('feature_flags.index') }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <span class="govuk-caption-l">Feature flags</span>
+      <h1 class="govuk-heading-l">{{ flag.name }}</h1>
+      <p class="govuk-body">{{ flag.description }}</p>
+
+      {% if flag.is_enabled %}
+        <p class="govuk-body">Current status: {{ govukTag({"text": "Enabled", "classes": "govuk-tag--green"}) }}</p>
+      {% else %}
+        <p class="govuk-body">Current status: {{ govukTag({"text": "Disabled", "classes": "govuk-tag--grey"}) }}</p>
+      {% endif %}
+
+      <form method="post" novalidate class="govuk-!-margin-top-7">
+        {{ form.csrf_token }}
+        {{ form.enabled }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

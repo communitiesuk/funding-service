@@ -19,6 +19,7 @@ from app.deliver_grant_funding.admin.views import (
     PlatformAdminDataAnalysisView,
     PlatformAdminDeltaCertifiersView,
     PlatformAdminDeveloperToolsView,
+    PlatformAdminFeatureFlagsView,
 )
 
 
@@ -50,5 +51,10 @@ def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
     flask_admin.add_view(
         PlatformAdminDeveloperToolsView(
             name="Developer tools", endpoint="developer_tools", url="developer-tools", category="Developer tools"
+        )
+    )
+    flask_admin.add_view(
+        PlatformAdminFeatureFlagsView(
+            name="Feature flags", endpoint="feature_flags", url="feature-flags", category="Developer tools"
         )
     )
