@@ -184,6 +184,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, collection_type: str, submis
                         "access_grant_funding.confirm_sent_for_certification",
                         organisation_id=organisation_id,
                         grant_id=grant_id,
+                        collection_type=runner.submission.collection.type,
                         submission_id=submission_id,
                     )
                 )
@@ -303,11 +304,13 @@ def check_your_answers(
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/sent-for-sign-off-confirmation",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/sent-for-sign-off-confirmation",
     methods=["GET"],
 )
 @has_access_grant_role(RoleEnum.MEMBER)
-def confirm_sent_for_certification(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+def confirm_sent_for_certification(
+    organisation_id: UUID, grant_id: UUID, collection_type: str, submission_id: UUID
+) -> ResponseReturnValue:
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
     if not submission_helper.in_answers_locked_state:

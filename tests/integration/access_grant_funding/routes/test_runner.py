@@ -2210,6 +2210,7 @@ class TestConfirmSentForCertification:
                 "access_grant_funding.confirm_sent_for_certification",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -2242,6 +2243,7 @@ class TestConfirmSentForCertification:
                 "access_grant_funding.confirm_sent_for_certification",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -2297,6 +2299,7 @@ class TestConfirmSentForCertification:
                 "access_grant_funding.confirm_sent_for_certification",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
