@@ -306,7 +306,7 @@ class SubmissionHelper:
                         "access_grant_funding.tasklist",
                         organisation_id=grant_recipient.organisation_id,
                         grant_id=grant_recipient.grant_id,
-                        collection_id=collection.id,
+                        collection_type=collection.type,
                         submission_id=submission.id,
                     )
 

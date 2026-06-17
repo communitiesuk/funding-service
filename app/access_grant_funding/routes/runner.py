@@ -65,6 +65,7 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
                 "access_grant_funding.tasklist",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -127,6 +128,7 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
                     "access_grant_funding.tasklist",
                     organisation_id=organisation_id,
                     grant_id=grant_id,
+                    collection_type=submission.collection.type,
                     submission_id=submission.id,
                 )
             )
@@ -142,12 +144,12 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/tasklist",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/tasklist",
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)
-def tasklist(organisation_id: UUID, grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+def tasklist(organisation_id: UUID, grant_id: UUID, collection_type: str, submission_id: UUID) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 

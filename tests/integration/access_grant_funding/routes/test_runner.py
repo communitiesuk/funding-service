@@ -172,6 +172,7 @@ class TestRouteToSubmission:
             "access_grant_funding.tasklist",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=collection.type,
             submission_id=submissions[0].id,
         )
         assert response1.status_code == 302
@@ -520,6 +521,7 @@ class TestTasklist:
                 "access_grant_funding.tasklist",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -579,6 +581,7 @@ class TestTasklist:
                 "access_grant_funding.tasklist",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             ),
             follow_redirects=False,
@@ -637,6 +640,7 @@ class TestTasklist:
                 "access_grant_funding.tasklist",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             ),
             data={"submit": "y"},
@@ -679,6 +683,7 @@ class TestTasklist:
                 "access_grant_funding.tasklist",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_ready_to_submit.collection.type,
                 submission_id=submission_ready_to_submit.id,
             ),
             data={"submit": "y"},
@@ -708,6 +713,7 @@ class TestTasklist:
                 "access_grant_funding.tasklist",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission_ready_to_submit.collection.type,
                 submission_id=submission_ready_to_submit.id,
             ),
             data={"submit": "y"},
@@ -778,6 +784,7 @@ class TestTasklist:
                 "access_grant_funding.tasklist",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             ),
             data={"submit": "y"},
@@ -806,6 +813,7 @@ class TestTasklist:
                 "access_grant_funding.tasklist",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
         )
@@ -2013,6 +2021,7 @@ class TestCheckYourAnswers:
                 "access_grant_funding.tasklist",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
             )
             assert response.location == expected_location
@@ -2199,6 +2208,7 @@ class TestConfirmSentForCertification:
             "access_grant_funding.tasklist",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission.collection.type,
             submission_id=submission.id,
         )
         assert response.location == expected_location

@@ -703,6 +703,7 @@ class AGFFormRunner(FormRunner):
                 "access_grant_funding.tasklist",
                 organisation_id=runner.submission.submission.grant_recipient.organisation.id,
                 grant_id=runner.submission.submission.grant_recipient.grant.id,
+                collection_type=runner.submission.collection.type,
                 submission_id=runner.submission.id,
             )
         ),
