@@ -23,7 +23,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 from wtforms import Field, FieldList, FormField, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Optional, Regexp, ValidationError
+from wtforms.validators import DataRequired, Email, Optional, Regexp, StopValidation, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import (
@@ -61,6 +61,7 @@ from app.deliver_grant_funding.data_sets import (
     DecimalError,
     PrefixError,
     SuffixError,
+    _validate_cell,
 )
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
@@ -1031,6 +1032,7 @@ class UploadDataSetForm(FlaskForm):
         super().__init__(*args, **kwargs)
         self._existing_data_source_names = existing_data_source_names or []
         self.existing_datasource = existing_datasource
+        self.data_errors = []
 
     def validate_name(self, field: StringField) -> None:
         if field.data and field.data in self._existing_data_source_names:
@@ -1079,14 +1081,13 @@ class UploadDataSetForm(FlaskForm):
         if row_count > 10000:
             raise ValidationError("The file must contain no more than 10,000 rows")
 
-    def _validate_existing_references(self, existing_datasource: DataSource, fieldnames: list) -> bool:
+    def _validate_existing_references(self, existing_datasource: DataSource, fieldnames: list) -> list[str]:
         fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
 
-        validation_result = True
+        errors = []
         for dependent_reference in existing_datasource.depended_on_by_columns:
-            if dependent_reference.depends_on_column_name not in fieldnames_to_safe_ids:
-                validation_result = False
-                column = existing_datasource.schema.root[dependent_reference.depends_on_column_name]  # ty:ignore[unresolved-attribute]
+            if dependent_reference.depends_on_column_name not in fieldnames_to_safe_ids.values():
+                column = existing_datasource.schema.root[dependent_reference.depends_on_column_name]  # ty:ignore[unresolved-attribute, invalid-argument-type]
                 col_name = column.original_column_name
                 q_name = dependent_reference.component.name
                 usage_text = "used in "
@@ -1095,18 +1096,69 @@ class UploadDataSetForm(FlaskForm):
                         usage_text = "referenced in validation for "
                     elif dependent_reference.expression.type_ == ExpressionType.CONDITION:
                         usage_text += "a condition for "
-                self.file.errors.append(  # ty:ignore[unresolved-attribute]
+                errors.append(
                     (
                         f"Column '{col_name}' is missing from the selected file but is being "
                         + usage_text
                         + f"'{q_name}' Add the column to the file or remove the form reference"
                     )
                 )
-        return validation_result
+        return errors
 
-    def validate_file(self, field: Field) -> bool:
+    def _validate_data_for_existing_columns(
+        self, datasource: DataSource, fieldnames: list[str], rows: list[dict[str, str]]
+    ) -> list[str]:
+        safe_ids_to_column_names = {safe_column_id(fieldname): fieldname for fieldname in fieldnames}
+        data_errors = []
+        for col_safe_id, column_def in datasource.schema.root.items():  # ty:ignore[unresolved-attribute]
+            if col_safe_id in safe_ids_to_column_names.keys():
+                column_mapping = DataSetColumnMapping.build_from_data_source_schema_column(column_def)
+                for row in rows:
+                    data_errors.extend(
+                        _validate_cell(
+                            safe_ids_to_column_names[col_safe_id],
+                            row[safe_ids_to_column_names[col_safe_id]],
+                            column_mapping,
+                        )
+                    )
+
+        errors_to_show = set()
+        for bp_error in [e for e in data_errors if (isinstance(e, BritishPoundsError))]:
+            errors_to_show.add(
+                (
+                    f"One or more numbers in column '{bp_error.column}' are not formatted as British pounds to 2 "
+                    + "decimal places with the '£' prefix. For example, £100.00"
+                )
+            )
+        for prefix_error in [e for e in data_errors if (isinstance(e, PrefixError))]:
+            errors_to_show.add(
+                f"One or more numbers in column '{prefix_error.column}' do not match the prefix "
+                + f"('{prefix_error.prefix}')"
+            )
+        for suffix_error in [e for e in data_errors if (isinstance(e, SuffixError))]:
+            errors_to_show.add(
+                f"One or more numbers in column '{suffix_error.column}' do not match the suffix "
+                + f"('{suffix_error.suffix}')"
+            )
+        for type_error in [
+            e for e in data_errors if isinstance(e, DataTypeError) and e.expected_type == NumberTypeEnum.INTEGER
+        ]:
+            errors_to_show.add(f"One or more numbers in column '{type_error.column}' are not whole numbers")
+        for type_error in [
+            e for e in data_errors if isinstance(e, DataTypeError) and e.expected_type == NumberTypeEnum.DECIMAL
+        ]:
+            errors_to_show.add(f"One or more numbers in column '{type_error.column}' are not decimal numbers")
+        for decimal_error in [e for e in data_errors if (isinstance(e, DecimalError))]:
+            errors_to_show.add(
+                f"One or more numbers in column '{decimal_error.column}' has more than "
+                + f"{decimal_error.max_decimal_places} decimal places"
+            )
+
+        return list(errors_to_show)
+
+    def validate_file(self, field: Field) -> None:
         if not field.data or not hasattr(field.data, "stream"):
-            return False
+            return
 
         field.data.stream.seek(0)
         try:
@@ -1122,9 +1174,13 @@ class UploadDataSetForm(FlaskForm):
             UploadDataSetForm._validate_max_rows(rows)
 
             if self.existing_datasource:
-                if not self._validate_existing_references(self.existing_datasource, fieldnames):
-                    return False
-            return True
+                errors = self._validate_existing_references(self.existing_datasource, fieldnames)
+
+                errors.extend(self._validate_data_for_existing_columns(self.existing_datasource, fieldnames, rows))
+
+                if errors:
+                    self.data_errors = errors
+                    raise StopValidation("There is a problem")
 
         finally:
             field.data.stream.seek(0)

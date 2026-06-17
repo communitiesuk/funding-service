@@ -73,7 +73,7 @@ def dataset_with_column_of_each_type(factories):
             ),
             "c_whole_number_suffix": DataSourceSchemaColumn(
                 data_type=QuestionDataType.NUMBER,
-                presentation_options=QuestionPresentationOptions(prefix="km"),
+                presentation_options=QuestionPresentationOptions(suffix="km"),
                 data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
                 original_column_name="Whole number suffix",
             ),
@@ -82,6 +82,12 @@ def dataset_with_column_of_each_type(factories):
     data_source = factories.data_source.create(
         grant=grant_recipient.grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, schema=schema
     )
+    data_source.expected_headers = (
+        f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},"
+        + "British pounds,Decimal number,Just text,Whole number,Whole number prefix,"
+        + "Whole number suffix"
+    )
+
     yield data_source
 
 
@@ -116,8 +122,8 @@ class TestUploadDataSetForm:
 
         if is_existing:
             assert form.validate() is False
-            assert "Column 'Allocation' is missing from the selected file" in form.file.errors[0]
-            assert f"is being used in '{question.name}'" in form.file.errors[0]
+            assert "Column 'Allocation' is missing from the selected file" in form.data_errors[0]
+            assert f"is being used in '{question.name}'" in form.data_errors[0]
         else:
             assert form.validate() is True
 
@@ -145,15 +151,15 @@ class TestUploadDataSetForm:
         form.process(data)
 
         assert form.validate() is False
-        assert len(form.file.errors) == 2
+        assert len(form.data_errors) == 2
         assert (
             f"Column 'British pounds' is missing from the selected file but is being used in '{question_1.name}' "
             + "Add the column to the file or remove the form reference"
-        ) in form.file.errors
+        ) in form.data_errors
         assert (
             f"Column 'Just text' is missing from the selected file but is being used in '{question_2.name}' "
             + "Add the column to the file or remove the form reference"
-        ) in form.file.errors
+        ) in form.data_errors
 
     def test_error_wording_for_different_types_of_reference_when_column_removed(
         self, factories, dataset_with_column_of_each_type
@@ -207,19 +213,19 @@ class TestUploadDataSetForm:
         form.process(data)
 
         assert form.validate() is False
-        assert len(form.file.errors) == 3
+        assert len(form.data_errors) == 3
         assert (
             f"Column 'Just text' is missing from the selected file but is being used in '{question_1.name}' "
             + "Add the column to the file or remove the form reference"
-        ) in form.file.errors
+        ) in form.data_errors
         assert (
             "Column 'British pounds' is missing from the selected file but is being used in a condition for "
             + f"'{question_2.name}' Add the column to the file or remove the form reference"
-        ) in form.file.errors
+        ) in form.data_errors
         assert (
             "Column 'Decimal number' is missing from the selected file but is being referenced in validation for "
             + f"'{question_3.name}' Add the column to the file or remove the form reference"
-        ) in form.file.errors
+        ) in form.data_errors
 
     def test_same_column_referenced_in_multiple_places_raises_all_errors(
         self,
@@ -276,16 +282,137 @@ class TestUploadDataSetForm:
         form.process(data)
 
         assert form.validate() is False
-        assert len(form.file.errors) == 3
+        assert len(form.data_errors) == 3
         assert (
             f"Column 'Allocation' is missing from the selected file but is being used in '{question_1.name}' "
             + "Add the column to the file or remove the form reference"
-        ) in form.file.errors
+        ) in form.data_errors
         assert (
             "Column 'Allocation' is missing from the selected file but is being used in a condition for "
             + f"'{question_2.name}' Add the column to the file or remove the form reference"
-        ) in form.file.errors
+        ) in form.data_errors
         assert (
             "Column 'Allocation' is missing from the selected file but is being referenced in validation for "
             + f"'{question_3.name}' Add the column to the file or remove the form reference"
-        ) in form.file.errors
+        ) in form.data_errors
+
+    @pytest.mark.parametrize("bad_value", ["£twelve", "abc", "$100", "£1oo"])
+    def test_new_data_in_existing_columns_does_not_match_formatting_british_pounds(
+        self, factories, dataset_with_column_of_each_type, bad_value
+    ):
+
+        data = _build_file_upload_form_data(
+            csv_content=(
+                dataset_with_column_of_each_type.expected_headers
+                + "\na,b,£100,1.2,hello,5,$10,12km"
+                + f"\na,b,{bad_value},1.2,hello,5,$10,12km"
+            )
+        )
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=dataset_with_column_of_each_type)
+        form.process(data)
+
+        assert form.validate() is False
+        assert (
+            "One or more numbers in column 'British pounds' are not formatted as British pounds to 2 decimal places "
+            + "with the '£' prefix. For example, £100.00"
+        ) in form.data_errors
+
+    def test_new_data_in_existing_columns_does_not_match_prefix(self, factories, dataset_with_column_of_each_type):
+
+        data = _build_file_upload_form_data(
+            csv_content=(
+                dataset_with_column_of_each_type.expected_headers
+                + "\na,b,£100,1.2,hello,5,$10,12km"
+                + "\na,b,£100,1.2,hello,5,€10,12km"
+            )
+        )
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=dataset_with_column_of_each_type)
+        form.process(data)
+
+        assert form.validate() is False
+        assert ("One or more numbers in column 'Whole number prefix' do not match the prefix ('$')") in form.data_errors
+
+    def test_new_data_in_existing_columns_does_not_match_suffix(self, factories, dataset_with_column_of_each_type):
+
+        data = _build_file_upload_form_data(
+            csv_content=(
+                dataset_with_column_of_each_type.expected_headers
+                + "\na,b,£100,1.2,hello,5,$10,12km"
+                + "\na,b,£100,1.2,hello,5,$10,12miles"
+            )
+        )
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=dataset_with_column_of_each_type)
+        form.process(data)
+
+        assert form.validate() is False
+        assert (
+            "One or more numbers in column 'Whole number suffix' do not match the suffix ('km')"
+        ) in form.data_errors
+
+    def test_new_data_in_existing_columns_does_not_match_integer(self, factories, dataset_with_column_of_each_type):
+
+        data = _build_file_upload_form_data(
+            csv_content=(
+                dataset_with_column_of_each_type.expected_headers
+                + "\na,b,£100,1.2,hello,5,$10,12km"
+                + "\na,b,£100,1.2,hello,1.5,$10,12km"
+            )
+        )
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=dataset_with_column_of_each_type)
+        form.process(data)
+
+        assert form.validate() is False
+        assert ("One or more numbers in column 'Whole number' are not whole numbers") in form.data_errors
+
+    def test_new_data_in_existing_columns_is_not_a_decimal_number(self, factories, dataset_with_column_of_each_type):
+
+        data = _build_file_upload_form_data(
+            csv_content=(
+                dataset_with_column_of_each_type.expected_headers
+                + "\na,b,£100,1.2,hello,5,$10,12km"
+                + "\na,b,£100,hello,hello,5,$10,12km"
+            )
+        )
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=dataset_with_column_of_each_type)
+        form.process(data)
+
+        assert form.validate() is False
+        assert ("One or more numbers in column 'Decimal number' are not decimal numbers") in form.data_errors
+
+    def test_new_data_in_existing_columns_has_too_many_decimal_places(
+        self, factories, dataset_with_column_of_each_type
+    ):
+
+        data = _build_file_upload_form_data(
+            csv_content=(
+                dataset_with_column_of_each_type.expected_headers
+                + "\na,b,£100,1.2,hello,5,$10,12km"
+                + "\na,b,£100,1.2345,hello,5,$10,12km"
+            )
+        )
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=dataset_with_column_of_each_type)
+        form.process(data)
+
+        assert form.validate() is False
+        assert ("One or more numbers in column 'Decimal number' has more than 3 decimal places") in form.data_errors
+
+    def test_multiple_format_errors_in_same_column_appear_once(self, factories, dataset_with_column_of_each_type):
+
+        data = _build_file_upload_form_data(
+            csv_content=(
+                dataset_with_column_of_each_type.expected_headers
+                + "\na,b,£100,1.2,hello,5,$10,12km"
+                + "\na,b,£twelve,1.2,hello,5,$10,12km"
+                + "\na,b,£1oo,1.2,hello,5,$10,12km"
+                + "\na,b,£100,1.2,hello,5,$10,12km"
+            )
+        )
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=dataset_with_column_of_each_type)
+        form.process(data)
+
+        assert form.validate() is False
+        assert len(form.data_errors) == 1
+        assert (
+            "One or more numbers in column 'British pounds' are not formatted as British pounds to 2 decimal places "
+            + "with the '£' prefix. For example, £100.00"
+        ) in form.data_errors

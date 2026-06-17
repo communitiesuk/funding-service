@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 from app.common.data.types import (
+    DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
@@ -135,6 +136,37 @@ class DataSetColumnMapping(BaseModel):
     max_decimal_places: int | None = Field(
         default_factory=lambda o: 2 if o["column_type"] == "BRITISH_POUNDS" else None
     )
+
+    @staticmethod
+    def build_from_data_source_schema_column(schema_column: DataSourceSchemaColumn) -> DataSetColumnMapping:
+        match schema_column.data_type:
+            case QuestionDataType.TEXT_SINGLE_LINE:
+                return DataSetColumnMapping(column_name=schema_column.original_column_name, column_type="TEXT")
+            case QuestionDataType.NUMBER:
+                if schema_column.data_options.number_type == NumberTypeEnum.DECIMAL:
+                    is_british_pounds = (
+                        schema_column.presentation_options.prefix == "£"
+                        and schema_column.data_options.max_decimal_places == 2
+                    )
+                    return DataSetColumnMapping(
+                        column_name=schema_column.original_column_name,
+                        column_type="BRITISH_POUNDS" if is_british_pounds else "DECIMAL",
+                        prefix=schema_column.presentation_options.prefix,
+                        suffix=schema_column.presentation_options.suffix,
+                        max_decimal_places=schema_column.data_options.max_decimal_places,
+                    )
+                elif schema_column.data_options.number_type == NumberTypeEnum.INTEGER:
+                    return DataSetColumnMapping(
+                        column_name=schema_column.original_column_name,
+                        column_type="INTEGER",
+                        prefix=schema_column.presentation_options.prefix,
+                        suffix=schema_column.presentation_options.suffix,
+                    )
+
+        raise ValueError(
+            f"Cannot build data set column mapping for data type {schema_column.data_type}"
+            + f", number type {schema_column.data_options.number_type}"
+        )
 
     @property
     def data_type(self) -> Literal[QuestionDataType.TEXT_SINGLE_LINE, QuestionDataType.NUMBER]:

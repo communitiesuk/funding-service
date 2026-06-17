@@ -1,10 +1,20 @@
+import pytest
+
 from app import QuestionDataType
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum
+from app.common.data.types import (
+    DataSourceSchemaColumn,
+    ExpressionType,
+    ManagedExpressionsEnum,
+    NumberTypeEnum,
+    QuestionDataOptions,
+    QuestionPresentationOptions,
+)
 from app.deliver_grant_funding.session_models import (
     AddConditionDependsOnSessionModel,
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
+    DataSetColumnMapping,
 )
 
 
@@ -54,3 +64,62 @@ class TestSessionModels:
 
             assert session_data.include_current_component_when_referencing_data(None) is False
             assert session_data.include_current_component_when_referencing_data(question) is False
+
+    class TestBuildDataSetColumnMappingFromSchema:
+        def test_text_single_line(self):
+            schema_column = DataSourceSchemaColumn(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                presentation_options=QuestionPresentationOptions(),
+                data_options=QuestionDataOptions(),
+                original_column_name="Grant allocation",
+            )
+            result = DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
+            assert result.column_type == "TEXT"
+            assert result.column_name == "Grant allocation"
+            assert result.prefix is None
+            assert result.suffix is None
+            assert result.max_decimal_places is None
+
+        @pytest.mark.parametrize("prefix,suffix", [(None, "km"), (None, None), ("$", None)])
+        def test_integer(self, prefix, suffix):
+            schema_column = DataSourceSchemaColumn(
+                data_type=QuestionDataType.NUMBER,
+                presentation_options=QuestionPresentationOptions(prefix=prefix, suffix=suffix),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                original_column_name="Grant allocation",
+            )
+            result = DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
+            assert result.column_type == "INTEGER"
+            assert result.column_name == "Grant allocation"
+            assert result.prefix == prefix
+            assert result.suffix == suffix
+            assert result.max_decimal_places is None
+
+        @pytest.mark.parametrize("prefix,suffix", [(None, "km"), (None, None), ("$", None), ("£", None)])
+        def test_decimal(self, prefix, suffix):
+            schema_column = DataSourceSchemaColumn(
+                data_type=QuestionDataType.NUMBER,
+                presentation_options=QuestionPresentationOptions(prefix=prefix, suffix=suffix),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=3),
+                original_column_name="Grant allocation",
+            )
+            result = DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
+            assert result.column_type == "DECIMAL"
+            assert result.column_name == "Grant allocation"
+            assert result.prefix == prefix
+            assert result.suffix == suffix
+            assert result.max_decimal_places == 3
+
+        def test_british_pounds(self):
+            schema_column = DataSourceSchemaColumn(
+                data_type=QuestionDataType.NUMBER,
+                presentation_options=QuestionPresentationOptions(prefix="£"),
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
+                original_column_name="Grant allocation",
+            )
+            result = DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
+            assert result.column_type == "BRITISH_POUNDS"
+            assert result.column_name == "Grant allocation"
+            assert result.prefix == "£"
+            assert result.suffix is None
+            assert result.max_decimal_places == 2

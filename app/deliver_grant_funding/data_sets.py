@@ -34,18 +34,22 @@ class CellError(BaseModel):
 
 class PrefixError(CellError):
     table_message: str = "Incorrect prefix"
+    prefix: str
 
 
 class SuffixError(CellError):
     table_message: str = "Incorrect suffix"
+    suffix: str
 
 
 class DecimalError(CellError):
     table_message: str = "Too many decimal places"
+    max_decimal_places: int
 
 
 class DataTypeError(CellError):
     table_message: str = "Incorrect data type"
+    expected_type: QuestionDataType | NumberTypeEnum
 
 
 class BritishPoundsError(CellError):
@@ -82,11 +86,11 @@ def _validate_decimal(stripped: str, mapping: DataSetColumnMapping, column: str)
     errors: list[CellError] = []
     decimal_places = len(stripped.split(".")[1]) if "." in stripped else 0
     if mapping.max_decimal_places is not None and decimal_places > mapping.max_decimal_places:
-        errors.append(DecimalError(column=column))
+        errors.append(DecimalError(column=column, max_decimal_places=mapping.max_decimal_places))
     try:
         Decimal(stripped)
     except InvalidOperation:
-        errors.append(DataTypeError(column=column))
+        errors.append(DataTypeError(column=column, expected_type=NumberTypeEnum.DECIMAL))
     return errors
 
 
@@ -110,13 +114,13 @@ def _validate_cell(column: str, value: str, mapping: DataSetColumnMapping) -> li
             Decimal(stripped)
         except InvalidOperation:
             if mapping.prefix:
-                errors.append(PrefixError(column=column))
+                errors.append(PrefixError(column=column, prefix=mapping.prefix))
             if mapping.suffix:
-                errors.append(SuffixError(column=column))
+                errors.append(SuffixError(column=column, suffix=mapping.suffix))
 
     if mapping.number_type == NumberTypeEnum.INTEGER:
         if not stripped.lstrip("-").isdigit():
-            errors.append(DataTypeError(column=column))
+            errors.append(DataTypeError(column=column, expected_type=NumberTypeEnum.INTEGER))
 
     if mapping.number_type == NumberTypeEnum.DECIMAL:
         errors.extend(_validate_decimal(stripped, mapping, column))
