@@ -14,7 +14,7 @@ from app.common.collections.types import FileUploadAnswer
 from app.common.data import interfaces
 from app.common.data.interfaces import rollback
 from app.common.data.interfaces.collections import get_collection
-from app.common.data.types import FormRunnerState, RoleEnum, SubmissionModeEnum
+from app.common.data.types import CollectionType, FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext, interpolate
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
@@ -149,7 +149,9 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
 )
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)
-def tasklist(organisation_id: UUID, grant_id: UUID, collection_type: str, submission_id: UUID) -> ResponseReturnValue:
+def tasklist(
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID
+) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 
@@ -225,7 +227,7 @@ def tasklist(organisation_id: UUID, grant_id: UUID, collection_type: str, submis
 def ask_a_question(
     organisation_id: UUID,
     grant_id: UUID,
-    collection_type: str,
+    collection_type: CollectionType,
     submission_id: UUID,
     question_id: UUID,
     add_another_index: int | None = None,
@@ -277,7 +279,7 @@ def ask_a_question(
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)
 def check_your_answers(
-    organisation_id: UUID, grant_id: UUID, collection_type: str, submission_id: UUID, section_id: UUID
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID, section_id: UUID
 ) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
@@ -309,7 +311,7 @@ def check_your_answers(
 )
 @has_access_grant_role(RoleEnum.MEMBER)
 def confirm_sent_for_certification(
-    organisation_id: UUID, grant_id: UUID, collection_type: str, submission_id: UUID
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID
 ) -> ResponseReturnValue:
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
     submission_helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
@@ -344,7 +346,7 @@ def confirm_sent_for_certification(
 def download_file(
     organisation_id: UUID,
     grant_id: UUID,
-    collection_type: str,
+    collection_type: CollectionType,
     submission_id: UUID,
     question_id: UUID,
     add_another_index: int | None = None,
