@@ -689,3 +689,12 @@ class PlatformAdminForceTracingForm(FlaskForm):
         ),
     )
     submit = SubmitField("Apply", widget=GovSubmitInput())
+
+
+class PlatformAdminChangeGrantRecipientStatusForm(FlaskForm):
+    new_status = RadioField(
+        "New status",
+        choices=[(s.value, s.value.capitalize()) for s in GrantRecipientStatusEnum],
+        validators=[DataRequired()],
+        widget=GovRadioInput(),
+    )
