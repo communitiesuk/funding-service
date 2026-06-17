@@ -29,8 +29,7 @@
   {{ govukTag({"text": status | title, "classes": classMap[status] }) }}
 {% endmacro %}
 
-{% macro grantStatusDescription(grant) %}
-  {% set collection_type = enum.collection_type_enum.APPLICATION if grant.pre_award_forms else enum.collection_type_enum.MONITORING_REPORT %}
+{% macro grantStatusDescription(grant, collection_type) %}
   {% if grant.status == enum.grant_status.DRAFT %}
     {{ collection_type.constants.plural | capitalize }}
     cannot be published until the grant is live.
