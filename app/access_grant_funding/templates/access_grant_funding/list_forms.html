@@ -95,7 +95,7 @@
       {% set submission = (collection_submissions | first) if collection_submissions else none %}
       {% set submission_status = SubmissionHelper.get_status(submission.submission, collection) %}
       {% set submission_status_html %}
-        {{ submissionStatusTag(submission_status, submission.is_overdue if submission else collection.is_overdue) }}
+        {{ submissionStatusTag(submission_status, submission.submission.is_overdue if submission else collection.is_overdue) }}
       {% endset %}
       {% set collection_action_config = SubmissionHelper.get_access_submission_action(collection, grant_recipient, submission.submission) %}
       {% set collection_action_html %}
