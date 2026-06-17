@@ -989,6 +989,7 @@ class TestAskAQuestion:
             "access_grant_funding.check_your_answers",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission.collection.type,
             submission_id=submission.id,
             section_id=question.form.id,
         )
@@ -1032,6 +1033,7 @@ class TestAskAQuestion:
             "access_grant_funding.check_your_answers",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
+            collection_type=submission.collection.type,
             submission_id=submission.id,
             section_id=question.form.id,
         )
@@ -1110,6 +1112,7 @@ class TestAskAQuestion:
                 "access_grant_funding.check_your_answers",
                 grant_id=grant_recipient.grant.id,
                 organisation_id=grant_recipient.organisation.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 section_id=question.form.id,
             )
@@ -1907,6 +1910,7 @@ class TestCheckYourAnswers:
                 "access_grant_funding.check_your_answers",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 section_id=question.form.id,
             )
@@ -1941,6 +1945,7 @@ class TestCheckYourAnswers:
                 "access_grant_funding.check_your_answers",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 section_id=question.form.id,
             )
@@ -1993,6 +1998,7 @@ class TestCheckYourAnswers:
                 "access_grant_funding.check_your_answers",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 section_id=question.form.id,
             )
@@ -2041,6 +2047,7 @@ class TestCheckYourAnswers:
                 "access_grant_funding.check_your_answers",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 section_id=question.form.id,
             ),
@@ -2089,6 +2096,7 @@ class TestCheckYourAnswers:
                 "access_grant_funding.check_your_answers",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 section_id=question.form.id,
             )
@@ -2124,6 +2132,7 @@ class TestCheckYourAnswers:
                 "access_grant_funding.check_your_answers",
                 organisation_id=grant_recipient.organisation.id,
                 grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
                 submission_id=submission.id,
                 section_id=question.form.id,
             )

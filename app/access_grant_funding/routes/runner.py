@@ -270,13 +270,13 @@ def ask_a_question(
 
 
 @access_grant_funding_blueprint.route(
-    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/reports/<uuid:submission_id>/check-your-answers/<uuid:section_id>",
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/check-your-answers/<uuid:section_id>",
     methods=["GET", "POST"],
 )
 @auto_commit_after_request
 @has_access_grant_role(RoleEnum.MEMBER)
 def check_your_answers(
-    organisation_id: UUID, grant_id: UUID, submission_id: UUID, section_id: UUID
+    organisation_id: UUID, grant_id: UUID, collection_type: str, submission_id: UUID, section_id: UUID
 ) -> ResponseReturnValue:
     source = request.args.get("source")
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)

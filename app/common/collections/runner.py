@@ -713,6 +713,7 @@ class AGFFormRunner(FormRunner):
                 "access_grant_funding.check_your_answers",
                 organisation_id=runner.submission.submission.grant_recipient.organisation.id,
                 grant_id=runner.submission.submission.grant_recipient.grant.id,
+                collection_type=runner.submission.collection.type,
                 submission_id=runner.submission.id,
                 section_id=form.id if form else runner.form.id if runner.form else None,
                 source=source,
