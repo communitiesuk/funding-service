@@ -869,7 +869,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
 
-        form = PlatformAdminSetReminderDaysForm(collection=collection)
+        form = PlatformAdminSetReminderDaysForm(obj=collection)
 
         if form.validate_on_submit():
             update_collection(

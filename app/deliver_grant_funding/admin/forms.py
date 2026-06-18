@@ -530,13 +530,6 @@ class PlatformAdminSetReminderDaysForm(FlaskForm):
     )
     submit = SubmitField("Save", widget=GovSubmitInput())
 
-    def __init__(self, collection: "Collection", *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        if not self.is_submitted():
-            self.reminder_email_business_days_before_closing.data = (
-                collection.reminder_email_business_days_before_closing
-            )
-
 
 class PlatformAdminScheduleCollectionForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
