@@ -154,7 +154,7 @@
 
 
       {% set reminderDaysTag %}
-        {{ govukTag({"text": collection.reminder_email_business_days_before_closing ~ " business days", "classes": "govuk-tag--blue"}) }}
+        {{ govukTag({"text": collection.reminder_email_business_days_before_closing ~ " business day" ~ ("s" if collection.reminder_email_business_days_before_closing != 1 else "") , "classes": "govuk-tag--blue"}) }}
       {% endset %}
       {%
         do rows.append({

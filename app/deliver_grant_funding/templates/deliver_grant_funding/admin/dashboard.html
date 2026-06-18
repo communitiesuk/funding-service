@@ -19,7 +19,7 @@
           <p class="govuk-!-margin-top-0">
             <a href="{{ url_for('deliver_grant_funding.list_grants') }}" class="govuk-link govuk-link--no-visited-state">
               <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ live_grants|length }}</span>
-              <span class="govuk-body-l">Live grant{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+              <span class="govuk-body-l">Live grant{{ 's' if live_grants|length != 1 else '' }}</span>
             </a>
           </p>
         </div>
@@ -30,7 +30,7 @@
           <p class="govuk-!-margin-top-0">
             <a href="#scheduled-collections" class="govuk-link govuk-link--no-visited-state">
               <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ scheduled_collections|length }}</span>
-              <span class="govuk-body-l">Scheduled collection{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+              <span class="govuk-body-l">Scheduled collection{{ 's' if scheduled_collections|length != 1 else '' }}</span>
             </a>
           </p>
         </div>
@@ -38,7 +38,7 @@
           <p class="govuk-!-margin-top-0">
             <a href="#open-collections" class="govuk-link govuk-link--no-visited-state">
               <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ open_collections|length }}</span>
-              <span class="govuk-body-l">Open collection{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+              <span class="govuk-body-l">Open collection{{ 's' if open_collections|length != 1 else '' }}</span>
             </a>
           </p>
         </div>
@@ -46,7 +46,7 @@
           <p class="govuk-!-margin-top-0">
             <a href="#overdue-collections" class="govuk-link govuk-link--no-visited-state">
               <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ overdue_collections|length }}</span>
-              <span class="govuk-body-l">Overdue collection{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+              <span class="govuk-body-l">Overdue collection{{ 's' if overdue_collections|length != 1 else '' }}</span>
             </a>
           </p>
         </div>
