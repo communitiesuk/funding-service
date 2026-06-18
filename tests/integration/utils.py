@@ -1,8 +1,12 @@
+import io
 from datetime import datetime, timedelta
 
 from freezegun import freeze_time
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from werkzeug.datastructures import FileStorage, MultiDict
+
+from app import DataSourceType
 
 
 class TimeFreezer:
@@ -52,3 +56,19 @@ class TimeFreezer:
     def restore_actual_time(self) -> None:
         self._restore_python_time()
         self._restore_db_time()
+
+
+def build_file_upload_form_data(csv_content: str) -> MultiDict:
+    file = FileStorage(
+        stream=io.BytesIO(csv_content.encode("utf-8")),
+        filename="test.csv",
+        content_type="text/csv",
+    )
+    data = MultiDict(
+        [
+            ("name", "Test Data Set"),
+            ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+            ("file", file),
+        ]
+    )
+    return data
