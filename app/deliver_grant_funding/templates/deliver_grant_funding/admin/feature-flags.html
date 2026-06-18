@@ -1,0 +1,58 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      <h1 class="govuk-heading-l">Feature flags</h1>
+
+      {% set rows = [] %}
+      {% for flag in flags %}
+        {% set value_parts = [flag.description] %}
+
+        {% if not flag.uses_request_context %}
+          {% if not flag.is_session_based %}
+            {% set _ = value_parts.append(flag.resolver_description) %}
+          {% endif %}
+          {% if flag.is_enabled %}
+            {% set _ = value_parts.append(govukTag({"text": "Enabled", "classes": "govuk-tag--green"})) %}
+          {% else %}
+            {% set _ = value_parts.append(govukTag({"text": "Disabled", "classes": "govuk-tag--grey"})) %}
+          {% endif %}
+        {% else %}
+          {% set _ = value_parts.append(flag.resolver_description) %}
+        {% endif %}
+
+        {% set value_html = value_parts | join("<br><br>" | safe) %}
+
+        {% if flag.is_session_based %}
+          {%
+            set actions = {
+              "items": [{
+                "href": url_for("feature_flags.toggle", flag_name=flag.name),
+                "text": "Change",
+                "visuallyHiddenText": flag.description
+              }]
+            }
+          %}
+        {% else %}
+          {% set actions = {} %}
+        {% endif %}
+
+        {%
+          set _ = rows.append({
+            "key": {"text": flag.name},
+            "value": {"html": value_html},
+            "actions": actions
+          })
+        %}
+      {% endfor %}
+
+      {{ govukSummaryList({"rows": rows}) }}
+    </div>
+  </div>
+{% endblock %}

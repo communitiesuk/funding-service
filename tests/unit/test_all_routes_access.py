@@ -310,6 +310,8 @@ routes_with_access_controlled_by_flask_admin = [
     "data_analysis.download_certification_events_csv",
     "developer_tools.index",
     "developer_tools.stop",
+    "feature_flags.index",
+    "feature_flags.toggle",
     "submission.action_view",
     "submission.ajax_lookup",
     "submission.ajax_update",

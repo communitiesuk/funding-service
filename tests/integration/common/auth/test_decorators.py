@@ -25,7 +25,7 @@ from app.common.auth.decorators import (
 )
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, RoleEnum
-from app.common.helpers.feature_flags import FeatureFlag
+from app.common.helpers.feature_flags import StaticFeatureFlag
 from tests.models import _get_grant_managing_organisation
 
 
@@ -973,14 +973,29 @@ class TestHasGrantRecipientRole:
 
 class TestHasFeatureFlagEnabled:
     def test_has_feature_flag_enabled(self, app, factories):
-        ENABLED_FLAG = FeatureFlag(description="Test feature flag", resolver=lambda: True)
-        DISABLED_FLAG = FeatureFlag(description="Test feature flag", resolver=lambda: False)
+        class EnabledFlag(StaticFeatureFlag):
+            description = "Test feature flag"
+            resolver_description = "Always enabled"
+            uses_request_context = False
 
-        @has_feature_flag_enabled(ENABLED_FLAG)
+            @classmethod
+            def resolve(cls) -> bool:
+                return True
+
+        class DisabledFlag(StaticFeatureFlag):
+            description = "Test feature flag"
+            resolver_description = "Always disabled"
+            uses_request_context = False
+
+            @classmethod
+            def resolve(cls) -> bool:
+                return False
+
+        @has_feature_flag_enabled(EnabledFlag())
         def test_view_enabled():
             return "OK"
 
-        @has_feature_flag_enabled(DISABLED_FLAG)
+        @has_feature_flag_enabled(DisabledFlag())
         def test_view_disabled():
             return "OK"
 
