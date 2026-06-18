@@ -31,15 +31,15 @@ from app.common.data.interfaces.collections import (
     delete_collection_preview_submissions_created_by_user,
     delete_form,
     delete_question,
-    get_all_collections_by_status,
+    get_collections_by_status_excluding_draft_grants,
     get_all_submissions_with_mode_for_collection,
     get_collection,
-    get_collections_with_dates_near_today,
+    get_collections_with_dates_near_today_excluding_draft_grants,
     get_expression,
     get_expression_by_id,
     get_form_by_id,
     get_group_by_id,
-    get_overdue_open_collections,
+    get_overdue_open_collections_excluding_draft_grants,
     get_question_by_id,
     get_referenced_data_source_items_by_managed_expression,
     get_submission,
@@ -5922,24 +5922,24 @@ class TestAddComponentValidationCustomExpression:
         assert len(q3_from_db.owned_component_references) == 2
 
 
-class TestGetAllCollectionsByStatus:
+class TestGetCollectionsByStatusExcludingDraftGrants:
     def test_returns_collections_matching_single_status(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         open_collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
         factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
 
-        result = get_all_collections_by_status([CollectionStatusEnum.OPEN])
+        result = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.OPEN])
 
         assert len(result) == 1
         assert result[0].id == open_collection.id
 
     def test_returns_collections_matching_multiple_statuses(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         open_collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
         scheduled_collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.SCHEDULED)
         factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
 
-        result = get_all_collections_by_status([CollectionStatusEnum.OPEN, CollectionStatusEnum.SCHEDULED])
+        result = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.OPEN, CollectionStatusEnum.SCHEDULED])
 
         assert len(result) == 2
         result_ids = {c.id for c in result}
@@ -5947,125 +5947,165 @@ class TestGetAllCollectionsByStatus:
         assert scheduled_collection.id in result_ids
 
     def test_returns_empty_when_no_match(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
 
-        result = get_all_collections_by_status([CollectionStatusEnum.CLOSED])
+        result = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.CLOSED])
 
         assert result == []
 
+    def test_excludes_collections_from_draft_grants(self, db_session, factories):
+        draft_grant = factories.grant.create(status=GrantStatusEnum.DRAFT)
+        factories.collection.create(grant=draft_grant, status=CollectionStatusEnum.OPEN)
+
+        result = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.OPEN])
+
+        assert result == []
+
+    def test_includes_collections_from_onboarding_grants(self, db_session, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.ONBOARDING)
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
+
+        result = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.OPEN])
+
+        assert len(result) == 1
+        assert result[0].id == collection.id
+
     def test_eagerly_loads_grant(self, db_session, factories, track_sql_queries):
-        grant = factories.grant.create(name="Test Grant")
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
         factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
 
         with track_sql_queries() as queries:
-            result = get_all_collections_by_status([CollectionStatusEnum.OPEN])
+            result = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.OPEN])
             _ = result[0].grant.name
 
         assert result[0].grant.name == "Test Grant"
         assert len(queries) == 1
 
 
-class TestGetOverdueOpenCollections:
+class TestGetOverdueOpenCollectionsExcludingDraftGrants:
     def test_returns_open_collections_past_end_date(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         overdue = factories.collection.create(
             grant=grant,
             status=CollectionStatusEnum.OPEN,
             submission_period_end_date=datetime.date(2020, 1, 1),
         )
 
-        result = get_overdue_open_collections()
+        result = get_overdue_open_collections_excluding_draft_grants()
 
         assert len(result) == 1
         assert result[0].id == overdue.id
 
     def test_excludes_open_collections_with_future_end_date(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.collection.create(
             grant=grant,
             status=CollectionStatusEnum.OPEN,
             submission_period_end_date=datetime.date(2099, 12, 31),
         )
 
-        result = get_overdue_open_collections()
+        result = get_overdue_open_collections_excluding_draft_grants()
 
         assert result == []
 
     def test_excludes_closed_collections(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.collection.create(
             grant=grant,
             status=CollectionStatusEnum.CLOSED,
             submission_period_end_date=datetime.date(2020, 1, 1),
         )
 
-        result = get_overdue_open_collections()
+        result = get_overdue_open_collections_excluding_draft_grants()
 
         assert result == []
 
     def test_excludes_open_collections_without_end_date(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.collection.create(
             grant=grant,
             status=CollectionStatusEnum.OPEN,
             submission_period_end_date=None,
         )
 
-        result = get_overdue_open_collections()
+        result = get_overdue_open_collections_excluding_draft_grants()
+
+        assert result == []
+
+    def test_excludes_collections_from_draft_grants(self, db_session, factories):
+        draft_grant = factories.grant.create(status=GrantStatusEnum.DRAFT)
+        factories.collection.create(
+            grant=draft_grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        result = get_overdue_open_collections_excluding_draft_grants()
 
         assert result == []
 
 
 @pytest.mark.freeze_time("2026-06-15 12:00:00")
-class TestGetCollectionsWithDatesNearToday:
+class TestGetCollectionsWithDatesNearTodayExcludingDraftGrants:
     def test_returns_collections_with_start_date_in_future_window(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
             submission_period_start_date=datetime.date(2026, 6, 18),
         )
 
-        result = get_collections_with_dates_near_today(past_days=7, future_days=7)
+        result = get_collections_with_dates_near_today_excluding_draft_grants(past_days=7, future_days=7)
 
         assert len(result) == 1
         assert result[0].id == collection.id
 
     def test_returns_collections_with_end_date_in_past_window(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             grant=grant,
             status=CollectionStatusEnum.OPEN,
             submission_period_end_date=datetime.date(2026, 6, 10),
         )
 
-        result = get_collections_with_dates_near_today(past_days=7, future_days=7)
+        result = get_collections_with_dates_near_today_excluding_draft_grants(past_days=7, future_days=7)
 
         assert len(result) == 1
         assert result[0].id == collection.id
 
     def test_excludes_collections_outside_window(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.collection.create(
             grant=grant,
             submission_period_start_date=datetime.date(2026, 7, 1),
             submission_period_end_date=datetime.date(2026, 7, 31),
         )
 
-        result = get_collections_with_dates_near_today(past_days=7, future_days=7)
+        result = get_collections_with_dates_near_today_excluding_draft_grants(past_days=7, future_days=7)
+
+        assert result == []
+
+    def test_excludes_collections_from_draft_grants(self, db_session, factories):
+        draft_grant = factories.grant.create(status=GrantStatusEnum.DRAFT)
+        factories.collection.create(
+            grant=draft_grant,
+            submission_period_start_date=datetime.date(2026, 6, 18),
+        )
+
+        result = get_collections_with_dates_near_today_excluding_draft_grants(past_days=7, future_days=7)
 
         assert result == []
 
     def test_respects_past_days_parameter(self, db_session, factories):
-        grant = factories.grant.create()
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.collection.create(
             grant=grant,
             status=CollectionStatusEnum.OPEN,
             submission_period_end_date=datetime.date(2026, 6, 10),
         )
 
-        result_with_past = get_collections_with_dates_near_today(past_days=7, future_days=7)
-        result_without_past = get_collections_with_dates_near_today(past_days=0, future_days=7)
+        result_with_past = get_collections_with_dates_near_today_excluding_draft_grants(past_days=7, future_days=7)
+        result_without_past = get_collections_with_dates_near_today_excluding_draft_grants(past_days=0, future_days=7)
 
         assert len(result_with_past) == 1
         assert result_without_past == []

@@ -123,39 +123,47 @@ def get_collection(
     return db.session.scalars(select(Collection).where(*filters).options(*options)).unique().one()
 
 
-def get_all_collections_by_status(statuses: list[CollectionStatusEnum]) -> Sequence[Collection]:
+def get_collections_by_status_excluding_draft_grants(statuses: list[CollectionStatusEnum]) -> Sequence[Collection]:
     statement = (
         select(Collection)
+        .join(Collection.grant)
         .options(joinedload(Collection.grant))
-        .where(Collection.status.in_(statuses))
+        .where(
+            Collection.status.in_(statuses),
+            Grant.status != GrantStatusEnum.DRAFT,
+        )
         .order_by(Collection.name)
     )
     return db.session.scalars(statement).unique().all()
 
 
-def get_overdue_open_collections() -> Sequence[Collection]:
+def get_overdue_open_collections_excluding_draft_grants() -> Sequence[Collection]:
     today = datetime.date.today()
     statement = (
         select(Collection)
+        .join(Collection.grant)
         .options(joinedload(Collection.grant))
         .where(
             Collection.status == CollectionStatusEnum.OPEN,
             Collection.submission_period_end_date.isnot(None),
             Collection.submission_period_end_date < today,
+            Grant.status != GrantStatusEnum.DRAFT,
         )
         .order_by(Collection.submission_period_end_date)
     )
     return db.session.scalars(statement).unique().all()
 
 
-def get_collections_with_dates_near_today(past_days: int = 7, future_days: int = 7) -> Sequence[Collection]:
+def get_collections_with_dates_near_today_excluding_draft_grants(past_days: int = 7, future_days: int = 7) -> Sequence[Collection]:
     today = datetime.date.today()
     start_date = today - datetime.timedelta(days=past_days)
     end_date = today + datetime.timedelta(days=future_days)
     statement = (
         select(Collection)
+        .join(Collection.grant)
         .options(joinedload(Collection.grant))
         .where(
+            Grant.status != GrantStatusEnum.DRAFT,
             or_(
                 and_(
                     Collection.submission_period_start_date.isnot(None),

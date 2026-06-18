@@ -15,10 +15,10 @@ from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
 from app.common.data.interfaces.collections import (
-    get_all_collections_by_status,
+    get_collections_by_status_excluding_draft_grants,
     get_collection,
-    get_collections_with_dates_near_today,
-    get_overdue_open_collections,
+    get_collections_with_dates_near_today_excluding_draft_grants,
+    get_overdue_open_collections_excluding_draft_grants,
     update_collection,
 )
 from app.common.data.interfaces.data_analysis import get_unique_users_count_for_live_grant_recipients
@@ -117,11 +117,11 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
 
         live_grants = get_all_grants(statuses=[GrantStatusEnum.LIVE])
         onboarding_grants = get_all_grants(statuses=[GrantStatusEnum.ONBOARDING])
-        scheduled_collections = get_all_collections_by_status([CollectionStatusEnum.SCHEDULED])
-        open_collections = get_all_collections_by_status([CollectionStatusEnum.OPEN])
-        overdue_collections = get_overdue_open_collections()
+        scheduled_collections = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.SCHEDULED])
+        open_collections = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.OPEN])
+        overdue_collections = get_overdue_open_collections_excluding_draft_grants()
 
-        nearby_collections = get_collections_with_dates_near_today(past_days=7, future_days=7)
+        nearby_collections = get_collections_with_dates_near_today_excluding_draft_grants(past_days=7, future_days=7)
         timeline_events = []
         for collection in nearby_collections:
             if (
