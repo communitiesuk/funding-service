@@ -5754,8 +5754,8 @@ class TestAdminDashboard:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Opening Soon" in soup.get_text()
         assert "Closing Soon" in soup.get_text()
-        assert "Opens for submissions" in soup.get_text()
-        assert "Closes for submissions" in soup.get_text()
+        assert "Open for submissions" in soup.get_text()
+        assert "Send overdue emails" in soup.get_text()
 
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_today_tag(self, authenticated_platform_admin_client, factories, db_session):

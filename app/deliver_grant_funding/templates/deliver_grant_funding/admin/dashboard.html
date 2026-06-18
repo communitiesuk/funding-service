@@ -52,7 +52,7 @@
         </div>
       </div>
 
-      <h2 class="govuk-heading-m govuk-!-margin-top-7">Important things to do</h2>
+      <h2 class="govuk-heading-m govuk-!-margin-top-7">Important things to do over the past or next 7 days</h2>
       {% if timeline_events %}
         <table class="govuk-table">
           <thead class="govuk-table__head">
@@ -78,9 +78,9 @@
                 </td>
                 <td class="govuk-table__cell">
                   {% if event.type == "opening" %}
-                    Opens for submissions
+                    Open for submissions
                   {% elif event.type == "closing" %}
-                    Closes for submissions
+                    Send overdue emails
                   {% elif event.type == "reminder" %}
                     Send reminder emails
                   {% endif %}
