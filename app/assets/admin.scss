@@ -53,6 +53,7 @@ h4,
 h5,
 h6 {
     &:target {
-        background-color: #ffee80; // GOV.UK Frontend v6+ `govuk.govuk-colour("yellow", $variant: "tint-50")`
+        border-left: 4px solid #ffdd00;
+        padding-left: govuk.govuk-spacing(2);
     }
 }

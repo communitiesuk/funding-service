@@ -52,7 +52,7 @@
         </div>
       </div>
 
-      <h2 class="govuk-heading-m govuk-!-margin-top-7">Upcoming actions</h2>
+      <h2 class="govuk-heading-m govuk-!-margin-top-7">Things to do in the next 7 days</h2>
       {% if timeline_events %}
         <table class="govuk-table">
           <thead class="govuk-table__head">
@@ -83,8 +83,10 @@
                     Send reminder emails
                   {% endif %}
                 </td>
-                <td class="govuk-table__cell">{{ event.collection.name }}</td>
-                <td class="govuk-table__cell">{{ event.collection.grant.name }}</td>
+                <td class="govuk-table__cell">
+                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=event.collection.grant_id, collection_id=event.collection.id) }}">{{ event.collection.name }}</a>
+                </td>
+                <td class="govuk-table__cell"><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=event.collection.grant_id) }}">{{ event.collection.grant.name }}</a></td>
               </tr>
             {% endfor %}
           </tbody>
@@ -98,9 +100,7 @@
         <ul class="govuk-list govuk-list--bullet">
           {% for collection in scheduled_collections %}
             <li>
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=collection.grant_id, collection_type=collection.type, collection_id=collection.id) }}"
-                >{{ collection.name }}</a
-              >
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=collection.grant_id, collection_id=collection.id) }}">{{ collection.name }}</a>
               ({{ collection.grant.name }})
             </li>
           {% endfor %}
@@ -114,9 +114,7 @@
         <ul class="govuk-list govuk-list--bullet">
           {% for collection in open_collections %}
             <li>
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=collection.grant_id, collection_type=collection.type, collection_id=collection.id) }}"
-                >{{ collection.name }}</a
-              >
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=collection.grant_id, collection_id=collection.id) }}">{{ collection.name }}</a>
               ({{ collection.grant.name }})
             </li>
           {% endfor %}
@@ -130,9 +128,7 @@
         <ul class="govuk-list govuk-list--bullet">
           {% for collection in overdue_collections %}
             <li>
-              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=collection.grant_id, collection_type=collection.type, collection_id=collection.id) }}"
-                >{{ collection.name }}</a
-              >
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=collection.grant_id, collection_id=collection.id) }}">{{ collection.name }}</a>
               ({{ collection.grant.name }}) &mdash; ended {{ format_date_short(collection.submission_period_end_date) }}
             </li>
           {% endfor %}
