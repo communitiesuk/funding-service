@@ -148,9 +148,10 @@ def get_overdue_open_collections() -> Sequence[Collection]:
     return db.session.scalars(statement).unique().all()
 
 
-def get_collections_with_upcoming_dates(within_days: int = 7) -> Sequence[Collection]:
+def get_collections_with_dates_near_today(past_days: int = 7, future_days: int = 7) -> Sequence[Collection]:
     today = datetime.date.today()
-    end_date = today + datetime.timedelta(days=within_days)
+    start_date = today - datetime.timedelta(days=past_days)
+    end_date = today + datetime.timedelta(days=future_days)
     statement = (
         select(Collection)
         .options(joinedload(Collection.grant))
@@ -158,12 +159,12 @@ def get_collections_with_upcoming_dates(within_days: int = 7) -> Sequence[Collec
             or_(
                 and_(
                     Collection.submission_period_start_date.isnot(None),
-                    Collection.submission_period_start_date >= today,
+                    Collection.submission_period_start_date >= start_date,
                     Collection.submission_period_start_date <= end_date,
                 ),
                 and_(
                     Collection.submission_period_end_date.isnot(None),
-                    Collection.submission_period_end_date >= today,
+                    Collection.submission_period_end_date >= start_date,
                     Collection.submission_period_end_date <= end_date,
                 ),
             ),

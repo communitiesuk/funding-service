@@ -17,7 +17,7 @@ from sqlalchemy import text
 from app.common.data.interfaces.collections import (
     get_all_collections_by_status,
     get_collection,
-    get_collections_with_upcoming_dates,
+    get_collections_with_dates_near_today,
     get_overdue_open_collections,
     update_collection,
 )
@@ -112,7 +112,8 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
     @expose("/")
     def index(self) -> Any:
         today = datetime.date.today()
-        seven_days = today + datetime.timedelta(days=7)
+        seven_days_ago = today - datetime.timedelta(days=7)
+        seven_days_ahead = today + datetime.timedelta(days=7)
 
         live_grants = get_all_grants(statuses=[GrantStatusEnum.LIVE])
         onboarding_grants = get_all_grants(statuses=[GrantStatusEnum.ONBOARDING])
@@ -120,12 +121,12 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
         open_collections = get_all_collections_by_status([CollectionStatusEnum.OPEN])
         overdue_collections = get_overdue_open_collections()
 
-        upcoming_collections = get_collections_with_upcoming_dates(within_days=7)
+        nearby_collections = get_collections_with_dates_near_today(past_days=7, future_days=7)
         timeline_events = []
-        for collection in upcoming_collections:
+        for collection in nearby_collections:
             if (
                 collection.submission_period_start_date
-                and today <= collection.submission_period_start_date <= seven_days
+                and seven_days_ago <= collection.submission_period_start_date <= seven_days_ahead
             ):
                 timeline_events.append(
                     {
@@ -133,15 +134,20 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                         "type": "opening",
                         "collection": collection,
                         "is_today": collection.submission_period_start_date == today,
+                        "is_past": collection.submission_period_start_date < today,
                     }
                 )
-            if collection.submission_period_end_date and today <= collection.submission_period_end_date <= seven_days:
+            if (
+                collection.submission_period_end_date
+                and seven_days_ago <= collection.submission_period_end_date <= seven_days_ahead
+            ):
                 timeline_events.append(
                     {
                         "date": collection.submission_period_end_date,
                         "type": "closing",
                         "collection": collection,
                         "is_today": collection.submission_period_end_date == today,
+                        "is_past": collection.submission_period_end_date < today,
                     }
                 )
 
@@ -152,13 +158,14 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                 collection.submission_period_end_date,
                 collection.reminder_email_business_days_before_closing,
             )
-            if today <= reminder_date <= seven_days:
+            if seven_days_ago <= reminder_date <= seven_days_ahead:
                 timeline_events.append(
                     {
                         "date": reminder_date,
                         "type": "reminder",
                         "collection": collection,
                         "is_today": reminder_date == today,
+                        "is_past": reminder_date < today,
                     }
                 )
 

@@ -52,7 +52,7 @@
         </div>
       </div>
 
-      <h2 class="govuk-heading-m govuk-!-margin-top-7">Things to do in the next 7 days</h2>
+      <h2 class="govuk-heading-m govuk-!-margin-top-7">Important things to do</h2>
       {% if timeline_events %}
         <table class="govuk-table">
           <thead class="govuk-table__head">
@@ -70,8 +70,10 @@
                   {{ format_date_short(event.date) }}
                   {% if event.is_today %}
                     {{ govukTag({"text": "today", "classes": "govuk-tag--green"}) }}
+                  {% elif event.is_past %}
+                    {{ govukTag({"text": "past", "classes": "govuk-tag--grey"}) }}
                   {% else %}
-                    {{ govukTag({"text": "upcoming", "classes": "govuk-tag--orange"}) }}
+                    {{ govukTag({"text": "soon", "classes": "govuk-tag--blue"}) }}
                   {% endif %}
                 </td>
                 <td class="govuk-table__cell">
@@ -92,10 +94,11 @@
           </tbody>
         </table>
       {% else %}
-        <p class="govuk-body">No upcoming actions in the next 7 days.</p>
+        <p class="govuk-body">No actions in the past or next 7 days.</p>
       {% endif %}
 
-      <h2 class="govuk-heading-m" id="scheduled-collections">Scheduled collections</h2>
+      <h2 class="govuk-heading-m govuk-!-margin-top-7">Collections</h2>
+      <h3 class="govuk-heading-s" id="scheduled-collections">Scheduled</h3>
       {% if scheduled_collections %}
         <ul class="govuk-list govuk-list--bullet">
           {% for collection in scheduled_collections %}
@@ -109,7 +112,7 @@
         <p class="govuk-body">None.</p>
       {% endif %}
 
-      <h2 class="govuk-heading-m" id="open-collections">Open collections</h2>
+      <h3 class="govuk-heading-s" id="open-collections">Open</h3>
       {% if open_collections %}
         <ul class="govuk-list govuk-list--bullet">
           {% for collection in open_collections %}
@@ -123,7 +126,7 @@
         <p class="govuk-body">None.</p>
       {% endif %}
 
-      <h2 class="govuk-heading-m" id="overdue-collections">Overdue collections</h2>
+      <h3 class="govuk-heading-s" id="overdue-collections">Overdue</h3>
       {% if overdue_collections %}
         <ul class="govuk-list govuk-list--bullet">
           {% for collection in overdue_collections %}
