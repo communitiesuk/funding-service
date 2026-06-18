@@ -316,7 +316,7 @@ class TestCollectionLifecycleTasklist:
         collection_task_items = collection_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
         assert len(grant_task_items) == 6
-        assert len(collection_task_items) == 9
+        assert len(collection_task_items) == 10
 
         # TODO: update for testing task list
 
@@ -442,7 +442,7 @@ class TestCollectionLifecycleTasklist:
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
 
-        schedule_collection_task = collection_task_items[2]
+        schedule_collection_task = collection_task_items[3]
         task_title = schedule_collection_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Sign off and lock report"
@@ -452,7 +452,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        make_collection_live_task = collection_task_items[3]
+        make_collection_live_task = collection_task_items[4]
         task_title = make_collection_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Open the report for submissions"
@@ -462,7 +462,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[4]
+        send_emails_task = collection_task_items[5]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send emails to data providers"
@@ -472,7 +472,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[5]
+        send_emails_task = collection_task_items[6]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send deadline reminder emails"
@@ -482,7 +482,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[6]
+        send_emails_task = collection_task_items[7]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send report overdue emails"
@@ -492,7 +492,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[7]
+        send_emails_task = collection_task_items[8]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Close the report"
@@ -502,7 +502,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[8]
+        send_emails_task = collection_task_items[9]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send report closed emails"
@@ -552,7 +552,7 @@ class TestCollectionLifecycleTasklist:
         collection_task_items = collection_task_list.find_all("li", {"class": "govuk-task-list__item"})
         assert len(platform_task_items) == 2
         assert len(grant_task_items) == 6
-        assert len(collection_task_items) == 8  # set-reporting-dates is not shown for pre-award collections
+        assert len(collection_task_items) == 9  # set-reporting-dates is not shown for pre-award collections
 
         # Prove set-reporting-dates is not showing up
         first_task_status = collection_task_items[0]
@@ -567,7 +567,7 @@ class TestCollectionLifecycleTasklist:
         assert "To do" in task_status.get_text(strip=True)
         assert "govuk-tag--grey" in task_status.get("class")
 
-        schedule_collection_task = collection_task_items[1]
+        schedule_collection_task = collection_task_items[2]
         task_title = schedule_collection_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Sign off and lock form"
@@ -577,7 +577,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        make_collection_live_task = collection_task_items[2]
+        make_collection_live_task = collection_task_items[3]
         task_title = make_collection_live_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Open the form for submissions"
@@ -587,7 +587,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[5]
+        send_emails_task = collection_task_items[6]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send form overdue emails"
@@ -597,7 +597,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[6]
+        send_emails_task = collection_task_items[7]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Close the form"
@@ -607,7 +607,7 @@ class TestCollectionLifecycleTasklist:
         assert "Cannot start yet" in task_status.get_text(strip=True)
         assert "govuk-task-list__status--cannot-start-yet" in task_status.get("class")
 
-        send_emails_task = collection_task_items[7]
+        send_emails_task = collection_task_items[8]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send form closed emails"
@@ -766,7 +766,7 @@ class TestCollectionLifecycleTasklist:
         collection_task_list = soup.find("ul", {"id": "report-tasks"})
         collection_task_items = collection_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_emails_task = collection_task_items[4]
+        send_emails_task = collection_task_items[5]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send emails to data providers"
@@ -794,7 +794,7 @@ class TestCollectionLifecycleTasklist:
         report_task_list = soup.find("ul", {"id": "report-tasks"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_emails_task = report_task_items[4]
+        send_emails_task = report_task_items[5]
         task_title = send_emails_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send emails to data providers"
@@ -830,7 +830,7 @@ class TestCollectionLifecycleTasklist:
         report_task_list = soup.find("ul", {"id": "report-tasks"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_emails_task = report_task_items[5]
+        send_emails_task = report_task_items[6]
         task_title = send_emails_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send deadline reminder emails"
@@ -858,7 +858,7 @@ class TestCollectionLifecycleTasklist:
         report_task_list = soup.find("ul", {"id": "report-tasks"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_emails_task = report_task_items[5]
+        send_emails_task = report_task_items[6]
         task_title = send_emails_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send deadline reminder emails"
@@ -905,7 +905,7 @@ class TestCollectionLifecycleTasklist:
         report_task_list = soup.find("ul", {"id": "report-tasks"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_report_closed_task = report_task_items[6]
+        send_report_closed_task = report_task_items[7]
         task_title = send_report_closed_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send report overdue emails"
@@ -944,7 +944,7 @@ class TestCollectionLifecycleTasklist:
         report_task_list = soup.find("ul", {"id": "report-tasks"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_report_closed_task = report_task_items[6]
+        send_report_closed_task = report_task_items[7]
         task_title = send_report_closed_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send report overdue emails"
@@ -981,7 +981,7 @@ class TestCollectionLifecycleTasklist:
         report_task_list = soup.find("ul", {"id": "report-tasks"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_report_closed_notification_task = report_task_items[8]
+        send_report_closed_notification_task = report_task_items[9]
         task_title = send_report_closed_notification_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send report closed emails"
@@ -1014,7 +1014,7 @@ class TestCollectionLifecycleTasklist:
         report_task_list = soup.find("ul", {"id": "report-tasks"})
         report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
 
-        send_report_closed_notification_task = report_task_items[8]
+        send_report_closed_notification_task = report_task_items[9]
         task_title = send_report_closed_notification_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
         assert task_title.get_text(strip=True) == "Send report closed emails"
@@ -4408,6 +4408,7 @@ class TestMakeReportLive:
                 "confirm_privacy_policy": "y",
                 "confirm_certification": "y",
                 "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
             },
@@ -4459,6 +4460,7 @@ class TestMakeReportLive:
                 "confirm_privacy_policy": "y",
                 "confirm_certification": "y",
                 "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
             },
@@ -4496,6 +4498,7 @@ class TestMakeReportLive:
                 "confirm_privacy_policy": "y",
                 "confirm_certification": "y",
                 "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
             },
@@ -4541,6 +4544,7 @@ class TestMakeReportLive:
                 "confirm_privacy_policy": "y",
                 "confirm_certification": "y",
                 "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
             },
@@ -4591,6 +4595,7 @@ class TestMakeReportLive:
                 "confirm_privacy_policy": "y",
                 "confirm_certification": "y",
                 "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
             },
@@ -4644,6 +4649,7 @@ class TestMakeReportLive:
                 "confirm_privacy_policy": "y",
                 "confirm_certification": "y",
                 "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "Open collection for submissions",
             },

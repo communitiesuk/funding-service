@@ -152,6 +152,18 @@
         })
       %}
 
+
+      {% set reminderDaysTag %}
+        {{ govukTag({"text": collection.reminder_email_business_days_before_closing ~ " business days", "classes": "govuk-tag--blue"}) }}
+      {% endset %}
+      {%
+        do rows.append({
+          "title": {"text": "Set reminder email timing", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": reminderDaysTag},
+          "href": url_for('collection_lifecycle.set_reminder_days', grant_id=grant.id, collection_id=collection.id),
+        })
+      %}
+
       {% set dates_are_set = collection.submission_period_start_date and collection.submission_period_end_date %}
       {% set all_recipients_have_users = grant_recipients_count > 0 and grant_recipient_users_count >= grant_recipients_count %}
       {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_count > 0 and dates_are_set and all_recipients_have_users %}

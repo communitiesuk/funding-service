@@ -300,6 +300,7 @@ routes_with_access_controlled_by_flask_admin = [
     "collection_lifecycle.revoke_grant_override_certifiers",
     "collection_lifecycle.set_reporting_dates",
     "collection_lifecycle.set_submission_dates",
+    "collection_lifecycle.set_reminder_days",
     "collection_lifecycle.schedule_collection",
     "collection_lifecycle.make_collection_live",
     "collection_lifecycle.send_emails_to_recipients",

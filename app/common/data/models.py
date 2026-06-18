@@ -299,6 +299,7 @@ class Collection(BaseModel):
     reporting_period_end_date: Mapped[datetime.date | None]
     submission_period_start_date: Mapped[datetime.date | None]
     submission_period_end_date: Mapped[datetime.date | None]
+    reminder_email_business_days_before_closing: Mapped[int] = mapped_column(default=5)
     requires_certification: Mapped[bool | None]
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)

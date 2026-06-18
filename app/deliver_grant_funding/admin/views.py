@@ -91,6 +91,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetCollectionReportingDatesForm,
     PlatformAdminSetCollectionSubmissionDatesForm,
     PlatformAdminSetPrivacyPolicyForm,
+    PlatformAdminSetReminderDaysForm,
     PlatformAdminToggleFeatureFlagForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
@@ -156,7 +157,10 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
         for collection in [*open_collections, *scheduled_collections]:
             if not collection.submission_period_end_date:
                 continue
-            reminder_date = self._subtract_business_days(collection.submission_period_end_date, 5)
+            reminder_date = self._subtract_business_days(
+                collection.submission_period_end_date,
+                collection.reminder_email_business_days_before_closing,
+            )
             if today <= reminder_date <= seven_days:
                 timeline_events.append(
                     {
@@ -856,6 +860,29 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         return self.render(
             "deliver_grant_funding/admin/set-collection-dates.html",
             title="Set submission dates",
+            form=form,
+            grant=grant,
+            collection=collection,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-reminder-days", methods=["GET", "POST"])
+    @auto_commit_after_request
+    def set_reminder_days(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+
+        form = PlatformAdminSetReminderDaysForm(collection=collection)
+
+        if form.validate_on_submit():
+            update_collection(
+                collection,
+                reminder_email_business_days_before_closing=form.reminder_email_business_days_before_closing.data,
+            )
+            flash(f"Updated reminder email setting for {collection.name}.", "success")
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/set-reminder-days.html",
             form=form,
             grant=grant,
             collection=collection,
