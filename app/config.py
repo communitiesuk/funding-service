@@ -356,6 +356,9 @@ class _SharedConfig(_BaseConfig):
     # Jira data connector
     JIRA_DATA_CONNECTOR_API_TOKEN: str
 
+    # GOV.UK Bank Holidays JSON API
+    GOVUK_BANK_HOLIDAYS_API: str = "https://www.gov.uk/bank-holidays.json"
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD

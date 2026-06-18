@@ -123,6 +123,56 @@ def get_collection(
     return db.session.scalars(select(Collection).where(*filters).options(*options)).unique().one()
 
 
+def get_all_collections_by_status(statuses: list[CollectionStatusEnum]) -> Sequence[Collection]:
+    statement = (
+        select(Collection)
+        .options(joinedload(Collection.grant))
+        .where(Collection.status.in_(statuses))
+        .order_by(Collection.name)
+    )
+    return db.session.scalars(statement).unique().all()
+
+
+def get_overdue_open_collections() -> Sequence[Collection]:
+    today = datetime.date.today()
+    statement = (
+        select(Collection)
+        .options(joinedload(Collection.grant))
+        .where(
+            Collection.status == CollectionStatusEnum.OPEN,
+            Collection.submission_period_end_date.isnot(None),
+            Collection.submission_period_end_date < today,
+        )
+        .order_by(Collection.submission_period_end_date)
+    )
+    return db.session.scalars(statement).unique().all()
+
+
+def get_collections_with_dates_near_today(past_days: int = 7, future_days: int = 7) -> Sequence[Collection]:
+    today = datetime.date.today()
+    start_date = today - datetime.timedelta(days=past_days)
+    end_date = today + datetime.timedelta(days=future_days)
+    statement = (
+        select(Collection)
+        .options(joinedload(Collection.grant))
+        .where(
+            or_(
+                and_(
+                    Collection.submission_period_start_date.isnot(None),
+                    Collection.submission_period_start_date >= start_date,
+                    Collection.submission_period_start_date <= end_date,
+                ),
+                and_(
+                    Collection.submission_period_end_date.isnot(None),
+                    Collection.submission_period_end_date >= start_date,
+                    Collection.submission_period_end_date <= end_date,
+                ),
+            ),
+        )
+    )
+    return db.session.scalars(statement).unique().all()
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_collection(  # noqa: C901
     collection: Collection,
@@ -137,6 +187,7 @@ def update_collection(  # noqa: C901
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
+    reminder_email_business_days_before_closing: int | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     """Update the various attributes of a collection.
 
@@ -232,6 +283,9 @@ def update_collection(  # noqa: C901
     if submission_guidance is not NOT_PROVIDED:
         stripped = submission_guidance.strip() if submission_guidance else None
         collection.submission_guidance = stripped or None
+
+    if reminder_email_business_days_before_closing is not NOT_PROVIDED:
+        collection.reminder_email_business_days_before_closing = reminder_email_business_days_before_closing
 
     if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):

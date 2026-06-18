@@ -1,0 +1,35 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ collection.name }}</span>
+        Set reminder email timing
+      </h1>
+
+      <p class="govuk-body">Weekend days and bank holidays will be ignored when calculating the date to send reminder emails.</p>
+      <p class="govuk-body">Reminder emails must still be sent manually on the day.</p>
+      <p class="govuk-body">We aim to send reminder emails 5 business days before closing by default. This can be extended or reduced if appropriate for the collection.</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.reminder_email_business_days_before_closing(params={"classes": "govuk-input--width-2"}) }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

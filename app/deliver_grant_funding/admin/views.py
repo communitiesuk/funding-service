@@ -14,7 +14,13 @@ from flask.typing import ResponseReturnValue
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
-from app.common.data.interfaces.collections import get_collection, update_collection
+from app.common.data.interfaces.collections import (
+    get_all_collections_by_status,
+    get_collection,
+    get_collections_with_dates_near_today,
+    get_overdue_open_collections,
+    update_collection,
+)
 from app.common.data.interfaces.data_analysis import get_unique_users_count_for_live_grant_recipients
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
@@ -57,6 +63,7 @@ from app.common.data.types import (
 from app.common.filters import format_date
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.dates import subtract_business_days
 from app.common.helpers.feature_flags import FeatureFlags, SessionFeatureFlag
 from app.common.helpers.request_tracing import (
     REQUEST_TRACING_COOKIE_NAME,
@@ -85,6 +92,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetCollectionReportingDatesForm,
     PlatformAdminSetCollectionSubmissionDatesForm,
     PlatformAdminSetPrivacyPolicyForm,
+    PlatformAdminSetReminderDaysForm,
     PlatformAdminToggleFeatureFlagForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
@@ -101,7 +109,77 @@ if TYPE_CHECKING:
 
 
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
-    pass
+    @expose("/")
+    def index(self) -> Any:
+        today = datetime.date.today()
+        seven_days_ago = today - datetime.timedelta(days=7)
+        seven_days_ahead = today + datetime.timedelta(days=7)
+
+        live_grants = get_all_grants(statuses=[GrantStatusEnum.LIVE])
+        onboarding_grants = get_all_grants(statuses=[GrantStatusEnum.ONBOARDING])
+        scheduled_collections = get_all_collections_by_status([CollectionStatusEnum.SCHEDULED])
+        open_collections = get_all_collections_by_status([CollectionStatusEnum.OPEN])
+        overdue_collections = get_overdue_open_collections()
+
+        nearby_collections = get_collections_with_dates_near_today(past_days=7, future_days=7)
+        timeline_events = []
+        for collection in nearby_collections:
+            if (
+                collection.submission_period_start_date
+                and seven_days_ago <= collection.submission_period_start_date <= seven_days_ahead
+            ):
+                timeline_events.append(
+                    {
+                        "date": collection.submission_period_start_date,
+                        "type": "opening",
+                        "collection": collection,
+                        "is_today": collection.submission_period_start_date == today,
+                        "is_past": collection.submission_period_start_date < today,
+                    }
+                )
+            if (
+                collection.submission_period_end_date
+                and seven_days_ago <= collection.submission_period_end_date <= seven_days_ahead
+            ):
+                timeline_events.append(
+                    {
+                        "date": collection.submission_period_end_date,
+                        "type": "closing",
+                        "collection": collection,
+                        "is_today": collection.submission_period_end_date == today,
+                        "is_past": collection.submission_period_end_date < today,
+                    }
+                )
+
+        for collection in [*open_collections, *scheduled_collections]:
+            if not collection.submission_period_end_date:
+                continue
+            reminder_date = subtract_business_days(
+                collection.submission_period_end_date,
+                collection.reminder_email_business_days_before_closing,
+            )
+            if seven_days_ago <= reminder_date <= seven_days_ahead:
+                timeline_events.append(
+                    {
+                        "date": reminder_date,
+                        "type": "reminder",
+                        "collection": collection,
+                        "is_today": reminder_date == today,
+                        "is_past": reminder_date < today,
+                    }
+                )
+
+        timeline_events.sort(key=lambda e: e["date"])
+
+        return self.render(
+            "deliver_grant_funding/admin/dashboard.html",
+            live_grants=live_grants,
+            onboarding_grants=onboarding_grants,
+            scheduled_collections=scheduled_collections,
+            open_collections=open_collections,
+            overdue_collections=overdue_collections,
+            timeline_events=timeline_events,
+        )
 
 
 class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):
@@ -780,6 +858,29 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         return self.render(
             "deliver_grant_funding/admin/set-collection-dates.html",
             title="Set submission dates",
+            form=form,
+            grant=grant,
+            collection=collection,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-reminder-days", methods=["GET", "POST"])
+    @auto_commit_after_request
+    def set_reminder_days(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+
+        form = PlatformAdminSetReminderDaysForm(obj=collection)
+
+        if form.validate_on_submit():
+            update_collection(
+                collection,
+                reminder_email_business_days_before_closing=form.reminder_email_business_days_before_closing.data,
+            )
+            flash(f"Updated reminder email setting for {collection.name}.", "success")
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        return self.render(
+            "deliver_grant_funding/admin/set-reminder-days.html",
             form=form,
             grant=grant,
             collection=collection,

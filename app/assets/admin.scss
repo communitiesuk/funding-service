@@ -45,3 +45,15 @@
         font-weight: govuk.$govuk-font-weight-bold !important;
     }
 }
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    &:target {
+        border-left: 4px solid #ffdd00;
+        padding-left: govuk.govuk-spacing(2);
+    }
+}
