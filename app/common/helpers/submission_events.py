@@ -86,6 +86,7 @@ class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, 
     is_approved: bool = False
     is_submitted: bool = False
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
+    section_ids: list[str] = field(default_factory=list, metadata={"stored": True})
 
 
 class DeclinedByCertifierKwargs(TypedDict, total=False):
@@ -100,6 +101,7 @@ class DeclinedByCertifierKwargs(TypedDict, total=False):
 class ReopenedKwargs(TypedDict, total=False):
     reopened_reason: str | None
     submission_data: dict[str, Any] | None
+    section_ids: list[str] | None
 
 
 @dataclass
@@ -165,6 +167,7 @@ class SubmissionState(
     declined_reason: str | None = None
     reopened_reason: str | None = None
     submission_data: dict[str, Any] | None = None
+    section_ids: list[str] | None = None
 
 
 @dataclass
