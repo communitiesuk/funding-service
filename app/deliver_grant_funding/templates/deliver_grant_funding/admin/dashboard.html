@@ -6,50 +6,30 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Admin dashboard</h1>
 
-      <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-third">
-          <p class="govuk-!-margin-top-0">
-            <a href="{{ url_for('deliver_grant_funding.list_grants') }}" class="govuk-link govuk-link--no-visited-state">
-              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ onboarding_grants|length }}</span>
-              <span class="govuk-body-l">Onboarding grant{{ 's' if onboarding_grants|length != 1 else '' }}</span>
-            </a>
-          </p>
-        </div>
-        <div class="govuk-grid-column-one-third">
-          <p class="govuk-!-margin-top-0">
-            <a href="{{ url_for('deliver_grant_funding.list_grants') }}" class="govuk-link govuk-link--no-visited-state">
-              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ live_grants|length }}</span>
-              <span class="govuk-body-l">Live grant{{ 's' if live_grants|length != 1 else '' }}</span>
-            </a>
-          </p>
-        </div>
+      <div class="app-big-number-row">
+        <a href="{{ url_for('deliver_grant_funding.list_grants') }}" class="app-big-number">
+          <span class="app-big-number__number">{{ onboarding_grants|length }}</span>
+          <span class="app-big-number__label">Onboarding grant{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+        </a>
+        <a href="{{ url_for('deliver_grant_funding.list_grants') }}" class="app-big-number">
+          <span class="app-big-number__number">{{ live_grants|length }}</span>
+          <span class="app-big-number__label">Live grant{{ 's' if live_grants|length != 1 else '' }}</span>
+        </a>
       </div>
 
-      <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-third">
-          <p class="govuk-!-margin-top-0">
-            <a href="#scheduled-collections" class="govuk-link govuk-link--no-visited-state">
-              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ scheduled_collections|length }}</span>
-              <span class="govuk-body-l">Scheduled collection{{ 's' if scheduled_collections|length != 1 else '' }}</span>
-            </a>
-          </p>
-        </div>
-        <div class="govuk-grid-column-one-third">
-          <p class="govuk-!-margin-top-0">
-            <a href="#open-collections" class="govuk-link govuk-link--no-visited-state">
-              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ open_collections|length }}</span>
-              <span class="govuk-body-l">Open collection{{ 's' if open_collections|length != 1 else '' }}</span>
-            </a>
-          </p>
-        </div>
-        <div class="govuk-grid-column-one-third">
-          <p class="govuk-!-margin-top-0">
-            <a href="#overdue-collections" class="govuk-link govuk-link--no-visited-state">
-              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ overdue_collections|length }}</span>
-              <span class="govuk-body-l">Overdue collection{{ 's' if overdue_collections|length != 1 else '' }}</span>
-            </a>
-          </p>
-        </div>
+      <div class="app-big-number-row">
+        <a href="#scheduled-collections" class="app-big-number">
+          <span class="app-big-number__number">{{ scheduled_collections|length }}</span>
+          <span class="app-big-number__label">Scheduled collection{{ 's' if scheduled_collections|length != 1 else '' }}</span>
+        </a>
+        <a href="#open-collections" class="app-big-number">
+          <span class="app-big-number__number">{{ open_collections|length }}</span>
+          <span class="app-big-number__label">Open collection{{ 's' if open_collections|length != 1 else '' }}</span>
+        </a>
+        <a href="#overdue-collections" class="app-big-number">
+          <span class="app-big-number__number">{{ overdue_collections|length }}</span>
+          <span class="app-big-number__label">Overdue collection{{ 's' if overdue_collections|length != 1 else '' }}</span>
+        </a>
       </div>
 
       <h2 class="govuk-heading-m govuk-!-margin-top-7">Important events just passed and coming up</h2>

@@ -6,6 +6,7 @@
     $govuk-brand-colour: #912b88
 );
 
+@use "components/big-number";
 @use "components/metadata";
 @use "components/test-data-banner";
 @use "tweaks";
@@ -53,7 +54,7 @@ h4,
 h5,
 h6 {
     &:target {
-        border-left: 4px solid #ffdd00;
+        border-left: 4px solid govuk.$govuk-brand-colour;
         padding-left: govuk.govuk-spacing(2);
     }
 }

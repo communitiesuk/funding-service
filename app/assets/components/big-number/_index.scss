@@ -1,0 +1,56 @@
+// Adapted from GOV.UK Notify:
+// https://github.com/alphagov/notifications-admin/blob/06e6bece58a74132798233e65aad2d8a102e917e/app/assets/stylesheets/components/big-number.scss
+
+@use "govuk/base" as govuk;
+
+.app-big-number-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: govuk.govuk-spacing(3);
+    margin-bottom: govuk.govuk-spacing(3);
+}
+
+.app-big-number {
+    display: block;
+    flex: 1;
+    padding: govuk.govuk-spacing(3);
+    background: govuk.$govuk-brand-colour;
+    color: govuk.govuk-colour("white");
+    text-decoration: none;
+
+    &:link,
+    &:visited {
+        color: govuk.govuk-colour("white");
+    }
+
+    &:hover {
+        .app-big-number__label {
+            @include govuk.govuk-link-hover-decoration;
+        }
+    }
+
+    &:focus {
+        outline: 3px solid govuk.$govuk-focus-colour;
+        outline-offset: 0;
+        background: govuk.$govuk-focus-colour;
+        color: govuk.$govuk-focus-text-colour;
+
+        .app-big-number__number,
+        .app-big-number__label {
+            color: govuk.$govuk-focus-text-colour;
+        }
+    }
+
+    &__number {
+        display: block;
+        @include govuk.govuk-font(48, $weight: bold);
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__label {
+        display: block;
+        @include govuk.govuk-font(19);
+        @include govuk.govuk-link-decoration;
+        padding-bottom: govuk.govuk-spacing(1);
+    }
+}
