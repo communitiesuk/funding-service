@@ -63,6 +63,7 @@ from app.common.data.types import (
 from app.common.filters import format_date
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.dates import subtract_business_days
 from app.common.helpers.feature_flags import FeatureFlags, SessionFeatureFlag
 from app.common.helpers.request_tracing import (
     REQUEST_TRACING_COOKIE_NAME,
@@ -108,16 +109,6 @@ if TYPE_CHECKING:
 
 
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
-    @staticmethod
-    def _subtract_business_days(from_date: datetime.date, days: int) -> datetime.date:
-        result = from_date
-        remaining = days
-        while remaining > 0:
-            result -= datetime.timedelta(days=1)
-            if result.weekday() < 5:
-                remaining -= 1
-        return result
-
     @expose("/")
     def index(self) -> Any:
         today = datetime.date.today()
@@ -157,7 +148,7 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
         for collection in [*open_collections, *scheduled_collections]:
             if not collection.submission_period_end_date:
                 continue
-            reminder_date = self._subtract_business_days(
+            reminder_date = subtract_business_days(
                 collection.submission_period_end_date,
                 collection.reminder_email_business_days_before_closing,
             )

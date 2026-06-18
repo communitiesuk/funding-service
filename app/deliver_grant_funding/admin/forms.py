@@ -31,6 +31,8 @@ from app.common.data.types import (
     OrganisationType,
     TraceLevelEnum,
 )
+from app.common.filters import format_date_short
+from app.common.helpers.dates import subtract_business_days
 from app.common.helpers.request_tracing import REQUEST_TRACING_TTL
 from app.common.utils import uppercase_first
 
@@ -587,8 +589,6 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
     ) -> None:
         super().__init__(*args, **kwargs)
 
-        from app.common.filters import format_date_short
-
         bold = 'class="govuk-!-font-weight-bold"'
         self.confirm_grant_recipients.label.text = Markup(
             f"It is correct that this grant has <strong {bold}>"
@@ -614,10 +614,18 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
         else:
             self.confirm_submission_dates.label.text = "The submission dates have been set"
         days = collection.reminder_email_business_days_before_closing
-        self.confirm_reminder_days.label.text = Markup(
-            f"Reminder emails should be sent <strong {bold}>{days} "
-            f"business day{'s' if days != 1 else ''}</strong> before closing"
-        )
+        if collection.submission_period_end_date:
+            reminder_date = subtract_business_days(collection.submission_period_end_date, days)
+            self.confirm_reminder_days.label.text = Markup(
+                f"Reminder emails should be sent <strong {bold}>{days} "
+                f"business day{'s' if days != 1 else ''}</strong> before closing "
+                f"(on <strong {bold}>{format_date_short(reminder_date)}</strong>)"
+            )
+        else:
+            self.confirm_reminder_days.label.text = Markup(
+                f"Reminder emails should be sent <strong {bold}>{days} "
+                f"business day{'s' if days != 1 else ''}</strong> before closing"
+            )
         multiple_status = "enabled" if collection.allow_multiple_submissions else "disabled"
         self.confirm_multiple_submissions.label.text = Markup(
             f"It is correct that multiple submissions are <strong {bold}>{multiple_status}</strong>"
