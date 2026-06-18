@@ -2,6 +2,7 @@
 {% import 'admin/layout.html' as layout with context %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {% block beforeContent %}
@@ -21,6 +22,8 @@
       <h1 class="govuk-heading-l">{{ flag.name }}</h1>
       <p class="govuk-body">{{ flag.description }}</p>
 
+      {{ govukInsetText({"text": "This only changes behaviour for you. Other users are not affected."}) }}
+
       {% if flag.is_enabled %}
         <p class="govuk-body">Current status: {{ govukTag({"text": "Enabled", "classes": "govuk-tag--green"}) }}</p>
       {% else %}
@@ -30,7 +33,11 @@
       <form method="post" novalidate class="govuk-!-margin-top-7">
         {{ form.csrf_token }}
         {{ form.enabled }}
-        {{ form.submit }}
+
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('feature_flags.index') }}">Cancel</a>
+        </div>
       </form>
     </div>
   </div>

@@ -15,8 +15,8 @@ from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
 from app.common.data.interfaces.collections import (
-    get_collections_by_status_excluding_draft_grants,
     get_collection,
+    get_collections_by_status_excluding_draft_grants,
     get_collections_with_dates_near_today_excluding_draft_grants,
     get_overdue_open_collections_excluding_draft_grants,
     update_collection,
@@ -1278,7 +1278,7 @@ class PlatformAdminFeatureFlagsView(FlaskAdminPlatformMemberAccessibleMixin, Bas
         if not isinstance(flag, SessionFeatureFlag):
             abort(404)
 
-        form = PlatformAdminToggleFeatureFlagForm(data={"enabled": "on" if flag.is_enabled else "off"})
+        form = PlatformAdminToggleFeatureFlagForm()
         if form.validate_on_submit():
             desired = form.enabled.data == "on"
             if desired != flag.is_enabled:

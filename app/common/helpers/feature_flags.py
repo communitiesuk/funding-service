@@ -97,8 +97,8 @@ class SessionFeatureFlag(FeatureFlagBase):
 
 
 class PreAwardGrantFeatureFlag(StaticFeatureFlag):
-    description = "Enables pre-award functionality for grants, giving access to applications and similar forms."
-    resolver_description = "Determined by the `allow_pre_award` setting on each grant"
+    description = "Show pre-award features like applications for grants that have this enabled."
+    resolver_description = "Based on the 'allow pre-award' setting on each grant."
     uses_request_context = True
 
     @classmethod
@@ -110,8 +110,8 @@ class PreAwardGrantFeatureFlag(StaticFeatureFlag):
 
 
 class NewContextSourcesFeatureFlag(StaticFeatureFlag):
-    description = "Shows new context sources for referencing data in collections"
-    resolver_description = "Enabled when the current user is a platform member"
+    description = "Show new context sources for referencing data in collections."
+    resolver_description = "On for users with platform admin access."
     uses_request_context = False
 
     @classmethod
@@ -120,7 +120,7 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
 
 
 class NewChangeRequestFeatureFlag(SessionFeatureFlag):
-    description = "Use the new change request workflow in Access and Deliver"
+    description = "Use the new change request workflow in Access and Deliver."
 
 
 class FeatureFlags:

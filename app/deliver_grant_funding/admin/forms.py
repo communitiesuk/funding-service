@@ -729,8 +729,8 @@ class PlatformAdminChangeGrantRecipientStatusForm(FlaskForm):
 
 class PlatformAdminToggleFeatureFlagForm(FlaskForm):
     enabled = RadioField(
-        "Enable or disable this feature flag:",
-        choices=[("on", "Enabled"), ("off", "Disabled")],
+        "Do you want to preview this feature?",
+        choices=[("on", "Yes, turn it on for me"), ("off", "No, give me the standard experience")],
         validators=[DataRequired()],
         widget=GovRadioInput(),
     )

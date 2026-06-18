@@ -31,9 +31,9 @@ from app.common.data.interfaces.collections import (
     delete_collection_preview_submissions_created_by_user,
     delete_form,
     delete_question,
-    get_collections_by_status_excluding_draft_grants,
     get_all_submissions_with_mode_for_collection,
     get_collection,
+    get_collections_by_status_excluding_draft_grants,
     get_collections_with_dates_near_today_excluding_draft_grants,
     get_expression,
     get_expression_by_id,
@@ -5939,7 +5939,9 @@ class TestGetCollectionsByStatusExcludingDraftGrants:
         scheduled_collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.SCHEDULED)
         factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT)
 
-        result = get_collections_by_status_excluding_draft_grants([CollectionStatusEnum.OPEN, CollectionStatusEnum.SCHEDULED])
+        result = get_collections_by_status_excluding_draft_grants(
+            [CollectionStatusEnum.OPEN, CollectionStatusEnum.SCHEDULED]
+        )
 
         assert len(result) == 2
         result_ids = {c.id for c in result}
