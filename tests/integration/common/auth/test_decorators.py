@@ -976,7 +976,7 @@ class TestHasFeatureFlagEnabled:
         class EnabledFlag(StaticFeatureFlag):
             description = "Test feature flag"
             resolver_description = "Always enabled"
-            is_global = True
+            uses_request_context = False
 
             @classmethod
             def resolve(cls) -> bool:
@@ -985,7 +985,7 @@ class TestHasFeatureFlagEnabled:
         class DisabledFlag(StaticFeatureFlag):
             description = "Test feature flag"
             resolver_description = "Always disabled"
-            is_global = True
+            uses_request_context = False
 
             @classmethod
             def resolve(cls) -> bool:

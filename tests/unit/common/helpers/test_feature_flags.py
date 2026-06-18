@@ -15,7 +15,7 @@ class TestFeatureFlag:
         class AlwaysOn(StaticFeatureFlag):
             description = "Always on"
             resolver_description = "Always resolves to True"
-            is_global = True
+            uses_request_context = False
 
             @classmethod
             def resolve(cls) -> bool:
@@ -24,7 +24,7 @@ class TestFeatureFlag:
         class AlwaysOff(StaticFeatureFlag):
             description = "Always off"
             resolver_description = "Always resolves to False"
-            is_global = True
+            uses_request_context = False
 
             @classmethod
             def resolve(cls) -> bool:
@@ -37,7 +37,7 @@ class TestFeatureFlag:
         class AlwaysOn(StaticFeatureFlag):
             description = "Always on"
             resolver_description = "Always resolves to True"
-            is_global = True
+            uses_request_context = False
 
             @classmethod
             def resolve(cls) -> bool:
@@ -46,7 +46,7 @@ class TestFeatureFlag:
         class AlwaysOff(StaticFeatureFlag):
             description = "Always off"
             resolver_description = "Always resolves to False"
-            is_global = True
+            uses_request_context = False
 
             @classmethod
             def resolve(cls) -> bool:

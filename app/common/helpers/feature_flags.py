@@ -37,7 +37,7 @@ from app.common.data.interfaces.user import get_current_user
 class FeatureFlagBase(ABC):
     description: str
     resolver_description: str
-    is_global: bool
+    uses_request_context: bool
     is_session_based: bool
     name: str
 
@@ -65,7 +65,7 @@ class StaticFeatureFlag(FeatureFlagBase):
 
 
 class SessionFeatureFlag(FeatureFlagBase):
-    is_global = True
+    uses_request_context = False
     is_session_based = True
 
     @classmethod
@@ -87,7 +87,7 @@ class SessionFeatureFlag(FeatureFlagBase):
 class PreAwardGrantFeatureFlag(StaticFeatureFlag):
     description = "Enables pre-award functionality for grants, giving access to applications and similar forms."
     resolver_description = "Determined by the `allow_pre_award` setting on each grant"
-    is_global = False
+    uses_request_context = True
 
     @classmethod
     def resolve(cls) -> bool:
@@ -100,7 +100,7 @@ class PreAwardGrantFeatureFlag(StaticFeatureFlag):
 class NewContextSourcesFeatureFlag(StaticFeatureFlag):
     description = "Shows new context sources for referencing data in collections"
     resolver_description = "Enabled when the current user is a platform member"
-    is_global = True
+    uses_request_context = False
 
     @classmethod
     def resolve(cls) -> bool:

@@ -14,7 +14,7 @@
       {% for flag in flags %}
         {% set value_parts = [flag.description] %}
 
-        {% if flag.is_global %}
+        {% if not flag.uses_request_context %}
           {% if not flag.is_session_based %}
             {% set _ = value_parts.append(flag.resolver_description) %}
           {% endif %}
