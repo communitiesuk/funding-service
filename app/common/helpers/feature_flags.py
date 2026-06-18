@@ -35,10 +35,22 @@ from app.common.data.interfaces.user import get_current_user
 
 
 class FeatureFlagBase(ABC):
+    # A description of what feature this flag is for
     description: str
+
+    # A description of how the resolver decides who sees this feature
     resolver_description: str
+
+    # Does this resolver need to read context from the specific request to decide if it's enabled or not? eg a URL
+    # param
     uses_request_context: bool
+
+    # Used for the SessionFeatureFlag base class; says that this feature flag can be toggled on or off manually
+    # to see both sides.
     is_session_based: bool
+
+    # An auto-assigned attribute tracking the name of the class variable this feature flag is related to on the
+    # FeatureFlags class.
     name: str
 
     @property
@@ -69,8 +81,8 @@ class SessionFeatureFlag(FeatureFlagBase):
     is_session_based = True
 
     @classmethod
-    @abstractmethod
-    def resolve(cls, session_: SessionMixin, name: str) -> bool: ...
+    def resolve(cls, session_: SessionMixin, name: str) -> bool:
+        return session_.get(name) is not None
 
     @property
     def is_enabled(self) -> bool:
@@ -109,10 +121,6 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
 
 class NewChangeRequestFeatureFlag(SessionFeatureFlag):
     description = "Use the new change request workflow in Access and Deliver"
-
-    @classmethod
-    def resolve(cls, session_: SessionMixin, name: str) -> bool:
-        return session_.get(name) is not None
 
 
 class FeatureFlags:
