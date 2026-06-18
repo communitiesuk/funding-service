@@ -495,9 +495,15 @@ class TestValidateDataSetGrantRecipients:
 class TestGenerateLatestCsvTemplate:
     def test_generate_no_changes(self, factories):
         grant = factories.grant.create()
-        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
-        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+        )
+        gr2 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+        )
+        gr3 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC789", organisation__name="Org C"
+        )
 
         collection = factories.collection.create(grant=grant)
 
@@ -559,9 +565,15 @@ class TestGenerateLatestCsvTemplate:
 
     def test_generate_grant_recipient_removed(self, factories, db_session):
         grant = factories.grant.create()
-        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
-        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="TO_REMOVE")
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+        )
+        gr2 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+        )
+        gr3 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="TO_REMOVE", organisation__name="Org C"
+        )
 
         collection = factories.collection.create(grant=grant)
 
@@ -587,9 +599,15 @@ class TestGenerateLatestCsvTemplate:
 
     def test_generate_no_changes_data_missing(self, factories):
         grant = factories.grant.create()
-        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
-        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+        )
+        gr2 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+        )
+        gr3 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC789", organisation__name="Org C"
+        )
 
         collection = factories.collection.create(grant=grant)
 
@@ -614,9 +632,15 @@ class TestGenerateLatestCsvTemplate:
 
     def test_generate_columns_added_with_data(self, factories, db_session):
         grant = factories.grant.create()
-        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
-        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+        )
+        gr2 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+        )
+        gr3 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC789", organisation__name="Org C"
+        )
 
         collection = factories.collection.create(grant=grant)
 
@@ -659,9 +683,15 @@ class TestGenerateLatestCsvTemplate:
 
     def test_generate_columns_added_no_data(self, factories, db_session):
         grant = factories.grant.create()
-        gr = factories.grant_recipient.create(grant=grant, organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC456")
-        gr3 = factories.grant_recipient.create(grant=grant, organisation__external_id="EC789")
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+        )
+        gr2 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+        )
+        gr3 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC789", organisation__name="Org C"
+        )
 
         collection = factories.collection.create(grant=grant)
 
