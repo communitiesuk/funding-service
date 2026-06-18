@@ -14,7 +14,13 @@ from flask.typing import ResponseReturnValue
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
-from app.common.data.interfaces.collections import get_collection, update_collection
+from app.common.data.interfaces.collections import (
+    get_all_collections_by_status,
+    get_collection,
+    get_collections_with_upcoming_dates,
+    get_overdue_open_collections,
+    update_collection,
+)
 from app.common.data.interfaces.data_analysis import get_unique_users_count_for_live_grant_recipients
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
@@ -101,7 +107,77 @@ if TYPE_CHECKING:
 
 
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
-    pass
+    @staticmethod
+    def _subtract_business_days(from_date: datetime.date, days: int) -> datetime.date:
+        result = from_date
+        remaining = days
+        while remaining > 0:
+            result -= datetime.timedelta(days=1)
+            if result.weekday() < 5:
+                remaining -= 1
+        return result
+
+    @expose("/")
+    def index(self) -> Any:
+        today = datetime.date.today()
+        seven_days = today + datetime.timedelta(days=7)
+
+        live_grants = get_all_grants(statuses=[GrantStatusEnum.LIVE])
+        onboarding_grants = get_all_grants(statuses=[GrantStatusEnum.ONBOARDING])
+        scheduled_collections = get_all_collections_by_status([CollectionStatusEnum.SCHEDULED])
+        open_collections = get_all_collections_by_status([CollectionStatusEnum.OPEN])
+        overdue_collections = get_overdue_open_collections()
+
+        upcoming_collections = get_collections_with_upcoming_dates(within_days=7)
+        timeline_events = []
+        for collection in upcoming_collections:
+            if (
+                collection.submission_period_start_date
+                and today <= collection.submission_period_start_date <= seven_days
+            ):
+                timeline_events.append(
+                    {
+                        "date": collection.submission_period_start_date,
+                        "type": "opening",
+                        "collection": collection,
+                        "is_today": collection.submission_period_start_date == today,
+                    }
+                )
+            if collection.submission_period_end_date and today <= collection.submission_period_end_date <= seven_days:
+                timeline_events.append(
+                    {
+                        "date": collection.submission_period_end_date,
+                        "type": "closing",
+                        "collection": collection,
+                        "is_today": collection.submission_period_end_date == today,
+                    }
+                )
+
+        for collection in [*open_collections, *scheduled_collections]:
+            if not collection.submission_period_end_date:
+                continue
+            reminder_date = self._subtract_business_days(collection.submission_period_end_date, 5)
+            if today <= reminder_date <= seven_days:
+                timeline_events.append(
+                    {
+                        "date": reminder_date,
+                        "type": "reminder",
+                        "collection": collection,
+                        "is_today": reminder_date == today,
+                    }
+                )
+
+        timeline_events.sort(key=lambda e: e["date"])
+
+        return self.render(
+            "deliver_grant_funding/admin/dashboard.html",
+            live_grants=live_grants,
+            onboarding_grants=onboarding_grants,
+            scheduled_collections=scheduled_collections,
+            open_collections=open_collections,
+            overdue_collections=overdue_collections,
+            timeline_events=timeline_events,
+        )
 
 
 class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):

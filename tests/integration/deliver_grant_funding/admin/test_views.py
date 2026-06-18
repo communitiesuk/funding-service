@@ -5666,3 +5666,129 @@ class TestGrantRecipientChangeStatus:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Invalid status selected")
+
+
+class TestAdminDashboard:
+    def test_dashboard_shows_grant_stats(self, authenticated_platform_admin_client, factories, db_session):
+        factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.grant.create(status=GrantStatusEnum.ONBOARDING)
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Live grant" in soup.get_text()
+        assert "Onboarding grant" in soup.get_text()
+
+    def test_dashboard_shows_collection_stats(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            name="Scheduled Collection",
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date.today() + datetime.timedelta(days=3),
+        )
+        factories.collection.create(
+            name="Open Collection",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=datetime.date.today() - datetime.timedelta(days=10),
+            submission_period_end_date=datetime.date.today() + datetime.timedelta(days=10),
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Scheduled Collection" in soup.get_text()
+        assert "Open Collection" in soup.get_text()
+
+    def test_dashboard_shows_overdue_collections(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            name="Overdue Collection",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date.today() - datetime.timedelta(days=2),
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Overdue Collection" in soup.get_text()
+
+    def test_dashboard_shows_upcoming_timeline(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            name="Opening Soon",
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date.today() + datetime.timedelta(days=2),
+        )
+        factories.collection.create(
+            name="Closing Soon",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=datetime.date.today() - datetime.timedelta(days=10),
+            submission_period_end_date=datetime.date.today() + datetime.timedelta(days=3),
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Opening Soon" in soup.get_text()
+        assert "Closing Soon" in soup.get_text()
+        assert "Opens for submissions" in soup.get_text()
+        assert "Closes for submissions" in soup.get_text()
+
+    def test_dashboard_shows_today_tag(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            name="Opening Today",
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date.today(),
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        today_tags = soup.find_all("strong", class_="govuk-tag--green")
+        assert any("today" in tag.get_text().lower() for tag in today_tags)
+
+    def test_dashboard_shows_send_reminder_emails(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        # 5 business days from today is the reminder date for a collection closing then.
+        # Set end date such that 5 business days before it lands today.
+        # 5 business days forward from today (skipping weekends) gives us the end date.
+        today = datetime.date.today()
+        end_date = today
+        remaining = 5
+        while remaining > 0:
+            end_date += datetime.timedelta(days=1)
+            if end_date.weekday() < 5:
+                remaining -= 1
+
+        factories.collection.create(
+            name="Needs Reminder",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=today - datetime.timedelta(days=14),
+            submission_period_end_date=end_date,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Needs Reminder" in soup.get_text()
+        assert "Send reminder emails" in soup.get_text()

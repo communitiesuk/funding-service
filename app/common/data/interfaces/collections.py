@@ -123,6 +123,55 @@ def get_collection(
     return db.session.scalars(select(Collection).where(*filters).options(*options)).unique().one()
 
 
+def get_all_collections_by_status(statuses: list[CollectionStatusEnum]) -> Sequence[Collection]:
+    statement = (
+        select(Collection)
+        .options(joinedload(Collection.grant))
+        .where(Collection.status.in_(statuses))
+        .order_by(Collection.name)
+    )
+    return db.session.scalars(statement).unique().all()
+
+
+def get_overdue_open_collections() -> Sequence[Collection]:
+    today = datetime.date.today()
+    statement = (
+        select(Collection)
+        .options(joinedload(Collection.grant))
+        .where(
+            Collection.status == CollectionStatusEnum.OPEN,
+            Collection.submission_period_end_date.isnot(None),
+            Collection.submission_period_end_date < today,
+        )
+        .order_by(Collection.submission_period_end_date)
+    )
+    return db.session.scalars(statement).unique().all()
+
+
+def get_collections_with_upcoming_dates(within_days: int = 7) -> Sequence[Collection]:
+    today = datetime.date.today()
+    end_date = today + datetime.timedelta(days=within_days)
+    statement = (
+        select(Collection)
+        .options(joinedload(Collection.grant))
+        .where(
+            or_(
+                and_(
+                    Collection.submission_period_start_date.isnot(None),
+                    Collection.submission_period_start_date >= today,
+                    Collection.submission_period_start_date <= end_date,
+                ),
+                and_(
+                    Collection.submission_period_end_date.isnot(None),
+                    Collection.submission_period_end_date >= today,
+                    Collection.submission_period_end_date <= end_date,
+                ),
+            ),
+        )
+    )
+    return db.session.scalars(statement).unique().all()
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_collection(  # noqa: C901
     collection: Collection,

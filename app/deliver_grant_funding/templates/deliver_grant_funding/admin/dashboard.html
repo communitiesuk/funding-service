@@ -1,0 +1,145 @@
+{% extends "admin/master.html" %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">Admin dashboard</h1>
+
+      <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-third">
+          <p class="govuk-!-margin-top-0">
+            <a href="{{ url_for('deliver_grant_funding.list_grants') }}" class="govuk-link govuk-link--no-visited-state">
+              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ onboarding_grants|length }}</span>
+              <span class="govuk-body-l">Onboarding grant{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+            </a>
+          </p>
+        </div>
+        <div class="govuk-grid-column-one-third">
+          <p class="govuk-!-margin-top-0">
+            <a href="{{ url_for('deliver_grant_funding.list_grants') }}" class="govuk-link govuk-link--no-visited-state">
+              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ live_grants|length }}</span>
+              <span class="govuk-body-l">Live grant{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-third">
+          <p class="govuk-!-margin-top-0">
+            <a href="#scheduled-collections" class="govuk-link govuk-link--no-visited-state">
+              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ scheduled_collections|length }}</span>
+              <span class="govuk-body-l">Scheduled collection{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+            </a>
+          </p>
+        </div>
+        <div class="govuk-grid-column-one-third">
+          <p class="govuk-!-margin-top-0">
+            <a href="#open-collections" class="govuk-link govuk-link--no-visited-state">
+              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ open_collections|length }}</span>
+              <span class="govuk-body-l">Open collection{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+            </a>
+          </p>
+        </div>
+        <div class="govuk-grid-column-one-third">
+          <p class="govuk-!-margin-top-0">
+            <a href="#overdue-collections" class="govuk-link govuk-link--no-visited-state">
+              <span class="govuk-heading-xl govuk-!-margin-bottom-0">{{ overdue_collections|length }}</span>
+              <span class="govuk-body-l">Overdue collection{{ 's' if onboarding_grants|length != 1 else '' }}</span>
+            </a>
+          </p>
+        </div>
+      </div>
+
+      <h2 class="govuk-heading-m govuk-!-margin-top-7">Upcoming actions</h2>
+      {% if timeline_events %}
+        <table class="govuk-table">
+          <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+              <th class="govuk-table__header" scope="col">Date</th>
+              <th class="govuk-table__header" scope="col">Event</th>
+              <th class="govuk-table__header" scope="col">Collection</th>
+              <th class="govuk-table__header" scope="col">Grant</th>
+            </tr>
+          </thead>
+          <tbody class="govuk-table__body">
+            {% for event in timeline_events %}
+              <tr class="govuk-table__row">
+                <td class="govuk-table__cell">
+                  {{ format_date_short(event.date) }}
+                  {% if event.is_today %}
+                    {{ govukTag({"text": "today", "classes": "govuk-tag--green"}) }}
+                  {% else %}
+                    {{ govukTag({"text": "upcoming", "classes": "govuk-tag--orange"}) }}
+                  {% endif %}
+                </td>
+                <td class="govuk-table__cell">
+                  {% if event.type == "opening" %}
+                    Opens for submissions
+                  {% elif event.type == "closing" %}
+                    Closes for submissions
+                  {% elif event.type == "reminder" %}
+                    Send reminder emails
+                  {% endif %}
+                </td>
+                <td class="govuk-table__cell">{{ event.collection.name }}</td>
+                <td class="govuk-table__cell">{{ event.collection.grant.name }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="govuk-body">No upcoming actions in the next 7 days.</p>
+      {% endif %}
+
+      <h2 class="govuk-heading-m" id="scheduled-collections">Scheduled collections</h2>
+      {% if scheduled_collections %}
+        <ul class="govuk-list govuk-list--bullet">
+          {% for collection in scheduled_collections %}
+            <li>
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=collection.grant_id, collection_type=collection.type, collection_id=collection.id) }}"
+                >{{ collection.name }}</a
+              >
+              ({{ collection.grant.name }})
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="govuk-body">None.</p>
+      {% endif %}
+
+      <h2 class="govuk-heading-m" id="open-collections">Open collections</h2>
+      {% if open_collections %}
+        <ul class="govuk-list govuk-list--bullet">
+          {% for collection in open_collections %}
+            <li>
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=collection.grant_id, collection_type=collection.type, collection_id=collection.id) }}"
+                >{{ collection.name }}</a
+              >
+              ({{ collection.grant.name }})
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="govuk-body">None.</p>
+      {% endif %}
+
+      <h2 class="govuk-heading-m" id="overdue-collections">Overdue collections</h2>
+      {% if overdue_collections %}
+        <ul class="govuk-list govuk-list--bullet">
+          {% for collection in overdue_collections %}
+            <li>
+              <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_sections', grant_id=collection.grant_id, collection_type=collection.type, collection_id=collection.id) }}"
+                >{{ collection.name }}</a
+              >
+              ({{ collection.grant.name }}) &mdash; ended {{ format_date_short(collection.submission_period_end_date) }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="govuk-body">None.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
