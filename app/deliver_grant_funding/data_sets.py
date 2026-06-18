@@ -140,47 +140,12 @@ def _validate_row(row: TUnvalidatedDataSetRow, idx: int, data_set: DataSetUpload
     return result
 
 
-def _check_grant_recipient_row(
-    external_id: str,
-    recipient: str,
-    index: int,
-    external_ids: set[str],
-    recipient_names: set[str],
-    seen_external_ids: set[str],
-    seen_recipient_names: set[str],
-) -> list[str]:
-    errors: list[str] = []
-    external_id_unknown = external_id not in external_ids
-
-    if external_id_unknown:
-        errors.append(
-            f"Row {index + 2}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' not found in grant recipients"
-        )
-    elif external_id in seen_external_ids:
-        errors.append(
-            f"Row {index + 2}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' already appears in the data set"
-        )
-
-    if recipient not in recipient_names:
-        errors.append(
-            f"Row {index + 2}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' not found in grant recipients"
-        )
-    elif not external_id_unknown and recipient in seen_recipient_names:
-        errors.append(
-            f"Row {index + 2}: {DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER} '{recipient}' already appears in the data set"
-        )
-
-    return errors
-
-
 def validate_data_set_grant_recipients(
     data_set: DataSetUploadSessionModel, grant_recipients: Sequence[GrantRecipient], all_rows: TUnvalidatedDataSetRows
 ) -> list[str]:
     errors: list[str] = []
     external_ids = {gr.organisation.external_id for gr in grant_recipients}
-    recipient_names = {gr.organisation.name for gr in grant_recipients}
     seen_external_ids: set[str] = set()
-    seen_recipient_names: set[str] = set()
 
     for idx, row in enumerate(all_rows):
         external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
@@ -201,27 +166,15 @@ def validate_data_set_grant_recipients(
             )
             continue
 
-        errors.extend(
-            _check_grant_recipient_row(
-                external_id,
-                recipient,
-                idx,
-                external_ids,
-                recipient_names,
-                seen_external_ids,
-                seen_recipient_names,
+        if external_id not in external_ids:
+            errors.append(
+                f"Row {idx + 2}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' not found in grant recipients"
             )
-        )
+        elif external_id in seen_external_ids:
+            errors.append(
+                f"Row {idx + 2}: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' already appears in the data set"
+            )
         seen_external_ids.add(external_id)
-        if external_id in external_ids:
-            seen_recipient_names.add(recipient)
-
-    for external_id in sorted(external_ids - seen_external_ids):
-        errors.append(
-            f"Grant recipient with {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{external_id}' is missing from the CSV"
-        )
-    for name in sorted(recipient_names - seen_recipient_names):
-        errors.append(f"Grant recipient '{name}' is missing from the CSV")
 
     return errors
 
@@ -239,6 +192,34 @@ def validate_data_set(
 
 def build_data_set_upload_s3_key(grant_id: uuid.UUID, collection_id: uuid.UUID, data_source_id: uuid.UUID) -> str:
     return f"{current_app.config['REFERENCE_FILES_PREFIX']}/{grant_id}/{collection_id}/{data_source_id}"
+
+
+class GrantRecipientMismatch(BaseModel):
+    row_number: int
+    external_id: str
+    csv_organisation_name: str
+    service_organisation_name: str
+
+
+def find_grant_recipient_mismatches(
+    all_rows: TUnvalidatedDataSetRows, grant_recipients: Sequence[GrantRecipient]
+) -> list[GrantRecipientMismatch]:
+    name_by_external_id = {gr.organisation.external_id: gr.organisation.name for gr in grant_recipients}
+    mismatches = []
+    for idx, row in enumerate(all_rows):
+        external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
+        csv_name = row.get(DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, "").strip()
+        service_name = name_by_external_id.get(external_id)
+        if service_name and csv_name and service_name != csv_name:
+            mismatches.append(
+                GrantRecipientMismatch(
+                    row_number=idx,
+                    external_id=external_id,
+                    csv_organisation_name=csv_name,
+                    service_organisation_name=service_name,
+                )
+            )
+    return mismatches
 
 
 def check_missing_data(data_columns: list[str], all_rows: TUnvalidatedDataSetRows) -> MissingDataResult:
