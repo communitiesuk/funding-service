@@ -68,6 +68,7 @@ from app.common.expressions import (
     interpolate,
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
+from app.common.helpers.timeline import TimelineEvent, build_timeline_events
 from app.extensions import notification_service, s3_service
 
 if TYPE_CHECKING:
@@ -489,6 +490,10 @@ class SubmissionHelper:
     @property
     def reopened_by(self) -> User | None:
         return self.events.submission_state.reopened_by
+
+    @property
+    def timeline_events(self) -> list[TimelineEvent]:
+        return build_timeline_events(self.submission)
 
     @property
     def id(self) -> UUID:

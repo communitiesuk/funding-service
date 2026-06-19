@@ -1,5 +1,4 @@
 {% from "common/macros/status.html" import submissionStatusTag with context %}
-{% from "common/macros/timeline.html" import timeline with context %}
 {% extends 'admin/model/details.html' %}
 
 {% block details_table %}
@@ -51,5 +50,20 @@
 
   <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" />
 
-  {{ timeline(timeline_items) }}
+  <div class="moj-timeline">
+    {% for item in timeline_items %}
+      <div class="moj-timeline__item">
+        <div class="moj-timeline__header">
+          <h2 class="moj-timeline__title">{{ item.title }}</h2>
+          <p class="moj-timeline__byline">by {{ item.byline }}</p>
+        </div>
+        <p class="moj-timeline__date">
+          <time datetime="{{ iso_utc(item.datetime) }}">{{ format_datetime_short(item.datetime) }}</time>
+        </p>
+        {% if item.description %}
+          <div class="moj-timeline__description">{{ item.description }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
 {% endblock %}
