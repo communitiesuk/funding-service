@@ -8901,6 +8901,29 @@ class TestViewSubmission:
         assert "Upload a supporting document" in soup.text
         assert "test-document.pdf" in soup.text
 
+    # TODO: combine into above test when feature flag removed
+    def test_ff_metadata_displayed(self, authenticated_grant_member_client, factories, submission_submitted):
+        with authenticated_grant_member_client.session_transaction() as session:
+            session["NEW_CHANGE_REQUESTS"] = "on"
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_member_client.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert get_h1_text(soup) == "Submission"
+
+        assert "Organisation" in soup.text
+        assert "Grant name" in soup.text
+        assert "Report name" in soup.text
+        assert "Submitted by" in soup.text
+
     def test_get_view_submission_displays_questions_with_add_another(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
