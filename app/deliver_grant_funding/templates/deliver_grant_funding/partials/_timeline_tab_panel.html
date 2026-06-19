@@ -1,6 +1,8 @@
+{% from "common/macros/timeline.html" import timeline with context %}
+
 <div class="govuk-grid-row">
   <div class="govuk-grid-column-full">
     <h2 class="govuk-heading-m">Timeline</h2>
-    <p>No events to display.</p>
+    {{ timeline(timeline_items) }}
   </div>
 </div>

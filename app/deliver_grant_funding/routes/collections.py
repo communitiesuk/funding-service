@@ -3273,9 +3273,11 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
                 )
             )
     return render_template(
-        "deliver_grant_funding/collections/view_submission.html"
-        if not FeatureFlags.NEW_CHANGE_REQUESTS
-        else "deliver_grant_funding/collections/ff_view_submission.html",
+        (
+            "deliver_grant_funding/collections/view_submission.html"
+            if not FeatureFlags.NEW_CHANGE_REQUESTS
+            else "deliver_grant_funding/collections/ff_view_submission.html"
+        ),
         grant=helper.grant,
         helper=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
