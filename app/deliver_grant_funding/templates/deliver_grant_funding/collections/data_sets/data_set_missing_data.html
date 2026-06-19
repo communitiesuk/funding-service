@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/warning-text/macro.html" import govukWarningText %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
 {% set type_constants = collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
@@ -9,7 +10,11 @@
 {% set page_title = "Review missing data in " ~ session_data.name ~ " data set" %}
 
 {% block beforeContent %}
-  {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+  {% if session_data.has_grant_recipient_mismatches %}
+    {% set back_link = url_for("deliver_grant_funding.confirm_data_set_grant_recipients", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+  {% else %}
+    {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+  {% endif %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
 
@@ -31,18 +36,22 @@
       {% endfor %}
 
       {% set rows = [] %}
-      {% for missing_data_row in missing_result.row_results %}
+      {% for missing_data_row in missing_data_rows %}
         {% set data_row = all_rows[missing_data_row.row_number] %}
-        {%
-          set row_cells = [
-            {"text": data_row.get(constants.data_set_external_id_column_header)},
-            {"text": data_row.get(constants.data_set_grant_recipient_column_header)}
-          ]
-        %}
+
+        {% set row_cells = [{"text": missing_data_row.external_id}] %}
+
+        {% if missing_data_row.grant_recipient_entirely_missing %}
+          {% do row_cells.append({"html": govukTag({"text": "Grant recipient missing", "classes": "govuk-tag--red app-status-tag"}) ~ " " ~ missing_data_row.grant_recipient_name}) %}
+        {% else %}
+          {% do row_cells.append({"text": missing_data_row.grant_recipient_name}) %}
+        {% endif %}
+
         {% for column in session_data.data_columns %}
-          {% if column in missing_data_row.missing_columns %}
-            {% do row_cells.append({"html": "<span class='govuk-tag govuk-tag--orange'>Data missing</span>"}) %}
+          {% if missing_data_row.grant_recipient_entirely_missing or column in missing_data_row.missing_columns %}
+            {% do row_cells.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--orange"})}) %}
           {% else %}
+            {% set data_row = all_rows[missing_data_row.row_number] %}
             {% do row_cells.append({"text": data_row.get(column, "")}) %}
           {% endif %}
         {% endfor %}

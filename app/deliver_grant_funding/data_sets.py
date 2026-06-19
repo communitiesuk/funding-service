@@ -65,19 +65,6 @@ class DataSetValidationResult(BaseModel):
         return [e for r in self.row_results for e in r.cell_errors]
 
 
-class MissingDataRow(BaseModel):
-    row_number: int
-    missing_columns: list[str]
-
-
-class MissingDataResult(BaseModel):
-    row_results: list[MissingDataRow] = Field(default_factory=list)
-
-    @property
-    def has_missing_data(self) -> bool:
-        return bool(self.row_results)
-
-
 def _validate_decimal(stripped: str, mapping: DataSetColumnMapping, column: str) -> list[CellError]:
     errors: list[CellError] = []
     decimal_places = len(stripped.split(".")[1]) if "." in stripped else 0
@@ -222,13 +209,67 @@ def find_grant_recipient_mismatches(
     return mismatches
 
 
-def check_missing_data(data_columns: list[str], all_rows: TUnvalidatedDataSetRows) -> MissingDataResult:
-    result = MissingDataResult()
+class MissingDataDisplayRow(BaseModel):
+    external_id: str
+    grant_recipient_name: str
+    missing_columns: list[str] = Field(default_factory=list)
+    grant_recipient_entirely_missing: bool = False
+    row_number: int | None = None
+
+
+def _get_grant_recipient_name_for_row(
+    row: TUnvalidatedDataSetRow, grant_recipients: Sequence[GrantRecipient]
+) -> str | None:
+    external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
+    organisation_name = next(
+        (gr.organisation.name for gr in grant_recipients if gr.organisation.external_id == external_id),
+        None,
+    )
+    return organisation_name
+
+
+def build_missing_data_display_rows(
+    data_columns: list[str],
+    all_rows: TUnvalidatedDataSetRows,
+    grant_recipients: Sequence[GrantRecipient],
+) -> list[MissingDataDisplayRow]:
+    seen_external_ids: set[str] = set()
+    display_rows: list[MissingDataDisplayRow] = []
+
     for idx, row in enumerate(all_rows):
-        missing = [col for col in data_columns if not row.get(col, "").strip()]
-        if missing:
-            result.row_results.append(MissingDataRow(row_number=idx, missing_columns=missing))
-    return result
+        external_id = row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip()
+        seen_external_ids.add(external_id)
+
+        missing_columns = [col for col in data_columns if not row.get(col, "").strip()]
+        if not missing_columns:
+            continue
+
+        name = _get_grant_recipient_name_for_row(row, grant_recipients) or row.get(
+            DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, ""
+        )
+        display_rows.append(
+            MissingDataDisplayRow(
+                external_id=external_id,
+                grant_recipient_name=name,
+                missing_columns=missing_columns,
+                row_number=idx,
+            )
+        )
+
+    for gr in grant_recipients:
+        if gr.organisation.mode == OrganisationModeEnum.TEST:
+            continue
+        if gr.organisation.external_id not in seen_external_ids:
+            display_rows.append(
+                MissingDataDisplayRow(
+                    external_id=gr.organisation.external_id,
+                    grant_recipient_name=gr.organisation.name,
+                    missing_columns=data_columns,
+                    grant_recipient_entirely_missing=True,
+                )
+            )
+
+    return sorted(display_rows, key=lambda r: r.grant_recipient_name)
 
 
 def generate_latest_csv_template(data_source: DataSource) -> StringIO:

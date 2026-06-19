@@ -10603,8 +10603,9 @@ class TestDataSetMissingData:
         )
         assert response.status_code == 404
 
+    @pytest.mark.parametrize("has_grant_recipient_mismatches", [True, False])
     def test_get_data_set_missing_data_shows_rows_with_missing_data(
-        self, authenticated_grant_admin_client, factories, mocker
+        self, authenticated_grant_admin_client, factories, mocker, has_grant_recipient_mismatches
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
@@ -10613,6 +10614,9 @@ class TestDataSetMissingData:
         )
         gr2 = factories.grant_recipient.create(
             grant=grant, organisation__external_id="E06000456", organisation__name="Lothlorien"
+        )
+        gr3 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC789", organisation__name="Gondor"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10629,6 +10633,7 @@ class TestDataSetMissingData:
                 "data_source_id": uuid.uuid4(),
                 "original_filename": "test.csv",
                 "s3_key": "data-set-uploads/test.csv",
+                "has_grant_recipient_mismatches": has_grant_recipient_mismatches,
             }
 
         all_rows = [
@@ -10659,8 +10664,26 @@ class TestDataSetMissingData:
         soup = BeautifulSoup(response.data, "html.parser")
         assert gr.organisation.name in response.text
         assert gr2.organisation.name not in response.text
+        assert gr3.organisation.name in response.text
+
         assert soup.find("div", {"class": "govuk-error-summary"}) is None
         assert "Data missing" in soup.text
+        assert "Grant recipient missing" in soup.text
+
+        if has_grant_recipient_mismatches:
+            assert page_has_link(soup, "Back").get("href") == url_for(
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        else:
+            assert page_has_link(soup, "Back").get("href") == url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
 
     def test_get_data_set_missing_data_with_no_missing_data_redirects(
         self, authenticated_grant_admin_client, factories, mocker
