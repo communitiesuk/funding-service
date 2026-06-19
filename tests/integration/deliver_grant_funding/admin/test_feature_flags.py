@@ -29,9 +29,9 @@ class TestFeatureFlagsPage:
         assert "PRE_AWARD" in response.text
         assert "NEW_CONTEXT_SOURCES" in response.text
         assert "NEW_CHANGE_REQUESTS" in response.text
-        assert "pre-award functionality for grants" in response.text
+        assert "pre-award features like applications" in response.text
         assert "context sources for referencing data" in response.text
-        assert "new change request workflow" in response.text
+        assert "new change request workflow in Access and Deliver" in response.text
 
     def test_only_renders_change_links_for_session_flags(self, authenticated_platform_admin_client):
         response = authenticated_platform_admin_client.get("/deliver/admin/feature-flags/")
