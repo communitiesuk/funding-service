@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from _pytest._code import ExceptionInfo
 
@@ -12,13 +14,54 @@ from app.common.data.interfaces.grants import (
     update_grant,
 )
 from app.common.data.models import Grant
-from app.common.data.types import GrantStatusEnum, RoleEnum
+from app.common.data.types import CollectionType, GrantStatusEnum, RoleEnum
 
 
-def test_get_grant(factories):
-    g = factories.grant.create()
-    result = get_grant(g.id)
-    assert result is not None
+class TestGetGrant:
+    def test_get_grant(self, factories):
+        g = factories.grant.create()
+        result = get_grant(g.id)
+
+        assert result is not None
+
+    def test_get_grant_orders_collection_by_type_and_date_by_default(self, factories):
+        grant = factories.grant.create()
+
+        factories.collection.create(
+            name="Collection one",
+            grant=grant,
+            type=CollectionType.MONITORING_REPORT,
+            created_at_utc=datetime(2025, 1, 2),
+        )
+        factories.collection.create(
+            name="Collection two",
+            grant=grant,
+            type=CollectionType.MONITORING_REPORT,
+            created_at_utc=datetime(2025, 1, 1),
+        )
+        factories.collection.create(
+            name="Collection three",
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            created_at_utc=datetime(2025, 1, 3),
+        )
+
+        result = get_grant(grant.id)
+
+        assert result.collections[0].name == "Collection three"  # APPLICATION type is 1st
+        assert result.collections[1].name == "Collection two"  # oldest MONITORING_REPORT type is 2nd
+        assert result.collections[2].name == "Collection one"  # newest MONITORING_REPORT type is last
+
+    def test_get_grant_with_all_collections_maintains_default_relation_order(self, factories):
+        grant = factories.grant.create()
+
+        factories.collection.create(grant=grant, type=CollectionType.MONITORING_REPORT)
+        factories.collection.create(grant=grant, type=CollectionType.MONITORING_REPORT)
+        factories.collection.create(grant=grant, type=CollectionType.APPLICATION)
+
+        result = get_grant(grant.id, with_all_collections=True)
+
+        assert result.collections[0].type == CollectionType.APPLICATION  # APPLICATION type is 1st
 
 
 class TestGetAllDeliverGrantsByUser:

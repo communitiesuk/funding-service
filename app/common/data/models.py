@@ -90,7 +90,12 @@ class Grant(BaseModel):
         ForeignKey("organisation.id"), nullable=True
     )  # TODO: make non-nullable
 
-    collections: Mapped[list[Collection]] = relationship("Collection", lazy=True, cascade="all, delete-orphan")
+    collections: Mapped[list[Collection]] = relationship(
+        "Collection",
+        lazy=True,
+        cascade="all, delete-orphan",
+        order_by="Collection.type.desc(), Collection.created_at_utc",
+    )
     organisation: Mapped[Organisation] = relationship("Organisation", back_populates="grants")
     grant_recipients: Mapped[list[GrantRecipient]] = relationship("GrantRecipient", back_populates="grant")
     privacy_policy_markdown: Mapped[str | None]
