@@ -8924,6 +8924,32 @@ class TestViewSubmission:
         assert "Report name" in soup.text
         assert "Submitted by" in soup.text
 
+    def test_ff_tabs_and_panels_are_displayed(self, authenticated_grant_member_client, submission_submitted):
+        with authenticated_grant_member_client.session_transaction() as session:
+            session["NEW_CHANGE_REQUESTS"] = "on"
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_member_client.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        tab_labels = [tab.text.strip() for tab in soup.select(".govuk-tabs__tab")]
+
+        assert "Form responses" in tab_labels
+        assert "Timeline" in tab_labels
+
+        form_responses_panel = soup.select_one("#form-responses")
+        assert form_responses_panel.find("h2", class_="govuk-heading-m").text.strip() == "Report response"
+
+        timeline_panel = soup.select_one("#timeline")
+        assert timeline_panel.find("h2", class_="govuk-heading-m").text.strip() == "Timeline"
+
     def test_get_view_submission_displays_questions_with_add_another(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
