@@ -8902,7 +8902,9 @@ class TestViewSubmission:
         assert "test-document.pdf" in soup.text
 
     # TODO: combine into above test when feature flag removed
-    def test_ff_metadata_displayed(self, authenticated_grant_member_client, factories, submission_submitted):
+    def test_ff_metadata_and_tab_panels_are_displayed(
+        self, authenticated_grant_member_client, factories, submission_submitted
+    ):
         with authenticated_grant_member_client.session_transaction() as session:
             session["NEW_CHANGE_REQUESTS"] = "on"
 
@@ -8923,21 +8925,6 @@ class TestViewSubmission:
         assert "Grant name" in soup.text
         assert "Report name" in soup.text
         assert "Submitted by" in soup.text
-
-    def test_ff_tabs_and_panels_are_displayed(self, authenticated_grant_member_client, submission_submitted):
-        with authenticated_grant_member_client.session_transaction() as session:
-            session["NEW_CHANGE_REQUESTS"] = "on"
-
-        response = authenticated_grant_member_client.get(
-            url_for(
-                "deliver_grant_funding.view_submission",
-                grant_id=authenticated_grant_member_client.grant.id,
-                submission_id=submission_submitted.id,
-            )
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
 
         tab_labels = [tab.text.strip() for tab in soup.select(".govuk-tabs__tab")]
 
