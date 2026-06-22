@@ -483,6 +483,10 @@ class SubmissionHelper:
         return self.events.submission_state.reopened_reason
 
     @property
+    def section_ids(self) -> list[str] | None:
+        return self.events.submission_state.section_ids
+
+    @property
     def reopened_by(self) -> User | None:
         return self.events.submission_state.reopened_by
 
@@ -1239,7 +1243,7 @@ class SubmissionHelper:
             return True
         return False
 
-    def reopen_submission(self, user: User, reopened_reason: str) -> None:
+    def reopen_submission(self, user: User, reopened_reason: str | None, section_ids: list[str] | None) -> None:
 
         if not AuthorisationHelper.can_reopen_submission(user, self.submission):
             raise SubmissionAuthorisationError(
@@ -1261,6 +1265,7 @@ class SubmissionHelper:
             event_type=SubmissionEventType.SUBMISSION_REOPENED,
             user=user,
             reopened_reason=reopened_reason,
+            section_ids=section_ids,
             submission_data=self.submission.data_manager.data,
             related_entity_id=self.id,
         )
