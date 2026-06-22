@@ -545,7 +545,7 @@ class ModelClassFilter(BaseSQLAFilter):
         super().__init__(column, name)
 
     def apply(self, query, value, alias=None):
-        return query.filter(self.column["model_class"].astext.ilike(value))
+        return query.filter(AuditEvent.data["model_class"].astext.ilike(value))
 
     def operation(self) -> str:
         return "equals"
@@ -556,7 +556,7 @@ class ActionFilter(BaseSQLAFilter):
         super().__init__(column, name)
 
     def apply(self, query, value, alias=None):
-        return query.filter(self.column["action"].astext.ilike(value))
+        return query.filter(AuditEvent.data["action"].astext.ilike(value))
 
     def operation(self) -> str:
         return "equals"
