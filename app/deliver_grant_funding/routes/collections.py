@@ -3295,7 +3295,11 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
     form = ReopenSubmissionForm()
     if form.validate_on_submit():
         try:
-            submission_helper.reopen_submission(user=get_current_user(), reopened_reason=form.reopened_reason.data)  # ty:ignore[invalid-argument-type]
+            submission_helper.reopen_submission(
+                user=get_current_user(),
+                reopened_reason=form.reopened_reason.data,
+                section_ids=[],  # will be form.section_ids.data
+            )
             flash("Submission reopened", FlashMessageType.SUBMISSION_REOPENED)
             return redirect(
                 url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)

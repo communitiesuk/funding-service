@@ -1827,10 +1827,11 @@ class TestSubmissionHelper:
             for form in helper.get_ordered_visible_forms():
                 assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
 
-            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=["section_1"])
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.reopened_reason == "Test reason"
+            assert helper.section_ids == ["section_1"]
             assert helper.reopened_by == grant_team_user
             for form in helper.get_ordered_visible_forms():
                 assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
@@ -1841,10 +1842,11 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission_submitted)
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
-            helper.reopen_submission(user=platform_admin_user, reopened_reason="Test reason")
+            helper.reopen_submission(user=platform_admin_user, reopened_reason="Test reason", section_ids=["section_1"])
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.reopened_reason == "Test reason"
+            assert helper.section_ids == ["section_1"]
             assert helper.reopened_by == platform_admin_user
 
         def test_submission_reopened_fails_when_report_closed(
@@ -1856,7 +1858,7 @@ class TestSubmissionHelper:
             collection.status = CollectionStatusEnum.CLOSED
 
             with pytest.raises(CollectionIsNotOpenError, match="report is not open"):
-                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=[])
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
@@ -1867,7 +1869,7 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
             with pytest.raises(SubmissionIsNotSubmittedError, match="it is not submitted"):
-                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=[])
 
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
@@ -1888,7 +1890,7 @@ class TestSubmissionHelper:
             user = request.getfixturevalue(user_fixture)
 
             with pytest.raises(SubmissionAuthorisationError, match="does not have permission to reopen the submission"):
-                helper.reopen_submission(user=user, reopened_reason="Test reason")
+                helper.reopen_submission(user=user, reopened_reason="Test reason", section_ids=[])
 
         def test_submission_reopened_notification_emails_requires_certification(
             self,
@@ -1902,7 +1904,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission_submitted)
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
-            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=[])
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert len(mock_notification_service_calls) == 2
@@ -1927,7 +1929,7 @@ class TestSubmissionHelper:
 
             submission_submitted.collection.requires_certification = False
 
-            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=[])
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert len(mock_notification_service_calls) == 1
@@ -1948,7 +1950,7 @@ class TestSubmissionHelper:
             assert helper_1.status == SubmissionStatusEnum.SUBMITTED
             assert helper_2.status == SubmissionStatusEnum.SUBMITTED
 
-            helper_2.reopen_submission(grant_team_user, reopened_reason="Test reason")
+            helper_2.reopen_submission(grant_team_user, reopened_reason="Test reason", section_ids=[])
             assert helper_1.status == SubmissionStatusEnum.SUBMITTED
             assert helper_2.status == SubmissionStatusEnum.IN_PROGRESS
 
