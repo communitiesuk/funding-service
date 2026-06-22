@@ -42,6 +42,7 @@
           <p class="govuk-visually-hidden">Why are you reopening the submission?</p>
         {% endset %}
         {{ form.csrf_token }}
+        {{ form.section_ids() }}
         {{
           form.reopened_reason(
                     params={

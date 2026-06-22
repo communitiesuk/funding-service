@@ -3292,13 +3292,13 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
     submission_helper = SubmissionHelper.load(submission_id)
     if not AuthorisationHelper.can_reopen_submission(get_current_user(), submission_helper.submission):
         abort(403)
-    form = ReopenSubmissionForm()
+    form = ReopenSubmissionForm(collection=submission_helper.collection)
     if form.validate_on_submit():
         try:
             submission_helper.reopen_submission(
                 user=get_current_user(),
                 reopened_reason=form.reopened_reason.data,
-                section_ids=[],  # will be form.section_ids.data
+                section_ids=form.section_ids.data,
             )
             flash("Submission reopened", FlashMessageType.SUBMISSION_REOPENED)
             return redirect(

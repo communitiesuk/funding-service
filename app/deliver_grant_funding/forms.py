@@ -1,5 +1,6 @@
 import csv
 import io
+import uuid
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypedDict, cast
@@ -1327,6 +1328,13 @@ class SelectConditionCalculationForm(FlaskForm):
 
 class ReopenSubmissionForm(FlaskForm):
     REASON_MAX_WORDS = 200
+    section_ids = SelectMultipleField(
+        "Which sections should be reopened?",
+        default=[],
+        widget=GovCheckboxesInput(),
+        choices=[],
+        coerce=uuid.UUID,
+    )
     reopened_reason = TextAreaField(
         "Why are you reopening this submission?",
         validators=[
@@ -1336,3 +1344,7 @@ class ReopenSubmissionForm(FlaskForm):
         widget=GovCharacterCount(),
     )
     submit = SubmitField("Reopen submission", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, collection: "Collection", **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.section_ids.choices = [(str(form.id), form.title) for form in collection.forms]
