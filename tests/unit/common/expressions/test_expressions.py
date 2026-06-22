@@ -175,6 +175,36 @@ class TestEvaluate:
         result = evaluate(Expression(statement="value <= 1.31"), context=ExpressionContext({"value": Decimal("1.31")}))
         assert result is True
 
+    def test_inline_decimal_evaluation(self):
+        result = evaluate(
+            Expression(statement="value * 1.1 < 10"), context=ExpressionContext({"value": Decimal("4.1")})
+        )
+        assert result is True
+        result = evaluate(
+            Expression(statement="1.1 * value < 10"), context=ExpressionContext({"value": Decimal("4.1")})
+        )
+        assert result is True
+        result = evaluate(
+            Expression(statement="value1 < 1.2*value2"),
+            context=ExpressionContext({"value1": Decimal("4.1"), "value2": 4}),
+        )
+        assert result is True
+        result = evaluate(
+            Expression(statement="value1 / 1.1 * 3.4 > 1.2*value2"),
+            context=ExpressionContext({"value1": Decimal("0.9"), "value2": 5}),
+        )
+        assert result is False
+
+        assert (
+            evaluate(Expression(statement="value1 + 1.2 == 2.2"), context=ExpressionContext({"value1": Decimal("1.0")}))
+            is True
+        )
+        assert evaluate(Expression(statement="value1 + 1.2 == 2.2"), context=ExpressionContext({"value1": 1})) is True
+        assert (
+            evaluate(Expression(statement="1.0 + 1.2 == value1"), context=ExpressionContext({"value1": Decimal("2.2")}))
+            is True
+        )
+
     def test_decimal_evaluation_equality(self, mocker):
         result = evaluate(
             Expression(statement="value1 >= value2"),
