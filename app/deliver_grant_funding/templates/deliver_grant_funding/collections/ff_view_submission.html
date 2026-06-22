@@ -2,7 +2,7 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
-{% from "common/macros/submissions.html" import answers_summary_list with context %}
+{% from 'common/govuk/tabs/macro.html' import govukTabs %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
@@ -19,6 +19,16 @@
 
   {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=helper.submission.collection, immediate_parent_breadcrumb_item={"text": "Submissions", "href": url_for("deliver_grant_funding.list_submissions", grant_id=grant.id, collection_type=helper.submission.collection.type, collection_id=helper.submission.collection.id, submission_mode=helper.submission.mode)}, this_page_breadcrumb_item={"text": helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }) }}
 {% endblock beforeContent %}
+
+
+{% set formResponsesTabPanel %}
+  {% include "deliver_grant_funding/partials/_form_responses_tab_panel.html" %}
+{% endset %}
+
+
+{% set timelineTabPanel %}
+  {% include "deliver_grant_funding/partials/_timeline_tab_panel.html" %}
+{% endset %}
 
 {% block content %}
   <div class="govuk-grid-row">
@@ -40,6 +50,7 @@
       {% endwith %}
     </div>
   </div>
+
   {% if delete_form %}
     {% set banner_html %}
       <p class="govuk-body govuk-!-font-weight-bold">Are you sure you want to reset this test submission?</p>
@@ -111,31 +122,28 @@
     </div>
   {% endif %}
 
-  {# TODO FSPT-1444 move main page content into separate tab structure #}
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-one-quarter-from-desktop app-section-nav-container">
-      <nav aria-label="{{ constants.singular | capitalize }} sections">
-        <ul class="govuk-list app-section-nav-list">
-          <li class="app-section-nav-list__item app-section-nav-list__item--active">
-            <a class="govuk-link govuk-link--no-visited-state" href="#collection-response">{{ helper.submission.collection.type.constants.singular | capitalize }} response</a>
-          </li>
+  {{
+    govukTabs({
+      "classes": "app-custom-gov-tabs",
+      "items": [
+        {
+          "label": "Form responses",
+          "id": "form-responses",
 
-          {% for form in helper.get_ordered_visible_forms() %}
-            <li class="app-section-nav-list__item"><a class="govuk-link govuk-link--no-visited-state" href="#collection-{{ form.id }}">{{ form.title }}</a></li>
-          {% endfor %}
-        </ul>
-      </nav>
-    </div>
-    <div class="govuk-grid-column-three-quarters-from-desktop">
-      <h2 id="collection-response" class="govuk-heading-m">{{ helper.submission.collection.type.constants.singular | capitalize }} response</h2>
-
-      <p class="govuk-body">View all responses to the {{ helper.submission.collection.name }} by {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}.</p>
-      {% for form in helper.get_ordered_visible_forms() %}
-        <h2 id="collection-{{ form.id }}" class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
-        {{ answers_summary_list(helper, form) }}
-      {% endfor %}
-    </div>
-  </div>
+          "panel": {
+            "html": formResponsesTabPanel
+          }
+        },
+        {
+          "label": "Timeline",
+          "id": "timeline",
+          "panel": {
+            "html": timelineTabPanel
+          }
+        }
+      ]
+    })
+  }}
 
   {% if helper.submission.mode == enum.submission_mode.TEST %}
     <div class="govuk-grid-row">
