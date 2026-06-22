@@ -28,6 +28,7 @@ from app.common.safe_ids import safe_column_id
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 from app.extensions import db, s3_service
+from app.types import NOT_PROVIDED, TNotProvided
 
 
 def get_data_source(
@@ -155,6 +156,26 @@ def create_uploaded_data_source(
             _create_organisation_items(data_source, all_rows, column_mappings, DATA_SET_IDENTIFIER_COLUMN_HEADERS)
         case _:
             raise ValueError(f"Unsupported data source type: {data_source_type}")
+
+    return data_source
+
+
+@flush_and_rollback_on_exceptions
+def replace_uploaded_data_source(
+    grant_id: uuid.UUID,
+    collection_id: uuid.UUID,
+    data_source: DataSource,
+    new_columns: list["DataSetColumnMapping"],
+    all_headers: list[str],
+    all_rows: TUnvalidatedDataSetRows,
+    name: str | TNotProvided = NOT_PROVIDED,
+) -> DataSource:
+
+    if new_columns or all_headers or all_rows:
+        raise NotImplementedError("Haven't got this far")
+
+    if name is not NOT_PROVIDED:
+        data_source.name = name
 
     return data_source
 
