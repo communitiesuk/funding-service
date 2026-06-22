@@ -107,7 +107,7 @@
       </div>
 
       <div class="govuk-!-margin-bottom-9">
-        <h2 class="govuk-heading-m">{{ submission.collection.type.constants.singular | uppercase_first }} sections</h2>
+        <h2 class="govuk-heading-m">{{ submission.collection.type.constants.singular | capitalize }} sections</h2>
         <ul class="{{ 'govuk-list' ~ (' govuk-list--number' if show_section_numbers else '') }}">
           {% for form in submission.get_ordered_visible_forms() %}
             <li><a class="govuk-link govuk-link--no-visited-state" href="#form-{{ form.id }}">{{ form.title }}</a></li>

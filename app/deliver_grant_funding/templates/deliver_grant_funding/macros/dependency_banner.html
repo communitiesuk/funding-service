@@ -51,7 +51,7 @@
         {% set component_link = url_for("deliver_grant_funding.edit_question", grant_id=error.grant_id, question_id=ref.component_id) if not ref.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=error.grant_id, group_id=ref.component_id) %}
         {% set section_link = url_for("deliver_grant_funding.list_section_questions", grant_id=error.grant_id, form_id=ref.section_id) %}
         <li class="govuk-body govuk-!-font-weight-bold">
-          {% if ref.reference_type in ("validation", "condition") %}{{ ref.reference_type | uppercase_first }} for{% endif %}
+          {% if ref.reference_type in ("validation", "condition") %}{{ ref.reference_type | capitalize }} for{% endif %}
           <a class="govuk-notification-banner__link" href="{{ component_link }}">{{ interpolate(ref.component_text) }}</a>
           in
           <a class="govuk-notification-banner__link" href="{{ section_link }}">{{ ref.section_title }}</a>

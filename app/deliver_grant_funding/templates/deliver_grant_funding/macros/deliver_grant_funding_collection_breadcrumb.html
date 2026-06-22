@@ -7,7 +7,7 @@
   {% set items=[] %}
   {% if grant %}
     {% set collections_html %}
-      <span>{{ type_constants.plural | uppercase_first }}</span>
+      <span>{{ type_constants.plural | capitalize }}</span>
       <span class="govuk-visually-hidden">for {{ grant.name }}</span>
     {% endset %}
     {% do items.append({"html": collections_html, "href": url_for(type_constants.list_endpoint, grant_id=grant.id)}) %}
@@ -23,7 +23,7 @@
 
   {% if collection %}
     {% set collection_name_html %}
-      <span class="govuk-visually-hidden">{{ type_constants.singular | uppercase_first }}:</span>
+      <span class="govuk-visually-hidden">{{ type_constants.singular | capitalize }}:</span>
       <span>{{ collection.name }}</span>
     {% endset %}
     {% do items.append({"html": collection_name_html, "href": url_for("deliver_grant_funding.list_collection_sections", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id)}) %}

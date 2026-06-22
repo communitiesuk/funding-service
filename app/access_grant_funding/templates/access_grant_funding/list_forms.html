@@ -12,7 +12,7 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_SIGN_OFF_DECLINED]) %}
         {% if flashes %}
           {% set submission_declined_html %}
-            <h3 class="govuk-notification-banner__heading">{{ flashes[0]["collection_type_singular"] | uppercase_first }} declined</h3>
+            <h3 class="govuk-notification-banner__heading">{{ flashes[0]["collection_type_singular"] | capitalize }} declined</h3>
             <p class="govuk-body">
               {{ flashes[0]["collection_name"] }} {{ flashes[0]["collection_type_singular"] }} for {{ flashes[0]["grant_name"] }} sign off declined and sent back to {{ flashes[0]["sent_for_certification_by"] }}.
               <a
@@ -125,7 +125,7 @@
     govukTable(params={
             "firstCellIsHeader": false,
             "head":[
-              {"text": section_collection_type.constants.plural | uppercase_first},
+              {"text": section_collection_type.constants.plural | capitalize},
               {"text": "Due date"},
               {"text": "Status"},
               {"html": actions_html}

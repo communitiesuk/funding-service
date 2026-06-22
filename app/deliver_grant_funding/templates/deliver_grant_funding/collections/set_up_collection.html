@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set type_constants = collection_type.constants %}
-{% set page_title = type_constants.plural | uppercase_first %}
+{% set page_title = type_constants.plural | capitalize %}
 {% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}

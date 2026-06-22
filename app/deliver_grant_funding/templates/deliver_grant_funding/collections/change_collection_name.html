@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set type_constants = collection.type.constants %}
-{% set page_title = type_constants.plural | uppercase_first %}
+{% set page_title = type_constants.plural | capitalize %}
 {% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}
@@ -21,7 +21,7 @@
       <h1 class="govuk-heading-l">Change the name for this {{ type_constants.singular }}</h1>
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.name(params={"label": {"text": type_constants.singular | uppercase_first ~ " name", "classes": "govuk-visually-hidden"} }) }}
+        {{ form.name(params={"label": {"text": type_constants.singular | capitalize ~ " name", "classes": "govuk-visually-hidden"} }) }}
 
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Update " ~ type_constants.singular ~ " name"}) }}

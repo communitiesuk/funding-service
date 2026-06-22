@@ -40,10 +40,3 @@ def comma_join_items(items: Sequence[Any], join_word: str = "and") -> str:
         return f"{items[0]} {join_word} {items[1]}"
 
     return f"{', '.join(items[:-1])} {join_word} {items[-1]}"
-
-
-def uppercase_first(text: str | None) -> str | None:
-    if not text:
-        return text
-
-    return text[0].upper() + text[1:]

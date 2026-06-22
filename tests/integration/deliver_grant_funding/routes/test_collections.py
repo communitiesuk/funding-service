@@ -4501,8 +4501,8 @@ class TestSelectContextSourceDataSetColumn:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert f"Select column in {data_set.name} data set" in soup.text
-        assert "Capital Allocation" in soup.text
-        assert "Revenue Allocation" in soup.text
+        assert "Capital allocation" in soup.text
+        assert "Revenue allocation" in soup.text
         assert "Description" in soup.text
 
     def test_get_shows_only_number_columns_when_expression(self, authenticated_grant_admin_client, factories):
@@ -4564,8 +4564,8 @@ class TestSelectContextSourceDataSetColumn:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert f"Select column in {data_set.name} data set" in soup.text
-        assert "Capital Allocation" in soup.text
-        assert "Revenue Allocation" in soup.text
+        assert "Capital allocation" in soup.text
+        assert "Revenue allocation" in soup.text
         assert "Description" not in soup.text
 
     def test_get_shows_only_number_columns_when_condition_depends_on_reference(
@@ -4620,8 +4620,8 @@ class TestSelectContextSourceDataSetColumn:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert f"Select column in {data_set.name} data set" in soup.text
-        assert "Capital Allocation" in soup.text
-        assert "Revenue Allocation" in soup.text
+        assert "Capital allocation" in soup.text
+        assert "Revenue allocation" in soup.text
         assert "Description" not in soup.text
 
     def test_get_shows_text_when_data_set_has_no_number_columns(self, authenticated_grant_admin_client, factories):

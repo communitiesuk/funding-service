@@ -7,7 +7,6 @@ from app.common.helpers.request_tracing import (
     decode_levels,
     encode_levels,
 )
-from app.common.utils import uppercase_first
 
 
 def _set_cookie_to_levels(client, app, levels: list[TraceLevelEnum]) -> None:
@@ -50,7 +49,7 @@ class TestDeveloperToolsAdminPage:
         assert "Developer tools" in response.text
         assert "Request tracing" in response.text
         for level in TraceLevelEnum:
-            assert uppercase_first(level.value) in response.text
+            assert level.value.capitalize() in response.text
 
     def test_post_with_levels_sets_signed_cookie_with_full_ttl(self, authenticated_platform_admin_client, app):
         selected_levels = {TraceLevelEnum.TRACE, TraceLevelEnum.PROFILE}

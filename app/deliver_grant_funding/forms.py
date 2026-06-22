@@ -52,7 +52,6 @@ from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.safe_ids import safe_column_id
-from app.common.utils import uppercase_first
 from app.constants import DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
@@ -776,7 +775,10 @@ class SelectDataSourceDataSetColumnForm(FlaskForm):
             ]
 
         self.column.choices = [
-            (safe_column_id, uppercase_first(column_schema.original_column_name) or "")
+            (
+                safe_column_id,
+                column_schema.original_column_name.capitalize() if column_schema.original_column_name else "",
+            )
             for safe_column_id, column_schema in columns
         ]
 

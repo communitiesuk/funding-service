@@ -1,6 +1,6 @@
 import pytest
 
-from app.common.utils import comma_join_items, slugify, uppercase_first
+from app.common.utils import comma_join_items, slugify
 
 
 @pytest.mark.parametrize(
@@ -41,19 +41,3 @@ def test_slugify(test_string, expected_result):
 )
 def test_comma_join_items(items, join_word, expected):
     assert comma_join_items(items, join_word=join_word) == expected
-
-
-@pytest.mark.parametrize(
-    "phrase, expected_phrase",
-    (
-        ("hello", "Hello"),
-        ("hello world", "Hello world"),
-        ("hello WORLD", "Hello WORLD"),
-        ("Hello world", "Hello world"),
-        ("123 world", "123 world"),
-        ("@ oh no", "@ oh no"),
-        (None, None),
-    ),
-)
-def test_uppercase_first(phrase, expected_phrase):
-    assert uppercase_first(phrase) == expected_phrase

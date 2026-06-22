@@ -90,7 +90,7 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ collection.name }}</span>
-        {{ type_constants.plural | uppercase_first }}
+        {{ type_constants.plural | capitalize }}
       </h1>
       <p class="govuk-body">View the information that has been provided by grant recipients in their {{ type_constants.plural }}.</p>
       <p class="govuk-body">
@@ -154,7 +154,7 @@
 
       {% set head = [] %}
       {% if collection.allow_multiple_submissions %}
-        {% do head.append({"text": (collection.submission_name_question.name | uppercase_first) if collection.submission_name_question else "Submission", "classes": "govuk-!-width-one-third"}) %}
+        {% do head.append({"text": (collection.submission_name_question.name | capitalize) if collection.submission_name_question else "Submission", "classes": "govuk-!-width-one-third"}) %}
         {% do head.append({"text": "Grant recipient"}) %}
       {% else %}
         {% do head.append({"text": "Grant recipient", "classes": "govuk-!-width-one-half"}) %}

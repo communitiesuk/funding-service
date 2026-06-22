@@ -34,7 +34,6 @@ from app.common.data.types import (
 from app.common.filters import format_date_short
 from app.common.helpers.dates import subtract_business_days
 from app.common.helpers.request_tracing import REQUEST_TRACING_TTL
-from app.common.utils import uppercase_first
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
@@ -707,7 +706,7 @@ class PlatformAdminSetPrivacyPolicyForm(FlaskForm):
 class PlatformAdminForceTracingForm(FlaskForm):
     levels = SelectMultipleField(
         "Request tracing",
-        choices=[(e.value, cast(str, uppercase_first(e.value))) for e in TraceLevelEnum],
+        choices=[(e.value, cast(str, e.value.capitalize())) for e in TraceLevelEnum],
         widget=GovCheckboxesInput(),
         validators=[Optional()],
         description=(

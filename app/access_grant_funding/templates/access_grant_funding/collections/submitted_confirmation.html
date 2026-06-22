@@ -2,7 +2,7 @@
 {% extends "access_grant_funding/base.html" %}
 
 {% set constants = submission_helper.collection.type.constants %}
-{% set title_text = (constants.singular | uppercase_first) ~ " signed off and submitted" if submission_helper.collection.requires_certification else (constants.singular | uppercase_first) ~ " submitted" %}
+{% set title_text = (constants.singular | capitalize) ~ " signed off and submitted" if submission_helper.collection.requires_certification else (constants.singular | capitalize) ~ " submitted" %}
 
 {# todo: move the suffix to the base template and call super #}
 {% set page_title = title_text ~ " - " ~ submission_helper.long_collection_name ~ " - " ~ grant_recipient.grant.name %}
@@ -13,7 +13,7 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% set reference_html %}
-        {{ constants.singular | uppercase_first }}
+        {{ constants.singular | capitalize }}
         <br />
         <strong>{{ submission_helper.long_collection_name }} for {{ submission_helper.collection.grant.name }}</strong>
         <br />

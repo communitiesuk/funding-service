@@ -449,7 +449,7 @@ class TestCreateUploadedDataSourceSchemaOptions:
         )
 
         assert "c_capital_allocation" in data_source.schema.root
-        assert "Capital Allocation (£)" not in data_source.schema.root
+        assert "Capital allocation (£)" not in data_source.schema.root
 
 
 class TestGetDataSource:

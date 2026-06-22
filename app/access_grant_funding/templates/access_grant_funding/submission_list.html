@@ -78,7 +78,7 @@
           govukTable(params={
                   "firstCellIsHeader": false,
                   "head":[
-                    {"text": (collection.submission_name_question.name | uppercase_first )},
+                    {"text": (collection.submission_name_question.name | capitalize )},
                     {"text": "Status"},
                     {"html": actions_html}
                   ],
