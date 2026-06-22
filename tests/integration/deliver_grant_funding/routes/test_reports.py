@@ -224,10 +224,11 @@ class TestListReports:
         assert delete_link is None
 
     @pytest.mark.parametrize(
-        "status, expected",
+        "status, number_of_open_collections, expected",
         (
-            (GrantStatusEnum.DRAFT, "Reports cannot be published until the grant is live."),
-            (GrantStatusEnum.LIVE, "There are no reports live."),
+            (GrantStatusEnum.DRAFT, 0, "Reports cannot be published until the grant is live."),
+            (GrantStatusEnum.LIVE, 0, "There are no reports live."),
+            (GrantStatusEnum.LIVE, 1, None),
         ),
     )
     def test_get_reports_grant_status_description(
@@ -235,9 +236,17 @@ class TestListReports:
         factories,
         authenticated_platform_admin_client,
         status: GrantStatusEnum,
+        number_of_open_collections: int,
         expected: str,
     ):
         grant = factories.grant.create(status=status)
+
+        factories.collection.create_batch(
+            number_of_open_collections,
+            grant=grant,
+            type=CollectionType.MONITORING_REPORT,
+            status=CollectionStatusEnum.OPEN,
+        )
 
         response = authenticated_platform_admin_client.get(
             url_for("deliver_grant_funding.list_reports", grant_id=grant.id)
@@ -248,4 +257,7 @@ class TestListReports:
         soup = BeautifulSoup(response.data, "html.parser")
         assert grant.name in soup.text
 
-        assert expected in " ".join(soup.text.split())
+        if expected is not None:
+            assert soup.find("span", {"data-testid": "grant-status-description"}).text.strip() == expected
+        else:
+            assert soup.find("span", {"data-testid": "grant-status-description"}) is None
