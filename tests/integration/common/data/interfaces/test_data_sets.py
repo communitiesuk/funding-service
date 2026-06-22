@@ -16,6 +16,7 @@ from app.common.data.interfaces.data_sets import (
     get_collection_ids_with_missing_data_data_sets,
     get_data_source,
     get_data_source_list_for_collection,
+    replace_uploaded_data_source,
 )
 from app.common.data.models import ComponentReference, DataSource, DataSourceItem, DataSourceOrganisationItem
 from app.common.data.types import (
@@ -914,3 +915,21 @@ class TestGetCollectionIdsWithMissingDataDataSets:
         result = get_collection_ids_with_missing_data_data_sets(grant.id)
 
         assert result == set()
+
+
+class TestReplaceUploadedDataSource:
+    def test_update_name(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant, collection=collection, name="Popular Cheeses", type=DataSourceType.GRANT_RECIPIENT
+        )
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=[],
+            all_rows=[],
+            name="Most popular cheeses",
+        )
+        from_db = get_data_source(data_source.id, with_organisation_items=False)
+        assert from_db.name == "Most popular cheeses"
