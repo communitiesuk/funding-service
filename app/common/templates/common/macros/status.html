@@ -30,11 +30,11 @@
 {% endmacro %}
 
 {% macro grantStatusDescription(grant, collection_type) %}
+  {% set collections = grant.reports if collection_type == enum.collection_type_enum.MONITORING_REPORT else grant.pre_award_forms %}
   {% if grant.status == enum.grant_status.DRAFT %}
-    {{ collection_type.constants.plural | uppercase_first }}
-    cannot be published until the grant is live.
-  {% elif grant.status == enum.grant_status.LIVE and grant.reports | selectattr('status', 'equalto', enum.collection_status.OPEN) | list | length == 0 %}
-    There are no {{ collection_type.constants.plural }} live.
+    <span data-testid="grant-status-description"> {{ collection_type.constants.plural | capitalize }} cannot be published until the grant is live. </span>
+  {% elif grant.status == enum.grant_status.LIVE and collections | selectattr('status', 'equalto', enum.collection_status.OPEN) | list | length == 0 %}
+    <span data-testid="grant-status-description"> There are no {{ collection_type.constants.plural }} live. </span>
   {% endif %}
 {% endmacro %}
 

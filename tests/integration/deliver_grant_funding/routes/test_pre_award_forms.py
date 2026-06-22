@@ -174,10 +174,11 @@ class TestListPreAwardForms:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "status, expected",
+        "status, number_of_open_collections, expected",
         (
-            (GrantStatusEnum.DRAFT, "Forms cannot be published until the grant is live."),
-            (GrantStatusEnum.LIVE, "There are no forms live."),
+            (GrantStatusEnum.DRAFT, 0, "Forms cannot be published until the grant is live."),
+            (GrantStatusEnum.LIVE, 0, "There are no forms live."),
+            (GrantStatusEnum.LIVE, 1, None),
         ),
     )
     def test_get_grant_status_description(
@@ -185,9 +186,14 @@ class TestListPreAwardForms:
         factories,
         authenticated_platform_admin_client,
         status: GrantStatusEnum,
+        number_of_open_collections: int,
         expected: str,
     ):
         grant = factories.grant.create(status=status, allow_pre_award=True)
+
+        factories.collection.create_batch(
+            number_of_open_collections, grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.OPEN
+        )
 
         response = authenticated_platform_admin_client.get(
             url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id)
@@ -198,7 +204,10 @@ class TestListPreAwardForms:
         soup = BeautifulSoup(response.data, "html.parser")
         assert grant.name in soup.text
 
-        assert expected in " ".join(soup.text.split())
+        if expected is not None:
+            assert soup.find("span", {"data-testid": "grant-status-description"}).text.strip() == expected
+        else:
+            assert soup.find("span", {"data-testid": "grant-status-description"}) is None
 
 
 class TestPreAwardNavigation:
