@@ -595,6 +595,10 @@ class AddContextSelectSourceForm(FlaskForm):
                     ExpressionContext.ContextSources.PREVIOUS_SECTION.name,
                     ExpressionContext.ContextSources.PREVIOUS_SECTION.value,
                 ),
+                (
+                    ExpressionContext.ContextSources.DATASET.name,
+                    ExpressionContext.ContextSources.DATASET.value,
+                ),
             ]
 
         if include_this_component and current_component and current_component.is_question:
