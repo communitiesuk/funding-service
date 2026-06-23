@@ -7,6 +7,7 @@ from decimal import Decimal
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased, lazyload, selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.common.data.interfaces.collections import raise_if_data_source_has_references
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
@@ -172,14 +173,22 @@ def replace_uploaded_data_source(
     if name is not NOT_PROVIDED:
         data_source.name = name
 
-    all_column_mappings = []
-    all_column_mappings.extend(new_columns)
-    all_column_mappings.extend(
-        [
-            DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
-            for schema_column in data_source.schema.root.values()  # ty:ignore[unresolved-attribute]
-        ]
-    )
+    if new_columns:
+        data_source.schema.root.update(_build_schema_from_column_mappings(new_columns).root)  # ty:ignore[unresolved-attribute]
+        flag_modified(data_source, "schema")
+
+    for removed_column_id in [
+        k
+        for k, v in data_source.schema.root.items()  # ty:ignore[unresolved-attribute]
+        if v.original_column_name not in all_headers
+    ]:
+        data_source.schema.root.pop(removed_column_id)  # ty:ignore[unresolved-attribute]
+        flag_modified(data_source, "schema")
+
+    all_column_mappings = [
+        DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
+        for schema_column in data_source.schema.root.values()  # ty:ignore[unresolved-attribute]
+    ]
 
     # delete all existing data source org items as the IDs aren't referenced, just column names
     stmt = delete(DataSourceOrganisationItem).where(DataSourceOrganisationItem.data_source_id == data_source.id)
