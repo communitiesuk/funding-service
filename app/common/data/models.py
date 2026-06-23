@@ -209,12 +209,25 @@ class Grant(BaseModel):
 class Organisation(BaseModel):
     __tablename__ = "organisation"
 
+    # The consistent reference used to identify this orgaisation; changing this after creation is a risky endeavour
+    # as the external ID is used to associate eg uploaded reference data. Consider this immutable once set.
+    external_id: Mapped[str]
+
     # For Central Government departments, this is an IATI organisation identifier
     # from: https://www.gov.uk/government/publications/iati-organisation-identifiers-for-uk-government-organisations
-    #
+    iati_id: Mapped[str | None] = mapped_column(nullable=True)
+
     # For local government, this uses the Local Authority District (December 2024) [LAD24] boundaries dataset:
     # https://geoportal.statistics.gov.uk/datasets/6a05f93297cf4a438d08e972099f54b9_0/explore
-    external_id: Mapped[str]
+    ons_lad_id: Mapped[str | None] = mapped_column(nullable=True)
+
+    companies_house_number: Mapped[str | None] = mapped_column(nullable=True)
+    charity_commission_number: Mapped[str | None] = mapped_column(nullable=True)
+
+    # For 'Other' type organisations, we'll generate our own code to identify the organisation.
+    # We might later fill in a companies house or charity commission number, but this need to be done carefully -
+    # switching the external_id could break dataset references.
+    custom_code: Mapped[str | None] = mapped_column(nullable=True)
     name: Mapped[CIStr] = mapped_column(unique=False)
 
     # TODO: switch this to a computed column?
@@ -225,6 +238,25 @@ class Organisation(BaseModel):
     retirement_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     can_manage_grants: Mapped[bool] = mapped_column(default=False)
     mode: Mapped[OrganisationModeEnum] = mapped_column(default=OrganisationModeEnum.LIVE)
+
+    @property
+    def typed_id(self) -> str:
+        """Fetch the 'canonical' organisation ID field based on its org type, for example a 'Company' type should store
+        its ID in the 'companies_house_number' column.
+        """
+        return getattr(self, self.type.typed_id_field, "")
+
+    @typed_id.setter
+    def typed_id(self, value: str) -> None:
+        setattr(self, self.type.typed_id_field, value)
+
+    def make_external_id(self) -> str:
+        """Consistently create an external ID for an organisation based on its official ID column.
+
+        For example, add the CC- prefix for Charities so you get something like CC-1234 for charity number 1234.
+        """
+        prefix = self.type.external_id_prefix
+        return f"{prefix}{self.typed_id}" if prefix else self.typed_id
 
     roles: Mapped[list[UserRole]] = relationship(
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"
@@ -267,6 +299,19 @@ class Organisation(BaseModel):
         UniqueConstraint("external_id", "mode", name="uq_organisation_external_id_mode"),
         UniqueConstraint("name", "mode", name="uq_organisation_name_mode"),
         CheckConstraint("status = 'retired' OR retirement_date IS NULL", name="ck_retirement"),
+        CheckConstraint(
+            """
+            (type = 'CENTRAL_GOVERNMENT' AND iati_id IS NOT NULL) OR
+            (type IN ('UNITARY_AUTHORITY', 'SHIRE_DISTRICT', 'METROPOLITAN_DISTRICT',
+                      'LONDON_BOROUGH', 'SHIRE_COUNTY', 'COMBINED_AUTHORITY',
+                      'NORTHERN_IRELAND_AUTHORITY', 'SCOTTISH_UNITARY_AUTHORITY',
+                      'WELSH_UNITARY_AUTHORITY') AND ons_lad_id IS NOT NULL) OR
+            (type = 'CHARITY' AND charity_commission_number IS NOT NULL) OR
+            (type = 'COMPANY' AND companies_house_number IS NOT NULL) OR
+            (type = 'OTHER' AND custom_code IS NOT NULL)
+            """,
+            name="ck_typed_external_id",
+        ),
     )
 
 

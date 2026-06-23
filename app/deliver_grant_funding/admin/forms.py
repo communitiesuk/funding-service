@@ -114,16 +114,20 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
         organisations_data = self.organisations_data.data
         tsv_reader = csv.reader(organisations_data.splitlines(), delimiter="\t")
         _ = next(tsv_reader)  # Skip the header
-        normalised_organisations = [
-            OrganisationData(
-                external_id=row[0],
-                name=row[1],
-                type=OrganisationType(row[2]),
-                active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
-                retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
+        normalised_organisations = []
+        for row in tsv_reader:
+            org_type = OrganisationType(row[2])
+            external_id = row[0]
+            normalised_organisations.append(
+                OrganisationData(
+                    external_id=external_id,
+                    name=row[1],
+                    type=org_type,
+                    active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
+                    retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
+                    **{org_type.typed_id_field: external_id},
+                )
             )
-            for row in tsv_reader
-        ]
         return normalised_organisations
 
 

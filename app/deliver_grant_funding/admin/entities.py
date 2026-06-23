@@ -39,7 +39,12 @@ from app.common.data.models import (
 )
 from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import AuditEventType, GrantRecipientStatusEnum, RoleEnum, SubmissionEventType
+from app.common.data.types import (
+    AuditEventType,
+    GrantRecipientStatusEnum,
+    RoleEnum,
+    SubmissionEventType,
+)
 from app.common.helpers.collections import SubmissionHelper
 from app.common.security.utils import sanitise_redirect_url
 from app.deliver_grant_funding.admin.forms import PlatformAdminChangeGrantRecipientStatusForm
@@ -162,7 +167,6 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
     column_filters = ["external_id", "name", "type", "mode", "status", "can_manage_grants"]
 
     form_columns = [
-        "external_id",
         "name",
         "type",
         "mode",
@@ -170,8 +174,25 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
         "can_manage_grants",
         "active_date",
         "retirement_date",
+        "iati_id",
+        "ons_lad_id",
+        "companies_house_number",
+        "charity_commission_number",
+        "custom_code",
     ]
-    column_descriptions = {"external_id": "IATI or LAD24 identifier"}
+    column_labels = {
+        "iati_id": "IATI ID",
+        "ons_lad_id": "ONS LAD(24) ID",
+    }
+    column_descriptions = {
+        "custom_code": "Our own custom identifier code for 'Other' organisation types",
+    }
+
+    def on_model_change(self, form: Form, model: Organisation, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
+        if not model.typed_id:
+            raise ValueError(f"{model.type.typed_id_field} is required for organisation type {model.type.value}")
+        model.external_id = model.make_external_id()
+        return super().on_model_change(form, model, is_created)
 
 
 class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):

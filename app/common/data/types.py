@@ -42,7 +42,48 @@ class OrganisationType(enum.StrEnum):
     NORTHERN_IRELAND_AUTHORITY = "Northern Ireland District"
     SCOTTISH_UNITARY_AUTHORITY = "Scottish Unitary Authority"
     WELSH_UNITARY_AUTHORITY = "Welsh Unitary Authority"
+    CHARITY = "Charity"
+    COMPANY = "Company"
     OTHER = "Other"
+
+    @property
+    def typed_id_field(self) -> str:
+        """The Organisation column that stores this type's canonical identifier."""
+        if self == OrganisationType.CENTRAL_GOVERNMENT:
+            return "iati_id"
+        if self in _LOCAL_AUTHORITY_TYPES:
+            return "ons_lad_id"
+        if self == OrganisationType.CHARITY:
+            return "charity_commission_number"
+        if self == OrganisationType.COMPANY:
+            return "companies_house_number"
+        return "custom_code"
+
+    @property
+    def external_id_prefix(self) -> str | None:
+        """Prefix prepended to the typed ID to form external_id, or None if external_id == typed_id."""
+        return _EXTERNAL_ID_PREFIXES.get(self)
+
+
+_LOCAL_AUTHORITY_TYPES = frozenset(
+    [
+        OrganisationType.UNITARY_AUTHORITY,
+        OrganisationType.SHIRE_DISTRICT,
+        OrganisationType.METROPOLITAN_DISTRICT,
+        OrganisationType.LONDON_BOROUGH,
+        OrganisationType.SHIRE_COUNTY,
+        OrganisationType.COMBINED_AUTHORITY,
+        OrganisationType.NORTHERN_IRELAND_AUTHORITY,
+        OrganisationType.SCOTTISH_UNITARY_AUTHORITY,
+        OrganisationType.WELSH_UNITARY_AUTHORITY,
+    ]
+)
+
+_EXTERNAL_ID_PREFIXES: dict[OrganisationType, str] = {
+    OrganisationType.CHARITY: "CC-",
+    OrganisationType.COMPANY: "CH-",
+    OrganisationType.OTHER: "FS-",
+}
 
 
 # TODO: Rename PermissionEnum
@@ -514,6 +555,11 @@ class OrganisationData(BaseModel):
     type: OrganisationType
     active_date: datetime.date | None
     retirement_date: datetime.date | None
+    iati_id: str | None = None
+    ons_lad_id: str | None = None
+    companies_house_number: str | None = None
+    charity_commission_number: str | None = None
+    custom_code: str | None = None
 
 
 class AuditEventType(enum.Enum):

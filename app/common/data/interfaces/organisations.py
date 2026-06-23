@@ -76,6 +76,11 @@ def upsert_organisations(
                 "active_date": org.active_date,
                 "retirement_date": org.retirement_date,
                 "mode": mode,
+                "iati_id": org.iati_id,
+                "ons_lad_id": org.ons_lad_id,
+                "companies_house_number": org.companies_house_number,
+                "charity_commission_number": org.charity_commission_number,
+                "custom_code": org.custom_code,
             }
             db.session.execute(
                 postgresql_upsert(Organisation)

@@ -2179,6 +2179,7 @@ class TestManageOrganisations:
         assert org1.status == OrganisationStatus.ACTIVE
         assert org1.active_date == datetime.date(2020, 1, 1)
         assert org1.retirement_date is None
+        assert org1.iati_id == "GB-GOV-123"
 
         org2 = db_session.query(Organisation).filter_by(external_id="E06000001", mode=OrganisationModeEnum.LIVE).one()
         assert org2.name == "Test Council"
@@ -2186,6 +2187,7 @@ class TestManageOrganisations:
         assert org2.status == OrganisationStatus.ACTIVE
         assert org2.active_date == datetime.date(2021, 6, 15)
         assert org2.retirement_date is None
+        assert org2.ons_lad_id == "E06000001"
 
         assert get_organisation_count(mode=OrganisationModeEnum.TEST) == initial_test_count + 2
         org1 = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.TEST).one()

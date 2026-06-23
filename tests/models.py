@@ -103,7 +103,11 @@ def _get_grant_managing_organisation() -> Organisation:
         return org
     except NoResultFound:
         org = Organisation(
-            name="MHCLG", can_manage_grants=True, external_id="GB-GOV-27", type=OrganisationType.CENTRAL_GOVERNMENT
+            name="MHCLG",
+            can_manage_grants=True,
+            external_id="GB-GOV-27",
+            type=OrganisationType.CENTRAL_GOVERNMENT,
+            iati_id="GB-GOV-27",
         )
         db.session.add(org)
         db.session.commit()
@@ -162,6 +166,15 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
 
     mode = OrganisationModeEnum.LIVE
     type = OrganisationType.CENTRAL_GOVERNMENT
+    iati_id = factory.LazyAttribute(lambda o: o.external_id if o.type.typed_id_field == "iati_id" else None)
+    ons_lad_id = factory.LazyAttribute(lambda o: o.external_id if o.type.typed_id_field == "ons_lad_id" else None)
+    companies_house_number = factory.LazyAttribute(
+        lambda o: o.external_id if o.type.typed_id_field == "companies_house_number" else None
+    )
+    charity_commission_number = factory.LazyAttribute(
+        lambda o: o.external_id if o.type.typed_id_field == "charity_commission_number" else None
+    )
+    custom_code = factory.LazyAttribute(lambda o: o.external_id if o.type.typed_id_field == "custom_code" else None)
 
     @factory.post_generation
     def with_matching_test_org(self, create: bool, extracted: bool, **kwargs: Any) -> None:
