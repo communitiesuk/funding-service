@@ -180,6 +180,16 @@ def replace_uploaded_data_source(
     if name is not NOT_PROVIDED:
         data_source.name = name
 
+    if new_columns:
+        data_source.schema.root.update(_build_schema_from_column_mappings(new_columns).root)  # ty:ignore[unresolved-attribute]
+
+    for removed_column_id in [
+        k
+        for k, v in data_source.schema.root.items()  # ty:ignore[unresolved-attribute]
+        if v.original_column_name not in all_headers
+    ]:
+        data_source.schema.root.pop(removed_column_id)  # ty:ignore[unresolved-attribute]
+
     all_column_mappings = []
     all_column_mappings.extend(new_columns)
     all_column_mappings.extend(

@@ -9,6 +9,7 @@ from app.common.collections.types import DecimalAnswer, TextSingleLineAnswer
 from app.common.data.interfaces.collections import (
     DataSourceHasReferencesException,
     _validate_and_sync_component_references,
+    get_question_by_id,
 )
 from app.common.data.interfaces.data_sets import (
     create_uploaded_data_source,
@@ -26,6 +27,7 @@ from app.common.data.models import (
 )
 from app.common.data.types import (
     DataSourceFileMetadata,
+    DataSourceSchemaColumn,
     DataSourceType,
     NumberTypeEnum,
     QuestionDataType,
@@ -1169,3 +1171,327 @@ class TestReplaceUploadedDataSource:
         assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 222
         assert oi_2.data["c_decimal_number"].get_value_for_evaluation() == Decimal("2.2")
         assert oi_2.data["c_just_text"].get_value_for_evaluation() == "changed version 2"
+
+    def test_add_column_no_data(
+        self,
+        factories,
+    ):
+        collection = factories.collection.create()
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=collection.grant)
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        replace_uploaded_data_source(
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            data_source=data_source,
+            new_columns=[DataSetColumnMapping(column_name="New column", column_type="INTEGER", prefix="$")],
+            all_headers=["Allocation", "New column"],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Allocation": "111",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Allocation": "222",
+                },
+            ],
+        )
+
+        from_db = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        assert from_db.organisation_items[0].data["c_new_column"] is None
+        assert from_db.organisation_items[0].data["c_allocation"].get_value_for_evaluation() == 111
+        assert from_db.organisation_items[1].data["c_new_column"] is None
+        assert from_db.organisation_items[1].data["c_allocation"].get_value_for_evaluation() == 222
+
+        assert from_db.schema.root["c_allocation"] is not None
+        new_column: DataSourceSchemaColumn = from_db.schema.root["c_new_column"]
+        assert new_column is not None
+        assert new_column.original_column_name == "New column"
+        assert new_column.data_type == QuestionDataType.NUMBER
+        assert new_column.data_options.number_type == NumberTypeEnum.INTEGER
+
+    def test_add_column_with_data(
+        self,
+        factories,
+    ):
+        collection = factories.collection.create()
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=collection.grant)
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        replace_uploaded_data_source(
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            data_source=data_source,
+            new_columns=[DataSetColumnMapping(column_name="New column", column_type="INTEGER", prefix="$")],
+            all_headers=["Allocation", "New column"],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Allocation": "111",
+                    "New column": "123",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Allocation": "222",
+                    "New column": "456",
+                },
+            ],
+        )
+
+        from_db = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        assert from_db.organisation_items[0].data["c_new_column"].get_value_for_evaluation() == 123
+        assert from_db.organisation_items[0].data["c_allocation"].get_value_for_evaluation() == 111
+        assert from_db.organisation_items[1].data["c_new_column"].get_value_for_evaluation() == 456
+        assert from_db.organisation_items[1].data["c_allocation"].get_value_for_evaluation() == 222
+
+        assert from_db.schema.root["c_allocation"] is not None
+        new_column: DataSourceSchemaColumn = from_db.schema.root["c_new_column"]
+        assert new_column is not None
+        assert new_column.original_column_name == "New column"
+        assert new_column.data_type == QuestionDataType.NUMBER
+        assert new_column.data_options.number_type == NumberTypeEnum.INTEGER
+
+    def test_remove_column_no_data(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=data_source.grant)
+
+        assert len(get_data_source(data_source.id).schema.root.items()) == 6
+        all_headers = ALL_COLUMN_TYPE_HEADERS_LIST.copy()
+        all_headers.remove("British pounds")
+        replace_uploaded_data_source(
+            grant_id=gr1.grant.id,
+            collection_id=data_source.collection.id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=all_headers,
+            all_rows=[],
+        )
+
+        from_db = get_data_source(data_source.id)
+        assert len(from_db.schema.root.items()) == 5
+        assert set(from_db.schema.root.keys()) == {
+            "c_decimal_number",
+            "c_whole_number",
+            "c_just_text",
+            "c_whole_number_prefix",
+            "c_whole_number_suffix",
+        }
+
+    def test_remove_column_with_data(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=data_source.grant)
+        factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 111, "c_decimal_number": "1.1", "c_just_text": "first version 1"},
+        )
+        factories.data_source_organisation_item.create(
+            external_id=gr2.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 222, "c_decimal_number": "2.1", "c_just_text": "first version 2"},
+        )
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.schema.root.items()) == 6
+        assert len(from_db.organisation_items) == 2
+
+        all_headers = ALL_COLUMN_TYPE_HEADERS_LIST.copy()
+        all_headers.remove("Decimal number")
+
+        replace_uploaded_data_source(
+            grant_id=gr1.grant.id,
+            collection_id=data_source.collection.id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=all_headers,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "111",
+                    "Just text": "second version 1",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Whole number": "222",
+                    "Just text": "changed version 2",
+                },
+            ],
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.schema.root.items()) == 5
+        assert len(from_db.organisation_items) == 2
+        assert set(from_db.schema.root.keys()) == {
+            "c_british_pounds",
+            "c_whole_number",
+            "c_just_text",
+            "c_whole_number_prefix",
+            "c_whole_number_suffix",
+        }
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1.data["c_whole_number"].get_value_for_evaluation() == 111
+        assert "c_decimal_number" not in oi_1.data.keys()
+        assert oi_1.data["c_just_text"].get_value_for_evaluation() == "second version 1"
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 222
+        assert "c_decimal_number" not in oi_2.data.keys()
+        assert oi_2.data["c_just_text"].get_value_for_evaluation() == "changed version 2"
+
+    def test_replace_data_source_add_column_remove_column_and_update_data(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=data_source.grant)
+        oi_id1 = factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={
+                "c_whole_number": 111,
+                "c_decimal_number": "1.1",
+                "c_just_text": "first version 1",
+                "c_british_pounds": "3.45",
+            },
+        ).id
+        oi_id2 = factories.data_source_organisation_item.create(
+            external_id=gr2.organisation.external_id,
+            data_source=data_source,
+            _data={
+                "c_whole_number": 222,
+                "c_decimal_number": "2.1",
+                "c_just_text": "first version 2",
+                "c_british_pounds": "6.78",
+            },
+        ).id
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.schema.root.items()) == 6
+        assert len(from_db.organisation_items) == 2
+
+        all_headers = ALL_COLUMN_TYPE_HEADERS_LIST.copy()
+        all_headers.remove("British pounds")
+        all_headers.append("New text column")
+        replace_uploaded_data_source(
+            grant_id=gr1.grant.id,
+            collection_id=data_source.collection.id,
+            data_source=data_source,
+            new_columns=[DataSetColumnMapping(column_name="New text column", column_type="TEXT")],
+            all_headers=all_headers,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "999",
+                    "Decimal number": "9.9",
+                    "Just text": "updated version 1",
+                    "New text column": "extra 1",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Whole number": "888",
+                    "Decimal number": "8.8",
+                    "Just text": "updated version 2",
+                    "New text column": "extra 2",
+                },
+            ],
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        assert {oi.id for oi in from_db.organisation_items}.isdisjoint({oi_id1, oi_id2})
+        assert len(from_db.schema.root.items()) == 6  # 6 original - 1 removed + 1 added
+        assert set(from_db.schema.root.keys()) == {
+            "c_new_text_column",
+            "c_whole_number",
+            "c_decimal_number",
+            "c_just_text",
+            "c_whole_number_prefix",
+            "c_whole_number_suffix",
+        }
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1.data["c_whole_number"].get_value_for_evaluation() == 999
+        assert oi_1.data["c_decimal_number"].get_value_for_evaluation() == Decimal("9.9")
+        assert oi_1.data["c_just_text"].get_value_for_evaluation() == "updated version 1"
+        assert "c_british_pounds" not in oi_1.data.keys()
+        assert oi_1.data["c_new_text_column"].get_value_for_evaluation() == "extra 1"
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 888
+        assert oi_2.data["c_decimal_number"].get_value_for_evaluation() == Decimal("8.8")
+        assert oi_2.data["c_just_text"].get_value_for_evaluation() == "updated version 2"
+        assert "c_british_pounds" not in oi_2.data.keys()
+        assert oi_2.data["c_new_text_column"].get_value_for_evaluation() == "extra 2"
+
+    def test_replace_data_source_with_existing_references(self, factories):
+        collection = factories.collection.create()
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=collection.grant)
+
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        question = factories.question.create(
+            form__collection=collection, text=f"How did you spend the ((d_{data_source.id.hex}.c_allocation))?"
+        )
+
+        assert len(question.owned_component_references) == 1
+        assert question.owned_component_references[0].depends_on_data_source_id == data_source.id
+        assert question.owned_component_references[0].depends_on_column_name == "c_allocation"
+        assert question.text == f"How did you spend the ((d_{data_source.id.hex}.c_allocation))?"
+        existing_text = question.text
+
+        replace_uploaded_data_source(
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=["Allocation"],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Allocation": "444",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Allocation": "555",
+                },
+            ],
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        question_from_db = get_question_by_id(question.id)
+        assert question_from_db.text == existing_text
+        assert question_from_db.owned_component_references[0].depends_on_data_source_id == from_db.id
+        assert question_from_db.owned_component_references[0].depends_on_column_name == "c_allocation"
