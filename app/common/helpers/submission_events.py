@@ -86,6 +86,16 @@ class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, 
     is_approved: bool = False
     is_submitted: bool = False
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
+
+
+@dataclass
+class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, SubmittedMixin):
+    reopened_reason: str = field(metadata={"stored": True})
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_CHANGES_REQUESTED
+    is_awaiting_sign_off: bool = False
+    is_approved: bool = False
+    is_submitted: bool = False
+    submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
     section_ids: list[str] = field(default_factory=list, metadata={"stored": True})
 
 
@@ -99,6 +109,11 @@ class DeclinedByCertifierKwargs(TypedDict, total=False):
 
 
 class ReopenedKwargs(TypedDict, total=False):
+    reopened_reason: str | None
+    submission_data: dict[str, Any] | None
+
+
+class ChangesRequestedKwargs(TypedDict, total=False):
     reopened_reason: str | None
     submission_data: dict[str, Any] | None
     section_ids: list[str] | None

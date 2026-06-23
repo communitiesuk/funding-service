@@ -22,6 +22,7 @@ RECIPIENT_ORG = "Recipient Council"
         (SubmissionEventType.SUBMISSION_REOPENED, "reopened for changes", GRANT_ORG),
         (SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, "completed and sent for certification", RECIPIENT_ORG),
         (SubmissionEventType.SUBMISSION_SUBMITTED, f"submitted to {GRANT_ORG}", RECIPIENT_ORG),
+        (SubmissionEventType.SUBMISSION_CHANGES_REQUESTED, "Changes requested", GRANT_ORG),
     ],
 )
 class TestTimelinePartials:
@@ -86,3 +87,33 @@ class TestSubmissionDetails:
 
         assert "Reason for reopening" in html.find("span", class_="govuk-details__summary-text").text
         assert "Please update the submission" in html.find("div", class_="govuk-details__text").text
+
+    def test_changes_requested_shows_details(self, factories):
+        grant = factories.grant.build(
+            organisation=factories.organisation.build(name=GRANT_ORG, can_manage_grants=True),
+        )
+        form = factories.form.build(collection__grant=grant, title="Financial data")
+        submission = factories.submission.build(
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=factories.grant_recipient.build(grant=grant, organisation__name=RECIPIENT_ORG),
+            collection=form.collection,
+        )
+        event = factories.submission_event.build(
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            submission=submission,
+            data={"section_ids": [str(form.id)], "reopened_reason": "See sections below"},
+        )
+
+        item = from_submission_event(event)
+
+        html = BeautifulSoup(
+            render_template_string(
+                '{% include "common/macros/timeline/submission_changes_requested.html" %}',
+                item=item,
+            ),
+            "html.parser",
+        )
+
+        assert "Change request details" in html.find("span", class_="govuk-details__summary-text").text
+        assert "Financial data" in html.find("div", class_="govuk-details__text").text
+        assert "See sections below" in html.find("div", class_="govuk-details__text").text

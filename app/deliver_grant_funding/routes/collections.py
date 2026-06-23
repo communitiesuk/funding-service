@@ -3279,6 +3279,7 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
         SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
         SubmissionEventType.SUBMISSION_REOPENED,
+        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
     ]
 
     # we are not displaying SUBMISSION_SUBMITTED events when collection requires certification
