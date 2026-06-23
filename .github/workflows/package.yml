@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build
     steps:
-      - uses: buildpacks/github-actions/setup-pack@812ff667850b930be2217c48e1f980e71bd3e14f # v5.12.3
+      - uses: buildpacks/github-actions/setup-pack@8fe5c9d7f5a3fa22d4b7cc7d50ba8ebd7eddf414 # v5.12.4
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Configure AWS credentials using OIDC
