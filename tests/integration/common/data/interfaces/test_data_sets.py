@@ -938,6 +938,8 @@ class TestReplaceUploadedDataSource:
             all_headers=[],
             all_rows=[],
             name="Most popular cheeses",
+            s3_key="file_key",
+            original_filename="file.csv",
         )
         from_db = get_data_source(data_source.id, with_organisation_items=False)
         assert from_db.name == "Most popular cheeses"
@@ -997,6 +999,8 @@ class TestReplaceUploadedDataSource:
                     "British pounds": "2.30",
                 },
             ],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1055,6 +1059,8 @@ class TestReplaceUploadedDataSource:
                     "Just text": "second version 1",
                 },
             ],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1104,6 +1110,8 @@ class TestReplaceUploadedDataSource:
                     "Just text": "changed version 2",
                 },
             ],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1149,6 +1157,8 @@ class TestReplaceUploadedDataSource:
                     "Allocation": "222",
                 },
             ],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
@@ -1196,6 +1206,8 @@ class TestReplaceUploadedDataSource:
                     "New column": "456",
                 },
             ],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
@@ -1232,6 +1244,8 @@ class TestReplaceUploadedDataSource:
             new_columns=[],
             all_headers=all_headers,
             all_rows=[],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source.id)
@@ -1288,6 +1302,8 @@ class TestReplaceUploadedDataSource:
                     "Just text": "changed version 2",
                 },
             ],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1370,6 +1386,8 @@ class TestReplaceUploadedDataSource:
                     "New text column": "extra 2",
                 },
             ],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1435,6 +1453,8 @@ class TestReplaceUploadedDataSource:
                     "Allocation": "555",
                 },
             ],
+            s3_key="file_key",
+            original_filename="file.csv",
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1443,3 +1463,27 @@ class TestReplaceUploadedDataSource:
         assert question_from_db.text == existing_text
         assert question_from_db.owned_component_references[0].depends_on_data_source_id == from_db.id
         assert question_from_db.owned_component_references[0].depends_on_column_name == "c_allocation"
+
+    def test_update_file_metadata(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            type=DataSourceType.GRANT_RECIPIENT,
+            file_metadata=DataSourceFileMetadata(s3_key="key", original_filename="file.csv"),
+        )
+        replace_uploaded_data_source(
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=["Allocation"],
+            all_rows=[],
+            s3_key="new_key",
+            original_filename="file_v2.csv",
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert from_db.file_metadata.s3_key == "new_key"
+        assert from_db.file_metadata.original_filename == "file_v2.csv"
