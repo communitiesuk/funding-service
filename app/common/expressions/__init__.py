@@ -4,6 +4,7 @@ import enum
 import re
 from collections import ChainMap
 from collections.abc import MutableMapping
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Literal, cast, overload
 
 import simpleeval
@@ -586,6 +587,19 @@ def get_restricted_evaluator(
             ast.Set,
         }
     }
+
+    # We override the handler for inline floats, eg. 1.1 * ((value)), because we store 'value' as a decimal.Decimal
+    # and we get an unsupported operand type error if we try and use decimals and floats together
+    _original_constant_handler = evaluator.nodes[ast.Constant]
+
+    def _decimal_constant_handler(node: ast.Constant) -> Any:
+        value = _original_constant_handler(node)
+        if isinstance(value, float):
+            return Decimal(str(value))
+        return value
+
+    evaluator.nodes[ast.Constant] = _decimal_constant_handler
+
     return evaluator
 
 

@@ -1,4 +1,5 @@
 import datetime
+import decimal
 
 import pytest
 
@@ -879,6 +880,7 @@ class TestCustomExpression:
             ("(({q1})) + (({q2})) < (({q3}))", False),
             ("(({q1})) * (({q2})) > (({q3}))", True),
             ("(({q1})) * 8 >= (({q3}))", True),
+            ("(({q4})) * 1.1 >= (({q3}))", True),
         ],
     )
     def test_evaluate(self, expression, expected_result, factories):
@@ -890,8 +892,13 @@ class TestCustomExpression:
             data_type=QuestionDataType.NUMBER,
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
+        q4 = factories.question.create(
+            form=form,
+            data_type=QuestionDataType.NUMBER,
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL),
+        )
         expr = CustomExpression(
-            custom_expression=expression.format(q1=q1.safe_qid, q2=q2.safe_qid, q3=q3.safe_qid),
+            custom_expression=expression.format(q1=q1.safe_qid, q2=q2.safe_qid, q3=q3.safe_qid, q4=q4.safe_qid),
             custom_message="a message",
         )
         expression = Expression.from_evaluatable_expression(expr, ExpressionType.VALIDATION, user)
@@ -900,9 +907,12 @@ class TestCustomExpression:
             q1.safe_qid: 10,
             q2.safe_qid: 20,
             q3.safe_qid: 30,
+            q4.safe_qid: decimal.Decimal("40.4"),
             "custom_expression": expr.custom_expression,
             "custom_message": expr.custom_message,
         }
+
+        assert evaluate(expression) is expected_result
 
     def test_build_from_form(self, factories):
         question = factories.question.build()
