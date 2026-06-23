@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased, lazyload, selectinload
 
@@ -169,11 +169,25 @@ def replace_uploaded_data_source(
     name: str | TNotProvided = NOT_PROVIDED,
 ) -> DataSource:
 
-    if new_columns or all_headers or all_rows:
-        raise NotImplementedError("Haven't got this far")
-
     if name is not NOT_PROVIDED:
         data_source.name = name
+
+    all_column_mappings = []
+    all_column_mappings.extend(new_columns)
+    all_column_mappings.extend(
+        [
+            DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
+            for schema_column in data_source.schema.root.values()  # ty:ignore[unresolved-attribute]
+        ]
+    )
+
+    # delete all existing data source org items as the IDs aren't referenced, just column names
+    stmt = delete(DataSourceOrganisationItem).where(DataSourceOrganisationItem.data_source_id == data_source.id)
+    db.session.execute(stmt)
+    data_source.organisation_items.clear()
+
+    # create all new org items with the updated data
+    _create_organisation_items(data_source, all_rows, all_column_mappings, DATA_SET_IDENTIFIER_COLUMN_HEADERS)
 
     return data_source
 
