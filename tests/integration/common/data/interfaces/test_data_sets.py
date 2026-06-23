@@ -18,7 +18,12 @@ from app.common.data.interfaces.data_sets import (
     get_data_source_list_for_collection,
     replace_uploaded_data_source,
 )
-from app.common.data.models import ComponentReference, DataSource, DataSourceItem, DataSourceOrganisationItem
+from app.common.data.models import (
+    ComponentReference,
+    DataSource,
+    DataSourceItem,
+    DataSourceOrganisationItem,
+)
 from app.common.data.types import (
     DataSourceFileMetadata,
     DataSourceType,
@@ -28,6 +33,7 @@ from app.common.data.types import (
 from app.common.expressions import ExpressionContext
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
+from tests.models import ALL_COLUMN_TYPE_HEADERS_LIST
 
 
 class TestCreateUploadedDataSourceGrantRecipient:
@@ -934,3 +940,183 @@ class TestReplaceUploadedDataSource:
         )
         from_db = get_data_source(data_source.id, with_organisation_items=False)
         assert from_db.name == "Most popular cheeses"
+
+    def test_replace_data_source_update_data(
+        self,
+        factories,
+    ):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=data_source.grant)
+        oi_id1 = factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 111, "c_decimal_number": "1.1", "c_just_text": "first version 1"},
+        ).id
+        oi_id2 = factories.data_source_organisation_item.create(
+            external_id=gr2.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 222, "c_decimal_number": "2.1", "c_just_text": "first version 2"},
+        ).id
+        oi_id3 = factories.data_source_organisation_item.create(
+            external_id=gr3.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 333, "c_decimal_number": "3.1", "c_just_text": "first version 3"},
+        ).id
+
+        assert len(get_data_source(data_source.id, with_organisation_items=True).organisation_items) == 3
+
+        replace_uploaded_data_source(
+            grant_id=gr1.grant.id,
+            collection_id=data_source.collection.id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=ALL_COLUMN_TYPE_HEADERS_LIST,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "111",
+                    "Decimal number": "1.2",
+                    "Just text": "second version 1",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Whole number": "222",
+                    "Decimal number": "2.2",
+                    "Just text": "changed version 2",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr3.organisation.external_id,
+                    "Whole number": "333",
+                    "Decimal number": "3.2",
+                    "Just text": None,
+                    "British pounds": "2.30",
+                },
+            ],
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 3
+        assert {oi.id for oi in from_db.organisation_items}.isdisjoint({oi_id1, oi_id2, oi_id3})
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1.data["c_whole_number"].get_value_for_evaluation() == 111
+        assert oi_1.data["c_decimal_number"].get_value_for_evaluation() == Decimal("1.2")
+        assert oi_1.data["c_just_text"].get_value_for_evaluation() == "second version 1"
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 222
+        assert oi_2.data["c_decimal_number"].get_value_for_evaluation() == Decimal("2.2")
+        assert oi_2.data["c_just_text"].get_value_for_evaluation() == "changed version 2"
+
+        oi_3 = from_db.get_filtered_organisation_item(gr3.organisation.external_id)
+        assert oi_3.data["c_whole_number"].get_value_for_evaluation() == 333
+        assert oi_3.data["c_decimal_number"].get_value_for_evaluation() == Decimal("3.2")
+        assert oi_3.data["c_just_text"] is None
+        assert oi_3.data["c_british_pounds"].get_value_for_interpolation() == "£2.30"
+
+    def test_replace_data_source_remove_grant_recipient(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=data_source.grant)
+        oi_id1 = factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 111, "c_decimal_number": "1.1", "c_just_text": "first version 1"},
+        ).id
+        oi_id2 = factories.data_source_organisation_item.create(
+            external_id=gr2.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 222, "c_decimal_number": "2.1", "c_just_text": "first version 2"},
+        ).id
+
+        assert len(get_data_source(data_source.id, with_organisation_items=True).organisation_items) == 2
+
+        replace_uploaded_data_source(
+            grant_id=gr1.grant.id,
+            collection_id=data_source.collection.id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=ALL_COLUMN_TYPE_HEADERS_LIST,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "111",
+                    "Decimal number": "1.2",
+                    "Just text": "second version 1",
+                },
+            ],
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 1
+        assert {oi.id for oi in from_db.organisation_items}.isdisjoint({oi_id1, oi_id2})
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1 is not None
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2 is None
+
+    def test_replace_data_source_add_grant_recipient(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=data_source.grant)
+        oi_id1 = factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 111, "c_decimal_number": "1.1", "c_just_text": "first version 1"},
+        ).id
+
+        assert len(get_data_source(data_source.id, with_organisation_items=True).organisation_items) == 1
+
+        replace_uploaded_data_source(
+            grant_id=gr1.grant.id,
+            collection_id=data_source.collection.id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=ALL_COLUMN_TYPE_HEADERS_LIST,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "111",
+                    "Decimal number": "1.2",
+                    "Just text": "second version 1",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Whole number": "222",
+                    "Decimal number": "2.2",
+                    "Just text": "changed version 2",
+                },
+            ],
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        assert {oi.id for oi in from_db.organisation_items}.isdisjoint({oi_id1})
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1.data["c_whole_number"].get_value_for_evaluation() == 111
+        assert oi_1.data["c_decimal_number"].get_value_for_evaluation() == Decimal("1.2")
+        assert oi_1.data["c_just_text"].get_value_for_evaluation() == "second version 1"
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 222
+        assert oi_2.data["c_decimal_number"].get_value_for_evaluation() == Decimal("2.2")
+        assert oi_2.data["c_just_text"].get_value_for_evaluation() == "changed version 2"
