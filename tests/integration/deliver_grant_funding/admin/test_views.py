@@ -5713,7 +5713,7 @@ class TestAdminDashboard:
         assert "Scheduled Collection" in soup.get_text()
         assert "Open Collection" in soup.get_text()
 
-    @pytest.mark.freeze_time("2026-06-15 12:00:00")
+    @pytest.mark.freeze_time("2026-06-14 12:00:00")
     def test_dashboard_shows_overdue_collections(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.collection.create(
@@ -5728,7 +5728,7 @@ class TestAdminDashboard:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Overdue Collection" in soup.get_text()
+        assert "14 June 2026todaySend overdue emailsOverdue Collection" in soup.get_text(strip=True)
 
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_upcoming_timeline(self, authenticated_platform_admin_client, factories, db_session):
@@ -5752,10 +5752,8 @@ class TestAdminDashboard:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Opening Soon" in soup.get_text()
-        assert "Closing Soon" in soup.get_text()
-        assert "Open for submissions" in soup.get_text()
-        assert "Send overdue emails" in soup.get_text()
+        assert "17 June 2026soonOpen for submissionsOpening Soon" in soup.get_text(strip=True)
+        assert "19 June 2026soonSend overdue emailsClosing Soon" in soup.get_text(strip=True)
 
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_today_tag(self, authenticated_platform_admin_client, factories, db_session):
@@ -5793,5 +5791,4 @@ class TestAdminDashboard:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Needs Reminder" in soup.get_text()
-        assert "Send reminder emails" in soup.get_text()
+        assert "16 June 2026soonSend reminder emailsNeeds Reminder" in soup.get_text(strip=True)
