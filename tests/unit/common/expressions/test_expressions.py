@@ -15,6 +15,7 @@ from app.common.expressions import (
     UndefinedVariableInExpression,
     _evaluate_expression_with_context,
     evaluate,
+    get_restricted_evaluator,
     interpolate,
 )
 
@@ -204,6 +205,24 @@ class TestEvaluate:
             evaluate(Expression(statement="1.0 + 1.2 == value1"), context=ExpressionContext({"value1": Decimal("2.2")}))
             is True
         )
+
+    def test_eval_returns_decimal(self):
+        # During evaluation, we use decimal rather than floats for any literal floats in a statement
+        # This test confirms that we are actually using decimals everywhere, not floats
+        # If anything changes this to make the test fail, you will see an error as follows:
+        #  assert Decimal('2.199999999999999955591079015') == Decimal('2.2') because it is trying to use a float
+        # instead of a decmial
+        evaluator = get_restricted_evaluator(names={}, required_functions={})
+        result = evaluator.eval("1.2+1")
+        assert result == Decimal("2.2")
+
+        evaluator = get_restricted_evaluator(names={"value1": Decimal("1.2")}, required_functions={})
+        result = evaluator.eval("value1+1")
+        assert result == Decimal("2.2")
+
+        evaluator = get_restricted_evaluator(names={"value1": 1}, required_functions={})
+        result = evaluator.eval("value1+1.2")
+        assert result == Decimal("2.2")
 
     def test_decimal_evaluation_equality(self, mocker):
         result = evaluate(
