@@ -168,6 +168,8 @@ def replace_uploaded_data_source(
     new_columns: list["DataSetColumnMapping"],
     all_headers: list[str],
     all_rows: TUnvalidatedDataSetRows,
+    s3_key: str,
+    original_filename: str,
     name: str | TNotProvided = NOT_PROVIDED,
 ) -> DataSource:
     if data_source.grant_id != grant_id:
@@ -180,6 +182,7 @@ def replace_uploaded_data_source(
     if name is not NOT_PROVIDED:
         data_source.name = name
 
+    data_source.file_metadata = DataSourceFileMetadata(s3_key=s3_key, original_filename=original_filename)
     if new_columns:
         data_source.schema.root.update(_build_schema_from_column_mappings(new_columns).root)  # ty:ignore[unresolved-attribute]
 
