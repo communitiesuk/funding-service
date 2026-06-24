@@ -1819,57 +1819,49 @@ class TestSubmissionHelper:
             assert len(mock_notification_service_calls) == 0
 
     class TestSubmissionReopened:
-        def test_submission_reopened_grant_team(
-            self, grant_team_user, submission_submitted, mock_notification_service_calls
-        ) -> None:
+        def test_submission_reopened_grant_team(self, grant_team_user, submission_submitted) -> None:
             helper = SubmissionHelper(submission_submitted)
             assert helper.status == SubmissionStatusEnum.SUBMITTED
             for form in helper.get_ordered_visible_forms():
                 assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
 
-            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=["section_1"])
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.reopened_reason == "Test reason"
-            assert helper.section_ids == ["section_1"]
             assert helper.reopened_by == grant_team_user
             for form in helper.get_ordered_visible_forms():
                 assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
 
-        def test_submission_reopened_platform_admin(
-            self, platform_admin_user, submission_submitted, mock_notification_service_calls
-        ) -> None:
+        def test_submission_reopened_platform_admin(self, platform_admin_user, submission_submitted) -> None:
             helper = SubmissionHelper(submission_submitted)
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
-            helper.reopen_submission(user=platform_admin_user, reopened_reason="Test reason", section_ids=["section_1"])
+            helper.reopen_submission(user=platform_admin_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.reopened_reason == "Test reason"
-            assert helper.section_ids == ["section_1"]
             assert helper.reopened_by == platform_admin_user
 
-        def test_submission_reopened_fails_when_report_closed(
-            self, grant_team_user, submission_submitted, mock_notification_service_calls
-        ) -> None:
+        def test_submission_reopened_fails_when_report_closed(self, grant_team_user, submission_submitted) -> None:
             helper = SubmissionHelper(submission_submitted)
             assert helper.status == SubmissionStatusEnum.SUBMITTED
             collection = submission_submitted.collection
             collection.status = CollectionStatusEnum.CLOSED
 
             with pytest.raises(CollectionIsNotOpenError, match="report is not open"):
-                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=[])
+                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
         def test_submission_reopened_fails_when_submission_not_submitted(
-            self, grant_team_user, submission_awaiting_sign_off, mock_notification_service_calls
+            self, grant_team_user, submission_awaiting_sign_off
         ) -> None:
             helper = SubmissionHelper(submission_awaiting_sign_off)
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
             with pytest.raises(SubmissionIsNotSubmittedError, match="it is not submitted"):
-                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=[])
+                helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
 
@@ -1884,13 +1876,13 @@ class TestSubmissionHelper:
             ],
         )
         def test_submission_reopened_fails_when_not_grant_team_or_platform_admin_user(
-            self, request, user_fixture, submission_submitted, mock_notification_service_calls
+            self, request, user_fixture, submission_submitted
         ):
             helper = SubmissionHelper(submission_submitted)
             user = request.getfixturevalue(user_fixture)
 
             with pytest.raises(SubmissionAuthorisationError, match="does not have permission to reopen the submission"):
-                helper.reopen_submission(user=user, reopened_reason="Test reason", section_ids=[])
+                helper.reopen_submission(user=user, reopened_reason="Test reason")
 
         def test_submission_reopened_notification_emails_requires_certification(
             self,
@@ -1904,7 +1896,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission_submitted)
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
-            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=[])
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert len(mock_notification_service_calls) == 2
@@ -1929,7 +1921,7 @@ class TestSubmissionHelper:
 
             submission_submitted.collection.requires_certification = False
 
-            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason", section_ids=[])
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert len(mock_notification_service_calls) == 1
@@ -1940,9 +1932,7 @@ class TestSubmissionHelper:
             assert data_provider_user.email in recipients
             assert certifier_user.email not in recipients
 
-        def test_reopen_submission_multi_submissions(
-            self, grant_team_user, submission_submitted_multiple_submissions, factories
-        ):
+        def test_reopen_submission_multi_submissions(self, grant_team_user, submission_submitted_multiple_submissions):
             submission_1 = submission_submitted_multiple_submissions[0]
             submission_2 = submission_submitted_multiple_submissions[1]
             helper_1 = SubmissionHelper(submission_1)
@@ -1950,9 +1940,66 @@ class TestSubmissionHelper:
             assert helper_1.status == SubmissionStatusEnum.SUBMITTED
             assert helper_2.status == SubmissionStatusEnum.SUBMITTED
 
-            helper_2.reopen_submission(grant_team_user, reopened_reason="Test reason", section_ids=[])
+            helper_2.reopen_submission(grant_team_user, reopened_reason="Test reason")
             assert helper_1.status == SubmissionStatusEnum.SUBMITTED
             assert helper_2.status == SubmissionStatusEnum.IN_PROGRESS
+
+    class TestSubmissionChangesRequested:
+        def test_request_changes_stores_reason_and_section_ids(self, grant_team_user, submission_submitted) -> None:
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+            helper.request_changes_submission(
+                user=grant_team_user,
+                changes_requested_reason="Please fix section 1",
+                section_ids=["section_1", "section_2"],
+            )
+
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.changes_requested_reason == "Please fix section 1"
+            assert helper.section_ids == ["section_1", "section_2"]
+            assert helper.changes_requested_by == grant_team_user
+
+        def test_request_changes_fails_when_not_authorised(self, data_provider_user, submission_submitted) -> None:
+            helper = SubmissionHelper(submission_submitted)
+
+            with pytest.raises(
+                SubmissionAuthorisationError,
+                match="User does not have permission to request changes to the submission ",
+            ):
+                helper.request_changes_submission(
+                    user=data_provider_user,
+                    changes_requested_reason="Test reason",
+                    section_ids=None,
+                )
+
+        def test_request_changes_fails_when_collection_closed(self, grant_team_user, submission_submitted) -> None:
+            helper = SubmissionHelper(submission_submitted)
+            submission_submitted.collection.status = CollectionStatusEnum.CLOSED
+
+            with pytest.raises(CollectionIsNotOpenError, match="report is not open"):
+                helper.request_changes_submission(
+                    user=grant_team_user, changes_requested_reason="Test reason", section_ids=None
+                )
+
+        def test_request_changes_sends_notifications(
+            self,
+            grant_team_user,
+            data_provider_user,
+            certifier_user,
+            submission_submitted,
+            mock_notification_service_calls,
+        ) -> None:
+            helper = SubmissionHelper(submission_submitted)
+
+            helper.request_changes_submission(
+                user=grant_team_user, changes_requested_reason="Test reason", section_ids=None
+            )
+
+            assert len(mock_notification_service_calls) == 2
+            recipients = [call.kwargs["email_address"] for call in mock_notification_service_calls]
+            assert data_provider_user.email in recipients
+            assert certifier_user.email in recipients
 
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")

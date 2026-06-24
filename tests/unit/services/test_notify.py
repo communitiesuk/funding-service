@@ -438,6 +438,92 @@ class TestNotificationService:
             )
 
     @responses.activate
+    def test_send_changes_requested_submission(
+        self,
+        factories,
+        submission_submitted,
+        mock_notification_service_calls,
+    ):
+        grant_team_user = factories.user.build(name="Grant Team User")
+        factories.submission_event.build(
+            submission=submission_submitted,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            created_by=grant_team_user,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"changes_requested_reason": "Please fix this section"},
+        )
+        helper = SubmissionHelper(submission_submitted)
+
+        expected_personalisation = {
+            "is_test_data": "no",
+            "submission_name": "Test collection",
+            "grant_name": "Test grant",
+            "change_request_comments": "^ Please fix this section\n",
+            "requires_certification": "yes",
+            "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
+            "government_department": f"the {submission_submitted.collection.grant.organisation.name}",
+            "collection_type_noun": "report",
+        }
+
+        notification_service.send_changes_requested_submission(
+            submission_helper=helper,
+            user=helper.submitted_by,
+        )
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
+        assert mock_notification_service_calls[0].kwargs["template_id"] == "07c9df47-e33f-4d71-841c-673f1ca0d0a6"
+        assert mock_notification_service_calls[0].kwargs["email_address"] == "certifier@communities.gov.uk"
+
+    @responses.activate
+    def test_send_changes_requested_submission_reason_on_multiple_lines(
+        self,
+        app,
+        factories,
+        submission_submitted,
+        mock_notification_service_calls,
+    ):
+        grant_team_user = factories.user.build(name="Grant Team User")
+        factories.submission_event.build(
+            submission=submission_submitted,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            created_by=grant_team_user,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"changes_requested_reason": "Fix section 1\nAnd section 2"},
+        )
+        helper = SubmissionHelper(submission_submitted)
+
+        notification_service.send_changes_requested_submission(
+            submission_helper=helper,
+            user=helper.submitted_by,
+        )
+        assert mock_notification_service_calls[0].kwargs["personalisation"]["change_request_comments"] == (
+            "^ Fix section 1\n^ And section 2\n"
+        )
+
+    @responses.activate
+    def test_send_changes_requested_submission_fails_when_no_reason_provided(
+        self,
+        app,
+        factories,
+        submission_submitted,
+    ):
+        grant_team_user = factories.user.build(name="Grant Team User")
+        factories.submission_event.build(
+            submission=submission_submitted,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            created_by=grant_team_user,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"changes_requested_reason": None},
+        )
+        helper = SubmissionHelper(submission_submitted)
+
+        with pytest.raises(ValueError, match="because there is no changes requested reason"):
+            notification_service.send_changes_requested_submission(
+                submission_helper=helper,
+                user=helper.submitted_by,
+            )
+
+    @responses.activate
     def test_send_access_submission_submitted_requires_certification(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
             grant__name="Test grant",

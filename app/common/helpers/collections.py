@@ -484,6 +484,18 @@ class SubmissionHelper:
         return self.events.submission_state.reopened_reason
 
     @property
+    def changes_requested_reason(self) -> str | None:
+        return self.events.submission_state.changes_requested_reason
+
+    @property
+    def changes_requested_by(self) -> User | None:
+        return self.events.submission_state.changes_requested_by
+
+    @property
+    def changes_requested_at_utc(self) -> datetime | None:
+        return self.events.submission_state.changes_requested_at_utc
+
+    @property
     def section_ids(self) -> list[str] | None:
         return self.events.submission_state.section_ids
 
@@ -1248,7 +1260,7 @@ class SubmissionHelper:
             return True
         return False
 
-    def reopen_submission(self, user: User, reopened_reason: str | None, section_ids: list[str] | None) -> None:
+    def reopen_submission(self, user: User, reopened_reason: str | None) -> None:
 
         if not AuthorisationHelper.can_reopen_submission(user, self.submission):
             raise SubmissionAuthorisationError(
@@ -1259,7 +1271,10 @@ class SubmissionHelper:
             )
 
         if not self.collection.is_open:
-            raise CollectionIsNotOpenError(f"Could not reopen submission id={self.id} because the report is not open.")
+            raise CollectionIsNotOpenError(
+                f"Could not reopen submission id={self.id} because the "
+                f"{self.collection.type.constants.singular} is not open."
+            )
 
         if not self.is_submitted:
             raise SubmissionIsNotSubmittedError(
@@ -1270,7 +1285,6 @@ class SubmissionHelper:
             event_type=SubmissionEventType.SUBMISSION_REOPENED,
             user=user,
             reopened_reason=reopened_reason,
-            section_ids=section_ids,
             submission_data=self.submission.data_manager.data,
             related_entity_id=self.id,
         )
@@ -1287,6 +1301,50 @@ class SubmissionHelper:
 
         for recipient in recipients:
             notification_service.send_access_submission_reopened(user=recipient, submission_helper=self)
+
+    def request_changes_submission(
+        self, user: User, changes_requested_reason: str | None, section_ids: list[str] | None
+    ) -> None:
+        if not AuthorisationHelper.can_reopen_submission(user, self.submission):
+            raise SubmissionAuthorisationError(
+                f"User does not have permission to request changes to the submission id={self.id}",
+                user,
+                self.id,
+                RoleEnum.MEMBER,
+            )
+
+        if not self.collection.is_open:
+            raise CollectionIsNotOpenError(
+                f"Could not request changes to submission id={self.id} because the "
+                f"{self.collection.type.constants.singular} is not open."
+            )
+
+        if not self.is_submitted:
+            raise SubmissionIsNotSubmittedError(
+                f"Could not request changes to submission id={self.id} because it is not submitted."
+            )
+
+        self.add_submission_event(
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            user=user,
+            changes_requested_reason=changes_requested_reason,
+            section_ids=section_ids,
+            submission_data=self.submission.data_manager.data,
+            related_entity_id=self.id,
+        )
+        for form in self.collection.forms:
+            self.add_submission_event(
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                user=user,
+                related_entity_id=form.id,
+            )
+        recipients = set(self._data_providers_for_lifecycle_emails(user))
+
+        if self.collection.requires_certification:
+            recipients.update(self._certifiers_for_lifecycle_emails(user))
+
+        for recipient in recipients:
+            notification_service.send_changes_requested_submission(user=recipient, submission_helper=self)
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED

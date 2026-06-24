@@ -446,6 +446,52 @@ class NotificationService:
             personalisation=personalisation,
         )
 
+    def send_changes_requested_submission(
+        self,
+        user: User,
+        submission_helper: SubmissionHelper,
+    ) -> Notification:
+        submission_state = submission_helper.events.submission_state
+
+        if not submission_state.changes_requested_reason:
+            raise ValueError(
+                f"Could not send changes requested email for submission id={submission_helper.id} because there is "
+                "no changes requested reason"
+            )
+
+        # The changes requested reason shows as indented text in the email, but we need to account for this
+        # here as notify doesn't take into account multiple lines within the inset text.
+        # For notify emails, inset text needs tos tart the line with a ^
+        lines_for_email = ""
+        for line in submission_state.changes_requested_reason.splitlines():
+            lines_for_email += f"^ {line}\n"
+
+        personalisation = {
+            "is_test_data": (
+                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
+            ),
+            "submission_name": submission_helper.long_collection_name,
+            "grant_name": submission_helper.collection.grant.name,
+            "change_request_comments": lines_for_email,
+            "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
+            "grant_submission_url": (
+                url_for(
+                    "access_grant_funding.route_to_submission",
+                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
+                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    collection_id=submission_helper.collection.id,
+                    _external=True,
+                )
+            ),
+            "government_department": f"the {submission_helper.collection.grant.organisation.name}",
+            "collection_type_noun": submission_helper.collection.type.constants.singular,
+        }
+        return self._send_email(
+            email_address=user.email,
+            template_id=current_app.config["GOVUK_NOTIFY_CHANGES_REQUESTED_SUBMISSION_TEMPLATE_ID"],
+            personalisation=personalisation,
+        )
+
     def send_grant_export(
         self,
         email_address: str,

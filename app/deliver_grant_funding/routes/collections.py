@@ -3317,7 +3317,6 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
             submission_helper.reopen_submission(
                 user=get_current_user(),
                 reopened_reason=form.reopened_reason.data,
-                section_ids=[],  # will be form.section_ids.data
             )
             flash("Submission reopened", FlashMessageType.SUBMISSION_REOPENED)
             return redirect(

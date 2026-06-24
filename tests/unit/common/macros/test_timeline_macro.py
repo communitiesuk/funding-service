@@ -101,7 +101,7 @@ class TestSubmissionDetails:
         event = factories.submission_event.build(
             event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
             submission=submission,
-            data={"section_ids": [str(form.id)], "reopened_reason": "See sections below"},
+            data={"section_ids": [str(form.id)], "changes_requested_reason": "See sections below"},
         )
 
         item = from_submission_event(event)
