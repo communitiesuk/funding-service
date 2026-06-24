@@ -20,10 +20,10 @@ def delta_csv_path(app, monkeypatch):
 @pytest.fixture
 def delta_test_data(factories, db_session):
     # The data here lines up with the FIXTURE_CSV data
-    org_match = factories.organisation.create(external_id="ORG-MATCH", name="Matching Council")
-    org_diff = factories.organisation.create(external_id="ORG-DIFF", name="Different Council")
-    factories.organisation.create(external_id="ORG-EMPTY", name="Empty Council")
-    org_delegated = factories.organisation.create(external_id="ORG-DELEGATED", name="Delegated Council")
+    org_match = factories.organisation.create(external_id="E06000010", name="Matching Council")
+    org_diff = factories.organisation.create(external_id="E06000011", name="Different Council")
+    factories.organisation.create(external_id="E06000012", name="Empty Council")
+    org_delegated = factories.organisation.create(external_id="E06000013", name="Delegated Council")
 
     match_certifier = factories.user.create(email="matching@example.gov.uk", name="Matt Match")
     match_deputy = factories.user.create(email="deputy@example.gov.uk", name="Daphne Deputy")
@@ -44,7 +44,7 @@ def delta_test_data(factories, db_session):
     )
 
     test_org = factories.organisation.create(
-        external_id="ORG-TEST", name="Test Mode Council", mode=OrganisationModeEnum.TEST
+        external_id="E06000014", name="Test Mode Council", mode=OrganisationModeEnum.TEST
     )
     test_org_user = factories.user.create(email="test-org-user@example.gov.uk", name="Tina Test")
     factories.user_role.create(user=test_org_user, permissions=[RoleEnum.CERTIFIER], grant=grant, organisation=test_org)
@@ -212,7 +212,7 @@ class TestS3ZipSource:
     def test_s3_uri_downloads_and_unzips_csv(
         self, authenticated_platform_grant_lifecycle_manager_client, app, monkeypatch, mocker, factories, db_session
     ):
-        factories.organisation.create(external_id="ORG-DELEGATED", name="Delegated Council")
+        factories.organisation.create(external_id="E06000013", name="Delegated Council")
 
         zip_bytes = BytesIO()
         with zipfile.ZipFile(zip_bytes, mode="w") as archive:

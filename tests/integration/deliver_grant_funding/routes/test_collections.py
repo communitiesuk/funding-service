@@ -9391,24 +9391,24 @@ class TestDownloadGrantRecipientDataSetTemplate:
 
         grant_recipient_1 = factories.grant_recipient.create(
             grant=grant,
-            organisation__external_id="E12345",
+            organisation__external_id="E06012345",
             organisation__name="Rivendell",
         )
         grant_recipient_2 = factories.grant_recipient.create(
             grant=grant,
-            organisation__external_id="E67890",
+            organisation__external_id="E06067890",
             organisation__name="Lothlorien",
         )
         grant_recipient_3 = factories.grant_recipient.create(
             grant=grant,
             organisation__name="Isengard",
-            organisation__external_id="E00000",
+            organisation__external_id="E06050000",
             organisation__mode=OrganisationModeEnum.TEST,
         )
         grant_recipient_4 = factories.grant_recipient.create(
             grant=grant,
             organisation__name="Shire",
-            organisation__external_id="E99999",
+            organisation__external_id="E06099999",
         )
 
         response = authenticated_grant_member_client_no_grant_recipients.get(
@@ -9563,10 +9563,14 @@ class TestUploadDataSet:
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Rivendell")
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Lothlorien")
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000123", organisation__name="Rivendell"
+        )
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000456", organisation__name="Lothlorien"
+        )
 
-        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
+        csv_content = "Organisation ID,Grant recipient,Amount\nE06000123,Lothlorien,1000\nE06000456,Rivendell,2000"
         data = {
             "name": "Test Data Set",
             "data_source_type": DataSourceType.GRANT_RECIPIENT,
@@ -9622,10 +9626,14 @@ class TestUploadDataSet:
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Rivendell")
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Lothlorien")
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000123", organisation__name="Rivendell"
+        )
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000456", organisation__name="Lothlorien"
+        )
 
-        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Rivendell,\nE456,Lothlorien,2000"
+        csv_content = "Organisation ID,Grant recipient,Amount\nE06000123,Rivendell,\nE06000456,Lothlorien,2000"
         data = {
             "name": "Test Data Set",
             "data_source_type": DataSourceType.GRANT_RECIPIENT,
@@ -9664,12 +9672,16 @@ class TestUploadDataSet:
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000123", organisation__name="Lothlorien"
+        )
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000456", organisation__name="Numenor"
+        )
 
         csv_content = (
-            "Organisation ID,Grant recipient,Amount,Category\nE123,Lothlorien,1000,A"
-            + "\nE123,Rogue,1000,A\nE789,Mordor,1000,A"
+            "Organisation ID,Grant recipient,Amount,Category\nE06000123,Lothlorien,1000,A"
+            + "\nE06000123,Rogue,1000,A\nE06000789,Mordor,1000,A"
         )
         data = {
             "name": "Test Data Set",
@@ -9690,12 +9702,12 @@ class TestUploadDataSet:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E123' already appears in the data set")
+        assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E06000123' already appears in the data set")
         assert page_has_error(soup, "Grant recipient 'Rogue' not found in grant recipients")
-        assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E789' not found in grant recipients")
+        assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E06000789' not found in grant recipients")
         assert page_has_error(soup, "Grant recipient 'Mordor' not found in grant recipients")
         assert page_has_error(
-            soup, f"Grant recipient with {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E456' is missing from the CSV"
+            soup, f"Grant recipient with {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E06000456' is missing from the CSV"
         )
         assert page_has_error(soup, "Grant recipient 'Numenor' is missing from the CSV")
         assert len(mock_s3_service_calls.upload_file_calls) == 1
@@ -9704,17 +9716,25 @@ class TestUploadDataSet:
     def test_post_stores_preview_data(self, authenticated_grant_admin_client, factories, mock_s3_service_calls):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Lothlorien")
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E456", organisation__name="Numenor")
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E789", organisation__name="Rivendell")
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E000", organisation__name="Gondor")
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000123", organisation__name="Lothlorien"
+        )
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000456", organisation__name="Numenor"
+        )
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000789", organisation__name="Rivendell"
+        )
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000500", organisation__name="Gondor"
+        )
 
         csv_content = (
             "Organisation ID,Grant recipient,Amount,Category\n"
-            "E123,Lothlorien,,A\n"
-            "E456,Numenor,1000,A\n"
-            "E789,Rivendell,2000,A\n"
-            "E000,Gondor,3000,A"
+            "E06000123,Lothlorien,,A\n"
+            "E06000456,Numenor,1000,A\n"
+            "E06000789,Rivendell,2000,A\n"
+            "E06000500,Gondor,3000,A"
         )
         data = {
             "name": "Test Data Set",
@@ -9919,10 +9939,10 @@ class TestMapDataSetColumns:
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
         )
         grant_recipient_2 = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10020,7 +10040,7 @@ class TestMapDataSetColumns:
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10076,7 +10096,7 @@ class TestMapDataSetColumns:
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10226,10 +10246,10 @@ class TestMapDataSetNumberColumns:
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
         )
         grant_recipient_2 = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
         )
         with authenticated_grant_admin_client.session_transaction() as session:
             session["data_set_upload"] = DataSetUploadSessionModel(
@@ -10355,10 +10375,10 @@ class TestMapDataSetNumberColumns:
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
         )
         grant_recipient2 = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10443,10 +10463,10 @@ class TestDataSetMissingData:
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC123", organisation__name="Rivendell"
+            grant=grant, organisation__external_id="E06000123", organisation__name="Rivendell"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC456", organisation__name="Lothlorien"
+            grant=grant, organisation__external_id="E06000456", organisation__name="Lothlorien"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10502,10 +10522,10 @@ class TestDataSetMissingData:
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC123", organisation__name="Rivendell"
+            grant=grant, organisation__external_id="E06000123", organisation__name="Rivendell"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC456", organisation__name="Lothlorien"
+            grant=grant, organisation__external_id="E06000456", organisation__name="Lothlorien"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10562,10 +10582,10 @@ class TestDataSetMissingData:
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC123"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
         )
         grant_recipient_2 = factories.grant_recipient.create(
-            grant=authenticated_grant_admin_client.grant, organisation__external_id="EC456"
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10853,7 +10873,7 @@ class TestViewDataSource:
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
-            external_id="E123",
+            external_id="E06000123",
             _data={"c_allocation": None},
         )
 
@@ -10873,14 +10893,14 @@ class TestViewDataSource:
 
     def test_get_excludes_test_grant_recipients_from_name_lookup(self, authenticated_grant_member_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
-        organisation = factories.organisation.create(external_id="E123", name="Rivendell Council")
+        organisation = factories.organisation.create(external_id="E06000123", name="Rivendell Council")
         factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant,
             organisation=organisation,
             mode=GrantRecipientModeEnum.LIVE,
         )
         test_organisation = factories.organisation.create(
-            external_id="E123", name="Rivendell Council (Test)", mode=OrganisationModeEnum.TEST
+            external_id="E06000123", name="Rivendell Council (Test)", mode=OrganisationModeEnum.TEST
         )
         factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant,
@@ -10894,7 +10914,7 @@ class TestViewDataSource:
         )
         factories.data_source_organisation_item.create(
             data_source=data_source,
-            external_id="E123",
+            external_id="E06000123",
             _data={"c_allocation": 1234},
         )
 
@@ -11373,7 +11393,9 @@ class TestDownloadLatestDataSetTemplate:
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         grant = authenticated_grant_admin_client.grant
-        factories.grant_recipient.create(grant=grant, organisation__external_id="E123", organisation__name="Test org")
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000123", organisation__name="Test org"
+        )
         data_source = factories.data_source.create(
             collection=collection,
             grant=authenticated_grant_admin_client.grant,
@@ -11395,7 +11417,7 @@ class TestDownloadLatestDataSetTemplate:
         assert response.status_code == 200
         assert response.content_type.startswith("text/csv")
         assert f"filename={collection.slug}-grant-allocation-template.csv" in response.headers["Content-Disposition"]
-        assert b"Organisation ID,Grant recipient,Allocation\r\nE123,Test org,1000" in response.data
+        assert b"Organisation ID,Grant recipient,Allocation\r\nE06000123,Test org,1000" in response.data
 
 
 class TestAddCustomQuestionValidation:

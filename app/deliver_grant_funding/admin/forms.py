@@ -1,5 +1,6 @@
 import csv
 import datetime
+import random
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
@@ -114,16 +115,46 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
         organisations_data = self.organisations_data.data
         tsv_reader = csv.reader(organisations_data.splitlines(), delimiter="\t")
         _ = next(tsv_reader)  # Skip the header
-        normalised_organisations = [
-            OrganisationData(
-                external_id=row[0],
-                name=row[1],
-                type=OrganisationType(row[2]),
-                active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
-                retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
-            )
-            for row in tsv_reader
-        ]
+        normalised_organisations = []
+        for row in tsv_reader:
+            org_type = OrganisationType(row[2])
+            external_id = row[0]
+
+            if org_type == OrganisationType.OTHER:
+                prefix = cast(str, org_type.external_id_prefix)
+                if external_id and not external_id.startswith(prefix):
+                    raise ValueError(
+                        f"Organisation '{row[1]}' has type Other but its ID '{external_id}'"
+                        f" does not start with '{prefix}'. Leave blank to auto-generate, or provide"
+                        f" an ID starting with '{prefix}'."
+                    )
+                if not external_id:
+                    custom_code = f"{random.randint(0, 999_999_999):09d}"
+                else:
+                    custom_code = external_id.removeprefix(prefix)
+                normalised_organisations.append(
+                    OrganisationData(
+                        external_id=f"{prefix}{custom_code}",
+                        name=row[1],
+                        type=org_type,
+                        active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
+                        retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
+                        custom_code=custom_code,
+                    )
+                )
+            else:
+                prefix = org_type.external_id_prefix
+                typed_id = external_id.removeprefix(prefix) if prefix else external_id
+                normalised_organisations.append(
+                    OrganisationData(
+                        external_id=f"{prefix}{typed_id}" if prefix else external_id,
+                        name=row[1],
+                        type=org_type,
+                        active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
+                        retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
+                        **{org_type.typed_id_field: typed_id},
+                    )
+                )
         return normalised_organisations
 
 

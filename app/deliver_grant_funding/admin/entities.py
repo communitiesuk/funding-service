@@ -39,7 +39,13 @@ from app.common.data.models import (
 )
 from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import AuditEventType, GrantRecipientStatusEnum, RoleEnum, SubmissionEventType
+from app.common.data.types import (
+    AuditEventType,
+    GrantRecipientStatusEnum,
+    OrganisationType,
+    RoleEnum,
+    SubmissionEventType,
+)
 from app.common.helpers.collections import SubmissionHelper
 from app.common.security.utils import sanitise_redirect_url
 from app.deliver_grant_funding.admin.forms import PlatformAdminChangeGrantRecipientStatusForm
@@ -162,7 +168,6 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
     column_filters = ["external_id", "name", "type", "mode", "status", "can_manage_grants"]
 
     form_columns = [
-        "external_id",
         "name",
         "type",
         "mode",
@@ -170,8 +175,35 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
         "can_manage_grants",
         "active_date",
         "retirement_date",
+        "iati_id",
+        "ons_lad_id",
+        "companies_house_number",
+        "charity_commission_number",
+        "custom_code",
     ]
-    column_descriptions = {"external_id": "IATI or LAD24 identifier"}
+    column_labels = {
+        "iati_id": "IATI ID",
+        "ons_lad_id": "ONS LAD(24) ID",
+    }
+    column_descriptions = {
+        "custom_code": "Our own custom identifier code for 'Other' organisation types",
+    }
+
+    def on_model_change(self, form: Form, model: Organisation, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
+        external_id_before = model.external_id
+
+        if not isinstance(model.type, OrganisationType):
+            model.type = getattr(OrganisationType, model.type)
+
+        if not model.typed_id:
+            raise ValueError(f"{model.type.typed_id_field} is required for organisation type {model.type.value}")
+        model.external_id = model.make_external_id()
+        result = super().on_model_change(form, model, is_created)
+
+        if not is_created and model.external_id != external_id_before:
+            raise ValueError("Must not change the organisation's external ID")
+
+        return result
 
 
 class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):

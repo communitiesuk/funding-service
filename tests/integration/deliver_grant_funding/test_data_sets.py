@@ -42,7 +42,7 @@ def _make_data_set(
 
 class TestValidateDataSet:
     def test_returns_no_errors_for_valid_data(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         data_set = _make_data_set(
             data_columns=["Capital allocation", "Revenue allocation"],
             column_mappings=[
@@ -65,7 +65,7 @@ class TestValidateDataSet:
         assert not result.blocking_errors
 
     def test_wrong_prefix_symbol_for_british_pounds_collapses_to_single_error(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         data_set = _make_data_set(
             data_columns=["Capital allocation"],
             column_mappings=[DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS")],
@@ -85,7 +85,7 @@ class TestValidateDataSet:
         assert isinstance(result.blocking_errors[0], BritishPoundsError)
 
     def test_missing_prefix_is_valid(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         data_set = _make_data_set(
             data_columns=["Capital allocation"],
             column_mappings=[DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS")],
@@ -103,7 +103,7 @@ class TestValidateDataSet:
         assert not result.blocking_errors
 
     def test_missing_suffix_is_valid(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         data_set = _make_data_set(
             data_columns=["Rate"],
             column_mappings=[
@@ -123,7 +123,7 @@ class TestValidateDataSet:
         assert not result.blocking_errors
 
     def test_too_many_decimal_places_in_british_pounds_is_blocking_error(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         data_set = _make_data_set(
             data_columns=["Capital allocation"],
             column_mappings=[DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS")],
@@ -143,7 +143,7 @@ class TestValidateDataSet:
         assert isinstance(result.blocking_errors[0], BritishPoundsError)
 
     def test_incorrect_data_type_integer(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         data_set = _make_data_set(
             data_columns=["Revenue allocation"],
             column_mappings=[DataSetColumnMapping(column_name="Revenue allocation", column_type="INTEGER")],
@@ -161,7 +161,7 @@ class TestValidateDataSet:
         assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
 
     def test_incorrect_data_type_decimal(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         data_set = _make_data_set(
             data_columns=["Rate"],
             column_mappings=[DataSetColumnMapping(column_name="Rate", column_type="DECIMAL", max_decimal_places=2)],
@@ -181,7 +181,7 @@ class TestValidateDataSet:
         assert any(isinstance(e, DataTypeError) for e in result.blocking_errors)
 
     def test_row_with_blocking_error(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         data_set = _make_data_set(
             data_columns=["Capital allocation", "Notes"],
             column_mappings=[
@@ -205,8 +205,8 @@ class TestValidateDataSet:
         assert any(isinstance(e, BritishPoundsError) for e in result.blocking_errors)
 
     def test_multiple_errors_across_rows(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(organisation__external_id="EC456")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
+        gr2 = factories.grant_recipient.create(organisation__external_id="E06000456")
         data_set = _make_data_set(
             data_columns=["Capital allocation", "Revenue allocation"],
             column_mappings=[
@@ -242,8 +242,8 @@ class TestValidateDataSet:
 
 class TestCheckMissingData:
     def test_missing_data_flagged_and_tracks_correct_columns(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(organisation__external_id="EC456")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
+        gr2 = factories.grant_recipient.create(organisation__external_id="E06000456")
         data_set = _make_data_set(
             data_columns=["Notes", "Summary"],
             column_mappings=[
@@ -273,8 +273,8 @@ class TestCheckMissingData:
         assert result.row_results[1].missing_columns == ["Notes", "Summary"]
 
     def test_missing_data_returns_empty_result_when_no_missing_data(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(organisation__external_id="EC456")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
+        gr2 = factories.grant_recipient.create(organisation__external_id="E06000456")
         data_set = _make_data_set(
             data_columns=["Notes", "Summary"],
             column_mappings=[
@@ -306,7 +306,7 @@ class TestCheckMissingData:
 
 class TestValidateDataSetGrantRecipients:
     def test_valid_csv_returns_no_errors(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -318,7 +318,7 @@ class TestValidateDataSetGrantRecipients:
         assert validate_data_set_grant_recipients(data_set, [gr], all_rows) == []
 
     def test_unknown_external_id_is_error(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -331,7 +331,7 @@ class TestValidateDataSetGrantRecipients:
         assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'UNKNOWN' not found in grant recipients" in e for e in errors)
 
     def test_unknown_recipient_name_is_error(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -344,7 +344,7 @@ class TestValidateDataSetGrantRecipients:
         assert any("Grant recipient 'Rogue Organisation' not found in grant recipients" in e for e in errors)
 
     def test_duplicate_external_id_is_error_for_grant_recipient_type(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -364,8 +364,8 @@ class TestValidateDataSetGrantRecipients:
         )
 
     def test_grant_recipient_missing_from_csv(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
-        gr2 = factories.grant_recipient.create(organisation__external_id="T0002")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
+        gr2 = factories.grant_recipient.create(organisation__external_id="E06000502")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -382,7 +382,7 @@ class TestValidateDataSetGrantRecipients:
         assert any(f"'{gr2.organisation.name}' is missing from the CSV" in e for e in errors)
 
     def test_external_id_without_recipient_name_is_error(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -397,7 +397,7 @@ class TestValidateDataSetGrantRecipients:
         )
 
     def test_data_present_but_no_identifiers_is_error(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -413,7 +413,7 @@ class TestValidateDataSetGrantRecipients:
         )
 
     def test_fully_empty_row_is_skipped(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="T0001")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -428,13 +428,13 @@ class TestValidateDataSetGrantRecipients:
 
     def test_unknown_external_id_suppresses_recipient_duplicate_check(self, factories):
         gr = factories.grant_recipient.create(
-            organisation__external_id="T0001",
+            organisation__external_id="E06000501",
             organisation__name="Ministry of Testing",
         )
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "T0001",
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E06000501",
                 DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Ministry of Testing",
                 "Amount": "100",
             },  # valid
@@ -450,9 +450,9 @@ class TestValidateDataSetGrantRecipients:
         assert not any("Ministry of Testing" in e and "already appears" in e for e in errors)
 
     def test_duplicates_missing_and_unknown_combined(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="EC123")
-        gr2 = factories.grant_recipient.create(organisation__external_id="EC456")
-        gr3 = factories.grant_recipient.create(organisation__external_id="EC789")
+        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
+        gr2 = factories.grant_recipient.create(organisation__external_id="E06000456")
+        gr3 = factories.grant_recipient.create(organisation__external_id="E06000789")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
             {
@@ -496,13 +496,13 @@ class TestGenerateLatestCsvTemplate:
     def test_generate_no_changes(self, factories):
         grant = factories.grant.create()
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+            grant=grant, organisation__external_id="E06000123", organisation__name="Org A"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+            grant=grant, organisation__external_id="E06000456", organisation__name="Org B"
         )
         gr3 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC789", organisation__name="Org C"
+            grant=grant, organisation__external_id="E06000789", organisation__name="Org C"
         )
 
         collection = factories.collection.create(grant=grant)
@@ -522,20 +522,20 @@ class TestGenerateLatestCsvTemplate:
         assert len(rows) == 4
 
         assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation"]
-        assert rows[1] == ["EC123", gr.organisation.name, "123"]
-        assert rows[2] == ["EC456", gr2.organisation.name, "456"]
-        assert rows[3] == ["EC789", gr3.organisation.name, "789"]
+        assert rows[1] == ["E06000123", gr.organisation.name, "123"]
+        assert rows[2] == ["E06000456", gr2.organisation.name, "456"]
+        assert rows[3] == ["E06000789", gr3.organisation.name, "789"]
 
     def test_generate_grant_recipient_added(self, factories):
         grant = factories.grant.create()
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC123", organisation__name="AAA org"
+            grant=grant, organisation__external_id="E06000123", organisation__name="AAA org"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC456", organisation__name="BBB org"
+            grant=grant, organisation__external_id="E06000456", organisation__name="BBB org"
         )
         gr3 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC789", organisation__name="CCC org"
+            grant=grant, organisation__external_id="E06000789", organisation__name="CCC org"
         )
 
         collection = factories.collection.create(grant=grant)
@@ -548,7 +548,7 @@ class TestGenerateLatestCsvTemplate:
             create_gr_org_items__data=[123, 456, 789],
         )
         gr4 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC124", organisation__name="AAB org"
+            grant=grant, organisation__external_id="E06000124", organisation__name="AAB org"
         )
 
         csv_content = generate_latest_csv_template(data_source)
@@ -558,21 +558,21 @@ class TestGenerateLatestCsvTemplate:
         assert len(rows) == 5
 
         assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation"]
-        assert rows[1] == ["EC123", gr.organisation.name, "123"]
-        assert rows[2] == ["EC124", gr4.organisation.name, ""]
-        assert rows[3] == ["EC456", gr2.organisation.name, "456"]
-        assert rows[4] == ["EC789", gr3.organisation.name, "789"]
+        assert rows[1] == ["E06000123", gr.organisation.name, "123"]
+        assert rows[2] == ["E06000124", gr4.organisation.name, ""]
+        assert rows[3] == ["E06000456", gr2.organisation.name, "456"]
+        assert rows[4] == ["E06000789", gr3.organisation.name, "789"]
 
     def test_generate_grant_recipient_removed(self, factories, db_session):
         grant = factories.grant.create()
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+            grant=grant, organisation__external_id="E06000123", organisation__name="Org A"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+            grant=grant, organisation__external_id="E06000456", organisation__name="Org B"
         )
         gr3 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="TO_REMOVE", organisation__name="Org C"
+            grant=grant, organisation__external_id="E06000999", organisation__name="Org C"
         )
 
         collection = factories.collection.create(grant=grant)
@@ -594,19 +594,19 @@ class TestGenerateLatestCsvTemplate:
         assert len(rows) == 3
 
         assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation"]
-        assert rows[1] == ["EC123", gr.organisation.name, "123"]
-        assert rows[2] == ["EC456", gr2.organisation.name, "456"]
+        assert rows[1] == ["E06000123", gr.organisation.name, "123"]
+        assert rows[2] == ["E06000456", gr2.organisation.name, "456"]
 
     def test_generate_no_changes_data_missing(self, factories):
         grant = factories.grant.create()
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+            grant=grant, organisation__external_id="E06000123", organisation__name="Org A"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+            grant=grant, organisation__external_id="E06000456", organisation__name="Org B"
         )
         gr3 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC789", organisation__name="Org C"
+            grant=grant, organisation__external_id="E06000789", organisation__name="Org C"
         )
 
         collection = factories.collection.create(grant=grant)
@@ -626,20 +626,20 @@ class TestGenerateLatestCsvTemplate:
         assert len(rows) == 4
 
         assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation"]
-        assert rows[1] == ["EC123", gr.organisation.name, "123"]
-        assert rows[2] == ["EC456", gr2.organisation.name, ""]
-        assert rows[3] == ["EC789", gr3.organisation.name, "789"]
+        assert rows[1] == ["E06000123", gr.organisation.name, "123"]
+        assert rows[2] == ["E06000456", gr2.organisation.name, ""]
+        assert rows[3] == ["E06000789", gr3.organisation.name, "789"]
 
     def test_generate_columns_added_with_data(self, factories, db_session):
         grant = factories.grant.create()
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+            grant=grant, organisation__external_id="E06000123", organisation__name="Org A"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+            grant=grant, organisation__external_id="E06000456", organisation__name="Org B"
         )
         gr3 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC789", organisation__name="Org C"
+            grant=grant, organisation__external_id="E06000789", organisation__name="Org C"
         )
 
         collection = factories.collection.create(grant=grant)
@@ -651,13 +651,13 @@ class TestGenerateLatestCsvTemplate:
         )
 
         ds_org_item_1 = factories.data_source_organisation_item.create(
-            data_source=data_source, external_id="EC123", _data={"c_allocation": "123"}
+            data_source=data_source, external_id="E06000123", _data={"c_allocation": "123"}
         )
         ds_org_item_2 = factories.data_source_organisation_item.create(
-            data_source=data_source, external_id="EC456", _data={"c_allocation": "456"}
+            data_source=data_source, external_id="E06000456", _data={"c_allocation": "456"}
         )
         ds_org_item_3 = factories.data_source_organisation_item.create(
-            data_source=data_source, external_id="EC789", _data={"c_allocation": "789"}
+            data_source=data_source, external_id="E06000789", _data={"c_allocation": "789"}
         )
         data_source.schema.root["c_added_col"] = DataSourceSchemaColumn(
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
@@ -677,20 +677,20 @@ class TestGenerateLatestCsvTemplate:
         assert len(rows) == 4
 
         assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation", "Added column"]
-        assert rows[1] == ["EC123", gr.organisation.name, "123", "one"]
-        assert rows[2] == ["EC456", gr2.organisation.name, "456", "two"]
-        assert rows[3] == ["EC789", gr3.organisation.name, "789", "three"]
+        assert rows[1] == ["E06000123", gr.organisation.name, "123", "one"]
+        assert rows[2] == ["E06000456", gr2.organisation.name, "456", "two"]
+        assert rows[3] == ["E06000789", gr3.organisation.name, "789", "three"]
 
     def test_generate_columns_added_no_data(self, factories, db_session):
         grant = factories.grant.create()
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC123", organisation__name="Org A"
+            grant=grant, organisation__external_id="E06000123", organisation__name="Org A"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC456", organisation__name="Org B"
+            grant=grant, organisation__external_id="E06000456", organisation__name="Org B"
         )
         gr3 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="EC789", organisation__name="Org C"
+            grant=grant, organisation__external_id="E06000789", organisation__name="Org C"
         )
 
         collection = factories.collection.create(grant=grant)
@@ -718,9 +718,9 @@ class TestGenerateLatestCsvTemplate:
         assert len(rows) == 4
 
         assert rows[0] == ["Organisation ID", "Grant recipient", "Allocation", "Added column"]
-        assert rows[1] == ["EC123", gr.organisation.name, "1", ""]
-        assert rows[2] == ["EC456", gr2.organisation.name, "2", ""]
-        assert rows[3] == ["EC789", gr3.organisation.name, "3", ""]
+        assert rows[1] == ["E06000123", gr.organisation.name, "1", ""]
+        assert rows[2] == ["E06000456", gr2.organisation.name, "2", ""]
+        assert rows[3] == ["E06000789", gr3.organisation.name, "3", ""]
 
     def test_generate_csv_large(self, factories, track_sql_queries, db_session):
         grant = factories.grant.create()

@@ -4,7 +4,12 @@ import pytest
 
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
 from app.common.data.models import Organisation
-from app.common.data.types import OrganisationData, OrganisationModeEnum, OrganisationStatus, OrganisationType
+from app.common.data.types import (
+    OrganisationData,
+    OrganisationModeEnum,
+    OrganisationStatus,
+    OrganisationType,
+)
 
 
 class TestGetOrganisations:
@@ -65,11 +70,11 @@ class TestGetOrganisations:
         assert {org.id for org in result} == {org1.id, org3.id}
 
     def test_filters_by_external_ids(self, factories, db_session):
-        org1 = factories.organisation.create(name="Org 1", external_id="EXT-001")
-        factories.organisation.create(name="Org 2", external_id="EXT-002")
-        org3 = factories.organisation.create(name="Org 3", external_id="EXT-003")
+        org1 = factories.organisation.create(name="Org 1", external_id="E06000001")
+        factories.organisation.create(name="Org 2", external_id="E06000002")
+        org3 = factories.organisation.create(name="Org 3", external_id="E06000003")
 
-        result = get_organisations(with_external_ids=["EXT-001", "EXT-003"])
+        result = get_organisations(with_external_ids=["E06000001", "E06000003"])
 
         assert len(result) == 2
         assert {org.id for org in result} == {org1.id, org3.id}
@@ -78,7 +83,7 @@ class TestGetOrganisations:
         org = factories.organisation.create()
 
         with pytest.raises(ValueError, match="Cannot specify both with_ids and with_external_ids"):
-            get_organisations(with_ids=[org.id], with_external_ids=["EXT-001"])
+            get_organisations(with_ids=[org.id], with_external_ids=["E06000001"])
 
     def test_with_ids_respects_mode_filter(self, factories, db_session):
         live_org = factories.organisation.create(name="Live Org", mode=OrganisationModeEnum.LIVE)
@@ -91,10 +96,10 @@ class TestGetOrganisations:
 
     def test_with_external_ids_respects_mode_filter(self, factories, db_session):
         live_org = factories.organisation.create(
-            name="Live Org", external_id="EXT-001", mode=OrganisationModeEnum.LIVE, with_matching_test_org=True
+            name="Live Org", external_id="E06000001", mode=OrganisationModeEnum.LIVE, with_matching_test_org=True
         )
 
-        result = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=["EXT-001"])
+        result = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=["E06000001"])
 
         assert len(result) == 1
         assert result[0].id == live_org.matching_test_organisation.id
@@ -109,7 +114,7 @@ class TestGetOrganisations:
         assert result == []
 
     def test_with_external_ids_returns_empty_when_no_matches(self, factories, db_session):
-        factories.organisation.create(name="Org 1", external_id="EXT-001")
+        factories.organisation.create(name="Org 1", external_id="E06000001")
 
         result = get_organisations(with_external_ids=["NONEXISTENT"])
 
@@ -142,6 +147,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=datetime.date(2020, 1, 1),
             retirement_date=None,
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([new_org])
@@ -154,6 +160,7 @@ class TestUpsertOrganisations:
         assert org_from_db.status == OrganisationStatus.ACTIVE
         assert org_from_db.active_date == datetime.date(2020, 1, 1)
         assert org_from_db.retirement_date is None
+        assert org_from_db.iati_id == "GB-GOV-123"
 
     def test_inserts_multiple_new_organisations(self, db_session):
         orgs = [
@@ -163,6 +170,7 @@ class TestUpsertOrganisations:
                 type=OrganisationType.CENTRAL_GOVERNMENT,
                 active_date=None,
                 retirement_date=None,
+                iati_id="GB-GOV-123",
             ),
             OrganisationData(
                 external_id="E06000001",
@@ -170,6 +178,7 @@ class TestUpsertOrganisations:
                 type=OrganisationType.UNITARY_AUTHORITY,
                 active_date=None,
                 retirement_date=None,
+                ons_lad_id="E06000001",
             ),
             OrganisationData(
                 external_id="E07000001",
@@ -177,6 +186,7 @@ class TestUpsertOrganisations:
                 type=OrganisationType.SHIRE_DISTRICT,
                 active_date=None,
                 retirement_date=None,
+                ons_lad_id="E07000001",
             ),
         ]
 
@@ -186,6 +196,46 @@ class TestUpsertOrganisations:
         assert db_session.query(Organisation).filter_by(external_id="GB-GOV-123").count() == 1
         assert db_session.query(Organisation).filter_by(external_id="E06000001").count() == 1
         assert db_session.query(Organisation).filter_by(external_id="E07000001").count() == 1
+
+    def test_inserts_organisation_with_typed_ids(self, db_session):
+        orgs = [
+            OrganisationData(
+                external_id="CC-12345678",
+                name="Test Charity",
+                type=OrganisationType.CHARITY,
+                active_date=None,
+                retirement_date=None,
+                charity_commission_number="12345678",
+            ),
+            OrganisationData(
+                external_id="CH-98765432",
+                name="Test Company",
+                type=OrganisationType.COMPANY,
+                active_date=None,
+                retirement_date=None,
+                companies_house_number="98765432",
+            ),
+            OrganisationData(
+                external_id="FS-CUSTOM1",
+                name="Test Other",
+                type=OrganisationType.OTHER,
+                active_date=None,
+                retirement_date=None,
+                custom_code="CUSTOM1",
+            ),
+        ]
+
+        upsert_organisations(orgs)
+
+        db_session.expire_all()
+        charity = db_session.query(Organisation).filter_by(external_id="CC-12345678").one()
+        assert charity.charity_commission_number == "12345678"
+
+        company = db_session.query(Organisation).filter_by(external_id="CH-98765432").one()
+        assert company.companies_house_number == "98765432"
+
+        other = db_session.query(Organisation).filter_by(external_id="FS-CUSTOM1").one()
+        assert other.custom_code == "CUSTOM1"
 
     def test_updates_existing_organisation_by_external_id(self, factories, db_session):
         existing_org = factories.organisation.create(
@@ -201,6 +251,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=datetime.date(2021, 5, 15),
             retirement_date=None,
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([updated_org])
@@ -218,6 +269,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=None,
             retirement_date=None,
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([org])
@@ -233,6 +285,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=datetime.date(2010, 1, 1),
             retirement_date=datetime.date(2020, 12, 31),
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([org])
@@ -258,6 +311,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=None,
             retirement_date=datetime.date(2023, 6, 30),
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([updated_org])
@@ -287,6 +341,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=None,
             retirement_date=None,
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([updated_org])
@@ -312,6 +367,7 @@ class TestUpsertOrganisations:
                 type=OrganisationType.CENTRAL_GOVERNMENT,
                 active_date=None,
                 retirement_date=None,
+                iati_id="GB-GOV-123",
             ),
             OrganisationData(
                 external_id="E06000001",
@@ -319,6 +375,7 @@ class TestUpsertOrganisations:
                 type=OrganisationType.UNITARY_AUTHORITY,
                 active_date=None,
                 retirement_date=None,
+                ons_lad_id="E06000001",
             ),
         ]
 
@@ -354,6 +411,7 @@ class TestUpsertOrganisations:
                 type=OrganisationType.CENTRAL_GOVERNMENT,
                 active_date=None,
                 retirement_date=datetime.date(2023, 6, 30),
+                iati_id="GB-GOV-123",
             ),
             OrganisationData(
                 external_id="E06000001",
@@ -361,6 +419,7 @@ class TestUpsertOrganisations:
                 type=OrganisationType.UNITARY_AUTHORITY,
                 active_date=None,
                 retirement_date=datetime.date(2023, 12, 31),
+                ons_lad_id="E06000001",
             ),
         ]
 
@@ -378,6 +437,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=None,
             retirement_date=datetime.date(2020, 12, 31),
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([new_org])
@@ -400,6 +460,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=None,
             retirement_date=None,
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([updated_org])
@@ -423,6 +484,7 @@ class TestUpsertOrganisations:
             type=OrganisationType.CENTRAL_GOVERNMENT,
             active_date=None,
             retirement_date=None,
+            iati_id="GB-GOV-123",
         )
 
         upsert_organisations([updated_org])
