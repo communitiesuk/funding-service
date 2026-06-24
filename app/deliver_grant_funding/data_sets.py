@@ -14,6 +14,7 @@ from app.common.data.types import (
     DataSourceFileMetadata,
     DataSourceFileTagEnum,
     DataSourceType,
+    GrantRecipientMismatch,
     NumberTypeEnum,
     OrganisationModeEnum,
     QuestionDataType,
@@ -188,13 +189,6 @@ def validate_data_set(
 
 def build_data_set_upload_s3_key(grant_id: uuid.UUID, collection_id: uuid.UUID, data_source_id: uuid.UUID) -> str:
     return f"{current_app.config['REFERENCE_FILES_PREFIX']}/{grant_id}/{collection_id}/{data_source_id}"
-
-
-class GrantRecipientMismatch(BaseModel):
-    row_number: int
-    external_id: str
-    csv_organisation_name: str
-    service_organisation_name: str
 
 
 def find_grant_recipient_mismatches(

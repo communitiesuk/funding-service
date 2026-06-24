@@ -17,6 +17,19 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DATA_SOURCE_REPLACED_SUCCESS]) %}
+        {% if flashes %}
+          {% set success_message %}
+            <h3 class="govuk-notification-banner__heading">{{ data_source.name }} data set replaced</h3>
+            <p class="govuk-body">{{ flashes[0] }}</p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": success_message, "type": "success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DATA_SOURCE_REFERENCE_ERROR.value]) %}
         {% for flash in flashes %}
           {% set reference_error_html %}
@@ -75,14 +88,14 @@
 
 
       {% set uploaded_time %}
-        <time datetime="{{ iso_utc(data_source.created_at_utc) }}">{{ format_datetime_short(data_source.created_at_utc) }}</time>
+        <time datetime="{{ iso_utc(data_source.updated_at_utc) }}">{{ format_datetime_short(data_source.updated_at_utc) }}</time>
       {% endset %}
 
       {%
         set summary_rows = [
           {
             "key": {"text": "Uploaded by"},
-            "value": {"text": data_source.created_by.name if data_source.created_by else "Unknown"}
+            "value": {"text": data_source.updated_by.name if data_source.updated_by else data_source.created_by.name}
           },
           {
             "key": {"text": "Date and time uploaded"},

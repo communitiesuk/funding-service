@@ -19,6 +19,7 @@ class FlashMessageType(StrEnum):
     SECTION_COMPONENT_DEPENDENCY_ERROR = "section_component_dependency_error"
     DATA_SOURCE_ITEM_DEPENDENCY_ERROR = "data_source_item_dependency_error"
     DATA_SOURCE_REFERENCE_ERROR = "data_source_reference_error"
+    DATA_SOURCE_REPLACED_SUCCESS = "data_source_replaced_success"
     SUBMISSION_TESTING_COMPLETE = "submission_testing_complete"
     QUESTION_CREATED = "question_created"
     NESTED_GROUP_ERROR = "nested_group_error"
