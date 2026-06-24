@@ -1,5 +1,6 @@
 import csv
 import datetime
+import random
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
@@ -118,16 +119,32 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
         for row in tsv_reader:
             org_type = OrganisationType(row[2])
             external_id = row[0]
-            normalised_organisations.append(
-                OrganisationData(
-                    external_id=external_id,
-                    name=row[1],
-                    type=org_type,
-                    active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
-                    retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
-                    **{org_type.typed_id_field: external_id},
+
+            if not external_id and org_type == OrganisationType.OTHER:
+                custom_code = f"{random.randint(0, 999_999_999):09d}"
+                normalised_organisations.append(
+                    OrganisationData(
+                        external_id=f"FS-{custom_code}",
+                        name=row[1],
+                        type=org_type,
+                        active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
+                        retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
+                        custom_code=custom_code,
+                    )
                 )
-            )
+            else:
+                prefix = org_type.external_id_prefix
+                typed_id = external_id.removeprefix(prefix) if prefix else external_id
+                normalised_organisations.append(
+                    OrganisationData(
+                        external_id=f"{prefix}{typed_id}" if prefix else external_id,
+                        name=row[1],
+                        type=org_type,
+                        active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
+                        retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
+                        **{org_type.typed_id_field: typed_id},
+                    )
+                )
         return normalised_organisations
 
 

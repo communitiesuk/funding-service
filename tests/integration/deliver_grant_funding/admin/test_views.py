@@ -2264,6 +2264,32 @@ class TestManageOrganisations:
         assert org.status == OrganisationStatus.RETIRED
         assert org.retirement_date == datetime.date(2023, 12, 31)
 
+    def test_post_creates_other_org_with_auto_generated_id(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "\tSome Other Org\tOther\t01/01/2020\t"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(name="Some Other Org", mode=OrganisationModeEnum.LIVE).one()
+        assert org.type == OrganisationType.OTHER
+        assert org.external_id.startswith("FS-")
+        assert len(org.external_id) == 12
+        assert org.custom_code == org.external_id.removeprefix("FS-")
+        assert len(org.custom_code) == 9
+        assert org.custom_code.isdigit()
+
     def test_post_with_invalid_header_shows_error(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):

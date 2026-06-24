@@ -154,27 +154,62 @@ class _UserFactory(SQLAlchemyModelFactory):
     last_logged_in_at_utc = factory.LazyFunction(lambda: datetime.datetime.now())
 
 
+def _typed_id_for_org(org_type: OrganisationType, external_id: str) -> str:
+    prefix = org_type.external_id_prefix
+    if prefix and external_id.startswith(prefix):
+        return external_id.removeprefix(prefix)
+    return external_id
+
+
+def _make_external_id(org_type: OrganisationType, base_id: str) -> str:
+    prefix = org_type.external_id_prefix
+    if prefix and not base_id.startswith(prefix):
+        return f"{prefix}{base_id}"
+    return base_id
+
+
+def _generate_base_id(org_type: OrganisationType, n: int) -> str:
+    field = org_type.typed_id_field
+    if field == "iati_id":
+        return f"GB-GOV-{n + 100}"
+    if field == "ons_lad_id":
+        return f"E{n:08d}"
+    return f"{n:09d}"
+
+
 class _OrganisationFactory(SQLAlchemyModelFactory):
     class Meta:
         model = Organisation
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        exclude = ["_seq"]
 
     id = factory.LazyFunction(uuid4)
-    external_id = factory.Sequence(lambda n: f"ORG-{n:06d}")
+    _seq = factory.Sequence(lambda n: n)
+    external_id = factory.LazyAttribute(lambda o: _make_external_id(o.type, _generate_base_id(o.type, o._seq)))
     name = factory.Sequence(lambda n: "Organisation %d" % n)
     can_manage_grants = False
 
     mode = OrganisationModeEnum.LIVE
     type = OrganisationType.CENTRAL_GOVERNMENT
-    iati_id = factory.LazyAttribute(lambda o: o.external_id if o.type.typed_id_field == "iati_id" else None)
-    ons_lad_id = factory.LazyAttribute(lambda o: o.external_id if o.type.typed_id_field == "ons_lad_id" else None)
+    iati_id = factory.LazyAttribute(
+        lambda o: _typed_id_for_org(o.type, o.external_id) if o.type.typed_id_field == "iati_id" else None
+    )
+    ons_lad_id = factory.LazyAttribute(
+        lambda o: _typed_id_for_org(o.type, o.external_id) if o.type.typed_id_field == "ons_lad_id" else None
+    )
     companies_house_number = factory.LazyAttribute(
-        lambda o: o.external_id if o.type.typed_id_field == "companies_house_number" else None
+        lambda o: (
+            _typed_id_for_org(o.type, o.external_id) if o.type.typed_id_field == "companies_house_number" else None
+        )
     )
     charity_commission_number = factory.LazyAttribute(
-        lambda o: o.external_id if o.type.typed_id_field == "charity_commission_number" else None
+        lambda o: (
+            _typed_id_for_org(o.type, o.external_id) if o.type.typed_id_field == "charity_commission_number" else None
+        )
     )
-    custom_code = factory.LazyAttribute(lambda o: o.external_id if o.type.typed_id_field == "custom_code" else None)
+    custom_code = factory.LazyAttribute(
+        lambda o: _typed_id_for_org(o.type, o.external_id) if o.type.typed_id_field == "custom_code" else None
+    )
 
     @factory.post_generation
     def with_matching_test_org(self, create: bool, extracted: bool, **kwargs: Any) -> None:
