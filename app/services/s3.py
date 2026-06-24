@@ -40,3 +40,12 @@ class S3Service:
     def update_file_tags(self, key: str, tags: dict[str, str]) -> None:
         tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
         self._client.put_object_tagging(Bucket=self._bucket_name, Key=key, Tagging={"TagSet": tag_set})
+
+    def wait_until_exists(self, key: str) -> None:
+        # self._bucket.Object(key).wait_until_exists()
+        waiter = self._client.get_waiter("object_exists")
+        waiter.wait(Bucket=self._bucket_name, Key=key, WaiterConfig={"Delay": 1, "MaxAttempts": 10})
+
+    def get_tags_for_file(self, key: str) -> dict[str, str]:
+        response = self._client.get_object_tagging(Bucket=self._bucket_name, Key=key)
+        return {tag["Key"]: tag["Value"] for tag in response.get("TagSet", [])}

@@ -966,8 +966,21 @@ class SubmissionHelper:
             # todo: check the implications of this being off and remove if unnecessary
             file_storage.stream.seek(0)
             s3_service.upload_file(file_storage, key)
+
+            # in production we can only read files that have been appropriately virus scanned
+            s3_service.wait_until_exists(key)
+            tags = s3_service.get_tags_for_file(key)
+
             assert isinstance(data, FileUploadAnswer)
             data.key = key
+
+            scanned_for_viruses = tags.get("GuardDutyMalwareScanStatus") == "NO_THREATS_FOUND"
+            if not scanned_for_viruses:
+                if current_app.config["IS_PRODUCTION"]:
+                    current_app.logger.error(
+                        "Failed to verify if uploaded file has been scanned for viruses", extra={"s3_key": key}
+                    )
+            data.scanned_for_viruses = tags.get("GuardDutyMalwareScanStatus") == "NO_THREATS_FOUND"
 
         self.submission.data_manager.set(question, data, add_another_index=add_another_index)
         self._sync_submission_data_and_status()
