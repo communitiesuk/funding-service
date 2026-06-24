@@ -472,7 +472,7 @@ class NotificationService:
             ),
             "submission_name": submission_helper.long_collection_name,
             "grant_name": submission_helper.collection.grant.name,
-            "change_request_comments": lines_for_email,
+            "changes_requested_reason": lines_for_email,
             "requires_certification": "yes" if submission_helper.collection.requires_certification else "no",
             "grant_submission_url": (
                 url_for(

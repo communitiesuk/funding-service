@@ -458,7 +458,7 @@ class TestNotificationService:
             "is_test_data": "no",
             "submission_name": "Test collection",
             "grant_name": "Test grant",
-            "change_request_comments": "^ Please fix this section\n",
+            "changes_requested_reason": "^ Please fix this section\n",
             "requires_certification": "yes",
             "grant_submission_url": f"http://funding.communities.gov.localhost:8080/access/organisation/{submission_submitted.grant_recipient.organisation.id}/grants/{submission_submitted.grant_recipient.grant.id}/collection/{submission_submitted.collection.id}",
             "government_department": f"the {submission_submitted.collection.grant.organisation.name}",
@@ -496,7 +496,7 @@ class TestNotificationService:
             submission_helper=helper,
             user=helper.submitted_by,
         )
-        assert mock_notification_service_calls[0].kwargs["personalisation"]["change_request_comments"] == (
+        assert mock_notification_service_calls[0].kwargs["personalisation"]["changes_requested_reason"] == (
             "^ Fix section 1\n^ And section 2\n"
         )
 
