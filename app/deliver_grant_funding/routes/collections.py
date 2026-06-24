@@ -147,6 +147,7 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     ReopenSubmissionForm,
+    RequestOrAllowChangesSubmissionForm,
     SelectConditionCalculationForm,
     SelectDataSourceDataSetColumnForm,
     SelectDataSourceDataSetForm,
@@ -3330,6 +3331,43 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
             form.form_errors.append("You cannot reopen this submission because it has not been submitted")
     return render_template(
         "deliver_grant_funding/collections/reopen_submission.html",
+        form=form,
+        helper=submission_helper,
+        grant=submission_helper.grant,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/request-or-allow-changes", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def request_or_allow_changes(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+
+    if not AuthorisationHelper.can_reopen_submission(get_current_user(), submission_helper.submission):
+        abort(403)
+
+    form = RequestOrAllowChangesSubmissionForm()
+    if form.validate_on_submit():
+        if form.request_changes.data == "yes":
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.request_changes_submission",
+                    grant_id=grant_id,
+                    submission_id=submission_id,
+                )
+            )
+
+        return redirect(
+            url_for(
+                "deliver_grant_funding.reopen_submission",
+                grant_id=grant_id,
+                submission_id=submission_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/request_or_allow_changes.html",
         form=form,
         helper=submission_helper,
         grant=submission_helper.grant,

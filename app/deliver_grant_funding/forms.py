@@ -1337,3 +1337,13 @@ class ReopenSubmissionForm(FlaskForm):
         widget=GovCharacterCount(),
     )
     submit = SubmitField("Reopen submission", widget=GovSubmitInput())
+
+
+class RequestOrAllowChangesSubmissionForm(FlaskForm):
+    request_changes = RadioField(
+        "Are you requesting changes?",
+        choices=[("yes", "Yes"), ("no", "No, just allow changes")],
+        validators=[DataRequired("Please select an option")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())

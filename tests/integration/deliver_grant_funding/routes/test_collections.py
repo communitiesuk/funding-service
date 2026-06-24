@@ -74,6 +74,7 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     ReopenSubmissionForm,
+    RequestOrAllowChangesSubmissionForm,
     SetUpCollectionForm,
 )
 from app.deliver_grant_funding.routes.collections import (
@@ -8966,6 +8967,11 @@ class TestViewSubmission:
         button = page_has_link(soup, "Request or allow changes")
         if can_see_button:
             assert button is not None
+            assert button["href"] == url_for(
+                "deliver_grant_funding.request_or_allow_changes",
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
         else:
             assert button is None
 
@@ -9224,6 +9230,43 @@ class TestReopenSubmission:
             submission_id=submission_submitted.id,
         )
         assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+
+class TestRequestOrAllowChanges:
+    def test_get_request_or_allow_changes_page_1(self, authenticated_grant_member_client, submission_submitted):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.request_or_allow_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "Are you requesting changes to" in soup.text
+
+    def test_select_no_request_or_allow_changes_page_1(self, authenticated_grant_member_client, submission_submitted):
+        form = RequestOrAllowChangesSubmissionForm(data={"request_changes": "no"})
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_or_allow_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        assert response.location == url_for(
+            "deliver_grant_funding.reopen_submission",
+            grant_id=submission_submitted.collection.grant.id,
+            submission_id=submission_submitted.id,
+        )
 
 
 class TestListCollectionDataSets:

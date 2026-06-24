@@ -111,7 +111,7 @@
             govukButton(
             params={
               "text": "Request or allow changes",
-              "href": "#",
+              "href": url_for('deliver_grant_funding.request_or_allow_changes', grant_id=grant.id, submission_id=helper.submission.id),
               "classes": "govuk-button--secondary"
             }
             )
