@@ -8937,6 +8937,38 @@ class TestViewSubmission:
         timeline_panel = soup.select_one("#timeline")
         assert timeline_panel.find("h2", class_="govuk-heading-m").text.strip() == "Timeline"
 
+    @pytest.mark.parametrize(
+        "client_fixture, submission_fixture, can_see_button",
+        [
+            ("authenticated_org_member_client", "submission_submitted", False),
+            ("authenticated_grant_member_client", "submission_in_progress", False),
+            ("authenticated_grant_member_client", "submission_submitted", True),
+        ],
+    )
+    def test_can_see_request_or_allow_changes_button(
+        self, request, client_fixture, grant_recipient, submission_fixture, can_see_button, factories
+    ):
+        client = request.getfixturevalue(client_fixture)
+        submission = request.getfixturevalue(submission_fixture)
+        with client.session_transaction() as session:
+            session["NEW_CHANGE_REQUESTS"] = "on"
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        button = page_has_link(soup, "Request or allow changes")
+        if can_see_button:
+            assert button is not None
+        else:
+            assert button is None
+
     def test_get_view_submission_displays_questions_with_add_another(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
