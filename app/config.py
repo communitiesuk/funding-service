@@ -364,6 +364,10 @@ class _SharedConfig(_BaseConfig):
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD
 
+    @property
+    def IS_LOCAL(self) -> bool:
+        return self.FLASK_ENV == Environment.LOCAL
+
 
 class LocalConfig(_SharedConfig):
     """

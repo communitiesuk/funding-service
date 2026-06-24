@@ -233,6 +233,7 @@ class MockS3ServiceCalls:
         self.delete_file_calls: list[_Call] = []
         self.delete_prefix_calls: list[_Call] = []
         self.update_file_tags: list[_Call] = []
+        self.wait_until_scanned_calls: list[_Call] = []
 
     @property
     def all_calls(self) -> list[_Call]:
@@ -242,6 +243,7 @@ class MockS3ServiceCalls:
             + self.delete_file_calls
             + self.delete_prefix_calls
             + self.update_file_tags
+            + self.wait_until_scanned_calls
         )
 
 
@@ -269,6 +271,10 @@ def mock_s3_service_calls(mocker: MockerFixture) -> Generator[MockS3ServiceCalls
         tracker.update_file_tags.append(mocker.call(*args, **kwargs))
         return None
 
+    def _track_wait_until_scanned(*args, **kwargs):
+        tracker.wait_until_scanned_calls.append(mocker.call(*args, **kwargs))
+        return True
+
     mocker.patch(
         "app.services.s3.S3Service.upload_file",
         side_effect=_track_upload_file,
@@ -288,6 +294,10 @@ def mock_s3_service_calls(mocker: MockerFixture) -> Generator[MockS3ServiceCalls
     mocker.patch(
         "app.services.s3.S3Service.update_file_tags",
         side_effect=_track_update_file_tags,
+    )
+    mocker.patch(
+        "app.services.s3.S3Service.wait_until_scanned",
+        side_effect=_track_wait_until_scanned,
     )
 
     yield tracker

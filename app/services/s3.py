@@ -1,3 +1,4 @@
+import time
 from urllib.parse import urlencode
 
 import boto3
@@ -5,6 +6,9 @@ from flask import Flask
 from werkzeug.datastructures import FileStorage
 
 from app.common.collections.types import FileUploadAnswer
+
+GUARDDUTY_MALWARE_SCAN_TAG = "GuardDutyMalwareScanStatus"
+GUARDDUTY_NO_THREATS_FOUND = "NO_THREATS_FOUND"
 
 
 class S3Service:
@@ -40,3 +44,18 @@ class S3Service:
     def update_file_tags(self, key: str, tags: dict[str, str]) -> None:
         tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
         self._client.put_object_tagging(Bucket=self._bucket_name, Key=key, Tagging={"TagSet": tag_set})
+
+    def wait_until_scanned(self, key: str, *, delay: int = 1, max_attempts: int = 10) -> bool:
+        for _ in range(max_attempts):
+            virus_scanned = self.tags_are_virus_scanned(key)
+
+            if virus_scanned:
+                return True
+            time.sleep(delay)
+
+        return False
+
+    def tags_are_virus_scanned(self, key: str) -> bool:
+        response = self._client.get_object_tagging(Bucket=self._bucket_name, Key=key)
+        tags = {tag["Key"]: tag["Value"] for tag in response.get("TagSet", [])}
+        return tags.get(GUARDDUTY_MALWARE_SCAN_TAG) == GUARDDUTY_NO_THREATS_FOUND

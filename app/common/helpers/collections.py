@@ -966,8 +966,19 @@ class SubmissionHelper:
             # todo: check the implications of this being off and remove if unnecessary
             file_storage.stream.seek(0)
             s3_service.upload_file(file_storage, key)
+
             assert isinstance(data, FileUploadAnswer)
             data.key = key
+
+            if not current_app.config["IS_LOCAL"]:
+                data.scanned_for_viruses = s3_service.wait_until_scanned(key)
+
+                if not data.scanned_for_viruses:
+                    current_app.logger.error(
+                        "Failed to verify if uploaded file has been scanned for viruses", extra={"s3_key": key}
+                    )
+            else:
+                data.scanned_for_viruses = s3_service.tags_are_virus_scanned(key)
 
         self.submission.data_manager.set(question, data, add_another_index=add_another_index)
         self._sync_submission_data_and_status()

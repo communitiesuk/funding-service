@@ -2,7 +2,7 @@ from functools import partial
 from io import BytesIO
 from uuid import UUID
 
-from flask import abort, redirect, render_template, request, send_file, url_for
+from flask import abort, current_app, redirect, render_template, request, send_file, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
@@ -356,6 +356,13 @@ def download_file(
     data = submission.cached_get_answer_for_question(question_id=question_id, add_another_index=add_another_index)
     if not data or not isinstance(data, FileUploadAnswer) or not data.key:
         abort(404)
+
+    # note that we explitly deny access to resources that haven't been scanned for viruses
+    # but this should allow us to manage the failure (i.e check for the latest tag now and
+    # potentially remove our record of the file depending on how long ago it was uploaded)
+    if not data.scanned_for_viruses and current_app.config["IS_PRODUCTION"]:
+        raise RuntimeError("Cannot fetch file that has not been scanned for viruses")
+
     # return redirect(s3_service.generate_and_give_access_to_url(answer=data))
     file_bytes = s3_service.download_file(key=data.key)
     return send_file(BytesIO(file_bytes), download_name=data.filename, as_attachment=True, max_age=0)
