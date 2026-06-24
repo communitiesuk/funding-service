@@ -373,13 +373,24 @@ def export_grants(  # noqa: C901
     show_default=True,
     help="Path to the exported grants JSON file to load.",
 )
-def seed_grants(file: Path) -> None:  # noqa: C901
+@click.option(
+    "--s3-key",
+    "s3_key",
+    help="S3 key (or s3:// URI) to load the exported grants JSON from instead of the file system.",
+)
+def seed_grants(file: Path, s3_key: str | None) -> None:  # noqa: C901
     if current_app.config["IS_PRODUCTION"]:
         raise click.ClickException("seed-grants must not be run in production; it deletes and recreates grants.")
 
-    with open(file) as infile:
-        raw_export_json = infile.read()
-        export_data: ExportData = json.loads(raw_export_json)
+    if s3_key:
+        if s3_key.startswith("s3://"):
+            s3_key = s3_key.split("/", 3)[-1]
+        raw_export_json = s3_service.download_file(s3_key).decode("utf-8")
+    else:
+        with open(file) as infile:
+            raw_export_json = infile.read()
+
+    export_data: ExportData = json.loads(raw_export_json)
 
     for user in export_data["users"]:
         user = User(**user)
