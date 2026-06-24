@@ -7,6 +7,7 @@ from decimal import Decimal
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased, lazyload, selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.common.data.interfaces.collections import raise_if_data_source_has_references
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
@@ -170,6 +171,7 @@ def replace_uploaded_data_source(
     all_rows: TUnvalidatedDataSetRows,
     s3_key: str,
     original_filename: str,
+    user: User,
     name: str | TNotProvided = NOT_PROVIDED,
 ) -> DataSource:
     if data_source.grant_id != grant_id:
@@ -179,12 +181,15 @@ def replace_uploaded_data_source(
     if data_source.type != DataSourceType.GRANT_RECIPIENT:
         raise ValueError(f"Unsupported data source type: {data_source.type}")
 
+    data_source.updated_by = user
+
     if name is not NOT_PROVIDED:
         data_source.name = name
 
     data_source.file_metadata = DataSourceFileMetadata(s3_key=s3_key, original_filename=original_filename)
     if new_columns:
         data_source.schema.root.update(_build_schema_from_column_mappings(new_columns).root)  # ty:ignore[unresolved-attribute]
+        flag_modified(data_source, "schema")
 
     for removed_column_id in [
         k
@@ -192,6 +197,7 @@ def replace_uploaded_data_source(
         if v.original_column_name not in all_headers
     ]:
         data_source.schema.root.pop(removed_column_id)  # ty:ignore[unresolved-attribute]
+        flag_modified(data_source, "schema")
 
     all_column_mappings = []
     all_column_mappings.extend(new_columns)

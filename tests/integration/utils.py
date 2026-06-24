@@ -58,15 +58,15 @@ class TimeFreezer:
         self._restore_db_time()
 
 
-def build_file_upload_form_data(csv_content: str) -> MultiDict:
+def build_file_upload_form_data(csv_content: str, name: str | None = None, filename: str | None = None) -> MultiDict:
     file = FileStorage(
         stream=io.BytesIO(csv_content.encode("utf-8")),
-        filename="test.csv",
+        filename=filename or "test.csv",
         content_type="text/csv",
     )
     data = MultiDict(
         [
-            ("name", "Test Data Set"),
+            ("name", name or "Test Data Set"),
             ("data_source_type", DataSourceType.GRANT_RECIPIENT),
             ("file", file),
         ]

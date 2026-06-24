@@ -65,6 +65,7 @@ from app.common.data.interfaces.data_sets import (
     delete_data_source,
     get_data_source,
     get_data_source_list_for_collection,
+    replace_uploaded_data_source,
 )
 from app.common.data.interfaces.exceptions import (
     DuplicateDataSourceItemError,
@@ -3471,6 +3472,17 @@ def _extract_data_set_data_from_session() -> DataSetUploadSessionModel | None:
     return None
 
 
+def _upload_data_set_file(
+    grant_id: UUID, collection_id: UUID, data_source_id: UUID, file: FileStorage
+) -> tuple[str, str]:
+    if not file.filename:
+        raise ValueError("No filename supplied")
+    s3_key = build_data_set_upload_s3_key(grant_id=grant_id, collection_id=collection_id, data_source_id=data_source_id)
+    file.stream.seek(0)
+    s3_service.upload_file(file, s3_key, {"status": DataSourceFileTagEnum.PENDING})
+    return (s3_key, secure_filename(file.filename))
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/upload",
     methods=["GET", "POST"],
@@ -3492,11 +3504,7 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
         data_columns = [col for col in columns if col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
 
         data_source_id = uuid.uuid4()
-        s3_key = build_data_set_upload_s3_key(
-            grant_id=grant_id, collection_id=collection_id, data_source_id=data_source_id
-        )
-        file.stream.seek(0)
-        s3_service.upload_file(file, s3_key, {"status": DataSourceFileTagEnum.PENDING})
+        file_metadata = _upload_data_set_file(grant_id, collection_id, data_source_id, file)
 
         preview_data: dict[str, list[str]] = {}
         for column in data_columns:
@@ -3512,8 +3520,8 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             data_columns=data_columns,
             preview_data=preview_data,
-            s3_key=s3_key,
-            original_filename=secure_filename(file.filename),
+            s3_key=file_metadata[0],
+            original_filename=file_metadata[1],
             data_source_id=data_source_id,
         )
 
@@ -3553,6 +3561,7 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
 def replace_data_set(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID
 ) -> ResponseReturnValue:
@@ -3567,7 +3576,37 @@ def replace_data_set(
     # TODO validate grant recipients
     gr_errors = []
     if form.validate_on_submit():
-        # TODO actually save the changes
+        file: FileStorage = form.file.data
+        columns, rows = _parse_data_set_csv(form.file.data)
+        file_metadata = _upload_data_set_file(grant_id, collection_id, data_source_id, file)
+        # TODO see if we need to format columns
+        # data_set_session_data = DataSetUploadSessionModel(
+        #     name=form.name.data,
+        #     data_source_id=data_source_id,
+        #     s3_key=file_metadata[0],
+        #     original_filename=file_metadata[1],
+        #     data_source_type=data_source.type,
+        #     preview_data={},  # TODO load preview data
+        #     data_columns=columns,
+        # )
+        replace_uploaded_data_source(
+            grant_id=grant_id,
+            collection_id=collection_id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=columns,
+            all_rows=rows,
+            s3_key=file_metadata[0],
+            original_filename=file_metadata[1],
+            user=get_current_user(),
+            name=form.name.data if form.name.data != data_source.name else NOT_PROVIDED,
+        )
+        flash(
+            Markup(
+                f"You can now reference {escape(data_source.name)} data " + f"in the {escape(collection.name)} form. "
+            ),
+            FlashMessageType.DATA_SOURCE_REPLACED_SUCCESS,
+        )
         return redirect(
             url_for(
                 "deliver_grant_funding.view_data_source",
@@ -3941,7 +3980,7 @@ def view_data_source(
     if data_source.type != DataSourceType.GRANT_RECIPIENT:
         abort(404)
 
-    grant_recipient_name_by_external_id: dict[str, str] = {}
+    # grant_recipient_name_by_external_id: dict[str, str] = {}
     all_grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
     grant_recipient_name_by_external_id = {
         gr.organisation.external_id: gr.organisation.name
