@@ -80,9 +80,9 @@ _LOCAL_AUTHORITY_TYPES = frozenset(
 )
 
 _EXTERNAL_ID_PREFIXES: dict[OrganisationType, str] = {
-    OrganisationType.CHARITY: "CC-",
-    OrganisationType.COMPANY: "CH-",
-    OrganisationType.OTHER: "FS-",
+    OrganisationType.CHARITY: "CC-",  # Charities Commission
+    OrganisationType.COMPANY: "CH-",  # Companies House
+    OrganisationType.OTHER: "FS-",  # Funding Service
 }
 
 

@@ -4726,6 +4726,7 @@
     {
       "can_manage_grants": true,
       "external_id": "GB-GOV-27",
+      "iati_id": "GB-GOV-27",
       "id": "<UUID:GB-GOV-27>",
       "mode": "live",
       "name": "Ministry of Housing, Communities and Local Government",
@@ -4738,8 +4739,9 @@
       "id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
       "mode": "live",
       "name": "Ministry of Testing",
+      "ons_lad_id": "T0001",
       "status": "active",
-      "type": "Central Government"
+      "type": "Unitary Authority"
     },
     {
       "can_manage_grants": false,
@@ -4747,8 +4749,9 @@
       "id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
       "mode": "test",
       "name": "Ministry of Testing (test)",
+      "ons_lad_id": "T0001",
       "status": "active",
-      "type": "Central Government"
+      "type": "Unitary Authority"
     }
   ],
   "user_roles": [
