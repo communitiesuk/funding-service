@@ -1,0 +1,49 @@
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = "Request or allow changes - " ~ helper.long_collection_name %}
+{% set type_constants = helper.submission.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% block beforeContent %}
+  {% if helper.is_test %}
+    {{ mhclgInlinePageTestDataBanner("Test submission") }}
+  {% endif %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {% set legend_html %}
+          <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
+          Are you requesting changes to {{ helper.long_collection_name }}?
+        {% endset %}
+        {{
+          form.request_changes(params={
+            "hint": None,
+            "fieldset": {
+              "legend": {
+                "html": legend_html,
+                "isPageHeading": True,
+                "classes": "govuk-fieldset__legend--l"
+              }
+            }
+          })
+        }}
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}
