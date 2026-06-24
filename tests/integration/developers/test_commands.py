@@ -71,14 +71,14 @@ class TestCreateMultiSubmissions:
         self, db_session, factories, collection_with_submission_name, system_user, capsys, mocker
     ):
         collection = collection_with_submission_name
-        org = factories.organisation.create(external_id="GB-GOV-001")
+        org = factories.organisation.create(external_id="E06000001")
         factories.grant_recipient.create(
             mode=GrantRecipientModeEnum.LIVE,
             grant=collection.grant,
             organisation=org,
         )
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha"), ("GB-GOV-001", "Beta")])
+        csv_file = _make_csv([("E06000001", "Alpha"), ("E06000001", "Beta")])
 
         commit_spy = mocker.spy(db.session, "commit")
 
@@ -109,7 +109,7 @@ class TestCreateMultiSubmissions:
     ):
         collection = collection_with_submission_name
         question = collection.submission_name_question
-        org = factories.organisation.create(external_id="GB-GOV-001")
+        org = factories.organisation.create(external_id="E06000001")
         grant_recipient = factories.grant_recipient.create(
             mode=GrantRecipientModeEnum.LIVE,
             grant=collection.grant,
@@ -122,7 +122,7 @@ class TestCreateMultiSubmissions:
             answers=[FactoryAnswer(question, SingleChoiceFromListAnswer(key="alpha", label="Alpha"))],
         )
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha"), ("GB-GOV-001", "Beta")])
+        csv_file = _make_csv([("E06000001", "Alpha"), ("E06000001", "Beta")])
 
         _create_multi_submissions(
             collection_id=collection.id,
@@ -146,14 +146,14 @@ class TestCreateMultiSubmissions:
         self, db_session, factories, collection_with_submission_name, system_user, capsys, mocker
     ):
         collection = collection_with_submission_name
-        org = factories.organisation.create(external_id="GB-GOV-001")
+        org = factories.organisation.create(external_id="E06000001")
         factories.grant_recipient.create(
             mode=GrantRecipientModeEnum.LIVE,
             grant=collection.grant,
             organisation=org,
         )
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha")])
+        csv_file = _make_csv([("E06000001", "Alpha")])
 
         commit_spy = mocker.spy(db.session, "commit")
 
@@ -175,8 +175,8 @@ class TestCreateMultiSubmissions:
         self, db_session, factories, collection_with_submission_name, system_user, capsys
     ):
         collection = collection_with_submission_name
-        org1 = factories.organisation.create(external_id="GB-GOV-001")
-        org2 = factories.organisation.create(external_id="GB-GOV-002")
+        org1 = factories.organisation.create(external_id="E06000001")
+        org2 = factories.organisation.create(external_id="E06000002")
         factories.grant_recipient.create(
             mode=GrantRecipientModeEnum.LIVE,
             grant=collection.grant,
@@ -188,7 +188,7 @@ class TestCreateMultiSubmissions:
             organisation=org2,
         )
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha"), ("GB-GOV-999", "Gamma")])
+        csv_file = _make_csv([("E06000001", "Alpha"), ("E06000999", "Gamma")])
 
         _create_multi_submissions(
             collection_id=collection.id,
@@ -200,9 +200,9 @@ class TestCreateMultiSubmissions:
 
         output = capsys.readouterr().out
 
-        assert "GB-GOV-002" in output
+        assert "E06000002" in output
         assert "not in CSV" in output
-        assert "GB-GOV-999" in output
+        assert "E06000999" in output
         assert "not matching any grant recipient" in output
 
         submissions = (
@@ -214,7 +214,7 @@ class TestCreateMultiSubmissions:
     def test_aborts_when_no_submission_name_question(self, db_session, factories, system_user, capsys):
         collection = factories.collection.create(allow_multiple_submissions=True)
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha")])
+        csv_file = _make_csv([("E06000001", "Alpha")])
 
         _create_multi_submissions(
             collection_id=collection.id,
@@ -230,7 +230,7 @@ class TestCreateMultiSubmissions:
     def test_aborts_when_user_not_found(self, db_session, factories, collection_with_submission_name, capsys):
         collection = collection_with_submission_name
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha")])
+        csv_file = _make_csv([("E06000001", "Alpha")])
 
         _create_multi_submissions(
             collection_id=collection.id,
@@ -245,8 +245,8 @@ class TestCreateMultiSubmissions:
 
     def test_handles_multiple_orgs(self, db_session, factories, collection_with_submission_name, system_user, capsys):
         collection = collection_with_submission_name
-        org1 = factories.organisation.create(external_id="GB-GOV-001")
-        org2 = factories.organisation.create(external_id="GB-GOV-002")
+        org1 = factories.organisation.create(external_id="E06000001")
+        org2 = factories.organisation.create(external_id="E06000002")
         factories.grant_recipient.create(
             mode=GrantRecipientModeEnum.LIVE,
             grant=collection.grant,
@@ -260,9 +260,9 @@ class TestCreateMultiSubmissions:
 
         csv_file = _make_csv(
             [
-                ("GB-GOV-001", "Alpha"),
-                ("GB-GOV-001", "Beta"),
-                ("GB-GOV-002", "Gamma"),
+                ("E06000001", "Alpha"),
+                ("E06000001", "Beta"),
+                ("E06000002", "Gamma"),
             ]
         )
 
@@ -294,14 +294,14 @@ class TestCreateMultiSubmissions:
         if has_other_questions:
             factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
-        org = factories.organisation.create(external_id="GB-GOV-001")
+        org = factories.organisation.create(external_id="E06000001")
         factories.grant_recipient.create(
             mode=GrantRecipientModeEnum.LIVE,
             grant=collection.grant,
             organisation=org,
         )
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha")])
+        csv_file = _make_csv([("E06000001", "Alpha")])
 
         _create_multi_submissions(
             collection_id=collection.id,
@@ -332,7 +332,7 @@ class TestCreateMultiSubmissions:
         if has_other_questions:
             factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
-        org = factories.organisation.create(external_id="GB-GOV-001")
+        org = factories.organisation.create(external_id="E06000001")
         grant_recipient = factories.grant_recipient.create(
             mode=GrantRecipientModeEnum.LIVE,
             grant=collection.grant,
@@ -345,7 +345,7 @@ class TestCreateMultiSubmissions:
             answers=[FactoryAnswer(question, SingleChoiceFromListAnswer(key="alpha", label="Alpha"))],
         )
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha"), ("GB-GOV-001", "Beta")])
+        csv_file = _make_csv([("E06000001", "Alpha"), ("E06000001", "Beta")])
 
         _create_multi_submissions(
             collection_id=collection.id,
@@ -377,7 +377,7 @@ class TestCreateMultiSubmissions:
 
         q2 = factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
-        org = factories.organisation.create(external_id="GB-GOV-001")
+        org = factories.organisation.create(external_id="E06000001")
         grant_recipient = factories.grant_recipient.create(
             mode=GrantRecipientModeEnum.LIVE,
             grant=collection.grant,
@@ -393,7 +393,7 @@ class TestCreateMultiSubmissions:
             ],
         )
 
-        csv_file = _make_csv([("GB-GOV-001", "Alpha")])
+        csv_file = _make_csv([("E06000001", "Alpha")])
 
         _create_multi_submissions(
             collection_id=collection.id,

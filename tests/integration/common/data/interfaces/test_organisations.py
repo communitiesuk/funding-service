@@ -70,11 +70,11 @@ class TestGetOrganisations:
         assert {org.id for org in result} == {org1.id, org3.id}
 
     def test_filters_by_external_ids(self, factories, db_session):
-        org1 = factories.organisation.create(name="Org 1", external_id="EXT-001")
-        factories.organisation.create(name="Org 2", external_id="EXT-002")
-        org3 = factories.organisation.create(name="Org 3", external_id="EXT-003")
+        org1 = factories.organisation.create(name="Org 1", external_id="E06000001")
+        factories.organisation.create(name="Org 2", external_id="E06000002")
+        org3 = factories.organisation.create(name="Org 3", external_id="E06000003")
 
-        result = get_organisations(with_external_ids=["EXT-001", "EXT-003"])
+        result = get_organisations(with_external_ids=["E06000001", "E06000003"])
 
         assert len(result) == 2
         assert {org.id for org in result} == {org1.id, org3.id}
@@ -83,7 +83,7 @@ class TestGetOrganisations:
         org = factories.organisation.create()
 
         with pytest.raises(ValueError, match="Cannot specify both with_ids and with_external_ids"):
-            get_organisations(with_ids=[org.id], with_external_ids=["EXT-001"])
+            get_organisations(with_ids=[org.id], with_external_ids=["E06000001"])
 
     def test_with_ids_respects_mode_filter(self, factories, db_session):
         live_org = factories.organisation.create(name="Live Org", mode=OrganisationModeEnum.LIVE)
@@ -96,10 +96,10 @@ class TestGetOrganisations:
 
     def test_with_external_ids_respects_mode_filter(self, factories, db_session):
         live_org = factories.organisation.create(
-            name="Live Org", external_id="EXT-001", mode=OrganisationModeEnum.LIVE, with_matching_test_org=True
+            name="Live Org", external_id="E06000001", mode=OrganisationModeEnum.LIVE, with_matching_test_org=True
         )
 
-        result = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=["EXT-001"])
+        result = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=["E06000001"])
 
         assert len(result) == 1
         assert result[0].id == live_org.matching_test_organisation.id
@@ -114,7 +114,7 @@ class TestGetOrganisations:
         assert result == []
 
     def test_with_external_ids_returns_empty_when_no_matches(self, factories, db_session):
-        factories.organisation.create(name="Org 1", external_id="EXT-001")
+        factories.organisation.create(name="Org 1", external_id="E06000001")
 
         result = get_organisations(with_external_ids=["NONEXISTENT"])
 
@@ -200,7 +200,7 @@ class TestUpsertOrganisations:
     def test_inserts_organisation_with_typed_ids(self, db_session):
         orgs = [
             OrganisationData(
-                external_id="CH-12345678",
+                external_id="CC-12345678",
                 name="Test Charity",
                 type=OrganisationType.CHARITY,
                 active_date=None,
@@ -208,7 +208,7 @@ class TestUpsertOrganisations:
                 charity_commission_number="12345678",
             ),
             OrganisationData(
-                external_id="CC-98765432",
+                external_id="CH-98765432",
                 name="Test Company",
                 type=OrganisationType.COMPANY,
                 active_date=None,
@@ -228,10 +228,10 @@ class TestUpsertOrganisations:
         upsert_organisations(orgs)
 
         db_session.expire_all()
-        charity = db_session.query(Organisation).filter_by(external_id="CH-12345678").one()
+        charity = db_session.query(Organisation).filter_by(external_id="CC-12345678").one()
         assert charity.charity_commission_number == "12345678"
 
-        company = db_session.query(Organisation).filter_by(external_id="CC-98765432").one()
+        company = db_session.query(Organisation).filter_by(external_id="CH-98765432").one()
         assert company.companies_house_number == "98765432"
 
         other = db_session.query(Organisation).filter_by(external_id="FS-CUSTOM1").one()

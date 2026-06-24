@@ -1,9 +1,9 @@
 organisation-code,organisation-name,officer-type,officer-user-email,officer-name,delegated-access-groups,status,account-status,created-date,last-modified-date
-GB-GOV-MATCH,Matching Council,s151-officer,matching@example.gov.uk,Matt Match,,approved,enabled,2024-01-01T09:00:00.000000Z,2024-05-01T10:15:30.123456Z
-GB-GOV-DIFF,Different Council,s151-officer,delta-only@example.gov.uk,Della Onlyone,,approved,enabled,2024-02-01T09:00:00.000000Z,2024-06-15T14:22:00.000000Z
-GB-GOV-EMPTY,Empty Council,s151-officer,empty-delta-only@example.gov.uk,Eve Empty,,approved,enabled,2024-03-01T09:00:00.000000Z,2024-07-01T08:00:00.000000Z
-GB-GOV-MATCH,Matching Council,deputy-s151-officer,deputy@example.gov.uk,Daphne Deputy,,approved,enabled,2024-04-01T09:00:00.000000Z,2024-08-01T16:45:12.000000Z
-GB-GOV-FILTER,Filtered Council,s151-officer,not-approved@example.gov.uk,Norma Pending,,pending,enabled,2024-01-01T09:00:00.000000Z,2024-05-01T10:15:30.000000Z
-GB-GOV-FILTER,Filtered Council,s151-officer,not-enabled@example.gov.uk,Dan Disabled,,approved,disabled,2024-01-01T09:00:00.000000Z,2024-05-01T10:15:30.000000Z
-GB-GOV-DELEGATED,Delegated Council,delegated-s151-officer,delegated@example.gov.uk,Doris Delegated,grant-alpha;grant-beta,approved,enabled,2024-01-01T09:00:00.000000Z,2024-09-01T11:30:45.000000Z
-GB-GOV-DELEGATED,Delegated Council,delegated-s151-officer,delegated-deputy@example.gov.uk,Dirk Deputy,grant-alpha,approved,enabled,2024-02-01T09:00:00.000000Z,2024-09-15T13:00:00.000000Z
+E06000010,Matching Council,s151-officer,matching@example.gov.uk,Matt Match,,approved,enabled,2024-01-01T09:00:00.000000Z,2024-05-01T10:15:30.123456Z
+E06000011,Different Council,s151-officer,delta-only@example.gov.uk,Della Onlyone,,approved,enabled,2024-02-01T09:00:00.000000Z,2024-06-15T14:22:00.000000Z
+E06000012,Empty Council,s151-officer,empty-delta-only@example.gov.uk,Eve Empty,,approved,enabled,2024-03-01T09:00:00.000000Z,2024-07-01T08:00:00.000000Z
+E06000010,Matching Council,deputy-s151-officer,deputy@example.gov.uk,Daphne Deputy,,approved,enabled,2024-04-01T09:00:00.000000Z,2024-08-01T16:45:12.000000Z
+E06000015,Filtered Council,s151-officer,not-approved@example.gov.uk,Norma Pending,,pending,enabled,2024-01-01T09:00:00.000000Z,2024-05-01T10:15:30.000000Z
+E06000015,Filtered Council,s151-officer,not-enabled@example.gov.uk,Dan Disabled,,approved,disabled,2024-01-01T09:00:00.000000Z,2024-05-01T10:15:30.000000Z
+E06000013,Delegated Council,delegated-s151-officer,delegated@example.gov.uk,Doris Delegated,grant-alpha;grant-beta,approved,enabled,2024-01-01T09:00:00.000000Z,2024-09-01T11:30:45.000000Z
+E06000013,Delegated Council,delegated-s151-officer,delegated-deputy@example.gov.uk,Dirk Deputy,grant-alpha,approved,enabled,2024-02-01T09:00:00.000000Z,2024-09-15T13:00:00.000000Z

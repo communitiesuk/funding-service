@@ -190,7 +190,8 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
     can_manage_grants = False
 
     mode = OrganisationModeEnum.LIVE
-    type = OrganisationType.CENTRAL_GOVERNMENT
+    type = OrganisationType.UNITARY_AUTHORITY
+
     iati_id = factory.LazyAttribute(
         lambda o: _typed_id_for_org(o.type, o.external_id) if o.type.typed_id_field == "iati_id" else None
     )
