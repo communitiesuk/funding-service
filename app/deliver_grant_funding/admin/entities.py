@@ -42,6 +42,7 @@ from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import (
     AuditEventType,
     GrantRecipientStatusEnum,
+    OrganisationType,
     RoleEnum,
     SubmissionEventType,
 )
@@ -189,10 +190,20 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
     }
 
     def on_model_change(self, form: Form, model: Organisation, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
+        external_id_before = model.external_id
+
+        if not isinstance(model.type, OrganisationType):
+            model.type = getattr(OrganisationType, model.type)
+
         if not model.typed_id:
             raise ValueError(f"{model.type.typed_id_field} is required for organisation type {model.type.value}")
         model.external_id = model.make_external_id()
-        return super().on_model_change(form, model, is_created)
+        result = super().on_model_change(form, model, is_created)
+
+        if not is_created and model.external_id != external_id_before:
+            raise ValueError("Must not change the organisation's external ID")
+
+        return result
 
 
 class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):

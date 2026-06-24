@@ -2204,6 +2204,59 @@ class TestManageOrganisations:
         assert org2.active_date == datetime.date(2021, 6, 15)
         assert org2.retirement_date is None
 
+    def test_post_creates_charity_and_company_with_prefixed_external_ids(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "12345678\tTest Charity\tCharity\t01/01/2020\t\n"
+            "87654321\tTest Company\tCompany\t15/06/2021\t"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        charity = db_session.query(Organisation).filter_by(name="Test Charity", mode=OrganisationModeEnum.LIVE).one()
+        assert charity.type == OrganisationType.CHARITY
+        assert charity.external_id == "CC-12345678"
+        assert charity.charity_commission_number == "12345678"
+
+        company = db_session.query(Organisation).filter_by(name="Test Company", mode=OrganisationModeEnum.LIVE).one()
+        assert company.type == OrganisationType.COMPANY
+        assert company.external_id == "CH-87654321"
+        assert company.companies_house_number == "87654321"
+
+    def test_post_creates_charity_with_already_prefixed_id(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "CC-12345678\tPrefixed Charity\tCharity\t01/01/2020\t"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        charity = (
+            db_session.query(Organisation).filter_by(name="Prefixed Charity", mode=OrganisationModeEnum.LIVE).one()
+        )
+        assert charity.external_id == "CC-12345678"
+        assert charity.charity_commission_number == "12345678"
+
     def test_post_updates_existing_organisations(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
@@ -2289,6 +2342,50 @@ class TestManageOrganisations:
         assert org.custom_code == org.external_id.removeprefix("FS-")
         assert len(org.custom_code) == 9
         assert org.custom_code.isdigit()
+
+    def test_post_creates_other_org_with_explicit_fs_id(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "FS-MYCUSTOMID\tExplicit Other Org\tOther\t01/01/2020\t"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(name="Explicit Other Org", mode=OrganisationModeEnum.LIVE).one()
+        assert org.type == OrganisationType.OTHER
+        assert org.external_id == "FS-MYCUSTOMID"
+        assert org.custom_code == "MYCUSTOMID"
+
+    def test_post_other_org_with_invalid_prefix_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "BADPREFIX-123\tBad Other Org\tOther\t01/01/2020\t"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "does not start with 'FS-'")
 
     def test_post_with_invalid_header_shows_error(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

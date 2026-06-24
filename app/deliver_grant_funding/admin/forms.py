@@ -120,11 +120,21 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
             org_type = OrganisationType(row[2])
             external_id = row[0]
 
-            if not external_id and org_type == OrganisationType.OTHER:
-                custom_code = f"{random.randint(0, 999_999_999):09d}"
+            if org_type == OrganisationType.OTHER:
+                prefix = cast(str, org_type.external_id_prefix)
+                if external_id and not external_id.startswith(prefix):
+                    raise ValueError(
+                        f"Organisation '{row[1]}' has type Other but its ID '{external_id}'"
+                        f" does not start with '{prefix}'. Leave blank to auto-generate, or provide"
+                        f" an ID starting with '{prefix}'."
+                    )
+                if not external_id:
+                    custom_code = f"{random.randint(0, 999_999_999):09d}"
+                else:
+                    custom_code = external_id.removeprefix(prefix)
                 normalised_organisations.append(
                     OrganisationData(
-                        external_id=f"FS-{custom_code}",
+                        external_id=f"{prefix}{custom_code}",
                         name=row[1],
                         type=org_type,
                         active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
