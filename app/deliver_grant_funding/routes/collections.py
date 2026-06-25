@@ -3573,22 +3573,47 @@ def replace_data_set(
     form = UploadDataSetForm(
         existing_data_source_names=[], existing_datasource=data_source, data={"name": data_source.name}
     )
-    # TODO validate grant recipients
+    # TODO check flow for validating grant recipients, as this will change when bringing in PR #1731
+    #   Don't think we need to validate that here
     gr_errors = []
     if form.validate_on_submit():
         file: FileStorage = form.file.data
         columns, rows = _parse_data_set_csv(form.file.data)
         file_metadata = _upload_data_set_file(grant_id, collection_id, data_source_id, file)
+        data_set_session_data = DataSetUploadSessionModel(
+            name=form.name.data,  # ty:ignore[invalid-argument-type]
+            data_source_id=data_source_id,
+            s3_key=file_metadata[0],
+            original_filename=file_metadata[1],
+            data_source_type=data_source.type,
+            preview_data={},  # TODO load preview data
+            data_columns=columns,
+        )
+        grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
+        gr_errors = validate_data_set_grant_recipients(data_set_session_data, grant_recipients, all_rows=rows)
+        if gr_errors:
+            return render_template(
+                "deliver_grant_funding/collections/data_sets/replace_dataset.html",
+                grant=collection.grant,
+                collection=collection,
+                gr_errors=gr_errors,
+                form=form,
+                data_source=data_source,
+            )
         # TODO see if we need to format columns
-        # data_set_session_data = DataSetUploadSessionModel(
-        #     name=form.name.data,
-        #     data_source_id=data_source_id,
-        #     s3_key=file_metadata[0],
-        #     original_filename=file_metadata[1],
-        #     data_source_type=data_source.type,
-        #     preview_data={},  # TODO load preview data
-        #     data_columns=columns,
-        # )
+        gr_mismatches = find_grant_recipient_mismatches(rows, grant_recipients)
+        data_set_session_data.has_grant_recipient_mismatches = True
+        session["data_set_replace"] = data_set_session_data.model_dump(mode="json")
+        if gr_mismatches:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.confirm_data_set_grant_recipients",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
         replace_uploaded_data_source(
             grant_id=grant_id,
             collection_id=collection_id,
@@ -3620,8 +3645,8 @@ def replace_data_set(
         "deliver_grant_funding/collections/data_sets/replace_dataset.html",
         grant=collection.grant,
         collection=collection,
-        form=form,
         gr_errors=gr_errors,
+        form=form,
         data_source=data_source,
     )
 

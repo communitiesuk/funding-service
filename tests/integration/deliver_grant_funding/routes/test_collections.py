@@ -10917,10 +10917,10 @@ class TestReplaceDataSet:
             ),
             data=data,
             content_type="multipart/form-data",
-            follow_redirects=False,
+            follow_redirects=True,
         )
 
-        assert response.status_code == 302
+        assert response.status_code == 200
         from_db = db_session.get(DataSource, data_source.id)
         assert from_db.name == "Updated name"
         assert from_db.file_metadata.original_filename == "replaced.csv"
