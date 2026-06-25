@@ -10,7 +10,7 @@ from alembic import op
 from alembic_postgresql_enum import TableReference
 
 revision = "068_changes_requested_event"
-down_revision = "067_add_typed_external_id_cols."
+down_revision = "067_add_typed_external_id_cols"
 branch_labels = None
 depends_on = None
 
