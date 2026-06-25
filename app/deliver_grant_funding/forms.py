@@ -1484,9 +1484,32 @@ class ReopenSubmissionForm(FlaskForm):
 
 class RequestOrAllowChangesSubmissionForm(FlaskForm):
     request_changes = RadioField(
-        "Are you requesting changes?",
         choices=[("yes", "Yes"), ("no", "No, just allow changes")],
         validators=[DataRequired("Please select an option")],
         widget=GovRadioInput(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class RequestChangesSubmissionForm(FlaskForm):
+    REASON_MAX_WORDS = 200
+    section_ids = SelectMultipleField(
+        "Which sections need to be changed? (optional)",
+        choices=[],
+        widget=GovCheckboxesInput(),
+        validators=[Optional()],
+    )
+    changes_requested_reason = TextAreaField(
+        validators=[
+            DataRequired("Enter the changes needed"),
+            WordRange(max_words=REASON_MAX_WORDS, field_display_name="reason for requesting changes to the submission"),
+        ],
+        widget=GovCharacterCount(),
+    )
+    submit = SubmitField("Confirm and request changes", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, form_choices: list[tuple[str, str]], long_collection_name: str, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+        self.section_ids.choices = form_choices
+        self.changes_requested_reason.label.text = f"What changes are needed to this {long_collection_name}?"
