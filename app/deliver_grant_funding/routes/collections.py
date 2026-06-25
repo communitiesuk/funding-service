@@ -124,7 +124,8 @@ from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataSetValidationResult,
     build_data_set_upload_s3_key,
-    check_missing_data,
+    build_missing_data_display_rows,
+    find_grant_recipient_mismatches,
     generate_latest_csv_template,
     validate_data_set,
     validate_data_set_grant_recipients,
@@ -3512,23 +3513,9 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
                 gr_errors=gr_errors,
             )
 
-        missing_result = check_missing_data(session_data.data_columns, rows)
-        if missing_result.has_missing_data:
-            session_data.has_missing_data = True
-            session["data_set_upload"] = session_data.model_dump(mode="json")
-
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.data_set_missing_data",
-                    grant_id=grant_id,
-                    collection_type=collection_type,
-                    collection_id=collection_id,
-                )
-            )
-
         return redirect(
             url_for(
-                "deliver_grant_funding.map_data_set_columns",
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
@@ -3759,6 +3746,65 @@ def map_data_set_number_columns(
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/confirm-grant-recipients",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def confirm_data_set_grant_recipients(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    data_set_data = _extract_data_set_data_from_session()
+    if not data_set_data:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
+
+    rows = _load_rows(data_set_data)
+    grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
+    gr_mismatches = find_grant_recipient_mismatches(rows, grant_recipients)
+
+    if not gr_mismatches:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
+
+    form = GenericSubmitForm()
+
+    if form.validate_on_submit():
+        data_set_data.has_grant_recipient_mismatches = True
+        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/data_sets/data_set_confirm_grant_recipients.html",
+        grant=collection.grant,
+        collection=collection,
+        session_data=data_set_data,
+        gr_mismatches=gr_mismatches,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/missing-data",
     methods=["GET", "POST"],
 )
@@ -3779,9 +3825,11 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
         )
 
     rows = _load_rows(data_set_data)
-    missing_result = check_missing_data(data_set_data.data_columns, rows)
 
-    if not missing_result.has_missing_data:
+    grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
+    missing_data_rows = build_missing_data_display_rows(data_set_data.data_columns, rows, grant_recipients)
+
+    if not missing_data_rows:
         return redirect(
             url_for(
                 "deliver_grant_funding.map_data_set_columns",
@@ -3794,6 +3842,9 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
     form = GenericSubmitForm()
 
     if form.validate_on_submit():
+        data_set_data.has_missing_data = True
+        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+
         return redirect(
             url_for(
                 "deliver_grant_funding.map_data_set_columns",
@@ -3809,7 +3860,7 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
         collection=collection,
         session_data=data_set_data,
         form=form,
-        missing_result=missing_result,
+        missing_data_rows=missing_data_rows,
         all_rows=rows,
     )
 

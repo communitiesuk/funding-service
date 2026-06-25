@@ -9558,7 +9558,7 @@ class TestUploadDataSet:
         name_input = soup.find("input", {"name": "name"})
         assert name_input["value"] == "Test Data Set"
 
-    def test_post_valid_csv_redirects_to_map_columns_with_session(
+    def test_post_valid_csv_redirects_to_confirm_grant_recipients_with_session(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
@@ -9591,7 +9591,7 @@ class TestUploadDataSet:
         assert response.status_code == 302
         assert response.location == (
             url_for(
-                "deliver_grant_funding.map_data_set_columns",
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
                 grant_id=grant.id,
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
@@ -9620,52 +9620,6 @@ class TestUploadDataSet:
 
         assert mock_s3_service_calls.upload_file_calls[0].args[1] == expected_s3_key
         assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.PENDING}
-
-    def test_post_csv_with_missing_data_redirects_to_missing_data(
-        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
-    ):
-        grant = authenticated_grant_admin_client.grant
-        collection = factories.collection.create(grant=grant)
-        factories.grant_recipient.create(
-            grant=grant, organisation__external_id="E06000123", organisation__name="Rivendell"
-        )
-        factories.grant_recipient.create(
-            grant=grant, organisation__external_id="E06000456", organisation__name="Lothlorien"
-        )
-
-        csv_content = "Organisation ID,Grant recipient,Amount\nE06000123,Rivendell,\nE06000456,Lothlorien,2000"
-        data = {
-            "name": "Test Data Set",
-            "data_source_type": DataSourceType.GRANT_RECIPIENT,
-            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
-        }
-
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            ),
-            data=data,
-            content_type="multipart/form-data",
-        )
-
-        assert response.status_code == 302
-        assert response.location == (
-            url_for(
-                "deliver_grant_funding.data_set_missing_data",
-                grant_id=grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            )
-        )
-
-        with authenticated_grant_admin_client.session_transaction() as session:
-            session_data = session.get("data_set_upload")
-            assert session_data is not None
-
-        assert session_data["has_missing_data"] is True
 
     def test_post_raises_errors_for_incorrect_grant_recipient_data(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
@@ -9703,13 +9657,7 @@ class TestUploadDataSet:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E06000123' already appears in the data set")
-        assert page_has_error(soup, "Grant recipient 'Rogue' not found in grant recipients")
         assert page_has_error(soup, f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E06000789' not found in grant recipients")
-        assert page_has_error(soup, "Grant recipient 'Mordor' not found in grant recipients")
-        assert page_has_error(
-            soup, f"Grant recipient with {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'E06000456' is missing from the CSV"
-        )
-        assert page_has_error(soup, "Grant recipient 'Numenor' is missing from the CSV")
         assert len(mock_s3_service_calls.upload_file_calls) == 1
         assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.PENDING}
 
@@ -10445,11 +10393,11 @@ class TestMapDataSetNumberColumns:
         assert page_has_error(soup, "One or more values in 'Distance' are not a valid whole number")
 
 
-class TestDataSetMissingData:
+class TestDataSetConfirmGrantRecipients:
     def test_404_for_non_admin(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
             url_for(
-                "deliver_grant_funding.data_set_missing_data",
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
                 grant_id=uuid.uuid4(),
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=uuid.uuid4(),
@@ -10457,16 +10405,16 @@ class TestDataSetMissingData:
         )
         assert response.status_code == 404
 
-    def test_get_data_set_missing_data_shows_rows_with_missing_data(
-        self, authenticated_grant_admin_client, factories, mocker
+    def test_get_with_mismatched_grant_recipients(
+        self, authenticated_grant_admin_client, factories, mocker, mock_s3_service_calls
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
         gr = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="E06000123", organisation__name="Rivendell"
+            grant=grant, organisation__external_id="E123", organisation__name="Rivendell"
         )
         gr2 = factories.grant_recipient.create(
-            grant=grant, organisation__external_id="E06000456", organisation__name="Lothlorien"
+            grant=grant, organisation__external_id="E456", organisation__name="Lothlorien"
         )
 
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -10483,6 +10431,209 @@ class TestDataSetMissingData:
                 "data_source_id": uuid.uuid4(),
                 "original_filename": "test.csv",
                 "s3_key": "data-set-uploads/test.csv",
+            }
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Different name",
+                "Capital allocation": "£1000.00",
+            },
+        ]
+
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Confirm grant recipients" in get_h1_text(soup)
+        assert gr.organisation.name not in soup.text
+        assert gr2.organisation.name in soup.text
+        assert "Different name" in soup.text
+
+    def test_get_no_gr_mismatch_redirects_to_missing_data(
+        self, authenticated_grant_admin_client, factories, mocker, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E123", organisation__name="Rivendell"
+        )
+        gr2 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E456", organisation__name="Lothlorien"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = {
+                "name": "Test Data Set",
+                "data_source_type": DataSourceType.GRANT_RECIPIENT,
+                "data_columns": ["Capital allocation"],
+                "preview_data": {},
+                "column_mappings": [
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS").model_dump(
+                        mode="json"
+                    ),
+                ],
+                "data_source_id": uuid.uuid4(),
+                "original_filename": "test.csv",
+                "s3_key": "data-set-uploads/test.csv",
+            }
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "£2000.00",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                "Capital allocation": "£1000.00",
+            },
+        ]
+
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == (
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+    def test_post_csv_with_missing_data_redirects_to_missing_data(
+        self, authenticated_grant_admin_client, factories, mocker, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E123", organisation__name="Rivendell"
+        )
+        gr2 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E456", organisation__name="Lothlorien"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = {
+                "name": "Test Data Set",
+                "data_source_type": DataSourceType.GRANT_RECIPIENT,
+                "data_columns": ["Capital allocation"],
+                "preview_data": {},
+                "column_mappings": [
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS").model_dump(
+                        mode="json"
+                    ),
+                ],
+                "data_source_id": uuid.uuid4(),
+                "original_filename": "test.csv",
+                "s3_key": "data-set-uploads/test.csv",
+            }
+
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Capital allocation": "",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Different name",
+                "Capital allocation": "£1000.00",
+            },
+        ]
+
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == (
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+
+class TestDataSetMissingData:
+    def test_404_for_non_admin(self, authenticated_grant_member_client):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize("has_grant_recipient_mismatches", [True, False])
+    def test_get_data_set_missing_data_shows_rows_with_missing_data(
+        self, authenticated_grant_admin_client, factories, mocker, has_grant_recipient_mismatches
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000123", organisation__name="Rivendell"
+        )
+        gr2 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000456", organisation__name="Lothlorien"
+        )
+        gr3 = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="EC789", organisation__name="Gondor"
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session["data_set_upload"] = {
+                "name": "Test Data Set",
+                "data_source_type": DataSourceType.GRANT_RECIPIENT,
+                "data_columns": ["Capital allocation"],
+                "preview_data": {},
+                "column_mappings": [
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS").model_dump(
+                        mode="json"
+                    ),
+                ],
+                "data_source_id": uuid.uuid4(),
+                "original_filename": "test.csv",
+                "s3_key": "data-set-uploads/test.csv",
+                "has_grant_recipient_mismatches": has_grant_recipient_mismatches,
             }
 
         all_rows = [
@@ -10513,8 +10664,26 @@ class TestDataSetMissingData:
         soup = BeautifulSoup(response.data, "html.parser")
         assert gr.organisation.name in response.text
         assert gr2.organisation.name not in response.text
+        assert gr3.organisation.name in response.text
+
         assert soup.find("div", {"class": "govuk-error-summary"}) is None
         assert "Data missing" in soup.text
+        assert "Grant recipient missing" in soup.text
+
+        if has_grant_recipient_mismatches:
+            assert page_has_link(soup, "Back").get("href") == url_for(
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        else:
+            assert page_has_link(soup, "Back").get("href") == url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
 
     def test_get_data_set_missing_data_with_no_missing_data_redirects(
         self, authenticated_grant_admin_client, factories, mocker

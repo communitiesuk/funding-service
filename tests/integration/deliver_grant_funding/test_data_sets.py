@@ -14,7 +14,8 @@ from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_REC
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataTypeError,
-    check_missing_data,
+    build_missing_data_display_rows,
+    find_grant_recipient_mismatches,
     generate_latest_csv_template,
     validate_data_set,
     validate_data_set_grant_recipients,
@@ -240,68 +241,157 @@ class TestValidateDataSet:
         assert sum(isinstance(e, DataTypeError) for e in result.blocking_errors) == 1
 
 
-class TestCheckMissingData:
-    def test_missing_data_flagged_and_tracks_correct_columns(self, factories):
+class TestBuildMissingDataDisplayRows:
+    def test_returns_empty_list_when_no_missing_data(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         gr2 = factories.grant_recipient.create(organisation__external_id="E06000456")
         data_set = _make_data_set(
-            data_columns=["Notes", "Summary"],
-            column_mappings=[
-                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
-                DataSetColumnMapping(column_name="Summary", column_type="TEXT"),
-            ],
+            data_columns=["Notes"],
+            column_mappings=[DataSetColumnMapping(column_name="Notes", column_type="TEXT")],
         )
-
-        all_rows = [
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                "Notes": "",
-                "Summary": "ok",
-            },
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
-                "Notes": "",
-                "Summary": "",
-            },
-        ]
-
-        result = check_missing_data(data_set.data_columns, all_rows)
-
-        assert result.row_results[0].missing_columns == ["Notes"]
-        assert result.row_results[1].missing_columns == ["Notes", "Summary"]
-
-    def test_missing_data_returns_empty_result_when_no_missing_data(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="E06000123")
-        gr2 = factories.grant_recipient.create(organisation__external_id="E06000456")
-        data_set = _make_data_set(
-            data_columns=["Notes", "Summary"],
-            column_mappings=[
-                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
-                DataSetColumnMapping(column_name="Summary", column_type="TEXT"),
-            ],
-        )
-
         all_rows = [
             {
                 DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
                 DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
                 "Notes": "Some notes",
-                "Summary": "ok",
             },
             {
                 DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
                 DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
-                "Notes": "Words",
-                "Summary": "More words",
+                "Notes": "More notes",
             },
         ]
 
-        result = check_missing_data(data_set.data_columns, all_rows)
+        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr, gr2])
 
-        assert result.has_missing_data is False
-        assert result.row_results == []
+        assert display_rows == []
+
+    def test_returns_row_for_csv_row_with_missing_column(self, factories):
+        gr = factories.grant_recipient.create()
+        data_set = _make_data_set(
+            data_columns=["Notes", "Summary"],
+            column_mappings=[
+                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Summary", column_type="TEXT"),
+            ],
+        )
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Notes": "",
+                "Summary": "ok",
+            }
+        ]
+
+        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+
+        assert len(display_rows) == 1
+        row = display_rows[0]
+        assert row.external_id == gr.organisation.external_id
+        assert row.grant_recipient_name == gr.organisation.name
+        assert row.missing_columns == ["Notes"]
+        assert row.grant_recipient_entirely_missing is False
+        assert row.row_number == 0
+
+    def test_tracks_multiple_missing_columns_for_a_row(self, factories):
+        gr = factories.grant_recipient.create()
+        data_set = _make_data_set(
+            data_columns=["Notes", "Summary"],
+            column_mappings=[
+                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Summary", column_type="TEXT"),
+            ],
+        )
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Notes": "",
+                "Summary": "",
+            }
+        ]
+
+        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+
+        assert len(display_rows) == 1
+        assert display_rows[0].missing_columns == ["Notes", "Summary"]
+
+    def test_uses_service_name_not_csv_name_for_recipient_with_missing_data(self, factories):
+        gr = factories.grant_recipient.create(organisation__name="Birmingham City Council")
+        data_set = _make_data_set(
+            data_columns=["Notes", "Summary"],
+            column_mappings=[
+                DataSetColumnMapping(column_name="Notes", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Summary", column_type="TEXT"),
+            ],
+        )
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Birmingham CC",
+                "Notes": "",
+            }
+        ]
+        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+
+        assert len(display_rows) == 1
+        assert display_rows[0].grant_recipient_name == gr.organisation.name
+
+    def test_adds_phantom_row_for_grant_recipient_missing_from_csv(self, factories):
+        gr = factories.grant_recipient.create()
+        gr2 = factories.grant_recipient.create()
+        data_set = _make_data_set(
+            data_columns=["Notes"],
+            column_mappings=[DataSetColumnMapping(column_name="Notes", column_type="TEXT")],
+        )
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Notes": "Some notes",
+            },
+        ]
+
+        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr, gr2])
+
+        assert len(display_rows) == 1
+        row = display_rows[0]
+        assert row.external_id == gr2.organisation.external_id
+        assert row.grant_recipient_name == gr2.organisation.name
+        assert row.missing_columns == ["Notes"]
+        assert row.grant_recipient_entirely_missing is True
+        assert row.row_number is None
+
+    def test_sorts_mixed_rows_alphabetically_by_recipient_name(self, factories):
+        gr_a = factories.grant_recipient.create(organisation__name="AAAA Council")
+        gr_b = factories.grant_recipient.create(organisation__name="BBBB Council")
+        gr_c = factories.grant_recipient.create(organisation__name="CCCC Council")
+        data_set = _make_data_set(
+            data_columns=["Notes"],
+            column_mappings=[DataSetColumnMapping(column_name="Notes", column_type="TEXT")],
+        )
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr_a.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr_a.organisation.name,
+                "Notes": "",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr_c.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr_c.organisation.name,
+                "Notes": "",
+            },
+        ]
+
+        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr_a, gr_b, gr_c])
+
+        assert [row.grant_recipient_name for row in display_rows] == [
+            "AAAA Council",
+            "BBBB Council",
+            "CCCC Council",
+        ]
+        assert display_rows[1].grant_recipient_entirely_missing is True
 
 
 class TestValidateDataSetGrantRecipients:
@@ -330,19 +420,6 @@ class TestValidateDataSetGrantRecipients:
         errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
         assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'UNKNOWN' not found in grant recipients" in e for e in errors)
 
-    def test_unknown_recipient_name_is_error(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
-        data_set = _make_data_set(data_columns=["Amount"])
-        all_rows = [
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rogue Organisation",
-                "Amount": "100",
-            }
-        ]
-        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
-        assert any("Grant recipient 'Rogue Organisation' not found in grant recipients" in e for e in errors)
-
     def test_duplicate_external_id_is_error_for_grant_recipient_type(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
@@ -362,24 +439,6 @@ class TestValidateDataSetGrantRecipients:
         assert any(
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr.organisation.external_id}' already appears" in e for e in errors
         )
-
-    def test_grant_recipient_missing_from_csv(self, factories):
-        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
-        gr2 = factories.grant_recipient.create(organisation__external_id="E06000502")
-        data_set = _make_data_set(data_columns=["Amount"])
-        all_rows = [
-            {
-                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
-                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
-                "Amount": "100",
-            }
-        ]
-        errors = validate_data_set_grant_recipients(data_set, [gr, gr2], all_rows)
-        assert any(
-            f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr2.organisation.external_id}' is missing from the CSV" in e
-            for e in errors
-        )
-        assert any(f"'{gr2.organisation.name}' is missing from the CSV" in e for e in errors)
 
     def test_external_id_without_recipient_name_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="E06000501")
@@ -482,14 +541,94 @@ class TestValidateDataSetGrantRecipients:
         assert any(
             f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr.organisation.external_id}' already appears" in e for e in errors
         )
-        assert any(f"Grant recipient '{gr.organisation.name}' already appears" in e for e in errors)
-        assert any(
-            f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} '{gr3.organisation.external_id}' is missing from the CSV" in e
-            for e in errors
-        )
-        assert any(f"'{gr3.organisation.name}' is missing from the CSV" in e for e in errors)
         assert any(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER} 'AB1111' not found in grant recipients" in e for e in errors)
-        assert any("Grant recipient 'Rivendell' not found in grant recipients" in e for e in errors)
+
+
+class TestFindGrantRecipientMismatches:
+    def test_returns_no_mismatches_when_names_match(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="EC123", organisation__name="Brighton Council")
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            }
+        ]
+
+        mismatches = find_grant_recipient_mismatches(all_rows, [gr])
+
+        assert mismatches == []
+
+    def test_returns_mismatch_when_name_differs_from_service(self, factories):
+        gr = factories.grant_recipient.create(organisation__name="Birmingham City Council")
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Birmingham CC",
+                "Amount": "100",
+            }
+        ]
+
+        mismatches = find_grant_recipient_mismatches(all_rows, [gr])
+
+        assert len(mismatches) == 1
+        mismatch = mismatches[0]
+        assert mismatch.row_number == 0
+        assert mismatch.external_id == gr.organisation.external_id
+        assert mismatch.csv_organisation_name == "Birmingham CC"
+        assert mismatch.service_organisation_name == "Birmingham City Council"
+
+    def test_no_mismatch_when_external_id_not_recognised(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="EC123", organisation__name="Brighton Council")
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "UNKNOWN",
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Some Other Name",
+                "Amount": "100",
+            }
+        ]
+
+        mismatches = find_grant_recipient_mismatches(all_rows, [gr])
+
+        assert mismatches == []
+
+    def test_returns_multiple_mismatches_with_correct_row_numbers(self, factories):
+        gr = factories.grant_recipient.create(
+            organisation__external_id="EC123", organisation__name="Birmingham City Council"
+        )
+        gr2 = factories.grant_recipient.create(
+            organisation__external_id="EC456", organisation__name="Leeds City Council"
+        )
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Birmingham CC",
+                "Amount": "200",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Leeds CC",
+                "Amount": "300",
+            },
+        ]
+
+        mismatches = find_grant_recipient_mismatches(all_rows, [gr, gr2])
+
+        assert len(mismatches) == 2
+        assert mismatches[0].row_number == 1
+        assert mismatches[0].external_id == gr.organisation.external_id
+        assert mismatches[0].csv_organisation_name == "Birmingham CC"
+        assert mismatches[0].service_organisation_name == "Birmingham City Council"
+
+        assert mismatches[1].row_number == 2
+        assert mismatches[1].external_id == gr2.organisation.external_id
+        assert mismatches[1].csv_organisation_name == "Leeds CC"
+        assert mismatches[1].service_organisation_name == "Leeds City Council"
 
 
 class TestGenerateLatestCsvTemplate:
