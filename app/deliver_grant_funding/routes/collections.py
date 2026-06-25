@@ -89,6 +89,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionEventType,
     SubmissionModeEnum,
     TUnvalidatedDataSetRows,
 )
@@ -3272,14 +3273,30 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
                     submission_mode=submission_mode,
                 )
             )
+
+    timeline_event_types = [
+        SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+        SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+        SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+        SubmissionEventType.SUBMISSION_REOPENED,
+    ]
+
+    # we are not displaying SUBMISSION_SUBMITTED events when collection requires certification
+    if not helper.collection.requires_certification:
+        timeline_event_types.append(SubmissionEventType.SUBMISSION_SUBMITTED)
+
     return render_template(
-        "deliver_grant_funding/collections/view_submission.html"
-        if not FeatureFlags.NEW_CHANGE_REQUESTS
-        else "deliver_grant_funding/collections/ff_view_submission.html",
+        (
+            "deliver_grant_funding/collections/view_submission.html"
+            if not FeatureFlags.NEW_CHANGE_REQUESTS
+            else "deliver_grant_funding/collections/ff_view_submission.html"
+        ),
         grant=helper.grant,
         helper=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
         delete_form=delete_wtform,
+        timeline_items=helper.timeline_events,
+        timeline_event_types=timeline_event_types,
     )
 
 

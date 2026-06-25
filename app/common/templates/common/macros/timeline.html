@@ -1,0 +1,9 @@
+{% macro timeline(timeline_items, timeline_event_types) %}
+  <div class="moj-timeline">
+    {% for item in timeline_items %}
+      {% if item.type in timeline_event_types %}
+        {% include "common/macros/timeline/" + item.type.name.lower() + ".html" %}
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endmacro %}
