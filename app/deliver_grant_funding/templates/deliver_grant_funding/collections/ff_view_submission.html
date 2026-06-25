@@ -51,7 +51,8 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_CHANGES_REQUESTED]) %}
         {% if flashes %}
           {% set changes_requested_html %}
-            <h3 class="govuk-notification-banner__heading">Changes requested and email sent to {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</h3>
+            <h3 class="govuk-notification-banner__heading">Changes have been requested</h3>
+            <p class="govuk-body">We've emailed {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }} to let them know what changes have been requested.</p>
           {% endset %}
           {{
             govukNotificationBanner({
