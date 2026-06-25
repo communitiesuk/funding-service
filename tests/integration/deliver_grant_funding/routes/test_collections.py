@@ -9348,7 +9348,7 @@ class TestRequestChangesSubmission:
 
         soup = BeautifulSoup(response.data, "html.parser")
 
-        assert page_has_flash(soup, "Changes requested")
+        assert page_has_flash(soup, "Changes have been requested")
 
         submission_events_changes_requests_after = (
             db_session.query(SubmissionEvent)
@@ -9403,7 +9403,7 @@ class TestRequestChangesSubmission:
 
         soup = BeautifulSoup(response.data, "html.parser")
 
-        assert page_has_flash(soup, "Changes requested")
+        assert page_has_flash(soup, "Changes have been requested")
 
         submission_events_changes_requests_after = (
             db_session.query(SubmissionEvent)
