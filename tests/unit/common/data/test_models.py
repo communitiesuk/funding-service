@@ -517,8 +517,10 @@ def _integer_col(original_column_name: str, prefix: str = "", suffix: str = "") 
 class TestDataSourceMakePydanticModel:
     def test_returns_empty_dict_when_no_schema_and_2d_data(self, factories):
         data_source = factories.data_source.build(
-            name="Test data set", type=DataSourceType.GRANT_RECIPIENT, schema=None
+            name="Test data set",
+            type=DataSourceType.GRANT_RECIPIENT,
         )
+        data_source.schema = None
         assert data_source.build_typed_org_item_data({"c_capital_allocation": "1000"}) == {}
 
     def test_text_column_returns_text_single_line_answer(self, factories):
