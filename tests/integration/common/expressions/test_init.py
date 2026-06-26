@@ -215,10 +215,12 @@ class TestExpressionContext:
             organisation = factories.organisation.create()
             grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
             submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
-            factories.data_source.create(
-                grant=grant, collection=collection, type=DataSourceType.GRANT_RECIPIENT, schema=None
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
             )
-
+            data_source.schema = None
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
             assert context == {}

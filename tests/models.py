@@ -20,7 +20,7 @@ from factory.alchemy import SQLAlchemyModelFactory
 from flask import url_for
 from sqlalchemy.exc import NoResultFound
 
-from app import SubmissionStatusEnum
+from app import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, SubmissionStatusEnum
 from app.common.collections.types import (
     AllAnswerTypes,
     DateAnswer,
@@ -928,6 +928,57 @@ _GRANT_RECIPIENT_DEFAULT_SCHEMA = DataSourceSchema.model_validate(
         )
     }
 )
+ALL_COLUMN_TYPE_HEADERS_LIST = [
+    DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+    "British pounds",
+    "Decimal number",
+    "Just text",
+    "Whole number",
+    "Whole number prefix",
+    "Whole number suffix",
+]
+ALL_COLUMN_TYPE_HEADERS_STR = ",".join(ALL_COLUMN_TYPE_HEADERS_LIST)
+_GRANT_RECIPIENT_SCHEMA_WITH_COLUMN_OF_EACH_TYPE = DataSourceSchema.model_validate(
+    {
+        "c_british_pounds": DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(prefix="£"),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=2),
+            original_column_name="British pounds",
+        ),
+        "c_decimal_number": DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.DECIMAL, max_decimal_places=3),
+            original_column_name="Decimal number",
+        ),
+        "c_just_text": DataSourceSchemaColumn(
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            presentation_options=QuestionPresentationOptions(),
+            data_options=QuestionDataOptions(),
+            original_column_name="Just text",
+        ),
+        "c_whole_number": DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            original_column_name="Whole number",
+        ),
+        "c_whole_number_prefix": DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(prefix="$"),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            original_column_name="Whole number prefix",
+        ),
+        "c_whole_number_suffix": DataSourceSchemaColumn(
+            data_type=QuestionDataType.NUMBER,
+            presentation_options=QuestionPresentationOptions(suffix="km"),
+            data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+            original_column_name="Whole number suffix",
+        ),
+    }
+)
 
 
 class _DataSourceFactory(SQLAlchemyModelFactory):
@@ -935,6 +986,9 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
         model = DataSource
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
+
+    class Params:
+        has_column_of_each_type = factory.Trait(schema=_GRANT_RECIPIENT_SCHEMA_WITH_COLUMN_OF_EACH_TYPE)
 
     id = factory.LazyFunction(uuid4)
     type = DataSourceType.CUSTOM
@@ -959,7 +1013,8 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
         match ds_type:
             case DataSourceType.GRANT_RECIPIENT:
                 kwargs.setdefault("name", "Grant allocation")
-                kwargs.setdefault("schema", _GRANT_RECIPIENT_DEFAULT_SCHEMA)
+                if not kwargs.get("schema", None):
+                    kwargs["schema"] = _GRANT_RECIPIENT_DEFAULT_SCHEMA
 
                 kwargs.setdefault(
                     "file_metadata",
@@ -974,6 +1029,8 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
     def create_gr_org_items(obj: DataSource, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if create and extracted:
             if obj.collection and obj.collection.grant:
+                if not len(obj.schema.root.items()) == 1 or "c_allocation" not in obj.schema.root:  # ty:ignore[unresolved-attribute]
+                    raise ValueError("Cannot create GR org items for something other than the default schema")
                 gr_data = kwargs.get("data", [])
                 for i, gr in enumerate(obj.collection.grant.grant_recipients):
                     _DataSourceOrganisationItemFactory.create(
