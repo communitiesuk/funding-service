@@ -498,7 +498,7 @@ class QuestionForm(FlaskForm):
 
                 if question_type == QuestionDataType.CHECKBOXES:
                     self.data_source_items.description = (
-                        "Enter each option on a new line - you can add a maximum of " 
+                        "Enter each option on a new line - you can add a maximum of "
                         f"{current_app.config["MAX_DATA_SOURCE_ITEMS_CHECKBOXES"]} options"
                     )
 
