@@ -1158,8 +1158,6 @@ class MapDataSetColumnsForm(FlaskForm):
                     mapping = DataSetColumnMapping(
                         column_name=column,
                         column_type=selected_value,
-                        prefix="£",
-                        max_decimal_places=2,
                     )
                 case "TEXT" | "INTEGER" | "DECIMAL" | _:
                     mapping = DataSetColumnMapping(
