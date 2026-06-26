@@ -1,7 +1,4 @@
-import io
-
 import pytest
-from werkzeug.datastructures import FileStorage, MultiDict
 
 from app import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, ExpressionReference
 from app.common.data.models import Expression
@@ -11,23 +8,8 @@ from app.common.data.types import (
 )
 from app.common.expressions.managed import GreaterThan, LessThan
 from app.deliver_grant_funding.forms import UploadDataSetForm
+from tests.integration.utils import build_file_upload_form_data
 from tests.models import ALL_COLUMN_TYPE_HEADERS_STR
-
-
-def _build_file_upload_form_data(csv_content: str) -> MultiDict:
-    file = FileStorage(
-        stream=io.BytesIO(csv_content.encode("utf-8")),
-        filename="test.csv",
-        content_type="text/csv",
-    )
-    data = MultiDict(
-        [
-            ("name", "Test Data Set"),
-            ("data_source_type", DataSourceType.GRANT_RECIPIENT),
-            ("file", file),
-        ]
-    )
-    return data
 
 
 class TestUploadDataSetForm:
@@ -43,7 +25,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2,hello,1,$10,12km"
             )
@@ -65,7 +47,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,,hello,5,$10,12km" + "\na,b,£100,1.2,hello,,$10,12km"
             )
@@ -78,7 +60,8 @@ class TestUploadDataSetForm:
     @pytest.mark.parametrize("is_existing", (True, False))
     def test_remove_referenced_column_raises_error(self, factories, is_existing):
         if is_existing:
-            collection = factories.collection.create()
+            grant_recipient = factories.grant_recipient.create()
+            collection = factories.collection.create(grant=grant_recipient.grant)
             data_source = factories.data_source.create(
                 grant=collection.grant,
                 collection=collection,
@@ -91,7 +74,7 @@ class TestUploadDataSetForm:
 
             assert len(data_source.depended_on_by_columns) == 1
 
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},"
                 + "Another column\na,b,1000\nc,d,3000"
@@ -129,7 +112,7 @@ class TestUploadDataSetForm:
 
         assert len(data_source.depended_on_by_columns) == 2
 
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},"
                 + "Another column\na,b,1000\nc,d,3000"
@@ -190,7 +173,7 @@ class TestUploadDataSetForm:
             ],
         )
 
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},"
                 + "Another column\na,b,1000\nc,d,3000"
@@ -257,7 +240,7 @@ class TestUploadDataSetForm:
             ],
         )
 
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},"
                 + "Another column\na,b,1000\nc,d,3000"
@@ -292,7 +275,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR
                 + "\na,b,£100,1.2,hello,5,$10,12km"
@@ -317,7 +300,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2,hello,5,€10,12km"
             )
@@ -340,7 +323,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2,hello,5,$10,12miles"
             )
@@ -365,7 +348,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2,hello,1.5,$10,12km"
             )
@@ -388,7 +371,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,hello,hello,5,$10,12km"
             )
@@ -411,7 +394,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2345,hello,5,$10,12km"
             )
@@ -434,7 +417,7 @@ class TestUploadDataSetForm:
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
-        data = _build_file_upload_form_data(
+        data = build_file_upload_form_data(
             csv_content=(
                 ALL_COLUMN_TYPE_HEADERS_STR
                 + "\na,b,£100,1.2,hello,5,$10,12km"

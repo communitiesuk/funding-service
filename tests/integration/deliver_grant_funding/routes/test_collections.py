@@ -87,7 +87,8 @@ from app.deliver_grant_funding.session_models import (
     DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
-from tests.models import FactoryAnswer
+from tests.integration.utils import build_file_upload_form_data
+from tests.models import ALL_COLUMN_TYPE_HEADERS_LIST, ALL_COLUMN_TYPE_HEADERS_STR, FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
     get_form_data,
@@ -10821,6 +10822,307 @@ class TestDataSetMissingData:
             grant_id=collection.grant.id,
             collection_type=CollectionType.MONITORING_REPORT,
             collection_id=collection.id,
+        )
+
+
+class TestReplaceDataSet:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+                data_source_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    def test_mismatched_collection_data_source_ids(self, authenticated_grant_admin_client, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection, grant=grant, type=DataSourceType.GRANT_RECIPIENT
+        )
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get(self, client_fixture, can_access, request: FixtureRequest, factories):
+        client = request.getfixturevalue(client_fixture)
+        grant = client.grant
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            name="access test",
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        if can_access:
+            assert response.status_code == 200
+            assert f"{collection.name} Replace access test data set" in get_h1_text(soup)
+        else:
+            assert response.status_code == 403
+
+    def test_post_saves_name_and_file_metadata(
+        self, factories, mock_s3_service_calls, authenticated_grant_admin_client, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            created_by=factories.user.create(email="user1@test.com"),
+        )
+
+        data = build_file_upload_form_data(
+            csv_content=f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},Allocation",
+            name="Updated name",
+            filename="replaced.csv",
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        from_db = db_session.get(DataSource, data_source.id)
+        assert from_db.name == "Updated name"
+        assert from_db.file_metadata.original_filename == "replaced.csv"
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
+        assert from_db.updated_by.email == "test2@communities.gov.uk"
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Updated name data set replaced")
+
+    def test_post_saves_row_data_changes(
+        self,
+        factories,
+        authenticated_grant_admin_client,
+        db_session,
+        mock_s3_service_calls,
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=authenticated_grant_admin_client.grant)
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=gr1.organisation.external_id,
+            _data={"c_whole_number": "123"},
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=gr2.organisation.external_id,
+            _data={"c_whole_number": "234"},
+        )
+        data = build_file_upload_form_data(
+            csv_content=(
+                ALL_COLUMN_TYPE_HEADERS_STR
+                + f"\n{gr1.organisation.external_id},{gr1.organisation.name},,,,567,,"
+                + f"\n{gr2.organisation.external_id},{gr2.organisation.name},,,,789,,"
+                + f"\n{gr3.organisation.external_id},{gr3.organisation.name},,,,,,"
+            ),
+            name="Updated name",
+            filename="replaced.csv",
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=data_source.grant.id,
+                collection_type=data_source.collection.type,
+                collection_id=data_source.collection.id,
+                data_source_id=data_source.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.view_data_source",
+            grant_id=data_source.grant.id,
+            collection_type=data_source.collection.type,
+            collection_id=data_source.collection.id,
+            data_source_id=data_source.id,
+        )
+        from_db = db_session.get(DataSource, data_source.id)
+        org_item = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert org_item.data["c_whole_number"].get_value_for_evaluation() == 567
+        assert (
+            from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+            .data["c_whole_number"]
+            .get_value_for_evaluation()
+            == 789
+        )
+        assert from_db.get_filtered_organisation_item(gr3.organisation.external_id).data["c_whole_number"] is None
+
+    def test_post_removes_columns_not_in_csv(
+        self,
+        factories,
+        authenticated_grant_admin_client,
+        db_session,
+        mock_s3_service_calls,
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=authenticated_grant_admin_client.grant)
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=gr1.organisation.external_id,
+            _data={"c_whole_number": "123", "c_whole_number_suffix": "456"},
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=gr2.organisation.external_id,
+            _data={"c_whole_number": "234", "c_whole_number_suffix": "567"},
+        )
+        new_headers = ALL_COLUMN_TYPE_HEADERS_LIST.copy()
+        new_headers.remove("Whole number suffix")
+        data = build_file_upload_form_data(
+            csv_content=(
+                f"{','.join(new_headers)}"
+                + f"\n{gr1.organisation.external_id},{gr1.organisation.name},,,,567,"
+                + f"\n{gr2.organisation.external_id},{gr2.organisation.name},,,,789,"
+                + f"\n{gr3.organisation.external_id},{gr3.organisation.name},,,,,"
+            ),
+            name="Updated name",
+            filename="replaced.csv",
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=data_source.grant.id,
+                collection_type=data_source.collection.type,
+                collection_id=data_source.collection.id,
+                data_source_id=data_source.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        from_db = db_session.get(DataSource, data_source.id)
+        org_item = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert org_item.data["c_whole_number"].get_value_for_evaluation() == 567
+        assert (
+            from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+            .data["c_whole_number"]
+            .get_value_for_evaluation()
+            == 789
+        )
+        assert from_db.get_filtered_organisation_item(gr3.organisation.external_id).data["c_whole_number"] is None
+        assert (
+            "c_whole_number_suffix"
+            not in from_db.get_filtered_organisation_item(gr1.organisation.external_id).data.keys()
+        )
+        assert (
+            "c_whole_number_suffix"
+            not in from_db.get_filtered_organisation_item(gr2.organisation.external_id).data.keys()
+        )
+        assert (
+            "c_whole_number_suffix"
+            not in from_db.get_filtered_organisation_item(gr3.organisation.external_id).data.keys()
+        )
+
+        assert "c_whole_number_suffix" not in from_db.schema.root.keys()
+
+    def test_upload_with_multiple_data_errors_shows_all(self, factories, authenticated_grant_admin_client):
+
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E123",
+            organisation__name="Rivendell",
+        )
+        factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E456",
+            organisation__name="Lothlorien",
+        )
+
+        data = build_file_upload_form_data(
+            csv_content=(
+                ALL_COLUMN_TYPE_HEADERS_STR
+                + "\nE123,Rivendell,£100,1.2123123,hello,5,$10,12km"
+                + "\nE456,Lothlorien,£100abc,1.2,hello,5.9,$10,12km"
+            )
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=grant.id,
+                collection_type=data_source.collection.type,
+                collection_id=data_source.collection.id,
+                data_source_id=data_source.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup,
+            "One or more numbers in column 'British pounds' are not formatted as British pounds to 2 decimal places "
+            + "with the '£' prefix. For example, £100.00",
+        )
+        assert page_has_error(soup, "One or more numbers in column 'Whole number' are not whole numbers")
+        assert page_has_error(
+            soup,
+            "One or more numbers in column 'Decimal number' has more than 3 decimal places",
         )
 
 

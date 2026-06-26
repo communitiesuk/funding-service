@@ -1285,8 +1285,8 @@ class TestReplaceUploadedDataSource:
     def test_remove_column_no_data(self, factories):
         collection = factories.collection.create()
         data_source = factories.data_source.create(
-            grant=collection.grant,
             collection=collection,
+            grant=collection.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
@@ -1319,8 +1319,8 @@ class TestReplaceUploadedDataSource:
     def test_remove_column_with_data(self, factories):
         collection = factories.collection.create()
         data_source = factories.data_source.create(
-            grant=collection.grant,
             collection=collection,
+            grant=collection.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )
@@ -1388,8 +1388,8 @@ class TestReplaceUploadedDataSource:
     def test_replace_data_source_add_column_remove_column_and_update_data(self, factories):
         collection = factories.collection.create()
         data_source = factories.data_source.create(
-            grant=collection.grant,
             collection=collection,
+            grant=collection.grant,
             type=DataSourceType.GRANT_RECIPIENT,
             has_column_of_each_type=True,
         )

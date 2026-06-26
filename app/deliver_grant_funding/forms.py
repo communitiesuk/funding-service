@@ -1011,6 +1011,7 @@ class UploadDataSetForm(FlaskForm):
     name = StringField(
         "Data set name",
         widget=GovTextInput(),
+        filters=[strip_string_if_not_empty],
         validators=[DataRequired("Enter the name for this data set")],
     )
 
