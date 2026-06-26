@@ -1849,7 +1849,7 @@ class TestSubmissionHelper:
             collection = submission_submitted.collection
             collection.status = CollectionStatusEnum.CLOSED
 
-            with pytest.raises(CollectionIsNotOpenError, match="report is not open"):
+            with pytest.raises(CollectionIsNotOpenError, match="collection is not open"):
                 helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
@@ -1946,18 +1946,19 @@ class TestSubmissionHelper:
 
     class TestSubmissionChangesRequested:
         def test_request_changes_stores_reason_and_section_ids(self, grant_team_user, submission_submitted) -> None:
+            form = submission_submitted.collection.forms[0]
             helper = SubmissionHelper(submission_submitted)
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
             helper.request_changes_submission(
                 user=grant_team_user,
                 changes_requested_reason="Please fix section 1",
-                section_ids=["section_1", "section_2"],
+                section_ids=[str(form.id)],
             )
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.changes_requested_reason == "Please fix section 1"
-            assert helper.section_ids == ["section_1", "section_2"]
+            assert helper.section_ids == [str(form.id)]
             assert helper.changes_requested_by == grant_team_user
 
         def test_request_changes_fails_when_not_authorised(self, data_provider_user, submission_submitted) -> None:
@@ -1977,10 +1978,69 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission_submitted)
             submission_submitted.collection.status = CollectionStatusEnum.CLOSED
 
-            with pytest.raises(CollectionIsNotOpenError, match="report is not open"):
+            with pytest.raises(CollectionIsNotOpenError, match="collection is not open"):
                 helper.request_changes_submission(
                     user=grant_team_user, changes_requested_reason="Test reason", section_ids=None
                 )
+
+        def test_request_changes_with_section_ids_only_resets_matching_forms(
+            self, grant_team_user, submission_submitted, factories
+        ) -> None:
+            first_form = submission_submitted.collection.forms[0]
+            second_form = factories.form.create(collection=submission_submitted.collection)
+
+            # make 2nd form's status COMPLETE
+            second_question = factories.question.create(form=second_form)
+            submission_submitted.data_manager.set(second_question, TextSingleLineAnswer("Answer"))
+            factories.submission_event.create(
+                submission=submission_submitted,
+                related_entity_id=second_form.id,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                created_by=grant_team_user,
+            )
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.request_changes_submission(
+                user=grant_team_user,
+                changes_requested_reason="Please fix section 2",
+                section_ids=[str(second_form.id)],
+            )
+
+            event_ids = [
+                event.related_entity_id
+                for event in submission_submitted.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            ]
+
+            # section not in the section_ids is unchanged
+            assert first_form.id not in event_ids
+            assert helper.get_status_for_form(first_form) == TasklistSectionStatusEnum.COMPLETED
+
+            # section in the section_ids is changed and event is created
+            assert second_form.id in event_ids
+            assert helper.get_status_for_form(second_form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+        def test_request_changes_without_section_ids_resets_all_forms(
+            self, grant_team_user, submission_submitted, factories
+        ) -> None:
+            first_form = submission_submitted.collection.forms[0]
+            second_form = factories.form.create(collection=submission_submitted.collection)
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.request_changes_submission(
+                user=grant_team_user,
+                changes_requested_reason="Please fix section 2",
+                section_ids=[str(second_form.id)],
+            )
+
+            event_ids = [
+                event.related_entity_id
+                for event in submission_submitted.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            ]
+
+            assert first_form.id not in event_ids
+            assert second_form.id in event_ids
 
         def test_request_changes_sends_notifications(
             self,

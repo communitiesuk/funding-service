@@ -1,4 +1,4 @@
-"""empty message
+"""add SUBMISSION_CHANGES_REQUESTED to submission_event_type_enum
 
 Revision ID: 067_add_submission_changes_requested_event_t
 Revises: 066_reminder_email_biz_days

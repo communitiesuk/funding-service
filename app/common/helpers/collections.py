@@ -1272,8 +1272,7 @@ class SubmissionHelper:
 
         if not self.collection.is_open:
             raise CollectionIsNotOpenError(
-                f"Could not reopen submission id={self.id} because the "
-                f"{self.collection.type.constants.singular} is not open."
+                f"Could not reopen submission id={self.id} because the collection is not open."
             )
 
         if not self.is_submitted:
@@ -1315,8 +1314,7 @@ class SubmissionHelper:
 
         if not self.collection.is_open:
             raise CollectionIsNotOpenError(
-                f"Could not request changes to submission id={self.id} because the "
-                f"{self.collection.type.constants.singular} is not open."
+                f"Could not request changes to submission id={self.id} because the collection is not open."
             )
 
         if not self.is_submitted:
@@ -1333,11 +1331,12 @@ class SubmissionHelper:
             related_entity_id=self.id,
         )
         for form in self.collection.forms:
-            self.add_submission_event(
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
-                user=user,
-                related_entity_id=form.id,
-            )
+            if not section_ids or str(form.id) in section_ids:
+                self.add_submission_event(
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                    user=user,
+                    related_entity_id=form.id,
+                )
         recipients = set(self._data_providers_for_lifecycle_emails(user))
 
         if self.collection.requires_certification:
