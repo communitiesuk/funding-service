@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 from app.common.data.types import (
+    DataSourceSchemaColumn,
     DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
@@ -13,6 +14,7 @@ from app.common.data.types import (
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.references import ExpressionReference
+from app.constants import BRITISH_POUNDS_DECIMAL_PLACES, BRITISH_POUNDS_PREFIX
 
 if TYPE_CHECKING:
     from app.common.data.models import Component
@@ -130,11 +132,66 @@ class AddContextToExpressionsModel(_ReferenceDataSessionModel):
 class DataSetColumnMapping(BaseModel):
     column_name: str
     column_type: Literal["TEXT", "BRITISH_POUNDS", "INTEGER", "DECIMAL"]
-    prefix: str | None = Field(default_factory=lambda o: "£" if o["column_type"] == "BRITISH_POUNDS" else None)
+    prefix: str | None = Field(
+        default_factory=lambda o: (
+            BRITISH_POUNDS_PREFIX if DataSetColumnMapping._is_british_pounds(column_type=o["column_type"]) else None
+        )
+    )
     suffix: str | None = None
     max_decimal_places: int | None = Field(
-        default_factory=lambda o: 2 if o["column_type"] == "BRITISH_POUNDS" else None
+        default_factory=lambda o: (
+            BRITISH_POUNDS_DECIMAL_PLACES
+            if DataSetColumnMapping._is_british_pounds(column_type=o["column_type"])
+            else None
+        )
     )
+
+    @staticmethod
+    def _is_british_pounds(column_type: str | None = None, schema_column: DataSourceSchemaColumn | None = None) -> bool:
+
+        if column_type == "BRITISH_POUNDS":
+            return True
+        if (
+            schema_column
+            and schema_column.presentation_options
+            and schema_column.presentation_options.prefix == BRITISH_POUNDS_PREFIX
+            and schema_column.data_options
+            and schema_column.data_options.max_decimal_places == BRITISH_POUNDS_DECIMAL_PLACES
+        ):
+            return True
+        return False
+
+    @staticmethod
+    def build_from_data_source_schema_column(schema_column: DataSourceSchemaColumn) -> DataSetColumnMapping:
+        match schema_column.data_type:
+            case QuestionDataType.TEXT_SINGLE_LINE:
+                return DataSetColumnMapping(column_name=schema_column.original_column_name, column_type="TEXT")
+            case QuestionDataType.NUMBER:
+                if schema_column.data_options.number_type == NumberTypeEnum.DECIMAL:
+                    if DataSetColumnMapping._is_british_pounds(schema_column=schema_column):
+                        return DataSetColumnMapping(
+                            column_name=schema_column.original_column_name,
+                            column_type="BRITISH_POUNDS",
+                        )
+                    return DataSetColumnMapping(
+                        column_name=schema_column.original_column_name,
+                        column_type="DECIMAL",
+                        prefix=schema_column.presentation_options.prefix,
+                        suffix=schema_column.presentation_options.suffix,
+                        max_decimal_places=schema_column.data_options.max_decimal_places,
+                    )
+                elif schema_column.data_options.number_type == NumberTypeEnum.INTEGER:
+                    return DataSetColumnMapping(
+                        column_name=schema_column.original_column_name,
+                        column_type="INTEGER",
+                        prefix=schema_column.presentation_options.prefix,
+                        suffix=schema_column.presentation_options.suffix,
+                    )
+
+        raise ValueError(
+            f"Cannot build data set column mapping for data type {schema_column.data_type}"
+            + f", number type {schema_column.data_options.number_type}"
+        )
 
     @property
     def data_type(self) -> Literal[QuestionDataType.TEXT_SINGLE_LINE, QuestionDataType.NUMBER]:
