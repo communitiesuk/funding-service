@@ -325,7 +325,7 @@ class _SharedConfig(_BaseConfig):
     ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS: int = 20
 
     MAX_DATA_SOURCE_ITEMS_RADIOS: int = 300
-    MAX_DATA_SOURCE_ITEMS_CHECKBOXES: int = 10
+    MAX_DATA_SOURCE_ITEMS_CHECKBOXES: int = 15
 
     # Max number of levels of nested groups
     MAX_NESTED_GROUP_LEVELS: int = 1
