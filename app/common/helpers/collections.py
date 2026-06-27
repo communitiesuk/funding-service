@@ -393,6 +393,8 @@ class SubmissionHelper:
             and not submission_state.is_submitted
         ):
             return SubmissionStatusEnum.READY_TO_SUBMIT
+        elif submission_state.is_changes_requested and not submission_state.is_submitted:
+            return SubmissionStatusEnum.CHANGES_REQUESTED
         elif form_statuses <= {TasklistSectionStatusEnum.NOT_STARTED, TasklistSectionStatusEnum.NOT_NEEDED}:
             return SubmissionStatusEnum.NOT_STARTED
         else:
@@ -651,8 +653,14 @@ class SubmissionHelper:
     def get_status_for_form(self, form: Form) -> TasklistSectionStatusEnum:
         form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
         marked_as_complete = self.events.form_state(form.id).is_completed
+
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
             return TasklistSectionStatusEnum.COMPLETED
+        elif (
+            str(form.id) in self.events.submission_state.section_ids
+            and self.events.submission_state.is_changes_requested
+        ):
+            return TasklistSectionStatusEnum.CHANGES_REQUESTED
         elif form_questions_answered.some_answered:
             return TasklistSectionStatusEnum.IN_PROGRESS
         elif len(
