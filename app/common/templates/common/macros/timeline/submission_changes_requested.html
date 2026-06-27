@@ -1,0 +1,24 @@
+<div class="moj-timeline__item">
+  <div class="moj-timeline__header">
+    <h2 class="moj-timeline__title">Changes requested</h2>
+    <p class="moj-timeline__byline">by {{ item.source.submission.collection.grant.organisation.name }}</p>
+  </div>
+  <p class="moj-timeline__date">
+    <time datetime="{{ iso_utc(item.datetime) }}">{{ format_datetime_short(item.datetime) }}</time>
+  </p>
+  {% set raw_section_ids = item.source.data.get("section_ids", []) %}
+  {% set section_names = item.source.submission.collection.get_section_names_from_ids(raw_section_ids) %}
+  <div class="moj-timeline__description">
+    <details class="govuk-details govuk-!-margin-bottom-0">
+      <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">Change request details</span>
+      </summary>
+      <div class="govuk-details__text">
+        {% if section_names %}
+          <p><strong>Sections:</strong> {{ section_names | join(", ") }}</p>
+        {% endif %}
+        <p><strong>Comment:</strong> {{ item.source.data.get("changes_requested_reason") }}</p>
+      </div>
+    </details>
+  </div>
+</div>

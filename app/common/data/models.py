@@ -446,6 +446,9 @@ class Collection(BaseModel):
         # url is just a placeholder for now
         return url_for("auth.request_a_link_to_sign_in", _external=True)
 
+    def get_section_names_from_ids(self, form_ids: list[str]) -> list[str]:
+        return [form.title for form in self.forms if str(form.id) in form_ids]
+
 
 class Submission(BaseModel):
     __tablename__ = "submission"
@@ -1102,7 +1105,7 @@ class SubmissionEvent(BaseModel):
     related_entity_id: Mapped[uuid.UUID]
 
     # properties are immutable and will be mapped to known pydantic models next
-    data: Mapped[json_flat_scalars] = mapped_column(server_default="{}")
+    data: Mapped[json_scalars] = mapped_column(server_default="{}")
 
     submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("submission.id"))
     submission: Mapped[Submission] = relationship("Submission", back_populates="events")

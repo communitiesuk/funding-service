@@ -195,6 +195,7 @@ class SubmissionEventType(enum.StrEnum):
     SUBMISSION_APPROVED_BY_CERTIFIER = "Submission approved by certifier"
     SUBMISSION_SUBMITTED = "Submission submitted"
     SUBMISSION_REOPENED = "Submission reopened"
+    SUBMISSION_CHANGES_REQUESTED = "Submission changes requested"
 
 
 class CollectionTypeConstants(typing.NamedTuple):
