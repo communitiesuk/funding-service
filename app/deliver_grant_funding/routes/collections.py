@@ -3395,7 +3395,7 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
             submission_helper.request_changes_submission(
                 user=get_current_user(),
                 changes_requested_reason=form.changes_requested_reason.data,
-                section_ids=form.section_ids.data,
+                section_ids=form.section_ids.data or [],
             )
 
             flash("Changes requested", FlashMessageType.SUBMISSION_CHANGES_REQUESTED)
