@@ -1971,7 +1971,7 @@ class TestSubmissionHelper:
                 helper.request_changes_submission(
                     user=data_provider_user,
                     changes_requested_reason="Test reason",
-                    section_ids=None,
+                    section_ids=[],
                 )
 
         def test_request_changes_fails_when_collection_closed(self, grant_team_user, submission_submitted) -> None:
@@ -1980,7 +1980,7 @@ class TestSubmissionHelper:
 
             with pytest.raises(CollectionIsNotOpenError, match="collection is not open"):
                 helper.request_changes_submission(
-                    user=grant_team_user, changes_requested_reason="Test reason", section_ids=None
+                    user=grant_team_user, changes_requested_reason="Test reason", section_ids=[]
                 )
 
         def test_request_changes_with_section_ids_only_resets_matching_forms(
@@ -2053,7 +2053,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission_submitted)
 
             helper.request_changes_submission(
-                user=grant_team_user, changes_requested_reason="Test reason", section_ids=None
+                user=grant_team_user, changes_requested_reason="Test reason", section_ids=[]
             )
 
             assert len(mock_notification_service_calls) == 2

@@ -496,7 +496,7 @@ class SubmissionHelper:
         return self.events.submission_state.changes_requested_at_utc
 
     @property
-    def section_ids(self) -> list[str] | None:
+    def section_ids(self) -> list[str]:
         return self.events.submission_state.section_ids
 
     @property
@@ -1302,7 +1302,7 @@ class SubmissionHelper:
             notification_service.send_access_submission_reopened(user=recipient, submission_helper=self)
 
     def request_changes_submission(
-        self, user: User, changes_requested_reason: str | None, section_ids: list[str] | None
+        self, user: User, changes_requested_reason: str | None, section_ids: list[str]
     ) -> None:
         if not AuthorisationHelper.can_reopen_submission(user, self.submission):
             raise SubmissionAuthorisationError(

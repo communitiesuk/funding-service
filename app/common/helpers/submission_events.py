@@ -120,7 +120,7 @@ class ReopenedKwargs(TypedDict, total=False):
 class ChangesRequestedKwargs(TypedDict, total=False):
     changes_requested_reason: str | None
     submission_data: dict[str, Any] | None
-    section_ids: list[str] | None
+    section_ids: list[str]
 
 
 @dataclass
@@ -195,7 +195,7 @@ class SubmissionState(
     reopened_reason: str | None = None
     changes_requested_reason: str | None = None
     submission_data: dict[str, Any] | None = None
-    section_ids: list[str] | None = None
+    section_ids: list[str] = field(default_factory=list)
 
 
 @dataclass
