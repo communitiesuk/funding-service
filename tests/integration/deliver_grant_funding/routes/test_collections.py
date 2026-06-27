@@ -74,6 +74,8 @@ from app.deliver_grant_funding.forms import (
     QuestionForm,
     QuestionTypeForm,
     ReopenSubmissionForm,
+    RequestChangesSubmissionForm,
+    RequestOrAllowChangesSubmissionForm,
     SetUpCollectionForm,
 )
 from app.deliver_grant_funding.routes.collections import (
@@ -8937,6 +8939,43 @@ class TestViewSubmission:
         timeline_panel = soup.select_one("#timeline")
         assert timeline_panel.find("h2", class_="govuk-heading-m").text.strip() == "Timeline"
 
+    @pytest.mark.parametrize(
+        "client_fixture, submission_fixture, can_see_button",
+        [
+            ("authenticated_org_member_client", "submission_submitted", False),
+            ("authenticated_grant_member_client", "submission_in_progress", False),
+            ("authenticated_grant_member_client", "submission_submitted", True),
+        ],
+    )
+    def test_can_see_request_or_allow_changes_button(
+        self, request, client_fixture, grant_recipient, submission_fixture, can_see_button, factories
+    ):
+        client = request.getfixturevalue(client_fixture)
+        submission = request.getfixturevalue(submission_fixture)
+        with client.session_transaction() as session:
+            session["NEW_CHANGE_REQUESTS"] = "on"
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        button = page_has_link(soup, "Request or allow changes")
+        if can_see_button:
+            assert button is not None
+            assert button["href"] == url_for(
+                "deliver_grant_funding.request_or_allow_changes",
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        else:
+            assert button is None
+
     def test_get_view_submission_displays_questions_with_add_another(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
@@ -9192,6 +9231,191 @@ class TestReopenSubmission:
             submission_id=submission_submitted.id,
         )
         assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+
+
+class TestRequestOrAllowChanges:
+    def test_get_request_or_allow_changes_page_1(self, authenticated_grant_member_client, submission_submitted):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.request_or_allow_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "Are you requesting changes to" in soup.text
+
+    def test_select_no_request_or_allow_changes_page_1(self, authenticated_grant_member_client, submission_submitted):
+        form = RequestOrAllowChangesSubmissionForm(data={"request_changes": "no"})
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_or_allow_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        assert response.location == url_for(
+            "deliver_grant_funding.reopen_submission",
+            grant_id=submission_submitted.collection.grant.id,
+            submission_id=submission_submitted.id,
+        )
+
+    def test_select_yes_redirects_to_request_changes_submission(
+        self, authenticated_grant_member_client, submission_submitted
+    ):
+        form = RequestOrAllowChangesSubmissionForm(data={"request_changes": "yes"})
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_or_allow_changes",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        assert response.location == url_for(
+            "deliver_grant_funding.request_changes_submission",
+            grant_id=submission_submitted.collection.grant.id,
+            submission_id=submission_submitted.id,
+        )
+
+
+class TestRequestChangesSubmission:
+    def test_get_request_changes_submission_page(self, authenticated_grant_member_client, submission_submitted):
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.request_changes_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "Changes needed to" in soup.text
+
+    def test_post_request_changes_submission_without_section_ids(
+        self, authenticated_grant_member_client, submission_submitted, db_session
+    ):
+        with authenticated_grant_member_client.session_transaction() as session:
+            session["NEW_CHANGE_REQUESTS"] = "on"
+
+        submission_events_changes_requests_before = (
+            db_session.query(SubmissionEvent)
+            .where(
+                SubmissionEvent.submission_id == submission_submitted.id,
+                SubmissionEvent.event_type == SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            )
+            .all()
+        )
+
+        # No SUBMISSION_CHANGES_REQUESTED events before
+        assert len(submission_events_changes_requests_before) == 0
+
+        form = RequestChangesSubmissionForm(
+            data={
+                "changes_requested_reason": "Please update this section",
+                "section_ids": [],  # no section_ids
+            },
+            form_choices=[(str(f.id), f.title) for f in submission_submitted.collection.forms],
+            long_collection_name=submission_submitted.collection.name,
+        )
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_changes_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert page_has_flash(soup, "Changes have been requested")
+
+        submission_events_changes_requests_after = (
+            db_session.query(SubmissionEvent)
+            .where(
+                SubmissionEvent.submission_id == submission_submitted.id,
+                SubmissionEvent.event_type == SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            )
+            .all()
+        )
+
+        # One SUBMISSION_CHANGES_REQUESTED events created
+        assert len(submission_events_changes_requests_after) == 1
+
+    def test_post_request_changes_submission_with_section_ids(
+        self, authenticated_grant_member_client, submission_submitted, db_session
+    ):
+        with authenticated_grant_member_client.session_transaction() as session:
+            session["NEW_CHANGE_REQUESTS"] = "on"
+
+        submission_events_changes_requests_before = (
+            db_session.query(SubmissionEvent)
+            .where(
+                SubmissionEvent.submission_id == submission_submitted.id,
+                SubmissionEvent.event_type == SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            )
+            .all()
+        )
+
+        # No SUBMISSION_CHANGES_REQUESTED events before
+        assert len(submission_events_changes_requests_before) == 0
+
+        section_ids = [str(submission_submitted.collection.forms[0].id)]
+        form = RequestChangesSubmissionForm(
+            data={
+                "changes_requested_reason": "Please update this section",
+                "section_ids": section_ids,  # with section_ids
+            },
+            form_choices=[(str(f.id), f.title) for f in submission_submitted.collection.forms],
+            long_collection_name=submission_submitted.collection.name,
+        )
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_changes_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert page_has_flash(soup, "Changes have been requested")
+
+        submission_events_changes_requests_after = (
+            db_session.query(SubmissionEvent)
+            .where(
+                SubmissionEvent.submission_id == submission_submitted.id,
+                SubmissionEvent.event_type == SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            )
+            .all()
+        )
+
+        # One SUBMISSION_CHANGES_REQUESTED events created
+        assert len(submission_events_changes_requests_after) == 1
 
 
 class TestListCollectionDataSets:
