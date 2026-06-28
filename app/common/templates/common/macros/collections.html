@@ -354,6 +354,13 @@
   <span class="govuk-caption-l">{{ form.title }}</span>
   <h1 class="govuk-heading-l">{{ "Your submitted answers" if (submission.in_answers_locked_state) else "Check your answers" }}</h1>
 
+  {% if submission.get_status_for_form(form) == enum.tasklist_section_status.CHANGES_REQUESTED or (submission.events.submission_state.is_changes_requested and not submission.events.submission_state.section_ids) %}
+    <div class="govuk-inset-text">
+      <strong class="govuk-tag govuk-tag--yellow govuk-!-margin-bottom-2">Changes requested</strong>
+      <p class="govuk-body">{{ submission.changes_requested_reason }}</p>
+    </div>
+  {% endif %}
+
   {{ summary_list_for_answers(form, runner) }}
 
   {% if not runner.can_edit_form(form) %}
