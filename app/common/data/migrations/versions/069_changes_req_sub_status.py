@@ -1,4 +1,4 @@
-"""add SUBMISSION_CHANGES_REQUESTED to submission_status_enum
+"""add CHANGES_REQUESTED and SUBMITTED_WITH_CHANGES to submission_status_enum
 
 Revision ID: 069_changes_req_sub_status
 Revises: 068_changes_requested_event
@@ -28,6 +28,7 @@ def upgrade() -> None:
             "NOT_SUBMITTED",
             "PARTIALLY_SUBMITTED",
             "CHANGES_REQUESTED",
+            "SUBMITTED_WITH_CHANGES",
         ],
         affected_columns=[TableReference(table_schema="public", table_name="submission", column_name="status")],
         enum_values_to_rename=[],
