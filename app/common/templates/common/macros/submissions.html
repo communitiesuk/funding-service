@@ -1,4 +1,6 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 
 {# todo: relies on top level template having `interpolate` and `format_thousands` (for example) #}
 {#       we should set all formatters as globally registered filters and set the appropriate interpolator here #}
@@ -57,11 +59,27 @@
       {% endif %}
     {% else %}
       {% set answer = helper.cached_get_answer_for_question(question.id, add_another_index=add_another_index) %}
+      {% set answer_changed = helper.is_submitted and helper.has_answer_changed_since_previous(question.id, add_another_index=add_another_index) %}
       {% set value_html %}
+        {% if answer_changed %}
+          <p class="govuk-body">{{ govukTag({"text": "Changed", "classes": "govuk-tag--blue govuk-!-margin-bottom-2"}) }}</p>
+        {% endif %}
         {% if answer %}
           {% include answer._render_answer_template %}
         {% else %}
           (Not answered)
+        {% endif %}
+        {% if answer_changed %}
+          {% set original_answer = helper.get_previous_answer_for_question(question.id, add_another_index=add_another_index) %}
+          {% set original_answer_html %}
+            {% if original_answer %}
+              {% set answer = original_answer %}
+              {% include answer._render_answer_template %}
+            {% else %}
+              (Not answered)
+            {% endif %}
+          {% endset %}
+          {{ govukDetails({"summaryText": "Original response", "classes": "govuk-!-margin-top-4","html": original_answer_html}) }}
         {% endif %}
       {% endset %}
 
@@ -77,7 +95,7 @@
             "text": key_text,
           },
           "value": {
-            "text": value_html
+            "html": value_html
           }
         })
       %}

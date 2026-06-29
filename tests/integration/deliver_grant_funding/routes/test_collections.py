@@ -3,6 +3,7 @@ import datetime
 import io
 import logging
 import uuid
+from copy import deepcopy
 from datetime import date
 from decimal import Decimal
 
@@ -9176,6 +9177,44 @@ class TestViewSubmission:
             assert reopen_button is not None
         else:
             assert reopen_button is None
+
+    def test_shows_changed_tag_and_original_response_for_resubmitted_answers(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        question = factories.question.create(form__collection__grant=authenticated_grant_admin_client.grant)
+        submission = factories.submission.create(
+            collection=question.form.collection,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("original answer"))],
+        )
+        previous_data = deepcopy(submission.data_manager.data)
+
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            data={
+                "changes_requested_reason": "Please fix",
+                "submission_data": previous_data,
+                "section_ids": [],
+            },
+        )
+        submission.data_manager.set(question, TextSingleLineAnswer("updated answer"))
+        submission.status = SubmissionStatusEnum.SUBMITTED
+        db_session.flush()
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Changed" in soup.text
+        assert "Original response" in soup.text
+        assert "original answer" in soup.text
+        assert "updated answer" in soup.text
 
 
 class TestReopenSubmission:

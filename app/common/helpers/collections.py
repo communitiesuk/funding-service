@@ -42,6 +42,7 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
+from app.common.data.submission_data_manager import SubmissionDataAddAnotherIndexInvalid, SubmissionDataManager
 from app.common.data.types import (
     CollectionStatusEnum,
     ComponentVisibilityState,
@@ -1475,6 +1476,49 @@ class SubmissionHelper:
             answer_status.append(answer is not None)
 
         return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
+
+    @cached_property
+    def previous_submission_data(self) -> SubmissionDataManager | None:
+        submission_data = self.events.submission_state.submission_data
+
+        if not submission_data:
+            return None
+
+        return SubmissionDataManager(submission_data)
+
+    def get_previous_answer_for_question(
+        self, question_id: UUID, *, add_another_index: int | None = None
+    ) -> AllAnswerTypes | None:
+        previous_submission_data = self.previous_submission_data
+
+        if previous_submission_data is None:
+            return None
+
+        question = self.get_question(question_id)
+
+        if question.add_another_container and add_another_index is None:
+            return previous_submission_data.data.get(str(question.add_another_container.id))
+
+        try:
+            return previous_submission_data.get(question, add_another_index=add_another_index)
+        except SubmissionDataAddAnotherIndexInvalid:
+            return None
+
+    def has_answer_changed_since_previous(self, question_id: UUID, *, add_another_index: int | None = None) -> bool:
+        if self.previous_submission_data is None:
+            return False
+
+        question = self.get_question(question_id)
+
+        if question.add_another_container and add_another_index is None:
+            previous = self.previous_submission_data.data.get(str(question.add_another_container.id))
+            current = self.submission.data_manager.data.get(str(question.add_another_container.id))
+            return previous != current
+
+        previous = self.get_previous_answer_for_question(question_id, add_another_index=add_another_index)
+        current = self.cached_get_answer_for_question(question_id, add_another_index=add_another_index)
+
+        return previous != current
 
 
 class AllSubmissionsHelper:
