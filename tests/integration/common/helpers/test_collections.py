@@ -1,6 +1,7 @@
 import csv
 import json
 import uuid
+from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
 from io import StringIO
@@ -47,6 +48,7 @@ from app.common.helpers.collections import (
     SubmissionHelper,
     SubmissionIsNotSubmittedError,
 )
+from app.common.helpers.submission_events import SubmissionEventHelper
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching
 
@@ -2201,6 +2203,218 @@ class TestSubmissionHelper:
                 certifier_1,
                 certifier_2,
             }
+
+    class TestPreviousSubmissionData:
+        def test_returns_none_when_no_previous_snapshot_exists(self, factories):
+            question = factories.question.build()
+            submission = factories.submission.build(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.previous_submission_data is None
+
+        def test_returns_data_manager_when_previous_snapshot_exists(self, factories):
+            question = factories.question.build()
+            submission = factories.submission.build(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("original"))],
+            )
+
+            # get a copy of the initial data that won't be mutated
+            previous_data = deepcopy(submission.data_manager.data)
+
+            # Update answer
+            submission.data_manager.set(question, TextSingleLineAnswer("updated"))
+
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        changes_requested_reason="Fix this",
+                        submission_data=previous_data,
+                        section_ids=[],
+                    ),
+                )
+            ]
+            helper = SubmissionHelper(submission)
+
+            assert helper.previous_submission_data is not None
+            assert helper.previous_submission_data.get(question) == TextSingleLineAnswer("original")
+
+    class TestGetPreviousAnswerForQuestion:
+        def test_returns_none_when_no_previous_snapshot_exists(self, factories):
+            question = factories.question.build()
+            submission = factories.submission.build(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            assert helper.get_previous_answer_for_question(question.id) is None
+
+        def test_returns_previous_answer(self, factories):
+            question = factories.question.build()
+            submission = factories.submission.build(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("original"))],
+            )
+
+            # get a copy of the initial data that won't be mutated
+            previous_data = deepcopy(submission.data_manager.data)
+
+            submission.data_manager.set(question, TextSingleLineAnswer("updated"))
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        changes_requested_reason="Fix this",
+                        submission_data=previous_data,
+                        section_ids=[],
+                    ),
+                )
+            ]
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.get_previous_answer_for_question(question.id) == TextSingleLineAnswer("original")
+
+        def test_returns_previous_for_multi_question_answers(self, factories):
+            group = factories.group.build(add_another=True)
+            question = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(question, TextSingleLineAnswer("original 0"), add_another_index=0),
+                    FactoryAnswer(question, TextSingleLineAnswer("original 1"), add_another_index=1),
+                ],
+            )
+
+            # get a copy of the initial data that won't be mutated
+            previous_data = deepcopy(submission.data_manager.data)
+
+            # we invert the answers
+            submission.data_manager.set(question, TextSingleLineAnswer("original 1"), add_another_index=0)
+            submission.data_manager.set(question, TextSingleLineAnswer("original 0"), add_another_index=1)
+
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        changes_requested_reason="Fix this",
+                        submission_data=previous_data,
+                        section_ids=[],
+                    ),
+                )
+            ]
+
+            helper = SubmissionHelper(submission)
+
+            # assert for add_another_index=None returning all questions in group
+            assert helper.get_previous_answer_for_question(question.id) == [
+                {str(question.id): "original 0"},
+                {str(question.id): "original 1"},
+            ]
+
+            # we are fetching the previous answers at the previous index
+            assert helper.get_previous_answer_for_question(question.id, add_another_index=0) == TextSingleLineAnswer(
+                "original 0"
+            )
+            assert helper.get_previous_answer_for_question(question.id, add_another_index=1) == TextSingleLineAnswer(
+                "original 1"
+            )
+
+            # assert for SubmissionDataAddAnotherIndexInvalid cases
+            assert helper.get_previous_answer_for_question(question.id, add_another_index=2) is None
+
+    class TestHasAnswerChangedSincePrevious:
+        def test_returns_false_when_no_previous_snapshot_exists(self, factories):
+            question = factories.question.build()
+            submission = factories.submission.build(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("answer"))],
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.has_answer_changed_since_previous(question.id) is False
+
+        @pytest.mark.parametrize(
+            "initial_answer, updated_answer, expected",
+            [
+                pytest.param("same", "same", False, id="unchanged"),
+                pytest.param("original", "updated", True, id="changed"),
+            ],
+        )
+        def test_answer_changed_since_previous(self, factories, initial_answer, updated_answer, expected):
+            question = factories.question.build()
+            submission = factories.submission.build(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer(initial_answer))],
+            )
+            previous_data = deepcopy(submission.data_manager.data)
+            submission.data_manager.set(question, TextSingleLineAnswer(updated_answer))
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        changes_requested_reason="Fix this",
+                        submission_data=previous_data,
+                        section_ids=[],
+                    ),
+                )
+            ]
+            helper = SubmissionHelper(submission)
+
+            assert helper.has_answer_changed_since_previous(question.id) is expected
+
+        @pytest.mark.parametrize(
+            "initial_answers, updated_answers, expected",
+            [
+                pytest.param(["original 0", "original 1"], ["original 0", "original 1"], False, id="unchanged"),
+                pytest.param(["original 0", "original 1"], ["original 1", "original 0"], True, id="swapped_are_diff"),
+                pytest.param(["original 0", "original 1"], ["updated 0", "updated 1"], True, id="different"),
+                pytest.param(["original 0"], ["original 0", "original 1"], True, id="uneven"),
+            ],
+        )
+        def test_returns_for_changed_multi_question_answers(
+            self, factories, initial_answers, updated_answers, expected
+        ):
+            group = factories.group.build(add_another=True)
+            question = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(question, TextSingleLineAnswer(answer), add_another_index=index)
+                    for index, answer in enumerate(initial_answers)
+                ],
+            )
+
+            # get a copy of the initial data that won't be mutated
+            previous_data = deepcopy(submission.data_manager.data)
+
+            # we invert the answers
+            for index, answer in enumerate(updated_answers):
+                submission.data_manager.set(question, TextSingleLineAnswer(answer), add_another_index=index)
+
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        changes_requested_reason="Fix this",
+                        submission_data=previous_data,
+                        section_ids=[],
+                    ),
+                )
+            ]
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.has_answer_changed_since_previous(question.id) is expected
 
 
 class TestFormResetOnAnswerChange:
