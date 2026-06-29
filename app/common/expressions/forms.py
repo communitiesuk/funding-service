@@ -243,7 +243,6 @@ def _validate_custom_syntax(  # noqa:C901
     statement: ExpressionStatement,
     expression_type: ExpressionType,
     field_name: str,
-    validate_with_evaluation: bool = True,
     evaluation_context: ExpressionContext | None = None,
 ) -> None:
     validated_references = []
@@ -260,17 +259,18 @@ def _validate_custom_syntax(  # noqa:C901
             )
             validated_references.append(validated_ref)
 
-        # TODO: this can be inferred by `statement` being an EvaluationStatement
-        if not validate_with_evaluation:
+        if not isinstance(statement, EvaluationStatement):
             # No further validation needed for custom error message
             return
 
+        statement.validate_syntax()
+
         if evaluation_context is None:
-            raise ValueError("evaluation_context must be provided for validate_with_evaluation")
+            raise ValueError("evaluation_context must be provided for EvaluationStatements")
 
         if expression_type == ExpressionType.VALIDATION:
             if component.is_question:
-                references_to_self_count = cast(EvaluationStatement, statement).count_references(
+                references_to_self_count = statement.count_references(
                     ExpressionReference.from_question(cast("Question", component))
                 )
                 if references_to_self_count != 1:
@@ -384,7 +384,6 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
                 EvaluationStatement(self.custom_expression.data or ""),
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=self.evaluation_context,
             )
         except WTFormRenderableException as e:
@@ -397,7 +396,6 @@ class CustomValidationExpressionForm(ExceptionRenderingFormMixin, FlaskForm):
                 InterpolationStatement(self.custom_message.data or ""),
                 ExpressionType.VALIDATION,
                 "custom_message",
-                validate_with_evaluation=False,
             )
         except WTFormRenderableException as e:
             self.handle_exception(e, field_name="custom_message")
@@ -456,7 +454,6 @@ class CalculatedConditionForm(ExceptionRenderingFormMixin, FlaskForm):
                 EvaluationStatement(self.custom_expression.data or ""),
                 ExpressionType.CONDITION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=self.evaluation_context,
             )
         except WTFormRenderableException as e:
