@@ -38,6 +38,10 @@ class ReopenedMixin(Protocol):
     reopened_reason: str | None
 
 
+class ChangesRequestedMixin(Protocol):
+    changes_requested_reason: str | None
+
+
 @dataclass
 class SubmissionEventBase:
     """Base class for all submission event dataclasses."""
@@ -86,6 +90,16 @@ class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, 
     is_approved: bool = False
     is_submitted: bool = False
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
+
+
+@dataclass
+class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, ChangesRequestedMixin, SubmittedMixin):
+    changes_requested_reason: str = field(metadata={"stored": True})
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_CHANGES_REQUESTED
+    is_awaiting_sign_off: bool = False
+    is_approved: bool = False
+    is_submitted: bool = False
+    submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
     section_ids: list[str] = field(default_factory=list, metadata={"stored": True})
 
 
@@ -101,7 +115,12 @@ class DeclinedByCertifierKwargs(TypedDict, total=False):
 class ReopenedKwargs(TypedDict, total=False):
     reopened_reason: str | None
     submission_data: dict[str, Any] | None
-    section_ids: list[str] | None
+
+
+class ChangesRequestedKwargs(TypedDict, total=False):
+    changes_requested_reason: str | None
+    submission_data: dict[str, Any] | None
+    section_ids: list[str]
 
 
 @dataclass
@@ -150,6 +169,12 @@ class ReopenedMetadata:
 
 
 @dataclass
+class ChangesRequestedMetadata:
+    changes_requested_by: User | None = None
+    changes_requested_at_utc: datetime | None = None
+
+
+@dataclass
 class SubmissionState(
     SentForCertificationMetadata,
     SubmittedMetadata,
@@ -160,14 +185,17 @@ class SubmissionState(
     SubmittedMixin,
     DeclinedMixin,
     ReopenedMixin,
+    ChangesRequestedMixin,
+    ChangesRequestedMetadata,
 ):
     is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
     is_approved: bool | None = None
     declined_reason: str | None = None
     reopened_reason: str | None = None
+    changes_requested_reason: str | None = None
     submission_data: dict[str, Any] | None = None
-    section_ids: list[str] | None = None
+    section_ids: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -279,6 +307,13 @@ class SubmissionEventHelper:
                     ReopenedMetadata(
                         reopened_by=event.created_by,
                         reopened_at_utc=event.created_at_utc,
+                    )
+                )
+            case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
+                return shallow_asdict(
+                    ChangesRequestedMetadata(
+                        changes_requested_by=event.created_by,
+                        changes_requested_at_utc=event.created_at_utc,
                     )
                 )
             case _:

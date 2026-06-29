@@ -1792,6 +1792,9 @@ def _add_submission_event(
         case SubmissionEventType.SUBMISSION_REOPENED:
             emit_metric_count(MetricEventName.SUBMISSION_REOPENED, submission=submission)
 
+        case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
+            emit_metric_count(MetricEventName.SUBMISSION_CHANGES_REQUESTED, submission=submission)
+
         case _:
             current_app.logger.error(
                 "No metric configured for submission event %(event_type)s for submission %(submission_id)s",

@@ -3148,6 +3148,7 @@ class TestAddSubmissionEvent:
                 MetricEventName.SUBMISSION_CERTIFICATION_DECLINED,
             ),
             (SubmissionEventType.SUBMISSION_REOPENED, False, MetricEventName.SUBMISSION_REOPENED),
+            (SubmissionEventType.SUBMISSION_CHANGES_REQUESTED, True, MetricEventName.SUBMISSION_CHANGES_REQUESTED),
         ],
     )
     def test_add_submission_event_metrics(
