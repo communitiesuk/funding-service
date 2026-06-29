@@ -49,8 +49,14 @@
             "key": { "text": "Grant description" },
             "value": { "text": grant.description },
           }, {
+            "key": { "text": "Grant code" },
+            "value": { "text": grant.code },
+          }, {
             "key": { "text": "GGIS number" },
             "value": { "text": grant.ggis_number },
+          }, {
+            "key": { "text": "Main contact" },
+            "value": { "text": grant.primary_contact_name ~ ("<br>" | safe) ~ grant.primary_contact_email },
           }, {
             "key": { "text": "Grant team users" },
             "value": { "html": grant_team_users },
