@@ -4,6 +4,7 @@
     <p class="moj-timeline__byline">by {{ item.source.submission.collection.grant.organisation.name }}</p>
   </div>
   <p class="moj-timeline__date">
+    <strong>{{ item.source.created_by.name or item.source.created_by.email }}</strong> on
     <time datetime="{{ iso_utc(item.datetime) }}">{{ format_datetime_short(item.datetime) }}</time>
   </p>
   {% set raw_section_ids = item.source.data.get("section_ids", []) %}
