@@ -50,6 +50,7 @@ from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import MHCLGAccessibleAutocomplete
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
+from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.safe_ids import safe_column_id
 from app.common.utils import uppercase_first
@@ -1476,8 +1477,10 @@ class RequestChangesSubmissionForm(FlaskForm):
     )
     submit = SubmitField("Confirm and request changes", widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, form_choices: list[tuple[str, str]], long_collection_name: str, **kwargs: Any):
+    def __init__(self, *args: Any, submission_helper: SubmissionHelper, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-        self.section_ids.choices = form_choices
-        self.changes_requested_reason.label.text = f"What changes are needed to this {long_collection_name}?"
+        self.section_ids.choices = [(str(f.id), f.title) for f in submission_helper.collection.forms]
+        self.changes_requested_reason.label.text = (
+            f"What changes are needed to this {submission_helper.long_collection_name}?"
+        )

@@ -3386,10 +3386,7 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
     if not AuthorisationHelper.can_reopen_submission(get_current_user(), submission_helper.submission):
         abort(403)
 
-    form = RequestChangesSubmissionForm(
-        form_choices=[(str(f.id), f.title) for f in submission_helper.collection.forms],
-        long_collection_name=submission_helper.long_collection_name,
-    )
+    form = RequestChangesSubmissionForm(submission_helper=submission_helper)
     if form.validate_on_submit():
         try:
             submission_helper.request_changes_submission(

@@ -9331,8 +9331,7 @@ class TestRequestChangesSubmission:
                 "changes_requested_reason": "Please update this section",
                 "section_ids": [],  # no section_ids
             },
-            form_choices=[(str(f.id), f.title) for f in submission_submitted.collection.forms],
-            long_collection_name=submission_submitted.collection.name,
+            submission_helper=SubmissionHelper(submission_submitted),
         )
         response = authenticated_grant_member_client.post(
             url_for(
@@ -9386,8 +9385,7 @@ class TestRequestChangesSubmission:
                 "changes_requested_reason": "Please update this section",
                 "section_ids": section_ids,  # with section_ids
             },
-            form_choices=[(str(f.id), f.title) for f in submission_submitted.collection.forms],
-            long_collection_name=submission_submitted.collection.name,
+            submission_helper=SubmissionHelper(submission_submitted),
         )
         response = authenticated_grant_member_client.post(
             url_for(

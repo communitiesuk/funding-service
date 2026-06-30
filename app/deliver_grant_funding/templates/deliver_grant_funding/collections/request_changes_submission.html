@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% set page_title = "Submission - " ~ helper.long_collection_name %}
+{% set page_title = "Request changes - " ~ helper.long_collection_name %}
 {% set type_constants = helper.submission.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
@@ -60,7 +60,7 @@
         }}
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.request_or_allow_changes', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
         </div>
       </form>
     </div>
