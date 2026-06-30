@@ -187,6 +187,7 @@ class TasklistSectionStatusEnum(enum.StrEnum):
     NO_QUESTIONS = "No questions"
     NOT_NEEDED = "Not needed"
     CHANGES_REQUESTED = "Changes requested"
+    CHANGES_MADE = "Changes made"
 
 
 class SubmissionEventType(enum.StrEnum):

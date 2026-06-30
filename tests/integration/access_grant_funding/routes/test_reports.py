@@ -1,4 +1,5 @@
 import datetime
+from copy import deepcopy
 from datetime import date
 
 import pytest
@@ -363,6 +364,48 @@ class TextExportReportPDF:
         else:
             assert response.status_code == 200
             assert response.headers["Content-Type"] == "application/pdf"
+
+    def test_shows_changed_tag_and_original_response_for_resubmitted_answers(
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(form__collection__grant=grant_recipient.grant)
+        submission = factories.submission.create(
+            grant_recipient=grant_recipient,
+            collection=question.form.collection,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("original answer"))],
+        )
+        previous_data = deepcopy(submission.data_manager.data)
+
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            data={
+                "changes_requested_reason": "Please fix",
+                "submission_data": previous_data,
+                "section_ids": [],
+            },
+        )
+        submission.data_manager.set(question, TextSingleLineAnswer("updated answer"))
+        submission.status = SubmissionStatusEnum.SUBMITTED
+        db_session.flush()
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.view_locked_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=question.form.collection.type,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Changed" in soup.text
+        assert "Original response" in soup.text
+        assert "original answer" in soup.text
+        assert "updated answer" in soup.text
 
 
 class TestExportReportPDFLock:
