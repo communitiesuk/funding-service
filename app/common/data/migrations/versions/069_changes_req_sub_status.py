@@ -33,7 +33,6 @@ def upgrade() -> None:
         affected_columns=[TableReference(table_schema="public", table_name="submission", column_name="status")],
         enum_values_to_rename=[],
     )
-    # ### end Alembic commands ###
 
 
 def downgrade() -> None:
@@ -52,4 +51,3 @@ def downgrade() -> None:
         affected_columns=[TableReference(table_schema="public", table_name="submission", column_name="status")],
         enum_values_to_rename=[],
     )
-    # ### end Alembic commands ###
