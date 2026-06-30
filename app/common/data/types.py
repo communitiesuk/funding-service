@@ -175,6 +175,8 @@ class SubmissionStatusEnum(enum.StrEnum):
     SUBMITTED = "Submitted"
     NOT_SUBMITTED = "Not submitted"
     PARTIALLY_SUBMITTED = "Partially submitted"
+    CHANGES_REQUESTED = "Changes requested"
+    SUBMITTED_WITH_CHANGES = "Submitted with changes"
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):
@@ -184,6 +186,7 @@ class TasklistSectionStatusEnum(enum.StrEnum):
     COMPLETED = "Completed"
     NO_QUESTIONS = "No questions"
     NOT_NEEDED = "Not needed"
+    CHANGES_REQUESTED = "Changes requested"
 
 
 class SubmissionEventType(enum.StrEnum):

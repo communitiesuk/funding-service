@@ -2147,6 +2147,88 @@ class TestCheckYourAnswers:
             submission_id=submission.id,
         )
 
+    def test_check_your_answers_shows_changes_requested_reason_for_flagged_section(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+        )
+        form = question.form
+        submission = factories.submission.create(
+            collection=form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            related_entity_id=submission.id,
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            related_entity_id=submission.id,
+            data={"changes_requested_reason": "Please update this section", "section_ids": [str(form.id)]},
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.check_your_answers",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+                section_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "Changes requested" in soup.text
+        assert "Please update this section" in soup.text
+
+    def test_check_your_answers_shows_changes_requested_reason_when_no_section_ids(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant,
+        )
+        form = question.form
+        submission = factories.submission.create(
+            collection=form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            related_entity_id=submission.id,
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            related_entity_id=submission.id,
+            data={"changes_requested_reason": "General changes needed", "section_ids": []},
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.check_your_answers",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+                section_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "Changes requested" in soup.text
+        assert "General changes needed" in soup.text
+
 
 class TestConfirmSentForCertification:
     @pytest.mark.parametrize(

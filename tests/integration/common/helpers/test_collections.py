@@ -1956,7 +1956,7 @@ class TestSubmissionHelper:
                 section_ids=[str(form.id)],
             )
 
-            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.status == SubmissionStatusEnum.CHANGES_REQUESTED
             assert helper.changes_requested_reason == "Please fix section 1"
             assert helper.section_ids == [str(form.id)]
             assert helper.changes_requested_by == grant_team_user
@@ -2012,25 +2012,26 @@ class TestSubmissionHelper:
                 if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
             ]
 
+            assert helper._calculate_submission_status() == SubmissionStatusEnum.CHANGES_REQUESTED
+
             # section not in the section_ids is unchanged
             assert first_form.id not in event_ids
             assert helper.get_status_for_form(first_form) == TasklistSectionStatusEnum.COMPLETED
 
             # section in the section_ids is changed and event is created
             assert second_form.id in event_ids
-            assert helper.get_status_for_form(second_form) == TasklistSectionStatusEnum.IN_PROGRESS
+            assert helper.get_status_for_form(second_form) == TasklistSectionStatusEnum.CHANGES_REQUESTED
 
         def test_request_changes_without_section_ids_resets_all_forms(
-            self, grant_team_user, submission_submitted, factories
+            self, grant_team_user, submission_submitted
         ) -> None:
             first_form = submission_submitted.collection.forms[0]
-            second_form = factories.form.create(collection=submission_submitted.collection)
 
             helper = SubmissionHelper(submission_submitted)
             helper.request_changes_submission(
                 user=grant_team_user,
                 changes_requested_reason="Please fix section 2",
-                section_ids=[str(second_form.id)],
+                section_ids=[],
             )
 
             event_ids = [
@@ -2039,8 +2040,9 @@ class TestSubmissionHelper:
                 if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
             ]
 
-            assert first_form.id not in event_ids
-            assert second_form.id in event_ids
+            assert first_form.id in event_ids
+            assert helper.get_status_for_form(first_form) == TasklistSectionStatusEnum.IN_PROGRESS
+            assert helper._calculate_submission_status() == SubmissionStatusEnum.CHANGES_REQUESTED
 
         def test_request_changes_sends_notifications(
             self,
