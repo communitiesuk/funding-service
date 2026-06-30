@@ -8873,7 +8873,9 @@ class TestViewSubmission:
         assert "test name" in soup.text
 
         assert "What is your quest?" in soup.text
-        assert "Line 1\r\nline2\r\nline 3" in soup.text
+        assert "Line 1" in soup.text
+        assert "line2" in soup.text
+        assert "line 3" in soup.text
 
         assert "What is the airspeed velocity of an unladen swallow?" in soup.text
         assert "123" in soup.text

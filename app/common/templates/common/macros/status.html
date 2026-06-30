@@ -79,7 +79,7 @@
 {% endmacro %}
 
 {% macro submissionStatusTag(status, is_overdue) %}
-  {% set show_without_tag = [ enum.submission_status.SUBMITTED, enum.submission_status.PARTIALLY_SUBMITTED ] %}
+  {% set show_without_tag = [ enum.submission_status.PARTIALLY_SUBMITTED ] %}
   {%
     set classMap = {
         enum.submission_status.NOT_STARTED: "govuk-tag--grey",
@@ -88,6 +88,8 @@
         enum.submission_status.AWAITING_SIGN_OFF: "govuk-tag--purple",
         enum.submission_status.NOT_SUBMITTED: "govuk-tag--orange",
         enum.submission_status.CHANGES_REQUESTED: "govuk-tag--yellow",
+        enum.submission_status.SUBMITTED: "govuk-tag--blue",
+        enum.submission_status.SUBMITTED_WITH_CHANGES: "govuk-tag--blue",
     }
   %}
   {% set status_text = status ~ (" (Overdue)" if is_overdue and status != enum.submission_status.NOT_SUBMITTED else "") %}
