@@ -23,7 +23,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 from wtforms import Field, FieldList, FormField, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Optional, Regexp, ValidationError
+from wtforms.validators import DataRequired, Email, Optional, Regexp, StopValidation, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import (
@@ -61,6 +61,7 @@ from app.deliver_grant_funding.data_sets import (
     DecimalError,
     PrefixError,
     SuffixError,
+    validate_csv_cell_against_column_mapping,
 )
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
@@ -1026,15 +1027,151 @@ class UploadDataSetForm(FlaskForm):
 
     submit = SubmitField("Continue and map columns", widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, existing_data_source_names: list[str | None], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        existing_data_source_names: list[str | None],
+        existing_datasource: DataSource | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._existing_data_source_names = existing_data_source_names or []
+        self.existing_datasource = existing_datasource
+        self.data_errors = []
 
     def validate_name(self, field: StringField) -> None:
         if field.data and field.data in self._existing_data_source_names:
             raise ValidationError("A data set with this name already exists for this monitoring report")
 
-    def validate_file(self, field: Field) -> None:  # noqa: C901
+    @staticmethod
+    def _validate_minimum_columns(fieldnames) -> None:
+        if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
+            raise ValidationError("The CSV file must have at least one column")
+
+        if any(not fieldname.strip() for fieldname in fieldnames):
+            raise ValidationError("The CSV file must have a name for each column")
+
+        missing = [col for col in DATA_SET_IDENTIFIER_COLUMN_HEADERS if col not in fieldnames]
+        if missing:
+            raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
+
+        data_columns = [col for col in fieldnames if col.strip() and col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
+        if not data_columns:
+            raise ValidationError("The CSV file must contain at least one column of data")
+
+    @staticmethod
+    def _validate_duplicate_column_names_in_csv(fieldnames) -> None:
+        if len(fieldnames) != len(set(fieldnames)):
+            counter = Counter(fieldnames)
+            duplicate_fieldnames = [fieldname for fieldname, count in counter.items() if count > 1]
+            raise ValidationError(f"The CSV file contains duplicate column names: {', '.join(duplicate_fieldnames)}")
+
+        fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
+        counter = Counter(fieldnames_to_safe_ids.values())
+        duplicate_safe_ids = {safe_id for safe_id, count in counter.items() if count > 1}
+        if duplicate_safe_ids:
+            duplicate_originals = [
+                name for name, safe_id in fieldnames_to_safe_ids.items() if safe_id in duplicate_safe_ids
+            ]
+            raise ValidationError(f"The CSV file contains duplicate column names: {', '.join(duplicate_originals)}")
+
+    @staticmethod
+    def _validate_columns_in_each_row(rows) -> None:
+        if any(None in row or None in row.values() for row in rows):
+            raise ValidationError("The CSV file contains rows which are longer or shorter than the number of columns")
+
+    @staticmethod
+    def _validate_max_rows(rows) -> None:
+        row_count = len(rows)
+        if row_count > 10000:
+            raise ValidationError("The file must contain no more than 10,000 rows")
+
+    def _validate_existing_references(self, existing_datasource: DataSource, fieldnames: list) -> list[str]:
+        fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
+
+        errors = []
+        for dependent_reference in existing_datasource.depended_on_by_columns:
+            if dependent_reference.depends_on_column_name not in fieldnames_to_safe_ids.values():
+                column = existing_datasource.schema.root[dependent_reference.depends_on_column_name]  # ty:ignore[unresolved-attribute, invalid-argument-type]
+                col_name = column.original_column_name
+                q_text = dependent_reference.component.text
+                usage_text = "used in "
+                if dependent_reference.expression:
+                    match dependent_reference.expression.type_:
+                        case ExpressionType.VALIDATION:
+                            usage_text = "referenced in validation for "
+                        case ExpressionType.CONDITION:
+                            usage_text += "a condition for "
+                        case _:
+                            raise ValueError(
+                                (
+                                    "Reference checking not implemented to expression of type "
+                                    + f"{dependent_reference.expression.type_}"
+                                )
+                            )
+                errors.append(
+                    (
+                        f"Column '{col_name}' is missing from the selected file but is being "
+                        + usage_text
+                        + f"'{q_text}' Add the column to the file or remove the form reference"
+                    )
+                )
+        return errors
+
+    def _validate_data_for_existing_columns(
+        self, datasource: DataSource, fieldnames: list[str], rows: list[dict[str, str]]
+    ) -> list[str]:
+        safe_ids_to_column_names = {safe_column_id(fieldname): fieldname for fieldname in fieldnames}
+        data_errors = []
+        for col_safe_id, column_schema in datasource.schema.root.items():  # ty:ignore[unresolved-attribute]
+            if col_safe_id in safe_ids_to_column_names.keys():
+                column_mapping = DataSetColumnMapping.build_from_data_source_schema_column(column_schema)
+                for row in rows:
+                    cell_value = row[safe_ids_to_column_names[col_safe_id]]
+                    if cell_value and len(cell_value.strip()) > 0:
+                        data_errors.extend(
+                            validate_csv_cell_against_column_mapping(
+                                safe_ids_to_column_names[col_safe_id],
+                                cell_value,
+                                column_mapping,
+                            )
+                        )
+
+        errors_to_show = set()
+        for bp_error in [e for e in data_errors if (isinstance(e, BritishPoundsError))]:
+            errors_to_show.add(
+                (
+                    f"One or more numbers in column '{bp_error.column}' are not formatted as British pounds to 2 "
+                    + "decimal places with the '£' prefix. For example, £100.00"
+                )
+            )
+        for prefix_error in [e for e in data_errors if (isinstance(e, PrefixError))]:
+            errors_to_show.add(
+                f"One or more numbers in column '{prefix_error.column}' do not match the prefix "
+                + f"('{prefix_error.prefix}')"
+            )
+        for suffix_error in [e for e in data_errors if (isinstance(e, SuffixError))]:
+            errors_to_show.add(
+                f"One or more numbers in column '{suffix_error.column}' do not match the suffix "
+                + f"('{suffix_error.suffix}')"
+            )
+        for type_error in [
+            e for e in data_errors if isinstance(e, DataTypeError) and e.expected_type == NumberTypeEnum.INTEGER
+        ]:
+            errors_to_show.add(f"One or more numbers in column '{type_error.column}' are not whole numbers")
+        for type_error in [
+            e for e in data_errors if isinstance(e, DataTypeError) and e.expected_type == NumberTypeEnum.DECIMAL
+        ]:
+            errors_to_show.add(f"One or more numbers in column '{type_error.column}' are not decimal numbers")
+        for decimal_error in [e for e in data_errors if (isinstance(e, DecimalError))]:
+            errors_to_show.add(
+                f"One or more numbers in column '{decimal_error.column}' has more than "
+                + f"{decimal_error.max_decimal_places} decimal places"
+            )
+
+        return list(errors_to_show)
+
+    def validate_file(self, field: Field) -> None:
         if not field.data or not hasattr(field.data, "stream"):
             return
 
@@ -1046,44 +1183,20 @@ class UploadDataSetForm(FlaskForm):
             reader.fieldnames = fieldnames
             rows = list(reader)
 
-            if not fieldnames or not any(fieldname.strip() for fieldname in fieldnames):
-                raise ValidationError("The CSV file must have at least one column")
+            UploadDataSetForm._validate_minimum_columns(fieldnames)
+            UploadDataSetForm._validate_duplicate_column_names_in_csv(fieldnames)
+            UploadDataSetForm._validate_columns_in_each_row(rows)
+            UploadDataSetForm._validate_max_rows(rows)
 
-            if any(not fieldname.strip() for fieldname in fieldnames):
-                raise ValidationError("The CSV file must have a name for each column")
+            if self.existing_datasource:
+                errors = self._validate_existing_references(self.existing_datasource, fieldnames)
 
-            if len(fieldnames) != len(set(fieldnames)):
-                counter = Counter(fieldnames)
-                duplicate_fieldnames = [fieldname for fieldname, count in counter.items() if count > 1]
-                raise ValidationError(
-                    f"The CSV file contains duplicate column names: {', '.join(duplicate_fieldnames)}"
-                )
+                errors.extend(self._validate_data_for_existing_columns(self.existing_datasource, fieldnames, rows))
 
-            fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
-            counter = Counter(fieldnames_to_safe_ids.values())
-            duplicate_safe_ids = {safe_id for safe_id, count in counter.items() if count > 1}
-            if duplicate_safe_ids:
-                duplicate_originals = [
-                    name for name, safe_id in fieldnames_to_safe_ids.items() if safe_id in duplicate_safe_ids
-                ]
-                raise ValidationError(f"The CSV file contains duplicate column names: {', '.join(duplicate_originals)}")
+                if errors:
+                    self.data_errors = errors
+                    raise StopValidation("There is a problem")
 
-            if any(None in row or None in row.values() for row in rows):
-                raise ValidationError(
-                    "The CSV file contains rows which are longer or shorter than the number of columns"
-                )
-
-            missing = [col for col in DATA_SET_IDENTIFIER_COLUMN_HEADERS if col not in fieldnames]
-            if missing:
-                raise ValidationError(f"The CSV file must contain the columns: {', '.join(missing)}")
-
-            data_columns = [col for col in fieldnames if col.strip() and col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
-            if not data_columns:
-                raise ValidationError("The CSV file must contain at least one column of data")
-
-            row_count = len(rows)
-            if row_count > 10000:
-                raise ValidationError("The file must contain no more than 10,000 rows")
         finally:
             field.data.stream.seek(0)
 
@@ -1140,8 +1253,6 @@ class MapDataSetColumnsForm(FlaskForm):
                     mapping = DataSetColumnMapping(
                         column_name=column,
                         column_type=selected_value,
-                        prefix="£",
-                        max_decimal_places=2,
                     )
                 case "TEXT" | "INTEGER" | "DECIMAL" | _:
                     mapping = DataSetColumnMapping(
