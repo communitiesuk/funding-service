@@ -375,9 +375,12 @@ class SubmissionHelper:
         all_forms_completed_or_not_needed = form_statuses <= {
             TasklistSectionStatusEnum.COMPLETED,
             TasklistSectionStatusEnum.NOT_NEEDED,
+            TasklistSectionStatusEnum.CHANGES_MADE,
         }
 
         if all_forms_completed_or_not_needed and submission_state.is_submitted:
+            if TasklistSectionStatusEnum.CHANGES_MADE in form_statuses:
+                return SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
             return SubmissionStatusEnum.SUBMITTED
         elif self.collection_helper.is_closed:
             return SubmissionStatusEnum.NOT_SUBMITTED
@@ -424,7 +427,7 @@ class SubmissionHelper:
 
     @property
     def is_submitted(self) -> bool:
-        return self.status == SubmissionStatusEnum.SUBMITTED
+        return self.status in (SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES)
 
     @property
     def is_awaiting_sign_off(self) -> bool:
@@ -640,7 +643,11 @@ class SubmissionHelper:
     @cached_property
     def all_needed_forms_are_completed(self) -> bool:
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
-        return form_statuses <= {TasklistSectionStatusEnum.COMPLETED, TasklistSectionStatusEnum.NOT_NEEDED}
+        return form_statuses <= {
+            TasklistSectionStatusEnum.COMPLETED,
+            TasklistSectionStatusEnum.NOT_NEEDED,
+            TasklistSectionStatusEnum.CHANGES_MADE,
+        }
 
     def get_tasklist_status_for_form(self, form: Form) -> TasklistSectionStatusEnum:
         if len(form.cached_questions) == 0:
@@ -656,6 +663,11 @@ class SubmissionHelper:
         marked_as_complete = self.events.form_state(form.id).is_completed
 
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
+            if self.previous_submission_data is not None and any(
+                self.has_answer_changed_since_previous(question.id)
+                for question in self.cached_get_ordered_visible_questions(form)
+            ):
+                return TasklistSectionStatusEnum.CHANGES_MADE
             return TasklistSectionStatusEnum.COMPLETED
         elif (
             str(form.id) in self.events.submission_state.section_ids
@@ -1496,9 +1508,6 @@ class SubmissionHelper:
 
         question = self.get_question(question_id)
 
-        if question.add_another_container and add_another_index is None:
-            return previous_submission_data.data.get(str(question.add_another_container.id))
-
         try:
             return previous_submission_data.get(question, add_another_index=add_another_index)
         except SubmissionDataAddAnotherIndexInvalid:
@@ -1510,9 +1519,12 @@ class SubmissionHelper:
 
         question = self.get_question(question_id)
 
+        # if grouped question and we are not providing an index
         if question.add_another_container and add_another_index is None:
+            # Compare previous and current full grouped question dicts
             previous = self.previous_submission_data.data.get(str(question.add_another_container.id))
             current = self.submission.data_manager.data.get(str(question.add_another_container.id))
+
             return previous != current
 
         previous = self.get_previous_answer_for_question(question_id, add_another_index=add_another_index)
