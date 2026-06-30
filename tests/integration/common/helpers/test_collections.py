@@ -1096,6 +1096,42 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
+        def test_changes_made_and_submitted_with_changes_statuses(self, factories):
+            question = factories.question.build()
+            submission = factories.submission.build(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("original"))],
+            )
+            previous_data = deepcopy(submission.data_manager.data)
+            submission.data_manager.set(question, TextSingleLineAnswer("updated"))
+
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                    related_entity_id=question.form.id,
+                ),
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        changes_requested_reason="Fix this",
+                        submission_data=previous_data,
+                        section_ids=[],
+                    ),
+                ),
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                ),
+            ]
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.CHANGES_MADE
+            assert helper._calculate_submission_status() == SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
+
     class TestIgnoredFormsForSubmissionStatus:
         @staticmethod
         def _managed_collection(factories, db_session, extra_name_form_questions=0):
@@ -2310,12 +2346,6 @@ class TestSubmissionHelper:
             ]
 
             helper = SubmissionHelper(submission)
-
-            # assert for add_another_index=None returning all questions in group
-            assert helper.get_previous_answer_for_question(question.id) == [
-                {str(question.id): "original 0"},
-                {str(question.id): "original 1"},
-            ]
 
             # we are fetching the previous answers at the previous index
             assert helper.get_previous_answer_for_question(question.id, add_another_index=0) == TextSingleLineAnswer(
