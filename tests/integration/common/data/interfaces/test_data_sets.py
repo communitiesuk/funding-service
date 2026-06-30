@@ -941,6 +941,7 @@ class TestReplaceUploadedDataSource:
             name="Most popular cheeses",
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
         from_db = get_data_source(data_source.id, with_organisation_items=False)
         assert from_db.name == "Most popular cheeses"
@@ -1004,6 +1005,7 @@ class TestReplaceUploadedDataSource:
             ],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1064,6 +1066,7 @@ class TestReplaceUploadedDataSource:
             ],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1115,6 +1118,7 @@ class TestReplaceUploadedDataSource:
             ],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1162,6 +1166,7 @@ class TestReplaceUploadedDataSource:
             ],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
@@ -1211,6 +1216,7 @@ class TestReplaceUploadedDataSource:
             ],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
@@ -1249,6 +1255,7 @@ class TestReplaceUploadedDataSource:
             all_rows=[],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source.id)
@@ -1307,6 +1314,7 @@ class TestReplaceUploadedDataSource:
             ],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1391,6 +1399,7 @@ class TestReplaceUploadedDataSource:
             ],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1458,6 +1467,7 @@ class TestReplaceUploadedDataSource:
             ],
             s3_key="file_key",
             original_filename="file.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
@@ -1485,8 +1495,34 @@ class TestReplaceUploadedDataSource:
             all_rows=[],
             s3_key="new_key",
             original_filename="file_v2.csv",
+            user=factories.user.create(),
         )
 
         from_db = get_data_source(data_source.id, with_organisation_items=True)
         assert from_db.file_metadata.s3_key == "new_key"
         assert from_db.file_metadata.original_filename == "file_v2.csv"
+
+    def test_updated_by(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            created_by=factories.user.create(email="user1@test.com"),
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        replace_uploaded_data_source(
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            data_source=data_source,
+            new_columns=[],
+            all_headers=["Allocation"],
+            all_rows=[],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(email="update_user@test.com"),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert from_db.created_by.email == "user1@test.com"
+        assert from_db.updated_by.email == "update_user@test.com"

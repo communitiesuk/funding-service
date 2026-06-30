@@ -171,8 +171,11 @@ def replace_uploaded_data_source(
     all_rows: TUnvalidatedDataSetRows,
     s3_key: str,
     original_filename: str,
+    user: User,
     name: str | TNotProvided = NOT_PROVIDED,
 ) -> DataSource:
+
+    data_source.updated_by = user
 
     if name is not NOT_PROVIDED:
         data_source.name = name
