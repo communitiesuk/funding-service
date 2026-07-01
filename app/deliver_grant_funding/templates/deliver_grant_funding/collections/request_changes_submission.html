@@ -2,16 +2,9 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% extends "deliver_grant_funding/grant_base.html" %}
 
-{% set page_title = "Reopen submission - " ~ helper.long_collection_name %}
+{% set page_title = "Request changes - " ~ helper.long_collection_name %}
 {% set type_constants = helper.submission.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
-{%
-  set cancel_url = url_for(
-    "deliver_grant_funding.request_or_allow_changes" if feature_flags.NEW_CHANGE_REQUESTS.is_enabled else "deliver_grant_funding.view_submission",
-    grant_id=grant.id,
-    submission_id=helper.submission.id
-  )
-%}
 
 {% block beforeContent %}
   {% if helper.is_test %}
@@ -20,7 +13,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": cancel_url
+      "href": url_for("deliver_grant_funding.request_or_allow_changes", grant_id=grant.id, submission_id=helper.submission.id)
     })
   }}
 {% endblock beforeContent %}
@@ -30,9 +23,9 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
-        Why are you reopening this {{ helper.long_collection_name }} submission?
+        Changes needed to {{ helper.long_collection_name }}
       </h1>
-      <p class="govuk-body">We will send an email with your reason for reopening to:</p>
+      <p class="govuk-body">We will send an email with the change request to:</p>
       <ul class="govuk-list govuk-list--bullet">
         {% if helper.collection.requires_certification %}
           {% for user in helper.submission.grant_recipient.unique_data_providers_and_certifiers | sort(attribute="name") %}
@@ -45,23 +38,29 @@
         {% endif %}
       </ul>
       <form method="post" novalidate>
-        {% set label_html %}
-          <p class="govuk-visually-hidden">Why are you reopening the submission?</p>
-        {% endset %}
         {{ form.csrf_token }}
         {{
-          form.reopened_reason(
-            params={
-              "label":{
-                "html": label_html
-              },
-              "maxwords": form.REASON_MAX_WORDS
+          form.section_ids(params={
+            "fieldset": {
+              "legend": {
+                "text": form.section_ids.label.text,
+                "classes": "govuk-fieldset__legend--m"
+              }
             }
-          )
+          })
+        }}
+        {{
+          form.changes_requested_reason(params={
+            "label": {
+              "text": form.changes_requested_reason.label.text,
+              "classes": "govuk-label--m"
+            },
+            "maxwords": form.REASON_MAX_WORDS
+          })
         }}
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ cancel_url }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.request_or_allow_changes', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
         </div>
       </form>
     </div>
