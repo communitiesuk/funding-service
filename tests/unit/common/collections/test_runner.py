@@ -7,7 +7,7 @@ from app.common.collections.types import FileUploadAnswer, TextSingleLineAnswer
 from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
 
@@ -326,7 +326,7 @@ class TestFormRunner:
             assert runner.question_page_heading is None
             assert runner.question_page_caption == "Test form title"
 
-            question.guidance_heading = "Test guidance heading"
+            question.guidance_heading = InterpolationStatement("Test guidance heading")
             assert runner.question_page_heading == "Test guidance heading"
 
         def test_same_page_group(self, factories):
@@ -342,7 +342,7 @@ class TestFormRunner:
             assert runner.question_page_heading == "Test group name"
             assert runner.question_page_caption == "Test form title"
 
-            same_page_group.guidance_heading = "Test group guidance heading"
+            same_page_group.guidance_heading = InterpolationStatement("Test group guidance heading")
             assert runner.question_page_heading == "Test group guidance heading"
 
         def test_single_question_inside_add_another_context(self, factories):
@@ -355,7 +355,7 @@ class TestFormRunner:
             assert runner.question_page_heading is None
             assert runner.question_page_caption == "Test group name (1)"
 
-            question.guidance_heading = "Test group guidance heading"
+            question.guidance_heading = InterpolationStatement("Test group guidance heading")
             assert runner.question_page_heading == "Test group guidance heading"
 
         def test_same_page_group_inside_add_another_context(self, factories):
@@ -375,7 +375,7 @@ class TestFormRunner:
             assert runner.question_page_heading == "Same page group name"
             assert runner.question_page_caption == "Test group name (1)"
 
-            same_page_group.guidance_heading = "Test group guidance heading"
+            same_page_group.guidance_heading = InterpolationStatement("Test group guidance heading")
             assert runner.question_page_heading == "Test group guidance heading"
 
         def test_same_page_group_is_add_another_context(self, factories):
@@ -396,7 +396,7 @@ class TestFormRunner:
             assert runner.question_page_heading == "Test group name (1)"
             assert runner.question_page_caption == "Test form title"
 
-            add_another_same_page_group.guidance_heading = "Test group guidance heading"
+            add_another_same_page_group.guidance_heading = InterpolationStatement("Test group guidance heading")
             assert runner.question_page_heading == "Test group guidance heading (1)"
 
     class TestCannotStartForm:

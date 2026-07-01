@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 from pydantic import TypeAdapter
 
 from app.common.expressions import EvaluatableExpression
+from app.common.expressions.references import EvaluationStatement, InterpolationStatement
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression
@@ -13,11 +14,11 @@ class CustomExpression(EvaluatableExpression):
     name: ClassVar[Literal["CUSTOM"]] = "CUSTOM"
     _key: None = None
     expression_name: str | None = None
-    custom_expression: str
-    custom_message: str | None = None
+    custom_expression: EvaluationStatement
+    custom_message: InterpolationStatement | None = None
 
     @property
-    def statement(self) -> str:
+    def statement(self) -> EvaluationStatement:
         # NOTE: Custom expression statements must currently wrap any ExpressionReferences (eg q_123) in double parens
         #       as if they're an interpolation eg `((q_123)) + ((q_234)) == 100` in order for ComponentReferences to be
         #       set up correctly. Ideally this would not be a requirement, but these are processed by
@@ -28,7 +29,7 @@ class CustomExpression(EvaluatableExpression):
         return self.custom_expression
 
     @property
-    def message(self) -> str | None:
+    def message(self) -> InterpolationStatement | None:
         return self.custom_message
 
     @property
@@ -45,13 +46,13 @@ class CustomExpression(EvaluatableExpression):
 
         if isinstance(form, CustomValidationExpressionForm):
             return CustomExpression(
-                custom_expression=form.custom_expression.data,  # ty:ignore[invalid-argument-type]
-                custom_message=form.custom_message.data,
+                custom_expression=cast(EvaluationStatement, form.custom_expression.data),
+                custom_message=cast(InterpolationStatement, form.custom_message.data),
             )
         else:
             return CustomExpression(
                 expression_name=form.expression_name.data,
-                custom_expression=form.custom_expression.data,  # ty:ignore[invalid-argument-type]
+                custom_expression=cast(EvaluationStatement, form.custom_expression.data),
             )
 
 
