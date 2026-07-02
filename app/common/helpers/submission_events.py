@@ -325,10 +325,22 @@ class SubmissionEventHelper:
     @overload
     @staticmethod
     def event_from(
-        event_type: Literal[
-            SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER, SubmissionEventType.SUBMISSION_REOPENED
-        ],
-        **kwargs: Unpack[DeclinedByCertifierKwargs, ReopenedKwargs],
+        event_type: Literal[SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER],
+        **kwargs: Unpack[DeclinedByCertifierKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SUBMISSION_REOPENED],
+        **kwargs: Unpack[ReopenedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED],
+        **kwargs: Unpack[ChangesRequestedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload
