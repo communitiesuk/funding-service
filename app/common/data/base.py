@@ -18,6 +18,12 @@ from app.common.data.types import (
     json_flat_scalars,
     json_scalars,
 )
+from app.common.expressions.references import (
+    EvaluationStatement,
+    EvaluationStatementType,
+    InterpolationStatement,
+    InterpolationStatementType,
+)
 
 convention = {
     "ix": "ix_%(column_0_label)s",
@@ -41,6 +47,8 @@ class BaseModel(DeclarativeBase):
         DataSourceFileMetadata: DataSourceFileMetadataPostgresType,
         DataSourceSchema: DataSourceSchemaPostgresType,
         CIStr: CITEXT,
+        InterpolationStatement: InterpolationStatementType,
+        EvaluationStatement: EvaluationStatementType,
     }
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, sort_order=-100, default=uuid.uuid4)

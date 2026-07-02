@@ -381,7 +381,7 @@ def build_question_form(  # noqa: C901
             case QuestionDataType.EMAIL:
                 field = EmailField(
                     label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    description=interpolate(text=question.hint, context=interpolation_context),
                     widget=GovTextInput(),
                     validators=[
                         DataRequired(f"Enter the {question.name}"),
@@ -392,7 +392,7 @@ def build_question_form(  # noqa: C901
             case QuestionDataType.TEXT_SINGLE_LINE:
                 field = StringField(
                     label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    description=interpolate(text=question.hint, context=interpolation_context),
                     widget=GovTextInput(),
                     validators=[DataRequired(f"Enter the {question.name}")],
                     filters=[lambda x: x.strip() if x else x],
@@ -400,7 +400,7 @@ def build_question_form(  # noqa: C901
             case QuestionDataType.TEXT_MULTI_LINE:
                 field = StringField(
                     label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    description=interpolate(text=question.hint, context=interpolation_context),
                     widget=GovCharacterCount() if question.presentation_options.word_limit else GovTextArea(),
                     validators=[DataRequired(f"Enter the {question.name}")]
                     + (
@@ -418,7 +418,7 @@ def build_question_form(  # noqa: C901
                 if question.data_options.number_type == NumberTypeEnum.DECIMAL:
                     field = DecimalWithCommasField(
                         label=interpolate(text=question.text, context=interpolation_context),
-                        description=interpolate(text=question.hint or "", context=interpolation_context),
+                        description=interpolate(text=question.hint, context=interpolation_context),
                         places=None,
                         rounding=None,
                         # We are allowing commas for thousands separators but not full locale-aware formatting
@@ -434,14 +434,14 @@ def build_question_form(  # noqa: C901
                 else:
                     field = IntegerWithCommasField(
                         label=interpolate(text=question.text, context=interpolation_context),
-                        description=interpolate(text=question.hint or "", context=interpolation_context),
+                        description=interpolate(text=question.hint, context=interpolation_context),
                         widget=GovTextInput(),
                         validators=[InputRequired(f"Enter the {question.name}")],
                     )
             case QuestionDataType.YES_NO:
                 field = RadioField(
                     label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    description=interpolate(text=question.hint, context=interpolation_context),
                     widget=GovRadioInput(),
                     choices=[(1, "Yes"), (0, "No")],
                     validators=[InputRequired("Select yes or no")],
@@ -455,7 +455,7 @@ def build_question_form(  # noqa: C901
                     )
                     field = SelectField(
                         label=interpolate(text=question.text, context=interpolation_context),
-                        description=interpolate(text=question.hint or "", context=interpolation_context),
+                        description=interpolate(text=question.hint, context=interpolation_context),
                         widget=MHCLGAccessibleAutocomplete(fallback_option=fallback_option),
                         choices=[("", "")] + [(item.key, item.label) for item in question.data_source.items],
                         validators=[DataRequired(f"Select the {question.name}")],
@@ -464,7 +464,7 @@ def build_question_form(  # noqa: C901
                     choices = [(item.key, item.label) for item in question.data_source.items]
                     field = RadioField(
                         label=interpolate(text=question.text, context=interpolation_context),
-                        description=interpolate(text=question.hint or "", context=interpolation_context),
+                        description=interpolate(text=question.hint, context=interpolation_context),
                         widget=MHCLGRadioInput(
                             insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
                         ),
@@ -474,7 +474,7 @@ def build_question_form(  # noqa: C901
             case QuestionDataType.URL:
                 field = StringField(
                     label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    description=interpolate(text=question.hint, context=interpolation_context),
                     widget=GovTextInput(),
                     validators=[
                         DataRequired(f"Enter the {question.name}"),
@@ -496,7 +496,7 @@ def build_question_form(  # noqa: C901
 
                 field = SelectMultipleField(
                     label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    description=interpolate(text=question.hint, context=interpolation_context),
                     widget=MHCLGCheckboxesInput(
                         insert_divider_before_last_item=bool(question.separate_option_if_no_items_match)
                     ),
@@ -507,7 +507,7 @@ def build_question_form(  # noqa: C901
             case QuestionDataType.DATE:
                 field = DateField(
                     label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    description=interpolate(text=question.hint, context=interpolation_context),
                     widget=GovDateInput() if not question.approximate_date else MHCLGApproximateDateInput(),
                     validators=[DataRequired(f"Enter the {question.name}")],
                     format=["%d %m %Y", "%d %b %Y", "%d %B %Y"]
@@ -525,7 +525,7 @@ def build_question_form(  # noqa: C901
                 has_existing_file = evaluation_context.get(question.safe_qid) is not None
                 field = FileField(
                     label=interpolate(text=question.text, context=interpolation_context),
-                    description=interpolate(text=question.hint or "", context=interpolation_context),
+                    description=interpolate(text=question.hint, context=interpolation_context),
                     widget=GovFileInput(),
                     validators=[Optional()]
                     if has_existing_file

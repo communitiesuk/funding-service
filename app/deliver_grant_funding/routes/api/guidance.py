@@ -7,6 +7,7 @@ from flask.typing import ResponseReturnValue
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import get_collection
 from app.common.data.interfaces.user import get_current_user
+from app.common.expressions.references import InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import PreviewGuidanceForm
 from app.deliver_grant_funding.routes.api import deliver_grant_funding_api_blueprint
@@ -42,7 +43,7 @@ def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
             return jsonify(
                 PreviewGuidanceSuccessResponse(
                     guidance_html=interpolate(
-                        current_app.extensions["govuk_markdown"].convert(form.guidance.data),
+                        InterpolationStatement(current_app.extensions["govuk_markdown"].convert(form.guidance.data)),
                         with_interpolation_highlighting=True,  # type: ignore[call-arg]
                     )
                 ).model_dump(mode="json")

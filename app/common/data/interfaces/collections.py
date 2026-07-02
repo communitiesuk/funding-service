@@ -3,7 +3,7 @@ import uuid
 from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, List, Literal, Never, Protocol, Unpack, overload
+from typing import Any, List, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
 
 from flask import current_app
@@ -60,12 +60,16 @@ from app.common.data.utils import generate_submission_reference
 from app.common.exceptions import WTFormRenderableException
 from app.common.expressions import (
     ALLOWED_INTERPOLATION_REGEX,
-    INTERPOLATE_REGEX,
     EvaluatableExpression,
     ExpressionContext,
 )
 from app.common.expressions.managed import BaseDataSourceManagedExpression
-from app.common.expressions.references import DataSourceReference, ExpressionReference
+from app.common.expressions.references import (
+    DataSourceReference,
+    ExpressionReference,
+    InterpolationStatement,
+    PExpressionReferences,
+)
 from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
@@ -844,8 +848,8 @@ def _update_data_source(question: Question, items: list[str]) -> None:
 def create_question(
     form: Form,
     *,
-    text: str,
-    hint: str,
+    text: InterpolationStatement,
+    hint: InterpolationStatement,
     name: str,
     data_type: QuestionDataType,
     expression_context: ExpressionContext,
@@ -931,7 +935,7 @@ def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -
 def create_group(
     form: Form,
     *,
-    text: str,
+    text: InterpolationStatement,
     name: str | None = None,
     parent: Group | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
@@ -1589,14 +1593,15 @@ def update_group(  # noqa: C901
     name: str | TNotProvided = NOT_PROVIDED,
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
-    guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     add_another: bool | TNotProvided = NOT_PROVIDED,
-    add_another_guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    add_another_guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
         group.name = name
-        group.text = name
+        # `name` stays str (it's the group's name/slug source); wrap once for the text column.
+        group.text = InterpolationStatement(name)
         group.slug = slugify(name)
 
     if presentation_options is not NOT_PROVIDED:
@@ -1666,13 +1671,13 @@ def update_question(
     question: Question,
     expression_context: ExpressionContext,
     *,
-    text: str | TNotProvided = NOT_PROVIDED,
+    text: InterpolationStatement | TNotProvided = NOT_PROVIDED,
     name: str | TNotProvided = NOT_PROVIDED,
-    hint: str | None | TNotProvided = NOT_PROVIDED,
+    hint: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     items: list[str] | None | TNotProvided = NOT_PROVIDED,
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
-    guidance_body: str | None | TNotProvided = NOT_PROVIDED,
+    guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
     data_options: QuestionDataOptions | TNotProvided = NOT_PROVIDED,
 ) -> Question:
@@ -1815,15 +1820,6 @@ def get_referenced_data_source_items_by_managed_expression(
         )
     ).all()
     return referenced_data_source_items
-
-
-def _find_all_references_in_expression(
-    value: str,
-) -> list[ExpressionReference]:
-    references: list[ExpressionReference] = []
-    for match in INTERPOLATE_REGEX.finditer(value):
-        references.append(ExpressionReference.from_wrapped(match.group(0)))
-    return references
 
 
 def components_in_same_group_and_on_same_page(component1: Component, component2: Component) -> bool:
@@ -2064,17 +2060,10 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
             data_source_references.add(referenced_data_set_ref)
 
     for field in expr_impl.reference_aware_fields:
-        field_value = getattr(expr_impl, field)
+        field_value = cast(PExpressionReferences | None, getattr(expr_impl, field))
         if not field_value:
             continue
-        # An ExpressionReference-typed field is itself a single reference; a plain str field is
-        # free text that may contain zero or more ((…)) references to scan out.
-        references = (
-            [field_value]
-            if isinstance(field_value, ExpressionReference)
-            else list(set(_find_all_references_in_expression(field_value)))
-        )
-        for reference in references:
+        for reference in field_value.references:
             valid_reference = _validate_reference(
                 reference=reference,
                 attached_to_component=expression.question,
@@ -2141,12 +2130,11 @@ def _validate_and_sync_component_references(component: Component, expression_con
     data_source_refs_to_set_up: set[DataSourceReference] = set()
     field_names = ["text", "hint", "guidance_body", "add_another_guidance_body"]
     for field_name in field_names:
-        value = getattr(component, field_name)
+        value = cast(InterpolationStatement | None, getattr(component, field_name))
         if value is None:
             continue
 
-        unvalidated_references = set(_find_all_references_in_expression(value))
-        for unvalidated_reference in unvalidated_references:
+        for unvalidated_reference in value.references:
             validated_reference = _validate_reference(
                 reference=unvalidated_reference,
                 attached_to_component=component,

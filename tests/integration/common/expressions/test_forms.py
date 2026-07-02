@@ -23,7 +23,7 @@ from app.common.expressions import (
 )
 from app.common.expressions.forms import _validate_custom_syntax, build_managed_expression_form
 from app.common.expressions.managed import Between
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.metrics import MetricAttributeName, MetricEventName
 
 
@@ -185,28 +185,26 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+        test_expression = EvaluationStatement(f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))")
 
         interpolation_context = ExpressionContext.build_expression_context(db_form.collection, "interpolation")
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
-        assert (
-            _validate_custom_syntax(
-                q3,
-                interpolation_context,
-                test_expression,
-                ExpressionType.VALIDATION,
-                "custom_expression",
-                validate_with_evaluation=True,
-                evaluation_context=evaluation_context,
-            )
-            is None
+        _validate_custom_syntax(
+            q3,
+            interpolation_context,
+            test_expression,
+            ExpressionType.VALIDATION,
+            "custom_expression",
+            evaluation_context=evaluation_context,
         )
-        assert (
-            _validate_custom_syntax(
-                q3, interpolation_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
-            )
-            is None
+        _validate_custom_syntax(
+            q3,
+            interpolation_context,
+            test_expression,
+            ExpressionType.VALIDATION,
+            "custom_expression",
+            evaluation_context=evaluation_context,
         )
 
     def test_valid_expression_previous_section(self, factories, mocker):
@@ -225,7 +223,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = (
+        test_expression = EvaluationStatement(
             f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({previous_question.safe_qid}))"
         )
 
@@ -233,17 +231,13 @@ class TestValidateCustomSyntax:
             submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33, previous_question.safe_qid: 44}
         )
 
-        assert (
-            _validate_custom_syntax(
-                q3,
-                ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
-                test_expression,
-                ExpressionType.VALIDATION,
-                "custom_expression",
-                validate_with_evaluation=True,
-                evaluation_context=evaluation_context,
-            )
-            is None
+        _validate_custom_syntax(
+            q3,
+            ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
+            test_expression,
+            ExpressionType.VALIDATION,
+            "custom_expression",
+            evaluation_context=evaluation_context,
         )
 
     def test_invalid_expression_out_of_order(self, factories, mocker):
@@ -255,7 +249,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q1.safe_qid})) < (({q2.safe_qid}))"
+        test_expression = EvaluationStatement(f"(({q1.safe_qid})) < (({q2.safe_qid}))")
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
@@ -266,7 +260,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
         assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
@@ -275,10 +268,9 @@ class TestValidateCustomSyntax:
             _validate_custom_syntax(
                 q1,
                 ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
-                f"The answer must be less than (({q2.safe_qid}))",
+                InterpolationStatement(f"The answer must be less than (({q2.safe_qid}))"),
                 ExpressionType.VALIDATION,
                 "custom_message",
-                False,
             )
         assert e.value.form_error_message == f"You cannot use {q2.name} because it comes after this question"
 
@@ -298,7 +290,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = (
+        test_expression = EvaluationStatement(
             f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({later_form_question.safe_qid}))"
         )
 
@@ -313,7 +305,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
         assert (
@@ -325,13 +316,12 @@ class TestValidateCustomSyntax:
             _validate_custom_syntax(
                 q3,
                 ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
-                (
+                InterpolationStatement(
                     f"The answer must be less than (({q2.safe_qid})) + (({q1.safe_qid})) + "
                     f"(({later_form_question.safe_qid}))"
                 ),
                 ExpressionType.VALIDATION,
                 "custom_message",
-                False,
             )
         assert (
             e.value.form_error_message
@@ -347,7 +337,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + ((some_bad_ref))"
+        test_expression = EvaluationStatement(f"(({q3.safe_qid})) < (({q2.safe_qid})) + ((some_bad_ref))")
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
@@ -358,7 +348,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -368,10 +357,9 @@ class TestValidateCustomSyntax:
             _validate_custom_syntax(
                 q3,
                 ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
-                f"The answer must be less than (({q2.safe_qid})) + ((some_bad_ref))",
+                InterpolationStatement(f"The answer must be less than (({q2.safe_qid})) + ((some_bad_ref))"),
                 ExpressionType.VALIDATION,
                 "custom_message",
-                False,
             )
 
         assert e.value.form_error_message == "You cannot use ((some_bad_ref)) because it does not exist"
@@ -386,7 +374,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+        test_expression = EvaluationStatement(f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))")
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
@@ -397,7 +385,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -410,10 +397,9 @@ class TestValidateCustomSyntax:
             _validate_custom_syntax(
                 q3,
                 ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
-                f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))",
+                InterpolationStatement(f"Must be less than (({q2.safe_qid})) + (({q1.safe_qid}))"),
                 ExpressionType.VALIDATION,
                 "custom_message",
-                False,
             )
 
         assert (
@@ -430,7 +416,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+        test_expression = EvaluationStatement(f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))")
 
         evaluation_context = ExpressionContext()
 
@@ -450,7 +436,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -464,7 +449,7 @@ class TestValidateCustomSyntax:
             data_type=QuestionDataType.NUMBER,
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
-        test_expression = f"(({q3.safe_qid})) < sum( (({q2.safe_qid})), (({q1.safe_qid})) )"
+        test_expression = EvaluationStatement(f"(({q3.safe_qid})) < sum( (({q2.safe_qid})), (({q1.safe_qid})) )")
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
@@ -475,7 +460,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -489,7 +473,7 @@ class TestValidateCustomSyntax:
             data_type=QuestionDataType.NUMBER,
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
-        test_expression = f"(({q3.safe_qid})) < hello there"
+        test_expression = EvaluationStatement(f"(({q3.safe_qid})) < hello there")
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
@@ -500,7 +484,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -517,7 +500,7 @@ class TestValidateCustomSyntax:
             data_type=QuestionDataType.NUMBER,
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
-        test_expression = f"(({q3.safe_qid})) < 2**3"
+        test_expression = EvaluationStatement(f"(({q3.safe_qid})) < 2**3")
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
@@ -528,7 +511,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -546,7 +528,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = (
+        test_expression = EvaluationStatement(
             f"(({q3.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid})) + (({q3.safe_qid})) + "
             f"(({q3.safe_qid})) + (({q3.safe_qid}))"
         )
@@ -560,7 +542,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -575,7 +556,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q2.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))"
+        test_expression = EvaluationStatement(f"(({q2.safe_qid})) < (({q2.safe_qid})) + (({q1.safe_qid}))")
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
@@ -586,7 +567,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -607,10 +587,9 @@ class TestValidateCustomSyntax:
             _validate_custom_syntax(
                 group,
                 ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
-                "1 + 1 == 2",
+                EvaluationStatement("1 + 1 == 2"),
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -628,7 +607,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q3.safe_qid})) + (({q2.safe_qid})) + (({q1.safe_qid}))"
+        test_expression = EvaluationStatement(f"(({q3.safe_qid})) + (({q2.safe_qid})) + (({q1.safe_qid}))")
 
         evaluation_context = ExpressionContext(submission_data={q1.safe_qid: 11, q2.safe_qid: 22, q3.safe_qid: 33})
 
@@ -639,7 +618,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 
@@ -665,10 +643,9 @@ class TestValidateCustomSyntax:
         _validate_custom_syntax(
             q3,
             ExpressionContext.build_expression_context(db_form.collection, "interpolation"),
-            f"(({q3.safe_qid})) < (({data_source.safe_did}.c_allocation))",
+            EvaluationStatement(f"(({q3.safe_qid})) < (({data_source.safe_did}.c_allocation))"),
             ExpressionType.VALIDATION,
             "custom_expression",
-            validate_with_evaluation=True,
             evaluation_context=evaluation_context,
         )
 
@@ -678,7 +655,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q1.safe_qid})) < 5"
+        test_expression = EvaluationStatement(f"(({q1.safe_qid})) < 5")
 
         interpolation_context = ExpressionContext.build_expression_context(q1.form.collection, "interpolation")
         evaluation_context = ExpressionContext(
@@ -694,7 +671,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
             is None
@@ -702,7 +678,12 @@ class TestValidateCustomSyntax:
         assert mock_sentry_metrics.call_count == 0
         assert (
             _validate_custom_syntax(
-                q1, interpolation_context, test_expression, ExpressionType.VALIDATION, "custom_expression", False
+                q1,
+                interpolation_context,
+                test_expression,
+                ExpressionType.VALIDATION,
+                "custom_expression",
+                evaluation_context=evaluation_context,
             )
             is None
         )
@@ -714,7 +695,7 @@ class TestValidateCustomSyntax:
             data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
         )
 
-        test_expression = f"(({q1.safe_qid})) < syntax error"
+        test_expression = EvaluationStatement(f"(({q1.safe_qid})) < syntax error")
 
         evaluation_context = ExpressionContext(
             submission_data={
@@ -729,7 +710,6 @@ class TestValidateCustomSyntax:
                 test_expression,
                 ExpressionType.VALIDATION,
                 "custom_expression",
-                validate_with_evaluation=True,
                 evaluation_context=evaluation_context,
             )
 

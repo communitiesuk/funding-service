@@ -104,7 +104,7 @@ from app.common.expressions.forms import (
     _ManagedExpressionForm,
     build_managed_expression_form,
 )
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import (
@@ -1118,7 +1118,7 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
         try:
             add_another = False if skip_add_another else (wt_form.question_group_is_add_another.data == "yes")
             group = create_group(
-                text=add_question_group.group_name,
+                text=InterpolationStatement(add_question_group.group_name),
                 form=form,
                 parent=parent,
                 presentation_options=QuestionPresentationOptions(

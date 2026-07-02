@@ -7,7 +7,7 @@ from app.common.collections.types import FileUploadAnswer, TextSingleLineAnswer
 from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
 from app.common.expressions.managed import GreaterThan
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
 
@@ -355,7 +355,7 @@ class TestFormRunner:
             assert runner.question_page_heading is None
             assert runner.question_page_caption == "Test group name (1)"
 
-            question.guidance_heading = "Test group guidance heading"
+            question.guidance_heading = InterpolationStatement("Test group guidance heading")
             assert runner.question_page_heading == "Test group guidance heading"
 
         def test_same_page_group_inside_add_another_context(self, factories):

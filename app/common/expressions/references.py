@@ -1,10 +1,14 @@
+import ast
+import re
 from collections import namedtuple
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 from uuid import UUID
 
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
+from sqlalchemy import String, TypeDecorator
+from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.exc import NoResultFound
 
 from app.common.safe_ids import SafeDidMixin, SafeQidMixin
@@ -30,6 +34,16 @@ def _try_unwrap(text: str) -> str | None:
 
 
 DataSourceReference = namedtuple("DataSourceReference", ("data_source_id", "column_name"))
+
+
+class PExpressionReferences(Protocol):
+    @property
+    def _all_references(self) -> list[ExpressionReference]: ...
+
+    @property
+    def references(self) -> list[ExpressionReference]: ...
+
+    def count_references(self, reference: ExpressionReference) -> int: ...
 
 
 class ExpressionReference(str):
@@ -219,3 +233,198 @@ class ExpressionReference(str):
             core_schema.str_schema(),
             serialization=core_schema.plain_serializer_function_ser_schema(str),
         )
+
+    @property
+    def references(self) -> list[ExpressionReference]:
+        return [self]
+
+
+class _ReferenceExtractor(ast.NodeVisitor):
+    """
+    'Expressions' are a strictly limited subset of the Python language used to interpolate messages and evaluate
+    statements when running forms to collect information from users.
+
+    An interpolation message is a mixture of plain text and embedded evaluation statements wrapped by double
+    parens `(( ... ))`.
+
+    We use the `simpleeval` library to evaluate expression statements. This parses the statement using Python's `ast`
+    stdlib. In order to identify all of the references (effectively: names and attributes) present in the expression
+    we will similarly parse the statement and keep a record of anything referenced in the statement.
+
+    This is a cleaner and more reliable way to extract any required data that the expression needs than doing string/
+    regex matching, which is error-prone and difficult to maintain.
+
+    This class is only responsible for walking the AST and recording which references are made; it does not validate
+    that those references are actually resolveable within a given expression context.
+    """
+
+    def __init__(self) -> None:
+        self._seen: set[str] = set()
+        self.references: list[ExpressionReference] = []
+
+    def _record(self, name: str) -> None:
+        self._seen.add(name)
+        self.references.append(ExpressionReference(name))
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        """Record visits to attributes of a node
+
+        This tracks nested attribute access such as where we're reaching into a dictionary's values.
+        """
+        parts: list[str] = [node.attr]
+        current = node.value
+
+        while isinstance(current, ast.Attribute):
+            parts.append(current.attr)
+            current = current.value
+
+        if isinstance(current, ast.Name):
+            parts.append(current.id)
+            self._record(".".join(reversed(parts)))
+            return
+
+        # Chain isn't rooted in a plain Name (eg ``foo()[0].bar``); fall back to
+        # visiting children so any nested Names still get picked up.
+        self.generic_visit(node)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        """Record visits to bare names (eg ``foo``)"""
+        self._record(node.id)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        """Deliberately skip ``node.func`` — function calls are not tracked as "references"
+
+        These could be recorded as `required_functions` to later make sure that an expression has access to the
+        functions it needs in order to evaluate correctly. This is left for a future extension.
+        """
+        for arg in node.args:
+            self.visit(arg)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+
+
+class ExpressionStatement(PExpressionReferences, str):
+    @property
+    def _all_references(self) -> list[ExpressionReference]:
+        raise NotImplementedError()
+
+    @property
+    def references(self) -> list[ExpressionReference]:
+        return list(dict.fromkeys(self._all_references))
+
+    def count_references(self, reference: ExpressionReference) -> int:
+        """Returns the number of times the given reference appears in the statement."""
+        return sum(1 for ref in self._all_references if ref == reference)
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        def _from_str(value: str) -> ExpressionStatement:
+            if isinstance(value, cls):
+                return value
+            return cls(value)
+
+        return core_schema.no_info_after_validator_function(
+            _from_str,
+            core_schema.str_schema(),
+            serialization=core_schema.plain_serializer_function_ser_schema(str),
+        )
+
+
+class EvaluationStatement(ExpressionStatement):
+    """A Python-like expression to evaluate, with unwrapped references (e.g. ``q_abc > 100``).
+
+    References are discovered by AST-walking the statement using the above _ReferenceExtractor. Python treats ``((x))``
+    identically to ``x``, so legacy wrapped references inside custom expressions are picked up by the same walk
+    without a separate regex pass.
+    """
+
+    def validate_syntax(self):
+        try:
+            ast.parse(str(self).strip(), mode="eval")
+        except SyntaxError as e:
+            from app.common.expressions import DisallowedExpression
+
+            raise DisallowedExpression(message=f"Expression {self=} could not be parsed due to a syntax error.") from e
+
+    @property
+    def _all_references(self) -> list[ExpressionReference]:
+        """Returns a list of all references found in the statement, including duplicates, in the order they appear."""
+        try:
+            tree = ast.parse(str(self).strip(), mode="eval")
+        except SyntaxError:
+            return []
+
+        extractor = _ReferenceExtractor()
+        extractor.visit(tree)
+        return extractor.references
+
+
+class InterpolationStatement(ExpressionStatement):
+    """Free text with ``((ref))`` references embedded (e.g. ``"Your answer was ((q_abc))"``).
+
+    In theory, each ``((...))`` block *should* be able to be treated as an ``EvaluationStatement`` that could contain
+    multiple references or calculations. However, flagging invalid references in this case is more difficult. The
+    product currently only allows you to insert single references here, so we specifically limit the code here as well.
+
+    If we ever need to be able to interpolate calculations into message, we'll need to revisit this.
+    """
+
+    @property
+    def _all_references(self) -> list[ExpressionReference]:
+        """Returns a list of all references found in the statement, including duplicates, in the order they appear."""
+        from app.common.expressions import INTERPOLATE_REGEX
+
+        out: list[ExpressionReference] = []
+        for match in INTERPOLATE_REGEX.finditer(self):
+            inner = match.group(1)
+
+            # NOTE: Ideally we would allow multiple references within embedded statements in an interpolation
+            #       message, but that complicates accurate detection significantly. For now the product only lets users
+            #       enter a single reference to interpolate within message, so we will skip any attempts at parsing
+            #       embedded references as EvaluationStatements.
+
+            ref = ExpressionReference(inner)
+            out.append(ref)
+
+        return out
+
+    def interpolate(self, interpolation_function: Callable[[re.Match[Any]], str]) -> str:
+        from app.common.expressions import INTERPOLATE_REGEX
+
+        return INTERPOLATE_REGEX.sub(
+            interpolation_function,
+            self,
+        )
+
+
+class InterpolationStatementType(TypeDecorator):
+    """SQLAlchemy column type backing an ``InterpolationStatement`` field as ``VARCHAR``."""
+
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+        return None if value is None else str(value)
+
+    def process_result_value(self, value: Any, dialect: Any) -> InterpolationStatement | None:
+        return None if value is None else InterpolationStatement(value)
+
+
+class CIInterpolationStatementType(InterpolationStatementType):
+    """``InterpolationStatement`` backed by Postgres ``CITEXT`` for case-insensitive columns."""
+
+    impl = CITEXT
+    cache_ok = True
+
+
+class EvaluationStatementType(TypeDecorator):
+    """SQLAlchemy column type backing an ``EvaluationStatement`` field as ``VARCHAR``."""
+
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+        return None if value is None else str(value)
+
+    def process_result_value(self, value: Any, dialect: Any) -> EvaluationStatement | None:
+        return None if value is None else EvaluationStatement(value)
