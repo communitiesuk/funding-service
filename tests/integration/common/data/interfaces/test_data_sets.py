@@ -9,6 +9,7 @@ from app.common.collections.types import DecimalAnswer, TextSingleLineAnswer
 from app.common.data.interfaces.collections import (
     DataSourceHasReferencesException,
     _validate_and_sync_component_references,
+    get_question_by_id,
 )
 from app.common.data.interfaces.data_sets import (
     create_uploaded_data_source,
@@ -16,10 +17,17 @@ from app.common.data.interfaces.data_sets import (
     get_collection_ids_with_missing_data_data_sets,
     get_data_source,
     get_data_source_list_for_collection,
+    replace_uploaded_data_source,
 )
-from app.common.data.models import ComponentReference, DataSource, DataSourceItem, DataSourceOrganisationItem
+from app.common.data.models import (
+    ComponentReference,
+    DataSource,
+    DataSourceItem,
+    DataSourceOrganisationItem,
+)
 from app.common.data.types import (
     DataSourceFileMetadata,
+    DataSourceSchemaColumn,
     DataSourceType,
     NumberTypeEnum,
     QuestionDataType,
@@ -28,6 +36,7 @@ from app.common.expressions import ExpressionContext
 from app.common.expressions.references import InterpolationStatement
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
+from tests.models import ALL_COLUMN_TYPE_HEADERS_LIST
 
 
 class TestCreateUploadedDataSourceGrantRecipient:
@@ -914,3 +923,583 @@ class TestGetCollectionIdsWithMissingDataDataSets:
         result = get_collection_ids_with_missing_data_data_sets(grant.id)
 
         assert result == set()
+
+
+class TestReplaceUploadedDataSource:
+    def test_update_name(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant, collection=collection, name="Popular Cheeses", type=DataSourceType.GRANT_RECIPIENT
+        )
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=[],
+            all_rows=[],
+            name="Most popular cheeses",
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+        from_db = get_data_source(data_source.id, with_organisation_items=False)
+        assert from_db.name == "Most popular cheeses"
+
+    def test_replace_data_source_update_data(
+        self,
+        factories,
+    ):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=data_source.grant)
+        oi_id1 = factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 111, "c_decimal_number": "1.1", "c_just_text": "first version 1"},
+        ).id
+        oi_id2 = factories.data_source_organisation_item.create(
+            external_id=gr2.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 222, "c_decimal_number": "2.1", "c_just_text": "first version 2"},
+        ).id
+        oi_id3 = factories.data_source_organisation_item.create(
+            external_id=gr3.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 333, "c_decimal_number": "3.1", "c_just_text": "first version 3"},
+        ).id
+
+        assert len(get_data_source(data_source.id, with_organisation_items=True).organisation_items) == 3
+
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=ALL_COLUMN_TYPE_HEADERS_LIST,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "111",
+                    "Decimal number": "1.2",
+                    "Just text": "second version 1",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Whole number": "222",
+                    "Decimal number": "2.2",
+                    "Just text": "changed version 2",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr3.organisation.external_id,
+                    "Whole number": "333",
+                    "Decimal number": "3.2",
+                    "Just text": None,
+                    "British pounds": "2.30",
+                },
+            ],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 3
+        assert {oi.id for oi in from_db.organisation_items}.isdisjoint({oi_id1, oi_id2, oi_id3})
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1.data["c_whole_number"].get_value_for_evaluation() == 111
+        assert oi_1.data["c_decimal_number"].get_value_for_evaluation() == Decimal("1.2")
+        assert oi_1.data["c_just_text"].get_value_for_evaluation() == "second version 1"
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 222
+        assert oi_2.data["c_decimal_number"].get_value_for_evaluation() == Decimal("2.2")
+        assert oi_2.data["c_just_text"].get_value_for_evaluation() == "changed version 2"
+
+        oi_3 = from_db.get_filtered_organisation_item(gr3.organisation.external_id)
+        assert oi_3.data["c_whole_number"].get_value_for_evaluation() == 333
+        assert oi_3.data["c_decimal_number"].get_value_for_evaluation() == Decimal("3.2")
+        assert oi_3.data["c_just_text"] is None
+        assert oi_3.data["c_british_pounds"].get_value_for_interpolation() == "£2.30"
+
+    def test_replace_data_source_remove_grant_recipient(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=data_source.grant)
+        oi_id1 = factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 111, "c_decimal_number": "1.1", "c_just_text": "first version 1"},
+        ).id
+        oi_id2 = factories.data_source_organisation_item.create(
+            external_id=gr2.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 222, "c_decimal_number": "2.1", "c_just_text": "first version 2"},
+        ).id
+
+        assert len(get_data_source(data_source.id, with_organisation_items=True).organisation_items) == 2
+
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=ALL_COLUMN_TYPE_HEADERS_LIST,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "111",
+                    "Decimal number": "1.2",
+                    "Just text": "second version 1",
+                },
+            ],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 1
+        assert {oi.id for oi in from_db.organisation_items}.isdisjoint({oi_id1, oi_id2})
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1 is not None
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2 is None
+
+    def test_replace_data_source_add_grant_recipient(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=data_source.grant)
+        oi_id1 = factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 111, "c_decimal_number": "1.1", "c_just_text": "first version 1"},
+        ).id
+
+        assert len(get_data_source(data_source.id, with_organisation_items=True).organisation_items) == 1
+
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=ALL_COLUMN_TYPE_HEADERS_LIST,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "111",
+                    "Decimal number": "1.2",
+                    "Just text": "second version 1",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Whole number": "222",
+                    "Decimal number": "2.2",
+                    "Just text": "changed version 2",
+                },
+            ],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        assert {oi.id for oi in from_db.organisation_items}.isdisjoint({oi_id1})
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1.data["c_whole_number"].get_value_for_evaluation() == 111
+        assert oi_1.data["c_decimal_number"].get_value_for_evaluation() == Decimal("1.2")
+        assert oi_1.data["c_just_text"].get_value_for_evaluation() == "second version 1"
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 222
+        assert oi_2.data["c_decimal_number"].get_value_for_evaluation() == Decimal("2.2")
+        assert oi_2.data["c_just_text"].get_value_for_evaluation() == "changed version 2"
+
+    def test_add_column_no_data(
+        self,
+        factories,
+    ):
+        collection = factories.collection.create()
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=collection.grant)
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[DataSetColumnMapping(column_name="New column", column_type="INTEGER", prefix="$")],
+            all_headers=["Allocation", "New column"],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Allocation": "111",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Allocation": "222",
+                },
+            ],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        assert from_db.organisation_items[0].data["c_new_column"] is None
+        assert from_db.organisation_items[0].data["c_allocation"].get_value_for_evaluation() == 111
+        assert from_db.organisation_items[1].data["c_new_column"] is None
+        assert from_db.organisation_items[1].data["c_allocation"].get_value_for_evaluation() == 222
+
+        assert from_db.schema.root["c_allocation"] is not None
+        new_column: DataSourceSchemaColumn = from_db.schema.root["c_new_column"]
+        assert new_column is not None
+        assert new_column.original_column_name == "New column"
+        assert new_column.data_type == QuestionDataType.NUMBER
+        assert new_column.data_options.number_type == NumberTypeEnum.INTEGER
+
+    def test_add_column_with_data(
+        self,
+        factories,
+    ):
+        collection = factories.collection.create()
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=collection.grant)
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[DataSetColumnMapping(column_name="New column", column_type="INTEGER", prefix="$")],
+            all_headers=["Allocation", "New column"],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Allocation": "111",
+                    "New column": "123",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Allocation": "222",
+                    "New column": "456",
+                },
+            ],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source_id=data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        assert from_db.organisation_items[0].data["c_new_column"].get_value_for_evaluation() == 123
+        assert from_db.organisation_items[0].data["c_allocation"].get_value_for_evaluation() == 111
+        assert from_db.organisation_items[1].data["c_new_column"].get_value_for_evaluation() == 456
+        assert from_db.organisation_items[1].data["c_allocation"].get_value_for_evaluation() == 222
+
+        assert from_db.schema.root["c_allocation"] is not None
+        new_column: DataSourceSchemaColumn = from_db.schema.root["c_new_column"]
+        assert new_column is not None
+        assert new_column.original_column_name == "New column"
+        assert new_column.data_type == QuestionDataType.NUMBER
+        assert new_column.data_options.number_type == NumberTypeEnum.INTEGER
+
+    def test_remove_column_no_data(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=data_source.grant)
+
+        assert len(get_data_source(data_source.id).schema.root.items()) == 6
+        all_headers = ALL_COLUMN_TYPE_HEADERS_LIST.copy()
+        all_headers.remove("British pounds")
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=all_headers,
+            all_rows=[],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id)
+        assert len(from_db.schema.root.items()) == 5
+        assert set(from_db.schema.root.keys()) == {
+            "c_decimal_number",
+            "c_whole_number",
+            "c_just_text",
+            "c_whole_number_prefix",
+            "c_whole_number_suffix",
+        }
+
+    def test_remove_column_with_data(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=data_source.grant)
+        factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 111, "c_decimal_number": "1.1", "c_just_text": "first version 1"},
+        )
+        factories.data_source_organisation_item.create(
+            external_id=gr2.organisation.external_id,
+            data_source=data_source,
+            _data={"c_whole_number": 222, "c_decimal_number": "2.1", "c_just_text": "first version 2"},
+        )
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.schema.root.items()) == 6
+        assert len(from_db.organisation_items) == 2
+
+        all_headers = ALL_COLUMN_TYPE_HEADERS_LIST.copy()
+        all_headers.remove("Decimal number")
+
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=all_headers,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "111",
+                    "Just text": "second version 1",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Whole number": "222",
+                    "Just text": "changed version 2",
+                },
+            ],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.schema.root.items()) == 5
+        assert len(from_db.organisation_items) == 2
+        assert set(from_db.schema.root.keys()) == {
+            "c_british_pounds",
+            "c_whole_number",
+            "c_just_text",
+            "c_whole_number_prefix",
+            "c_whole_number_suffix",
+        }
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1.data["c_whole_number"].get_value_for_evaluation() == 111
+        assert "c_decimal_number" not in oi_1.data.keys()
+        assert oi_1.data["c_just_text"].get_value_for_evaluation() == "second version 1"
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 222
+        assert "c_decimal_number" not in oi_2.data.keys()
+        assert oi_2.data["c_just_text"].get_value_for_evaluation() == "changed version 2"
+
+    def test_replace_data_source_add_column_remove_column_and_update_data(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=data_source.grant)
+        oi_id1 = factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={
+                "c_whole_number": 111,
+                "c_decimal_number": "1.1",
+                "c_just_text": "first version 1",
+                "c_british_pounds": "3.45",
+            },
+        ).id
+        oi_id2 = factories.data_source_organisation_item.create(
+            external_id=gr2.organisation.external_id,
+            data_source=data_source,
+            _data={
+                "c_whole_number": 222,
+                "c_decimal_number": "2.1",
+                "c_just_text": "first version 2",
+                "c_british_pounds": "6.78",
+            },
+        ).id
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.schema.root.items()) == 6
+        assert len(from_db.organisation_items) == 2
+
+        all_headers = ALL_COLUMN_TYPE_HEADERS_LIST.copy()
+        all_headers.remove("British pounds")
+        all_headers.append("New text column")
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[DataSetColumnMapping(column_name="New text column", column_type="TEXT")],
+            all_headers=all_headers,
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Whole number": "999",
+                    "Decimal number": "9.9",
+                    "Just text": "updated version 1",
+                    "New text column": "extra 1",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Whole number": "888",
+                    "Decimal number": "8.8",
+                    "Just text": "updated version 2",
+                    "New text column": "extra 2",
+                },
+            ],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        assert {oi.id for oi in from_db.organisation_items}.isdisjoint({oi_id1, oi_id2})
+        assert len(from_db.schema.root.items()) == 6  # 6 original - 1 removed + 1 added
+        assert set(from_db.schema.root.keys()) == {
+            "c_new_text_column",
+            "c_whole_number",
+            "c_decimal_number",
+            "c_just_text",
+            "c_whole_number_prefix",
+            "c_whole_number_suffix",
+        }
+
+        oi_1 = from_db.get_filtered_organisation_item(gr1.organisation.external_id)
+        assert oi_1.data["c_whole_number"].get_value_for_evaluation() == 999
+        assert oi_1.data["c_decimal_number"].get_value_for_evaluation() == Decimal("9.9")
+        assert oi_1.data["c_just_text"].get_value_for_evaluation() == "updated version 1"
+        assert "c_british_pounds" not in oi_1.data.keys()
+        assert oi_1.data["c_new_text_column"].get_value_for_evaluation() == "extra 1"
+
+        oi_2 = from_db.get_filtered_organisation_item(gr2.organisation.external_id)
+        assert oi_2.data["c_whole_number"].get_value_for_evaluation() == 888
+        assert oi_2.data["c_decimal_number"].get_value_for_evaluation() == Decimal("8.8")
+        assert oi_2.data["c_just_text"].get_value_for_evaluation() == "updated version 2"
+        assert "c_british_pounds" not in oi_2.data.keys()
+        assert oi_2.data["c_new_text_column"].get_value_for_evaluation() == "extra 2"
+
+    def test_replace_data_source_with_existing_references(self, factories):
+        collection = factories.collection.create()
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=collection.grant)
+
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        question = factories.question.create(
+            form__collection=collection, text=f"How did you spend the ((d_{data_source.id.hex}.c_allocation))?"
+        )
+
+        assert len(question.owned_component_references) == 1
+        assert question.owned_component_references[0].depends_on_data_source_id == data_source.id
+        assert question.owned_component_references[0].depends_on_column_name == "c_allocation"
+        assert question.text == f"How did you spend the ((d_{data_source.id.hex}.c_allocation))?"
+        existing_text = question.text
+
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=["Allocation"],
+            all_rows=[
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                    "Allocation": "444",
+                },
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                    "Allocation": "555",
+                },
+            ],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert len(from_db.organisation_items) == 2
+        question_from_db = get_question_by_id(question.id)
+        assert question_from_db.text == existing_text
+        assert question_from_db.owned_component_references[0].depends_on_data_source_id == from_db.id
+        assert question_from_db.owned_component_references[0].depends_on_column_name == "c_allocation"
+
+    def test_update_file_metadata(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            type=DataSourceType.GRANT_RECIPIENT,
+            file_metadata=DataSourceFileMetadata(s3_key="key", original_filename="file.csv"),
+        )
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=["Allocation"],
+            all_rows=[],
+            s3_key="new_key",
+            original_filename="file_v2.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert from_db.file_metadata.s3_key == "new_key"
+        assert from_db.file_metadata.original_filename == "file_v2.csv"
+
+    def test_updated_by(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            create_gr_org_items=True,
+            created_by=factories.user.create(email="user1@test.com"),
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[],
+            all_headers=["Allocation"],
+            all_rows=[],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(email="update_user@test.com"),
+        )
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert from_db.created_by.email == "user1@test.com"
+        assert from_db.updated_by.email == "update_user@test.com"

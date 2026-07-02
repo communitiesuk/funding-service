@@ -4,9 +4,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased, lazyload, selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.common.data.interfaces.collections import raise_if_data_source_has_references
 from app.common.data.interfaces.exceptions import DuplicateDataSourceItemError, flush_and_rollback_on_exceptions
@@ -28,6 +29,7 @@ from app.common.safe_ids import safe_column_id
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 from app.extensions import db, s3_service
+from app.types import NOT_PROVIDED, TNotProvided
 
 
 def get_data_source(
@@ -155,6 +157,52 @@ def create_uploaded_data_source(
             _create_organisation_items(data_source, all_rows, column_mappings, DATA_SET_IDENTIFIER_COLUMN_HEADERS)
         case _:
             raise ValueError(f"Unsupported data source type: {data_source_type}")
+
+    return data_source
+
+
+@flush_and_rollback_on_exceptions
+def replace_uploaded_data_source(
+    data_source: DataSource,
+    new_columns: list["DataSetColumnMapping"],
+    all_headers: list[str],
+    all_rows: TUnvalidatedDataSetRows,
+    s3_key: str,
+    original_filename: str,
+    user: User,
+    name: str | TNotProvided = NOT_PROVIDED,
+) -> DataSource:
+
+    data_source.updated_by = user
+
+    if name is not NOT_PROVIDED:
+        data_source.name = name
+
+    data_source.file_metadata = DataSourceFileMetadata(s3_key=s3_key, original_filename=original_filename)
+    if new_columns:
+        data_source.schema.root.update(_build_schema_from_column_mappings(new_columns).root)  # ty:ignore[unresolved-attribute]
+        flag_modified(data_source, "schema")
+
+    for removed_column_id in [
+        k
+        for k, v in data_source.schema.root.items()  # ty:ignore[unresolved-attribute]
+        if v.original_column_name not in all_headers
+    ]:
+        data_source.schema.root.pop(removed_column_id)  # ty:ignore[unresolved-attribute]
+        flag_modified(data_source, "schema")
+
+    all_column_mappings = [
+        DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
+        for schema_column in data_source.schema.root.values()  # ty:ignore[unresolved-attribute]
+    ]
+
+    # delete all existing data source org items as the IDs aren't referenced, just column names
+    stmt = delete(DataSourceOrganisationItem).where(DataSourceOrganisationItem.data_source_id == data_source.id)
+    db.session.execute(stmt)
+    data_source.organisation_items.clear()
+
+    # create all new org items with the updated data
+    _create_organisation_items(data_source, all_rows, all_column_mappings, DATA_SET_IDENTIFIER_COLUMN_HEADERS)
 
     return data_source
 
