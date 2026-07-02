@@ -410,7 +410,7 @@ class CalculatedConditionForm(ExceptionRenderingFormMixin, FlaskForm):
 
     expression_name = StringField("Condition name", widget=GovTextInput(), validators=[DataRequired()])
 
-    custom_expression = StringField(
+    custom_expression = EvaluationStatementField(
         "Calculation",
         widget=GovTextArea(),
         validators=[DataRequired()],

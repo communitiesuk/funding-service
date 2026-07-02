@@ -2,7 +2,7 @@ import csv
 import io
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast, overload
 from typing import Optional as TOptional
 from uuid import UUID
 
@@ -70,15 +70,47 @@ if TYPE_CHECKING:
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
-def strip_string_if_not_empty(value: str) -> str | None:
-    return value.strip() if value else value
+@overload
+def strip_string_if_not_empty(value: None) -> None: ...
+@overload
+def strip_string_if_not_empty[T: str](value: T) -> T: ...
+def strip_string_if_not_empty(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    if not value:
+        return value
+
+    # Keep it working with str subclasses like ExpressionStatement; we should return the same type
+    stripped = value.strip()
+    if type(value) is not str:
+        return type(value)(stripped)
+
+    return stripped
 
 
-def strip_newlines(value: str) -> str | None:
-    return value.replace("\n", "") if value else value
+@overload
+def strip_newlines(value: None) -> None: ...
+@overload
+def strip_newlines[T: str](value: T) -> T: ...
+def strip_newlines(value: str | None) -> str | None:
+    if not value:
+        return value
+
+    replaced = value.replace("\n", "")
+
+    # Keep it working with str subclasses like ExpressionStatement; we should return the same type
+    if type(value) is not str:
+        return type(value)(replaced)
+
+    return replaced
 
 
-def empty_string_to_none(value: str) -> str | None:
+@overload
+def empty_string_to_none(value: None) -> None: ...
+@overload
+def empty_string_to_none[T: str](value: T) -> T | None: ...
+def empty_string_to_none(value: str | None) -> str | None:
     return value if value else None
 
 
@@ -345,14 +377,14 @@ class ConditionsOperatorForm(FlaskForm):
 
 
 class QuestionForm(FlaskForm):
-    text = StringField(
+    text = InterpolationStatementField(
         "Question text",
         description="The text grant recipients will see on their report",
         validators=[DataRequired("Enter the question text")],
         filters=[strip_string_if_not_empty, strip_newlines],
         widget=GovTextArea(),
     )
-    hint = StringField(
+    hint = InterpolationStatementField(
         "Question hint (optional)",
         filters=[strip_string_if_not_empty],
         widget=GovTextArea(),
@@ -848,7 +880,7 @@ class AddSectionForm(FlaskForm):
 
 
 class AddGuidanceForm(FlaskForm):
-    guidance_heading = InterpolationStatementField(
+    guidance_heading = StringField(
         "Give your page a heading",
         description=(
             "When you add guidance your question text will no longer be the main page heading, "

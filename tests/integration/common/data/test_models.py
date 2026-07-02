@@ -150,14 +150,12 @@ class TestComponentModel:
         question = factories.question.create(
             text="What is your name?",
             hint="Your hint here",
-            guidance_heading="Heading",
             guidance_body="Some guidance body text",
         )
         db_session.expire_all()
         reloaded = db_session.get(type(question), question.id)
         assert isinstance(reloaded.text, InterpolationStatement)
         assert isinstance(reloaded.hint, InterpolationStatement)
-        assert isinstance(reloaded.guidance_heading, InterpolationStatement)
         assert isinstance(reloaded.guidance_body, InterpolationStatement)
 
     def test_expression_statement_round_trips_as_evaluation_statement(self, db_session, factories):

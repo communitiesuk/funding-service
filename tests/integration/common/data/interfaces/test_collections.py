@@ -1315,7 +1315,7 @@ class TestUpdateGroup:
         updated_group = update_group(
             group=group,
             expression_context=ExpressionContext(),
-            guidance_heading=InterpolationStatement("How to answer this question"),
+            guidance_heading="How to answer this question",
             guidance_body=InterpolationStatement("This is detailed guidance with **markdown** formatting."),
             add_another_guidance_body=InterpolationStatement("What to expect when filling in this groups answers"),
         )
@@ -1338,7 +1338,7 @@ class TestUpdateGroup:
         updated_group = update_group(
             group=group,
             expression_context=ExpressionContext.build_expression_context(form.collection, "interpolation", None, None),
-            guidance_heading=InterpolationStatement("How to answer this question"),
+            guidance_heading="How to answer this question",
             guidance_body=InterpolationStatement("This is detailed guidance with **markdown** formatting."),
             add_another_guidance_body=InterpolationStatement(f"Reference to first question (({q1.safe_qid}))"),
         )
@@ -2147,7 +2147,7 @@ class TestUpdateQuestion:
         updated_question = update_question(
             question=question,
             expression_context=ExpressionContext(),
-            guidance_heading=InterpolationStatement("How to answer this question"),
+            guidance_heading="How to answer this question",
             guidance_body=InterpolationStatement("This is detailed guidance with **markdown** formatting."),
         )
 
@@ -2165,7 +2165,7 @@ class TestUpdateQuestion:
             expression_context=ExpressionContext(),
         )
 
-        question.guidance_heading = InterpolationStatement("Initial heading")
+        question.guidance_heading = "Initial heading"
         question.guidance_body = InterpolationStatement("Initial body")
 
         updated_question = update_question(
@@ -2189,7 +2189,7 @@ class TestUpdateQuestion:
             expression_context=ExpressionContext(),
         )
 
-        question.guidance_heading = InterpolationStatement("Initial heading")
+        question.guidance_heading = "Initial heading"
         question.guidance_body = InterpolationStatement("Initial body")
 
         updated_question = update_question(

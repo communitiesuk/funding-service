@@ -697,7 +697,7 @@ class Component(BaseModel):
     )
     parent_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"))
     data_source_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("data_source.id"))
-    guidance_heading: Mapped[InterpolationStatement | None]
+    guidance_heading: Mapped[str | None]
     guidance_body: Mapped[InterpolationStatement | None]
     add_another_guidance_body: Mapped[InterpolationStatement | None]
     add_another: Mapped[bool] = mapped_column(default=False)
