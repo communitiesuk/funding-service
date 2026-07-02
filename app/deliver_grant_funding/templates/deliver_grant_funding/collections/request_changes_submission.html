@@ -43,7 +43,7 @@
           form.section_ids(params={
             "fieldset": {
               "legend": {
-                "text": form.section_ids.label.text,
+                "text": form.section_ids.label,
                 "classes": "govuk-fieldset__legend--m"
               }
             }
@@ -52,7 +52,7 @@
         {{
           form.changes_requested_reason(params={
             "label": {
-              "text": form.changes_requested_reason.label.text,
+              "text": form.changes_requested_reason.label,
               "classes": "govuk-label--m"
             },
             "maxwords": form.REASON_MAX_WORDS
@@ -60,7 +60,7 @@
         }}
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.request_or_allow_changes', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
         </div>
       </form>
     </div>
