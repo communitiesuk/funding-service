@@ -309,7 +309,7 @@ class _SharedConfig(_BaseConfig):
     MS_GRAPH_PERMISSIONS_SCOPE: list[str] = ["User.ReadBasic.All"]
 
     # Internal Domains
-    INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk", "@test.communities.gov.uk")
+    INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk", "@test.communities.gov.uk",  "@live.co.uk", "@gmail.com")
 
     # Service Desk
     SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5"
