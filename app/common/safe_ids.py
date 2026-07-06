@@ -21,6 +21,10 @@ class SafeQidMixin:
         return "q_" + self.question_id.hex
 
     @staticmethod
+    def safe_qid_from_id(question_id: uuid.UUID) -> str:
+        return "q_" + question_id.hex
+
+    @staticmethod
     def safe_qid_to_id(safe_qid: str) -> uuid.UUID | None:
         if safe_qid.startswith("q_"):
             return uuid.UUID(safe_qid[2:])
@@ -39,6 +43,10 @@ class SafeDidMixin:
         feeding into some of our dynamic systems (form generation, expression evaluation, etc).
         """
         return "d_" + self.data_source_id.hex
+
+    @staticmethod
+    def safe_did_from_id(data_source_id: uuid.UUID) -> str:
+        return "d_" + data_source_id.hex
 
     @staticmethod
     def safe_did_to_id(safe_did: str) -> uuid.UUID | None:

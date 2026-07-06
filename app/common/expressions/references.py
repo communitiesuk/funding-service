@@ -2,7 +2,7 @@ import ast
 import re
 from collections import namedtuple
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Protocol, Self
 from uuid import UUID
 
 from pydantic import GetCoreSchemaHandler
@@ -79,8 +79,16 @@ class ExpressionReference(str):
         return cls(question.safe_qid)
 
     @classmethod
+    def from_question_id(cls, question_id: UUID) -> ExpressionReference:
+        return cls(SafeQidMixin.safe_qid_from_id(question_id))
+
+    @classmethod
     def from_data_source_column(cls, data_source: DataSource, column_name: str) -> ExpressionReference:
         return cls(f"{data_source.safe_did}.{column_name}")
+
+    @classmethod
+    def from_data_source_column_id(cls, data_source_id: UUID, column_name: str) -> ExpressionReference:
+        return cls(f"{SafeDidMixin.safe_did_from_id(data_source_id)}.{column_name}")
 
     @property
     def unwrapped(self) -> str:
@@ -328,6 +336,12 @@ class ExpressionStatement(PExpressionReferences, str):
             core_schema.str_schema(),
             serialization=core_schema.plain_serializer_function_ser_schema(str),
         )
+
+    def rewrite_reference(self, old: ExpressionReference, new: ExpressionReference) -> Self:
+        """Replace all occurrences of ``old`` with ``new`` in the statement."""
+        new_statement = str(self).replace(old.unwrapped, new.unwrapped)
+
+        return type(self)(new_statement)
 
 
 class EvaluationStatement(ExpressionStatement):
