@@ -31,6 +31,7 @@ from app.common.data.interfaces.collections import (
     NestedGroupException,
     SectionComponentDependencyException,
     SectionDependencyOrderException,
+    copy_collection,
     create_collection,
     create_form,
     create_group,
@@ -71,7 +72,7 @@ from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
-from app.common.data.interfaces.grants import get_grant
+from app.common.data.interfaces.grants import get_all_deliver_grants_by_user, get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
     CollectionType,
@@ -135,6 +136,7 @@ from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
     AddSectionForm,
+    CollectionCreationMethodForm,
     CollectionSettingsForm,
     ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
@@ -149,6 +151,7 @@ from app.deliver_grant_funding.forms import (
     ReopenSubmissionForm,
     RequestChangesSubmissionForm,
     RequestOrAllowChangesSubmissionForm,
+    SelectCollectionToCopyForm,
     SelectConditionCalculationForm,
     SelectDataSourceDataSetColumnForm,
     SelectDataSourceDataSetForm,
@@ -246,6 +249,81 @@ def start_test_grant_recipient_journey(
     )
 
 
+def _collections_user_can_copy(collection_type: CollectionType) -> list[Any]:
+    """All collections of this type that the current user could copy, from any grant they have access to."""
+    grants = get_all_deliver_grants_by_user(interfaces.user.get_current_user())
+    return sorted(
+        (collection for grant in grants for collection in grant.collections if collection.type == collection_type),
+        key=lambda collection: (collection.grant.name.lower(), collection.name.lower()),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/set-up/method", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def choose_collection_creation_method(grant_id: UUID, collection_type: CollectionType) -> ResponseReturnValue:
+    grant = get_grant(grant_id)
+    if not _collections_user_can_copy(collection_type):
+        return redirect(
+            url_for("deliver_grant_funding.set_up_collection", grant_id=grant_id, collection_type=collection_type)
+        )
+
+    form = CollectionCreationMethodForm(collection_type=collection_type)
+    if form.validate_on_submit():
+        if form.method.data == "copy":
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.select_collection_to_copy",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                )
+            )
+        return redirect(
+            url_for("deliver_grant_funding.set_up_collection", grant_id=grant_id, collection_type=collection_type)
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/choose_collection_creation_method.html",
+        grant=grant,
+        form=form,
+        collection_type=collection_type,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/set-up/copy", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def select_collection_to_copy(grant_id: UUID, collection_type: CollectionType) -> ResponseReturnValue:
+    grant = get_grant(grant_id)
+    collections = _collections_user_can_copy(collection_type)
+    if not collections:
+        return redirect(
+            url_for("deliver_grant_funding.set_up_collection", grant_id=grant_id, collection_type=collection_type)
+        )
+
+    form = SelectCollectionToCopyForm(collection_type=collection_type, collections=collections)
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "deliver_grant_funding.set_up_collection",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                copy_from=form.collection.data,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/select_collection_to_copy.html",
+        grant=grant,
+        form=form,
+        collection_type=collection_type,
+    )
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/set-up", methods=["GET", "POST"]
 )
@@ -253,16 +331,35 @@ def start_test_grant_recipient_journey(
 @auto_commit_after_request
 def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> ResponseReturnValue:
     grant = get_grant(grant_id)
+
+    source_collection = None
+    if copy_from := request.args.get("copy_from"):
+        try:
+            copy_from_id = UUID(copy_from)
+        except ValueError:
+            return abort(404)
+        source_collection = get_collection(copy_from_id, type_=collection_type, with_full_schema=True)
+        if source_collection.grant not in get_all_deliver_grants_by_user(interfaces.user.get_current_user()):
+            return abort(404)
+
     form = SetUpCollectionForm(collection_type=collection_type)
     if form.validate_on_submit():
         assert form.name.data
         try:
-            create_collection(
-                name=form.name.data,
-                user=interfaces.user.get_current_user(),
-                grant=grant,
-                type_=collection_type,
-            )
+            if source_collection:
+                copy_collection(
+                    source_collection,
+                    name=form.name.data,
+                    user=interfaces.user.get_current_user(),
+                    grant=grant,
+                )
+            else:
+                create_collection(
+                    name=form.name.data,
+                    user=interfaces.user.get_current_user(),
+                    grant=grant,
+                    type_=collection_type,
+                )
             # TODO: Redirect to the 'view collection' page when we've added it.
             return redirect(url_for(collection_type.constants.list_endpoint, grant_id=grant_id))
 
@@ -274,6 +371,7 @@ def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> Respon
         grant=grant,
         form=form,
         collection_type=collection_type,
+        source_collection=source_collection,
     )
 
 

@@ -1,5 +1,11 @@
 import re
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
+
+from pydantic import BaseModel as PydanticBaseModel
+from sqlalchemy import inspect
+
+if TYPE_CHECKING:
+    from app.common.data.base import BaseModel
 
 
 def slugify(text: str) -> str:
@@ -47,3 +53,14 @@ def uppercase_first(text: str | None) -> str | None:
         return text
 
     return text[0].upper() + text[1:]
+
+
+def to_dict(instance: BaseModel, exclude: list[str] | None = None) -> dict[str, Any]:
+    return {
+        prop.key: (field.model_dump(mode="json", exclude_none=True) if isinstance(field, PydanticBaseModel) else field)
+        for prop in inspect(instance.__class__).column_attrs
+        if (field := getattr(instance, prop.key)) is not None
+        and prop.columns[0].name not in {"created_at_utc", "updated_at_utc"}
+        and not prop.key.startswith("_")
+        and (exclude is None or prop.key not in exclude)
+    }

@@ -1239,7 +1239,8 @@ def test_setup_grant_and_collection(
     grant_reports_page = grant_dashboard_page.click_reports(new_grant_name)
 
     # Add a new report
-    add_report_page = grant_reports_page.click_add_report()
+    choose_method_page = grant_reports_page.click_add_report()
+    add_report_page = choose_method_page.click_create_new()
     new_report_name = f"E2E report {uuid.uuid4()}"
     add_report_page.fill_in_report_name(new_report_name)
     grant_reports_page = add_report_page.click_submit(new_grant_name)

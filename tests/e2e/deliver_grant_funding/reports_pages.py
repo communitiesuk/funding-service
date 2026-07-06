@@ -255,8 +255,8 @@ class GrantReportsPage(ReportsBasePage):
         super().__init__(
             page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{grant_name} Reports")
         )
-        self.add_report_button = self.page.get_by_role("button", name="Add a monitoring report").or_(
-            self.page.get_by_role("button", name="Add another monitoring report")
+        self.add_report_button = self.page.get_by_role("button", name="Create a report").or_(
+            self.page.get_by_role("button", name="Create another report")
         )
         self.summary_row_submissions = page.locator("div.govuk-summary-list__row").filter(
             has=page.get_by_text("Submissions")
@@ -266,11 +266,11 @@ class GrantReportsPage(ReportsBasePage):
         self.page.goto(f"{self.domain}/deliver/grant/{grant_id}/reports")
         expect(self.heading).to_be_visible()
 
-    def click_add_report(self) -> AddReportPage:
+    def click_add_report(self) -> ChooseCollectionCreationMethodPage:
         self.add_report_button.click()
-        add_report_page = AddReportPage(self.page, self.domain, grant_name=self.grant_name)
-        expect(add_report_page.heading).to_be_visible()
-        return add_report_page
+        choose_method_page = ChooseCollectionCreationMethodPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(choose_method_page.heading).to_be_visible()
+        return choose_method_page
 
     def check_report_exists(self, report_name: str) -> None:
         expect(self.page.get_by_role("heading", name=report_name)).to_be_visible()
@@ -314,6 +314,23 @@ class GrantReportsPage(ReportsBasePage):
         return reports_page
 
 
+class ChooseCollectionCreationMethodPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Do you want to create a new report or copy an existing report?"),
+        )
+
+    def click_create_new(self) -> "AddReportPage":
+        self.page.get_by_role("radio", name="Create a new report").click()
+        self.page.get_by_role("button", name="Continue").click()
+        add_report_page = AddReportPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(add_report_page.heading).to_be_visible()
+        return add_report_page
+
+
 class AddReportPage(ReportsBasePage):
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
@@ -324,10 +341,10 @@ class AddReportPage(ReportsBasePage):
         )
 
     def fill_in_report_name(self, name: str) -> None:
-        self.page.get_by_role("textbox", name="What is the name of the report?").fill(name)
+        self.page.get_by_role("textbox", name="Report name").fill(name)
 
     def click_submit(self, grant_name: str) -> GrantReportsPage:
-        self.page.get_by_role("button", name="Set up report").click()
+        self.page.get_by_role("button", name="Create report").click()
         reports_page = GrantReportsPage(self.page, self.domain, grant_name=grant_name)
         expect(reports_page.heading).to_be_visible()
         return reports_page

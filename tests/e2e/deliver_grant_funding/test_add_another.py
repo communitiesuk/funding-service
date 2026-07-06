@@ -137,7 +137,8 @@ def test_add_another_setup(
 
     # Report
     grant_reports_page = grant_dashboard_page.click_reports(grant_name)
-    add_report_page = grant_reports_page.click_add_report()
+    choose_method_page = grant_reports_page.click_add_report()
+    add_report_page = choose_method_page.click_create_new()
     add_report_page.fill_in_report_name(report_name)
     grant_reports_page = add_report_page.click_submit(grant_name)
     grant_reports_page.check_report_exists(report_name)
