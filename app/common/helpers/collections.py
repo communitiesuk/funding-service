@@ -286,7 +286,7 @@ class SubmissionHelper:
 
             elif helper.status == SubmissionStatusEnum.NOT_STARTED:
                 label = f"Start {collection.type.constants.singular}"
-            elif helper.status == SubmissionStatusEnum.IN_PROGRESS:
+            elif submission.is_in_progress:
                 label = f"Continue {collection.type.constants.singular}"
             else:
                 label = f"View {collection.type.constants.singular}"
@@ -429,7 +429,7 @@ class SubmissionHelper:
 
     @property
     def is_submitted(self) -> bool:
-        return self.status in (SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES)
+        return self.submission.is_submitted
 
     @property
     def is_awaiting_sign_off(self) -> bool:

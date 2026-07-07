@@ -1363,6 +1363,14 @@ class TestSubmissionHelper:
             assert result["label"] == "Continue report"
             assert result["href"]
 
+        def test_continue_report_when_has_change_requests(self, submission_changes_requested, grant_recipient):
+            result = SubmissionHelper.get_access_submission_action(
+                submission_changes_requested.collection, grant_recipient, submission_changes_requested
+            )
+
+            assert result["label"] == "Continue report"
+            assert result["href"]
+
         def test_start_report_when_not_started(self, db_session, factories):
             grant_recipient = factories.grant_recipient.create()
             question = factories.question.create(
