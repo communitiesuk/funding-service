@@ -2157,7 +2157,10 @@ class TestCheckYourAnswers:
         )
         form = question.form
         submission = factories.submission.create(
-            collection=form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+            collection=form.collection,
+            grant_recipient=grant_recipient,
+            mode=SubmissionModeEnum.LIVE,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
         )
         factories.submission_event.create(
             submission=submission,
