@@ -101,6 +101,7 @@ class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, Changes
     is_submitted: bool = False
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
     section_ids: list[str] = field(default_factory=list, metadata={"stored": True})
+    is_changes_requested: bool = True
 
 
 class DeclinedByCertifierKwargs(TypedDict, total=False):
@@ -134,6 +135,7 @@ class SubmissionApprovedByCertifierEvent(SubmissionEventBase, SignOffMixin):
 class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_SUBMITTED
     is_submitted: bool = True
+    is_changes_requested: bool = False
 
 
 # State - represents a snapshot of the current state of the target entity for those events
@@ -196,6 +198,7 @@ class SubmissionState(
     changes_requested_reason: str | None = None
     submission_data: dict[str, Any] | None = None
     section_ids: list[str] = field(default_factory=list)
+    is_changes_requested: bool = False
 
 
 @dataclass
@@ -322,10 +325,22 @@ class SubmissionEventHelper:
     @overload
     @staticmethod
     def event_from(
-        event_type: Literal[
-            SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER, SubmissionEventType.SUBMISSION_REOPENED
-        ],
-        **kwargs: Unpack[DeclinedByCertifierKwargs, ReopenedKwargs],
+        event_type: Literal[SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER],
+        **kwargs: Unpack[DeclinedByCertifierKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SUBMISSION_REOPENED],
+        **kwargs: Unpack[ReopenedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED],
+        **kwargs: Unpack[ChangesRequestedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

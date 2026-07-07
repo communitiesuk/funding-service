@@ -5,13 +5,6 @@
 {% set page_title = "Reopen submission - " ~ helper.long_collection_name %}
 {% set type_constants = helper.submission.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
-{%
-  set cancel_url = url_for(
-    "deliver_grant_funding.request_or_allow_changes" if feature_flags.NEW_CHANGE_REQUESTS.is_enabled else "deliver_grant_funding.view_submission",
-    grant_id=grant.id,
-    submission_id=helper.submission.id
-  )
-%}
 
 {% block beforeContent %}
   {% if helper.is_test %}
@@ -20,7 +13,11 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": cancel_url
+      "href": url_for(
+        "deliver_grant_funding.request_or_allow_changes" if feature_flags.NEW_CHANGE_REQUESTS.is_enabled else "deliver_grant_funding.view_submission",
+        grant_id=grant.id,
+        submission_id=helper.submission.id
+      )
     })
   }}
 {% endblock beforeContent %}
@@ -61,7 +58,7 @@
         }}
         <div class="govuk-button-group">
           {{ form.submit }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ cancel_url }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
         </div>
       </form>
     </div>

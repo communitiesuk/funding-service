@@ -7,6 +7,7 @@
         enum.tasklist_section_status.NOT_STARTED: "govuk-tag--grey",
         enum.tasklist_section_status.IN_PROGRESS: "govuk-tag--light-blue",
         enum.tasklist_section_status.NO_QUESTIONS: "govuk-tag--red",
+        enum.tasklist_section_status.CHANGES_REQUESTED: "govuk-tag--yellow",
     }
   %}
   {% if status == enum.tasklist_section_status.COMPLETED or status == enum.tasklist_section_status.NOT_NEEDED %}
@@ -86,6 +87,7 @@
         enum.submission_status.READY_TO_SUBMIT: "govuk-tag--blue",
         enum.submission_status.AWAITING_SIGN_OFF: "govuk-tag--purple",
         enum.submission_status.NOT_SUBMITTED: "govuk-tag--orange",
+        enum.submission_status.CHANGES_REQUESTED: "govuk-tag--yellow",
     }
   %}
   {% set status_text = status ~ (" (Overdue)" if is_overdue and status != enum.submission_status.NOT_SUBMITTED else "") %}

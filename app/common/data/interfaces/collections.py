@@ -74,6 +74,7 @@ from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
 from app.common.helpers.submission_events import (
+    ChangesRequestedKwargs,
     DeclinedByCertifierKwargs,
     ReopenedKwargs,
     SubmissionEventHelper,
@@ -1732,6 +1733,17 @@ def _add_submission_event(
     user: User,
     related_entity_id: UUID | None = None,
     **kwargs: Unpack[ReopenedKwargs],
+) -> None: ...
+
+
+@overload
+def _add_submission_event(
+    submission: Submission,
+    *,
+    event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[ChangesRequestedKwargs],
 ) -> None: ...
 
 
