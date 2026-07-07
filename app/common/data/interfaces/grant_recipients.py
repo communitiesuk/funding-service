@@ -5,7 +5,7 @@ from sqlalchemy import String, cast, func, select
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
-from app.common.data.models import Grant, GrantRecipient, Organisation
+from app.common.data.models import Grant, GrantRecipient, Organisation, Submission
 from app.common.data.models_user import User, UserRole
 from app.common.data.types import (
     GrantRecipientModeEnum,
@@ -68,6 +68,26 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
             grant_recipients_with_outstanding_submissions.append(gr)
 
     return grant_recipients_with_outstanding_submissions
+
+
+def get_grant_recipients_for_collection_with_submitted_submissions(
+    grant: Grant, *, collection_id: uuid.UUID, submission_mode: SubmissionModeEnum
+) -> Sequence[GrantRecipient]:
+    """
+    Gets all the grant recipients who have a submission with status == SUBMITTED for the given collection.
+
+    """
+    return db.session.scalars(
+        select(GrantRecipient)
+        .join(Submission)
+        .where(
+            GrantRecipient.grant_id == grant.id,
+            Submission.collection_id == collection_id,
+            Submission.mode == submission_mode,
+            Submission.status == SubmissionStatusEnum.SUBMITTED,
+        )
+        .options(selectinload(GrantRecipient.organisation))
+    ).all()
 
 
 def get_grant_recipients_for_organisation(
