@@ -2408,6 +2408,76 @@ class TestSubmissionHelper:
 
             assert helper.has_answer_changed_since_previous(question.id) is expected
 
+        def test_answer_changed_since_previous_with_add_another_index(self, factories):
+            group = factories.group.build(add_another=True)
+            question = factories.question.build(form=group.form, parent=group)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("original"), add_another_index=0)],
+            )
+            previous_data = deepcopy(submission.data_manager.data)
+            submission.data_manager.set(question, TextSingleLineAnswer("updated"), add_another_index=0)
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        changes_requested_reason="Fix this",
+                        submission_data=previous_data,
+                        section_ids=[],
+                    ),
+                )
+            ]
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.has_answer_changed_since_previous(question.id, add_another_index=0) is True
+
+    class TestHasFormChangedSincePreviousSubmission:
+        def test_returns_false_when_no_previous_snapshot_exists(self, factories):
+            question = factories.question.build()
+            submission = factories.submission.build(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("answer"))],
+            )
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.has_form_changed_since_previous_submission(question.form) is False
+
+        @pytest.mark.parametrize(
+            "initial_answer, updated_answer, expected",
+            [
+                pytest.param("same", "same", False, id="unchanged"),
+                pytest.param("original", "updated", True, id="changed"),
+            ],
+        )
+        def test_form_changed_since_previous(self, factories, initial_answer, updated_answer, expected):
+            question = factories.question.build()
+            submission = factories.submission.build(
+                collection=question.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer(initial_answer))],
+            )
+            previous_data = deepcopy(submission.data_manager.data)
+            submission.data_manager.set(question, TextSingleLineAnswer(updated_answer))
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                    data=SubmissionEventHelper.event_from(
+                        SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                        changes_requested_reason="Fix this",
+                        submission_data=previous_data,
+                        section_ids=[],
+                    ),
+                )
+            ]
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.has_form_changed_since_previous_submission(question.form) is expected
+
         @pytest.mark.parametrize(
             "initial_answers, updated_answers, expected",
             [
@@ -2452,7 +2522,7 @@ class TestSubmissionHelper:
 
             helper = SubmissionHelper(submission)
 
-            assert helper.has_answer_changed_since_previous(question.id) is expected
+            assert helper.has_form_changed_since_previous_submission(question.form) is expected
 
 
 class TestFormResetOnAnswerChange:

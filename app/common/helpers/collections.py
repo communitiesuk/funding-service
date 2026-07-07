@@ -665,10 +665,7 @@ class SubmissionHelper:
         marked_as_complete = self.events.form_state(form.id).is_completed
 
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
-            if self.previous_submission_data is not None and any(
-                self.has_answer_changed_since_previous(question.id)
-                for question in self.cached_get_ordered_visible_questions(form)
-            ):
+            if self.has_form_changed_since_previous_submission(form):
                 return TasklistSectionStatusEnum.CHANGES_MADE
             return TasklistSectionStatusEnum.COMPLETED
         elif form_questions_answered.some_answered:
@@ -1520,20 +1517,40 @@ class SubmissionHelper:
         if self.previous_submission_data is None:
             return False
 
-        question = self.get_question(question_id)
-
-        # if grouped question and we are not providing an index
-        if question.add_another_container and add_another_index is None:
-            # Compare previous and current full grouped question dicts
-            previous = self.previous_submission_data.data.get(str(question.add_another_container.id))
-            current = self.submission.data_manager.data.get(str(question.add_another_container.id))
-
-            return previous != current
-
         previous = self.get_previous_answer_for_question(question_id, add_another_index=add_another_index)
         current = self.cached_get_answer_for_question(question_id, add_another_index=add_another_index)
 
         return previous != current
+
+    def has_form_changed_since_previous_submission(self, form: Form) -> bool:
+        if self.previous_submission_data is None:
+            return False
+
+        containers_checked = set()
+        for question in self.cached_get_ordered_visible_questions(form):
+            if question.add_another_container:
+                # prevent checking the same add_another_container multiple times,
+                # as it will be the same for all questions in that container
+                if question.add_another_container in containers_checked:
+                    continue
+
+                # add container to the set of checked containers so we don't check it again
+                containers_checked.add(question.add_another_container)
+
+                current_count = self.get_count_for_add_another(question.add_another_container)
+                previous_count = self.previous_submission_data.get_count_for_add_another(question.add_another_container)
+
+                if current_count != previous_count:
+                    return True
+
+                for i in range(current_count):
+                    if self.has_answer_changed_since_previous(question.id, add_another_index=i):
+                        return True
+            else:
+                if self.has_answer_changed_since_previous(question.id):
+                    return True
+
+        return False
 
 
 class AllSubmissionsHelper:
