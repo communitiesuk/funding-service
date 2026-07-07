@@ -48,9 +48,9 @@ class TestGetGrant:
 
         result = get_grant(grant.id)
 
-        assert result.collections[0].name == "Collection three"  # APPLICATION type is 1st
-        assert result.collections[1].name == "Collection two"  # oldest MONITORING_REPORT type is 2nd
-        assert result.collections[2].name == "Collection one"  # newest MONITORING_REPORT type is last
+        assert result.collections[0].name == "Collection three"  # APPLICATION type is first
+        assert result.collections[1].name == "Collection one"  # MONITORING_REPORT next; newest first
+        assert result.collections[2].name == "Collection two"  # oldest MONITORING_REPORT type is last
 
     def test_get_grant_with_all_collections_maintains_default_relation_order(self, factories):
         grant = factories.grant.create()

@@ -101,7 +101,7 @@ class Grant(BaseModel):
         "Collection",
         lazy=True,
         cascade="all, delete-orphan",
-        order_by="Collection.type.desc(), Collection.created_at_utc",
+        order_by="Collection.type.desc(), Collection.created_at_utc.desc()",
     )
     organisation: Mapped[Organisation] = relationship("Organisation", back_populates="grants")
     grant_recipients: Mapped[list[GrantRecipient]] = relationship("GrantRecipient", back_populates="grant")

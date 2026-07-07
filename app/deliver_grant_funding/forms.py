@@ -67,7 +67,7 @@ from app.deliver_grant_funding.data_sets import (
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Component, DataSource, Form, GrantRecipient, Group, Question
+    from app.common.data.models import Collection, Component, DataSource, Form, Grant, GrantRecipient, Group, Question
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -891,14 +891,24 @@ class SelectCollectionToCopyForm(FlaskForm):
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
     def __init__(
-        self, *args: Any, collection_type: CollectionType, collections: Sequence["Collection"], **kwargs: Any
+        self,
+        *args: Any,
+        collection_type: CollectionType,
+        collections: Sequence["Collection"],
+        grant: Grant,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         singular = collection_type.constants.singular
         self.collection.label.text = f"Which {singular} do you want to copy?"
         self.collection.description = f"Search by {singular} or grant name"
+
+        sorted_collections = sorted(
+            collections, key=lambda c: (0 if c.grant == grant else 1, c.grant.name, -c.created_at_utc.timestamp())
+        )
         self.collection.choices = [("", "")] + [
-            (str(collection.id), collection.name, {"data-hint": collection.grant.name}) for collection in collections
+            (str(collection.id), collection.name, {"data-hint": collection.grant.name})
+            for collection in sorted_collections
         ]
         self.collection.validators = [DataRequired(f"Select the {singular} to copy")]
 

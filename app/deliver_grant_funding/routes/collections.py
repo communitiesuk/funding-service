@@ -305,7 +305,7 @@ def select_collection_to_copy(grant_id: UUID, collection_type: CollectionType) -
             url_for("deliver_grant_funding.set_up_collection", grant_id=grant_id, collection_type=collection_type)
         )
 
-    form = SelectCollectionToCopyForm(collection_type=collection_type, collections=collections)
+    form = SelectCollectionToCopyForm(collection_type=collection_type, collections=collections, grant=grant)
     if form.validate_on_submit():
         return redirect(
             url_for(

@@ -13214,6 +13214,7 @@ class TestSelectCollectionToCopy:
             data={"collection": str(collection.id)},
             collection_type=collection_type,
             collections=[collection],
+            grant=authenticated_grant_admin_client.grant,
         )
         response = authenticated_grant_admin_client.post(
             url_for(
