@@ -14,8 +14,16 @@
     <div class="govuk-grid-column-two-thirds">
       {# TODO: FSPT-549 - show flash messages consistently everywhere with a standard interface #}
       {% with flashes = get_flashed_messages(with_categories=true) %}
-        {% for flash in flashes %}
-          {{ govukNotificationBanner({ "text": flash[1], "type": flash[0] }) }}
+        {% for category, message in flashes %}
+          {% if category == enum.flash_message_type.COLLECTION_CREATED %}
+            {% set banner_html %}
+              <h3 class="govuk-notification-banner__heading">{{ (message.name ~ " " ~ message.singular ~ " created") | uppercase_first }}</h3>
+              <p class="govuk-body">View your <a class="govuk-notification-banner__link" href="{{ message.url }}">{{ message.name }} {{ message.singular }}</a>.</p>
+            {% endset %}
+            {{ govukNotificationBanner({ "html": banner_html, "type": "success" }) }}
+          {% else %}
+            {{ govukNotificationBanner({ "text": message, "type": category }) }}
+          {% endif %}
         {% endfor %}
       {% endwith %}
 

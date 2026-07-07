@@ -205,6 +205,38 @@ class TestSetUpCollection:
             assert created[0].created_by == client.user
 
     @pytest.mark.parametrize(
+        "collection_type, copy",
+        [
+            (CollectionType.MONITORING_REPORT, False),
+            (CollectionType.APPLICATION, False),
+            (CollectionType.MONITORING_REPORT, True),
+            (CollectionType.APPLICATION, True),
+        ],
+    )
+    def test_post_shows_created_flash(
+        self, authenticated_grant_admin_client, factories, collection_type: CollectionType, copy: bool
+    ):
+        client = authenticated_grant_admin_client
+        client.grant.allow_pre_award = True
+        url = url_for(
+            "deliver_grant_funding.set_up_collection", grant_id=client.grant.id, collection_type=collection_type
+        )
+        if copy:
+            source = factories.collection.create(grant=client.grant, name="Source", type=collection_type)
+            url = f"{url}?copy_from={source.id}"
+
+        form = SetUpCollectionForm(data={"name": "My new collection"}, collection_type=collection_type)
+        response = client.post(url, data=get_form_data(form), follow_redirects=True)
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        singular = collection_type.constants.singular
+        banner = page_has_flash(soup, f"My new collection {singular} created")
+        assert banner
+        link = banner.find("a", class_="govuk-notification-banner__link")
+        assert link
+        assert f"My new collection {singular}" in link.text
+
+    @pytest.mark.parametrize(
         "collection_type, expected_error",
         [
             (CollectionType.MONITORING_REPORT, "A report with this name already exists"),

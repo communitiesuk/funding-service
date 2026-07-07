@@ -347,20 +347,32 @@ def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> Respon
         assert form.name.data
         try:
             if source_collection:
-                copy_collection(
+                new_collection = copy_collection(
                     source_collection,
                     name=form.name.data,
                     user=interfaces.user.get_current_user(),
                     grant=grant,
                 )
             else:
-                create_collection(
+                new_collection = create_collection(
                     name=form.name.data,
                     user=interfaces.user.get_current_user(),
                     grant=grant,
                     type_=collection_type,
                 )
-            # TODO: Redirect to the 'view collection' page when we've added it.
+            flash(
+                {
+                    "name": new_collection.name,
+                    "singular": collection_type.constants.singular,
+                    "url": url_for(
+                        "deliver_grant_funding.list_collection_sections",
+                        grant_id=grant_id,
+                        collection_type=collection_type,
+                        collection_id=new_collection.id,
+                    ),
+                },  # ty: ignore[invalid-argument-type]
+                FlashMessageType.COLLECTION_CREATED,
+            )
             return redirect(url_for(collection_type.constants.list_endpoint, grant_id=grant_id))
 
         except DuplicateValueError:

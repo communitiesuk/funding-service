@@ -273,7 +273,7 @@ class GrantReportsPage(ReportsBasePage):
         return choose_method_page
 
     def check_report_exists(self, report_name: str) -> None:
-        expect(self.page.get_by_role("heading", name=report_name)).to_be_visible()
+        expect(self.page.get_by_role("heading", name=report_name, exact=True)).to_be_visible()
 
     def click_add_section(self, report_name: str, grant_name: str) -> AddSectionPage:
         self.page.get_by_role("link", name=f"Add sections to {report_name}").click()

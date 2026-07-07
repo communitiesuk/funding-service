@@ -30,6 +30,7 @@ class FlashMessageType(StrEnum):
     SUBMISSION_VALIDATION_ERROR = "submission_validation_error"
     SUBMISSION_REOPENED = "submission_reopened"
     SUBMISSION_CHANGES_REQUESTED = "submission_changes_requested"
+    COLLECTION_CREATED = "collection_created"
 
 
 class TRadioItem(TypedDict):
