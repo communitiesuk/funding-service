@@ -33,8 +33,10 @@ from app.common.data.base import BaseModel, CIStr
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import (
+    IN_PROGRESS_STATUSES,
     MONITORING_COLLECTIONS,
     PRE_AWARD_COLLECTIONS,
+    SUBMITTED_STATUSES,
     CollectionStatusEnum,
     CollectionType,
     ComponentType,
@@ -573,10 +575,28 @@ class Submission(BaseModel):
         )
 
     @hybrid_property
+    def is_submitted(self) -> bool:
+        return self.status in SUBMITTED_STATUSES
+
+    @is_submitted.inplace.expression
+    @classmethod
+    def _is_submitted_expression(cls) -> ColumnElement[bool]:
+        return cls.status.in_(SUBMITTED_STATUSES)
+
+    @hybrid_property
+    def is_in_progress(self) -> bool:
+        return self.status in IN_PROGRESS_STATUSES
+
+    @is_in_progress.inplace.expression
+    @classmethod
+    def _is_in_progress_expression(cls) -> ColumnElement[bool]:
+        return cls.status.in_(IN_PROGRESS_STATUSES)
+
+    @hybrid_property
     def is_overdue(self) -> bool:
         # todo: make sure this is resilient to timezones, drift, etc. this is likely something that should
         #       a batch job decision that is then added as a submission event rather than calculated by the server
-        return self.collection.is_overdue and not self.status == SubmissionStatusEnum.SUBMITTED
+        return self.collection.is_overdue and not self.is_submitted
 
     @is_overdue.inplace.expression
     @classmethod
@@ -584,7 +604,7 @@ class Submission(BaseModel):
         return (
             Collection.submission_period_end_date.isnot(None)
             & (Collection.submission_period_end_date < func.timezone("Europe/London", func.now()))
-            & (cls.status != SubmissionStatusEnum.SUBMITTED)
+            & not_(cls.is_submitted)
         )
 
     __table_args__ = (

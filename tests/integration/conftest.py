@@ -41,6 +41,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
+from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
 from tests.integration.utils import TimeFreezer
@@ -768,6 +769,33 @@ def submission_submitted(factories: _Factories, db_session, grant_recipient: Gra
     db_session.commit()
 
     return cast(Submission, submission)
+
+
+@pytest.fixture(scope="function")
+def submission_changes_requested(
+    factories: _Factories, db_session, submission_submitted: Submission, grant_team_user: User
+) -> Submission:
+    factories.submission_event.create(
+        submission=submission_submitted,
+        event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+        created_by=grant_team_user,
+        data=SubmissionEventHelper.event_from(
+            SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            changes_requested_reason="Please fix this",
+            submission_data=submission_submitted.data_manager.data,
+            section_ids=[str(submission_submitted.collection.forms[0].id)],
+        ),
+    )
+    factories.submission_event.create(
+        submission=submission_submitted,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+        created_by=grant_team_user,
+        related_entity_id=submission_submitted.collection.forms[0].id,
+    )
+    submission_submitted.status = SubmissionStatusEnum.CHANGES_REQUESTED
+    db_session.commit()
+
+    return submission_submitted
 
 
 @pytest.fixture(scope="function")

@@ -12,7 +12,6 @@ from app.common.data.types import (
     GrantRecipientStatusEnum,
     RoleEnum,
     SubmissionModeEnum,
-    SubmissionStatusEnum,
 )
 from app.extensions import db
 
@@ -53,7 +52,6 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
 
     """
     from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
-    from app.common.helpers.collections import SubmissionHelper
 
     all_grant_recipients = get_grant_recipients(
         grant, with_data_providers=with_data_providers, with_certifiers=with_certifiers
@@ -66,7 +64,7 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
     grant_recipients_with_outstanding_submissions = []
     for gr in all_grant_recipients:
         submission = next((s for s in submissions if s.grant_recipient_id == gr.id), None)
-        if not submission or SubmissionHelper(submission).status != SubmissionStatusEnum.SUBMITTED:
+        if not submission or not submission.is_submitted:
             grant_recipients_with_outstanding_submissions.append(gr)
 
     return grant_recipients_with_outstanding_submissions

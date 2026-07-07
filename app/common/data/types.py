@@ -179,6 +179,10 @@ class SubmissionStatusEnum(enum.StrEnum):
     SUBMITTED_WITH_CHANGES = "Submitted with changes"
 
 
+SUBMITTED_STATUSES = (SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES)
+IN_PROGRESS_STATUSES = (SubmissionStatusEnum.IN_PROGRESS, SubmissionStatusEnum.CHANGES_REQUESTED)
+
+
 class TasklistSectionStatusEnum(enum.StrEnum):
     CANNOT_START_YET = "Cannot start yet"
     NOT_STARTED = "Not started"
