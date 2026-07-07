@@ -994,6 +994,7 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     type = DataSourceType.CUSTOM
+    name: str
 
     # No organisation items are created by default - tests which need them should create them explicitly and set the
     # items size to 0

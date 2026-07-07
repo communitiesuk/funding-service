@@ -3811,7 +3811,9 @@ def replace_data_set(
     ):
         abort(404)
     form = UploadDataSetForm(
-        existing_data_source_names=[], existing_datasource=data_source, data={"name": data_source.name}
+        existing_data_source_names=[ds.name for ds in collection.data_sources if ds.id != data_source_id],
+        existing_datasource=data_source,
+        data={"name": data_source.name},
     )
     gr_errors = []
     if form.validate_on_submit():

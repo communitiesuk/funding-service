@@ -11367,6 +11367,58 @@ class TestReplaceDataSet:
         else:
             assert response.status_code == 403
 
+    @pytest.mark.parametrize(
+        "new_name,valid",
+        [
+            ("data set two", False),
+            ("data set three", True),
+            ("data set one", True),
+        ],
+    )
+    def test_duplicate_data_set_name(
+        self, factories, authenticated_grant_admin_client, mock_s3_service_calls, new_name, valid
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        ds_1 = factories.data_source.create(
+            collection=collection, grant=grant, type=DataSourceType.GRANT_RECIPIENT, name="data set one"
+        )
+
+        factories.data_source.create(
+            collection=collection, grant=grant, type=DataSourceType.GRANT_RECIPIENT, name="data set two"
+        )
+
+        data = build_file_upload_form_data(
+            csv_content=(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},Allocation"),
+            name=new_name,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=grant.id,
+                collection_type=ds_1.collection.type,
+                collection_id=ds_1.collection.id,
+                data_source_id=ds_1.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=False,
+        )
+        if valid:
+            assert response.status_code == 302
+            assert response.location == url_for(
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
+                grant_id=grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        else:
+            assert response.status_code == 200
+            assert page_has_error(
+                BeautifulSoup(response.data, "html.parser"), "A data set with this name already exists"
+            )
+
     def test_valid_upload_redirects(self, factories, authenticated_grant_admin_client, mock_s3_service_calls):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
