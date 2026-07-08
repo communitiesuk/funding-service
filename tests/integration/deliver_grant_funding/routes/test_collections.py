@@ -2,12 +2,14 @@ import csv
 import datetime
 import io
 import logging
+import re
 import uuid
 from copy import deepcopy
 from datetime import date
 from decimal import Decimal
+from typing import cast
 from unittest.mock import patch
-from tests.utils import build_file_upload_form_data
+
 import pytest
 from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
@@ -99,12 +101,12 @@ from app.deliver_grant_funding.session_models import (
     DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
+from app.metrics import MetricEventName
 from tests.integration.utils import build_file_upload_form_data
 from tests.models import ALL_COLUMN_TYPE_HEADERS_STR, FactoryAnswer
-from app.metrics import MetricEventName
-from tests.models import FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
+    build_file_upload_form_data,
     get_form_data,
     get_h1_text,
     get_h2_text,
@@ -11568,6 +11570,85 @@ class TestReplaceDataSet:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Organisation ID 'XX1122' not found in grant recipients")
+
+    def test_upload_with_changed_data_for_submitted_org_shows_errors(
+        self, factories, authenticated_grant_admin_client, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        gr1 = factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E123",
+            organisation__name="Rivendell",
+        )
+        factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E456",
+            organisation__name="Lothlorien",
+        )
+        factories.data_source_organisation_item.create(
+            external_id=gr1.organisation.external_id,
+            data_source=data_source,
+            _data={
+                "c_whole_number": 5,
+                "c_decimal_number": "1.1",
+                "c_just_text": "hello",
+                "c_british_pounds": "100",
+                "c_whole_number_suffix": 12,
+                "c_whole_number_prefix": 10,
+            },
+        )
+        question = factories.question.create(form__collection=collection)
+        submission = factories.submission.create(
+            collection=collection,
+            grant_recipient=gr1,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
+            mode=SubmissionModeEnum.LIVE,
+        )
+        factories.submission_event.create(
+            submission=submission,
+            related_entity_id=collection.forms[0].id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        )
+        factories.submission_event.create(submission=submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
+        submission.status = SubmissionStatusEnum.SUBMITTED
+
+        data = build_file_upload_form_data(
+            csv_content=(
+                ALL_COLUMN_TYPE_HEADERS_STR
+                + "\nE123,Rivendell,100,1.2,hello,5,10,12"
+                + "\nE456,Lothlorien,100,1.1,hello,6,10,12"
+            )
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=grant.id,
+                collection_type=data_source.collection.type,
+                collection_id=data_source.collection.id,
+                data_source_id=data_source.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        error_summary = soup.find(class_="govuk-error-summary__list")
+        element = error_summary.find_all("a")[-1]
+
+        assert re.sub(r"\s+", " ", cast(str, element.text).strip()) == (
+            "Data in column Decimal number cannot be changed for grant recipients who have already submitted: Rivendell"
+        )
 
     def test_upload_with_mismatched_grant_recipients_redirects(
         self, factories, authenticated_grant_admin_client, mock_s3_service_calls

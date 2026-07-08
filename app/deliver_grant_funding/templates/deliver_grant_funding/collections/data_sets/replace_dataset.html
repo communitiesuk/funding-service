@@ -30,6 +30,31 @@
           {% do error_list.append({"text": error, "href": "#file"}) %}
         {% endfor %}
       {% endif %}
+      {% if removed_column_submitted_errors %}
+        {% set error_html %}
+          {% trans count = removed_column_submitted_errors| length %}Column{% pluralize %}{{ count }}Columns{% endtrans %}
+          {{ removed_column_submitted_errors | comma_join_items("and") }}
+          cannot be removed for grant recipients who have already submitted:
+          <ul class="govuk-list--bullet">
+            {% for org in removed_column_org_submitted_errors %}
+              <li>{{ org }}</li>
+            {% endfor %}
+          </ul>
+        {% endset %}
+        {% do error_list.append({"html": error_html, "href": "#file"}) %}
+      {% endif %}
+      {% if changed_column_submitted_errors %}
+        {% set error_html %}
+          Data in {% trans count = changed_column_submitted_errors| length %}column{% pluralize %}{{ count }}columns{% endtrans %} {{ changed_column_submitted_errors | comma_join_items("and") }} cannot be changed for grant recipients who
+          have already submitted:
+          <ul class="govuk-list--bullet">
+            {% for org in changed_column_org_submitted_errors %}
+              <li>{{ org }}</li>
+            {% endfor %}
+          </ul>
+        {% endset %}
+        {% do error_list.append({"html": error_html, "href": "#file"}) %}
+      {% endif %}
       {% if error_list %}
         {{
           govukErrorSummary({

@@ -72,6 +72,7 @@ from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
+from app.common.data.interfaces.grant_recipients import get_grant_recipients_for_collection_with_submitted_submissions
 from app.common.data.interfaces.grants import get_all_deliver_grants_by_user, get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
@@ -3814,6 +3815,12 @@ def replace_data_set(
         existing_data_source_names=[ds.name for ds in collection.data_sources if ds.id != data_source_id],
         existing_datasource=data_source,
         data={"name": data_source.name},
+        submitted_orgs=[
+            gr.organisation
+            for gr in get_grant_recipients_for_collection_with_submitted_submissions(
+                collection.grant, collection_id=collection_id, submission_mode=SubmissionModeEnum.LIVE
+            )
+        ],
     )
     gr_errors = []
     if form.validate_on_submit():
@@ -3846,6 +3853,23 @@ def replace_data_set(
                 )
             )
 
+    removed_columns = []
+    removed_column_orgs = set()
+
+    if form.removed_column_errors:
+        removed_columns = form.removed_column_errors.keys()
+        for _, orgs in form.removed_column_errors.items():
+            for org in orgs:
+                removed_column_orgs.add(org)
+
+    changed_columns = []
+    changed_column_orgs = set()
+
+    if form.changed_column_errors:
+        changed_columns = form.changed_column_errors.keys()
+        for _, orgs in form.changed_column_errors.items():
+            for org in orgs:
+                changed_column_orgs.add(org)
     return render_template(
         "deliver_grant_funding/collections/data_sets/replace_dataset.html",
         grant=collection.grant,
@@ -3853,6 +3877,10 @@ def replace_data_set(
         gr_errors=gr_errors,
         form=form,
         data_source=data_source,
+        removed_column_submitted_errors=removed_columns,
+        removed_column_org_submitted_errors=removed_column_orgs,
+        changed_column_submitted_errors=changed_columns,
+        changed_column_org_submitted_errors=changed_column_orgs,
     )
 
 

@@ -2,8 +2,14 @@ import io
 
 import pytest
 from werkzeug.datastructures import FileStorage, MultiDict
+from wtforms import ValidationError
+from wtforms.validators import StopValidation
 
-from app import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, ExpressionReference
+from app import (
+    DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+    ExpressionReference,
+)
 from app.common.collections.types import YesNoAnswer
 from app.common.data.models import Expression
 from app.common.data.types import (
@@ -457,6 +463,221 @@ class TestUploadDataSetForm:
             "One or more numbers in column 'British pounds' are not formatted as British pounds to 2 decimal places "
             + "with the '£' prefix. For example, £100.00"
         ) in form.data_errors
+
+    def test_new_data_valid_but_changes_submitted_submission(
+        self,
+        factories,
+    ):
+
+        collection = factories.collection.create()
+        gr1 = factories.grant_recipient.create(grant=collection.grant)
+        gr2 = factories.grant_recipient.create(grant=collection.grant)
+
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[100, 200],
+        )
+        factories.question.create(
+            form__collection=collection,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+            text=f"How did you spend the ((d_{data_source.id.hex}.c_allocation))?",
+        )
+
+        data = _build_file_upload_form_data(
+            csv_content=(
+                f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},Allocation"
+                + f"\n{gr1.organisation.external_id},{gr1.organisation.name},120"
+                + f"\n{gr2.organisation.external_id},{gr2.organisation.name},200"
+            )
+        )
+        form = UploadDataSetForm(
+            existing_data_source_names=[],
+            existing_datasource=data_source,
+            submitted_orgs=[gr1.organisation],
+        )
+        form.process(data)
+
+        assert form.validate() is False
+        assert form.changed_column_errors["Allocation"][0] == gr1.organisation.name
+
+    class TestValidateDataForExistingSubmissions:
+        def test_valid_none_submitted(self, factories):
+            collection = factories.collection.create()
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+            )
+            form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[])
+            form._validate_data_for_existing_submissions(
+                existing_datasource=data_source,
+                rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E000123",
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "test",
+                        "Allocation": "123",
+                    }
+                ],
+            )
+
+        def test_valid_submitted_unchanged(self, factories):
+            collection = factories.collection.create()
+            gr1 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=["100"],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr1.organisation]
+            )
+            form._validate_data_for_existing_submissions(
+                existing_datasource=data_source,
+                rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "test",
+                        "Allocation": "100",
+                    }
+                ],
+            )
+
+        def test_valid_with_prefix(self, factories):
+            collection = factories.collection.create()
+            gr1 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=["100"],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr1.organisation]
+            )
+            form._validate_data_for_existing_submissions(
+                existing_datasource=data_source,
+                rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "test",
+                        "Allocation": "£100",  # same value, but with the optional prefix
+                    }
+                ],
+            )
+
+        def test_invalid_missing_row_for_submitted_org(self, factories):
+            collection = factories.collection.create()
+            gr = factories.grant_recipient.create(grant=collection.grant, organisation__external_id="E000123")
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr.organisation]
+            )
+            with pytest.raises(ValidationError) as e:
+                form._validate_data_for_existing_submissions(
+                    existing_datasource=data_source,
+                    rows=[
+                        {
+                            DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E000999",
+                            DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "test999",
+                            "Allocation": "123",
+                        }
+                    ],
+                )
+            assert str(e.value) == f"The file does not contain a row for grant recipient {gr.organisation.name}"
+
+        def test_invalid_changes_data_for_submitted_org(self, factories):
+            collection = factories.collection.create()
+            gr = factories.grant_recipient.create(grant=collection.grant, organisation__external_id="E000123")
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr.organisation]
+            )
+            with pytest.raises(StopValidation) as e:
+                form._validate_data_for_existing_submissions(
+                    existing_datasource=data_source,
+                    rows=[
+                        {
+                            DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E000123",
+                            DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "test",
+                            "Allocation": "123",
+                        }
+                    ],
+                )
+            assert str(e.value) == "There is a problem"
+            assert form.changed_column_errors["Allocation"][0] == gr.organisation.name
+
+        def test_invalid_missing_data_for_submitted_org(self, factories):
+            collection = factories.collection.create()
+            gr = factories.grant_recipient.create(grant=collection.grant, organisation__external_id="E000123")
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr.organisation]
+            )
+            with pytest.raises(StopValidation) as e:
+                form._validate_data_for_existing_submissions(
+                    existing_datasource=data_source,
+                    rows=[
+                        {
+                            DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E000123",
+                            DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "test",
+                            "Allocation": "",
+                        }
+                    ],
+                )
+            assert str(e.value) == "There is a problem"
+            assert form.changed_column_errors["Allocation"][0] == gr.organisation.name
+
+        def test_invalid_removes_column_for_submitted_org(self, factories):
+            collection = factories.collection.create()
+            gr = factories.grant_recipient.create(grant=collection.grant, organisation__external_id="E000123")
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr.organisation]
+            )
+            with pytest.raises(StopValidation) as e:
+                form._validate_data_for_existing_submissions(
+                    existing_datasource=data_source,
+                    rows=[
+                        {
+                            DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E000123",
+                            DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "test",
+                            "New column": "123",
+                        }
+                    ],
+                )
+            assert str(e.value) == "There is a problem"
+            assert form.removed_column_errors["Allocation"][0] == gr.organisation.name
 
 
 class TestRequestChangesSubmissionForm:

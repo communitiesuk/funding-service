@@ -12,6 +12,7 @@ from app.common.data.types import (
     GrantRecipientStatusEnum,
     RoleEnum,
     SubmissionModeEnum,
+    SubmissionStatusEnum,
 )
 from app.extensions import db
 
