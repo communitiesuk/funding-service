@@ -1135,6 +1135,8 @@ class SubmissionHelper:
 
         SubmissionValidator(self).validate_all_reachable_questions()
 
+        was_changes_requested = self.events.submission_state.is_changes_requested
+
         self.add_submission_event(
             event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
             user=user,
@@ -1147,6 +1149,12 @@ class SubmissionHelper:
         for unique_user in unique_users:
             notification_service.send_access_submission_submitted(
                 email_address=unique_user.email,
+                submission_helper=self,
+            )
+
+        if was_changes_requested and self.changes_requested_by:
+            notification_service.send_submission_with_changes_notify_requester(
+                user=self.changes_requested_by,
                 submission_helper=self,
             )
 

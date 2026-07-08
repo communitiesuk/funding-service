@@ -6,6 +6,7 @@ import responses
 from responses import matchers
 
 from app.common.data.types import GrantRecipientModeEnum, SubmissionEventType
+from app.common.filters import format_datetime
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions import notification_service
@@ -522,6 +523,47 @@ class TestNotificationService:
                 submission_helper=helper,
                 user=helper.submitted_by,
             )
+
+    @responses.activate
+    def test_send_submission_with_changes_notify_requester(
+        self,
+        factories,
+        submission_submitted,
+        mock_notification_service_calls,
+    ):
+        grant_team_user = factories.user.build(name="Grant Team User", email="grant.team@communities.gov.uk")
+        factories.submission_event.build(
+            submission=submission_submitted,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            created_by=grant_team_user,
+            created_at_utc=datetime.datetime(2025, 12, 1, 9, 30, 0),
+            data={"changes_requested_reason": "Please fix this section"},
+        )
+        helper = SubmissionHelper(submission_submitted)
+
+        expected_personalisation = {
+            "submission_name": "Test collection",
+            "collection_type_noun": "report",
+            "grant_name": "Test grant",
+            "organisation_name": submission_submitted.grant_recipient.organisation.name,
+            "submitter_name": helper.sent_for_certification_by.name,
+            "requires_certification": "yes",
+            "certifier_name": helper.certified_by.name,
+            "date_submitted": format_datetime(helper.submitted_at_utc),
+            "grant_submission_url": (
+                f"http://funding.communities.gov.localhost:8080/deliver/grant/{submission_submitted.collection.grant.id}"
+                f"/submission/{submission_submitted.id}"
+            ),
+        }
+
+        notification_service.send_submission_with_changes_notify_requester(
+            user=grant_team_user,
+            submission_helper=helper,
+        )
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"] == expected_personalisation
+        assert mock_notification_service_calls[0].kwargs["template_id"] == "8ee3b678-d69f-4f50-bcc2-87dcd6ad4d43"
+        assert mock_notification_service_calls[0].kwargs["email_address"] == "grant.team@communities.gov.uk"
 
     @responses.activate
     def test_send_access_submission_submitted_requires_certification(self, app, factories):

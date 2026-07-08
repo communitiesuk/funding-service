@@ -1678,6 +1678,72 @@ class TestSubmissionHelper:
 
             assert len(mock_notification_service_calls) == 0
 
+        @pytest.mark.freeze_time("2026-03-09 12:00:00")
+        def test_submit_with_changes_sends_email_to_changes_requester(
+            self,
+            submission_submitted,
+            grant_team_user,
+            data_provider_user,
+            factories,
+            mock_notification_service_calls,
+        ):
+            submission_submitted.collection.requires_certification = False
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+            # Request changes to the submission so it goes into CHANGES_REQUESTED state
+            form = submission_submitted.collection.forms[0]
+            helper.request_changes_submission(
+                user=grant_team_user,
+                changes_requested_reason="Please update the answers",
+                section_ids=[str(form.id)],
+            )
+            assert helper.status == SubmissionStatusEnum.CHANGES_REQUESTED
+            assert len(mock_notification_service_calls) == 1
+
+            # email with GOVUK_NOTIFY_CHANGES_REQUESTED_SUBMISSION_TEMPLATE_ID was sent
+            assert mock_notification_service_calls[0].kwargs["template_id"] == "07c9df47-e33f-4d71-841c-673f1ca0d0a6"
+
+            # clear the mock calls so we can check the next email
+            mock_notification_service_calls.clear()
+
+            # Change the answer of the form's question CHANGES_MADE
+            question = form.cached_questions[0]
+            submission_submitted.data_manager.set(question, TextSingleLineAnswer("Updated answer"))
+
+            # Mark the form as completed
+            factories.submission_event.create(
+                submission=submission_submitted,
+                related_entity_id=form.id,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                created_by=data_provider_user,
+                created_at_utc=datetime(2026, 4, 12, 0, 0, 0),
+            )
+
+            form_status = helper.get_status_for_form(form)
+
+            # Form changes status to CHANGES_MADE
+            assert form_status == TasklistSectionStatusEnum.CHANGES_MADE
+
+            # Refresh the Submission status
+            helper._update_submission_status()
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+            helper.submit(user=data_provider_user)
+
+            assert helper.status == SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
+
+            submission_with_changes_emails = [
+                call
+                for call in mock_notification_service_calls
+                if "template_id" in call.kwargs and call.kwargs["template_id"] == "8ee3b678-d69f-4f50-bcc2-87dcd6ad4d43"
+            ]
+
+            # email with GOVUK_NOTIFY_SUBMISSION_WITH_CHANGES_NOTIFY_REQUESTER_TEMPLATE_ID was sent
+            assert len(submission_with_changes_emails) == 1
+            # We email only the grant team user who requested the changes
+            assert submission_with_changes_emails[0].kwargs["email_address"] == grant_team_user.email
+
     class TestSentForCertification:
         def test_mark_as_sent_for_certification(
             self, data_provider_user, certifier_user, submission_ready_to_submit, mock_notification_service_calls

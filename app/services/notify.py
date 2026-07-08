@@ -492,6 +492,50 @@ class NotificationService:
             personalisation=personalisation,
         )
 
+    def send_submission_with_changes_notify_requester(
+        self,
+        user: User,
+        submission_helper: SubmissionHelper,
+    ) -> Notification:
+        submission = submission_helper.submission
+
+        submitter_name = "(Submitter not known)"
+        certifier_name = "(Certifier not known)"
+        if submission_helper.collection.requires_certification:
+            if submission_helper.sent_for_certification_by:
+                submitter_name = submission_helper.sent_for_certification_by.name
+            if submission_helper.certified_by:
+                certifier_name = submission_helper.certified_by.name
+        else:
+            if submission_helper.submitted_by:
+                submitter_name = submission_helper.submitted_by.name
+            certifier_name = ""
+
+        return self._send_email(
+            email_address=user.email,
+            template_id=current_app.config["GOVUK_NOTIFY_SUBMISSION_WITH_CHANGES_NOTIFY_REQUESTER_TEMPLATE_ID"],
+            personalisation={
+                "submission_name": submission_helper.long_collection_name,
+                "collection_type_noun": submission.collection.type.constants.singular,
+                "grant_name": submission.collection.grant.name,
+                "organisation_name": submission.grant_recipient.organisation.name,
+                "submitter_name": submitter_name,
+                "requires_certification": "yes" if submission.collection.requires_certification else "no",
+                "certifier_name": certifier_name,
+                "date_submitted": (
+                    format_datetime(submission_helper.submitted_at_utc)
+                    if submission_helper.submitted_at_utc
+                    else "(Date submitted not known)"
+                ),
+                "grant_submission_url": url_for(
+                    "deliver_grant_funding.view_submission",
+                    grant_id=submission.collection.grant.id,
+                    submission_id=submission.id,
+                    _external=True,
+                ),
+            },
+        )
+
     def send_grant_export(
         self,
         email_address: str,
