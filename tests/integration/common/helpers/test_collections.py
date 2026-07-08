@@ -23,6 +23,7 @@ from app.common.collections.types import (
     YesNoAnswer,
 )
 from app.common.data import interfaces
+from app.common.data.interfaces.collections import update_submission_data
 from app.common.data.models import Expression
 from app.common.data.types import (
     CollectionStatusEnum,
@@ -2740,6 +2741,54 @@ class TestFormResetOnAnswerChange:
             and e.related_entity_id == form.id
         ]
         assert len(reset_events) == 1
+
+    def test_form_reset_after_changes_made(self, db_session, factories, user):
+        question = factories.question.create()
+        submission = factories.submission.create(
+            collection=question.form.collection,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("original"))],
+        )
+        previous_data = deepcopy(submission.data_manager.data)
+
+        # Ask for Change requests
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            data=SubmissionEventHelper.event_from(
+                SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                changes_requested_reason="Fix this",
+                submission_data=previous_data,
+                section_ids=[str(question.form.id)],
+            ),
+        )
+
+        # Because we provided the section_ids we also create an IN_PROGRESS event
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+            related_entity_id=question.form.id,
+        )
+
+        # Change answer
+        submission.data_manager.set(question, TextSingleLineAnswer("updated"))
+        update_submission_data(submission)
+
+        # Complete form
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        db_session.commit()
+
+        helper = SubmissionHelper(submission)
+
+        assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.CHANGES_MADE
+
+        # Mark form as not completed
+        helper.toggle_form_completed(question.form, user, False)
+
+        assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.CHANGES_REQUESTED
 
 
 class TestSubmissionsHelper:
