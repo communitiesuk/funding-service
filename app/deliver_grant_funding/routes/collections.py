@@ -66,6 +66,7 @@ from app.common.data.interfaces.data_sets import (
     delete_data_source,
     get_data_source,
     get_data_source_list_for_collection,
+    replace_uploaded_data_source,
 )
 from app.common.data.interfaces.exceptions import (
     DuplicateDataSourceItemError,
@@ -181,7 +182,7 @@ from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.data.models import Expression, Group, Question
+    from app.common.data.models import Collection, DataSource, Expression, Group, Question
 
 SessionModelType = (
     AddConditionDependsOnSessionModel
@@ -3884,17 +3885,57 @@ def replace_data_set(
     )
 
 
+def _save_replaced_data_set(
+    existing_datasource: DataSource,
+    grant_id: UUID,
+    collection: Collection,
+    data_set_data: DataSetUploadSessionModel,
+    rows: TUnvalidatedDataSetRows | None = None,
+) -> ResponseReturnValue:
+    replace_uploaded_data_source(
+        data_source=existing_datasource,
+        new_columns=data_set_data.column_mappings,
+        all_headers=data_set_data.data_columns,
+        all_rows=rows or [],
+        s3_key=data_set_data.s3_key,
+        original_filename=data_set_data.original_filename,
+        user=get_current_user(),
+        name=data_set_data.name if data_set_data.name != existing_datasource.name else NOT_PROVIDED,
+    )
+
+    del session[SESSION_DATA_SET_REPLACE]
+    s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+    flash(
+        Markup(
+            f"You can now reference {escape(existing_datasource.name)} data "
+            + f"in the {escape(collection.name)} form. "
+        ),
+        FlashMessageType.DATA_SOURCE_REPLACED_SUCCESS,
+    )
+    return redirect(
+        url_for(
+            "deliver_grant_funding.view_data_source",
+            grant_id=grant_id,
+            collection_id=collection.id,
+            collection_type=collection.type,
+            data_source_id=existing_datasource.id,
+        )
+    )
+
+
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/map-columns",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+def map_data_set_columns(  # noqa: C901
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
-    data_set_data = _extract_data_set_upload_data_from_session()
+    data_set_data = _extract_data_set_upload_data_from_session() or _extract_data_set_replace_data_from_session()
     if not data_set_data:
         return redirect(
             url_for(
@@ -3905,7 +3946,17 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
             )
         )
 
-    form = MapDataSetColumnsForm(data_columns=data_set_data.data_columns)
+    if data_set_data.is_replace:
+        existing_datasource = get_data_source(data_set_data.data_source_id, with_organisation_items=True)
+        existing_column_names = [col_def.original_column_name for _, col_def in existing_datasource.schema.root.items()]  # ty:ignore[unresolved-attribute]
+        columns_to_map = [col for col in data_set_data.data_columns if col not in existing_column_names]
+        if not columns_to_map:  # no new columns
+            rows = _load_rows(data_set_data)
+            return _save_replaced_data_set(existing_datasource, grant_id, collection, data_set_data, rows)
+    else:
+        columns_to_map = data_set_data.data_columns
+
+    form = MapDataSetColumnsForm(data_columns=columns_to_map)
 
     if not form.is_submitted() and data_set_data.column_mappings:
         for idx, mapping in enumerate(data_set_data.column_mappings):
@@ -3913,7 +3964,9 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
 
     if form.validate_on_submit():
         data_set_data.column_mappings = form.get_column_mappings()
-        session[SESSION_DATA_SET_UPLOAD] = data_set_data.model_dump(mode="json")
+        session[SESSION_DATA_SET_REPLACE if data_set_data.is_replace else SESSION_DATA_SET_UPLOAD] = (
+            data_set_data.model_dump(mode="json")
+        )
 
         rows: TUnvalidatedDataSetRows | None = None
         validation_result: DataSetValidationResult | None = None
@@ -3946,6 +3999,8 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
         if validation_result is None:
             rows, validation_result = _load_and_validate_data_set(data_set_data)
 
+        if data_set_data.is_replace:
+            return _save_replaced_data_set(existing_datasource, grant_id, collection, data_set_data, rows)
         try:
             data_source = create_uploaded_data_source(
                 name=data_set_data.name,
@@ -4009,7 +4064,7 @@ def map_data_set_number_columns(
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
-    data_set_data = _extract_data_set_upload_data_from_session()
+    data_set_data = _extract_data_set_upload_data_from_session() or _extract_data_set_replace_data_from_session()
     if not data_set_data:
         return redirect(
             url_for(
@@ -4049,6 +4104,14 @@ def map_data_set_number_columns(
             column_errors = {col: list(errs) for col, errs in groupby(errors, key=lambda e: e.column)}
             form.columns.errors = form.build_number_column_form_errors(column_errors)
         else:
+            if data_set_data.is_replace:
+                return _save_replaced_data_set(
+                    grant_id=grant_id,
+                    collection=collection,
+                    data_set_data=data_set_data,
+                    existing_datasource=get_data_source(data_set_data.data_source_id, with_organisation_items=True),
+                    rows=rows,
+                )
             data_source = create_uploaded_data_source(
                 name=data_set_data.name,
                 data_source_type=data_set_data.data_source_type,

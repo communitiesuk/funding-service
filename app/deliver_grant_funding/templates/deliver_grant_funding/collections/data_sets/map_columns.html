@@ -32,7 +32,7 @@
         {{ form.csrf_token }}
 
         {% set rows = [] %}
-        {% for column in session_data.data_columns %}
+        {% for column in form.data_columns %}
           {% set idx = loop.index0 %}
           {% set preview_html = session_data.preview_data[column] | join('<br>') %}
           {% set select_html %}
