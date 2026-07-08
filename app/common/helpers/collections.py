@@ -44,6 +44,8 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
 from app.common.data.submission_data_manager import SubmissionDataAddAnotherIndexInvalid, SubmissionDataManager
 from app.common.data.types import (
+    COMPLETE_TASKLIST_SECTION_STATUSES,
+    IN_PROGRESS_TASKLIST_SECTION_STATUSES,
     CollectionStatusEnum,
     ComponentVisibilityState,
     ConditionsOperator,
@@ -915,7 +917,7 @@ class SubmissionHelper:
         self, current_form: Form, previous_form_statuses: dict[Form, TasklistSectionStatusEnum], user: User
     ) -> None:
         has_reset = False
-        if previous_form_statuses[current_form] == TasklistSectionStatusEnum.COMPLETED:
+        if previous_form_statuses[current_form] in COMPLETE_TASKLIST_SECTION_STATUSES:
             self.add_submission_event(
                 event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                 user=user,
@@ -926,19 +928,22 @@ class SubmissionHelper:
 
         for form, old_form_status in previous_form_statuses.items():
             if (
-                old_form_status == TasklistSectionStatusEnum.COMPLETED
-                and self.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+                old_form_status in COMPLETE_TASKLIST_SECTION_STATUSES
+                and self.get_status_for_form(form) in IN_PROGRESS_TASKLIST_SECTION_STATUSES
             ):
                 self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                     user=user,
                     related_entity_id=form.id,
                 )
-            has_reset = True
+                has_reset = True
 
         if has_reset:
             self.clear_caches()
-            update_submission(self.submission, status=SubmissionStatusEnum.IN_PROGRESS)
+            # todo: we should avoid explicitly setting statuses as it circumvent the standard business logic
+            #       lets sense check there are no edge cases from just recalculating here
+            # update_submission(self.submission, status=SubmissionStatusEnum.IN_PROGRESS)
+            self._update_submission_status()
 
     def _get_answer_for_question(
         self, question_id: UUID, add_another_index: int | None = None
@@ -1367,7 +1372,7 @@ class SubmissionHelper:
             notification_service.send_changes_requested_submission(user=recipient, submission_helper=self)
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
-        form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+        form_complete = self.get_status_for_form(form) in COMPLETE_TASKLIST_SECTION_STATUSES
         if is_complete == form_complete:
             return
 

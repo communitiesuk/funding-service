@@ -194,6 +194,17 @@ class TasklistSectionStatusEnum(enum.StrEnum):
     CHANGES_MADE = "Changes made"
 
 
+COMPLETE_TASKLIST_SECTION_STATUSES = (
+    TasklistSectionStatusEnum.COMPLETED,
+    TasklistSectionStatusEnum.CHANGES_MADE,
+    TasklistSectionStatusEnum.NOT_NEEDED,
+)
+IN_PROGRESS_TASKLIST_SECTION_STATUSES = (
+    TasklistSectionStatusEnum.IN_PROGRESS,
+    TasklistSectionStatusEnum.CHANGES_REQUESTED,
+)
+
+
 class SubmissionEventType(enum.StrEnum):
     FORM_RUNNER_FORM_COMPLETED = "Form completed"
     FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS = "Form reset to in progress"
