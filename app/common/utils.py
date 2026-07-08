@@ -55,12 +55,25 @@ def uppercase_first(text: str | None) -> str | None:
     return text[0].upper() + text[1:]
 
 
-def to_dict(instance: BaseModel, exclude: list[str] | None = None) -> dict[str, Any]:
-    return {
+def to_dict(
+    instance: BaseModel, exclude: list[str] | None = None, override: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    known_properties = {prop for prop in inspect(instance.__class__).column_attrs}
+    data = {
         prop.key: (field.model_dump(mode="json", exclude_none=True) if isinstance(field, PydanticBaseModel) else field)
-        for prop in inspect(instance.__class__).column_attrs
+        for prop in known_properties
         if (field := getattr(instance, prop.key)) is not None
         and prop.columns[0].name not in {"created_at_utc", "updated_at_utc"}
         and not prop.key.startswith("_")
         and (exclude is None or prop.key not in exclude)
     }
+
+    known_column_names = {prop.key for prop in known_properties}
+    if override is not None:
+        for override_key, override_value in override.items():
+            if override_key not in known_column_names:
+                raise ValueError(f"override_key {override_key} not in data")
+
+            data[override_key] = override_value
+
+    return data

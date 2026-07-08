@@ -118,7 +118,18 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
     deliver_grant_funding).
     """
     bundle: dict[str, list[dict[str, Any]]] = {
-        "collections": [to_dict(collection)],
+        "collections": [
+            to_dict(
+                collection,
+                override={
+                    "reporting_period_start_date": None,
+                    "reporting_period_end_date": None,
+                    "submission_period_start_date": None,
+                    "submission_period_end_date": None,
+                    "created_by_id": user.id,
+                },
+            )
+        ],
         "forms": [],
         "components": [],
         "expressions": [],
@@ -128,14 +139,14 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
     }
 
     def _serialise_data_source(data_source: DataSource) -> None:
-        bundle["data_sources"].append(to_dict(data_source))
+        bundle["data_sources"].append(to_dict(data_source, override={"created_by_id": user.id}))
         for item in data_source.items:
             bundle["data_source_items"].append(to_dict(item))
 
     def _serialise_component(component: Component) -> None:
         bundle["components"].append(to_dict(component))
         for expression in component.expressions:
-            bundle["expressions"].append(to_dict(expression))
+            bundle["expressions"].append(to_dict(expression, override={"created_by_id": user.id}))
         if component.data_source:
             _serialise_data_source(component.data_source)
         for component_reference in component.owned_component_references:

@@ -172,6 +172,23 @@ class TestCopyCollectionCollection:
     def test_starts_in_draft_status(self, db_session, source_collection, copied):
         assert copied.status == CollectionStatusEnum.DRAFT
 
+    def test_nulls_date_fields(self, db_session, factories, copy_user, target_grant):
+        import datetime
+
+        source = factories.collection.create(
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 2, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        with patch("app.deliver_grant_funding.data_sets.s3_service"):
+            result = copy_collection(source, name="Date Test", user=copy_user, grant=target_grant)
+            db.session.flush()
+        assert result.reporting_period_start_date is None
+        assert result.reporting_period_end_date is None
+        assert result.submission_period_start_date is None
+        assert result.submission_period_end_date is None
+
     def test_original_collection_unchanged(self, db_session, source_collection, copied):
         original = db_session.get(Collection, source_collection.id)
         assert original.name == "Source Collection"
@@ -289,6 +306,12 @@ class TestCopyCollectionExpressions:
         source_ref = ExpressionReference.from_question(source_q1)
         expr = source_q2.expressions[0]
         assert source_ref.unwrapped in expr.statement
+
+    def test_overrides_created_by(self, db_session, source_collection, copied, copy_user):
+        source_exprs = [e for f in source_collection.forms for c in f._all_components for e in c.expressions]
+        copied_exprs = [e for f in copied.forms for c in f._all_components for e in c.expressions]
+        assert all(e.created_by == copy_user for e in copied_exprs)
+        assert all(e.created_by != copy_user for e in source_exprs)
 
 
 class TestCopyCollectionExpressionContext:
@@ -427,6 +450,12 @@ class TestCopyCollectionDataSources:
         for ds in source_collection.data_sources:
             from_db = db_session.get(DataSource, ds.id)
             assert from_db.collection_id == source_collection.id
+
+    def test_overrides_created_by(self, db_session, source_collection, copied, copy_user):
+        source_ds = [ds for ds in source_collection.data_sources if ds.type == DataSourceType.CUSTOM]
+        copied_ds = [ds for ds in copied.data_sources if ds.type == DataSourceType.CUSTOM]
+        assert all(e.created_by == copy_user for e in copied_ds)
+        assert all(e.created_by != copy_user for e in source_ds)
 
 
 class TestCopyCollectionDataSourceItems:
