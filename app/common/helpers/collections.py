@@ -42,7 +42,10 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
+from app.common.data.submission_data_manager import SubmissionDataAddAnotherIndexInvalid, SubmissionDataManager
 from app.common.data.types import (
+    COMPLETE_TASKLIST_SECTION_STATUSES,
+    IN_PROGRESS_TASKLIST_SECTION_STATUSES,
     CollectionStatusEnum,
     ComponentVisibilityState,
     ConditionsOperator,
@@ -285,7 +288,7 @@ class SubmissionHelper:
 
             elif helper.status == SubmissionStatusEnum.NOT_STARTED:
                 label = f"Start {collection.type.constants.singular}"
-            elif helper.status == SubmissionStatusEnum.IN_PROGRESS:
+            elif submission.is_in_progress:
                 label = f"Continue {collection.type.constants.singular}"
             else:
                 label = f"View {collection.type.constants.singular}"
@@ -374,9 +377,12 @@ class SubmissionHelper:
         all_forms_completed_or_not_needed = form_statuses <= {
             TasklistSectionStatusEnum.COMPLETED,
             TasklistSectionStatusEnum.NOT_NEEDED,
+            TasklistSectionStatusEnum.CHANGES_MADE,
         }
 
         if all_forms_completed_or_not_needed and submission_state.is_submitted:
+            if TasklistSectionStatusEnum.CHANGES_MADE in form_statuses:
+                return SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
             return SubmissionStatusEnum.SUBMITTED
         elif self.collection_helper.is_closed:
             return SubmissionStatusEnum.NOT_SUBMITTED
@@ -425,7 +431,7 @@ class SubmissionHelper:
 
     @property
     def is_submitted(self) -> bool:
-        return self.status == SubmissionStatusEnum.SUBMITTED
+        return self.submission.is_submitted
 
     @property
     def is_awaiting_sign_off(self) -> bool:
@@ -641,7 +647,11 @@ class SubmissionHelper:
     @cached_property
     def all_needed_forms_are_completed(self) -> bool:
         form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
-        return form_statuses <= {TasklistSectionStatusEnum.COMPLETED, TasklistSectionStatusEnum.NOT_NEEDED}
+        return form_statuses <= {
+            TasklistSectionStatusEnum.COMPLETED,
+            TasklistSectionStatusEnum.NOT_NEEDED,
+            TasklistSectionStatusEnum.CHANGES_MADE,
+        }
 
     def get_tasklist_status_for_form(self, form: Form) -> TasklistSectionStatusEnum:
         if len(form.cached_questions) == 0:
@@ -657,6 +667,8 @@ class SubmissionHelper:
         marked_as_complete = self.events.form_state(form.id).is_completed
 
         if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
+            if self.has_form_changed_since_previous_submission(form):
+                return TasklistSectionStatusEnum.CHANGES_MADE
             return TasklistSectionStatusEnum.COMPLETED
         elif form_questions_answered.some_answered:
             if (
@@ -905,7 +917,7 @@ class SubmissionHelper:
         self, current_form: Form, previous_form_statuses: dict[Form, TasklistSectionStatusEnum], user: User
     ) -> None:
         has_reset = False
-        if previous_form_statuses[current_form] == TasklistSectionStatusEnum.COMPLETED:
+        if previous_form_statuses[current_form] in COMPLETE_TASKLIST_SECTION_STATUSES:
             self.add_submission_event(
                 event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                 user=user,
@@ -916,19 +928,22 @@ class SubmissionHelper:
 
         for form, old_form_status in previous_form_statuses.items():
             if (
-                old_form_status == TasklistSectionStatusEnum.COMPLETED
-                and self.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+                old_form_status in COMPLETE_TASKLIST_SECTION_STATUSES
+                and self.get_status_for_form(form) in IN_PROGRESS_TASKLIST_SECTION_STATUSES
             ):
                 self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                     user=user,
                     related_entity_id=form.id,
                 )
-            has_reset = True
+                has_reset = True
 
         if has_reset:
             self.clear_caches()
-            update_submission(self.submission, status=SubmissionStatusEnum.IN_PROGRESS)
+            # todo: we should avoid explicitly setting statuses as it circumvent the standard business logic
+            #       lets sense check there are no edge cases from just recalculating here
+            # update_submission(self.submission, status=SubmissionStatusEnum.IN_PROGRESS)
+            self._update_submission_status()
 
     def _get_answer_for_question(
         self, question_id: UUID, add_another_index: int | None = None
@@ -1357,7 +1372,7 @@ class SubmissionHelper:
             notification_service.send_changes_requested_submission(user=recipient, submission_helper=self)
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
-        form_complete = self.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+        form_complete = self.get_status_for_form(form) in COMPLETE_TASKLIST_SECTION_STATUSES
         if is_complete == form_complete:
             return
 
@@ -1478,6 +1493,69 @@ class SubmissionHelper:
             answer_status.append(answer is not None)
 
         return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
+
+    @cached_property
+    def previous_submission_data(self) -> SubmissionDataManager | None:
+        submission_data = self.events.submission_state.submission_data
+
+        if not submission_data:
+            return None
+
+        return SubmissionDataManager(submission_data)
+
+    def get_previous_answer_for_question(
+        self, question_id: UUID, *, add_another_index: int | None = None
+    ) -> AllAnswerTypes | None:
+        previous_submission_data = self.previous_submission_data
+
+        if previous_submission_data is None:
+            return None
+
+        question = self.get_question(question_id)
+
+        try:
+            return previous_submission_data.get(question, add_another_index=add_another_index)
+        except SubmissionDataAddAnotherIndexInvalid:
+            return None
+
+    def has_answer_changed_since_previous(self, question_id: UUID, *, add_another_index: int | None = None) -> bool:
+        if self.previous_submission_data is None:
+            return False
+
+        previous = self.get_previous_answer_for_question(question_id, add_another_index=add_another_index)
+        current = self.cached_get_answer_for_question(question_id, add_another_index=add_another_index)
+
+        return previous != current
+
+    def has_form_changed_since_previous_submission(self, form: Form) -> bool:
+        if self.previous_submission_data is None:
+            return False
+
+        containers_checked = set()
+        for question in self.cached_get_ordered_visible_questions(form):
+            if question.add_another_container:
+                # prevent checking the same add_another_container multiple times,
+                # as it will be the same for all questions in that container
+                if question.add_another_container in containers_checked:
+                    continue
+
+                # add container to the set of checked containers so we don't check it again
+                containers_checked.add(question.add_another_container)
+
+                current_count = self.get_count_for_add_another(question.add_another_container)
+                previous_count = self.previous_submission_data.get_count_for_add_another(question.add_another_container)
+
+                if current_count != previous_count:
+                    return True
+
+                for i in range(current_count):
+                    if self.has_answer_changed_since_previous(question.id, add_another_index=i):
+                        return True
+            else:
+                if self.has_answer_changed_since_previous(question.id):
+                    return True
+
+        return False
 
 
 class AllSubmissionsHelper:

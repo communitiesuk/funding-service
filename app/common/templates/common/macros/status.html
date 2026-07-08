@@ -53,9 +53,9 @@
 
 {% macro multiSubmissionStatusTag(submissions, collection_helper, is_overdue) %}
   {% if collection_helper.is_closed %}
-    {% if submissions | selectattr("status", "equalto", enum.submission_status.SUBMITTED) | list | length == submissions | length %}
+    {% if submissions | selectattr("is_submitted") | list | length == submissions | length %}
       {% set multi_status = enum.submission_status.SUBMITTED %}
-    {% elif submissions | selectattr("status", "equalto", enum.submission_status.SUBMITTED) | list | length > 0 %}
+    {% elif submissions | selectattr("is_submitted") | list | length > 0 %}
       {% set multi_status = enum.submission_status.PARTIALLY_SUBMITTED %}
     {% else %}
       {% set multi_status = enum.submission_status.NOT_SUBMITTED %}
@@ -65,7 +65,7 @@
       {% set multi_status = enum.submission_status.NOT_STARTED %}
     {% elif submissions | selectattr("status", "equalto", enum.submission_status.NOT_STARTED) | list | length == submissions | length %}
       {% set multi_status = enum.submission_status.NOT_STARTED %}
-    {% elif submissions | selectattr("status", "equalto", enum.submission_status.SUBMITTED) | list | length == submissions | length %}
+    {% elif submissions | selectattr("is_submitted") | list | length == submissions | length %}
       {% set multi_status = enum.submission_status.SUBMITTED %}
     {% else %}
       {% set multi_status = enum.submission_status.IN_PROGRESS %}
@@ -79,7 +79,7 @@
 {% endmacro %}
 
 {% macro submissionStatusTag(status, is_overdue) %}
-  {% set show_without_tag = [ enum.submission_status.SUBMITTED, enum.submission_status.PARTIALLY_SUBMITTED ] %}
+  {% set show_without_tag = [ enum.submission_status.SUBMITTED, enum.submission_status.SUBMITTED_WITH_CHANGES, enum.submission_status.PARTIALLY_SUBMITTED ] %}
   {%
     set classMap = {
         enum.submission_status.NOT_STARTED: "govuk-tag--grey",

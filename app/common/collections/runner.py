@@ -16,10 +16,10 @@ from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
+    COMPLETE_TASKLIST_SECTION_STATUSES,
     FormRunnerState,
     QuestionDataType,
     SubmissionModeEnum,
-    TasklistSectionStatusEnum,
     TRunnerUrlMap,
 )
 from app.common.exceptions import (
@@ -152,7 +152,7 @@ class FormRunner:
             self._check_your_answers_form = CheckYourAnswersForm(
                 section_completed=(
                     "yes"
-                    if self.submission.get_status_for_form(self.form) == TasklistSectionStatusEnum.COMPLETED
+                    if self.submission.get_status_for_form(self.form) in COMPLETE_TASKLIST_SECTION_STATUSES
                     else None
                 ),
                 all_questions_answered=all_questions_answered,

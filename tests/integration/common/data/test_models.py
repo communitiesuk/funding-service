@@ -106,7 +106,8 @@ class TestSubmissionModel:
         assert submission.is_overdue is False
 
     @pytest.mark.freeze_time("2025-01-10 12:00:00")
-    def test_submission_is_not_overdue_when_completed(self, factories):
+    @pytest.mark.parametrize("status", [SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES])
+    def test_submission_is_not_overdue_when_completed(self, factories, status):
         collection = factories.collection.build(
             submission_period_end_date=date(2020, 1, 1),
             requires_certification=False,
@@ -128,7 +129,7 @@ class TestSubmissionModel:
                 related_entity_id=submission.id,
             ),
         ]
-        submission.status = SubmissionStatusEnum.SUBMITTED
+        submission.status = status
 
         assert submission.is_overdue is False
 

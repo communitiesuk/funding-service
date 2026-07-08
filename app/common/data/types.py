@@ -179,6 +179,10 @@ class SubmissionStatusEnum(enum.StrEnum):
     SUBMITTED_WITH_CHANGES = "Submitted with changes"
 
 
+SUBMITTED_STATUSES = (SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES)
+IN_PROGRESS_STATUSES = (SubmissionStatusEnum.IN_PROGRESS, SubmissionStatusEnum.CHANGES_REQUESTED)
+
+
 class TasklistSectionStatusEnum(enum.StrEnum):
     CANNOT_START_YET = "Cannot start yet"
     NOT_STARTED = "Not started"
@@ -187,6 +191,18 @@ class TasklistSectionStatusEnum(enum.StrEnum):
     NO_QUESTIONS = "No questions"
     NOT_NEEDED = "Not needed"
     CHANGES_REQUESTED = "Changes requested"
+    CHANGES_MADE = "Changes made"
+
+
+COMPLETE_TASKLIST_SECTION_STATUSES = (
+    TasklistSectionStatusEnum.COMPLETED,
+    TasklistSectionStatusEnum.CHANGES_MADE,
+    TasklistSectionStatusEnum.NOT_NEEDED,
+)
+IN_PROGRESS_TASKLIST_SECTION_STATUSES = (
+    TasklistSectionStatusEnum.IN_PROGRESS,
+    TasklistSectionStatusEnum.CHANGES_REQUESTED,
+)
 
 
 class SubmissionEventType(enum.StrEnum):
