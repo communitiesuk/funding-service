@@ -32,6 +32,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grants import grant_code_exists, grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.types import (
+    NOT_NEEDED_TASKLIST_SECTION_STATUSES,
     CollectionType,
     ConditionsOperator,
     ExpressionType,
@@ -1554,7 +1555,11 @@ class RequestChangesSubmissionForm(FlaskForm):
     def __init__(self, *args: Any, submission_helper: SubmissionHelper, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-        self.section_ids.choices = [(str(f.id), f.title) for f in submission_helper.collection.forms]
+        self.section_ids.choices = [
+            (str(form.id), form.title)
+            for form in submission_helper.collection.forms
+            if submission_helper.get_tasklist_status_for_form(form) not in NOT_NEEDED_TASKLIST_SECTION_STATUSES
+        ]
         self.changes_requested_reason.label.text = (
             f"What changes are needed to this {submission_helper.long_collection_name}?"
         )
