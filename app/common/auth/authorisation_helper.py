@@ -191,7 +191,7 @@ class AuthorisationHelper:
         return False
 
     @staticmethod
-    def can_reopen_submission(user: User, submission: "Submission | UUID") -> bool:
+    def can_request_or_allow_changes(user: User, submission: "Submission | UUID") -> bool:
         # Platform admin should be able to reopen submissions
         # The grant team should be able to reopen submissions. Their roles would be:
         # - grant member

@@ -1956,13 +1956,22 @@ class TestSubmissionHelper:
             assert helper.reopened_reason == "Test reason"
             assert helper.reopened_by == platform_admin_user
 
+        @pytest.mark.parametrize("status", [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT])
+        def test_submission_reopened_when_collection_open_or_draft(
+            self, status, grant_team_user, submission_submitted
+        ) -> None:
+            helper = SubmissionHelper(submission_submitted)
+            submission_submitted.collection.status = status
+
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
         def test_submission_reopened_fails_when_report_closed(self, grant_team_user, submission_submitted) -> None:
             helper = SubmissionHelper(submission_submitted)
             assert helper.status == SubmissionStatusEnum.SUBMITTED
             collection = submission_submitted.collection
             collection.status = CollectionStatusEnum.CLOSED
 
-            with pytest.raises(CollectionIsNotOpenError, match="collection is not open"):
+            with pytest.raises(CollectionIsNotOpenError, match="collection must have the status OPEN or DRAFT"):
                 helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
 
             assert helper.status == SubmissionStatusEnum.SUBMITTED
@@ -2074,6 +2083,17 @@ class TestSubmissionHelper:
             assert helper.section_ids == [str(form.id)]
             assert helper.changes_requested_by == grant_team_user
 
+        @pytest.mark.parametrize("status", [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT])
+        def test_request_changes_succeeds_when_collection_open_or_draft(
+            self, status, grant_team_user, submission_submitted
+        ) -> None:
+            helper = SubmissionHelper(submission_submitted)
+            submission_submitted.collection.status = status
+
+            helper.request_changes_submission(
+                user=grant_team_user, changes_requested_reason="Test reason", section_ids=[]
+            )
+
         def test_request_changes_fails_when_not_authorised(self, data_provider_user, submission_submitted) -> None:
             helper = SubmissionHelper(submission_submitted)
 
@@ -2091,7 +2111,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission_submitted)
             submission_submitted.collection.status = CollectionStatusEnum.CLOSED
 
-            with pytest.raises(CollectionIsNotOpenError, match="collection is not open"):
+            with pytest.raises(CollectionIsNotOpenError, match="collection must have the status OPEN or DRAFT"):
                 helper.request_changes_submission(
                     user=grant_team_user, changes_requested_reason="Test reason", section_ids=[]
                 )

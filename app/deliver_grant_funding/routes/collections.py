@@ -3422,7 +3422,7 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
 def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
 
     submission_helper = SubmissionHelper.load(submission_id)
-    if not AuthorisationHelper.can_reopen_submission(get_current_user(), submission_helper.submission):
+    if not AuthorisationHelper.can_request_or_allow_changes(get_current_user(), submission_helper.submission):
         abort(403)
     form = ReopenSubmissionForm()
     if form.validate_on_submit():
@@ -3456,7 +3456,7 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
 def request_or_allow_changes(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 
-    if not AuthorisationHelper.can_reopen_submission(get_current_user(), submission_helper.submission):
+    if not AuthorisationHelper.can_request_or_allow_changes(get_current_user(), submission_helper.submission):
         abort(403)
 
     form = RequestOrAllowChangesSubmissionForm()
@@ -3494,7 +3494,7 @@ def request_or_allow_changes(grant_id: UUID, submission_id: UUID) -> ResponseRet
 def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 
-    if not AuthorisationHelper.can_reopen_submission(get_current_user(), submission_helper.submission):
+    if not AuthorisationHelper.can_request_or_allow_changes(get_current_user(), submission_helper.submission):
         abort(403)
 
     form = RequestChangesSubmissionForm(submission_helper=submission_helper)

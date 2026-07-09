@@ -457,7 +457,7 @@ class TestAuthorisationHelper:
             "app.common.auth.authorisation_helper.get_grant", return_value=submission_submitted.collection.grant
         )
 
-        assert AuthorisationHelper.can_reopen_submission(user, submission_submitted) is False
+        assert AuthorisationHelper.can_request_or_allow_changes(user, submission_submitted) is False
 
     @pytest.mark.parametrize("user_fixture", ["platform_admin_user", "grant_team_member_user"])
     def test_can_user_reopen_submission_is_true(self, factories, request, user_fixture, submission_submitted, mocker):
@@ -466,4 +466,4 @@ class TestAuthorisationHelper:
             "app.common.auth.authorisation_helper.get_grant", return_value=submission_submitted.collection.grant
         )
 
-        assert AuthorisationHelper.can_reopen_submission(user, submission_submitted) is True
+        assert AuthorisationHelper.can_request_or_allow_changes(user, submission_submitted) is True
