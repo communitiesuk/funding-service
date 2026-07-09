@@ -20,7 +20,7 @@
       <span class="govuk-caption-l">{{ grant.name }}</span>
       <h1 class="govuk-heading-l">What is the name of the {{ type_constants.singular }}?</h1>
       {% if source_collection %}
-        <p class="govuk-body">This {{ type_constants.singular }} will be a copy of ‘{{ source_collection.name }}’ {{ type_constants.singular }} for {{ source_collection.grant.name }}.</p>
+        <p class="govuk-body">This {{ type_constants.singular }} will be a copy of the ‘{{ source_collection.name }}’ {{ type_constants.singular }} for {{ source_collection.grant.name }}.</p>
       {% endif %}
       <p class="govuk-body">{{ type_constants.singular | uppercase_first }} name will be shown in emails to Access grant funding users. You do not need to include the grant name.</p>
       <form method="post" novalidate>

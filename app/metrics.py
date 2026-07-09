@@ -62,6 +62,7 @@ class MetricEventName(StrEnum):
 
     GRANT_STATUS_CHANGED = "grant-status-changed"
     COLLECTION_STATUS_CHANGED = "collection-status-changed"
+    COLLECTION_COPIED = "collection-copied"
 
     SUBMISSIONS_EXPORTED = "submissions-exported"
     SUBMISSION_PDF_DOWNLOADED = "submission-pdf-downloaded"

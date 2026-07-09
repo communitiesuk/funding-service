@@ -127,6 +127,9 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
                     "submission_period_start_date": None,
                     "submission_period_end_date": None,
                     "created_by_id": user.id,
+                    "name": name,
+                    "slug": slugify(name),
+                    "status": CollectionStatusEnum.DRAFT,
                 },
             )
         ],
@@ -139,7 +142,7 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
     }
 
     def _serialise_data_source(data_source: DataSource) -> None:
-        bundle["data_sources"].append(to_dict(data_source, override={"created_by_id": user.id}))
+        bundle["data_sources"].append(to_dict(data_source, override={"created_by_id": user.id, "updated_by_id": None}))
         for item in data_source.items:
             bundle["data_source_items"].append(to_dict(item))
 
@@ -196,12 +199,6 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
     remapped: dict[str, list[dict[str, Any]]] = _remap(bundle)
 
     collection_data = remapped["collections"][0]
-    collection_data.update(
-        name=name,
-        slug=slugify(name),
-        created_by_id=user.id,
-        status=CollectionStatusEnum.DRAFT,
-    )
     # Points at a component that won't exist until later, so hold it back and set it once components are flushed.
     submission_name_question_id = collection_data.pop("submission_name_question_id", None)
 
