@@ -353,6 +353,7 @@ def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> Respon
                     user=interfaces.user.get_current_user(),
                     grant=grant,
                 )
+                emit_metric_count(MetricEventName.COLLECTION_COPIED, 1, collection=source_collection)
             else:
                 new_collection = create_collection(
                     name=form.name.data,

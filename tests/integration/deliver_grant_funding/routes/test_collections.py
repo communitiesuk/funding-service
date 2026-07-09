@@ -6,6 +6,7 @@ import uuid
 from copy import deepcopy
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -92,6 +93,7 @@ from app.deliver_grant_funding.session_models import (
     DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
+from app.metrics import MetricEventName
 from tests.models import FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
@@ -263,6 +265,29 @@ class TestSetUpCollection:
 
         assert response.status_code == 200
         assert page_has_error(soup, expected_error)
+
+    @pytest.mark.parametrize("collection_type", CollectionType)
+    @patch("app.deliver_grant_funding.routes.collections.emit_metric_count")
+    def test_set_up_collection_as_a_copy(
+        self, mock_count, authenticated_grant_admin_client, factories, collection_type
+    ):
+        source_collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, name="Test collection", type=collection_type
+        )
+
+        form = SetUpCollectionForm(data={"name": "Test collection copy"}, collection_type=collection_type)
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.set_up_collection",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+                copy_from=source_collection.id,
+            ),
+            data=get_form_data(form),
+        )
+        assert response.status_code == 302
+
+        mock_count.assert_called_once_with(MetricEventName.COLLECTION_COPIED, 1, collection=source_collection)
 
 
 class TestChangeCollectionName:
