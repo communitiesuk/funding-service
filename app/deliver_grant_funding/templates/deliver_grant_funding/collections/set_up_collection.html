@@ -28,7 +28,7 @@
         {{ form.name(params={"label": {"classes": "govuk-visually-hidden"} }) }}
 
         <div class="govuk-button-group">
-          {{ form.submit }}
+          {{ form.submit(params={"preventDoubleClick": true}) }}
           <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for(type_constants.list_endpoint, grant_id=grant.id) }}">Cancel</a>
         </div>
       </form>
