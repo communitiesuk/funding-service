@@ -11,7 +11,11 @@
 
 {% block beforeContent %}
   {% if session_data.has_grant_recipient_mismatches %}
-    {% set back_link = url_for("deliver_grant_funding.confirm_data_set_grant_recipients", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+    {% if session_data.is_replace %}
+      {% set back_link = url_for("deliver_grant_funding.confirm_data_set_grant_recipients", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id) %}
+    {% else %}
+      {% set back_link = url_for("deliver_grant_funding.confirm_data_set_grant_recipients", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+    {% endif %}
   {% else %}
     {% if session_data.is_replace %}
       {% set back_link = url_for("deliver_grant_funding.replace_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id) %}

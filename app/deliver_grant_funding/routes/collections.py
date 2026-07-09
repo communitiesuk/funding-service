@@ -3851,6 +3851,7 @@ def replace_data_set(
                     grant_id=grant_id,
                     collection_type=collection_type,
                     collection_id=collection_id,
+                    data_source_id=data_source_id,
                 )
             )
 
@@ -3924,18 +3925,26 @@ def _save_replaced_data_set(
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/map-columns",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/map-columns",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def map_data_set_columns(  # noqa: C901
-    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
-    data_set_data = _extract_data_set_upload_data_from_session() or _extract_data_set_replace_data_from_session()
+    data_set_data = (
+        _extract_data_set_replace_data_from_session()
+        if data_source_id
+        else _extract_data_set_upload_data_from_session()
+    )
     if not data_set_data:
         return redirect(
             url_for(
@@ -3993,6 +4002,7 @@ def map_data_set_columns(  # noqa: C901
                     grant_id=grant_id,
                     collection_type=collection_type,
                     collection_id=collection_id,
+                    data_source_id=data_source_id,
                 )
             )
 
@@ -4053,18 +4063,26 @@ def map_data_set_columns(  # noqa: C901
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/map-number-columns",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/map-number-columns",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def map_data_set_number_columns(
-    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
-    data_set_data = _extract_data_set_upload_data_from_session() or _extract_data_set_replace_data_from_session()
+    data_set_data = (
+        _extract_data_set_replace_data_from_session()
+        if data_source_id
+        else _extract_data_set_upload_data_from_session()
+    )
     if not data_set_data:
         return redirect(
             url_for(
@@ -4162,16 +4180,24 @@ def map_data_set_number_columns(
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/confirm-grant-recipients",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/confirm-grant-recipients",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 def confirm_data_set_grant_recipients(
-    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_set_data = _extract_data_set_upload_data_from_session() or _extract_data_set_replace_data_from_session()
+    data_set_data = (
+        _extract_data_set_replace_data_from_session()
+        if data_source_id
+        else _extract_data_set_upload_data_from_session()
+    )
     if not data_set_data:
         return redirect(
             url_for(
@@ -4193,6 +4219,7 @@ def confirm_data_set_grant_recipients(
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
+                data_source_id=data_source_id,
             )
         )
 
@@ -4210,6 +4237,7 @@ def confirm_data_set_grant_recipients(
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
+                data_source_id=data_source_id,
             )
         )
 
@@ -4224,15 +4252,25 @@ def confirm_data_set_grant_recipients(
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/missing-data",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/missing-data",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+def data_set_missing_data(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
+) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_set_data = _extract_data_set_upload_data_from_session() or _extract_data_set_replace_data_from_session()
+    data_set_data = (
+        _extract_data_set_replace_data_from_session()
+        if data_source_id
+        else _extract_data_set_upload_data_from_session()
+    )
     if not data_set_data:
         return redirect(
             url_for(
@@ -4255,6 +4293,7 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
+                data_source_id=data_source_id,
             )
         )
 
@@ -4272,6 +4311,7 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
+                data_source_id=data_source_id,
             )
         )
 
