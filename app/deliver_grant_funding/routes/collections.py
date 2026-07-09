@@ -116,6 +116,7 @@ from app.common.helpers.collections import (
     SubmissionIsNotSubmittedError,
 )
 from app.common.helpers.feature_flags import FeatureFlags
+from app.common.helpers.pdf import render_pdf
 from app.common.utils import slugify
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
@@ -3411,6 +3412,33 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         delete_form=delete_wtform,
         timeline_items=helper.timeline_events,
         timeline_event_types=timeline_event_types,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/export-pdf",
+    methods=["GET"],
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def export_submission_pdf(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    helper = SubmissionHelper.load(submission_id)
+
+    html_content = render_template(
+        "deliver_grant_funding/collections/view_submission_print_baseline.html",
+        grant=helper.grant,
+        helper=helper,
+        interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
+        for_pdf=True,
+    )
+
+    emit_metric_count(MetricEventName.SUBMISSION_PDF_DOWNLOADED, submission=helper.submission)
+
+    return send_file(
+        io.BytesIO(render_pdf(html_content)),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=secure_filename(f"{helper.collection.grant.name} - {helper.long_collection_name}.pdf"),
+        max_age=0,
     )
 
 

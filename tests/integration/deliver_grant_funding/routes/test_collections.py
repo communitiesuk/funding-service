@@ -8992,11 +8992,11 @@ class TestViewSubmission:
 
         tab_labels = [tab.text.strip() for tab in soup.select(".govuk-tabs__tab")]
 
-        assert "Form responses" in tab_labels
+        assert "Submission responses" in tab_labels
         assert "Timeline" in tab_labels
 
-        form_responses_panel = soup.select_one("#form-responses")
-        assert form_responses_panel.find("h2", class_="govuk-heading-m").text.strip() == "Report response"
+        form_responses_panel = soup.select_one("#submission-responses")
+        assert form_responses_panel.find("h2", class_="govuk-heading-m").text.strip() == "Submission responses"
 
         timeline_panel = soup.select_one("#timeline")
         assert timeline_panel.find("h2", class_="govuk-heading-m").text.strip() == "Timeline"
@@ -9037,6 +9037,32 @@ class TestViewSubmission:
             )
         else:
             assert button is None
+
+    def test_can_see_download_pdf_button(
+        self, authenticated_grant_member_client, grant_recipient, submission_submitted
+    ):
+        client = authenticated_grant_member_client
+        with client.session_transaction() as session:
+            session["NEW_CHANGE_REQUESTS"] = "on"
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        button = page_has_link(soup, "Download responses as PDF")
+
+        assert button["href"] == url_for(
+            "deliver_grant_funding.export_submission_pdf",
+            grant_id=grant_recipient.grant.id,
+            submission_id=submission_submitted.id,
+        )
 
     def test_get_view_submission_displays_questions_with_add_another(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
@@ -9276,6 +9302,58 @@ class TestViewSubmission:
         assert "Original response" in soup.text
         assert "original answer" in soup.text
         assert "updated answer" in soup.text
+
+
+class TestExportSubmissionPDFLock:
+    def test_lock_is_held_around_sync_playwright(
+        self,
+        authenticated_grant_member_client,
+        submission_submitted,
+        monkeypatch,
+    ):
+        from app.common.helpers import pdf as pdf_module
+
+        observed_lock_states: list[bool] = []
+
+        class _FakePage:
+            def set_content(self, html_content, wait_until):
+                pass
+
+            def pdf(self, **kwargs):
+                return b"%PDF-fake-content"
+
+        class _FakeBrowser:
+            def new_page(self, **kwargs):
+                return _FakePage()
+
+        class _FakeChromium:
+            def launch(self):
+                return _FakeBrowser()
+
+        class _FakePlaywright:
+            chromium = _FakeChromium()
+
+        class _FakeSyncPlaywrightCM:
+            def __enter__(self_inner):
+                observed_lock_states.append(pdf_module._pdf_export_lock.locked())
+                return _FakePlaywright()
+
+            def __exit__(self_inner, *args):
+                pass
+
+        monkeypatch.setattr(pdf_module, "sync_playwright", lambda: _FakeSyncPlaywrightCM())
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.export_submission_pdf",
+                grant_id=authenticated_grant_member_client.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert observed_lock_states == [True]
+        assert not pdf_module._pdf_export_lock.locked()
 
 
 class TestReopenSubmission:

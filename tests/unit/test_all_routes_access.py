@@ -137,6 +137,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.check_your_answers",
     "deliver_grant_funding.list_submissions",
     "deliver_grant_funding.view_submission",
+    "deliver_grant_funding.export_submission_pdf",
     "deliver_grant_funding.export_collection_submissions",
     "deliver_grant_funding.add_user_to_grant",
     "deliver_grant_funding.download_file",
