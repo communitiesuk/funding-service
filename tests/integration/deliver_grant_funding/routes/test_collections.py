@@ -67,6 +67,7 @@ from app.deliver_grant_funding.data_sets import build_data_set_upload_s3_key
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddSectionForm,
+    CollectionCreationMethodForm,
     ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
@@ -77,6 +78,7 @@ from app.deliver_grant_funding.forms import (
     ReopenSubmissionForm,
     RequestChangesSubmissionForm,
     RequestOrAllowChangesSubmissionForm,
+    SelectCollectionToCopyForm,
     SetUpCollectionForm,
 )
 from app.deliver_grant_funding.routes.collections import (
@@ -118,8 +120,8 @@ class TestSetUpCollection:
     @pytest.mark.parametrize(
         "collection_type, expected_button_text",
         [
-            (CollectionType.MONITORING_REPORT, "Continue and set up report"),
-            (CollectionType.APPLICATION, "Continue and set up form"),
+            (CollectionType.MONITORING_REPORT, "Create report"),
+            (CollectionType.APPLICATION, "Create form"),
         ],
     )
     @pytest.mark.parametrize(
@@ -201,6 +203,38 @@ class TestSetUpCollection:
             assert len(created) == 1
             assert created[0].name == "Test collection"
             assert created[0].created_by == client.user
+
+    @pytest.mark.parametrize(
+        "collection_type, copy",
+        [
+            (CollectionType.MONITORING_REPORT, False),
+            (CollectionType.APPLICATION, False),
+            (CollectionType.MONITORING_REPORT, True),
+            (CollectionType.APPLICATION, True),
+        ],
+    )
+    def test_post_shows_created_flash(
+        self, authenticated_grant_admin_client, factories, collection_type: CollectionType, copy: bool
+    ):
+        client = authenticated_grant_admin_client
+        client.grant.allow_pre_award = True
+        url = url_for(
+            "deliver_grant_funding.set_up_collection", grant_id=client.grant.id, collection_type=collection_type
+        )
+        if copy:
+            source = factories.collection.create(grant=client.grant, name="Source", type=collection_type)
+            url = f"{url}?copy_from={source.id}"
+
+        form = SetUpCollectionForm(data={"name": "My new collection"}, collection_type=collection_type)
+        response = client.post(url, data=get_form_data(form), follow_redirects=True)
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        singular = collection_type.constants.singular
+        banner = page_has_flash(soup, f"My new collection {singular} created")
+        assert banner
+        link = banner.find("a", class_="govuk-notification-banner__link")
+        assert link
+        assert f"My new collection {singular}" in link.text
 
     @pytest.mark.parametrize(
         "collection_type, expected_error",
@@ -12989,3 +13023,224 @@ class TestDetermineReturnUrlExpressionReference:
             uuid.uuid4(), add_context_data, ExpressionReference.from_question(question)
         )
         assert result == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/calculated-condition/[a-z0-9-]{36}")
+
+
+class TestChooseCollectionCreationMethod:
+    @pytest.mark.parametrize("collection_type", CollectionType)
+    def test_redirects_to_set_up_when_no_collections_to_copy(
+        self, authenticated_grant_admin_client, collection_type, factories
+    ):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.choose_collection_creation_method",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            )
+        )
+
+        assert response.status_code == 302
+        assert (
+            url_for(
+                "deliver_grant_funding.set_up_collection",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            )
+            in response.location
+        )
+
+    @pytest.mark.parametrize("collection_type", CollectionType)
+    def test_get_renders_form_when_collections_exist(
+        self, authenticated_grant_admin_client, collection_type, factories
+    ):
+        factories.collection.create(grant=authenticated_grant_admin_client.grant, type=collection_type)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.choose_collection_creation_method",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Continue")
+
+    def test_403_for_non_admin(self, authenticated_grant_member_client, factories):
+        factories.collection.create(
+            grant=authenticated_grant_member_client.grant, type=CollectionType.MONITORING_REPORT
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.choose_collection_creation_method",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+            )
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize("collection_type", CollectionType)
+    def test_post_copy_redirects_to_select_collection(
+        self, authenticated_grant_admin_client, collection_type, factories
+    ):
+        factories.collection.create(grant=authenticated_grant_admin_client.grant, type=collection_type)
+
+        form = CollectionCreationMethodForm(data={"method": "copy"}, collection_type=collection_type)
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.choose_collection_creation_method",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert (
+            url_for(
+                "deliver_grant_funding.select_collection_to_copy",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            )
+            in response.location
+        )
+
+    @pytest.mark.parametrize("collection_type", CollectionType)
+    def test_post_create_redirects_to_set_up(self, authenticated_grant_admin_client, collection_type, factories):
+        factories.collection.create(grant=authenticated_grant_admin_client.grant, type=collection_type)
+
+        form = CollectionCreationMethodForm(data={"method": "create"}, collection_type=collection_type)
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.choose_collection_creation_method",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert (
+            url_for(
+                "deliver_grant_funding.set_up_collection",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            )
+            in response.location
+        )
+
+    def test_post_without_selection_shows_error(self, authenticated_grant_admin_client, factories):
+        factories.collection.create(grant=authenticated_grant_admin_client.grant, type=CollectionType.MONITORING_REPORT)
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.choose_collection_creation_method",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+            ),
+            data={"submit": "y"},
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Select how you want to create the report")
+
+
+class TestSelectCollectionToCopy:
+    @pytest.mark.parametrize("collection_type", CollectionType)
+    def test_redirects_to_set_up_when_no_collections_to_copy(self, authenticated_grant_admin_client, collection_type):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_collection_to_copy",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            )
+        )
+
+        assert response.status_code == 302
+        assert (
+            url_for(
+                "deliver_grant_funding.set_up_collection",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            )
+            in response.location
+        )
+
+    @pytest.mark.parametrize("collection_type", CollectionType)
+    def test_get_renders_form_when_collections_exist(
+        self, authenticated_grant_admin_client, collection_type, factories
+    ):
+        factories.collection.create(grant=authenticated_grant_admin_client.grant, type=collection_type)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_collection_to_copy",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Continue")
+
+    def test_403_for_non_admin(self, authenticated_grant_member_client, factories):
+        factories.collection.create(
+            grant=authenticated_grant_member_client.grant, type=CollectionType.MONITORING_REPORT
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.select_collection_to_copy",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+            )
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize("collection_type", CollectionType)
+    def test_post_redirects_to_set_up_with_copy_from(
+        self, authenticated_grant_admin_client, collection_type, factories
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, type=collection_type)
+
+        form = SelectCollectionToCopyForm(
+            data={"collection": str(collection.id)},
+            collection_type=collection_type,
+            collections=[collection],
+            grant=authenticated_grant_admin_client.grant,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_collection_to_copy",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert f"copy_from={collection.id}" in response.location
+
+    def test_post_without_selection_shows_error(self, authenticated_grant_admin_client, factories):
+        factories.collection.create(grant=authenticated_grant_admin_client.grant, type=CollectionType.MONITORING_REPORT)
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_collection_to_copy",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+            ),
+            data={"submit": "y"},
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Select the report to copy")

@@ -2,6 +2,8 @@ import csv
 import uuid
 from io import StringIO
 
+import pytest
+
 from app.common.data.interfaces.data_sets import get_data_source
 from app.common.data.types import (
     DataSourceSchemaColumn,
@@ -10,13 +12,18 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
 )
-from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
+from app.constants import (
+    DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+    DATA_SET_IDENTIFIER_COLUMN_HEADERS,
+)
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataTypeError,
     build_missing_data_display_rows,
     find_grant_recipient_mismatches,
     generate_latest_csv_template,
+    upload_header_only_data_set_files,
     validate_data_set,
     validate_data_set_grant_recipients,
 )
@@ -885,3 +892,99 @@ class TestGenerateLatestCsvTemplate:
         rows = list(reader)
         assert len(rows) == 21
         assert len(queries) == 3
+
+
+class TestUploadHeaderOnlyDataSetFiles:
+    def test_uploads_csv_with_identifier_and_schema_headers(self, factories, mock_s3_service_calls):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        assert len(data_source.organisation_items) == 0
+
+        upload_header_only_data_set_files(data_source)
+
+        assert len(mock_s3_service_calls.upload_file_calls) == 1
+        upload_call = mock_s3_service_calls.upload_file_calls[0]
+        uploaded_file = upload_call.args[0]
+        uploaded_content = uploaded_file.read().decode("utf-8")
+        reader = csv.reader(StringIO(uploaded_content))
+        headers = next(reader)
+        expected_headers = DATA_SET_IDENTIFIER_COLUMN_HEADERS + [
+            column.original_column_name for column in data_source.schema.root.values()
+        ]
+        assert headers == expected_headers
+
+    def test_uploaded_csv_contains_only_headers_no_data_rows(self, factories, mock_s3_service_calls):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        upload_header_only_data_set_files(data_source)
+
+        uploaded_file = mock_s3_service_calls.upload_file_calls[0].args[0]
+        uploaded_content = uploaded_file.read().decode("utf-8")
+        reader = csv.reader(StringIO(uploaded_content))
+        rows = list(reader)
+        assert len(rows) == 1
+
+    def test_updates_file_metadata_with_new_key(self, factories, mock_s3_service_calls):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        original_filename = data_source.file_metadata.original_filename
+
+        upload_header_only_data_set_files(data_source)
+
+        assert data_source.file_metadata.original_filename == original_filename
+        assert str(data_source.grant_id) in data_source.file_metadata.s3_key
+        assert str(data_source.id) in data_source.file_metadata.s3_key
+
+    def test_raises_for_non_grant_recipient_type(self, factories, mock_s3_service_calls):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            grant=collection.grant,
+            collection=collection,
+            type=DataSourceType.CUSTOM,
+        )
+
+        with pytest.raises(ValueError, match="Cannot upload a non-grant-recipient data set"):
+            upload_header_only_data_set_files(data_source)
+
+    def test_raises_when_missing_grant_id(self, factories, mock_s3_service_calls):
+        data_source = factories.data_source.build(
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant=None,
+            grant_id=None,
+        )
+
+        with pytest.raises(ValueError, match="Cannot upload a non-grant-recipient data set"):
+            upload_header_only_data_set_files(data_source)
+
+    def test_raises_when_missing_file_metadata(self, factories, mock_s3_service_calls):
+        data_source = factories.data_source.build(
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant_id=uuid.uuid4(),
+            file_metadata=None,
+        )
+
+        with pytest.raises(ValueError, match="Cannot upload a non-grant-recipient data set"):
+            upload_header_only_data_set_files(data_source)
+
+    def test_raises_when_missing_schema(self, factories, mock_s3_service_calls):
+        data_source = factories.data_source.build(
+            type=DataSourceType.GRANT_RECIPIENT,
+            grant_id=uuid.uuid4(),
+        )
+        data_source.schema = None
+
+        with pytest.raises(ValueError, match="Cannot upload a non-grant-recipient data set"):
+            upload_header_only_data_set_files(data_source)
