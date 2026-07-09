@@ -1133,6 +1133,92 @@ class TestSubmissionHelper:
             assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.CHANGES_MADE
             assert helper._calculate_submission_status() == SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
 
+        def test_form_status_with_conditional_section_and_not_needed(self, factories):
+            # Creating a Section with a Yes/No question - this will condition Section 2
+            yes_no_question = factories.question.create(data_type=QuestionDataType.YES_NO)
+            form_one = yes_no_question.form
+            collection = form_one.collection
+
+            # Creating Section 2 - this will be Not Needed when Section 1 is answered No
+            form_two = factories.form.create(collection=collection)
+            number_question = factories.question.create(
+                form=form_two,
+                data_type=QuestionDataType.NUMBER,
+                data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                expressions=[
+                    Expression.from_evaluatable_expression(
+                        IsYes(subject_reference=ExpressionReference.from_question(yes_no_question)),
+                        ExpressionType.CONDITION,
+                        collection.created_by,
+                    )
+                ],
+            )
+
+            # Create submission
+            submission = factories.submission.create(collection=collection)
+            helper = SubmissionHelper(submission)
+
+            # Initial state:
+            # - Section 1 is Not Started
+            # - Section 2 is Cannot be started yet
+            assert helper.get_tasklist_status_for_form(form_one) == TasklistSectionStatusEnum.NOT_STARTED
+            assert helper.get_tasklist_status_for_form(form_two) == TasklistSectionStatusEnum.CANNOT_START_YET
+
+            # Submit Section 1 with a No answer, which should make Section 2 Not Needed
+            helper.submit_answer_for_question(
+                yes_no_question.id,
+                build_question_form([yes_no_question], evaluation_context=EC(), interpolation_context=EC())(
+                    **{f"q_{yes_no_question.id.hex}": 0}
+                ),
+                submission.created_by,
+            )
+            helper.toggle_form_completed(form_one, submission.created_by, True)
+
+            # - Section 1 answer is No, status is Completed
+            # - Section 2 is Not Needed
+            assert helper.get_tasklist_status_for_form(form_one) == TasklistSectionStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(form_two) == TasklistSectionStatusEnum.NOT_NEEDED
+
+            # Submit Section 1 with a Yes answer, which should make Section 2 Not Started
+            helper.submit_answer_for_question(
+                yes_no_question.id,
+                build_question_form([yes_no_question], evaluation_context=EC(), interpolation_context=EC())(
+                    **{f"q_{yes_no_question.id.hex}": 1}
+                ),
+                submission.created_by,
+            )
+            helper.toggle_form_completed(form_one, submission.created_by, True)
+
+            # - Section 1 answer is Yes, status is Completed
+            # - Section 2 is Not Started
+            assert helper.get_tasklist_status_for_form(form_one) == TasklistSectionStatusEnum.COMPLETED
+            assert helper.get_tasklist_status_for_form(form_two) == TasklistSectionStatusEnum.NOT_STARTED
+
+            # Submit Section 2 with an answer, which should make Section 2 Completed
+            helper.submit_answer_for_question(
+                number_question.id,
+                build_question_form([number_question], evaluation_context=EC(), interpolation_context=EC())(
+                    **{f"q_{number_question.id.hex}": 42}
+                ),
+                submission.created_by,
+            )
+            helper.toggle_form_completed(form_two, submission.created_by, True)
+
+            # - Section 2 is Completed
+            assert helper.get_tasklist_status_for_form(form_two) == TasklistSectionStatusEnum.COMPLETED
+
+            # Change Section 1 to a No answer, which should make Section 2 Not Needed again
+            helper.submit_answer_for_question(
+                yes_no_question.id,
+                build_question_form([yes_no_question], evaluation_context=EC(), interpolation_context=EC())(
+                    **{f"q_{yes_no_question.id.hex}": 0}
+                ),
+                submission.created_by,
+            )
+
+            # - Section 2 is Not Needed
+            assert helper.get_tasklist_status_for_form(form_two) == TasklistSectionStatusEnum.NOT_NEEDED
+
     class TestIgnoredFormsForSubmissionStatus:
         @staticmethod
         def _managed_collection(factories, db_session, extra_name_form_questions=0):
