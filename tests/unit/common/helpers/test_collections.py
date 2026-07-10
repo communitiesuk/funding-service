@@ -1816,7 +1816,7 @@ class TestSubmissionHelper:
                 return_value=is_submitted,
             )
             mocker.patch(
-                "app.common.helpers.collections.AuthorisationHelper.can_reopen_submission",
+                "app.common.helpers.collections.AuthorisationHelper.can_request_or_allow_changes",
                 return_value=user_can_reopen,
             )
             helper = SubmissionHelper(submission)

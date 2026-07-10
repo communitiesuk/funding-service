@@ -1289,14 +1289,14 @@ class SubmissionHelper:
         if (
             self.collection.is_open
             and self.collection.grant.status == GrantStatusEnum.LIVE
-            and AuthorisationHelper.can_reopen_submission(user, self.submission)
+            and AuthorisationHelper.can_request_or_allow_changes(user, self.submission)
         ):
             return True
         return False
 
     def reopen_submission(self, user: User, reopened_reason: str | None) -> None:
 
-        if not AuthorisationHelper.can_reopen_submission(user, self.submission):
+        if not AuthorisationHelper.can_request_or_allow_changes(user, self.submission):
             raise SubmissionAuthorisationError(
                 f"User does not have permission to reopen the submission id={self.id}",
                 user,
@@ -1304,9 +1304,9 @@ class SubmissionHelper:
                 RoleEnum.MEMBER,
             )
 
-        if not self.collection.is_open:
+        if not self.collection.is_open_for_changes:
             raise CollectionIsNotOpenError(
-                f"Could not reopen submission id={self.id} because the collection is not open."
+                f"Could not reopen submission id={self.id} because the collection must have the status OPEN or DRAFT."
             )
 
         if not self.is_submitted:
@@ -1338,7 +1338,7 @@ class SubmissionHelper:
     def request_changes_submission(
         self, user: User, changes_requested_reason: str | None, section_ids: list[str]
     ) -> None:
-        if not AuthorisationHelper.can_reopen_submission(user, self.submission):
+        if not AuthorisationHelper.can_request_or_allow_changes(user, self.submission):
             raise SubmissionAuthorisationError(
                 f"User does not have permission to request changes to the submission id={self.id}",
                 user,
@@ -1346,9 +1346,10 @@ class SubmissionHelper:
                 RoleEnum.MEMBER,
             )
 
-        if not self.collection.is_open:
+        if not self.collection.is_open_for_changes:
             raise CollectionIsNotOpenError(
-                f"Could not request changes to submission id={self.id} because the collection is not open."
+                f"Could not request changes to submission id={self.id} "
+                "because the collection must have the status OPEN or DRAFT."
             )
 
         if not self.is_submitted:
