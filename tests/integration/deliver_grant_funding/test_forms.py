@@ -4,14 +4,19 @@ import pytest
 from werkzeug.datastructures import FileStorage, MultiDict
 
 from app import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, ExpressionReference
+from app.common.collections.types import YesNoAnswer
 from app.common.data.models import Expression
 from app.common.data.types import (
     DataSourceType,
     ExpressionType,
+    QuestionDataType,
+    SubmissionEventType,
+    TasklistSectionStatusEnum,
 )
-from app.common.expressions.managed import GreaterThan, LessThan
-from app.deliver_grant_funding.forms import UploadDataSetForm
-from tests.models import ALL_COLUMN_TYPE_HEADERS_STR
+from app.common.expressions.managed import GreaterThan, IsYes, LessThan
+from app.common.helpers.collections import SubmissionHelper
+from app.deliver_grant_funding.forms import RequestChangesSubmissionForm, UploadDataSetForm
+from tests.models import ALL_COLUMN_TYPE_HEADERS_STR, FactoryAnswer
 
 
 def _build_file_upload_form_data(csv_content: str) -> MultiDict:
@@ -452,3 +457,46 @@ class TestUploadDataSetForm:
             "One or more numbers in column 'British pounds' are not formatted as British pounds to 2 decimal places "
             + "with the '£' prefix. For example, £100.00"
         ) in form.data_errors
+
+
+class TestRequestChangesSubmissionForm:
+    def test_section_choices_exclude_not_needed_sections(self, factories):
+        # Creating a Section with a Yes/No question - this will condition Section 2
+        yes_no_question = factories.question.create(data_type=QuestionDataType.YES_NO)
+        needed_form = yes_no_question.form
+
+        # Creating Section 2 - this will be Not Needed when Section 1 is answered No
+        not_needed_form = factories.form.create(collection=needed_form.collection)
+        factories.question.create(
+            form=not_needed_form,
+            expressions=[
+                Expression.from_evaluatable_expression(
+                    IsYes(subject_reference=ExpressionReference.from_question(yes_no_question)),
+                    ExpressionType.CONDITION,
+                    needed_form.collection.created_by,
+                )
+            ],
+        )
+
+        # Create and submit submission with Section 1 answered No, which will make Section 2 Not Needed
+        submission = factories.submission.create(
+            collection=needed_form.collection,
+            answers=[FactoryAnswer(yes_no_question, YesNoAnswer(False))],
+        )
+        factories.submission_event.create(
+            submission=submission,
+            related_entity_id=needed_form.id,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        )
+
+        # Check Section status are as expected
+        helper = SubmissionHelper(submission)
+        assert helper.get_tasklist_status_for_form(needed_form) == TasklistSectionStatusEnum.COMPLETED
+        assert helper.get_tasklist_status_for_form(not_needed_form) == TasklistSectionStatusEnum.NOT_NEEDED
+
+        form = RequestChangesSubmissionForm(submission_helper=helper)
+        choice_ids = [choice[0] for choice in form.section_ids.choices]
+
+        # Not needed form is not included in the choices, but the needed form is
+        assert str(needed_form.id) in choice_ids
+        assert str(not_needed_form.id) not in choice_ids

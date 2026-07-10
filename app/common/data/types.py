@@ -203,6 +203,7 @@ IN_PROGRESS_TASKLIST_SECTION_STATUSES = (
     TasklistSectionStatusEnum.IN_PROGRESS,
     TasklistSectionStatusEnum.CHANGES_REQUESTED,
 )
+NOT_NEEDED_TASKLIST_SECTION_STATUSES = (TasklistSectionStatusEnum.NOT_NEEDED,)
 
 
 class SubmissionEventType(enum.StrEnum):

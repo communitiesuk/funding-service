@@ -666,7 +666,11 @@ class SubmissionHelper:
         form_questions_answered = self.cached_get_all_questions_are_answered_for_form(form)
         marked_as_complete = self.events.form_state(form.id).is_completed
 
-        if form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
+        if len(
+            self.cached_get_ordered_visible_questions(form)
+        ) == 0 and not self.get_referenced_forms_with_unanswered_references(form):
+            return TasklistSectionStatusEnum.NOT_NEEDED
+        elif form.cached_questions and form_questions_answered.all_answered and marked_as_complete:
             if self.has_form_changed_since_previous_submission(form):
                 return TasklistSectionStatusEnum.CHANGES_MADE
             return TasklistSectionStatusEnum.COMPLETED
@@ -678,10 +682,6 @@ class SubmissionHelper:
                 return TasklistSectionStatusEnum.CHANGES_REQUESTED
 
             return TasklistSectionStatusEnum.IN_PROGRESS
-        elif len(
-            self.cached_get_ordered_visible_questions(form)
-        ) == 0 and not self.get_referenced_forms_with_unanswered_references(form):
-            return TasklistSectionStatusEnum.NOT_NEEDED
         else:
             return TasklistSectionStatusEnum.NOT_STARTED
 
