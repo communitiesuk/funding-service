@@ -3424,9 +3424,9 @@ def export_submission_pdf(grant_id: UUID, submission_id: UUID) -> ResponseReturn
     helper = SubmissionHelper.load(submission_id)
 
     html_content = render_template(
-        "deliver_grant_funding/collections/view_submission_print_baseline.html",
+        "common/submission_print_baseline.html",
         grant=helper.grant,
-        helper=helper,
+        submission=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
         for_pdf=True,
     )

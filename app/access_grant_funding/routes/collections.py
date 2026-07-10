@@ -163,7 +163,7 @@ def export_submission_pdf(
     submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
     html_content = render_template(
-        "access_grant_funding/view_locked_submission_print_baseline.html",
+        "common/submission_print_baseline.html",
         grant_recipient=grant_recipient,
         submission=submission,
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),

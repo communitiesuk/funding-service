@@ -29,13 +29,15 @@
   </style>
 {% endblock head %}
 
+{% set heading = "MHCLG Deliver grant funding" if is_deliver_grant_funding() else "MHCLG Access grant funding" %}
+
 {% block header %}
   <div class="app-print-header">
     <div class="app-print-header-logo">
       {% if govuk_crest_svg %}
         {{ govuk_crest_svg }}
       {% endif %}
-      <span class="govuk-heading-l govuk-!-margin-bottom-0 govuk-!-margin-top-0">MHCLG Access grant funding</span>
+      <span class="govuk-heading-l govuk-!-margin-bottom-0 govuk-!-margin-top-0">{{ heading }}</span>
     </div>
   </div>
 {% endblock header %}
