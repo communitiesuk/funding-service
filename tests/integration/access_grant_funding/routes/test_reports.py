@@ -415,7 +415,7 @@ class TestExportReportPDFLock:
         submission_awaiting_sign_off,
         monkeypatch,
     ):
-        from app.access_grant_funding.routes import collections as reports_module
+        from app.common.helpers import pdf as pdf_module
 
         observed_lock_states: list[bool] = []
 
@@ -439,13 +439,13 @@ class TestExportReportPDFLock:
 
         class _FakeSyncPlaywrightCM:
             def __enter__(self_inner):
-                observed_lock_states.append(reports_module._pdf_export_lock.locked())
+                observed_lock_states.append(pdf_module._pdf_export_lock.locked())
                 return _FakePlaywright()
 
             def __exit__(self_inner, *args):
                 pass
 
-        monkeypatch.setattr(reports_module, "sync_playwright", lambda: _FakeSyncPlaywrightCM())
+        monkeypatch.setattr(pdf_module, "sync_playwright", lambda: _FakeSyncPlaywrightCM())
 
         client = authenticated_grant_recipient_member_client
         grant_recipient = client.grant_recipient
@@ -462,7 +462,7 @@ class TestExportReportPDFLock:
 
         assert response.status_code == 200
         assert observed_lock_states == [True]
-        assert not reports_module._pdf_export_lock.locked()
+        assert not pdf_module._pdf_export_lock.locked()
 
 
 class TestListReports:

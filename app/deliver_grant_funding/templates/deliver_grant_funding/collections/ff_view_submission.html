@@ -22,7 +22,7 @@
 
 
 {% set formResponsesTabPanel %}
-  {% include "deliver_grant_funding/partials/_form_responses_tab_panel.html" %}
+  {% include "deliver_grant_funding/partials/_submission_responses_tab_panel.html" %}
 {% endset %}
 
 
@@ -141,8 +141,8 @@
       "classes": "app-custom-gov-tabs",
       "items": [
         {
-          "label": "Form responses",
-          "id": "form-responses",
+          "label": "Submission responses",
+          "id": "submission-responses",
 
           "panel": {
             "html": formResponsesTabPanel
