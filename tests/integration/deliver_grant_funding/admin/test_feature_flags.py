@@ -1,5 +1,19 @@
 import pytest
 
+from app.common.helpers.feature_flags import FeatureFlags, SessionFeatureFlag
+
+
+class _SampleSessionFlag(SessionFeatureFlag):
+    description = "Sample session-based flag used to exercise the session flag infrastructure."
+
+
+@pytest.fixture
+def sample_session_flag(monkeypatch):
+    flag = _SampleSessionFlag()
+    flag.name = "SAMPLE_SESSION_FLAG"
+    monkeypatch.setattr(FeatureFlags, "SAMPLE_SESSION_FLAG", flag, raising=False)
+    return flag
+
 
 class TestFeatureFlagsAdminAccess:
     @pytest.mark.parametrize(
@@ -22,51 +36,53 @@ class TestFeatureFlagsAdminAccess:
 
 
 class TestFeatureFlagsPage:
-    def test_get_renders_all_flags(self, authenticated_platform_admin_client):
+    def test_get_renders_all_flags(self, authenticated_platform_admin_client, sample_session_flag):
         response = authenticated_platform_admin_client.get("/deliver/admin/feature-flags/")
         assert response.status_code == 200
         assert "Feature flags" in response.text
         assert "PRE_AWARD" in response.text
         assert "NEW_CONTEXT_SOURCES" in response.text
-        assert "NEW_CHANGE_REQUESTS" in response.text
+        assert "SAMPLE_SESSION_FLAG" in response.text
         assert "pre-award features like applications" in response.text
         assert "context sources for referencing data" in response.text
-        assert "new change request workflow in Access and Deliver" in response.text
+        assert "Sample session-based flag" in response.text
 
-    def test_only_renders_change_links_for_session_flags(self, authenticated_platform_admin_client):
+    def test_only_renders_change_links_for_session_flags(
+        self, authenticated_platform_admin_client, sample_session_flag
+    ):
         response = authenticated_platform_admin_client.get("/deliver/admin/feature-flags/")
-        assert "/deliver/admin/feature-flags/toggle/NEW_CHANGE_REQUESTS" in response.text
+        assert "/deliver/admin/feature-flags/toggle/SAMPLE_SESSION_FLAG" in response.text
         assert "/deliver/admin/feature-flags/toggle/PRE_AWARD" not in response.text
 
 
 class TestToggleFeatureFlag:
-    def test_get_toggle_page_for_session_flag(self, authenticated_platform_admin_client):
-        response = authenticated_platform_admin_client.get("/deliver/admin/feature-flags/toggle/NEW_CHANGE_REQUESTS")
+    def test_get_toggle_page_for_session_flag(self, authenticated_platform_admin_client, sample_session_flag):
+        response = authenticated_platform_admin_client.get("/deliver/admin/feature-flags/toggle/SAMPLE_SESSION_FLAG")
         assert response.status_code == 200
-        assert "NEW_CHANGE_REQUESTS" in response.text
+        assert "SAMPLE_SESSION_FLAG" in response.text
 
-    def test_post_toggle_enables_session_flag(self, authenticated_platform_admin_client):
+    def test_post_toggle_enables_session_flag(self, authenticated_platform_admin_client, sample_session_flag):
         response = authenticated_platform_admin_client.post(
-            "/deliver/admin/feature-flags/toggle/NEW_CHANGE_REQUESTS",
+            "/deliver/admin/feature-flags/toggle/SAMPLE_SESSION_FLAG",
             data={"enabled": "on"},
         )
         assert response.status_code == 302
 
         with authenticated_platform_admin_client.session_transaction() as sess:
-            assert "NEW_CHANGE_REQUESTS" in sess
+            assert "SAMPLE_SESSION_FLAG" in sess
 
-    def test_post_toggle_disables_session_flag(self, authenticated_platform_admin_client):
+    def test_post_toggle_disables_session_flag(self, authenticated_platform_admin_client, sample_session_flag):
         with authenticated_platform_admin_client.session_transaction() as sess:
-            sess["NEW_CHANGE_REQUESTS"] = "on"
+            sess["SAMPLE_SESSION_FLAG"] = "on"
 
         response = authenticated_platform_admin_client.post(
-            "/deliver/admin/feature-flags/toggle/NEW_CHANGE_REQUESTS",
+            "/deliver/admin/feature-flags/toggle/SAMPLE_SESSION_FLAG",
             data={"enabled": "off"},
         )
         assert response.status_code == 302
 
         with authenticated_platform_admin_client.session_transaction() as sess:
-            assert "NEW_CHANGE_REQUESTS" not in sess
+            assert "SAMPLE_SESSION_FLAG" not in sess
 
     def test_toggle_non_global_flag_returns_404(self, authenticated_platform_admin_client):
         response = authenticated_platform_admin_client.get("/deliver/admin/feature-flags/toggle/PRE_AWARD")
