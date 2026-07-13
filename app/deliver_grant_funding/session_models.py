@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field, PrivateAttr
 
 from app.common.data.types import (
     DataSourceSchemaColumn,
@@ -93,7 +93,7 @@ class AddConditionDependsOnSessionModel(_ReferenceDataSessionModel):
 class AddContextToExpressionsModel(_ReferenceDataSessionModel):
     model_config = ConfigDict(validate_assignment=True)
 
-    _prepared_form_data: dict[str, Any]
+    _prepared_form_data: dict[str, Any] = PrivateAttr(default_factory=dict)
 
     field: ExpressionType
     managed_expression_name: ManagedExpressionsEnum | None

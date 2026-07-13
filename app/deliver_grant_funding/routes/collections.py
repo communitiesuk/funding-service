@@ -1462,7 +1462,6 @@ def _handle_remove_context_for_expression_forms(
             raise ValueError("Expression required when add_context_data is None")
 
         add_context_data = AddContextToExpressionsModel(
-            _prepared_form_data={},
             field=expression_type,
             managed_expression_name=expression.managed_name,
             expression_form_data=form_data,

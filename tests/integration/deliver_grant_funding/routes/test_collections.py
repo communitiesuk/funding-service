@@ -3583,7 +3583,6 @@ class TestSelectContextSourceSection:
                 field=ExpressionType.CONDITION,
                 managed_expression_name=ManagedExpressionsEnum.ANY_OF,
                 expression_form_data={},
-                _prepared_form_data={},
             ).model_dump(mode="json")
 
         response = authenticated_grant_admin_client.get(
