@@ -14,6 +14,7 @@ from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import InstrumentedAttribute
 from werkzeug.wrappers import Response
 from wtforms import Form
 from wtforms.validators import Email
@@ -569,11 +570,11 @@ def _format_action(view, context, model, name):
 
 
 class ModelClassFilter(BaseSQLAFilter):
-    def __init__(self, column, name: str):
+    def __init__(self, column: InstrumentedAttribute, name: str):
         super().__init__(column, name)
 
     def apply(self, query, value, alias=None):
-        return query.filter(self.column["model_class"].astext.ilike(value))
+        return query.filter(cast(InstrumentedAttribute, self.column)["model_class"].astext.ilike(value))
 
     def operation(self) -> str:
         return "equals"
@@ -584,7 +585,7 @@ class ActionFilter(BaseSQLAFilter):
         super().__init__(column, name)
 
     def apply(self, query, value, alias=None):
-        return query.filter(self.column["action"].astext.ilike(value))
+        return query.filter(cast(InstrumentedAttribute, self.column)["action"].astext.ilike(value))
 
     def operation(self) -> str:
         return "equals"
