@@ -378,7 +378,7 @@ def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> Respon
             return redirect(url_for(collection_type.constants.list_endpoint, grant_id=grant_id))
 
         except DuplicateValueError:
-            form.name.errors.append(f"A {collection_type.constants.singular} with this name already exists")  # type: ignore[attr-defined]
+            form.name.errors.append(f"A {collection_type.constants.singular} with this name already exists")  # ty: ignore[unresolved-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/set_up_collection.html",
@@ -406,7 +406,7 @@ def change_collection_name(grant_id: UUID, collection_type: CollectionType, coll
             return redirect(url_for(collection.type.constants.list_endpoint, grant_id=collection.grant_id))
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.name.errors.append(  # type: ignore[attr-defined]
+            form.name.errors.append(  # ty: ignore[unresolved-attribute]
                 f"A {collection.type.constants.singular} with this name already exists"
             )
 
@@ -456,7 +456,7 @@ def collection_configure_multiple_submissions(
                         )
                     )
                 except ValueError as e:
-                    form.allow_multiple_submissions.errors.append(str(e))  # type: ignore[attr-defined]
+                    form.allow_multiple_submissions.errors.append(str(e))  # ty: ignore[unresolved-attribute]
 
             else:
                 update_collection(
@@ -671,7 +671,7 @@ def add_section(grant_id: UUID, collection_type: CollectionType, collection_id: 
             )
 
         except DuplicateValueError:
-            form.title.errors.append("A section with this name already exists")  # type: ignore[attr-defined]
+            form.title.errors.append("A section with this name already exists")  # ty: ignore[unresolved-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/add_section.html",
@@ -716,7 +716,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             )
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.title.errors.append("A section with this name already exists")  # type: ignore[attr-defined]
+            form.title.errors.append("A section with this name already exists")  # ty: ignore[unresolved-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/change_form_name.html",
@@ -754,7 +754,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
                 )
             )
         except DuplicateValueError:
-            form.name.errors.append("A question group with this name already exists")  # type: ignore[attr-defined]
+            form.name.errors.append("A question group with this name already exists")  # ty: ignore[unresolved-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/change_question_group_name.html",
@@ -860,15 +860,15 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
             )
         except DependencyOrderException:
             # TODO: can we show the user the problematic questions like we do when rendering flashable exceptions?
-            form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
                 "A question group cannot display on the same page if questions depend on answers within the group"
             )
         except NestedGroupDisplayTypeSamePageException:
-            form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
                 "A question group cannot display on the same page if it contains a nested group"
             )
         except GroupHasValidationsCannotBeOnePerPageException:
-            form.show_questions_on_the_same_page.errors.append(  # type: ignore[attr-defined]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
                 "A question group cannot display one question per page while it has validation rules attached. "
                 "Delete the group validations first."
             )
@@ -950,17 +950,17 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
                 )
             )
         except GroupContainsAddAnotherException:
-            form.question_group_is_add_another.errors.append(  # type:ignore[attr-defined]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
                 "A question group cannot be answered more than once if it already contains questions that can "
                 "be answered more than once"
             )
         except AddAnotherDependencyException:
-            form.question_group_is_add_another.errors.append(  # type:ignore[attr-defined]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
                 "A question group cannot be answered more than once if questions elsewhere in the form depend on "
                 "questions in this group"
             )
         except AddAnotherNotValidException:
-            form.question_group_is_add_another.errors.append(  # type:ignore[attr-defined]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
                 "A question group cannot be answered more than once if it is already inside a group that can "
                 "be answered more than once"
             )
@@ -1506,7 +1506,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     )
 
     wt_form = QuestionForm(
-        data=add_context_data.component_form_data if add_context_data else None,  # type: ignore[union-attr]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
         question_type=question_data_type_enum,
     )
 
@@ -1550,7 +1550,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[unresolved-attribute]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.form_error_message)
@@ -2034,7 +2034,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 
     wt_form = QuestionForm(
         obj=question if not add_context_data else None,
-        data=add_context_data.component_form_data if add_context_data else None,  # type: ignore[union-attr]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
         question_type=question.data_type,
     )
 
@@ -2117,7 +2117,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[unresolved-attribute]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.form_error_message)
@@ -2164,7 +2164,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
     )
 
     form = AddGuidanceForm(
-        data=add_context_data.component_form_data if add_context_data else None,  # type: ignore[union-attr]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
         heading_required=False,
     )
     if not add_context_data and not form.is_submitted():
@@ -2237,7 +2237,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
     form = AddGuidanceForm(
         obj=question if not add_context_data else None,
-        data=add_context_data.component_form_data if add_context_data else None,  # type: ignore[union-attr]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
     )
 
     if form.is_submitted_to_add_context():
@@ -2559,7 +2559,7 @@ def add_question_condition(
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, subject_reference)
     form = (
-        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
         if ConditionForm
         else None
     )
@@ -2665,7 +2665,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference, expression)
     form = (
-        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
         if ConditionForm
         else None
     )
@@ -2747,7 +2747,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         ExpressionReference.from_question(question),
     )
     form = (
-        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
         if ValidationForm
         else None
     )
@@ -2852,7 +2852,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         ExpressionType.VALIDATION, ExpressionReference.from_question(cast("Question", question)), expression
     )
     form = (
-        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # type: ignore[union-attr]
+        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
         if ValidationForm
         else None
     )
@@ -2934,7 +2934,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
         session_model=AddContextToExpressionsModel, component_id=question.id
     )
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
         component=question,
         interpolation_context=(
             ExpressionContext.build_expression_context(
@@ -3113,7 +3113,7 @@ def add_group_validation(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         session_model=AddContextToExpressionsModel, component_id=group.id
     )
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # type: ignore[union-attr]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
         component=group,
         interpolation_context=(
             ExpressionContext.build_expression_context(

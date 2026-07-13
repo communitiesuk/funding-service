@@ -213,18 +213,18 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
     )
 
     @factory.post_generation
-    def with_matching_test_org(self, create: bool, extracted: bool, **kwargs: Any) -> None:
-        if not extracted or self.mode != OrganisationModeEnum.LIVE:
+    def with_matching_test_org(obj: Organisation, create: bool, extracted: bool, **kwargs: Any) -> None:
+        if not extracted or obj.mode != OrganisationModeEnum.LIVE:
             return
 
         test_org = _OrganisationFactory.build(
-            external_id=self.external_id,
-            name=f"{self.name} (test)",
-            status=self.status,  # type: ignore[attr-defined]
-            type=self.type,
-            active_date=self.active_date,  # type: ignore[attr-defined]
-            retirement_date=self.retirement_date,  # type: ignore[attr-defined]
-            can_manage_grants=self.can_manage_grants,
+            external_id=obj.external_id,
+            name=f"{obj.name} (test)",
+            status=obj.status,
+            type=obj.type,
+            active_date=obj.active_date,
+            retirement_date=obj.retirement_date,
+            can_manage_grants=obj.can_manage_grants,
             mode=OrganisationModeEnum.TEST,
         )
         if create:
@@ -813,7 +813,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             db.session.commit()
 
     @factory.post_generation
-    def commit_the_things_to_clean_the_session(self, create, extracted, **kwargs):
+    def commit_the_things_to_clean_the_session(obj, create, extracted, **kwargs):
         # Runs after all of the other post_generation hooks (hopefully) and commits anything created to the DB,
         # so that our clean-session-tracking logic has a clean session again.
         if create:
@@ -1031,7 +1031,7 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
     def create_gr_org_items(obj: DataSource, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if create and extracted:
             if obj.collection and obj.collection.grant:
-                if not len(obj.schema.root.items()) == 1 or "c_allocation" not in obj.schema.root:  # ty:ignore[unresolved-attribute]
+                if not obj.schema or not len(obj.schema.root.items()) == 1 or "c_allocation" not in obj.schema.root:
                     raise ValueError("Cannot create GR org items for something other than the default schema")
                 gr_data = kwargs.get("data", [])
                 for i, gr in enumerate(obj.collection.grant.grant_recipients):
@@ -1106,12 +1106,12 @@ class _QuestionFactory(SQLAlchemyModelFactory):
             obj.form.clear_caches()
 
     @factory.post_generation
-    def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
+    def expressions(obj, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:
             return
         for expression in extracted:
-            expression.question_id = self.id
-            self.expressions.append(expression)
+            expression.question_id = obj.id
+            obj.expressions.append(expression)
 
         if create:
             db.session.add(expression)
@@ -1173,13 +1173,13 @@ class _GroupFactory(SQLAlchemyModelFactory):
             obj.form.clear_caches()
 
     @factory.post_generation
-    def expressions(self, create: bool, extracted: list[Any], **kwargs: Any) -> None:
+    def expressions(obj, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         if not extracted:
             return
         for expression in extracted:
-            expression.question_id = self.id
+            expression.question_id = obj.id
             db.session.add(expression)
-            self.expressions.append(expression)
+            obj.expressions.append(expression)
 
         if create:
             db.session.commit()

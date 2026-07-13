@@ -62,7 +62,7 @@ def grant_change_name(grant_id: UUID) -> ResponseReturnValue:
             return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant_id))
         except DuplicateValueError as e:
             field_with_error: Field = getattr(form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[unresolved-attribute]
 
     return render_template(
         "deliver_grant_funding/grant_setup/grant_name.html",

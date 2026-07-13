@@ -367,7 +367,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
 
-            if user := self.session.session.scalar(select(User).where(User.email == form.email.data)):  # type: ignore[attr-defined]
+            if user := self.session.session.scalar(select(User).where(User.email == form.email.data)):  # ty: ignore[unresolved-attribute]
                 model.user = user
 
         return super().on_model_change(form, model, is_created)

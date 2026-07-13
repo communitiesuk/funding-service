@@ -370,7 +370,7 @@ class FormRunner:
             )
             return True
         except ValueError:
-            self.check_your_answers_form.section_completed.errors.append(  # type:ignore[attr-defined]
+            self.check_your_answers_form.section_completed.errors.append(  # ty: ignore[unresolved-attribute]
                 "You must complete all questions before marking this section as complete"
             )
             return False
@@ -380,7 +380,7 @@ class FormRunner:
             SubmissionValidator(self.submission).validate_all_reachable_questions()
             return True
         except SubmissionValidationFailed as e:
-            self._tasklist_form.submit.errors.append(e.error_message)  # type:ignore[attr-defined]
+            self._tasklist_form.submit.errors.append(e.error_message)  # ty: ignore[unresolved-attribute]
             return False
 
     def complete_submission(self, user: User) -> bool:
@@ -392,7 +392,7 @@ class FormRunner:
                 self.submission.submit(user)
             return True
         except SubmissionValidationFailed as e:
-            self._tasklist_form.submit.errors.append(e.error_message)  # type:ignore[attr-defined]
+            self._tasklist_form.submit.errors.append(e.error_message)  # ty: ignore[unresolved-attribute]
             return False
         except ValueError:
             current_app.logger.warning(
@@ -400,7 +400,7 @@ class FormRunner:
                 exc_info=True,
                 extra={"submission_id": str(self.submission.id)},
             )
-            self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # type:ignore[attr-defined]
+            self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # ty: ignore[unresolved-attribute]
             return False
 
     def to_url(

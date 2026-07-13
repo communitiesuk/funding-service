@@ -18,11 +18,13 @@ from app.common.data.types import (
 )
 from app.common.expressions import EvaluationStatement, ExpressionContext, InterpolationStatement
 from app.common.expressions.managed import (
+    AnyOf,
     Between,
     BetweenDates,
     GreaterThan,
     LessThan,
     ManagedExpression,
+    Specifically,
 )
 from tests.e2e.dataclasses import DataReferenceConfig, GuidanceText
 from tests.e2e.helpers import get_context_aware_textbox_locator_by_name, wait_for_context_aware_textarea_to_be_ready
@@ -1128,30 +1130,32 @@ class AddConditionPage(ReportsBasePage):
         match managed_condition._key:
             case ManagedExpressionsEnum.GREATER_THAN:
                 managed_condition = managed_condition
-                _configure_greater_than_expression(self, managed_condition, context_source)
+                _configure_greater_than_expression(self, cast(GreaterThan, managed_condition), context_source)
 
             case ManagedExpressionsEnum.LESS_THAN:
                 managed_condition = managed_condition
-                _configure_less_than_expression(self, managed_condition, context_source)
+                _configure_less_than_expression(self, cast(LessThan, managed_condition), context_source)
 
             case ManagedExpressionsEnum.BETWEEN:
                 managed_condition = managed_condition
-                _configure_between_expression(self, managed_condition, context_source)
+                _configure_between_expression(self, cast(Between, managed_condition), context_source)
 
             case ManagedExpressionsEnum.BETWEEN_DATES:
                 managed_condition = managed_condition
-                _configure_between_dates_expression(self, managed_condition, presentation_options, context_source)
+                _configure_between_dates_expression(
+                    self, cast(BetweenDates, managed_condition), presentation_options, context_source
+                )
 
             case ManagedExpressionsEnum.IS_YES | ManagedExpressionsEnum.IS_NO:
                 return
 
             case ManagedExpressionsEnum.ANY_OF:
-                managed_condition = managed_condition
+                managed_condition = cast(AnyOf, managed_condition)
                 for item in managed_condition.items:
                     self.page.get_by_role("checkbox", name=item["label"]).click()
 
             case ManagedExpressionsEnum.SPECIFICALLY:
-                managed_condition = managed_condition
+                managed_condition = cast(Specifically, managed_condition)
                 self.page.get_by_role("radio", name=managed_condition.item["label"]).click()
 
     def click_managed_condition_type(self, managed_condition: ManagedExpression) -> None:
