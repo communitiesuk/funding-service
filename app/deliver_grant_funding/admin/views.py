@@ -812,7 +812,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             )
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
-        form = PlatformAdminSetCollectionReportingDatesForm(collection=collection)
+        form = PlatformAdminSetCollectionReportingDatesForm(obj=collection)
 
         if form.validate_on_submit():
             update_collection(
@@ -846,7 +846,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             )
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
-        form = PlatformAdminSetCollectionSubmissionDatesForm(collection=collection)
+        form = PlatformAdminSetCollectionSubmissionDatesForm(obj=collection)
 
         if form.validate_on_submit():
             update_collection(

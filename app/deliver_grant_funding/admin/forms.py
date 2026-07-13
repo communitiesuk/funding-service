@@ -466,12 +466,6 @@ class PlatformAdminSetCollectionReportingDatesForm(FlaskForm):
     )
     submit = SubmitField("Save dates", widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-        collection: "Collection | None" = kwargs.get("collection")
-        self.existing_submission_period_start_date = collection.submission_period_start_date if collection else None
-
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         result: bool = super().validate(extra_validators)
 
@@ -509,12 +503,6 @@ class PlatformAdminSetCollectionSubmissionDatesForm(FlaskForm):
         format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],
     )
     submit = SubmitField("Save dates", widget=GovSubmitInput())
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-        collection: "Collection | None" = kwargs.get("collection")
-        self.existing_reporting_period_end_date = collection.reporting_period_end_date if collection else None
 
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         result: bool = super().validate(extra_validators)
