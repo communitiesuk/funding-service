@@ -781,7 +781,7 @@ class Specifically(BaseDataSourceManagedExpression):
         return {
             "specifically": SelectField(
                 "Choose from the list of options",
-                default=expression.context["item"]["key"] if expression else None,  # ty: ignore[invalid-argument-type]
+                default=expression.context["item"]["key"] if expression else None,  # ty: ignore[invalid-argument-type, not-subscriptable]
                 widget=GovRadioInput(),
                 choices=[(item.key, item.label) for item in question.data_source.items],
                 validators=[DataRequired("Choose one option")],
