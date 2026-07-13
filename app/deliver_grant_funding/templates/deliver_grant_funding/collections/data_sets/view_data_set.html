@@ -114,14 +114,16 @@
         {{ govukWarningText({"text": ("Grant recipients with missing data will not be able to complete the report until their missing data is uploaded.")}) }}
       {% endif %}
 
-      {% if authorisation_helper.can_edit_collection(current_user, collection.id) %}
-        <div class="govuk-button-group">
+      <div class="govuk-button-group">
+        {% if authorisation_helper.can_replace_dataset(current_user, collection.id) %}
           <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.replace_data_set', grant_id=grant.id, collection_id=collection.id, collection_type=collection.type, data_source_id=data_source.id) }}">
             Replace data set
           </a>
+        {% endif %}
+        {% if authorisation_helper.can_edit_collection(current_user, collection.id) %}
           <a class="govuk-button govuk-button--warning" href="?delete">Delete data set</a>
-        </div>
-      {% endif %}
+        {% endif %}
+      </div>
     </div>
 
     <div class="govuk-grid-column-full">

@@ -174,6 +174,21 @@ class AuthorisationHelper:
         return False
 
     @staticmethod
+    def can_replace_dataset(user: User | AnonymousUserMixin, collection_id: UUID) -> bool:
+        if isinstance(user, AnonymousUserMixin):
+            return False
+
+        collection = get_collection(collection_id)
+        if collection.is_closed:
+            return False
+        if AuthorisationHelper.is_platform_admin(user=user) or AuthorisationHelper.is_deliver_grant_admin(
+            collection.grant_id, user
+        ):
+            return True
+
+        return False
+
+    @staticmethod
     def can_edit_collection(user: User | AnonymousUserMixin, collection_id: UUID) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False

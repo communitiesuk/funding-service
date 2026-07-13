@@ -467,3 +467,81 @@ class TestAuthorisationHelper:
         )
 
         assert AuthorisationHelper.can_request_or_allow_changes(user, submission_submitted) is True
+
+    @pytest.mark.parametrize(
+        "collection_status,exp_can_replace_dataset",
+        [
+            (CollectionStatusEnum.DRAFT, True),
+            (CollectionStatusEnum.SCHEDULED, True),
+            (CollectionStatusEnum.OPEN, True),
+            (CollectionStatusEnum.CLOSED, False),
+        ],
+    )
+    def test_can_replace_data_set_grant_admin(self, factories, collection_status, exp_can_replace_dataset, mocker):
+        user = factories.user.build()
+        organisation = factories.organisation.build()
+        grant = factories.grant.build(organisation=organisation)
+        collection = factories.collection.build(status=collection_status, grant=grant)
+        user_role = factories.user_role.build(
+            user=user, permissions=[RoleEnum.ADMIN], grant=grant, organisation=organisation
+        )
+        user.roles = [user_role]
+
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+
+        result = AuthorisationHelper.can_replace_dataset(user, collection.id)
+        assert result is exp_can_replace_dataset
+
+    @pytest.mark.parametrize(
+        "collection_status,exp_can_replace_dataset",
+        [
+            (CollectionStatusEnum.DRAFT, True),
+            (CollectionStatusEnum.SCHEDULED, True),
+            (CollectionStatusEnum.OPEN, True),
+            (CollectionStatusEnum.CLOSED, False),
+        ],
+    )
+    def test_can_replace_data_set_platform_admin(self, factories, collection_status, exp_can_replace_dataset, mocker):
+        user = factories.user.build()
+        organisation = factories.organisation.build()
+        grant = factories.grant.build(organisation=organisation)
+        collection = factories.collection.build(status=collection_status, grant=grant)
+        user_role = factories.user_role.build(
+            user=user, permissions=[RoleEnum.ADMIN], grant=None, organisation=organisation
+        )
+        user.roles = [user_role]
+
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+
+        result = AuthorisationHelper.can_replace_dataset(user, collection.id)
+        assert result is exp_can_replace_dataset
+
+    @pytest.mark.parametrize(
+        "collection_status",
+        [
+            (CollectionStatusEnum.DRAFT,),
+            (CollectionStatusEnum.SCHEDULED,),
+            (CollectionStatusEnum.OPEN,),
+            (CollectionStatusEnum.CLOSED,),
+        ],
+    )
+    def test_can_replace_data_set_false(self, factories, collection_status, mocker):
+        user = factories.user.build()
+        organisation = factories.organisation.build()
+        grant = factories.grant.build(organisation=organisation)
+        collection = factories.collection.build(status=collection_status, grant=grant)
+
+        mocker.patch("app.common.auth.authorisation_helper.get_collection", return_value=collection)
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=grant)
+
+        result = AuthorisationHelper.can_replace_dataset(factories.user.build(), collection.id)
+        assert result is False
+
+        user_role = factories.user_role.build(
+            user=user, permissions=[RoleEnum.ADMIN], grant=factories.grant.build(), organisation=organisation
+        )
+        user.roles = [user_role]
+        result = AuthorisationHelper.can_replace_dataset(user, collection.id)
+        assert result is False
