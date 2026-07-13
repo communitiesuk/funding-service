@@ -14,7 +14,7 @@
   "dependencies": {
     "@ministryofjustice/frontend": "8.0.1",
     "accessible-autocomplete": "3.0.1",
-    "choices.js": "^11.2.3",
+    "choices.js": "11.2.3",
     "govuk-frontend": "5.14.0",
     "turndown": "7.2.4"
   },
