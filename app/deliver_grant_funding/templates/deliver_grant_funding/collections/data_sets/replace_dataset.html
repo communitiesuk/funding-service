@@ -17,9 +17,14 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% set error_list = [] %}
-      {% if form.errors %}
-        {% set error_list =wtforms_errors(form).errorList %}
-      {% endif %}
+      {% for e in form.name.errors %}
+        {% do error_list.append({"text":e,"href":"#name"}) %}
+      {% endfor %}
+      {% for e in form.file.errors %}
+        {% if e not in form.data_errors %}
+          {% do error_list.append({"text":e,"href":"#file"}) %}
+        {% endif %}
+      {% endfor %}
       {% if gr_errors %}
         {% for error in gr_errors %}
           {% do error_list.append({"text": error, "href": "#file"}) %}
@@ -97,7 +102,7 @@
       <form method="POST" enctype="multipart/form-data" novalidate>
         {{ form.csrf_token }}
         {{ form.name }}
-        {{ form.file(params={"javascript": true, }) }}
+        {{ form.file(params={"javascript": true}) }}
         <p class="govuk-body">Only CSV (.csv) files can be uploaded for data sets.</p>
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Check and replace data set" }) }}

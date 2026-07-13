@@ -1345,8 +1345,7 @@ class UploadDataSetForm(FlaskForm):
 
                 if errors:
                     self.data_errors = errors
-                    raise StopValidation("There is a problem")
-
+                    raise ValidationError(errors[0])
         finally:
             field.data.stream.seek(0)
 
