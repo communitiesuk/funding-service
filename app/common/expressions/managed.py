@@ -641,7 +641,7 @@ class AnyOf(BaseDataSourceManagedExpression):
         return {
             "any_of": SelectMultipleField(
                 "Choose from the list of options",
-                default=[item["key"] for item in expression.context["items"]] if expression else None,  # ty: ignore[invalid-argument-type]
+                default=[item["key"] for item in expression.context["items"]] if expression else None,  # ty: ignore[invalid-argument-type, not-iterable]
                 widget=GovCheckboxesInput(),
                 choices=[(item.key, item.label) for item in question.data_source.items],
                 validators=[Optional()],
