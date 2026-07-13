@@ -120,7 +120,11 @@
       {% for form in submission.get_ordered_visible_forms() %}
         <div class="app-dont-page-break">
           <h2 id="form-{{ form.id }}" class="govuk-heading-m govuk-!-margin-top-6">{{ (loop.index ~ ". ") if show_section_numbers else "" }}{{ form.title }}</h2>
-          {{ answers_summary_list(submission, form) }}
+          {% if submission.get_status_for_form(form) == enum.tasklist_section_status.NOT_NEEDED %}
+            <p class="govuk-body">Section was not needed.</p>
+          {% else %}
+            {{ answers_summary_list(submission, form) }}
+          {% endif %}
         </div>
       {% endfor %}
     </div>

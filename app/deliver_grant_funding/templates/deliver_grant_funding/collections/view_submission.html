@@ -1,7 +1,7 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
-{% from "common/macros/submissions.html" import answers_summary_list with context %}
+{% from "common/macros/submissions.html" import submission_answers with context %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% extends "deliver_grant_funding/grant_base.html" %}
@@ -70,10 +70,8 @@
       }}
     </div>
   {% endif %}
-  {% for form in helper.get_ordered_visible_forms() %}
-    <h2 class="govuk-heading-m govuk-!-margin-top-4">{{ form.title }}</h2>
-    {{ answers_summary_list(helper, form) }}
-  {% endfor %}
+
+  {{ submission_answers(helper) }}
 
   <p class="govuk-body">
     <a
