@@ -309,7 +309,7 @@ def create_app() -> Flask:  # noqa: C901
     @app.context_processor
     def _jinja_template_context() -> dict[str, Any]:
         return dict(
-            cspNonce=app.jinja_env.globals["csp_nonce"](),  # type: ignore[operator]
+            cspNonce=app.jinja_env.globals["csp_nonce"](),  # ty: ignore[no-matching-overload]
             format_date=format_date,
             format_date_short=format_date_short,
             format_date_approximate=format_date_approximate,
