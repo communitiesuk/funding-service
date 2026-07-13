@@ -572,8 +572,14 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
     confirm_certification = BooleanField(
         validators=[DataRequired("Confirm the certification setting")], widget=GovCheckboxInput()
     )
+    confirm_reporting_dates = BooleanField(
+        validators=[DataRequired("Confirm the reporting dates")], widget=GovCheckboxInput()
+    )
     confirm_submission_dates = BooleanField(
         validators=[DataRequired("Confirm the submission dates")], widget=GovCheckboxInput()
+    )
+    confirm_reporting_and_submission_overlap = BooleanField(
+        validators=[DataRequired("Confirm the reporting and submission dates overlap")], widget=GovCheckboxInput()
     )
     confirm_reminder_days = BooleanField(
         validators=[DataRequired("Confirm the reminder email timing")], widget=GovCheckboxInput()
@@ -615,6 +621,16 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
             f"It is correct that the {collection.type.constants.singular} has certification "
             f"<strong {bold}>{certification_status}</strong>"
         )
+
+        if collection.reporting_period_start_date and collection.reporting_period_end_date:
+            start = format_date_short(collection.reporting_period_start_date)
+            end = format_date_short(collection.reporting_period_end_date)
+            self.confirm_reporting_dates.label.text = Markup(
+                f"The reporting dates are <strong {bold}>{start}</strong> until <strong {bold}>{end}</strong>"
+            )
+        else:
+            self.confirm_reporting_dates.label.text = "There are no reporting dates"
+
         if collection.submission_period_start_date and collection.submission_period_end_date:
             start = format_date_short(collection.submission_period_start_date)
             end = format_date_short(collection.submission_period_end_date)
@@ -623,6 +639,21 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
             )
         else:
             self.confirm_submission_dates.label.text = "The submission dates have been set"
+
+        if (
+            collection.reporting_period_end_date
+            and collection.submission_period_start_date
+            and collection.reporting_period_end_date >= collection.submission_period_start_date
+        ):
+            end = format_date_short(collection.reporting_period_end_date)
+            start = format_date_short(collection.submission_period_start_date)
+            self.confirm_reporting_and_submission_overlap.label.text = Markup(
+                f"It is correct that the reporting period ends on <strong>{end}</strong>, "
+                f"which is after the submission period starts on <strong>{start}</strong>."
+            )
+        else:
+            del self.confirm_reporting_and_submission_overlap
+
         days = collection.reminder_email_business_days_before_closing
         if collection.submission_period_end_date:
             reminder_date = subtract_business_days(collection.submission_period_end_date, days)

@@ -33,7 +33,11 @@
         {{ form.confirm_grant_recipient_users }}
         {{ form.confirm_privacy_policy }}
         {{ form.confirm_certification }}
+        {{ form.confirm_reporting_dates }}
         {{ form.confirm_submission_dates }}
+        {% if 'confirm_reporting_and_submission_overlap' in form %}
+          {{ form.confirm_reporting_and_submission_overlap }}
+        {% endif %}
         {{ form.confirm_reminder_days }}
         {{ form.confirm_multiple_submissions }}
         {% if 'confirm_managed_by_service' in form %}
