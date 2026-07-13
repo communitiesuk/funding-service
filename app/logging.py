@@ -111,8 +111,8 @@ def attach_request_loggers(app: Flask) -> None:
     def before_request() -> None:
         # annotating these onto request instead of flask.g as they probably
         # shouldn't be inheritable from a request-less application context
-        request.before_request_real_time = time.perf_counter()  # type: ignore[attr-defined]
-        request.before_request_process_time = time.process_time()  # type: ignore[attr-defined]
+        request.before_request_real_time = time.perf_counter()  # ty: ignore[unresolved-attribute]
+        request.before_request_process_time = time.process_time()  # ty: ignore[unresolved-attribute]
 
         if request.path != "/healthcheck":
             current_app.logger.info(
@@ -167,9 +167,9 @@ class RejectMutableDataStructuresFilter(logging.Filter):
     def filter(self, record: LogRecord) -> LogRecord:
         logging_msg_args: dict[str, Any] | None
         if isinstance(record.args, tuple):
-            logging_msg_args = record.args[0] if len(record.args) > 0 else None  # type: ignore[assignment]
+            logging_msg_args = record.args[0] if len(record.args) > 0 else None  # ty: ignore[invalid-assignment]
         else:
-            logging_msg_args = record.args  # type: ignore[assignment]
+            logging_msg_args = record.args  # ty: ignore[invalid-assignment]
 
         if not logging_msg_args:
             return record

@@ -224,7 +224,7 @@ def create_app() -> Flask:  # noqa: C901
     auto_commit_after_request.init_app(app)
     migrate.init_app(
         app,
-        db,  # type: ignore[arg-type]  # not natively compatible with Flask-SQLAlchemy-Lite; but is fine for us.
+        db,  # ty: ignore[invalid-argument-type]  # not natively compatible with Flask-SQLAlchemy-Lite; but is fine for us.
         directory="app/common/data/migrations",
         compare_type=True,
         render_as_batch=True,
@@ -273,7 +273,7 @@ def create_app() -> Flask:  # noqa: C901
     # flask.palletsprojects.com/en/1.0.x/deploying/wsgi-standalone
     from werkzeug.middleware.proxy_fix import ProxyFix
 
-    app.wsgi_app = (  # type: ignore[method-assign]
+    app.wsgi_app = (  # ty: ignore[invalid-assignment]
         ProxyFix(app.wsgi_app, x_proto=app.config["PROXY_FIX_PROTO"], x_host=app.config["PROXY_FIX_HOST"])
     )
 
@@ -309,7 +309,7 @@ def create_app() -> Flask:  # noqa: C901
     @app.context_processor
     def _jinja_template_context() -> dict[str, Any]:
         return dict(
-            cspNonce=app.jinja_env.globals["csp_nonce"](),  # type: ignore[operator]
+            cspNonce=app.jinja_env.globals["csp_nonce"](),  # ty: ignore[no-matching-overload]
             format_date=format_date,
             format_date_short=format_date_short,
             format_date_approximate=format_date_approximate,

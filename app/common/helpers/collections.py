@@ -167,7 +167,7 @@ class SubmissionHelper:
     def get_interpolator(
         collection: Collection,
         submission_helper: SubmissionHelper | None = None,
-    ) -> Callable[[str], str]:
+    ) -> Callable[..., str]:
         return partial(
             interpolate,
             context=ExpressionContext.build_expression_context(

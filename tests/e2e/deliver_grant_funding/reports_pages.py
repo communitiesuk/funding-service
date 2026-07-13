@@ -1051,20 +1051,22 @@ class AddValidationPage(ReportsBasePage):
 
         match managed_validation._key:
             case ManagedExpressionsEnum.GREATER_THAN:
-                managed_validation = cast(GreaterThan, managed_validation)
-                _configure_greater_than_expression(self, managed_validation, context_source)
+                managed_validation = managed_validation
+                _configure_greater_than_expression(self, cast(GreaterThan, managed_validation), context_source)
 
             case ManagedExpressionsEnum.LESS_THAN:
-                managed_validation = cast(LessThan, managed_validation)
-                _configure_less_than_expression(self, managed_validation, context_source)
+                managed_validation = managed_validation
+                _configure_less_than_expression(self, cast(LessThan, managed_validation), context_source)
 
             case ManagedExpressionsEnum.BETWEEN:
-                managed_validation = cast(Between, managed_validation)
-                _configure_between_expression(self, managed_validation, context_source)
+                managed_validation = managed_validation
+                _configure_between_expression(self, cast(Between, managed_validation), context_source)
 
             case ManagedExpressionsEnum.BETWEEN_DATES:
-                managed_validation = cast(BetweenDates, managed_validation)
-                _configure_between_dates_expression(self, managed_validation, presentation_options, context_source)
+                managed_validation = managed_validation
+                _configure_between_dates_expression(
+                    self, cast(BetweenDates, managed_validation), presentation_options, context_source
+                )
 
     def click_managed_validation_type(self, managed_validation: ManagedExpression) -> None:
         self.page.get_by_role("radio", name=managed_validation._key.value).click()
@@ -1129,20 +1131,22 @@ class AddConditionPage(ReportsBasePage):
 
         match managed_condition._key:
             case ManagedExpressionsEnum.GREATER_THAN:
-                managed_condition = cast(GreaterThan, managed_condition)
-                _configure_greater_than_expression(self, managed_condition, context_source)
+                managed_condition = managed_condition
+                _configure_greater_than_expression(self, cast(GreaterThan, managed_condition), context_source)
 
             case ManagedExpressionsEnum.LESS_THAN:
-                managed_condition = cast(LessThan, managed_condition)
-                _configure_less_than_expression(self, managed_condition, context_source)
+                managed_condition = managed_condition
+                _configure_less_than_expression(self, cast(LessThan, managed_condition), context_source)
 
             case ManagedExpressionsEnum.BETWEEN:
-                managed_condition = cast(Between, managed_condition)
-                _configure_between_expression(self, managed_condition, context_source)
+                managed_condition = managed_condition
+                _configure_between_expression(self, cast(Between, managed_condition), context_source)
 
             case ManagedExpressionsEnum.BETWEEN_DATES:
-                managed_condition = cast(BetweenDates, managed_condition)
-                _configure_between_dates_expression(self, managed_condition, presentation_options, context_source)
+                managed_condition = managed_condition
+                _configure_between_dates_expression(
+                    self, cast(BetweenDates, managed_condition), presentation_options, context_source
+                )
 
             case ManagedExpressionsEnum.IS_YES | ManagedExpressionsEnum.IS_NO:
                 return
@@ -2005,7 +2009,7 @@ class EditQuestionGroupPage(ReportsBasePage):
             grant_name=self.grant_name,
             report_name=self.report_name,
             section_name=self.section_name,
-            group_name=self.parent_group_name,  # type: ignore[arg-type]
+            group_name=self.parent_group_name,  # ty: ignore[invalid-argument-type]
         )
         expect(manage_parent_group_page.heading).to_be_visible()
         return manage_parent_group_page

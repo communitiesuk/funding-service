@@ -6,12 +6,14 @@ registry. The registry is probed by the managed expression form builder to autom
 """
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 
 if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
+
+_T = TypeVar("_T", bound="ManagedExpression")
 
 
 _registry_by_expression_enum: dict[ManagedExpressionsEnum, type[ManagedExpression]] = {}
@@ -40,7 +42,7 @@ def lookup_managed_expression(expression_enum: ManagedExpressionsEnum) -> type[M
     return _registry_by_expression_enum[expression_enum]
 
 
-def register_managed_expression(cls: type[ManagedExpression]) -> type[ManagedExpression]:
+def register_managed_expression(cls: type[_T]) -> type[_T]:
     """
     A decorator that can be used to include a managed expression definition (subclass of
     app.common.expressions.managed.ManagedExpression) in this registry, which should allow it to automatically show up

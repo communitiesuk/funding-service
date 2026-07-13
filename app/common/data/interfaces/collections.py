@@ -981,7 +981,7 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     for item_to_delete in to_delete:
         db.session.delete(item_to_delete)
     question.data_source.items = new_choices
-    question.data_source.items.reorder()  # type: ignore[attr-defined]
+    question.data_source.items.reorder()  # ty: ignore[unresolved-attribute]
 
 
 @flush_and_rollback_on_exceptions
@@ -1021,7 +1021,7 @@ def create_question(
         #       are not because of duplicated values - the convention based method doesn't feel ideal but this setup
         #       is already working on a few assumptions of things lining up in different places. This just raises
         #       the ORM error if we're not guessing its a duplicate value error based on it being a unique constraint
-        if e.orig.diag and e.orig.diag.constraint_name and e.orig.diag.constraint_name.startswith("uq_"):  # type: ignore[union-attr]
+        if e.orig.diag and e.orig.diag.constraint_name and e.orig.diag.constraint_name.startswith("uq_"):  # ty: ignore[unresolved-attribute]
             raise DuplicateValueError(e) from e
         raise e
 
@@ -2398,7 +2398,7 @@ def delete_form(form: Form) -> None:
     db.session.delete(form)
     for ds in data_sources_to_delete:
         db.session.delete(ds)
-    form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # type: ignore[invalid-assignment]
+    form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # ty: ignore[invalid-assignment]
     form.collection.forms.reorder()  # Force all other forms to update their `order` attribute
     db.session.execute(text("SET CONSTRAINTS uq_form_order_collection DEFERRED"))
 
