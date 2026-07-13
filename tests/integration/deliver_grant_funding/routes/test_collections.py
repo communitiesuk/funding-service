@@ -8966,16 +8966,14 @@ class TestViewSubmission:
         assert "test-document.pdf" in soup.text
 
     # TODO: combine into above test when feature flag removed
-    def test_ff_metadata_and_tab_panels_are_displayed(
-        self, authenticated_grant_member_client, factories, submission_submitted
-    ):
-        with authenticated_grant_member_client.session_transaction() as session:
-            session["NEW_CHANGE_REQUESTS"] = "on"
+    def test_ff_metadata_and_tab_panels_are_displayed(self, authenticated_grant_member_client, submission_submitted):
+        grant = authenticated_grant_member_client.grant
+        grant.allow_pre_award = True
 
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.view_submission",
-                grant_id=authenticated_grant_member_client.grant.id,
+                grant_id=grant.id,
                 submission_id=submission_submitted.id,
             )
         )
@@ -9014,13 +9012,13 @@ class TestViewSubmission:
     ):
         client = request.getfixturevalue(client_fixture)
         submission = request.getfixturevalue(submission_fixture)
-        with client.session_transaction() as session:
-            session["NEW_CHANGE_REQUESTS"] = "on"
+        grant = grant_recipient.grant
+        grant.allow_pre_award = True
 
         response = client.get(
             url_for(
                 "deliver_grant_funding.view_submission",
-                grant_id=grant_recipient.grant.id,
+                grant_id=grant.id,
                 submission_id=submission.id,
             )
         )
@@ -9042,13 +9040,13 @@ class TestViewSubmission:
         self, authenticated_grant_member_client, grant_recipient, submission_submitted
     ):
         client = authenticated_grant_member_client
-        with client.session_transaction() as session:
-            session["NEW_CHANGE_REQUESTS"] = "on"
+        grant = grant_recipient.grant
+        grant.allow_pre_award = True
 
         response = client.get(
             url_for(
                 "deliver_grant_funding.view_submission",
-                grant_id=grant_recipient.grant.id,
+                grant_id=grant.id,
                 submission_id=submission_submitted.id,
             )
         )
@@ -9060,7 +9058,7 @@ class TestViewSubmission:
 
         assert button["href"] == url_for(
             "deliver_grant_funding.export_submission_pdf",
-            grant_id=grant_recipient.grant.id,
+            grant_id=grant.id,
             submission_id=submission_submitted.id,
         )
 
@@ -9489,8 +9487,9 @@ class TestRequestChangesSubmission:
     def test_post_request_changes_submission_without_section_ids(
         self, authenticated_grant_member_client, submission_submitted, db_session
     ):
-        with authenticated_grant_member_client.session_transaction() as session:
-            session["NEW_CHANGE_REQUESTS"] = "on"
+        client = authenticated_grant_member_client
+        grant = client.grant
+        grant.allow_pre_award = True
 
         submission_events_changes_requests_before = (
             db_session.query(SubmissionEvent)
@@ -9511,10 +9510,10 @@ class TestRequestChangesSubmission:
             },
             submission_helper=SubmissionHelper(submission_submitted),
         )
-        response = authenticated_grant_member_client.post(
+        response = client.post(
             url_for(
                 "deliver_grant_funding.request_changes_submission",
-                grant_id=submission_submitted.collection.grant.id,
+                grant_id=grant.id,
                 submission_id=submission_submitted.id,
             ),
             data=get_form_data(form),
@@ -9542,8 +9541,9 @@ class TestRequestChangesSubmission:
     def test_post_request_changes_submission_with_section_ids(
         self, authenticated_grant_member_client, submission_submitted, db_session
     ):
-        with authenticated_grant_member_client.session_transaction() as session:
-            session["NEW_CHANGE_REQUESTS"] = "on"
+        client = authenticated_grant_member_client
+        grant = client.grant
+        grant.allow_pre_award = True
 
         submission_events_changes_requests_before = (
             db_session.query(SubmissionEvent)
@@ -9565,10 +9565,10 @@ class TestRequestChangesSubmission:
             },
             submission_helper=SubmissionHelper(submission_submitted),
         )
-        response = authenticated_grant_member_client.post(
+        response = client.post(
             url_for(
                 "deliver_grant_funding.request_changes_submission",
-                grant_id=submission_submitted.collection.grant.id,
+                grant_id=grant.id,
                 submission_id=submission_submitted.id,
             ),
             data=get_form_data(form),

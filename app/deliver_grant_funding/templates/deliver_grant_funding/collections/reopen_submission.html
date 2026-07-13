@@ -14,7 +14,7 @@
     govukBackLink({
       "text": "Back",
       "href": url_for(
-        "deliver_grant_funding.request_or_allow_changes" if feature_flags.NEW_CHANGE_REQUESTS.is_enabled else "deliver_grant_funding.view_submission",
+        "deliver_grant_funding.request_or_allow_changes" if feature_flags.PRE_AWARD.is_enabled else "deliver_grant_funding.view_submission",
         grant_id=grant.id,
         submission_id=helper.submission.id
       )

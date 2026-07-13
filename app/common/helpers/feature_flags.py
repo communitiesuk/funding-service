@@ -119,14 +119,9 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
         return AuthorisationHelper.is_platform_member(get_current_user())
 
 
-class NewChangeRequestFeatureFlag(SessionFeatureFlag):
-    description = "Use the new change request workflow in Access and Deliver."
-
-
 class FeatureFlags:
     PRE_AWARD = PreAwardGrantFeatureFlag()
     NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
-    NEW_CHANGE_REQUESTS = NewChangeRequestFeatureFlag()
 
     @classmethod
     def all(cls) -> list[FeatureFlagBase]:
