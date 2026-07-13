@@ -224,7 +224,7 @@ def create_app() -> Flask:  # noqa: C901
     auto_commit_after_request.init_app(app)
     migrate.init_app(
         app,
-        db,  # type: ignore[arg-type]  # not natively compatible with Flask-SQLAlchemy-Lite; but is fine for us.
+        db,  # ty: ignore[invalid-argument-type]  # not natively compatible with Flask-SQLAlchemy-Lite; but is fine for us.
         directory="app/common/data/migrations",
         compare_type=True,
         render_as_batch=True,

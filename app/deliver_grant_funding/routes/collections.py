@@ -617,7 +617,7 @@ def move_section(grant_id: UUID, form_id: UUID, direction: str) -> ResponseRetur
             case _:
                 return abort(400)
     except SectionDependencyOrderException as e:
-        flash(e.as_flash_context(), FlashMessageType.SECTION_DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
+        flash(e.as_flash_context(), FlashMessageType.SECTION_DEPENDENCY_ORDER_ERROR.value)  # ty: ignore[invalid-argument-type]
 
     return redirect(
         url_for(
@@ -1018,7 +1018,7 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
                 )
 
             except SectionComponentDependencyException as e:
-                flash(e.as_flash_context(), FlashMessageType.SECTION_COMPONENT_DEPENDENCY_ERROR.value)  # type:ignore [arg-type]
+                flash(e.as_flash_context(), FlashMessageType.SECTION_COMPONENT_DEPENDENCY_ERROR.value)  # ty: ignore[invalid-argument-type]
                 return redirect(
                     url_for(
                         "deliver_grant_funding.list_section_questions",
@@ -1066,7 +1066,7 @@ def list_group_questions(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
                     url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=group.form_id)
                 )
         except DependencyOrderException as e:
-            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
+            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # ty: ignore[invalid-argument-type]
             return redirect(url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=group_id))
 
     return render_template(
@@ -1109,7 +1109,7 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
         try:
             raise_if_nested_group_creation_not_valid_here(parent=parent)
         except (NestedGroupException, NestedGroupDisplayTypeSamePageException) as e:
-            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # type: ignore[arg-type]
+            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # ty: ignore[invalid-argument-type]
             return redirect(
                 url_for("deliver_grant_funding.list_group_questions", grant_id=grant_id, group_id=parent.id)
             )
@@ -1247,9 +1247,9 @@ def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> Resp
                 )
             )
         except NestedGroupDisplayTypeSamePageException as e:
-            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # type: ignore[arg-type]
+            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # ty: ignore[invalid-argument-type]
         except NestedGroupException as e:
-            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # type: ignore[arg-type]
+            flash(e.as_flash_context(), FlashMessageType.NESTED_GROUP_ERROR.value)  # ty: ignore[invalid-argument-type]
 
     return render_template(
         "deliver_grant_funding/collections/add_question_group_add_another_options.html",
@@ -1278,7 +1278,7 @@ def move_component(grant_id: UUID, component_id: UUID, direction: str) -> Respon
             case _:
                 return abort(400)
     except DependencyOrderException as e:
-        flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type: ignore[arg-type]
+        flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # ty: ignore[invalid-argument-type]
 
     source = request.args.get("source", None)
     if source:
@@ -1424,10 +1424,10 @@ def _store_question_state_and_redirect_to_add_context(
             )
         case _ManagedExpressionForm() | CustomValidationExpressionForm() | CalculatedConditionForm():
             add_context_data = AddContextToExpressionsModel(  # type: ignore[call-arg]
-                field=expression_type,  # type: ignore[arg-type]
+                field=expression_type,  # ty: ignore[invalid-argument-type]
                 managed_expression_name=managed_expression_name,
-                expression_form_data=form_data,  # type: ignore[arg-type]
-                component_id=component_id,  # type: ignore[arg-type]
+                expression_form_data=form_data,  # ty: ignore[invalid-argument-type]
+                component_id=component_id,  # ty: ignore[invalid-argument-type]
                 parent_id=parent_id,
                 expression_id=expression_id,
                 subject_reference=subject_reference,
@@ -2069,7 +2069,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
                 )
 
         except DependencyOrderException as e:
-            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # type:ignore [arg-type]
+            flash(e.as_flash_context(), FlashMessageType.DEPENDENCY_ORDER_ERROR.value)  # ty: ignore[invalid-argument-type]
             return redirect(
                 url_for(
                     "deliver_grant_funding.edit_question",
@@ -2126,7 +2126,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             field_with_error.errors.append(e.form_error_message)
         except DataSourceItemReferenceDependencyException as e:
             for flash_context in e.as_flash_contexts():
-                flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # type: ignore[arg-type]
+                flash(flash_context, FlashMessageType.DATA_SOURCE_ITEM_DEPENDENCY_ERROR.value)  # ty: ignore[invalid-argument-type]
             return redirect(
                 url_for(
                     "deliver_grant_funding.edit_question",
@@ -2583,7 +2583,7 @@ def add_question_condition(
             form=form,
             component_id=component.id,
             expression_type=ExpressionType.CONDITION,
-            add_context_data=add_context_data,  # type: ignore[arg-type]
+            add_context_data=add_context_data,  # ty: ignore[invalid-argument-type]
             subject_reference=subject_reference,
         )
         return redirect(request.url)
@@ -2691,7 +2691,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
             component_id=component.id,
             expression_type=ExpressionType.CONDITION,
             expression=expression,
-            add_context_data=add_context_data,  # type: ignore[arg-type]
+            add_context_data=add_context_data,  # ty: ignore[invalid-argument-type]
             subject_reference=reference,
         )
         return redirect(request.url)
@@ -2770,7 +2770,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
             form=form,
             component_id=question.id,
             expression_type=ExpressionType.VALIDATION,
-            add_context_data=add_context_data,  # type: ignore[arg-type]
+            add_context_data=add_context_data,  # ty: ignore[invalid-argument-type]
         )
         return redirect(request.url)
 
@@ -2877,7 +2877,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
             component_id=question.id,
             expression_type=ExpressionType.VALIDATION,
             expression=expression,
-            add_context_data=add_context_data,  # type: ignore[arg-type]
+            add_context_data=add_context_data,  # ty: ignore[invalid-argument-type]
         )
         return redirect(request.url)
 
@@ -3730,7 +3730,7 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
             data_columns=data_columns,
             preview_data=preview_data,
             s3_key=s3_key,
-            original_filename=secure_filename(file.filename),
+            original_filename=secure_filename(cast(str, file.filename)),
             data_source_id=data_source_id,
         )
 
@@ -3805,7 +3805,7 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
             if british_pounds_errors:
                 errors = sorted(british_pounds_errors, key=lambda e: e.column)
                 column_errors = {col: list(errs) for col, errs in groupby(errors, key=lambda e: e.column)}
-                form.columns.errors = form.build_british_pounds_form_errors(column_errors)
+                form.columns.errors = form.build_british_pounds_form_errors(column_errors)  # ty: ignore[invalid-argument-type]
                 return render_template(
                     "deliver_grant_funding/collections/data_sets/map_columns.html",
                     grant=collection.grant,
@@ -4155,7 +4155,7 @@ def view_data_source(
                     )
                 )
         except DataSourceHasReferencesException as e:
-            flash(e.as_flash_context(), FlashMessageType.DATA_SOURCE_REFERENCE_ERROR.value)  # type: ignore[arg-type]
+            flash(e.as_flash_context(), FlashMessageType.DATA_SOURCE_REFERENCE_ERROR.value)  # ty: ignore[invalid-argument-type]
             return redirect(
                 url_for(
                     "deliver_grant_funding.view_data_source",

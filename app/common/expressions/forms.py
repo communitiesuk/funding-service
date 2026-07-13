@@ -159,8 +159,8 @@ def build_managed_expression_form(
             ]
             if self._show_calculated_validation_option:
                 # This creates a placeholder which is then replaced by the 'or' divider at render time below
-                self.type.choices.append((None, None))
-                self.type.choices.append(("CUSTOM", "Calculation with two or more numbers"))
+                self.type.choices.append((None, None))  # ty: ignore[invalid-argument-type]
+                self.type.choices.append(("CUSTOM", "Calculation with two or more numbers"))  # ty: ignore[invalid-argument-type]
 
         def get_managed_expression_radio_items(self) -> list[dict[str, dict[str, Markup]]]:
             items = super().get_managed_expression_radio_conditional_items()
@@ -195,7 +195,7 @@ class ExceptionRenderingFormMixin:
         field_with_error.errors.append(e.form_error_message)
 
 
-def _fake_submission_data(component: Component, validated_references: list[str]) -> dict[str, int]:
+def _fake_submission_data(component: Component, validated_references: list[ExpressionReference]) -> dict[str, int]:
     if not component:
         raise ValueError("component must be provided")
 

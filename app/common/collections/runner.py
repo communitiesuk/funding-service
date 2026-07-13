@@ -526,7 +526,7 @@ class FormRunner:
                 self._valid = False
 
         if self._valid:
-            if self.component.is_question and not self.can_edit_question(self.component):  # type: ignore[arg-type]
+            if self.component.is_question and not self.can_edit_question(cast("Question", self.component)):
                 self._valid = False
 
         if self._valid:

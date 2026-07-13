@@ -641,7 +641,7 @@ class AnyOf(BaseDataSourceManagedExpression):
         return {
             "any_of": SelectMultipleField(
                 "Choose from the list of options",
-                default=[item["key"] for item in expression.context["items"]] if expression else None,  # type: ignore[index, union-attr]
+                default=[item["key"] for item in expression.context["items"]] if expression else None,  # ty: ignore[invalid-argument-type]
                 widget=GovCheckboxesInput(),
                 choices=[(item.key, item.label) for item in question.data_source.items],
                 validators=[Optional()],
@@ -781,7 +781,7 @@ class Specifically(BaseDataSourceManagedExpression):
         return {
             "specifically": SelectField(
                 "Choose from the list of options",
-                default=expression.context["item"]["key"] if expression else None,  # type: ignore[index]
+                default=expression.context["item"]["key"] if expression else None,  # ty: ignore[invalid-argument-type]
                 widget=GovRadioInput(),
                 choices=[(item.key, item.label) for item in question.data_source.items],
                 validators=[DataRequired("Choose one option")],

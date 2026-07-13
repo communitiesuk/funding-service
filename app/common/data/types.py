@@ -358,10 +358,10 @@ TRunnerUrlMapCallable = Callable[
 TRunnerUrlMap = typing.TypedDict(
     "TRunnerUrlMap",
     {
-        FormRunnerState.TASKLIST: TRunnerUrlMapCallable,
-        FormRunnerState.QUESTION: TRunnerUrlMapCallable,
-        FormRunnerState.CHECK_YOUR_ANSWERS: TRunnerUrlMapCallable,
-        FormRunnerState.VIEW_REPORT_PAGE: TRunnerUrlMapCallable,
+        FormRunnerState.TASKLIST: TRunnerUrlMapCallable,  # ty: ignore[invalid-argument-type]
+        FormRunnerState.QUESTION: TRunnerUrlMapCallable,  # ty: ignore[invalid-argument-type]
+        FormRunnerState.CHECK_YOUR_ANSWERS: TRunnerUrlMapCallable,  # ty: ignore[invalid-argument-type]
+        FormRunnerState.VIEW_REPORT_PAGE: TRunnerUrlMapCallable,  # ty: ignore[invalid-argument-type]
     },
 )
 

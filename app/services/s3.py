@@ -2,6 +2,7 @@ from urllib.parse import urlencode
 
 import boto3
 from flask import Flask
+from types_boto3_s3.type_defs import TagTypeDef
 from werkzeug.datastructures import FileStorage
 
 from app.common.collections.types import FileUploadAnswer
@@ -38,5 +39,5 @@ class S3Service:
         self._bucket.objects.filter(Prefix=prefix).delete()
 
     def update_file_tags(self, key: str, tags: dict[str, str]) -> None:
-        tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
+        tag_set = [TagTypeDef(Key=k, Value=v) for k, v in tags.items()]
         self._client.put_object_tagging(Bucket=self._bucket_name, Key=key, Tagging={"TagSet": tag_set})

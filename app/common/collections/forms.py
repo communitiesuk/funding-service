@@ -426,7 +426,7 @@ def build_question_form(  # noqa: C901
                         validators=[
                             InputRequired(f"Enter the {question.name}"),
                             MaxNumberOfDecimalPlacesValidator(
-                                max_decimal_places=question.data_options.max_decimal_places,  # type: ignore[arg-type]
+                                max_decimal_places=question.data_options.max_decimal_places,  # ty: ignore[invalid-argument-type]
                             ),
                         ],
                         widget=GovTextInput(),
