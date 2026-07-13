@@ -89,6 +89,7 @@ class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, 
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
     is_submitted: bool = False
+    is_reopened: bool = True
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
 
 
@@ -136,6 +137,7 @@ class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_SUBMITTED
     is_submitted: bool = True
     is_changes_requested: bool = False
+    is_reopened: bool = False
 
 
 # State - represents a snapshot of the current state of the target entity for those events
@@ -166,14 +168,14 @@ class SubmittedMetadata:
 
 @dataclass
 class ReopenedMetadata:
-    reopened_by: User | None = None
     reopened_at_utc: datetime | None = None
+    requested_or_allowed_changes_by: User | None = None
 
 
 @dataclass
 class ChangesRequestedMetadata:
-    changes_requested_by: User | None = None
     changes_requested_at_utc: datetime | None = None
+    requested_or_allowed_changes_by: User | None = None
 
 
 @dataclass
@@ -199,6 +201,7 @@ class SubmissionState(
     submission_data: dict[str, Any] | None = None
     section_ids: list[str] = field(default_factory=list)
     is_changes_requested: bool = False
+    is_reopened: bool = False
 
 
 @dataclass
@@ -308,15 +311,15 @@ class SubmissionEventHelper:
             case SubmissionEventType.SUBMISSION_REOPENED:
                 return shallow_asdict(
                     ReopenedMetadata(
-                        reopened_by=event.created_by,
                         reopened_at_utc=event.created_at_utc,
+                        requested_or_allowed_changes_by=event.created_by,
                     )
                 )
             case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
                 return shallow_asdict(
                     ChangesRequestedMetadata(
-                        changes_requested_by=event.created_by,
                         changes_requested_at_utc=event.created_at_utc,
+                        requested_or_allowed_changes_by=event.created_by,
                     )
                 )
             case _:

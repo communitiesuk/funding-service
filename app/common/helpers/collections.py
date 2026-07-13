@@ -498,10 +498,6 @@ class SubmissionHelper:
         return self.events.submission_state.changes_requested_reason
 
     @property
-    def changes_requested_by(self) -> User | None:
-        return self.events.submission_state.changes_requested_by
-
-    @property
     def changes_requested_at_utc(self) -> datetime | None:
         return self.events.submission_state.changes_requested_at_utc
 
@@ -510,8 +506,16 @@ class SubmissionHelper:
         return self.events.submission_state.section_ids
 
     @property
-    def reopened_by(self) -> User | None:
-        return self.events.submission_state.reopened_by
+    def is_reopened(self) -> bool:
+        return self.events.submission_state.is_reopened
+
+    @property
+    def is_changes_requested(self) -> bool:
+        return self.events.submission_state.is_changes_requested
+
+    @property
+    def requested_or_allowed_changes_by(self) -> User | None:
+        return self.events.submission_state.requested_or_allowed_changes_by
 
     @property
     def timeline_events(self) -> list[TimelineEvent]:
@@ -1135,7 +1139,8 @@ class SubmissionHelper:
 
         SubmissionValidator(self).validate_all_reachable_questions()
 
-        was_changes_requested = self.events.submission_state.is_changes_requested
+        # Check submission's is_changes_requested or is_reopened before SUBMISSION_SUBMITTED event resets it
+        was_changes_requested_or_reopened = self.is_changes_requested or self.is_reopened
 
         self.add_submission_event(
             event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
@@ -1152,9 +1157,9 @@ class SubmissionHelper:
                 submission_helper=self,
             )
 
-        if was_changes_requested and self.changes_requested_by:
+        if was_changes_requested_or_reopened and self.requested_or_allowed_changes_by:
             notification_service.send_submission_with_changes_notify_requester(
-                user=self.changes_requested_by,
+                user=self.requested_or_allowed_changes_by,
                 submission_helper=self,
             )
 
