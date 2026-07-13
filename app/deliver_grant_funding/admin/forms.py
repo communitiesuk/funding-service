@@ -492,13 +492,6 @@ class PlatformAdminSetCollectionReportingDatesForm(FlaskForm):
                 )
                 return False
 
-        if self.reporting_period_end_date.data and self.existing_submission_period_start_date:
-            if self.reporting_period_end_date.data >= self.existing_submission_period_start_date:
-                self.reporting_period_end_date.errors.append(  # type: ignore[attr-defined]
-                    "Report period end date must be before submission period start date"
-                )
-                return False
-
         return result
 
 
@@ -540,13 +533,6 @@ class PlatformAdminSetCollectionSubmissionDatesForm(FlaskForm):
                 )
                 self.submission_period_end_date.errors.append(  # type: ignore[attr-defined]
                     "Submission period start date must be before submission period end date"
-                )
-                return False
-
-        if self.existing_reporting_period_end_date and self.submission_period_start_date.data:
-            if self.existing_reporting_period_end_date >= self.submission_period_start_date.data:
-                self.submission_period_start_date.errors.append(  # type: ignore[attr-defined]
-                    "Report period end date must be before submission period start date"
                 )
                 return False
 

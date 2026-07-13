@@ -410,10 +410,6 @@ def update_collection(  # noqa: C901
         collection.submission_period_start_date = submission_period_start_date
         collection.submission_period_end_date = submission_period_end_date
 
-    if collection.reporting_period_end_date and collection.submission_period_start_date:
-        if collection.reporting_period_end_date >= collection.submission_period_start_date:
-            raise CollectionChronologyError("reporting_period_end_date must be before submission_period_start_date")
-
     if allow_multiple_submissions is not NOT_PROVIDED:
         if (
             not allow_multiple_submissions
@@ -486,18 +482,6 @@ def update_collection(  # noqa: C901
                     raise CollectionChronologyError(
                         "reporting_period_start_date and reporting_period_end_date must both be unset or both be set"
                     )
-
-                if (
-                    collection.reporting_period_start_date
-                    and collection.reporting_period_end_date
-                    and not (
-                        collection.reporting_period_start_date
-                        < collection.reporting_period_end_date
-                        < collection.submission_period_start_date
-                        < collection.submission_period_end_date
-                    )
-                ):
-                    raise CollectionChronologyError("Reporting dates must be chronological and before submission dates")
 
                 if not get_grant_recipients(collection.grant):
                     raise GrantRecipientUsersRequiredError(
