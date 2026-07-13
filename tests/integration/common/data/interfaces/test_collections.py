@@ -432,33 +432,37 @@ class TestUpdateCollection:
 
         assert "submission_period_start_date must be before submission_period_end_date" in str(exc_info.value)
 
-    def test_update_collection_reporting_end_after_submission_start_raises_error(self, db_session, factories):
+    def test_update_collection_reporting_end_after_submission_start_is_allowed(self, db_session, factories):
         collection = factories.collection.create()
 
-        with pytest.raises(CollectionChronologyError) as exc_info:
-            update_collection(
-                collection,
-                reporting_period_start_date=datetime.date(2024, 1, 1),
-                reporting_period_end_date=datetime.date(2024, 12, 31),
-                submission_period_start_date=datetime.date(2024, 6, 1),
-                submission_period_end_date=datetime.date(2024, 6, 30),
-            )
+        update_collection(
+            collection,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2024, 6, 1),
+            submission_period_end_date=datetime.date(2024, 6, 30),
+        )
 
-        assert "reporting_period_end_date must be before submission_period_start_date" in str(exc_info.value)
+        db_session.refresh(collection)
 
-    def test_update_collection_reporting_end_equals_submission_start_raises_error(self, db_session, factories):
+        assert collection.reporting_period_end_date == datetime.date(2024, 12, 31)
+        assert collection.submission_period_start_date == datetime.date(2024, 6, 1)
+
+    def test_update_collection_reporting_end_equals_submission_start_is_allowed(self, db_session, factories):
         collection = factories.collection.create()
 
-        with pytest.raises(CollectionChronologyError) as exc_info:
-            update_collection(
-                collection,
-                reporting_period_start_date=datetime.date(2024, 1, 1),
-                reporting_period_end_date=datetime.date(2024, 12, 31),
-                submission_period_start_date=datetime.date(2024, 12, 31),
-                submission_period_end_date=datetime.date(2025, 1, 31),
-            )
+        update_collection(
+            collection,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 12, 31),
+            submission_period_start_date=datetime.date(2024, 12, 31),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
 
-        assert "reporting_period_end_date must be before submission_period_start_date" in str(exc_info.value)
+        db_session.refresh(collection)
+
+        assert collection.reporting_period_end_date == datetime.date(2024, 12, 31)
+        assert collection.submission_period_start_date == datetime.date(2024, 12, 31)
 
     def test_update_collection_name_duplicate_raises_error(self, db_session, factories):
         grant = factories.grant.create()
