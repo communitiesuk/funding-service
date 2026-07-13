@@ -22,6 +22,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     add_component_validation,
 )
+from app.common.data.interfaces.data_sets import get_data_source
 from app.common.data.models import (
     Collection,
     DataSource,
@@ -10182,7 +10183,7 @@ class TestMapDataSetColumns:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "has_missing_data,",
+        "has_missing_data",
         [
             True,
             False,
@@ -11009,6 +11010,8 @@ class TestMapDataSetNumberColumns:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Updated name data set replaced")
+        with authenticated_grant_admin_client.session_transaction() as updated_session:
+            assert updated_session.get(SESSION_DATA_SET_REPLACE) is None
 
     @pytest.mark.parametrize("is_replace", [True, False])
     def test_post_shows_form_errors(self, authenticated_grant_admin_client, factories, is_replace):
@@ -11217,7 +11220,7 @@ class TestDataSetConfirmGrantRecipients:
         assert "Different name" in soup.text
 
     @pytest.mark.parametrize("is_replace", [True, False])
-    def test_get_no_gr_mismatch_redirects_to_missing_data(
+    def test_post_no_gr_mismatch_redirects_to_missing_data(
         self, authenticated_grant_admin_client, factories, mocker, mock_s3_service_calls, is_replace
     ):
         session_data_name = SESSION_DATA_SET_REPLACE if is_replace else SESSION_DATA_SET_UPLOAD
@@ -11777,7 +11780,8 @@ class TestReplaceDataSet:
                 ALL_COLUMN_TYPE_HEADERS_STR
                 + "\nE123,Rivendell,£100,1.2,hello,5,$10,12km"
                 + "\nE456,Lothlorien,£100,1.2,hello,6,$10,12km"
-            )
+            ),
+            name="Updated",
         )
 
         response = authenticated_grant_admin_client.post(
@@ -11801,6 +11805,10 @@ class TestReplaceDataSet:
             collection_id=collection.id,
             data_source_id=data_source.id,
         )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            data_set_data = sess.get(SESSION_DATA_SET_REPLACE)
+            assert data_set_data is not None
+            assert data_set_data["name"] == "Updated"
 
     def test_upload_with_multiple_data_errors_shows_all(self, factories, authenticated_grant_admin_client):
 
@@ -12033,6 +12041,75 @@ class TestReplaceDataSet:
             collection_id=collection.id,
             data_source_id=data_source.id,
         )
+
+    @pytest.mark.freeze_time("2026-07-13 12:06:00")
+    def test_valid_upload_redirects_full_journey(
+        self, factories, authenticated_grant_admin_client, mocker, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+            created_at_utc=datetime.datetime(2026, 7, 1, 12, 0, 0),
+        )
+        factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E123",
+            organisation__name="Rivendell",
+        )
+        factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E456",
+            organisation__name="Lothlorien",
+        )
+        csv_file_content = (
+            ALL_COLUMN_TYPE_HEADERS_STR
+            + "\nE123,Rivendell,£100,1.2,hello,5,$10,12km"
+            + "\nE456,Lothlorien,£100,1.2,hello,6,$10,12km"
+        )
+        data = build_file_upload_form_data(
+            csv_content=csv_file_content,
+            name="Updated for full journey",
+        )
+
+        def override_download_mock(*args, **kwargs):
+            return csv_file_content.encode()
+
+        mocker.patch(
+            "app.services.s3.S3Service.download_file",
+            side_effect=override_download_mock,
+        )
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.replace_data_set",
+                grant_id=grant.id,
+                collection_type=data_source.collection.type,
+                collection_id=data_source.collection.id,
+                data_source_id=data_source.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Updated for full journey" in get_h1_text(soup)
+        uploaded_at = soup.find("time")
+        assert uploaded_at is not None
+        assert uploaded_at.text == "13 Jul 2026 at 1:06pm", "Uploaded at UTC should be converted to local London"
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            data_set_data = sess.get(SESSION_DATA_SET_REPLACE)
+            assert data_set_data is None
+
+        from_db = get_data_source(data_source.id, with_organisation_items=True)
+        assert from_db.name == "Updated for full journey"
+        assert len(from_db.organisation_items) == 2
+        assert from_db.get_filtered_organisation_item("E123").data["c_whole_number"].get_value_for_evaluation() == 5
 
 
 class TestViewDataSource:

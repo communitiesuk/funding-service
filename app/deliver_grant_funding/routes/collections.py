@@ -3681,24 +3681,14 @@ def _load_and_validate_data_set(
     return rows, validate_data_set(data_set_data, rows)
 
 
-def _extract_data_set_upload_data_from_session() -> DataSetUploadSessionModel | None:
-    if session_data := session.get(SESSION_DATA_SET_UPLOAD):
+def _extract_data_set_data_from_session(data_source_id: uuid.UUID | None = None) -> DataSetUploadSessionModel | None:
+    session_data_name = SESSION_DATA_SET_REPLACE if data_source_id else SESSION_DATA_SET_UPLOAD
+    if session_data := session.get(session_data_name):
         try:
             upload_data = DataSetUploadSessionModel(**session_data)
             return upload_data
         except ValidationError:
-            del session[SESSION_DATA_SET_UPLOAD]
-            return None
-    return None
-
-
-def _extract_data_set_replace_data_from_session() -> DataSetUploadSessionModel | None:
-    if session_data := session.get(SESSION_DATA_SET_REPLACE):
-        try:
-            upload_data = DataSetUploadSessionModel(**session_data)
-            return upload_data
-        except ValidationError:
-            del session[SESSION_DATA_SET_REPLACE]
+            del session[session_data_name]
             return None
     return None
 
@@ -3737,7 +3727,7 @@ def _build_upload_data_set_preview_data(data_columns: list[str], rows: list[dict
 def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_set_data = _extract_data_set_upload_data_from_session()
+    data_set_data = _extract_data_set_data_from_session(None)
 
     form = UploadDataSetForm(existing_data_source_names=[ds.name for ds in collection.data_sources], obj=data_set_data)
 
@@ -3886,7 +3876,7 @@ def replace_data_set(
     )
 
 
-def _save_replaced_data_set(
+def _save_replaced_data_set_and_redirect(
     existing_datasource: DataSource,
     grant_id: UUID,
     collection: Collection,
@@ -3940,20 +3930,28 @@ def map_data_set_columns(  # noqa: C901
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
-    data_set_data = (
-        _extract_data_set_replace_data_from_session()
-        if data_source_id
-        else _extract_data_set_upload_data_from_session()
-    )
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
+
     if not data_set_data:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     if data_set_data.is_replace:
         existing_datasource = get_data_source(data_set_data.data_source_id, with_organisation_items=True)
@@ -3961,7 +3959,7 @@ def map_data_set_columns(  # noqa: C901
         columns_to_map = [col for col in data_set_data.data_columns if col not in existing_column_names]
         if not columns_to_map:  # no new columns
             rows = _load_rows(data_set_data)
-            return _save_replaced_data_set(existing_datasource, grant_id, collection, data_set_data, rows)
+            return _save_replaced_data_set_and_redirect(existing_datasource, grant_id, collection, data_set_data, rows)
     else:
         columns_to_map = data_set_data.data_columns
 
@@ -4010,7 +4008,7 @@ def map_data_set_columns(  # noqa: C901
             rows, validation_result = _load_and_validate_data_set(data_set_data)
 
         if data_set_data.is_replace:
-            return _save_replaced_data_set(existing_datasource, grant_id, collection, data_set_data, rows)
+            return _save_replaced_data_set_and_redirect(existing_datasource, grant_id, collection, data_set_data, rows)
         try:
             data_source = create_uploaded_data_source(
                 name=data_set_data.name,
@@ -4078,20 +4076,27 @@ def map_data_set_number_columns(
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
-    data_set_data = (
-        _extract_data_set_replace_data_from_session()
-        if data_source_id
-        else _extract_data_set_upload_data_from_session()
-    )
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
     if not data_set_data:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     number_columns = [mapping for mapping in data_set_data.column_mappings if mapping.requires_manual_formatting]
 
@@ -4113,7 +4118,9 @@ def map_data_set_number_columns(
                 mapping.suffix = settings[mapping.column_name]["suffix"]
                 if mapping.number_type == NumberTypeEnum.DECIMAL:
                     mapping.max_decimal_places = settings[mapping.column_name]["max_decimal_places"]
-        session[SESSION_DATA_SET_UPLOAD] = data_set_data.model_dump(mode="json")
+        session[SESSION_DATA_SET_REPLACE if data_set_data.is_replace else SESSION_DATA_SET_UPLOAD] = (
+            data_set_data.model_dump(mode="json")
+        )
 
         rows, validation_result = _load_and_validate_data_set(data_set_data)
 
@@ -4123,7 +4130,7 @@ def map_data_set_number_columns(
             form.columns.errors = form.build_number_column_form_errors(column_errors)
         else:
             if data_set_data.is_replace:
-                return _save_replaced_data_set(
+                return _save_replaced_data_set_and_redirect(
                     grant_id=grant_id,
                     collection=collection,
                     data_set_data=data_set_data,
@@ -4193,20 +4200,27 @@ def confirm_data_set_grant_recipients(
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_set_data = (
-        _extract_data_set_replace_data_from_session()
-        if data_source_id
-        else _extract_data_set_upload_data_from_session()
-    )
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
     if not data_set_data:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     rows = _load_rows(data_set_data)
     grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
@@ -4266,20 +4280,27 @@ def data_set_missing_data(
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_set_data = (
-        _extract_data_set_replace_data_from_session()
-        if data_source_id
-        else _extract_data_set_upload_data_from_session()
-    )
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
     if not data_set_data:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     rows = _load_rows(data_set_data)
 
