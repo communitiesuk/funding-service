@@ -107,7 +107,7 @@
         </dl>
       {% endif %}
 
-      {{ submission_answers(submission) }}
+      {{ submission_answers(submission, should_show_answers_diff=submission.in_answers_locked_state) }}
 
       {% if should_certify %}
         <h2 id="sign-off-and-submit-{{ constants.singular }}" class="govuk-heading-m govuk-!-margin-top-9">Sign off and submit {{ constants.singular }}</h2>

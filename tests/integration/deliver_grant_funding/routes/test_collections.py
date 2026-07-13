@@ -9322,7 +9322,8 @@ class TestViewSubmission:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Changed" not in soup.text
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" not in tag_texts
 
     def test_wont_show_diff_for_awaiting_sign_off_with_changes(
         self,
@@ -9346,7 +9347,8 @@ class TestViewSubmission:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Changed" not in soup.text
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" not in tag_texts
 
 
 class TestExportSubmissionPDFLock:

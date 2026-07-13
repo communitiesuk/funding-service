@@ -356,7 +356,8 @@ class TestViewLockedReport:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Changed" in soup.text
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" in tag_texts
 
 
 class TextExportReportPDF:
@@ -435,7 +436,10 @@ class TextExportReportPDF:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Changed" in soup.text
+
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" in tag_texts
+
         assert "Original response" in soup.text
         assert "original answer" in soup.text
         assert "updated answer" in soup.text

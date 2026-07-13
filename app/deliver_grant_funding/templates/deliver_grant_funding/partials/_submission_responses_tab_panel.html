@@ -20,6 +20,6 @@
     <p class="govuk-body">View all responses to the {{ helper.submission.collection.name }} by {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}.</p>
     <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.export_submission_pdf', grant_id=helper.collection.grant_id, submission_id=helper.submission.id) }}">Download responses as PDF</a>
 
-    {{ submission_answers(helper) }}
+    {{ submission_answers(helper, should_show_answers_diff=helper.is_submitted) }}
   </div>
 </div>

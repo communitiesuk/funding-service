@@ -147,7 +147,6 @@ def view_locked_submission(
         submission=submission,
         form=form,
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
-        should_show_answers_diff=submission.access_should_show_answers_diff,
     )
 
 

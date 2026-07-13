@@ -3412,7 +3412,6 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         delete_form=delete_wtform,
         timeline_items=helper.timeline_events,
         timeline_event_types=timeline_event_types,
-        should_show_answers_diff=helper.is_submitted,
     )
 
 

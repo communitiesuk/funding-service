@@ -71,7 +71,7 @@
     </div>
   {% endif %}
 
-  {{ submission_answers(helper) }}
+  {{ submission_answers(helper, should_show_answers_diff=helper.is_submitted) }}
 
   <p class="govuk-body">
     <a
