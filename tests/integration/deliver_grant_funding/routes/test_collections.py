@@ -49,6 +49,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    TasklistSectionStatusEnum,
 )
 from app.common.expressions import (
     ExpressionContext,
@@ -9300,6 +9301,54 @@ class TestViewSubmission:
         assert "Original response" in soup.text
         assert "original answer" in soup.text
         assert "updated answer" in soup.text
+
+    def test_wont_show_diff_for_ready_to_submit_with_changes_made(
+        self, authenticated_grant_member_client, submission_ready_to_submit_with_changes_made
+    ):
+        submission = submission_ready_to_submit_with_changes_made
+        helper = SubmissionHelper(submission)
+        form = submission.collection.forms[0]
+
+        assert submission.status == SubmissionStatusEnum.READY_TO_SUBMIT
+        assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.CHANGES_MADE
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=submission.collection.grant_id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" not in tag_texts
+
+    def test_wont_show_diff_for_awaiting_sign_off_with_changes(
+        self,
+        authenticated_grant_member_client,
+        submission_awaiting_sign_off_with_changes_made,
+    ):
+        submission = submission_awaiting_sign_off_with_changes_made
+        grant_recipient = authenticated_grant_member_client.grant_recipient
+
+        assert submission.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" not in tag_texts
 
 
 class TestExportSubmissionPDFLock:

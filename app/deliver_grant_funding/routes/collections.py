@@ -3428,7 +3428,6 @@ def export_submission_pdf(grant_id: UUID, submission_id: UUID) -> ResponseReturn
         grant=helper.grant,
         submission=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
-        for_pdf=True,
     )
 
     emit_metric_count(MetricEventName.SUBMISSION_PDF_DOWNLOADED, submission=helper.submission)

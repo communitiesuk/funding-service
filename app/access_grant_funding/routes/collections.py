@@ -167,7 +167,6 @@ def export_submission_pdf(
         grant_recipient=grant_recipient,
         submission=submission,
         interpolate=SubmissionHelper.get_interpolator(collection=submission.collection, submission_helper=submission),
-        for_pdf=True,
     )
 
     emit_metric_count(MetricEventName.SUBMISSION_PDF_DOWNLOADED, submission=submission.submission)

@@ -325,6 +325,40 @@ class TestViewLockedReport:
             expected_url_kwargs["collection_id"] = question.form.collection.id
         assert back_link["href"] == url_for(expected_back_link_route, **expected_url_kwargs)
 
+    @pytest.mark.parametrize(
+        "client_fixture",
+        [
+            "authenticated_grant_recipient_data_provider_client",
+            "authenticated_grant_recipient_certifier_client",
+        ],
+    )
+    def test_shows_diff_for_awaiting_sign_off_with_changes(
+        self,
+        request: FixtureRequest,
+        client_fixture: str,
+        submission_awaiting_sign_off_with_changes_made,
+    ):
+        client = request.getfixturevalue(client_fixture)
+        submission = submission_awaiting_sign_off_with_changes_made
+        grant_recipient = client.grant_recipient
+
+        assert submission.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.view_locked_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" in tag_texts
+
 
 class TextExportReportPDF:
     # the first method under test will spin up chromium which will always be marked as as a slow test
@@ -402,7 +436,10 @@ class TextExportReportPDF:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Changed" in soup.text
+
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" in tag_texts
+
         assert "Original response" in soup.text
         assert "original answer" in soup.text
         assert "updated answer" in soup.text
