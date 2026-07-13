@@ -285,13 +285,13 @@ class CollectionStatusEnum(enum.StrEnum):
     OPEN = "Open"
     CLOSED = "Closed"
 
-    def __lt__(self, other: CollectionStatusEnum) -> bool:  # type: ignore[override]
+    def __lt__(self, other: str) -> bool:
         if not isinstance(other, CollectionStatusEnum):
             return NotImplemented
         ordered_list_of_names = CollectionStatusEnum._member_names_
         return ordered_list_of_names.index(self.name) < ordered_list_of_names.index(other.name)
 
-    def __gt__(self, other: CollectionStatusEnum) -> bool:  # type: ignore[override]
+    def __gt__(self, other: str) -> bool:
         if not isinstance(other, CollectionStatusEnum):
             return NotImplemented
         ordered_list_of_names = CollectionStatusEnum._member_names_
@@ -538,7 +538,7 @@ class QuestionOptionsPostgresType(TypeDecorator):
 
     cache_ok = False
 
-    def process_bind_param(self, value: BaseModel, dialect: Any) -> Any:  # type: ignore[override]
+    def process_bind_param(self, value: BaseModel | None, dialect: Any) -> Any:
         if value is None:
             return None
         return value.model_dump(mode="json", exclude_none=True)
@@ -554,7 +554,7 @@ class QuestionDataOptionsPostgresType(TypeDecorator):
 
     cache_ok = False
 
-    def process_bind_param(self, value: BaseModel, dialect: Any) -> Any:  # type: ignore[override]
+    def process_bind_param(self, value: BaseModel | None, dialect: Any) -> Any:
         if value is None:
             return None
         return value.model_dump(mode="json", exclude_none=True)
@@ -623,7 +623,7 @@ class DataSourceFileMetadataPostgresType(TypeDecorator):
     impl = JSONB
     cache_ok = False
 
-    def process_bind_param(self, value: DataSourceFileMetadata, dialect: Any) -> dict[str, str] | None:  # type: ignore[override]
+    def process_bind_param(self, value: DataSourceFileMetadata | None, dialect: Any) -> dict[str, str] | None:
         if value is None:
             return None
         return value.model_dump(mode="json", exclude_none=True)
@@ -638,7 +638,7 @@ class DataSourceSchemaPostgresType(TypeDecorator):
     impl = JSONB
     cache_ok = False
 
-    def process_bind_param(self, value: DataSourceSchema, dialect: Any) -> dict[str, dict[str, Any]] | None:  # type: ignore[override]
+    def process_bind_param(self, value: DataSourceSchema | None, dialect: Any) -> dict[str, dict[str, Any]] | None:
         if value is None:
             return None
         return value.model_dump(mode="json", exclude_none=True)
