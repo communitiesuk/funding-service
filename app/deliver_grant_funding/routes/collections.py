@@ -1423,7 +1423,7 @@ def _store_question_state_and_redirect_to_add_context(
                 is_add_another_guidance=is_add_another_guidance,
             )
         case _ManagedExpressionForm() | CustomValidationExpressionForm() | CalculatedConditionForm():
-            add_context_data = AddContextToExpressionsModel(  # type: ignore[call-arg]
+            add_context_data = AddContextToExpressionsModel(
                 field=expression_type,  # ty: ignore[invalid-argument-type]
                 managed_expression_name=managed_expression_name,
                 expression_form_data=form_data,  # ty: ignore[invalid-argument-type]

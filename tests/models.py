@@ -817,7 +817,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
         # Runs after all of the other post_generation hooks (hopefully) and commits anything created to the DB,
         # so that our clean-session-tracking logic has a clean session again.
         if create:
-            _CollectionFactory._meta.sqlalchemy_session_factory().commit()  # type: ignore
+            _CollectionFactory._meta.sqlalchemy_session_factory().commit()  # ty: ignore[unresolved-attribute]
 
 
 @dataclasses.dataclass
