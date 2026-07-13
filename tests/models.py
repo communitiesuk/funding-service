@@ -1102,7 +1102,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
     def form_components_join(obj: Question, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
-            obj.form.components = [component for component in obj.form.components if component.parent is None]  # type: ignore[attr-defined]
+            obj.form.components = [component for component in obj.form.components if component.parent is None]  # ty: ignore[invalid-assignment]
             obj.form.clear_caches()
 
     @factory.post_generation
@@ -1169,7 +1169,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
     def form_components_join(obj: Group, create: bool, extracted: list[Any], **kwargs: Any) -> None:
         # Force the update of the form list of components as the join doesn't work before this is flushed to database
         if not create:
-            obj.form.components = [component for component in obj.form.components if component.parent is None]  # type: ignore[attr-defined]
+            obj.form.components = [component for component in obj.form.components if component.parent is None]  # ty: ignore[invalid-assignment]
             obj.form.clear_caches()
 
     @factory.post_generation

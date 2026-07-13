@@ -607,7 +607,7 @@ class BaseDataSourceManagedExpression(ManagedExpression):
 class AnyOf(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ANY_OF
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
-    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # ty: ignore[invalid-assignment]
     managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
@@ -678,7 +678,7 @@ class AnyOf(BaseDataSourceManagedExpression):
 class IsYes(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_YES
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.YES_NO}
-    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # ty: ignore[invalid-assignment]
     managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
@@ -714,7 +714,7 @@ class IsYes(ManagedExpression):
 class IsNo(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.IS_NO
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.YES_NO}
-    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # ty: ignore[invalid-assignment]
     managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
@@ -750,7 +750,7 @@ class IsNo(ManagedExpression):
 class Specifically(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.SPECIFICALLY
     supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.CHECKBOXES}
-    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # ty: ignore[invalid-assignment]
     managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
@@ -1269,7 +1269,7 @@ class BetweenDates(ManagedExpression):
 @register_managed_expression
 class UKPostcode(ManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.UK_POSTCODE
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {}  # type: ignore[assignment]
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {}  # ty: ignore[invalid-assignment]
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.TEXT_SINGLE_LINE}
     managed_expression_form_template: ClassVar[str | None] = None
 

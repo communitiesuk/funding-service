@@ -273,7 +273,7 @@ def create_app() -> Flask:  # noqa: C901
     # flask.palletsprojects.com/en/1.0.x/deploying/wsgi-standalone
     from werkzeug.middleware.proxy_fix import ProxyFix
 
-    app.wsgi_app = (  # type: ignore[method-assign]
+    app.wsgi_app = (  # ty: ignore[invalid-assignment]
         ProxyFix(app.wsgi_app, x_proto=app.config["PROXY_FIX_PROTO"], x_host=app.config["PROXY_FIX_HOST"])
     )
 

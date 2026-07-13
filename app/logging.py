@@ -167,9 +167,9 @@ class RejectMutableDataStructuresFilter(logging.Filter):
     def filter(self, record: LogRecord) -> LogRecord:
         logging_msg_args: dict[str, Any] | None
         if isinstance(record.args, tuple):
-            logging_msg_args = record.args[0] if len(record.args) > 0 else None  # type: ignore[assignment]
+            logging_msg_args = record.args[0] if len(record.args) > 0 else None  # ty: ignore[invalid-assignment]
         else:
-            logging_msg_args = record.args  # type: ignore[assignment]
+            logging_msg_args = record.args  # ty: ignore[invalid-assignment]
 
         if not logging_msg_args:
             return record
