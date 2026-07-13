@@ -28,6 +28,7 @@ from werkzeug.test import TestResponse
 
 from app import create_app
 from app.common.collections.types import TextSingleLineAnswer
+from app.common.data.interfaces.collections import update_submission_data
 from app.common.data.interfaces.system import seed_system_data
 from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_user import User
@@ -41,6 +42,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
+from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
 from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
@@ -792,10 +794,47 @@ def submission_changes_requested(
         created_by=grant_team_user,
         related_entity_id=submission_submitted.collection.forms[0].id,
     )
-    submission_submitted.status = SubmissionStatusEnum.CHANGES_REQUESTED
+    helper = SubmissionHelper(submission_submitted)
+    submission_submitted.status = helper._calculate_submission_status()
     db_session.commit()
 
     return submission_submitted
+
+
+@pytest.fixture(scope="function")
+def submission_ready_to_submit_with_changes_made(
+    factories: _Factories, db_session, submission_changes_requested: Submission, user: User
+) -> Submission:
+    question = submission_changes_requested.collection.forms[0].cached_questions[0]
+    submission_changes_requested.data_manager.set(question, TextSingleLineAnswer("Updated answer"))
+    update_submission_data(submission_changes_requested)
+    factories.submission_event.create(
+        submission=submission_changes_requested,
+        event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+        related_entity_id=submission_changes_requested.collection.forms[0].id,
+        created_by=user,
+    )
+    helper = SubmissionHelper(submission_changes_requested)
+    submission_changes_requested.status = helper._calculate_submission_status()
+    db_session.commit()
+
+    return submission_changes_requested
+
+
+@pytest.fixture(scope="function")
+def submission_awaiting_sign_off_with_changes_made(
+    factories: _Factories, db_session, submission_ready_to_submit_with_changes_made: Submission, user: User
+) -> Submission:
+    factories.submission_event.create(
+        submission=submission_ready_to_submit_with_changes_made,
+        event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+        created_by=user,
+    )
+    helper = SubmissionHelper(submission_ready_to_submit_with_changes_made)
+    submission_ready_to_submit_with_changes_made.status = helper._calculate_submission_status()
+    db_session.commit()
+
+    return submission_ready_to_submit_with_changes_made
 
 
 @pytest.fixture(scope="function")

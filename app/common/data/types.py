@@ -181,6 +181,15 @@ class SubmissionStatusEnum(enum.StrEnum):
 
 SUBMITTED_STATUSES = (SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES)
 IN_PROGRESS_STATUSES = (SubmissionStatusEnum.IN_PROGRESS, SubmissionStatusEnum.CHANGES_REQUESTED)
+ACCESS_SHOW_ANSWER_DIFF_STATUSES = (
+    SubmissionStatusEnum.NOT_STARTED,
+    SubmissionStatusEnum.READY_TO_SUBMIT,
+    SubmissionStatusEnum.AWAITING_SIGN_OFF,
+    SubmissionStatusEnum.SUBMITTED,
+    SubmissionStatusEnum.NOT_SUBMITTED,
+    SubmissionStatusEnum.PARTIALLY_SUBMITTED,
+    SubmissionStatusEnum.SUBMITTED_WITH_CHANGES,
+)
 
 
 class TasklistSectionStatusEnum(enum.StrEnum):

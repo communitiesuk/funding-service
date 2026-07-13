@@ -70,9 +70,9 @@
       {% endif %}
     {% else %}
       {% set answer = helper.cached_get_answer_for_question(question.id, add_another_index=add_another_index) %}
-      {% set answer_changed = not helper.submission.is_in_progress and helper.has_answer_changed_since_previous(question.id, add_another_index=add_another_index) %}
+      {% set answer_changed = should_show_answers_diff and helper.has_answer_changed_since_previous(question.id, add_another_index=add_another_index) %}
       {% set value_html %}
-        {% if answer_changed and not for_pdf %}
+        {% if answer_changed %}
           <p class="govuk-body">{{ govukTag({"text": "Changed", "classes": "govuk-tag--blue govuk-!-margin-bottom-2"}) }}</p>
         {% endif %}
         {% if answer %}
@@ -80,7 +80,7 @@
         {% else %}
           (Not answered)
         {% endif %}
-        {% if answer_changed and not for_pdf %}
+        {% if answer_changed %}
           {% set original_answer = helper.get_previous_answer_for_question(question.id, add_another_index=add_another_index) %}
           {% set original_answer_html %}
             {% if original_answer %}

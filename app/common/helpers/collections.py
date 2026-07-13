@@ -44,6 +44,7 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.models_user import User
 from app.common.data.submission_data_manager import SubmissionDataAddAnotherIndexInvalid, SubmissionDataManager
 from app.common.data.types import (
+    ACCESS_SHOW_ANSWER_DIFF_STATUSES,
     COMPLETE_TASKLIST_SECTION_STATUSES,
     IN_PROGRESS_TASKLIST_SECTION_STATUSES,
     CollectionStatusEnum,
@@ -432,6 +433,10 @@ class SubmissionHelper:
     @property
     def is_submitted(self) -> bool:
         return self.submission.is_submitted
+
+    @property
+    def access_should_show_answers_diff(self) -> bool:
+        return self.submission.status in ACCESS_SHOW_ANSWER_DIFF_STATUSES
 
     @property
     def is_awaiting_sign_off(self) -> bool:
