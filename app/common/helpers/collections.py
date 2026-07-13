@@ -506,7 +506,7 @@ class SubmissionHelper:
         return self.events.submission_state.changes_requested_at_utc
 
     @property
-    def section_ids(self) -> list[str]:
+    def section_ids(self) -> list[UUID]:
         return self.events.submission_state.section_ids
 
     @property
@@ -676,7 +676,7 @@ class SubmissionHelper:
             return TasklistSectionStatusEnum.COMPLETED
         elif form_questions_answered.some_answered:
             if (
-                str(form.id) in self.events.submission_state.section_ids
+                form.id in self.events.submission_state.section_ids
                 and self.events.submission_state.is_changes_requested
             ):
                 return TasklistSectionStatusEnum.CHANGES_REQUESTED
@@ -1336,7 +1336,7 @@ class SubmissionHelper:
             notification_service.send_access_submission_reopened(user=recipient, submission_helper=self)
 
     def request_changes_submission(
-        self, user: User, changes_requested_reason: str | None, section_ids: list[str]
+        self, user: User, changes_requested_reason: str | None, section_ids: list[UUID]
     ) -> None:
         if not AuthorisationHelper.can_request_or_allow_changes(user, self.submission):
             raise SubmissionAuthorisationError(
@@ -1366,7 +1366,7 @@ class SubmissionHelper:
             related_entity_id=self.id,
         )
         for form in self.collection.forms:
-            if not section_ids or str(form.id) in section_ids:
+            if not section_ids or form.id in section_ids:
                 self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                     user=user,
