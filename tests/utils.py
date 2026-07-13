@@ -44,7 +44,7 @@ class RestrictedAny:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._condition})"
 
-    def __hash__(self) -> None:  # type: ignore[override]
+    def __hash__(self) -> None:  # ty: ignore[invalid-method-override]
         return None
 
 

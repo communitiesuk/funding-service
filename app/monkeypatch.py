@@ -11,4 +11,4 @@ def patch_sqlalchemy_lite_async() -> None:
     def noop(*args: object, **kwargs: object) -> None:
         pass
 
-    _extension._close_async_sessions = noop  # type: ignore[assignment] # Override the function with a no-op
+    _extension._close_async_sessions = noop  # ty: ignore[invalid-assignment] # Override the function with a no-op

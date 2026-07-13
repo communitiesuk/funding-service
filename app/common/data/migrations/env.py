@@ -24,7 +24,7 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)  # type: ignore[arg-type]
+fileConfig(config.config_file_name)  # ty: ignore[invalid-argument-type]
 logger = logging.getLogger("alembic.env")
 
 

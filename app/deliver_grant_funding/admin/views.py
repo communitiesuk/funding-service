@@ -1378,20 +1378,20 @@ def _build_org_certifier_rows(
             continue
         delta_by_org_code.setdefault(officer.organisation_code, []).append(officer)
 
-    rows = []
+    rows: list[OrgCertifierRow] = []
     for organisation, our_certifiers in certifiers_by_org.items():
         delta_for_org = delta_by_org_code.get(organisation.external_id, [])
         our_emails = {user.email.lower() for user in our_certifiers}
         delta_emails = {officer.email.lower() for officer in delta_for_org}
         rows.append(
-            {
-                "organisation": organisation,
-                "our_certifiers": sorted(our_certifiers, key=lambda u: u.email),
-                "delta_officers": sorted(
+            OrgCertifierRow(
+                organisation=organisation,
+                our_certifiers=sorted(our_certifiers, key=lambda u: u.email),
+                delta_officers=sorted(
                     delta_for_org, key=lambda o: (0 if o.officer_type == "s151-officer" else 1, o.email)
                 ),
-                "has_diff": our_emails != delta_emails,
-            }
+                has_diff=our_emails != delta_emails,
+            )
         )
     rows.sort(key=lambda row: row["organisation"].name)
     return rows
@@ -1425,7 +1425,7 @@ def _build_delegated_rows(
             continue
         delta_delegated_by_org.setdefault(organisation, {})[officer.email.lower()] = officer
 
-    rows = []
+    rows: list[DelegatedRow] = []
     for organisation in certifiers_by_org:
         delta_map = delta_delegated_by_org.get(organisation, {})
         fs_map = fs_grant_certifiers_by_org.get(organisation, {})
@@ -1441,14 +1441,14 @@ def _build_delegated_rows(
                 name = fs_data["user"].name
                 delegated_access_groups = ""
             entries.append(
-                {
-                    "email": email,
-                    "name": name,
-                    "delegated_access_groups": delegated_access_groups,
-                    "our_grants": sorted(fs_data["grants"], key=lambda g: g.name) if fs_data else [],
-                }
+                DelegatedEntry(
+                    email=email,
+                    name=name,
+                    delegated_access_groups=delegated_access_groups,
+                    our_grants=sorted(fs_data["grants"], key=lambda g: g.name) if fs_data else [],
+                )
             )
-        rows.append({"organisation": organisation, "entries": entries})
+        rows.append(DelegatedRow(organisation=organisation, entries=entries))
     rows.sort(key=lambda row: row["organisation"].name)
     return rows
 

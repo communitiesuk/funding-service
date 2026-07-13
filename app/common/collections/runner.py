@@ -370,7 +370,7 @@ class FormRunner:
             )
             return True
         except ValueError:
-            self.check_your_answers_form.section_completed.errors.append(  # type:ignore[attr-defined]
+            self.check_your_answers_form.section_completed.errors.append(  # ty: ignore[unresolved-attribute]
                 "You must complete all questions before marking this section as complete"
             )
             return False
@@ -380,7 +380,7 @@ class FormRunner:
             SubmissionValidator(self.submission).validate_all_reachable_questions()
             return True
         except SubmissionValidationFailed as e:
-            self._tasklist_form.submit.errors.append(e.error_message)  # type:ignore[attr-defined]
+            self._tasklist_form.submit.errors.append(e.error_message)  # ty: ignore[unresolved-attribute]
             return False
 
     def complete_submission(self, user: User) -> bool:
@@ -392,7 +392,7 @@ class FormRunner:
                 self.submission.submit(user)
             return True
         except SubmissionValidationFailed as e:
-            self._tasklist_form.submit.errors.append(e.error_message)  # type:ignore[attr-defined]
+            self._tasklist_form.submit.errors.append(e.error_message)  # ty: ignore[unresolved-attribute]
             return False
         except ValueError:
             current_app.logger.warning(
@@ -400,7 +400,7 @@ class FormRunner:
                 exc_info=True,
                 extra={"submission_id": str(self.submission.id)},
             )
-            self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # type:ignore[attr-defined]
+            self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # ty: ignore[unresolved-attribute]
             return False
 
     def to_url(
@@ -423,7 +423,7 @@ class FormRunner:
             check_entries = self.submission.get_count_for_add_another(self.component.add_another_container)
 
         # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
-        return self.url_map[state](
+        return self.url_map[state](  # ty: ignore[invalid-key]
             self, question or self.component, form or self.form, source, add_another_index, action, check_entries
         )
 
@@ -526,7 +526,7 @@ class FormRunner:
                 self._valid = False
 
         if self._valid:
-            if self.component.is_question and not self.can_edit_question(self.component):  # type: ignore[arg-type]
+            if self.component.is_question and not self.can_edit_question(cast("Question", self.component)):
                 self._valid = False
 
         if self._valid:
