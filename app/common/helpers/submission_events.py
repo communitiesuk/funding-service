@@ -199,9 +199,12 @@ class SubmissionState(
     reopened_reason: str | None = None
     changes_requested_reason: str | None = None
     submission_data: dict[str, Any] | None = None
-    section_ids: list[str] = field(default_factory=list)
+    section_ids: list[UUID] = field(default_factory=list)
     is_changes_requested: bool = False
     is_reopened: bool = False
+
+    def __post_init__(self) -> None:
+        self.section_ids = [UUID(s) if isinstance(s, str) else s for s in self.section_ids]
 
 
 @dataclass
@@ -225,6 +228,14 @@ def _get_stored_field_names(event_class: type[SubmissionEventBase]) -> set[str]:
 def _get_static_data(event_class: type[SubmissionEventBase]) -> dict[str, Any]:
     stored = _get_stored_field_names(event_class)
     return {f.name: f.default for f in fields(event_class) if f.name not in stored}
+
+
+def _coerce_for_json(value: Any) -> Any:
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, list):
+        return [_coerce_for_json(item) for item in value]
+    return value
 
 
 class SubmissionEventHelper:
@@ -356,7 +367,7 @@ class SubmissionEventHelper:
     def event_from(event_type: SubmissionEventType, **kwargs: Any) -> dict[str, Any]:
         event_class = _get_event_class(event_type)
         stored_field_names = _get_stored_field_names(event_class)
-        return {k: v for k, v in kwargs.items() if k in stored_field_names}
+        return {k: _coerce_for_json(v) for k, v in kwargs.items() if k in stored_field_names}
 
 
 def shallow_asdict(obj: DataclassInstance) -> dict[str, Any]:

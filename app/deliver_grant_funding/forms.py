@@ -1614,6 +1614,7 @@ class RequestChangesSubmissionForm(FlaskForm):
     section_ids = SelectMultipleField(
         "Which sections need to be changed? (optional)",
         choices=[],
+        coerce=UUID,
         widget=GovCheckboxesInput(),
         validators=[Optional()],
     )

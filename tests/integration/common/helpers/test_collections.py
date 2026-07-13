@@ -1782,7 +1782,7 @@ class TestSubmissionHelper:
             helper.request_changes_submission(
                 user=grant_team_user,
                 changes_requested_reason="Please update the answers",
-                section_ids=[str(form.id)],
+                section_ids=[form.id],
             )
             assert helper.status == SubmissionStatusEnum.CHANGES_REQUESTED
             assert len(mock_notification_service_calls) == 1
@@ -2314,12 +2314,12 @@ class TestSubmissionHelper:
             helper.request_changes_submission(
                 user=grant_team_user,
                 changes_requested_reason="Please fix section 1",
-                section_ids=[str(form.id)],
+                section_ids=[form.id],
             )
 
             assert helper.status == SubmissionStatusEnum.CHANGES_REQUESTED
             assert helper.changes_requested_reason == "Please fix section 1"
-            assert helper.section_ids == [str(form.id)]
+            assert helper.section_ids == [form.id]
             assert helper.requested_or_allowed_changes_by == grant_team_user
 
         @pytest.mark.parametrize("status", [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT])
@@ -2375,7 +2375,7 @@ class TestSubmissionHelper:
             helper.request_changes_submission(
                 user=grant_team_user,
                 changes_requested_reason="Please fix section 2",
-                section_ids=[str(second_form.id)],
+                section_ids=[second_form.id],
             )
 
             event_ids = [
