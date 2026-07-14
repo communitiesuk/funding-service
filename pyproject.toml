@@ -22,7 +22,7 @@ dependencies = [
     "python-json-logger==4.1.0",
     "sqlalchemy==2.0.51",
     "wtforms[email]==3.2.2",
-    "notifications-python-client==10.0.1",
+    "notifications-python-client==12.1.0",
     "flask-talisman==1.1.0",
     "flask-login==0.6.3",
     "sentry-sdk==2.64.0",
