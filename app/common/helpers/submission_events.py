@@ -227,14 +227,6 @@ def _get_static_data(event_class: type[SubmissionEventBase]) -> dict[str, Any]:
     return {f.name: f.default for f in fields(event_class) if f.name not in stored}
 
 
-def _coerce_for_json(value: Any) -> Any:
-    if isinstance(value, UUID):
-        return str(value)
-    if isinstance(value, list):
-        return [_coerce_for_json(item) for item in value]
-    return value
-
-
 class SubmissionEventHelper:
     def __init__(self, submission: Submission):
         self.submission = submission
@@ -364,7 +356,7 @@ class SubmissionEventHelper:
     def event_from(event_type: SubmissionEventType, **kwargs: Any) -> dict[str, Any]:
         event_class = _get_event_class(event_type)
         stored_field_names = _get_stored_field_names(event_class)
-        return {k: _coerce_for_json(v) for k, v in kwargs.items() if k in stored_field_names}
+        return {k: v for k, v in kwargs.items() if k in stored_field_names}
 
 
 def shallow_asdict(obj: DataclassInstance) -> dict[str, Any]:
