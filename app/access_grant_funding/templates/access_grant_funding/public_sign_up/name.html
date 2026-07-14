@@ -1,0 +1,31 @@
+{% extends "access_grant_funding/public_sign_up/base.html" %}
+
+{% set page_title = "What is your full name?" %}
+
+{% block beforeContent %}
+  {{ super() }}
+  {{
+    govukBackLink({
+      "href": url_for("access_grant_funding.public_sign_up_eligible", collection_id=collection.id),
+      "text": "Back"
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.full_name(params={
+            "autocomplete": "name",
+            "classes": "govuk-input--width-20",
+            "label": {"text": form.full_name.label.text, "isPageHeading": true, "classes": "govuk-label--l"},
+          })
+        }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

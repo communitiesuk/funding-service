@@ -2146,7 +2146,8 @@ class TestManageOrganisations:
 
         textarea = soup.find("textarea", {"id": "organisations_data"})
         assert textarea is not None
-        assert "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n" in textarea.get_text()
+        expected_header = "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
+        assert expected_header in textarea.get_text()
 
     def test_post_creates_new_organisations(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -2157,7 +2158,7 @@ class TestManageOrganisations:
         initial_test_count = get_organisation_count(mode=OrganisationModeEnum.TEST)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\n"
             "E06000001\tTest Council\tUnitary Authority\t15/06/2021\t"
         )
@@ -2204,6 +2205,27 @@ class TestManageOrganisations:
         assert org2.active_date == datetime.date(2021, 6, 15)
         assert org2.retirement_date is None
 
+    def test_post_sets_trusted_domains_from_comma_separated_column(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
+            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\t Barnsley.gov.uk ,barnsley.org.uk"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
+        assert org.trusted_domains == ["barnsley.gov.uk", "barnsley.org.uk"]
+
     def test_post_creates_charity_and_company_with_prefixed_external_ids(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
@@ -2211,7 +2233,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "12345678\tTest Charity\tCharity\t01/01/2020\t\n"
             "87654321\tTest Company\tCompany\t15/06/2021\t"
         )
@@ -2240,7 +2262,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "CC-12345678\tPrefixed Charity\tCharity\t01/01/2020\t"
         )
 
@@ -2271,7 +2293,7 @@ class TestManageOrganisations:
         initial_count = get_organisation_count()
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "GB-GOV-123\tUpdated Name\tCentral Government\t01/01/2020\t"
         )
 
@@ -2299,7 +2321,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "GB-GOV-123\tRetired Department\tCentral Government\t01/01/2020\t31/12/2023"
         )
 
@@ -2324,7 +2346,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "\tSome Other Org\tOther\t01/01/2020\t"
         )
 
@@ -2350,7 +2372,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "FS-MYCUSTOMID\tExplicit Other Org\tOther\t01/01/2020\t"
         )
 
@@ -2373,7 +2395,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "BADPREFIX-123\tBad Other Org\tOther\t01/01/2020\t"
         )
 
@@ -2403,10 +2425,11 @@ class TestManageOrganisations:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(
-            soup,
-            "The header row must be exactly: organisation-id\torganisation-name\ttype\tactive-date\tretirement-date",
+        expected_error = (
+            "The header row must be exactly: organisation-id\torganisation-name\ttype\tactive-date"
+            "\tretirement-date\ttrusted-domains"
         )
+        assert page_has_error(soup, expected_error)
 
     def test_post_with_invalid_organisation_type_shows_error(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -2415,7 +2438,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "GB-GOV-123\tTest Department\tInvalid Type\t01/01/2020\t"
         )
 
@@ -2436,7 +2459,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\ttrusted-domains\n"
             "GB-GOV-123\tTest Department\tCentral Government\t2020-01-01\t"
         )
 

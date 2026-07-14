@@ -40,6 +40,25 @@ def get_organisation(organisation_id: UUID) -> Organisation:
     return db.session.get_one(Organisation, organisation_id)
 
 
+def get_organisations_by_trusted_domain(
+    domain: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+) -> Sequence[Organisation]:
+    """Get the active organisations that trust an email domain, eg 'barnsley.gov.uk'.
+
+    Trusted domains are stored lowercased, so the domain is lowercased before matching.
+    """
+    statement = (
+        select(Organisation)
+        .where(
+            Organisation.mode == mode,
+            Organisation.status == OrganisationStatus.ACTIVE,
+            Organisation.trusted_domains.contains([domain.lower()]),
+        )
+        .order_by(Organisation.name)
+    )
+    return db.session.scalars(statement).all()
+
+
 def get_organisation_count(mode: OrganisationModeEnum = OrganisationModeEnum.LIVE) -> int:
     statement = (
         select(func.count())
@@ -81,6 +100,7 @@ def upsert_organisations(
                 "companies_house_number": org.companies_house_number,
                 "charity_commission_number": org.charity_commission_number,
                 "custom_code": org.custom_code,
+                "trusted_domains": org.trusted_domains,
             }
             db.session.execute(
                 postgresql_upsert(Organisation)

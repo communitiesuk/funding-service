@@ -1034,6 +1034,15 @@ class PublicSignUpSettingsForm(FlaskForm):
         validators=[DataRequired("Select whether the collection should allow public sign up")],
         widget=GovRadioInput(),
     )
+    prospectus_markdown = TextAreaField(
+        "Prospectus",
+        description=(
+            "Optional. Shown on the public sign up page, for example a link to the prospectus for this grant. "
+            "You can use GOV.UK-style markdown."
+        ),
+        validators=[Optional()],
+        widget=GovTextArea(),
+    )
     submit = SubmitField(widget=GovSubmitInput())
 
 

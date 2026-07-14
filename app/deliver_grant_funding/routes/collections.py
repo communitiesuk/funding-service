@@ -498,7 +498,11 @@ def collection_configure_public_sign_up(
         if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
             form.form_errors.append("You cannot change this setting as the collection is not currently editable")
         else:
-            update_collection(collection, allow_public_sign_up=form.allow_public_sign_up.data == "True")
+            update_collection(
+                collection,
+                allow_public_sign_up=form.allow_public_sign_up.data == "True",
+                prospectus_markdown=form.prospectus_markdown.data or None,
+            )
             return redirect(
                 url_for(
                     "deliver_grant_funding.list_collection_sections",

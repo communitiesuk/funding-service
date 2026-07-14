@@ -1,0 +1,30 @@
+{% extends "access_grant_funding/public_sign_up/base.html" %}
+
+{% set page_title = grant.name %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-xl">{{ grant.name }}</h1>
+
+      {% if collection.submission_period_end_date %}
+        <p class="govuk-body">The deadline for applications is {{ format_date(collection.submission_period_end_date) }}.</p>
+      {% endif %}
+
+      {% if prospectus_html %}
+        {{ prospectus_html }}
+      {% endif %}
+
+      <p class="govuk-body">You'll be able to access the application form by either:</p>
+      <ul class="govuk-list govuk-list--bullet">
+        <li>signing in with an existing account if your organisation is already registered</li>
+        <li>creating a new account by registering your organisation</li>
+      </ul>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit(params={"text": "Start now", "isStartButton": true}) }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

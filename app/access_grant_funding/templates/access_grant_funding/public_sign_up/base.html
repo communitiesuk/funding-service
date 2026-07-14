@@ -1,0 +1,13 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
+
+{% block head %}
+  {{ super() }}
+  <meta name="robots" content="noindex, nofollow" />
+{% endblock head %}
+
+{% block beforeContent %}
+  {% if show_test_banner %}
+    {{ mhclgInlinePageTestDataBanner("Test data - this sign up page is not publicly available yet") }}
+  {% endif %}
+{% endblock beforeContent %}

@@ -283,6 +283,25 @@ def get_collection(
     return db.session.scalars(select(Collection).where(*filters).options(*options)).unique().one()
 
 
+def get_public_sign_up_collection(grant_slug: str, collection_slug: str) -> Collection | None:
+    """Get the collection behind a public sign up page, looked up by its human friendly grant and collection names.
+
+    Only returns collections that have public sign up switched on; callers are responsible for deciding whether the
+    grant and collection statuses make the page publicly visible.
+    """
+    statement = (
+        select(Collection)
+        .join(Collection.grant)
+        .options(joinedload(Collection.grant))
+        .where(
+            Grant.slug == grant_slug,
+            Collection.slug == collection_slug,
+            Collection.allow_public_sign_up.is_(True),
+        )
+    )
+    return db.session.scalars(statement).unique().one_or_none()
+
+
 def get_collections_by_status_excluding_draft_grants(statuses: list[CollectionStatusEnum]) -> Sequence[Collection]:
     statement = (
         select(Collection)
@@ -355,6 +374,7 @@ def update_collection(  # noqa: C901
     submission_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
+    prospectus_markdown: str | None | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
     reminder_email_business_days_before_closing: int | TNotProvided = NOT_PROVIDED,
@@ -429,6 +449,9 @@ def update_collection(  # noqa: C901
 
     if allow_public_sign_up is not NOT_PROVIDED:
         collection.allow_public_sign_up = allow_public_sign_up
+
+    if prospectus_markdown is not NOT_PROVIDED:
+        collection.prospectus_markdown = prospectus_markdown
 
     if submission_name_question_id is not NOT_PROVIDED:
         if not collection.allow_multiple_submissions:

@@ -395,6 +395,8 @@ def seed_grants(file: Path, s3_key: str | None = None) -> None:  # noqa: C901
         collection_submission_name_question_ids = {}
 
         grant_data["grant"]["id"] = uuid.UUID(grant_data["grant"]["id"])
+        # Keeps exports taken before grants had a slug importable
+        grant_data["grant"].setdefault("slug", slugify(grant_data["grant"]["name"]))
 
         try:
             relevant_submissions = (

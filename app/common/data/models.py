@@ -88,6 +88,7 @@ class Grant(BaseModel):
 
     ggis_number: Mapped[str]
     name: Mapped[CIStr] = mapped_column(unique=True)
+    slug: Mapped[str] = mapped_column(unique=True)
     code: Mapped[CIStr] = mapped_column(unique=True)
     status: Mapped[GrantStatusEnum] = mapped_column(default=GrantStatusEnum.DRAFT)
     description: Mapped[str]
@@ -362,6 +363,7 @@ class Collection(BaseModel):
     requires_certification: Mapped[bool | None]
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
+    prospectus_markdown: Mapped[str | None]
     submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
     submission_name_question: Mapped["Question | None"] = relationship(
         "Question", foreign_keys=[submission_name_question_id]
@@ -455,9 +457,12 @@ class Collection(BaseModel):
 
     @property
     def public_sign_up(self) -> str:
-        # TODO: link to the grants/ collection public sign up page when registered as an endpoint in Access
-        # url is just a placeholder for now
-        return url_for("auth.request_a_link_to_sign_in", _external=True)
+        return url_for(
+            "access_grant_funding.public_sign_up_start",
+            grant_slug=self.grant.slug,
+            collection_slug=self.slug,
+            _external=True,
+        )
 
     def get_section_names_from_ids(self, form_ids: list[str]) -> list[str]:
         return [form.title for form in self.forms if str(form.id) in form_ids]

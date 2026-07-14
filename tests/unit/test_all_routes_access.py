@@ -203,6 +203,10 @@ routes_with_no_expected_access_restrictions = [
     "auth.sign_out",
     "auth.signed_in_but_no_permissions",
     "deliver_grant_funding.return_from_test_submission",  # the target endpoints have auth
+    # \/ public sign up pages; who can see them depends on the grant/collection status, so it's done in the endpoint \/
+    "access_grant_funding.public_sign_up_start",
+    "access_grant_funding.public_sign_up_email",
+    "access_grant_funding.public_sign_up_eligible",
     "static",
     "healthcheck.healthcheck",
     "index",

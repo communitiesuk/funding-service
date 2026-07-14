@@ -188,9 +188,24 @@ def _register_custom_converters(app: Flask) -> None:
         def to_url(self, value: CollectionType) -> str:
             return value.constants.slug
 
+    class SlugConverter(BaseConverter):
+        """Matches a human friendly slug, eg 'cheeseboards-in-parks', but never a UUID.
+
+        The UUID exclusion has to happen in the regex rather than in `to_python`: a converter that raises
+        ValidationError takes the whole URL down to a 404 rather than letting another rule have a go at it. Refusing
+        UUIDs here means a rule like `/sign-up/<slug:grant_slug>/<slug:collection_slug>` can live alongside
+        `/sign-up/<uuid:collection_id>/email` without swallowing it.
+        """
+
+        regex = (
+            r"(?![0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)"
+            r"[a-z0-9]+(?:-[a-z0-9]+)*"
+        )
+
     app.url_map.converters["submission_mode"] = SubmissionModeConverter
     app.url_map.converters["expression_reference"] = ExpressionReferenceConverter
     app.url_map.converters["collection_type"] = CollectionTypeConverter
+    app.url_map.converters["slug"] = SlugConverter
 
 
 def _setup_flask_admin(app: Flask, db_: SQLAlchemy) -> None:

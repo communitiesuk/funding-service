@@ -1,0 +1,26 @@
+{% extends "access_grant_funding/public_sign_up/base.html" %}
+
+{% set page_title = "You are eligible to apply" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l">You are eligible to apply</h1>
+
+      <p class="govuk-body">Based on your email, we think you're applying on behalf of <b>{{ organisation.name }}</b>.</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{ form.submit(params={"text": "Continue and start application" if has_name else "Continue"}) }}
+      </form>
+
+      <h2 class="govuk-heading-m govuk-!-margin-top-7">Not applying on behalf of {{ organisation.name }}?</h2>
+      <p class="govuk-body">
+        To apply on behalf of a different organisation, please contact us through our
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>.
+      </p>
+      <p class="govuk-body">Monday to Friday, 9am to 5pm (except public holidays).</p>
+    </div>
+  </div>
+{% endblock content %}

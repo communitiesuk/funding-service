@@ -31,6 +31,22 @@
           }}
         {% endif %}
       {% endwith %}
+
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.PUBLIC_SIGN_UP_SUCCESS]) %}
+        {% if flashes %}
+          {% set public_sign_up_success_html %}
+            <h3 class="govuk-notification-banner__heading">{{ grant_recipient.organisation.name }} has been signed up</h3>
+            <p class="govuk-body">You can now submit {{ grant_recipient.grant.name }} forms on behalf of {{ grant_recipient.organisation.name }}.</p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": public_sign_up_success_html,
+              "type": "success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
     </div>
   </div>
   <div class="govuk-grid-row">

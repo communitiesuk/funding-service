@@ -31,6 +31,7 @@ class FlashMessageType(StrEnum):
     SUBMISSION_REOPENED = "submission_reopened"
     SUBMISSION_CHANGES_REQUESTED = "submission_changes_requested"
     COLLECTION_CREATED = "collection_created"
+    PUBLIC_SIGN_UP_SUCCESS = "public_sign_up_success"
 
 
 class TRadioItem(TypedDict):

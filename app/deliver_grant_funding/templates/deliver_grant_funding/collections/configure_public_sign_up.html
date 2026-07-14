@@ -19,7 +19,6 @@
     <div class="govuk-grid-column-two-thirds">
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        <!-- display sign_up_url here once the public sign up endpoint is registered -->
         {% set sign_up_url = collection.public_sign_up %}
 
         {{
@@ -37,6 +36,8 @@
             ]
           })
         }}
+
+        {{ form.prospectus_markdown(params={"rows": 5}) }}
 
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Save"}) }}

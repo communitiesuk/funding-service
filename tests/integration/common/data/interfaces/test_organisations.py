@@ -2,7 +2,12 @@ import datetime
 
 import pytest
 
-from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
+from app.common.data.interfaces.organisations import (
+    get_organisation_count,
+    get_organisations,
+    get_organisations_by_trusted_domain,
+    upsert_organisations,
+)
 from app.common.data.models import Organisation
 from app.common.data.types import (
     OrganisationData,
@@ -119,6 +124,32 @@ class TestGetOrganisations:
         result = get_organisations(with_external_ids=["NONEXISTENT"])
 
         assert result == []
+
+
+class TestGetOrganisationsByTrustedDomain:
+    def test_returns_organisations_that_trust_the_domain(self, factories, db_session):
+        barnsley = factories.organisation.create(name="Barnsley Council", trusted_domains=["barnsley.gov.uk"])
+        factories.organisation.create(name="Leeds Council", trusted_domains=["leeds.gov.uk"])
+        factories.organisation.create(name="No Domains Council", trusted_domains=[])
+
+        assert get_organisations_by_trusted_domain("barnsley.gov.uk") == [barnsley]
+
+    def test_matches_regardless_of_the_case_of_the_domain(self, factories, db_session):
+        barnsley = factories.organisation.create(name="Barnsley Council", trusted_domains=["barnsley.gov.uk"])
+
+        assert get_organisations_by_trusted_domain("Barnsley.GOV.uk") == [barnsley]
+
+    def test_returns_nothing_when_no_organisation_trusts_the_domain(self, factories, db_session):
+        factories.organisation.create(name="Barnsley Council", trusted_domains=["barnsley.gov.uk"])
+
+        assert get_organisations_by_trusted_domain("gmail.com") == []
+
+    def test_ignores_retired_organisations(self, factories, db_session):
+        factories.organisation.create(
+            name="Retired Council", trusted_domains=["retired.gov.uk"], status=OrganisationStatus.RETIRED
+        )
+
+        assert get_organisations_by_trusted_domain("retired.gov.uk") == []
 
 
 class TestGetOrganisationCount:

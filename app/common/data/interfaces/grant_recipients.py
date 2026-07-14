@@ -97,6 +97,35 @@ def get_grant_recipient(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> Gran
     return db.session.scalars(statement).one()
 
 
+def get_grant_recipient_or_none(grant_id: uuid.UUID, organisation_id: uuid.UUID) -> GrantRecipient | None:
+    statement = (
+        select(GrantRecipient)
+        .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
+        .where(
+            GrantRecipient.grant_id == grant_id,
+            GrantRecipient.organisation_id == organisation_id,
+            cast(GrantRecipient.mode, String) == cast(Organisation.mode, String),
+        )
+        .options(joinedload(GrantRecipient.grant), joinedload(GrantRecipient.organisation))
+    )
+    return db.session.scalars(statement).one_or_none()
+
+
+@flush_and_rollback_on_exceptions()
+def create_grant_recipient(
+    grant: Grant, organisation: Organisation, status: GrantRecipientStatusEnum
+) -> GrantRecipient:
+    """Create a single grant recipient, keeping its mode in step with the organisation it is for."""
+    grant_recipient = GrantRecipient(
+        grant_id=grant.id,
+        organisation_id=organisation.id,
+        mode=GrantRecipientModeEnum(organisation.mode.value),
+        status=status,
+    )
+    db.session.add(grant_recipient)
+    return grant_recipient
+
+
 def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
     statement = (
         select(func.count())

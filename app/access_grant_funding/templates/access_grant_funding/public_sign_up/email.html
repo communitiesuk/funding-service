@@ -1,0 +1,39 @@
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "access_grant_funding/public_sign_up/base.html" %}
+
+{% set page_title = "Enter your work email address" %}
+
+{% block beforeContent %}
+  {{ super() }}
+  {{
+    govukBackLink({
+      "href": url_for("access_grant_funding.public_sign_up_start", grant_slug=grant.slug, collection_slug=collection.slug),
+      "text": "Back"
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.email_address(params={
+            "type": "email",
+            "autocomplete": "email",
+            "spellcheck": false,
+            "classes": "govuk-input--width-20",
+            "label": {"text": form.email_address.label.text, "isPageHeading": true, "classes": "govuk-label--l"},
+          })
+        }}
+        {{ form.submit }}
+      </form>
+
+      <p class="govuk-body govuk-!-margin-top-6">
+        If your organisation is not registered with this service, contact us through our
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>. Monday to Friday, 9am to 5pm (except public holidays).
+      </p>
+    </div>
+  </div>
+{% endblock content %}
