@@ -65,7 +65,7 @@ jobs:
         run: uv run --frozen playwright install --with-deps chromium
 
       - name: Set up Docker Compose
-        uses: docker/setup-compose-action@8cccb8c14b6500aaffebff1aa49c502c34d2e5e6 # v2.1.0
+        uses: docker/setup-compose-action@4eb059ff7f16592f9c84d5ca339c53cb7c5064e2 # v2.3.0
 
       - name: start chrome
         run: uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -k test_start_chrome
