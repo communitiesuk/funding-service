@@ -1771,7 +1771,6 @@ class TestSubmissionHelper:
             submission_submitted,
             grant_team_user,
             data_provider_user,
-            factories,
             mock_notification_service_calls,
         ):
             submission_submitted.collection.requires_certification = False
@@ -1794,30 +1793,24 @@ class TestSubmissionHelper:
             # clear the mock calls so we can check the next email
             mock_notification_service_calls.clear()
 
+            # Flush the snapshot stored in the reopen event before mutating answers,
+            # so the subsequent set() call doesn't corrupt the snapshot dict in-place.
+            update_submission_data(submission_submitted)
+
             # Change the answer of the form's question CHANGES_MADE
             question = form.cached_questions[0]
             submission_submitted.data_manager.set(question, TextSingleLineAnswer("Updated answer"))
 
-            # Mark the form as completed
-            factories.submission_event.create(
-                submission=submission_submitted,
-                related_entity_id=form.id,
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                created_by=data_provider_user,
-                created_at_utc=datetime(2026, 4, 12, 0, 0, 0),
-            )
-
-            form_status = helper.get_status_for_form(form)
-
-            # Form changes status to CHANGES_MADE
-            assert form_status == TasklistSectionStatusEnum.CHANGES_MADE
-
-            # Refresh the Submission status
-            helper._update_submission_status()
+            # Complete the form so the submission status goes to READY_TO_SUBMIT
+            helper.toggle_form_completed(form=form, user=data_provider_user, is_complete=True)
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
-            helper.submit(user=data_provider_user)
+            # Form changes status to CHANGES_MADE
+            form_status = helper.get_status_for_form(form)
+            assert form_status == TasklistSectionStatusEnum.CHANGES_MADE
 
+            # Submitting the submission sets the status to SUBMITTED_WITH_CHANGES
+            helper.submit(user=data_provider_user)
             assert helper.status == SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
 
             submission_with_changes_emails = [
@@ -1837,7 +1830,6 @@ class TestSubmissionHelper:
             submission_submitted,
             grant_team_user,
             data_provider_user,
-            factories,
             mock_notification_service_calls,
         ):
             submission_submitted.collection.requires_certification = False
@@ -1855,23 +1847,22 @@ class TestSubmissionHelper:
             # clear the mock calls so we can check the next email
             mock_notification_service_calls.clear()
 
+            # Flush the snapshot stored in the reopen event before mutating answers,
+            # so the subsequent set() call doesn't corrupt the snapshot dict in-place.
+            update_submission_data(submission_submitted)
+
             # Change the answer of the form's question CHANGES_MADE
             form = submission_submitted.collection.forms[0]
             question = form.cached_questions[0]
             submission_submitted.data_manager.set(question, TextSingleLineAnswer("Updated answer"))
 
-            factories.submission_event.create(
-                submission=submission_submitted,
-                related_entity_id=form.id,
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                created_by=data_provider_user,
-                created_at_utc=datetime(2026, 4, 12, 0, 0, 0),
-            )
-
-            helper._update_submission_status()
+            # Complete the form so the submission status goes to READY_TO_SUBMIT
+            helper.toggle_form_completed(form=form, user=data_provider_user, is_complete=True)
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
+            # Submitting the submission sets the status to SUBMITTED_WITH_CHANGES
             helper.submit(user=data_provider_user)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
 
             submission_with_changes_emails = [
                 call
@@ -2239,7 +2230,6 @@ class TestSubmissionHelper:
             grant_team_user,
             platform_admin_user,
             data_provider_user,
-            factories,
             mock_notification_service_calls,
         ):
             submission_changes_requested.collection.requires_certification = False
@@ -2250,13 +2240,8 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.CHANGES_REQUESTED
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.CHANGES_REQUESTED
 
-            factories.submission_event.create(
-                submission=submission_changes_requested,
-                related_entity_id=form.id,
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                created_by=data_provider_user,
-            )
-            helper._update_submission_status()
+            # Complete the form so the submission status goes to READY_TO_SUBMIT
+            helper.toggle_form_completed(form=form, user=data_provider_user, is_complete=True)
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
 
@@ -2264,7 +2249,6 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.SUBMITTED
 
             helper.reopen_submission(user=platform_admin_user, reopened_reason="Please also update this")
-            helper._update_submission_status()
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
 
